@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local environment
+.env
+.env.*
+env/
+.vscode/
+credentials.py
+
+# Data files
+*.csv
+*.parquet
+data/_tmp/
+data/analysis/
+data/feature_state/
+data/fit_results_all/
+data/fit_results_tuning/
+data/fit_results_unstable/
+data/optuna/
+data/simulations/
+
+# Generated models
+data/models/*
+!data/models/.gitkeep

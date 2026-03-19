@@ -1,0 +1,11 @@
+{
+  "symbol": "BTCUSDT",
+  "market": "um",
+  "source": "vision",
+  "intervals": [
+    "1m"
+  ],
+  "start_date": "",
+  "end_date": "",
+  "quiet": false
+}
