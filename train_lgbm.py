@@ -11,8 +11,10 @@ from features.candle_features import (
 from metrics_utils import weighted_brier_score
 from features.session_open_features import add_session_counter_features
 from modeling_dataset_utils import (
+    load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
     load_modeling_dataset_settings,
+    resolve_modeling_float_dtype_name,
     resolve_modeling_dataset_output_paths,
     split_feature_subset,
     summarize_feature_subset,
@@ -43,7 +45,7 @@ N_ESTIMATORS = 5000
 EARLY_STOPPING_ROUNDS = 50
 SEED = 37
 N_JOBS = 14
-MODELS_DIR = Path("data/models")
+MODELS_DIR = Path("data/models/runs")
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
 PREDICTION_THRESHOLD = 0.5
@@ -54,21 +56,21 @@ PRIMARY_REPORTING_METRIC = "brier_score"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-        "learning_rate": 0.00149752979585742,
-        "num_leaves": 128,
-        "min_data_in_leaf": 31,
-        "max_depth": 10,
-        "feature_fraction": 0.3668497153192713,
-        "bagging_fraction": 0.6842364646883217,
-        "bagging_freq": 18,
-        "lambda_l2": 16.915746933977747,
-        "lambda_l1": 2.0712451188077488,
-        "min_sum_hessian_in_leaf": 0.25380833829794036,
-        "min_gain_to_split": 0.8504082880772725,
-        "feature_fraction_bynode": 0.32836945948911733,
-        "path_smooth": 68.45674322734372,
-        "extra_trees": False
-      }
+      "learning_rate": 0.0032826894654068746,
+      "num_leaves": 240,
+      "min_data_in_leaf": 51,
+      "max_depth": 76,
+      "feature_fraction": 0.2600155012187151,
+      "bagging_fraction": 0.9386274411409469,
+      "bagging_freq": 4,
+      "lambda_l2": 8.97624362058438,
+      "lambda_l1": 5.935593621429428,
+      "min_sum_hessian_in_leaf": 0.22629666928997544,
+      "min_gain_to_split": 1.247365118812283,
+      "feature_fraction_bynode": 0.98701845583249,
+      "path_smooth": 18.823257423983854,
+      "extra_trees": False
+    }
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
     "num_leaves": 31,
@@ -211,8 +213,8 @@ def resolve_sample_weight_series(df):
         )
         source = "derived_from_opened"
 
-    sample_weight = sample_weight.astype(np.float32, copy=False)
-    sample_weight_np = sample_weight.to_numpy(dtype=np.float32, copy=False)
+    sample_weight = sample_weight.astype(np.float64, copy=False)
+    sample_weight_np = sample_weight.to_numpy(dtype=np.float64, copy=False)
     if sample_weight_np.shape[0] != len(df):
         raise ValueError("Sample weights length mismatch.")
     if not np.isfinite(sample_weight_np).all():
@@ -231,22 +233,25 @@ def clean_and_impute_fold(
     x_train_raw,
     x_test_raw,
 ):
-    train_medians = x_train_raw.median(numeric_only=True).astype(np.float32, copy=False)
-    all_nan_train_features = train_medians[train_medians.isna()].index.tolist()
+    all_nan_train_features = x_train_raw.columns[x_train_raw.isna().all()].tolist()
     if all_nan_train_features:
         x_train_raw = x_train_raw.drop(columns=all_nan_train_features)
         x_test_raw = x_test_raw.drop(columns=all_nan_train_features)
-        train_medians = train_medians.drop(index=all_nan_train_features)
 
-    x_train = x_train_raw.fillna(train_medians).astype(np.float32, copy=False)
-    x_test = x_test_raw.fillna(train_medians).astype(np.float32, copy=False)
-    return x_train, x_test, train_medians, all_nan_train_features, 0
+    x_train = x_train_raw.astype(np.float64, copy=False)
+    x_test = x_test_raw.astype(np.float64, copy=False)
+    return x_train, x_test, pd.Series(dtype=np.float64), all_nan_train_features, 0
 
 
 def load_walk_forward_training_frame(
     data_path,
     feature_subset=None,
+    excluded_features=None,
 ):
+    excluded_feature_names = (
+        tuple(excluded_features["features"]) if excluded_features else tuple()
+    )
+    excluded_feature_set = set(excluded_feature_names)
     selected_feature_columns = (
         list(feature_subset["features"]) if feature_subset else None
     )
@@ -259,6 +264,12 @@ def load_walk_forward_training_frame(
         print(
             "Feature subset active: "
             f"path={feature_subset['path']} count={feature_subset['count']}"
+        )
+    if excluded_features:
+        preview = ", ".join(excluded_feature_names[:5])
+        print(
+            "Feature exclusions active: "
+            f"count={excluded_features['count']} preview=[{preview}]"
         )
 
     df = pd.read_parquet(data_path)
@@ -324,7 +335,22 @@ def load_walk_forward_training_frame(
             )
         x = x.loc[:, selected_feature_columns]
 
-    x = x.astype(np.float32, copy=False)
+    if excluded_feature_set:
+        excluded_present_features = [
+            col for col in x.columns if col in excluded_feature_set
+        ]
+        excluded_missing_features = [
+            col for col in excluded_feature_names if col not in x.columns
+        ]
+        if excluded_present_features:
+            x = x.drop(columns=excluded_present_features)
+        print(
+            "Feature exclusions applied: "
+            f"dropped_feature_cols={len(excluded_present_features)} "
+            f"missing_requested={len(excluded_missing_features)}"
+        )
+
+    x = x.astype(np.float64, copy=False)
 
     return {
         "df": df,
@@ -370,10 +396,10 @@ def evaluate_walk_forward_variant(
 
         x_train_raw = x.iloc[tr_s:tr_e]
         y_train = y.iloc[tr_s:tr_e]
-        w_train = sample_weight.iloc[tr_s:tr_e].to_numpy(dtype=np.float32, copy=False)
+        w_train = sample_weight.iloc[tr_s:tr_e].to_numpy(dtype=np.float64, copy=False)
         x_test_raw = x.iloc[te_s:te_e]
         y_test = y.iloc[te_s:te_e]
-        w_test = sample_weight.iloc[te_s:te_e].to_numpy(dtype=np.float32, copy=False)
+        w_test = sample_weight.iloc[te_s:te_e].to_numpy(dtype=np.float64, copy=False)
 
         x_train, x_test, _, dropped_nan_features, _ = clean_and_impute_fold(
             x_train_raw, x_test_raw
@@ -488,11 +514,14 @@ def evaluate_walk_forward_variant(
 
 def main():
     dataset_settings = load_modeling_dataset_settings()
+    parquet_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
     feature_subset = load_feature_subset_from_settings(dataset_settings)
+    excluded_features = load_excluded_feature_names_from_settings(dataset_settings)
     training_data = load_walk_forward_training_frame(
         data_path=data_path,
         feature_subset=feature_subset,
+        excluded_features=excluded_features,
     )
     df = training_data["df"]
     x = training_data["x"]
@@ -517,6 +546,11 @@ def main():
     print(
         f"Sample weights | source={sample_weight_source} "
         f"summary={sample_weight_summary}"
+    )
+    print(
+        "Numeric precision | "
+        f"parquet_float_columns={parquet_float_dtype_name} "
+        "train_feature_matrix=float64 sample_weight=float64"
     )
 
     cv_variants = {
@@ -561,7 +595,7 @@ def main():
 
     oof_mask = np.isfinite(oof_pred_proba)
     oof_export = df.loc[oof_mask, OOF_EXPORT_BASE_COLS].assign(
-        **{OOF_PRED_COL: oof_pred_proba[oof_mask].astype(np.float32, copy=False)}
+        **{OOF_PRED_COL: oof_pred_proba[oof_mask].astype(np.float64, copy=False)}
     )
     OOF_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     oof_export.to_parquet(OOF_OUTPUT_PATH, index=False)
@@ -576,7 +610,7 @@ def main():
 
     best_iteration = max(10, int(cv_result["mean_best_iteration"]))
 
-    x_full, _, train_medians, all_nan_train_features, _ = clean_and_impute_fold(x, x)
+    x_full, _, _, all_nan_train_features, _ = clean_and_impute_fold(x, x)
 
     model = build_lgbm_model(
         n_estimators=best_iteration,
@@ -585,25 +619,25 @@ def main():
     model.fit(
         x_full,
         y,
-        sample_weight=sample_weight.to_numpy(dtype=np.float32, copy=False),
+        sample_weight=sample_weight.to_numpy(dtype=np.float64, copy=False),
     )
 
     y_full_pred_proba = model.predict_proba(x_full)[:, 1]
     full_fit_metrics = classification_metrics(
         y.to_numpy(),
         y_full_pred_proba,
-        sample_weight=sample_weight.to_numpy(dtype=np.float32, copy=False),
+        sample_weight=sample_weight.to_numpy(dtype=np.float64, copy=False),
     )
 
-    MODELS_DIR.mkdir(parents=True, exist_ok=True)
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    model_name = "lgbm"
-    model_path = MODELS_DIR / f"{model_name}_{run_timestamp}.txt"
-    meta_path = MODELS_DIR / f"{model_name}_meta_{run_timestamp}.json"
-    fi_path = MODELS_DIR / f"{model_name}_feature_importance_{run_timestamp}.csv"
+    run_dir = MODELS_DIR / run_timestamp
+    run_dir.mkdir(parents=True, exist_ok=True)
+    model_path = run_dir / f"lgbm_{run_timestamp}.txt"
+    meta_path = run_dir / f"lgbm_meta_{run_timestamp}.json"
+    fi_path = run_dir / f"lgbm_feature_importance_{run_timestamp}.csv"
     cv_fi_paths = {
-        model_variant: MODELS_DIR
-        / f"{model_name}_cv_feature_importance_{model_variant}_{run_timestamp}.csv"
+        model_variant: run_dir
+        / f"lgbm_cv_feature_importance_{model_variant}_{run_timestamp}.csv"
         for model_variant in cv_variants
     }
 
@@ -674,9 +708,17 @@ def main():
             },
             "full_fit_optuna": full_fit_metrics,
         },
-        "feature_selection": summarize_feature_subset(feature_subset),
+        "feature_selection": summarize_feature_subset(
+            feature_subset,
+            excluded_features=excluded_features,
+        ),
+        "numeric_precision": {
+            "parquet_float_columns": parquet_float_dtype_name,
+            "train_feature_matrix": "float64",
+            "sample_weight": "float64",
+            "oof_prediction": "float64",
+        },
         "feature_columns": list(x_full.columns),
-        "train_feature_medians": {k: float(v) for k, v in train_medians.items()},
         "model_hyperparameters": {
             "base": {
                 "objective": "binary",
@@ -705,6 +747,7 @@ def main():
             "optuna": cv_results["optuna"]["folds"],
         },
         "artifacts": {
+            "run_dir": str(run_dir),
             "final_model_path": str(model_path),
             "final_feature_importance_csv": str(fi_path),
             "cv_feature_importance_csv_default": str(cv_fi_paths["default"]),

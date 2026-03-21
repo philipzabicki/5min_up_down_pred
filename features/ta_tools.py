@@ -10,12 +10,15 @@ from .ta_custom_ma import (
     HammingMA,
     LWMA,
     MGD,
-    GMA,
+    GMA_or_SMA,
     FBA,
     NadarayWatsonMA,
     VWMA,
     RMA,
     HullMA,
+    LINEARREG_fast,
+    SWMA_fast,
+    SWMA_INV_fast,
 )
 
 
@@ -30,22 +33,22 @@ MA_FUNCS = {
     "TEMA": lambda s, period: talib.TEMA(s, timeperiod=period),
     "T3": lambda s, period: talib.T3(s, timeperiod=period),
     "MAMA": lambda s, _: talib.MAMA(s)[0],
-    # "LINREG": lambda s, period: talib.LINEARREG(s, timeperiod=period), # slow top2
     # Pandas-TA & External Libs (ti)
-    # "SWMA": lambda s, period: p_ta.swma(Series(s), length=period, asc=True).to_numpy(), # slow top1
-    # "SWMA_INV": lambda s, period: p_ta.swma(Series(s), length=period, asc=False).to_numpy(), # slow top1
     "EHMA": lambda s, period: ti.ehma(s, period),
     "LMA": lambda s, period: ti.lma(s, period),
     "SHMMA": lambda s, period: ti.shmma(s, period),
     "AHMA": lambda s, period: ti.ahma(s, period),
     # Custom Functions
+    "LINREG": lambda s, period: LINEARREG_fast(s, period),
+    "SWMA": lambda s, period: SWMA_fast(s, period),
+    "SWMA_INV": lambda s, period: SWMA_INV_fast(s, period),
     "HMA": lambda s, period: HullMA(s, max(period, 4)),
     "RMA": lambda s, period: RMA(s, timeperiod=period),
     "ALMA": lambda s, period: ALMA(s, timeperiod=period),
     "HAMMING": lambda s, period: HammingMA(s, period),
     "LWMA": lambda s, period: LWMA(s, period),
     "MGD": lambda s, period: MGD(s, period),
-    "GMA": lambda s, period: GMA(s, period),
+    "GMA": lambda s, period: GMA_or_SMA(s, period), # SMA for s<=0
     "FBA": lambda s, period: FBA(s, period),
     # Nadaraya-Watson (Kernel variations)
     "NWMA_GAUSS": lambda s, period: NadarayWatsonMA(s, period, kernel=0),

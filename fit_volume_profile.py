@@ -6,6 +6,7 @@ import lightgbm as lgb
 import numpy as np
 import optuna
 import pandas as pd
+from data_quality_filters import drop_frozen_ohlc_blocks
 
 from features.candle_features import RAW_OHLCV_COLS
 from metrics_utils import make_lightgbm_binary_brier_eval
@@ -18,6 +19,7 @@ from target_weights import (
     TARGET_WEIGHT_COL,
     TARGET_WEIGHT_DECISION_VALUE,
     add_target_weights,
+    compute_binary_close_target_from_opened,
     summarize_target_weights,
 )
 
@@ -26,18 +28,19 @@ TARGET_PRICE_COL = "Close"
 TARGET_COL = "target_5m_candle_up"
 TARGET_HORIZON_MINUTES = 5
 
-BASE_DATA_PATH = Path("data/BTCUSDT1m.csv")
+MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
+BASE_DATA_PATH = Path("data") / str(MODELING_DATASET_SETTINGS["base_data_file"])
 SEED = 37
 
 CV_FOLDS = 10
 WF_TEST_TO_TRAIN_RATIO = 0.2
 MIN_SAMPLE_WEIGHT = float(TARGET_WEIGHT_DECISION_VALUE)
 
-MAX_N_ESTIMATORS = 5000
-EARLY_STOPPING_ROUNDS = 50
+MAX_N_ESTIMATORS = 300
+EARLY_STOPPING_ROUNDS = 40
 PRUNE_REPORT_EVERY_N_ITER = 10
 
-LGBM_NUM_THREADS = 14
+LGBM_NUM_THREADS = 16
 OPTUNA_OPTIMIZE_N_JOBS = 1
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
@@ -45,14 +48,14 @@ GPU_MAX_BIN_LIMIT = 63
 LGBM_GPU_USE_DP = True
 
 LGBM_DEFAULT_PARAMS = {
-    "learning_rate": 0.1,
-    "num_leaves": 31,
-    "min_data_in_leaf": 20,
-    "max_depth": -1,
+    "learning_rate": 0.05,
+    "num_leaves": 63,
+    "min_data_in_leaf": 64,
+    "max_depth": 6,
     "feature_fraction": 1.0,
     "bagging_fraction": 1.0,
     "bagging_freq": 0,
-    "lambda_l2": 0.0,
+    "lambda_l2": 1.0,
     "lambda_l1": 0.0,
     "min_sum_hessian_in_leaf": 0.001,
     "min_gain_to_split": 0.0,
@@ -66,14 +69,14 @@ LGBM_DEFAULT_PARAMS = {
 # v7/v8 searches with the later conservative pass. The goal is to reopen
 # truncated edges without going back to the original fully loose space.
 VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
-    "step": {"type": "int", "low": 1, "high": 136, "log": True},
-    "neighbor_bins": {"type": "int", "low": 1, "high": 24},
+    "step": {"type": "int", "low": 1, "high": 200, "log": True},
+    "neighbor_bins": {"type": "int", "low": 1, "high": 32},
     "local_window": {"type": "int", "low": 1, "high": 256, "log": True},
     "sigma_divisor": {"type": "float", "low": 0.25, "high": 50.0, "log": True},
     "min_sigma": {"type": "float", "low": 0.25, "high": 256.0, "log": True},
     "short_half_life_candles": {
         "type": "int",
-        "low": 12,
+        "low": 10,
         "high": 2_400,
         "log": True,
     },
@@ -122,24 +125,34 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     "short_half_life_candles": 67,
     "medium_half_life_candles": 5415,
     "long_half_life_candles": 19529
+    },
+    {
+      "step": 48,
+      "neighbor_bins": 16,
+      "local_window": 223,
+      "sigma_divisor": 0.5914936678621061,
+      "min_sigma": 1.0057446932628438,
+      "short_half_life_candles": 34,
+      "medium_half_life_candles": 2513,
+      "long_half_life_candles": 79742
     }
 ]
 
-N_TRIALS = 300
+N_TRIALS = 500
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
-TPE_STARTUP_TRIALS = 10
+TPE_STARTUP_TRIALS = int(N_TRIALS*0.1)
 
 CV_OBJECTIVE_NAME = "brier_score_mean_plus_std_penalty"
 CV_BRIER_STD_PENALTY = 1.0
 CRASH_PENALTY = 1.0
-STUDY_NAME = "volume_profile_fixed_range_opt_brier_mean_std_v4"
-STORAGE = "sqlite:///data/optuna/volume_profile_fixed_range_only_filtered_cv.db"
+STUDY_NAME = "volume_profile_opt_brier_mean_std_1520_20032026"
+STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
 BEST_RESULT_PATH = Path(
-    "data/models/volume_profile_fixed_range_only_filtered_cv_best_mean_std.json"
+    "data/optuna/volume_profile/volume_profile_best_mean_std.json"
 )
 TRIALS_CSV_PATH = Path(
-    "data/optuna/volume_profile_fixed_range_only_filtered_cv_trials_mean_std.csv"
+    "data/optuna/volume_profile/volume_profile_trials_mean_std.csv"
 )
 
 
@@ -153,9 +166,11 @@ def build_target_frame(df):
     out = df.copy()
     out[TARGET_TIME_COL] = pd.to_datetime(out[TARGET_TIME_COL], errors="raise")
     out = out.sort_values(TARGET_TIME_COL).reset_index(drop=True)
-    future_close = out[TARGET_PRICE_COL].shift(-TARGET_HORIZON_MINUTES)
-    target = (future_close > out[TARGET_PRICE_COL]).astype("float32")
-    out[TARGET_COL] = target.where(future_close.notna())
+    out[TARGET_COL] = compute_binary_close_target_from_opened(
+        opened_values=out[TARGET_TIME_COL],
+        close_values=out[TARGET_PRICE_COL],
+        horizon_minutes=TARGET_HORIZON_MINUTES,
+    )
     out = add_target_weights(out, opened_col=TARGET_TIME_COL, weight_col=TARGET_WEIGHT_COL)
     return out
 
@@ -180,6 +195,19 @@ def load_base_ohlcv_frame(data_path):
     df = pd.read_csv(data_path, usecols=required_columns)
     require_columns(df, required_columns)
     raw_rows = int(len(df))
+    df, drop_frozen_summary = drop_frozen_ohlc_blocks(
+        df,
+        raw_config=MODELING_DATASET_SETTINGS.get("drop_frozen_ohlc_blocks"),
+    )
+    if drop_frozen_summary["enabled"]:
+        print(
+            "load raw data | drop_frozen_ohlc_blocks "
+            f"min_block_len={drop_frozen_summary['min_block_len']} "
+            f"removed_rows={drop_frozen_summary['rows_removed']} "
+            f"removed_blocks={drop_frozen_summary['blocks_removed']} "
+            f"largest_block_len={drop_frozen_summary['largest_block_len']} "
+            f"rows_after={drop_frozen_summary['rows_after']}"
+        )
 
     df = build_target_frame(df)
     df = df[df[TARGET_COL].notna()].reset_index(drop=True)

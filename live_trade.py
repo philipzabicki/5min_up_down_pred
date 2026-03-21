@@ -49,20 +49,24 @@ except ImportError:
 
 from live_predict_binance import (
     INTERVAL_DELTA,
+    LIVE_TRADE_DIR,
     LivePredictor,
     MAX_WS_RECONNECT_DELAY_SEC,
+    PRICE_SOURCE,
+    VOLUME_SOURCE,
     PREDICTIONS_EXPORT_COLUMNS as BASE_PREDICTIONS_EXPORT_COLUMNS,
     WS_PING_INTERVAL_SEC,
     WS_PING_TIMEOUT_SEC,
     WS_URL,
+    build_live_trade_records_path,
 )
+from kelly_utils import adjust_probability_for_kelly
 
 
 DEFAULT_GAMMA_HOST = "https://gamma-api.polymarket.com"
 DEFAULT_CLOB_HOST = "https://clob.polymarket.com"
 DEFAULT_DATA_API_HOST = "https://data-api.polymarket.com"
 DEFAULT_RELAYER_HOST = "https://relayer-v2.polymarket.com"
-DEFAULT_RECORDS_PATH = Path("data/live_trades_polymarket_btc_5m.csv")
 ENV_FILE_PATH = Path(__file__).resolve().with_name(".env")
 POLYMARKET_ORDER_PRICE_CAP = 0.537
 POLYMARKET_CRYPTO_FEE_EXPONENT = 2.0
@@ -550,7 +554,36 @@ class PolymarketMarketSnapshot:
         self.__dict__.update(kwargs)
 
 
-def load_polymarket_settings():
+def _path_compare_key(path):
+    return os.path.normcase(str(Path(path).resolve()))
+
+
+def resolve_polymarket_records_path(default_records_path, model_hash):
+    override_text = _env_text("POLY_RECORDS_PATH", "")
+    if not override_text:
+        return default_records_path
+
+    candidate = Path(override_text)
+    if _path_compare_key(candidate.parent) != _path_compare_key(LIVE_TRADE_DIR):
+        print(
+            "Ignoring POLY_RECORDS_PATH outside data/live/trade: "
+            f"{candidate}. Using default: {default_records_path}"
+        )
+        return default_records_path
+
+    required_model_token = f"model_{model_hash}"
+    if required_model_token not in candidate.stem:
+        print(
+            "Ignoring POLY_RECORDS_PATH without required model hash token "
+            f"'{required_model_token}': {candidate.name}. "
+            f"Using default: {default_records_path.name}"
+        )
+        return default_records_path
+
+    return candidate
+
+
+def load_polymarket_settings(default_records_path, model_hash):
     return PolymarketSettings(
         gamma_host=_env_text("POLY_GAMMA_HOST", DEFAULT_GAMMA_HOST),
         clob_host=_env_text("POLY_CLOB_HOST", DEFAULT_CLOB_HOST),
@@ -569,7 +602,7 @@ def load_polymarket_settings():
         max_bankroll_usdc=_env_float("POLY_MAX_BANKROLL_USDC", math.inf),
         no_trade_last_seconds=_env_int("POLY_NO_TRADE_LAST_SECONDS", 20),
         start_bankroll_usdc=_env_float("POLY_START_BANKROLL_USDC", 1000.0),
-        records_path=Path(_env_text("POLY_RECORDS_PATH", str(DEFAULT_RECORDS_PATH))),
+        records_path=resolve_polymarket_records_path(default_records_path, model_hash),
         market_request_timeout_sec=_env_float("POLY_MARKET_REQUEST_TIMEOUT_SEC", 3.0),
         clob_http_timeout_sec=_env_float(
             "POLY_CLOB_HTTP_TIMEOUT_SEC",
@@ -577,6 +610,12 @@ def load_polymarket_settings():
         ),
         market_lookup_max_wait_ms=_env_int("POLY_MARKET_LOOKUP_MAX_WAIT_MS", 2500),
         market_lookup_retry_ms=_env_int("POLY_MARKET_LOOKUP_RETRY_MS", 100),
+        market_lookup_prefetch_lead_ms=_env_int(
+            "POLY_MARKET_LOOKUP_PREFETCH_LEAD_MS", 1200
+        ),
+        market_lookup_prefetch_max_age_ms=_env_int(
+            "POLY_MARKET_LOOKUP_PREFETCH_MAX_AGE_MS", 2500
+        ),
         execution_mode=_env_text("POLY_EXECUTION_MODE", "fok").lower(),
         relayer_api_key=_env_text("POLY_RELAYER_API_KEY", ""),
         relayer_api_key_address=_env_text("POLY_RELAYER_API_KEY_ADDRESS", ""),
@@ -586,7 +625,13 @@ def load_polymarket_settings():
 class PolymarketLiveTrader(LivePredictor):
     def __init__(self):
         super().__init__()
-        self.pm_cfg = load_polymarket_settings()
+        default_records_path = build_live_trade_records_path(
+            run_started_at_utc=self.run_started_at_utc,
+            model_hash=self.model_hash,
+            kelly_config_hash=self.kelly_config_hash,
+            modeling_dataset_config_hash=self.modeling_dataset_config_hash,
+        )
+        self.pm_cfg = load_polymarket_settings(default_records_path, self.model_hash)
         _configure_clob_http_client(self.pm_cfg.clob_http_timeout_sec)
         self.live_kelly_sizing = {
             "fractional_kelly": float(self.kelly_runtime["fractional_kelly"]),
@@ -625,9 +670,13 @@ class PolymarketLiveTrader(LivePredictor):
         self.records_lock = threading.Lock()
         self.pm_save_lock = threading.Lock()
         self.pm_bg_lock = threading.Lock()
+        self.pm_market_prefetch_lock = threading.Lock()
         self.pm_bg_future = None
         self.pm_bg_pending_reason = ""
         self.pm_bg_last_started = 0.0
+        self.pm_market_prefetch_timer = None
+        self.pm_market_prefetch_bucket_start = None
+        self.pm_market_prefetch_future = None
         self.pm_cash_balance_usdc = float("nan")
         self.pm_positions_value_usdc = float("nan")
         self.pm_last_account_sync_at = ""
@@ -748,7 +797,7 @@ class PolymarketLiveTrader(LivePredictor):
         if not self.predictions_path.exists():
             return
         try:
-            df = pd.read_csv(self.predictions_path)
+            df = pd.read_csv(self.predictions_path, low_memory=False)
         except Exception as exc:
             print(f"[pm] failed to load existing records: {exc}")
             return
@@ -760,10 +809,13 @@ class PolymarketLiveTrader(LivePredictor):
 
         if "record_id" in df.columns:
             df["record_id"] = df["record_id"].map(_safe_text)
+            initial_row_count = len(df)
             if df["record_id"].eq("").any():
                 self.pm_storage_requires_rewrite = True
             else:
                 df = df.drop_duplicates(subset=["record_id"], keep="last")
+                if len(df) != initial_row_count:
+                    self.pm_storage_requires_rewrite = True
         else:
             self.pm_storage_requires_rewrite = True
 
@@ -1384,6 +1436,153 @@ class PolymarketLiveTrader(LivePredictor):
             minutes=self.target_bucket_minutes
         )
 
+    def _next_unpredicted_bucket_start(self):
+        bucket_start = self._bucket_start_for_latest_candle()
+        while bucket_start in self.predicted_buckets:
+            bucket_start += pd.Timedelta(minutes=self.target_bucket_minutes)
+        return bucket_start
+
+    def _cancel_market_prefetch_timer_locked(self):
+        timer = self.pm_market_prefetch_timer
+        self.pm_market_prefetch_timer = None
+        if timer is not None:
+            timer.cancel()
+
+    def _submit_market_snapshot_prefetch(self, bucket_start):
+        bucket_start = pd.Timestamp(bucket_start)
+        with self.pm_market_prefetch_lock:
+            if bucket_start in self.predicted_buckets:
+                return None
+            if self.pm_market_prefetch_bucket_start == bucket_start:
+                future = self.pm_market_prefetch_future
+                if future is not None:
+                    return future
+            self._cancel_market_prefetch_timer_locked()
+            self.pm_market_prefetch_bucket_start = bucket_start
+            self.pm_market_prefetch_future = self.pm_lookup_pool.submit(
+                self._fetch_market_snapshot_prefetch_payload,
+                bucket_start,
+            )
+            return self.pm_market_prefetch_future
+
+    def _market_prefetch_timer_callback(self, bucket_start):
+        bucket_start = pd.Timestamp(bucket_start)
+        with self.pm_market_prefetch_lock:
+            if self.pm_market_prefetch_bucket_start != bucket_start:
+                return
+            self.pm_market_prefetch_timer = None
+        try:
+            self._submit_market_snapshot_prefetch(bucket_start)
+        except Exception:
+            pass
+
+    def _schedule_market_snapshot_prefetch(self, bucket_start):
+        lead_ms = max(int(self.pm_cfg.market_lookup_prefetch_lead_ms), 0)
+        if lead_ms <= 0:
+            return
+
+        bucket_start = pd.Timestamp(bucket_start)
+        if bucket_start in self.predicted_buckets:
+            return
+
+        prefetch_at = bucket_start - pd.Timedelta(milliseconds=lead_ms)
+        delay_sec = float((prefetch_at - pd.Timestamp.now(tz="UTC")).total_seconds())
+
+        timer_to_start = None
+        submit_now = False
+        with self.pm_market_prefetch_lock:
+            same_bucket = self.pm_market_prefetch_bucket_start == bucket_start
+            if same_bucket:
+                if self.pm_market_prefetch_future is not None:
+                    return
+                if self.pm_market_prefetch_timer is not None:
+                    return
+            self._cancel_market_prefetch_timer_locked()
+            self.pm_market_prefetch_bucket_start = bucket_start
+            self.pm_market_prefetch_future = None
+            if delay_sec <= 0.0:
+                submit_now = True
+            else:
+                timer = threading.Timer(
+                    delay_sec,
+                    self._market_prefetch_timer_callback,
+                    args=(bucket_start,),
+                )
+                timer.daemon = True
+                self.pm_market_prefetch_timer = timer
+                timer_to_start = timer
+        if timer_to_start is not None:
+            timer_to_start.start()
+            return
+        if submit_now:
+            self._submit_market_snapshot_prefetch(bucket_start)
+
+    def _market_lookup_future_for_bucket(self, bucket_start, latency_trace=None):
+        bucket_start = pd.Timestamp(bucket_start)
+        if latency_trace is not None:
+            latency_trace["_perf_market_lookup_submitted"] = time.perf_counter()
+
+        with self.pm_market_prefetch_lock:
+            if self.pm_market_prefetch_bucket_start == bucket_start:
+                future = self.pm_market_prefetch_future
+                if future is not None:
+                    if latency_trace is not None:
+                        latency_trace["pm_latency_market_lookup_queue_ms"] = 0.0
+                    return future
+                self._cancel_market_prefetch_timer_locked()
+
+        return self.pm_lookup_pool.submit(
+            self._fetch_market_snapshot_traced,
+            bucket_start,
+            latency_trace,
+        )
+
+    def _merge_prefetched_market_latency(self, latency_trace, latency_payload):
+        if latency_trace is None or not isinstance(latency_payload, dict):
+            return
+
+        for key in (
+            "pm_market_lookup_attempts",
+            "pm_latency_market_lookup_total_ms",
+            "pm_latency_market_lookup_retry_sleep_ms",
+            "pm_latency_market_lookup_gamma_ms",
+            "pm_latency_market_lookup_up_book_ms",
+            "pm_latency_market_lookup_down_book_ms",
+            "pm_latency_market_lookup_fee_rate_ms",
+        ):
+            value = latency_payload.get(key)
+            if value is None:
+                continue
+            latency_trace[key] = value
+
+    def _prefetched_market_payload_is_fresh(self, bucket_start, payload):
+        if not isinstance(payload, dict):
+            return False
+        if pd.Timestamp(payload.get("bucket_start")) != pd.Timestamp(bucket_start):
+            return False
+
+        max_age_ms = max(int(self.pm_cfg.market_lookup_prefetch_max_age_ms), 0)
+        fetched_at = payload.get("fetched_at")
+        if max_age_ms <= 0 or fetched_at is None:
+            return True
+
+        age_ms = (pd.Timestamp.now(tz="UTC") - pd.Timestamp(fetched_at)).total_seconds()
+        return age_ms * 1000.0 <= float(max_age_ms)
+
+    def _fetch_market_snapshot_prefetch_payload(self, bucket_start):
+        latency_trace = {}
+        snapshot = self._fetch_market_snapshot_traced(
+            bucket_start, latency_trace=latency_trace
+        )
+        latency_payload = _latency_snapshot(bucket_start, latency_trace)
+        latency_payload["pm_latency_market_lookup_queue_ms"] = 0.0
+        return {
+            "bucket_start": pd.Timestamp(bucket_start),
+            "snapshot": snapshot,
+            "latency_payload": latency_payload,
+            "fetched_at": _utc_now(),
+        }
+
     def _market_slug_for_bucket(self, bucket_start):
         if self.pm_cfg.market_slug_override:
             return self.pm_cfg.market_slug_override
@@ -1632,10 +1831,13 @@ class PolymarketLiveTrader(LivePredictor):
                 "seconds_to_close": float(seconds_to_close),
             }
 
-        p = 0.5 + float(self.live_kelly_sizing["prob_shrink"]) * (
-            float(prob_up_raw) - 0.5
+        p = float(
+            adjust_probability_for_kelly(
+                float(prob_up_raw),
+                prob_shrink=float(self.live_kelly_sizing["prob_shrink"]),
+                min_clip=1e-6,
+            )
         )
-        p = float(np.clip(p, 1e-6, 1.0 - 1e-6))
 
         candidates = []
         if np.isfinite(market.up_best_ask) and 0.0 < market.up_best_ask < 1.0:
@@ -1875,6 +2077,14 @@ class PolymarketLiveTrader(LivePredictor):
         if not self.records:
             return 0
 
+        with self.records_lock:
+            pending_boundaries = self._pending_settlement_boundaries(self.records)
+            pending_records = [dict(rec) for rec in self.records]
+        if self.settlement_source == "polymarket":
+            self._refresh_polymarket_markets(pending_records)
+        else:
+            self._refresh_settlement_candles(pending_boundaries)
+
         resolved_now = 0
         resolved_at = pd.Timestamp.now(tz="UTC")
         with self.records_lock:
@@ -1882,23 +2092,15 @@ class PolymarketLiveTrader(LivePredictor):
                 if rec["actual_up"] is not None:
                     continue
 
-                start_candle = self.candle_open_close.get(rec["bucket_start"])
-                end_candle = self.candle_open_close.get(rec["bucket_end"])
-                if start_candle is None or end_candle is None:
+                if not self._resolve_record_outcome_from_settlement_truth(
+                    rec,
+                    resolved_at=resolved_at,
+                ):
                     continue
-
-                bucket_open = float(start_candle[0])
-                bucket_close = float(end_candle[1])
-                actual_up = int(bucket_close > bucket_open)
-
-                rec["bucket_open_price"] = bucket_open
-                rec["bucket_close_price"] = bucket_close
-                rec["actual_up"] = actual_up
-                rec["is_correct"] = int(actual_up == rec["signal_up"])
-                rec["resolved_at"] = resolved_at
 
                 stake_usdc = float(rec.get("stake_usdc", 0.0) or 0.0)
                 side = str(rec.get("kelly_side", "none"))
+                actual_up = int(rec["actual_up"])
                 if stake_usdc > 0.0 and side in {"up", "down"}:
                     rec["trade_is_win"] = int(
                         (side == "up" and actual_up == 1)
@@ -1920,7 +2122,18 @@ class PolymarketLiveTrader(LivePredictor):
     def _resolve_market_snapshot(self, bucket_start, market_future, latency_trace=None):
         wait_started_perf = time.perf_counter()
         try:
-            return market_future.result()
+            result = market_future.result()
+            if self._prefetched_market_payload_is_fresh(bucket_start, result):
+                self._merge_prefetched_market_latency(
+                    latency_trace,
+                    result.get("latency_payload"),
+                )
+                return result["snapshot"]
+            if isinstance(result, dict):
+                return self._fetch_market_snapshot_traced(
+                    bucket_start, latency_trace=latency_trace
+                )
+            return result
         except Exception:
             return self._fetch_market_snapshot_traced(
                 bucket_start, latency_trace=latency_trace
@@ -2163,11 +2376,8 @@ class PolymarketLiveTrader(LivePredictor):
         minute_close = minute_open + pd.Timedelta(minutes=1)
         bucket_start = self._bucket_start_for_latest_candle()
         bucket_end = bucket_start + pd.Timedelta(minutes=self.target_bucket_minutes - 1)
-        latency_trace["_perf_market_lookup_submitted"] = time.perf_counter()
-        market_future = self.pm_lookup_pool.submit(
-            self._fetch_market_snapshot_traced,
-            bucket_start,
-            latency_trace,
+        market_future = self._market_lookup_future_for_bucket(
+            bucket_start, latency_trace=latency_trace
         )
         if volume_profile_values is None:
             volume_profile_started_perf = time.perf_counter()
@@ -2406,7 +2616,6 @@ class PolymarketLiveTrader(LivePredictor):
                 if signature == self.pm_persisted_record_signatures.get(record_id):
                     continue
                 changed_records.append(rec)
-                self.pm_persisted_record_signatures[record_id] = signature
 
             if not changed_records:
                 return
@@ -2419,19 +2628,21 @@ class PolymarketLiveTrader(LivePredictor):
                 )
                 for idx, record in enumerate(records)
             }
+            # Persist one latest snapshot per record_id; appending snapshots caused
+            # the CSV to balloon with duplicate rows for the same bucket.
             frame = self._records_to_output_frame(
-                changed_records,
+                records,
                 snapshot_at=snapshot_at,
                 rates_by_record_id=rates_by_record_id,
             )
-            frame.to_csv(
-                self.predictions_path,
-                mode="a",
-                header=False,
-                index=False,
-            )
-            for rec in changed_records:
-                self.pm_dirty_record_ids.discard(_safe_text(rec.get("record_id")))
+            frame.to_csv(self.predictions_path, index=False)
+            self.pm_storage_requires_rewrite = False
+            self.pm_dirty_record_ids.clear()
+            self.pm_persisted_record_signatures = {
+                _safe_text(rec.get("record_id")): _record_state_signature(rec)
+                for rec in records
+                if _safe_text(rec.get("record_id"))
+            }
 
     def _log(self, tag, pred=None):
         stats = self._stats()
@@ -2547,6 +2758,7 @@ class PolymarketLiveTrader(LivePredictor):
                 f"request_timeout_sec={self.pm_cfg.market_request_timeout_sec:.2f} "
                 f"clob_http_timeout_sec={self.pm_cfg.clob_http_timeout_sec:.2f} "
                 f"market_lookup_max_wait_ms={self.pm_cfg.market_lookup_max_wait_ms} "
+                f"market_prefetch_lead_ms={self.pm_cfg.market_lookup_prefetch_lead_ms} "
                 f"exposure_cap_usdc={self.pm_cfg.max_exposure_usdc} "
                 f"bankroll_cap_usdc={self.pm_cfg.max_bankroll_usdc}"
             )
@@ -2556,6 +2768,7 @@ class PolymarketLiveTrader(LivePredictor):
                 f"request_timeout_sec={self.pm_cfg.market_request_timeout_sec:.2f} "
                 f"clob_http_timeout_sec={self.pm_cfg.clob_http_timeout_sec:.2f} "
                 f"market_lookup_max_wait_ms={self.pm_cfg.market_lookup_max_wait_ms} "
+                f"market_prefetch_lead_ms={self.pm_cfg.market_lookup_prefetch_lead_ms} "
                 f"exposure_cap_usdc={self.pm_cfg.max_exposure_usdc} "
                 f"bankroll_cap_usdc={self.pm_cfg.max_bankroll_usdc}"
             )
@@ -2579,8 +2792,10 @@ class PolymarketLiveTrader(LivePredictor):
         print(
             "Polymarket execution | "
             f"mode={'paper' if self.pm_cfg.paper_mode else 'live'} "
+            f"price_source={PRICE_SOURCE} volume_source={VOLUME_SOURCE} "
             f"series_slug={self.pm_cfg.series_slug} "
             f"market_slug_prefix={self.pm_cfg.market_slug_prefix} "
+            f"settlement_source={self.settlement_source} "
             f"execution_mode={self.pm_cfg.execution_mode} "
             f"order_price_cap={POLYMARKET_ORDER_PRICE_CAP:.3f} "
             f"records={self.predictions_path}"
@@ -2626,16 +2841,18 @@ class PolymarketLiveTrader(LivePredictor):
             ws_received_perf = time.perf_counter()
             ws_received_at = _utc_now()
             payload = json.loads(message)
-            kline = payload.get("k", {})
-            if not kline or not bool(kline.get("x", False)):
+            closed_candle, live_minute_opened, event_at = self._consume_ws_payload(
+                payload
+            )
+            if closed_candle is None:
                 return
             latency_trace = {
                 "_perf_ws_received": ws_received_perf,
                 "pm_ws_received_at": ws_received_at,
-                "pm_binance_event_at": _timestamp_from_ms(payload.get("E")),
+                "pm_binance_event_at": event_at,
             }
 
-            opened_from_ws = pd.to_datetime(int(kline["t"]), unit="ms", utc=True)
+            opened_from_ws = pd.to_datetime(int(closed_candle["t"]), unit="ms", utc=True)
             sync_started_perf = time.perf_counter()
             self._maybe_sync_missing_candles(opened_from_ws)
             latency_trace["pm_latency_sync_missing_candles_ms"] = _elapsed_ms(
@@ -2643,7 +2860,7 @@ class PolymarketLiveTrader(LivePredictor):
             )
 
             upsert_started_perf = time.perf_counter()
-            opened = self._upsert_closed_candle(kline)
+            opened = self._upsert_closed_candle(closed_candle)
             latency_trace["pm_latency_upsert_closed_candle_ms"] = _elapsed_ms(
                 upsert_started_perf
             )
@@ -2654,6 +2871,13 @@ class PolymarketLiveTrader(LivePredictor):
                 and opened <= self.last_processed_closed_opened
             ):
                 return
+            if PRICE_SOURCE == "index":
+                sync_after_started_perf = time.perf_counter()
+                self._maybe_sync_missing_candles(live_minute_opened)
+                latency_trace["pm_latency_sync_missing_candles_ms"] = float(
+                    latency_trace["pm_latency_sync_missing_candles_ms"]
+                    + _elapsed_ms(sync_after_started_perf)
+                )
 
             volume_profile_started_perf = time.perf_counter()
             volume_profile_values = self._extract_volume_profile_features_for_latest_candle()
@@ -2669,6 +2893,7 @@ class PolymarketLiveTrader(LivePredictor):
 
             self._update_volume_profile_state_for_latest_candle(opened)
             self.last_processed_closed_opened = opened
+            self._schedule_market_snapshot_prefetch(self._next_unpredicted_bucket_start())
             latency_trace["pm_latency_on_message_total_ms"] = _elapsed_ms(
                 message_started_perf
             )
@@ -2691,6 +2916,13 @@ class PolymarketLiveTrader(LivePredictor):
 
     def run_forever(self):
         self._print_runtime_configuration()
+        now_utc = pd.Timestamp.now(tz="UTC")
+        next_bucket_start = now_utc.floor(f"{self.target_bucket_minutes}min") + pd.Timedelta(
+            minutes=self.target_bucket_minutes
+        )
+        while next_bucket_start in self.predicted_buckets:
+            next_bucket_start += pd.Timedelta(minutes=self.target_bucket_minutes)
+        self._schedule_market_snapshot_prefetch(next_bucket_start)
         self._schedule_background_sync("startup", force=True)
 
         delay = 1

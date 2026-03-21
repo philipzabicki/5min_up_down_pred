@@ -14,6 +14,10 @@
       "min_bucket_size": 600,
       "min_valid_segments": 12,
       "base_pop_size": 512,
+      "drop_frozen_ohlc_blocks": {
+        "enabled": true,
+        "min_block_len": 3
+      },
       "intervals": {
         "1m": {
           "data_path": "C:\\Cloud\\filips19mail\\github\\5min_up_down_pred\\data\\",

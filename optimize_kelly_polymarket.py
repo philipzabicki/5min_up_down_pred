@@ -8,11 +8,16 @@ import optuna
 import pandas as pd
 from numba import njit
 
-optuna.logging.set_verbosity(optuna.logging.WARNING)
+from kelly_utils import adjust_probability_for_kelly
+
+optuna.logging.set_verbosity(optuna.logging.INFO)
 
 
 INPUT_PATH = Path("data/BTCUSDT1m_oof_predictions.parquet")
-OUTPUT_PATH = Path("configs/kelly_config.json")
+RUNTIME_CONFIG_PATH = Path("configs/kelly_config.json")
+OPTUNA_STORAGE = "sqlite:///data/optuna/databases/kelly_polymarket.db"
+OPTUNA_OUTPUT_DIR = Path("data/optuna/kelly_polymarket")
+STUDY_NAME = "kelly_polymarket_opt_v17"
 SIMULATIONS_DIR = Path("data/simulations")
 
 REQUIRED_COLUMNS = [
@@ -38,19 +43,38 @@ FEE_ROUND_DECIMALS = 4
 MIN_FEE = 0.0001
 MIN_STAKE_USDC = 1.0
 
+# Manual live-vs-modeling probability error fit used only inside Kelly optimization.
+# Update these by hand from the accepted parity audit snapshot.
+ENABLE_MODEL_PROBA_ERROR_SIM = False 
+MODEL_PROBA_ABS_DIFF_MEAN = 0.003136730568813267
+MODEL_PROBA_ABS_DIFF_MAX = 0.026809411202558198
+MODEL_PROBA_ABS_DIFF_STD = MODEL_PROBA_ABS_DIFF_MAX / 3.0
+MODEL_PROBA_ERROR_POLICY = (
+    "signed_error = random_sign * max(normal(mean_abs_diff, max_abs_diff/3), 0.0); "
+    "p_simulated = clip(p_raw + signed_error); prob_shrink applied after simulated model error"
+)
+PROB_MIN_CLIP = 1e-6
+
 START_BANKROLL = 1000.0
 
 SEED = 37
-N_FOLDS = 15
-N_TRIALS = 3_000
+N_TRIALS = 1_500
 HOLDOUT_FRAC = 0.05
 EXECUTION_SCENARIO_SEEDS = [101, 202, 303, 404, 505]
-TPE_STARTUP_TRIALS = 1_000
+TPE_STARTUP_TRIALS = int(N_TRIALS * 0.2)
+TARGET_FOLD_DAYS = 21
+HOLDOUT_WINDOW_DAYS = 7
+HOLDOUT_WINDOW_RUNS = 25
+HOLDOUT_WINDOW_SCENARIO_SEEDS = [10_000 + idx for idx in range(1, HOLDOUT_WINDOW_RUNS + 1)]
+FULL_HOLDOUT_SCENARIO_SEED = 20_001
 
 SCORING_FORMULA = (
     "fold_score = log(final_bankroll / start_bankroll), "
-    "scenario_score = 0.9 * mean(fold_scores) + 0.1 * q25(fold_scores), "
-    "trial_score = 0.9 * mean(scenario_scores) + 0.1 * min(scenario_scores), "
+    "scenario_score = "
+    "0.45 * mean(fold_scores) + 0.30 * q10(fold_scores) + 0.15 * min(fold_scores) "
+    "- 0.10 * q90(fold_max_drawdowns), "
+    "trial_score = "
+    "0.45 * mean(scenario_scores) + 0.30 * q10(scenario_scores) + 0.15 * min(scenario_scores), "
     "if total scenario trades == 0: scenario_score = -1e9"
 )
 
@@ -74,8 +98,6 @@ STEP_LOG_COLUMNS = [
     "bankroll_after",
     "drawdown",
 ]
-
-
 def load_oof_frame() -> pd.DataFrame:
     if not INPUT_PATH.exists():
         raise FileNotFoundError(f"Missing input parquet: {INPUT_PATH}")
@@ -137,7 +159,7 @@ def build_decision_frame(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def sanity_check_target_alignment(df5: pd.DataFrame) -> float:
-    y_calc = (df5["Close"].shift(-1) > df5["Close"]).astype(np.int8)
+    y_calc = (df5["Close"].shift(-1) >= df5["Close"]).astype(np.int8)
     y_ref = df5["target_5m_candle_up"].astype(np.int8)
 
     match = y_calc.iloc[:-1].to_numpy() == y_ref.iloc[:-1].to_numpy()
@@ -151,7 +173,7 @@ def sanity_check_target_alignment(df5: pd.DataFrame) -> float:
         raise ValueError(
             "Target sanity-check failed for 1m->5m boundary mapping: "
             f"match_ratio={match_ratio:.6f} < {TARGET_SANITY_MIN_MATCH:.3f}. "
-            "Definitions are inconsistent with boundary-based target."
+            "Definitions are inconsistent with boundary-based tie-is-up target."
         )
     return match_ratio
 
@@ -175,8 +197,45 @@ def make_walk_forward_folds(n_obs: int, n_folds: int) -> list[tuple[int, int]]:
     return folds
 
 
+def infer_n_folds_for_target_days(
+    n_obs: int,
+    target_fold_days: int,
+) -> tuple[int, float]:
+    if target_fold_days <= 0:
+        raise ValueError(f"target_fold_days must be > 0, got {target_fold_days}")
+
+    decision_rows_per_day = (24 * 60) // DECISION_MINUTE_MODULO
+    target_rows_per_fold = max(int(target_fold_days * decision_rows_per_day), 1)
+    n_folds = max(10, int(round(n_obs / target_rows_per_fold)))
+    n_folds = min(n_folds, n_obs - 1)
+    approx_fold_days = n_obs / n_folds / decision_rows_per_day
+    return n_folds, float(approx_fold_days)
+
+
+def sample_model_proba_error_components(
+    rng: np.random.Generator,
+    n_rows: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    if not ENABLE_MODEL_PROBA_ERROR_SIM:
+        return (
+            np.zeros(n_rows, dtype=np.float64),
+            np.zeros(n_rows, dtype=np.int8),
+        )
+
+    model_error_abs_z = rng.standard_normal(n_rows).astype(np.float64, copy=False)
+    model_error_sign_bits = rng.integers(
+        0,
+        2,
+        size=n_rows,
+        dtype=np.int8,
+    )
+    return model_error_abs_z, model_error_sign_bits
+
+
 def build_trial_static_arrays(
     eps: np.ndarray,
+    model_error_abs_z: np.ndarray,
+    model_error_sign_bits: np.ndarray,
     sigma: float = SIGMA,
     spread_half: float = SPREAD_HALF,
 ) -> dict[str, np.ndarray]:
@@ -193,11 +252,22 @@ def build_trial_static_arrays(
     c_eff[valid] = price[valid] / (1.0 - fee_coef[valid])
     c_eff[~valid] = np.nan
 
+    if ENABLE_MODEL_PROBA_ERROR_SIM:
+        model_error_abs = np.maximum(
+            MODEL_PROBA_ABS_DIFF_MEAN + MODEL_PROBA_ABS_DIFF_STD * model_error_abs_z,
+            0.0,
+        )
+        model_error_sign = np.where(model_error_sign_bits == 0, -1.0, 1.0)
+        model_proba_error = model_error_sign * model_error_abs
+    else:
+        model_proba_error = np.zeros_like(eps, dtype=np.float64)
+
     return {
         "price": price,
         "fee_coef": fee_coef,
         "valid": valid,
         "c_eff": c_eff,
+        "model_proba_error": model_proba_error,
     }
 
 
@@ -211,14 +281,45 @@ def build_execution_scenario_static_arrays(
         rng = np.random.default_rng(int(scenario_seed))
         eps_tune = rng.standard_normal(n_tune_rows).astype(np.float64, copy=False)
         eps_holdout = rng.standard_normal(n_holdout_rows).astype(np.float64, copy=False)
+        model_error_abs_z_tune, model_error_sign_bits_tune = (
+            sample_model_proba_error_components(rng, n_tune_rows)
+        )
+        model_error_abs_z_holdout, model_error_sign_bits_holdout = (
+            sample_model_proba_error_components(rng, n_holdout_rows)
+        )
         scenarios.append(
             {
                 "seed": int(scenario_seed),
-                "tune_static_arrays": build_trial_static_arrays(eps_tune),
-                "holdout_static_arrays": build_trial_static_arrays(eps_holdout),
+                "tune_static_arrays": build_trial_static_arrays(
+                    eps_tune,
+                    model_error_abs_z_tune,
+                    model_error_sign_bits_tune,
+                ),
+                "holdout_static_arrays": build_trial_static_arrays(
+                    eps_holdout,
+                    model_error_abs_z_holdout,
+                    model_error_sign_bits_holdout,
+                ),
             }
         )
     return scenarios
+
+
+def build_single_execution_static_arrays(
+    n_rows: int,
+    scenario_seed: int,
+) -> dict[str, np.ndarray]:
+    rng = np.random.default_rng(int(scenario_seed))
+    eps = rng.standard_normal(n_rows).astype(np.float64, copy=False)
+    model_error_abs_z, model_error_sign_bits = sample_model_proba_error_components(
+        rng,
+        n_rows,
+    )
+    return build_trial_static_arrays(
+        eps,
+        model_error_abs_z,
+        model_error_sign_bits,
+    )
 
 
 def build_trial_arrays(
@@ -229,8 +330,16 @@ def build_trial_arrays(
     min_edge: float,
     prob_shrink: float,
 ) -> dict[str, np.ndarray]:
-    p = 0.5 + prob_shrink * (p_raw - 0.5)
-    p = np.clip(p, 1e-6, 1.0 - 1e-6)
+    p_simulated = np.clip(
+        p_raw + static_arrays["model_proba_error"],
+        PROB_MIN_CLIP,
+        1.0 - PROB_MIN_CLIP,
+    )
+    p = adjust_probability_for_kelly(
+        p_simulated,
+        prob_shrink=prob_shrink,
+        min_clip=PROB_MIN_CLIP,
+    )
 
     price = static_arrays["price"]
     fee_coef = static_arrays["fee_coef"]
@@ -540,9 +649,12 @@ def evaluate_cv_folds_for_scenario(
         fold_max_drawdown.append(float(segment_result["max_drawdown"]))
 
     fold_scores_arr = np.asarray(fold_scores, dtype=np.float64)
+    fold_max_drawdown_arr = np.asarray(fold_max_drawdown, dtype=np.float64)
     score = float(
-        0.9 * np.mean(fold_scores_arr)
-        + 0.1 * np.quantile(fold_scores_arr, 0.25)
+        0.45 * np.mean(fold_scores_arr)
+        + 0.30 * np.quantile(fold_scores_arr, 0.10)
+        + 0.15 * np.min(fold_scores_arr)
+        - 0.10 * np.quantile(fold_max_drawdown_arr, 0.90)
     )
     if sum(fold_trades) == 0:
         score = -1e9
@@ -600,20 +712,169 @@ def evaluate_trial_across_execution_scenarios(
     fold_max_drawdown_arr = np.asarray(fold_max_drawdown, dtype=np.float64)
 
     return {
-        "score": float(0.9 * np.mean(scenario_scores_arr) + 0.1 * np.min(scenario_scores_arr)),
+        "score": float(
+            0.45 * np.mean(scenario_scores_arr)
+            + 0.30 * np.quantile(scenario_scores_arr, 0.10)
+            + 0.15 * np.min(scenario_scores_arr)
+        ),
         "mean_scenario_score": float(np.mean(scenario_scores_arr)),
+        "q10_scenario_score": float(np.quantile(scenario_scores_arr, 0.10)),
         "min_scenario_score": float(np.min(scenario_scores_arr)),
         "mean_fold_score": float(np.mean(fold_scores_arr)),
+        "q10_fold_score": float(np.quantile(fold_scores_arr, 0.10)),
+        "min_fold_score": float(np.min(fold_scores_arr)),
         "q25_fold_score": float(np.quantile(fold_scores_arr, 0.25)),
         "mean_fold_trades": float(np.mean(fold_trades_arr)),
         "mean_fold_log_growth": float(np.mean(fold_log_growth_arr)),
         "mean_fold_max_drawdown": float(np.mean(fold_max_drawdown_arr)),
+        "q90_fold_max_drawdown": float(np.quantile(fold_max_drawdown_arr, 0.90)),
+    }
+
+
+def build_runtime_config(
+    fractional_kelly: float,
+    cap: float,
+    min_edge: float,
+    prob_shrink: float,
+) -> dict[str, Any]:
+    return {
+        "fractional_kelly": float(fractional_kelly),
+        "cap": float(cap),
+        "min_edge": float(min_edge),
+        "prob_shrink": float(prob_shrink),
+        "min_stake_usdc": float(MIN_STAKE_USDC),
+        "sigma": float(SIGMA),
+        "spread_half": float(SPREAD_HALF),
+        "fee_model": {
+            "feeRate": float(FEE_RATE),
+            "exponent": float(FEE_EXPONENT),
+            "fee_round_decimals": int(FEE_ROUND_DECIMALS),
+            "min_fee": float(MIN_FEE),
+        },
+        "price_sim": {
+            "base_price": float(BASE_PRICE),
+            "price_clip_lo": float(PRICE_CLIP_LO),
+            "price_clip_hi": float(PRICE_CLIP_HI),
+        },
+        "model_proba_error_sim": {
+            "enabled": bool(ENABLE_MODEL_PROBA_ERROR_SIM),
+            "abs_diff_mean": float(MODEL_PROBA_ABS_DIFF_MEAN),
+            "abs_diff_max": float(MODEL_PROBA_ABS_DIFF_MAX),
+            "abs_diff_std": float(MODEL_PROBA_ABS_DIFF_STD),
+            "policy": (
+                MODEL_PROBA_ERROR_POLICY if ENABLE_MODEL_PROBA_ERROR_SIM else "disabled"
+            ),
+            "prob_min_clip": float(PROB_MIN_CLIP),
+        },
+    }
+
+
+def save_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(payload, f, indent=2)
+
+
+def build_holdout_window_specs(
+    opened_holdout: np.ndarray,
+    window_days: int,
+    n_runs: int,
+    scenario_seeds: list[int],
+) -> list[dict[str, Any]]:
+    if len(scenario_seeds) != n_runs:
+        raise ValueError(
+            "Holdout window scenario seeds count must match holdout window run count."
+        )
+    if opened_holdout.ndim != 1 or len(opened_holdout) == 0:
+        raise ValueError("Holdout opened array must be a non-empty 1D array.")
+
+    window_delta = np.timedelta64(int(window_days), "D")
+    latest_start_time = opened_holdout[-1] - window_delta
+    max_start_idx = int(np.searchsorted(opened_holdout, latest_start_time, side="right") - 1)
+    if max_start_idx < 0:
+        raise ValueError(
+            f"Holdout too short for {window_days} day windows. "
+            f"holdout_start={pd.Timestamp(opened_holdout[0]).isoformat()} "
+            f"holdout_end={pd.Timestamp(opened_holdout[-1]).isoformat()}"
+        )
+    if max_start_idx + 1 < n_runs:
+        raise ValueError(
+            f"Not enough distinct holdout starts for {n_runs} windows of {window_days} days. "
+            f"available_starts={max_start_idx + 1}"
+        )
+
+    raw_start_positions = np.linspace(0, max_start_idx, num=n_runs)
+    start_indices: list[int] = []
+    next_min_idx = 0
+    for run_idx, raw_position in enumerate(raw_start_positions):
+        remaining_runs = n_runs - run_idx - 1
+        max_allowed_idx = max_start_idx - remaining_runs
+        start_idx = int(round(float(raw_position)))
+        start_idx = max(start_idx, next_min_idx)
+        start_idx = min(start_idx, max_allowed_idx)
+        start_indices.append(start_idx)
+        next_min_idx = start_idx + 1
+
+    specs: list[dict[str, Any]] = []
+    for run_idx, start_idx in enumerate(start_indices, start=1):
+        start_time = opened_holdout[start_idx]
+        end_idx = int(np.searchsorted(opened_holdout, start_time + window_delta, side="left"))
+        if end_idx <= start_idx:
+            raise ValueError(
+                f"Invalid holdout window for run={run_idx}: start_idx={start_idx}, end_idx={end_idx}"
+            )
+        specs.append(
+            {
+                "window_id": int(run_idx),
+                "scenario_seed": int(scenario_seeds[run_idx - 1]),
+                "start_idx": int(start_idx),
+                "end_idx": int(end_idx),
+                "start_opened": pd.Timestamp(opened_holdout[start_idx]).isoformat(),
+                "end_opened": pd.Timestamp(opened_holdout[end_idx - 1]).isoformat(),
+            }
+        )
+    return specs
+
+
+def summarize_holdout_results(results: list[dict[str, Any]]) -> dict[str, Any]:
+    scores = np.asarray([float(result["fold_score"]) for result in results], dtype=np.float64)
+    final_bankrolls = np.asarray(
+        [float(result["final_bankroll"]) for result in results],
+        dtype=np.float64,
+    )
+    trades = np.asarray([int(result["trades"]) for result in results], dtype=np.int64)
+    hit_rates = np.asarray([float(result["hit_rate"]) for result in results], dtype=np.float64)
+    avg_edges = np.asarray([float(result["avg_edge"]) for result in results], dtype=np.float64)
+    avg_stakes = np.asarray([float(result["avg_stake"]) for result in results], dtype=np.float64)
+    mean_g = np.asarray([float(result["mean_g"]) for result in results], dtype=np.float64)
+    max_drawdowns = np.asarray(
+        [float(result["max_drawdown"]) for result in results],
+        dtype=np.float64,
+    )
+    return {
+        "score": float(0.75 * np.mean(scores) + 0.25 * np.min(scores)),
+        "mean_final_bankroll": float(np.mean(final_bankrolls)),
+        "worst_final_bankroll": float(np.min(final_bankrolls)),
+        "total_pnl": float(np.mean(final_bankrolls) - START_BANKROLL),
+        "mean_n_trades": float(np.mean(trades)),
+        "min_n_trades": int(np.min(trades)),
+        "mean_hit_rate": float(np.mean(hit_rates)),
+        "mean_avg_edge": float(np.mean(avg_edges)),
+        "mean_avg_stake": float(np.mean(avg_stakes)),
+        "mean_log_growth": float(np.mean(mean_g)),
+        "worst_log_growth": float(np.min(mean_g)),
+        "mean_max_drawdown": float(np.mean(max_drawdowns)),
+        "worst_max_drawdown": float(np.max(max_drawdowns)),
     }
 
 
 def main() -> None:
     print("optimize kelly polymarket | start")
     run_started_at_utc = datetime.now(timezone.utc)
+    run_timestamp = run_started_at_utc.strftime("%Y%m%d_%H%M%S")
+    holdout_trace_dir = SIMULATIONS_DIR / f"holdout_trace_{run_timestamp}"
+    trials_csv_path = OPTUNA_OUTPUT_DIR / f"kelly_polymarket_trials_{run_timestamp}.csv"
+    run_summary_path = OPTUNA_OUTPUT_DIR / f"kelly_polymarket_run_{run_timestamp}.json"
 
     df = load_oof_frame()
     df5 = build_decision_frame(df)
@@ -625,6 +886,14 @@ def main() -> None:
         f"min={float(np.min(p_raw_stats)):.6f} "
         f"mean={float(np.mean(p_raw_stats)):.6f} "
         f"max={float(np.max(p_raw_stats)):.6f}"
+    )
+    print(
+        "model error sim | "
+        f"enabled={ENABLE_MODEL_PROBA_ERROR_SIM} "
+        f"abs_mean={MODEL_PROBA_ABS_DIFF_MEAN:.6f} "
+        f"abs_max={MODEL_PROBA_ABS_DIFF_MAX:.6f} "
+        f"abs_std={MODEL_PROBA_ABS_DIFF_STD:.6f} "
+        f"policy={MODEL_PROBA_ERROR_POLICY if ENABLE_MODEL_PROBA_ERROR_SIM else 'disabled'}"
     )
 
     n_decision_rows = len(df5)
@@ -653,9 +922,14 @@ def main() -> None:
         scenario_seeds=EXECUTION_SCENARIO_SEEDS,
     )
 
-    folds = make_walk_forward_folds(n_obs=len(target_tune), n_folds=N_FOLDS)
+    n_folds, approx_fold_days = infer_n_folds_for_target_days(
+        n_obs=len(target_tune),
+        target_fold_days=TARGET_FOLD_DAYS,
+    )
+    folds = make_walk_forward_folds(n_obs=len(target_tune), n_folds=n_folds)
     print(
-        f"cv setup | n_folds={N_FOLDS} n_trials={N_TRIALS} "
+        f"cv setup | n_folds={n_folds} approx_fold_days={approx_fold_days:.2f} "
+        f"target_fold_days={TARGET_FOLD_DAYS} n_trials={N_TRIALS} "
         f"n_execution_scenarios={len(execution_scenarios)} "
         f"n_trades_tune={len(target_tune)} "
         f"first_fold=[{folds[0][0]}:{folds[0][1]}]"
@@ -663,7 +937,8 @@ def main() -> None:
     print(
         f"data split | holdout_frac={HOLDOUT_FRAC:.3f} split_idx={split_idx} "
         f"tune_rows={len(target_tune)} holdout_rows={len(target_holdout)} "
-        f"holdout_start_opened={pd.Timestamp(opened_holdout[0]).isoformat()}"
+        f"holdout_start_opened={pd.Timestamp(opened_holdout[0]).isoformat()} "
+        f"holdout_end_opened={pd.Timestamp(opened_holdout[-1]).isoformat()}"
     )
     print(f"execution scenarios | seeds={EXECUTION_SCENARIO_SEEDS}")
 
@@ -693,15 +968,20 @@ def main() -> None:
     print(
         "optuna setup | "
         f"n_trials={N_TRIALS} folds={len(folds)} "
-        f"n_execution_scenarios={len(execution_scenarios)}"
+        f"n_execution_scenarios={len(execution_scenarios)} "
+        f"study={STUDY_NAME} storage={OPTUNA_STORAGE}"
     )
     study = optuna.create_study(
         direction="maximize",
         sampler=sampler,
+        study_name=STUDY_NAME,
+        storage=OPTUNA_STORAGE,
+        load_if_exists=True,
     )
     study.optimize(
         objective,
         n_trials=N_TRIALS,
+        show_progress_bar=True,
         catch=(FloatingPointError, OverflowError),
     )
 
@@ -729,51 +1009,118 @@ def main() -> None:
         min_stake_usdc=MIN_STAKE_USDC,
     )
 
+    holdout_window_specs = build_holdout_window_specs(
+        opened_holdout=opened_holdout,
+        window_days=HOLDOUT_WINDOW_DAYS,
+        n_runs=HOLDOUT_WINDOW_RUNS,
+        scenario_seeds=HOLDOUT_WINDOW_SCENARIO_SEEDS,
+    )
+    print(
+        "holdout setup | "
+        f"window_days={HOLDOUT_WINDOW_DAYS} "
+        f"window_runs={HOLDOUT_WINDOW_RUNS} "
+        f"full_run_seed={FULL_HOLDOUT_SCENARIO_SEED}"
+    )
+
     min_price = float("inf")
     min_price_minus_base = float("inf")
-    holdout_results: list[dict[str, Any]] = []
-    holdout_trace_dir = (
-        SIMULATIONS_DIR / f"holdout_trace_{run_started_at_utc:%Y%m%d_%H%M%S}"
-    )
+    holdout_window_results: list[dict[str, Any]] = []
+    holdout_window_runs_output: list[dict[str, Any]] = []
     holdout_trace_dir.mkdir(parents=True, exist_ok=True)
-    holdout_trace_paths_by_scenario: dict[int, str] = {}
+    holdout_static_arrays_by_seed: dict[int, dict[str, np.ndarray]] = {}
+    for scenario_seed in [*HOLDOUT_WINDOW_SCENARIO_SEEDS, FULL_HOLDOUT_SCENARIO_SEED]:
+        static_arrays = build_single_execution_static_arrays(
+            n_rows=len(target_holdout),
+            scenario_seed=int(scenario_seed),
+        )
+        holdout_static_arrays_by_seed[int(scenario_seed)] = static_arrays
+        min_price = min(min_price, float(np.min(static_arrays["price"])))
+        min_price_minus_base = min(
+            min_price_minus_base,
+            float(np.min(static_arrays["price"] - BASE_PRICE)),
+        )
 
-    for scenario in execution_scenarios:
+    holdout_trace_csv_by_window_id: dict[str, str] = {}
+    for window_spec in holdout_window_specs:
+        scenario_seed = int(window_spec["scenario_seed"])
         best_arrays_holdout = build_trial_arrays(
             p_raw=p_raw_holdout,
-            static_arrays=scenario["holdout_static_arrays"],
+            static_arrays=holdout_static_arrays_by_seed[scenario_seed],
             fractional_kelly=best_fractional_kelly,
             cap=best_cap,
             min_edge=best_min_edge,
             prob_shrink=best_prob_shrink,
         )
-
-        min_price = min(min_price, float(np.min(best_arrays_holdout["price"])))
-        min_price_minus_base = min(
-            min_price_minus_base,
-            float(np.min(best_arrays_holdout["price"] - BASE_PRICE)),
-        )
-
         holdout_result = simulate_segment_trace(
             target=target_holdout,
             trial_arrays=best_arrays_holdout,
-            start_idx=0,
-            end_idx=len(target_holdout),
+            start_idx=int(window_spec["start_idx"]),
+            end_idx=int(window_spec["end_idx"]),
             min_stake_usdc=MIN_STAKE_USDC,
             opened=opened_holdout,
-            scenario_seed=int(scenario["seed"]),
+            scenario_seed=scenario_seed,
             start_bankroll=START_BANKROLL,
         )
-        holdout_trace_path = (
-            holdout_trace_dir / f"scenario_seed_{int(scenario['seed'])}.csv"
+        holdout_trace_path = holdout_trace_dir / (
+            f"window_{int(window_spec['window_id']):02d}_seed_{scenario_seed}.csv"
         )
         pd.DataFrame(holdout_result["step_log"]).to_csv(
             holdout_trace_path,
             index=False,
             columns=STEP_LOG_COLUMNS,
         )
-        holdout_trace_paths_by_scenario[int(scenario["seed"])] = str(holdout_trace_path)
-        holdout_results.append(holdout_result)
+        holdout_trace_csv_by_window_id[str(int(window_spec["window_id"]))] = str(
+            holdout_trace_path
+        )
+        holdout_window_results.append(holdout_result)
+        holdout_window_runs_output.append(
+            {
+                "window_id": int(window_spec["window_id"]),
+                "window_days": int(HOLDOUT_WINDOW_DAYS),
+                "scenario_seed": scenario_seed,
+                "start_idx": int(window_spec["start_idx"]),
+                "end_idx": int(window_spec["end_idx"]),
+                "start_opened": str(window_spec["start_opened"]),
+                "end_opened": str(window_spec["end_opened"]),
+                "score": float(holdout_result["fold_score"]),
+                "final_bankroll": float(holdout_result["final_bankroll"]),
+                "n_steps": int(holdout_result["n_steps"]),
+                "n_trades": int(holdout_result["trades"]),
+                "mean_log_growth": float(holdout_result["mean_g"]),
+                "max_drawdown": float(holdout_result["max_drawdown"]),
+                "hit_rate": float(holdout_result["hit_rate"]),
+                "avg_edge": float(holdout_result["avg_edge"]),
+                "avg_stake": float(holdout_result["avg_stake"]),
+                "holdout_trace_csv": str(holdout_trace_path),
+            }
+        )
+
+    full_holdout_arrays = build_trial_arrays(
+        p_raw=p_raw_holdout,
+        static_arrays=holdout_static_arrays_by_seed[FULL_HOLDOUT_SCENARIO_SEED],
+        fractional_kelly=best_fractional_kelly,
+        cap=best_cap,
+        min_edge=best_min_edge,
+        prob_shrink=best_prob_shrink,
+    )
+    full_holdout_result = simulate_segment_trace(
+        target=target_holdout,
+        trial_arrays=full_holdout_arrays,
+        start_idx=0,
+        end_idx=len(target_holdout),
+        min_stake_usdc=MIN_STAKE_USDC,
+        opened=opened_holdout,
+        scenario_seed=FULL_HOLDOUT_SCENARIO_SEED,
+        start_bankroll=START_BANKROLL,
+    )
+    full_holdout_trace_path = (
+        holdout_trace_dir / f"full_holdout_seed_{FULL_HOLDOUT_SCENARIO_SEED}.csv"
+    )
+    pd.DataFrame(full_holdout_result["step_log"]).to_csv(
+        full_holdout_trace_path,
+        index=False,
+        columns=STEP_LOG_COLUMNS,
+    )
 
     print(
         "price sanity | "
@@ -786,87 +1133,51 @@ def main() -> None:
             "Invalid price construction: min(price - BASE_PRICE) below spread_half."
         )
 
-    holdout_scores = np.asarray(
-        [float(result["fold_score"]) for result in holdout_results],
-        dtype=np.float64,
-    )
-    holdout_final_bankrolls = np.asarray(
-        [float(result["final_bankroll"]) for result in holdout_results],
-        dtype=np.float64,
-    )
-    holdout_trades = np.asarray(
-        [int(result["trades"]) for result in holdout_results],
-        dtype=np.int64,
-    )
-    holdout_hit_rates = np.asarray(
-        [float(result["hit_rate"]) for result in holdout_results],
-        dtype=np.float64,
-    )
-    holdout_avg_edges = np.asarray(
-        [float(result["avg_edge"]) for result in holdout_results],
-        dtype=np.float64,
-    )
-    holdout_avg_stakes = np.asarray(
-        [float(result["avg_stake"]) for result in holdout_results],
-        dtype=np.float64,
-    )
-    holdout_mean_g = np.asarray(
-        [float(result["mean_g"]) for result in holdout_results],
-        dtype=np.float64,
-    )
-    holdout_max_drawdowns = np.asarray(
-        [float(result["max_drawdown"]) for result in holdout_results],
-        dtype=np.float64,
-    )
+    holdout_window_summary = summarize_holdout_results(holdout_window_results)
+    full_holdout_output = {
+        "scenario_seed": int(FULL_HOLDOUT_SCENARIO_SEED),
+        "start_idx": 0,
+        "end_idx": int(len(target_holdout)),
+        "start_opened": pd.Timestamp(opened_holdout[0]).isoformat(),
+        "end_opened": pd.Timestamp(opened_holdout[-1]).isoformat(),
+        "score": float(full_holdout_result["fold_score"]),
+        "final_bankroll": float(full_holdout_result["final_bankroll"]),
+        "total_pnl": float(full_holdout_result["final_bankroll"] - START_BANKROLL),
+        "n_steps": int(full_holdout_result["n_steps"]),
+        "n_trades": int(full_holdout_result["trades"]),
+        "mean_log_growth": float(full_holdout_result["mean_g"]),
+        "max_drawdown": float(full_holdout_result["max_drawdown"]),
+        "hit_rate": float(full_holdout_result["hit_rate"]),
+        "avg_edge": float(full_holdout_result["avg_edge"]),
+        "avg_stake": float(full_holdout_result["avg_stake"]),
+        "holdout_trace_csv": str(full_holdout_trace_path),
+    }
 
-    holdout_score = float(0.9 * np.mean(holdout_scores) + 0.1 * np.min(holdout_scores))
-    mean_final_bankroll = float(np.mean(holdout_final_bankrolls))
-    total_pnl = mean_final_bankroll - START_BANKROLL
+    runtime_config = build_runtime_config(
+        fractional_kelly=best_fractional_kelly,
+        cap=best_cap,
+        min_edge=best_min_edge,
+        prob_shrink=best_prob_shrink,
+    )
+    study.trials_dataframe().to_csv(trials_csv_path, index=False)
 
-    holdout_scenarios_output = [
-        {
-            "scenario_seed": int(result["scenario_seed"]),
-            "score": float(result["fold_score"]),
-            "final_bankroll": float(result["final_bankroll"]),
-            "n_steps": int(result["n_steps"]),
-            "n_trades": int(result["trades"]),
-            "mean_log_growth": float(result["mean_g"]),
-            "max_drawdown": float(result["max_drawdown"]),
-            "hit_rate": float(result["hit_rate"]),
-            "avg_edge": float(result["avg_edge"]),
-            "avg_stake": float(result["avg_stake"]),
-            "holdout_trace_csv": holdout_trace_paths_by_scenario[
-                int(result["scenario_seed"])
-            ],
-        }
-        for result in holdout_results
-    ]
-
-    output = {
-        "fractional_kelly": best_fractional_kelly,
-        "cap": best_cap,
-        "min_edge": best_min_edge,
-        "prob_shrink": best_prob_shrink,
-        "min_stake_usdc": MIN_STAKE_USDC,
-        "sigma": SIGMA,
-        "spread_half": SPREAD_HALF,
-        "fee_model": {
-            "feeRate": FEE_RATE,
-            "exponent": FEE_EXPONENT,
-            "fee_round_decimals": FEE_ROUND_DECIMALS,
-            "min_fee": MIN_FEE,
-        },
-        "price_sim": {
-            "base_price": BASE_PRICE,
-            "sigma": SIGMA,
-            "spread_half": SPREAD_HALF,
-            "price_clip_lo": PRICE_CLIP_LO,
-            "price_clip_hi": PRICE_CLIP_HI,
-            "execution_price_formula": "price = base_price + spread_half + abs(sigma * eps)",
-            "execution_scenario_seeds": EXECUTION_SCENARIO_SEEDS,
-        },
+    run_output = {
+        "generated_at_utc": run_started_at_utc.isoformat(),
+        "input_path": str(INPUT_PATH),
+        "study_name": STUDY_NAME,
+        "storage": OPTUNA_STORAGE,
+        "runtime_config": runtime_config,
         "cv_meta": {
-            "n_folds": N_FOLDS,
+            "model_proba_error_enabled": bool(ENABLE_MODEL_PROBA_ERROR_SIM),
+            "model_proba_abs_diff_mean": float(MODEL_PROBA_ABS_DIFF_MEAN),
+            "model_proba_abs_diff_max": float(MODEL_PROBA_ABS_DIFF_MAX),
+            "model_proba_abs_diff_std": float(MODEL_PROBA_ABS_DIFF_STD),
+            "model_proba_error_policy": (
+                MODEL_PROBA_ERROR_POLICY if ENABLE_MODEL_PROBA_ERROR_SIM else "disabled"
+            ),
+            "n_folds": int(n_folds),
+            "target_fold_days": int(TARGET_FOLD_DAYS),
+            "approx_fold_days": float(approx_fold_days),
             "n_trials": N_TRIALS,
             "seed": SEED,
             "execution_scenario_seeds": EXECUTION_SCENARIO_SEEDS,
@@ -874,67 +1185,76 @@ def main() -> None:
             "best_trial_number": int(best_trial.number),
             "best_trial_score": float(best_trial.value),
             "mean_scenario_score": float(best_cv_result["mean_scenario_score"]),
+            "q10_scenario_score": float(best_cv_result["q10_scenario_score"]),
             "min_scenario_score": float(best_cv_result["min_scenario_score"]),
             "mean_fold_score": float(best_cv_result["mean_fold_score"]),
+            "q10_fold_score": float(best_cv_result["q10_fold_score"]),
+            "min_fold_score": float(best_cv_result["min_fold_score"]),
             "q25_fold_score": float(best_cv_result["q25_fold_score"]),
             "mean_fold_trades": float(best_cv_result["mean_fold_trades"]),
             "mean_fold_log_growth": float(best_cv_result["mean_fold_log_growth"]),
             "mean_fold_max_drawdown": float(best_cv_result["mean_fold_max_drawdown"]),
+            "q90_fold_max_drawdown": float(best_cv_result["q90_fold_max_drawdown"]),
         },
         "summary": {
-            "holdout_score": holdout_score,
-            "mean_final_bankroll": mean_final_bankroll,
-            "worst_final_bankroll": float(np.min(holdout_final_bankrolls)),
-            "total_pnl": float(total_pnl),
-            "mean_n_trades": float(np.mean(holdout_trades)),
-            "min_n_trades": int(np.min(holdout_trades)),
-            "mean_hit_rate": float(np.mean(holdout_hit_rates)),
-            "mean_avg_edge": float(np.mean(holdout_avg_edges)),
-            "mean_avg_stake": float(np.mean(holdout_avg_stakes)),
-            "mean_log_growth": float(np.mean(holdout_mean_g)),
-            "worst_log_growth": float(np.min(holdout_mean_g)),
-            "mean_max_drawdown": float(np.mean(holdout_max_drawdowns)),
-            "worst_max_drawdown": float(np.max(holdout_max_drawdowns)),
+            "holdout_window_score": float(holdout_window_summary["score"]),
+            "holdout_window_mean_final_bankroll": float(
+                holdout_window_summary["mean_final_bankroll"]
+            ),
+            "holdout_window_worst_final_bankroll": float(
+                holdout_window_summary["worst_final_bankroll"]
+            ),
+            "holdout_window_mean_n_trades": float(holdout_window_summary["mean_n_trades"]),
+            "holdout_window_min_n_trades": int(holdout_window_summary["min_n_trades"]),
+            "full_holdout_score": float(full_holdout_output["score"]),
+            "full_holdout_final_bankroll": float(full_holdout_output["final_bankroll"]),
+            "full_holdout_n_trades": int(full_holdout_output["n_trades"]),
+            "full_holdout_max_drawdown": float(full_holdout_output["max_drawdown"]),
         },
-        "holdout_scenarios": holdout_scenarios_output,
+        "holdout": {
+            "window_days": int(HOLDOUT_WINDOW_DAYS),
+            "window_run_count": int(HOLDOUT_WINDOW_RUNS),
+            "window_summary": holdout_window_summary,
+            "window_runs": holdout_window_runs_output,
+            "full_run": full_holdout_output,
+        },
         "data_split": {
             "holdout_frac": HOLDOUT_FRAC,
             "split_idx": int(split_idx),
             "tune_rows": int(len(target_tune)),
             "holdout_rows": int(len(target_holdout)),
             "holdout_start_opened": pd.Timestamp(opened_holdout[0]).isoformat(),
+            "holdout_end_opened": pd.Timestamp(opened_holdout[-1]).isoformat(),
         },
         "artifacts": {
+            "trials_csv": str(trials_csv_path),
             "holdout_trace_dir": str(holdout_trace_dir),
-            "holdout_trace_csv_by_scenario": {
-                str(seed): path
-                for seed, path in sorted(holdout_trace_paths_by_scenario.items())
-            },
+            "holdout_trace_csv_by_window_id": holdout_trace_csv_by_window_id,
+            "full_holdout_trace_csv": str(full_holdout_trace_path),
         },
         "sanity": {
             "target_match_ratio": float(match_ratio),
             "decision_rows": int(n_decision_rows),
             "trade_rows": int(n_trades),
         },
-        "generated_at_utc": run_started_at_utc.isoformat(),
     }
 
-    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with OUTPUT_PATH.open("w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2)
+    save_json(RUNTIME_CONFIG_PATH, runtime_config)
+    save_json(run_summary_path, run_output)
 
-    print(f"saved config | path={OUTPUT_PATH}")
+    print(f"saved runtime config | path={RUNTIME_CONFIG_PATH}")
+    print(f"saved optuna run | path={run_summary_path}")
+    print(f"saved optuna trials | path={trials_csv_path}")
     print(
         f"saved holdout traces | dir={holdout_trace_dir} "
-        f"n_files={len(holdout_trace_paths_by_scenario)}"
+        f"n_files={len(holdout_window_runs_output) + 1}"
     )
     print(
         "summary | "
-        f"holdout_score={holdout_score:.6f} "
-        f"mean_final_bankroll={mean_final_bankroll:.4f} "
-        f"worst_final_bankroll={float(np.min(holdout_final_bankrolls)):.4f} "
-        f"mean_trades={float(np.mean(holdout_trades)):.2f} "
-        f"min_trades={int(np.min(holdout_trades))}"
+        f"window_score={float(holdout_window_summary['score']):.6f} "
+        f"window_mean_final_bankroll={float(holdout_window_summary['mean_final_bankroll']):.4f} "
+        f"full_holdout_score={float(full_holdout_output['score']):.6f} "
+        f"full_holdout_final_bankroll={float(full_holdout_output['final_bankroll']):.4f}"
     )
 
 

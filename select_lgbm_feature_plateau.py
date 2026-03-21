@@ -20,7 +20,7 @@ from target_weights import (
 )
 
 
-DATA_PATH = Path("data/BTCUSDT1m_model_ready.parquet")
+DATA_PATH = Path("data\\BTCUSDT1m_model_ready.parquet")
 OUTPUT_ROOT = Path("data/analysis/feature_selector")
 
 TARGET_COL = "target_5m_candle_up"
@@ -80,7 +80,7 @@ MAX_SWEEP_EVALUATIONS = None
 MIN_REFINEMENT_INTERVAL = 1
 
 TOLERANCE_MODE = "abs"
-ABS_TOL = 0.00001
+ABS_TOL = 0.0000025
 REL_TOL = 0.0001
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 1

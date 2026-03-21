@@ -10,32 +10,40 @@
     "1h"
   ],
   "output_suffix": "_model_ready",
-  "fit_results_dir": "data/fit_results_all",
+  "fit_results_dir": "data/features/indicators_fit/all",
   "volume_profile_fixed_range": {
     "enabled": true,
     "price_min": 0.0,
     "price_max": 200000.0,
-    "step": 42,
-    "neighbor_bins": 9,
-    "local_window": 77,
-    "sigma_divisor": 8.250626386620294,
-    "min_sigma": 247.31082044719778,
+    "step": 48,
+    "neighbor_bins": 16,
+    "local_window": 223,
+    "sigma_divisor": 0.5914936678621061,
+    "min_sigma": 1.0057446932628438,
     "eps": 1e-06,
     "horizons": {
       "short": {
-        "half_life_candles": 67
+        "half_life_candles": 34
       },
       "medium": {
-        "half_life_candles": 5415
+        "half_life_candles": 2513
       },
       "long": {
-        "half_life_candles": 19529
+        "half_life_candles": 79742
       },
       "all": {
         "half_life_candles": null
       }
     }
   },
+  "drop_frozen_ohlc_blocks": {
+    "enabled": false,
+    "min_block_len": 3
+  },
   "preview_rows": 1000,
-  "feature_subset_path": "data\\analysis\\feature_selector\\20260317_234404\\recommended_features.json"
+  "feature_subset_path": "data\\analysis\\feature_selector\\20260321_033611\\recommended_features.json",
+  "excluded_feature_names": [
+    "ADX_fit_1m_pop16_adxper1355_adxthr9.587754_atrper173_matypadxmama_matypatrt3_matypnegdmnwmatria_matypposdmnwmagauss_negdmper1335_posdmper4",
+    "ADX_fit_1m_pop512_adxper564_atrper1316_matypadxfba_matypatrsma_matypnegdmmgd_matypposdmrma_negdmper1518_posdmper3_qe0.15_qm0.25_tf0.8_stmd_sg15",
+    "ADX_fit_2m_pop512_adxper24_atrper586_matypadxlma_matypatrtema_matypnegdmmgd_matypposdmfba_negdmper975_posdmper622_qe0.15_qm0.25_tf0.8_stmd_sg15"]
 }

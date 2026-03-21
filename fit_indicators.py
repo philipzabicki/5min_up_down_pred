@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from data_quality_filters import drop_frozen_ohlc_blocks
 
 from pymoo.core.mixed import MixedVariableGA
 from pymoo.core.mixed import (
@@ -42,7 +43,7 @@ from features.StochOsc import (
 
 CONFIG_FILE = "configs/fit_indicators_config.json"
 CPU_CORES_COUNT = 17
-FIT_RESULTS_ROOT = Path("data/fit_results_tuning")
+FIT_RESULTS_ROOT = Path("data/features/indicators_fit/tuning")
 
 DEFAULT_METRIC_NAME = "extremes_vs_mid_ir_oof"
 DEFAULT_METRIC_SEGMENTS_COUNT = 12
@@ -418,6 +419,13 @@ def main():
             )
 
             df = pd.read_csv(data_path / data_file)
+            df, drop_frozen_summary = drop_frozen_ohlc_blocks(
+                df,
+                raw_config=interval_cfg.get(
+                    "drop_frozen_ohlc_blocks",
+                    pair_cfg.get("drop_frozen_ohlc_blocks"),
+                ),
+            )
             ohlcv_cols = _infer_ohlcv_cols(df)
             ohlcv_np = df[ohlcv_cols].to_numpy(dtype=np.float64, copy=False)
             proxy_target_price_col = _resolve_existing_column_name(
@@ -437,6 +445,15 @@ def main():
                 f"metric_variants={len(metric_configs)} | "
                 f"base_pop_size: {base_pop_size}"
             )
+            if drop_frozen_summary["enabled"]:
+                print(
+                    f"{pair} | {interval} drop_frozen_ohlc_blocks "
+                    f"min_block_len={drop_frozen_summary['min_block_len']} "
+                    f"removed_rows={drop_frozen_summary['rows_removed']} "
+                    f"removed_blocks={drop_frozen_summary['blocks_removed']} "
+                    f"largest_block_len={drop_frozen_summary['largest_block_len']} "
+                    f"rows_after={drop_frozen_summary['rows_after']}"
+                )
             for metric_idx, metric_cfg in enumerate(metric_configs, start=1):
                 print(f"{pair} | {interval} metric[{metric_idx}] -> {metric_cfg}")
             pop_sizes_text = ", ".join(

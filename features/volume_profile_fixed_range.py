@@ -12,7 +12,13 @@ from numba import njit
 
 FEATURE_VERSION = "vp_fixed_range_v1"
 VP_FEATURE_PREFIX = "vp_"
-STATE_DIR = Path("data/feature_state/volume_profile")
+STATE_DIR = Path("data/features/state/volume_profile")
+RUNTIME_STATE_DIR = STATE_DIR / "runtime"
+MODELING_STATE_DIR = STATE_DIR / "modeling"
+AUDIT_ANCHOR_STATE_DIR = STATE_DIR / "audit_anchor"
+PSEUDO_LIVE_AUDIT_STATE_DIR = STATE_DIR / "pseudo_live_audit"
+PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR = PSEUDO_LIVE_AUDIT_STATE_DIR / "runtime"
+PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR = PSEUDO_LIVE_AUDIT_STATE_DIR / "modeling"
 
 DEFAULT_CONFIG = {
     "enabled": True,
@@ -910,7 +916,13 @@ def check_batch_live_consistency(
 
 
 __all__ = [
+    "AUDIT_ANCHOR_STATE_DIR",
     "FEATURE_VERSION",
+    "MODELING_STATE_DIR",
+    "PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR",
+    "PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR",
+    "PSEUDO_LIVE_AUDIT_STATE_DIR",
+    "RUNTIME_STATE_DIR",
     "STATE_DIR",
     "VP_FEATURE_PREFIX",
     "build_volume_profile_feature_matrix_from_arrays",

@@ -12,14 +12,16 @@ import pandas as pd
 import analyze_indicator_instability as instability
 import audit_indicator_stability as audit
 from create_modeling_dataset import parse_fit_results
+from modeling_dataset_utils import load_modeling_dataset_settings
 
 
-INPUT_DIR = Path("data/fit_results_all")
-UNSTABLE_DIR = Path("data/fit_results_unstable")
+INPUT_DIR = Path("data/features/indicators_fit/all")
+UNSTABLE_DIR = Path("data/features/indicators_fit/unstable")
 OUTPUT_DIR = Path("data/analysis/fit_results_stability")
 
 # Read only raw OHLCV and compute indicators sequentially from this source.
-REFERENCE_PATH = Path("data/BTCUSDT1m.csv")
+MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
+REFERENCE_PATH = Path("data") / str(MODELING_DATASET_SETTINGS["base_data_file"])
 
 ANCHORS = audit.ANCHORS
 MAX_WINDOW = audit.MAX_WINDOW

@@ -11,7 +11,7 @@ from pymoo.core.variable import Binary, Choice, Integer, Real
 
 NAN_RATIO_THRESHOLD = 0.05
 NAN_PENALTY = 10.0
-DEBUG_DIR = Path(__file__).resolve().parents[1] / "data" / "nan_debug"
+DEBUG_DIR = Path(__file__).resolve().parents[1] / "data" / "analysis" / "nan_debug"
 
 REAL_VAR_WEIGHT = 8.0
 BINARY_VAR_WEIGHT = 1.0

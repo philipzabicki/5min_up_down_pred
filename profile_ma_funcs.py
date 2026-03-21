@@ -65,7 +65,7 @@ def _serialize_value(value: Any) -> Any:
 
 def default_json_report_path() -> Path:
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return Path("data") / "analysis" / f"profile_ma_funcs_{ts}.json"
+    return Path("data") / "analysis" / "profile_ma_funcs" / f"profile_ma_funcs_{ts}.json"
 
 
 def _pick_single(values: Sequence[str], requested: str | None, field_name: str) -> str:

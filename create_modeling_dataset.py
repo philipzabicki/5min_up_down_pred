@@ -4,10 +4,14 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from data_quality_filters import drop_frozen_ohlc_blocks
 from modeling_dataset_utils import (
     MODELING_DATASET_CONFIG_FILE,
+    load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
     load_modeling_dataset_settings,
+    resolve_modeling_float_dtype,
+    resolve_modeling_float_dtype_name,
     resolve_modeling_dataset_output_paths,
     split_feature_subset,
 )
@@ -16,6 +20,7 @@ from target_weights import (
     TARGET_WEIGHT_DECISION_VALUE,
     TARGET_WEIGHT_OTHER_VALUE,
     add_target_weights,
+    compute_binary_close_target_from_opened,
     summarize_target_weights,
 )
 
@@ -32,9 +37,12 @@ from features.MACD import get_macd_values
 from features.session_open_features import add_session_counter_features
 from features.StochOsc import get_stochastic_oscillator_values
 from features.volume_profile_fixed_range import (
+    FEATURE_VERSION as VP_FEATURE_VERSION,
+    MODELING_STATE_DIR as VP_MODELING_STATE_DIR,
     build_volume_profile_features,
     get_feature_columns as get_volume_profile_feature_columns,
     normalize_config as normalize_volume_profile_config,
+    save_state as save_volume_profile_state,
 )
 
 TARGET_TIME_COL = "Opened"
@@ -47,6 +55,9 @@ PARAM_NAME_PART_RE = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+")
 FIT_RESULT_BASE_RE = re.compile(
     r"^(?P<indicator>ADX|BollingerBands|ChaikinOsc|KeltnerChannel|MACD|StochOsc)"
     r"_target_(?P<horizon>\d+m)_ahead_ret_pop(?P<pop>\d+)(?:_.*)?$"
+)
+BASE_DATA_FILE_SYMBOL_INTERVAL_RE = re.compile(
+    r"^(?P<symbol>[A-Za-z0-9_]+?)(?P<interval>\d+[mhdwM])$"
 )
 
 VALUE_BUILDERS = {
@@ -103,9 +114,11 @@ def build_target(df):
     out[TARGET_TIME_COL] = pd.to_datetime(out[TARGET_TIME_COL], errors="raise")
     out = out.sort_values(TARGET_TIME_COL).reset_index(drop=True)
 
-    future_close = out[TARGET_PRICE_COL].shift(-TARGET_HORIZON_MINUTES)
-    target = (future_close > out[TARGET_PRICE_COL]).astype("float32")
-    out[TARGET_COL] = target.where(future_close.notna())
+    out[TARGET_COL] = compute_binary_close_target_from_opened(
+        opened_values=out[TARGET_TIME_COL],
+        close_values=out[TARGET_PRICE_COL],
+        horizon_minutes=TARGET_HORIZON_MINUTES,
+    )
     out = add_target_weights(out, opened_col=TARGET_TIME_COL, weight_col=TARGET_WEIGHT_COL)
     return out
 
@@ -289,7 +302,20 @@ def parse_fit_results(fit_dir):
     )
 
 
-def add_indicator_values(df, ohlcv_np, configs):
+def resolve_volume_profile_modeling_state_path(base_data_file):
+    stem = Path(base_data_file).stem
+    match = BASE_DATA_FILE_SYMBOL_INTERVAL_RE.match(stem)
+    if not match:
+        raise ValueError(
+            "Could not derive symbol/interval for volume profile modeling state from "
+            f"base_data_file={base_data_file!r}. Expected e.g. BTCUSDT1m.csv"
+    )
+    symbol = match.group("symbol")
+    interval = match.group("interval")
+    return VP_MODELING_STATE_DIR / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
+
+
+def add_indicator_values(df, ohlcv_np, configs, float_dtype=np.float64):
     feature_values = {}
     for cfg in configs:
         indicator = cfg["indicator"]
@@ -310,7 +336,7 @@ def add_indicator_values(df, ohlcv_np, configs):
             raise ValueError(f"Column {feature_col} already exists in dataframe")
         if feature_col in feature_values:
             raise ValueError(f"Duplicate indicator feature column requested: {feature_col}")
-        feature_values[feature_col] = values.astype(np.float32, copy=False)
+        feature_values[feature_col] = values.astype(float_dtype, copy=False)
 
     feature_frame = pd.DataFrame(feature_values, index=df.index)
     return concat_feature_frame(df, feature_frame, context="Indicator features")
@@ -322,6 +348,11 @@ def build_dataset_from_settings(settings):
     base_data_file = str(settings["base_data_file"])
     streak_intervals = list(settings["candle_streak_intervals"])
     feature_subset = load_feature_subset_from_settings(settings)
+    excluded_features = load_excluded_feature_names_from_settings(settings)
+    excluded_feature_names = (
+        tuple(excluded_features["features"]) if excluded_features else tuple()
+    )
+    excluded_feature_set = set(excluded_feature_names)
     feature_subset_parts = (
         split_feature_subset(feature_subset["features"]) if feature_subset else None
     )
@@ -329,6 +360,9 @@ def build_dataset_from_settings(settings):
     vp_normalized_cfg = normalize_volume_profile_config(vp_cfg)
     vp_enabled = bool(vp_normalized_cfg["enabled"])
     vp_feature_cols = tuple(vp_normalized_cfg["feature_columns"])
+    float_dtype = resolve_modeling_float_dtype(settings)
+    float_dtype_name = resolve_modeling_float_dtype_name(settings)
+    drop_frozen_ohlc_blocks_cfg = settings.get("drop_frozen_ohlc_blocks")
     if feature_subset_parts and feature_subset_parts["unclassified_feature_cols"]:
         preview = ", ".join(feature_subset_parts["unclassified_feature_cols"][:10])
         raise ValueError(
@@ -397,15 +431,41 @@ def build_dataset_from_settings(settings):
         configs = [
             cfg for cfg in configs if cfg["feature_col"] in selected_indicator_feature_cols
         ]
+    elif excluded_feature_set:
+        configs = [
+            cfg for cfg in configs if cfg["feature_col"] not in excluded_feature_set
+        ]
 
     print(f"loading base dataset: {input_file}")
     if feature_subset:
+        source_count = int(feature_subset.get("source_count", feature_subset["count"]))
         print(
             "feature subset active: "
             f"path={feature_subset['path']} count={feature_subset['count']} "
-            f"format={feature_subset['format']}"
+            f"source_count={source_count} format={feature_subset['format']} "
+            f"excluded_from_subset={feature_subset.get('excluded_from_subset_count', 0)}"
         )
+    if excluded_features:
+        preview = ", ".join(excluded_feature_names[:5])
+        print(
+            "feature exclusions active: "
+            f"count={excluded_features['count']} preview=[{preview}]"
+        )
+    print(f"float precision mode: {float_dtype_name}")
     df = pd.read_csv(input_file)
+    df, drop_frozen_summary = drop_frozen_ohlc_blocks(
+        df,
+        raw_config=drop_frozen_ohlc_blocks_cfg,
+    )
+    if drop_frozen_summary["enabled"]:
+        print(
+            "drop frozen OHLC blocks: "
+            f"min_block_len={drop_frozen_summary['min_block_len']} "
+            f"removed_rows={drop_frozen_summary['rows_removed']} "
+            f"removed_blocks={drop_frozen_summary['blocks_removed']} "
+            f"largest_block_len={drop_frozen_summary['largest_block_len']} "
+            f"rows_after={drop_frozen_summary['rows_after']}"
+        )
     if streak_interval_to_rule:
         print(
             "adding candle streak features for intervals: "
@@ -439,11 +499,11 @@ def build_dataset_from_settings(settings):
             "adding fixed-range volume profile features "
             f"({len(expected_vp_cols)} cols)"
         )
-        vp_features_df, _ = build_volume_profile_features(df, vp_normalized_cfg)
+        vp_features_df, vp_state = build_volume_profile_features(df, vp_normalized_cfg)
         vp_feature_frame = pd.DataFrame(
             {
                 feature_col: vp_features_df[feature_col].to_numpy(
-                    dtype=np.float32, copy=False
+                    dtype=float_dtype, copy=False
                 )
                 for feature_col in expected_vp_cols
             },
@@ -454,16 +514,37 @@ def build_dataset_from_settings(settings):
             vp_feature_frame,
             context="Volume profile features",
         )
+        vp_state_path = resolve_volume_profile_modeling_state_path(base_data_file)
+        saved_paths = save_volume_profile_state(vp_state, vp_state_path)
+        print(f"[vp] saved modeling-end state -> {saved_paths['npz']}")
     else:
         print("skipping fixed-range volume profile features (disabled)")
     ohlcv_cols = infer_ohlcv_columns(df)
     ohlcv_np = df[ohlcv_cols].to_numpy(dtype=np.float64, copy=True)
     print(f"adding {len(configs)} indicator configs from {fit_results_dir}")
-    df = add_indicator_values(df, ohlcv_np, configs)
+    df = add_indicator_values(df, ohlcv_np, configs, float_dtype=float_dtype)
 
     require_columns(df, [TARGET_TIME_COL, TARGET_PRICE_COL])
     df = build_target(df)
     df, dropped_pseudo_targets = drop_pseudo_targets(df, TARGET_COL)
+    protected_cols = {
+        TARGET_TIME_COL,
+        TARGET_COL,
+        TARGET_WEIGHT_COL,
+        *ohlcv_cols,
+    }
+    excluded_present_cols = [
+        col for col in excluded_feature_names if col in df.columns
+    ]
+    excluded_droppable_cols = [
+        col for col in excluded_present_cols if col not in protected_cols
+    ]
+    excluded_protected_cols = [
+        col for col in excluded_present_cols if col in protected_cols
+    ]
+    excluded_missing_cols = [
+        col for col in excluded_feature_names if col not in df.columns
+    ]
     if feature_subset:
         missing_selected_features = [
             col for col in feature_subset["features"] if col not in df.columns
@@ -495,9 +576,25 @@ def build_dataset_from_settings(settings):
             f"kept_feature_cols={feature_subset['count']} "
             f"dropped_other_cols={len(dropped_unselected_cols)}"
         )
-    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
-    if numeric_cols:
-        df = df.astype({col: np.float32 for col in numeric_cols}, copy=False)
+    elif excluded_droppable_cols:
+        df = df.drop(columns=excluded_droppable_cols)
+        print(
+            "feature exclusions applied: "
+            f"dropped_feature_cols={len(excluded_droppable_cols)} "
+            f"missing_requested={len(excluded_missing_cols)} "
+            f"protected_kept={len(excluded_protected_cols)}"
+        )
+    elif excluded_features:
+        print(
+            "feature exclusions applied: "
+            f"dropped_feature_cols=0 missing_requested={len(excluded_missing_cols)} "
+            f"protected_kept={len(excluded_protected_cols)}"
+        )
+    float_cols = [
+        col for col in df.columns if pd.api.types.is_float_dtype(df[col])
+    ]
+    if float_cols:
+        df = df.astype({col: float_dtype for col in float_cols}, copy=False)
 
     output_paths = resolve_modeling_dataset_output_paths(settings)
     output_parquet = output_paths["parquet"]
@@ -534,9 +631,12 @@ def main():
         f"base_data_file={settings['base_data_file']} | "
         f"fit_results_dir={settings['fit_results_dir']} | "
         f"candle_streak_intervals={settings['candle_streak_intervals']} | "
+        f"drop_frozen_ohlc_blocks={settings['drop_frozen_ohlc_blocks']} | "
         f"output_suffix={settings['output_suffix']} | "
         f"preview_rows={settings['preview_rows']} | "
-        f"feature_subset_path={settings['feature_subset_path']}"
+        f"feature_subset_path={settings['feature_subset_path']} | "
+        f"excluded_feature_names_count={len(settings['excluded_feature_names'])} | "
+        f"float_precision={resolve_modeling_float_dtype_name(settings)}"
     )
     output_path = build_dataset_from_settings(settings)
     print(f"Generated dataset: {output_path}")

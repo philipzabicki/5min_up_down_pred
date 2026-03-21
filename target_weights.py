@@ -13,15 +13,57 @@ def _format_weight_key(value):
     return f"{float(value):.6f}".rstrip("0").rstrip(".")
 
 
-def compute_target_weights_from_opened(opened_values):
+def compute_decision_mask_from_opened(
+    opened_values,
+    minute_modulo=TARGET_WEIGHT_MINUTE_MODULO,
+    minute_remainder=TARGET_WEIGHT_MINUTE_REMAINDER,
+):
     opened_index = pd.DatetimeIndex(pd.to_datetime(opened_values, errors="raise"))
     opened_minute = opened_index.minute.to_numpy(dtype=np.int16, copy=False)
+    return (opened_minute % int(minute_modulo)) == int(minute_remainder)
+
+
+def compute_target_weights_from_opened(opened_values):
+    decision_mask = compute_decision_mask_from_opened(opened_values)
     weights = np.where(
-        (opened_minute % TARGET_WEIGHT_MINUTE_MODULO) == TARGET_WEIGHT_MINUTE_REMAINDER,
+        decision_mask,
         TARGET_WEIGHT_DECISION_VALUE,
         TARGET_WEIGHT_OTHER_VALUE,
     )
-    return weights.astype(np.float32, copy=False)
+    return weights.astype(np.float64, copy=False)
+
+
+def compute_binary_close_target_from_opened(
+    opened_values,
+    close_values,
+    horizon_minutes,
+):
+    horizon = int(horizon_minutes)
+    if horizon <= 0:
+        raise ValueError(f"horizon_minutes must be > 0, got: {horizon_minutes}")
+
+    opened_index = pd.DatetimeIndex(pd.to_datetime(opened_values, errors="raise"))
+    if opened_index.has_duplicates:
+        dup_count = int(opened_index.duplicated().sum())
+        raise ValueError(f"Duplicate Opened values found: {dup_count}")
+
+    close_np = pd.to_numeric(close_values, errors="coerce").to_numpy(
+        dtype=np.float64,
+        copy=False,
+    )
+    close_series = pd.Series(close_np, index=opened_index)
+    future_opened = opened_index + pd.Timedelta(minutes=horizon)
+    future_close = close_series.reindex(future_opened).to_numpy(dtype=np.float64, copy=False)
+    current_close = close_series.to_numpy(dtype=np.float64, copy=False)
+
+    target = np.full(len(close_series), np.nan, dtype=np.float64)
+    valid_mask = np.isfinite(current_close) & np.isfinite(future_close)
+    if np.any(valid_mask):
+        # Keep target semantics aligned with Polymarket settlement: ties resolve Up.
+        target[valid_mask] = (
+            future_close[valid_mask] >= current_close[valid_mask]
+        ).astype(np.float64, copy=False)
+    return target
 
 
 def add_target_weights(df, opened_col="Opened", weight_col=TARGET_WEIGHT_COL):

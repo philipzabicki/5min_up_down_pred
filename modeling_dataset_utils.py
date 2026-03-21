@@ -2,7 +2,10 @@ import json
 import re
 from pathlib import Path
 
+import numpy as np
+
 from common_config_utils import load_json_object, require_positive_int, require_text
+from data_quality_filters import normalize_drop_frozen_ohlc_blocks_config
 from features.candle_features import (
     RAW_OHLCV_COLS,
     STREAK_FEATURE_PREFIX,
@@ -49,6 +52,45 @@ def _normalize_feature_names(features, source_path):
     return tuple(normalized)
 
 
+def _normalize_optional_feature_names(features, source_label):
+    if features is None:
+        return tuple()
+    if not isinstance(features, list):
+        raise ValueError(
+            f"Invalid {source_label}: expected a JSON array of feature names."
+        )
+
+    normalized = []
+    for raw_feature in features:
+        feature = str(raw_feature).strip()
+        if not feature:
+            raise ValueError(f"{source_label} contains an empty feature name.")
+        normalized.append(feature)
+    return tuple(_dedupe_ordered(normalized))
+
+
+def _exclude_features(feature_names, excluded_feature_names, *, source_label):
+    if not excluded_feature_names:
+        return tuple(feature_names), tuple()
+
+    excluded_feature_set = set(excluded_feature_names)
+    kept = tuple(
+        feature_name
+        for feature_name in feature_names
+        if feature_name not in excluded_feature_set
+    )
+    removed = tuple(
+        feature_name
+        for feature_name in feature_names
+        if feature_name in excluded_feature_set
+    )
+    if not kept:
+        raise ValueError(
+            f"All features were excluded after applying excluded_feature_names to {source_label}."
+        )
+    return kept, removed
+
+
 def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
     payload = load_json_object(config_path)
     streak_intervals = payload.get("candle_streak_intervals")
@@ -66,6 +108,10 @@ def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
     feature_subset_list_key = str(payload.get("feature_subset_list_key", "")).strip()
     if not feature_subset_list_key:
         feature_subset_list_key = None
+    excluded_feature_names = _normalize_optional_feature_names(
+        payload.get("excluded_feature_names"),
+        source_label="config key 'excluded_feature_names'",
+    )
 
     return {
         "data_dir": Path(require_text(payload, "data_dir")),
@@ -76,7 +122,11 @@ def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
         "candle_streak_intervals": [str(v) for v in streak_intervals],
         "feature_subset_path": feature_subset_path,
         "feature_subset_list_key": feature_subset_list_key,
+        "excluded_feature_names": excluded_feature_names,
         "volume_profile_fixed_range": payload.get("volume_profile_fixed_range"),
+        "drop_frozen_ohlc_blocks": normalize_drop_frozen_ohlc_blocks_config(
+            payload.get("drop_frozen_ohlc_blocks")
+        ),
     }
 
 
@@ -98,6 +148,25 @@ def resolve_modeling_dataset_output_paths(settings):
 def resolve_modeling_dataset_parquet_path(config_path=MODELING_DATASET_CONFIG_FILE):
     settings = load_modeling_dataset_settings(config_path=config_path)
     return resolve_modeling_dataset_output_paths(settings)["parquet"]
+
+
+def is_feature_selection_precision_mode(settings):
+    return bool(settings.get("feature_subset_path")) or bool(
+        settings.get("excluded_feature_names")
+    )
+
+
+def resolve_modeling_float_dtype_name(settings):
+    if is_feature_selection_precision_mode(settings):
+        return "float64"
+    return "float32"
+
+
+def resolve_modeling_float_dtype(settings):
+    dtype_name = resolve_modeling_float_dtype_name(settings)
+    if dtype_name == "float64":
+        return np.float64
+    return np.float32
 
 
 def _load_feature_subset_from_json(path, list_key=None):
@@ -195,10 +264,35 @@ def load_feature_subset_from_settings(settings):
     subset_path = settings.get("feature_subset_path")
     if not subset_path:
         return None
-    return load_feature_subset(
+    subset_info = load_feature_subset(
         subset_path,
         list_key=settings.get("feature_subset_list_key"),
     )
+    excluded_feature_names = tuple(settings.get("excluded_feature_names") or ())
+    filtered_features, removed_features = _exclude_features(
+        subset_info["features"],
+        excluded_feature_names,
+        source_label=f"feature_subset_path={subset_path}",
+    )
+    return {
+        **subset_info,
+        "features": filtered_features,
+        "count": len(filtered_features),
+        "source_count": int(subset_info["count"]),
+        "excluded_feature_names": excluded_feature_names,
+        "excluded_count": len(excluded_feature_names),
+        "excluded_from_subset_count": len(removed_features),
+    }
+
+
+def load_excluded_feature_names_from_settings(settings):
+    excluded_feature_names = tuple(settings.get("excluded_feature_names") or ())
+    if not excluded_feature_names:
+        return None
+    return {
+        "features": excluded_feature_names,
+        "count": len(excluded_feature_names),
+    }
 
 
 def split_feature_subset(feature_names):
@@ -249,16 +343,50 @@ def split_feature_subset(feature_names):
     }
 
 
-def summarize_feature_subset(subset_info):
-    if subset_info is None:
+def summarize_feature_subset(subset_info, excluded_features=None):
+    excluded_feature_names = tuple()
+    if excluded_features is not None:
+        excluded_feature_names = tuple(excluded_features["features"])
+    elif subset_info is not None:
+        excluded_feature_names = tuple(subset_info.get("excluded_feature_names") or ())
+
+    if subset_info is None and not excluded_feature_names:
         return {"enabled": False}
 
-    return {
+    payload = {
         "enabled": True,
-        "path": str(subset_info["path"]),
-        "count": int(subset_info["count"]),
-        "format": subset_info["format"],
-        "list_key": subset_info["list_key"],
-        "created_utc": subset_info.get("created_utc"),
-        "source_data_path": subset_info.get("source_data_path"),
+        "subset_enabled": subset_info is not None,
+        "exclusions_enabled": bool(excluded_feature_names),
+        "excluded_count": len(excluded_feature_names),
+        "excluded_feature_names": list(excluded_feature_names),
     }
+    if subset_info is None:
+        payload.update(
+            {
+                "path": None,
+                "count": None,
+                "source_count": None,
+                "format": None,
+                "list_key": None,
+                "created_utc": None,
+                "source_data_path": None,
+                "excluded_from_subset_count": 0,
+            }
+        )
+        return payload
+
+    payload.update(
+        {
+            "path": str(subset_info["path"]),
+            "count": int(subset_info["count"]),
+            "source_count": int(subset_info.get("source_count", subset_info["count"])),
+            "format": subset_info["format"],
+            "list_key": subset_info["list_key"],
+            "created_utc": subset_info.get("created_utc"),
+            "source_data_path": subset_info.get("source_data_path"),
+            "excluded_from_subset_count": int(
+                subset_info.get("excluded_from_subset_count", 0)
+            ),
+        }
+    )
+    return payload

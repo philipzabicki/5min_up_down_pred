@@ -1,157 +1,28 @@
 {
-  "fractional_kelly": 0.9999839293792788,
-  "cap": 0.40577384832131075,
-  "min_edge": 6.6356769922945e-05,
-  "prob_shrink": 0.9999790084597696,
+  "fractional_kelly": 0.9477922547031558,
+  "cap": 0.41391922354255806,
+  "min_edge": 0.013208857336881109,
+  "prob_shrink": 0.9998803580001253,
   "min_stake_usdc": 1.0,
   "sigma": 0.002,
   "spread_half": 0.005,
   "fee_model": {
     "feeRate": 0.25,
-    "exponent": 2,
+    "exponent": 2.0,
     "fee_round_decimals": 4,
     "min_fee": 0.0001
   },
   "price_sim": {
     "base_price": 0.53,
-    "sigma": 0.002,
-    "spread_half": 0.005,
     "price_clip_lo": 0.02,
-    "price_clip_hi": 0.98,
-    "execution_price_formula": "price = base_price + spread_half + abs(sigma * eps)",
-    "execution_scenario_seeds": [
-      101,
-      202,
-      303,
-      404,
-      505
-    ]
+    "price_clip_hi": 0.98
   },
-  "cv_meta": {
-    "n_folds": 15,
-    "n_trials": 3000,
-    "seed": 37,
-    "execution_scenario_seeds": [
-      101,
-      202,
-      303,
-      404,
-      505
-    ],
-    "scoring_formula": "fold_score = log(final_bankroll / start_bankroll), scenario_score = 0.9 * mean(fold_scores) + 0.1 * q25(fold_scores), trial_score = 0.9 * mean(scenario_scores) + 0.1 * min(scenario_scores), if total scenario trades == 0: scenario_score = -1e9",
-    "best_trial_number": 2838,
-    "best_trial_score": 25.171242697614606,
-    "mean_scenario_score": 25.183993495441065,
-    "min_scenario_score": 25.056485517176437,
-    "mean_fold_score": 27.295147044436305,
-    "q25_fold_score": 4.979335407210575,
-    "mean_fold_trades": 8142.466666666666,
-    "mean_fold_log_growth": 0.0008247833798168075,
-    "mean_fold_max_drawdown": 0.9025517406335395
-  },
-  "summary": {
-    "holdout_score": 6.4888549663234185,
-    "mean_final_bankroll": 663981.8599684149,
-    "worst_final_bankroll": 609491.6663884964,
-    "total_pnl": 662981.8599684149,
-    "mean_n_trades": 2477.6,
-    "min_n_trades": 2452,
-    "mean_hit_rate": 0.584190414030467,
-    "mean_avg_edge": 0.014955780719556527,
-    "mean_avg_stake": 15812.493569345275,
-    "mean_log_growth": 0.00024868239491403866,
-    "worst_log_growth": 0.0002454405509994409,
-    "mean_max_drawdown": 0.8524849992492467,
-    "worst_max_drawdown": 0.8581220028508091
-  },
-  "holdout_scenarios": [
-    {
-      "scenario_seed": 101,
-      "score": 6.534868519804895,
-      "final_bankroll": 688743.2222772335,
-      "n_steps": 26127,
-      "n_trades": 2479,
-      "mean_log_growth": 0.00025011936004152387,
-      "max_drawdown": 0.8519243095422004,
-      "hit_rate": 0.581686163775716,
-      "avg_edge": 0.014933220738516394,
-      "avg_stake": 16096.57330826682,
-      "holdout_trace_csv": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_101.csv"
-    },
-    {
-      "scenario_seed": 202,
-      "score": 6.50854963427097,
-      "final_bankroll": 670852.7298515206,
-      "n_steps": 26127,
-      "n_trades": 2486,
-      "mean_log_growth": 0.00024911201570294986,
-      "max_drawdown": 0.849724192904119,
-      "hit_rate": 0.586484312148029,
-      "avg_edge": 0.014868661556309287,
-      "avg_stake": 15553.946422423163,
-      "holdout_trace_csv": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_202.csv"
-    },
-    {
-      "scenario_seed": 303,
-      "score": 6.412625275962392,
-      "final_bankroll": 609491.6663884964,
-      "n_steps": 26127,
-      "n_trades": 2452,
-      "mean_log_growth": 0.0002454405509994409,
-      "max_drawdown": 0.8493561518789404,
-      "hit_rate": 0.5831973898858075,
-      "avg_edge": 0.015121568673587948,
-      "avg_stake": 14733.071944741745,
-      "holdout_trace_csv": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_303.csv"
-    },
-    {
-      "scenario_seed": 404,
-      "score": 6.507474722748877,
-      "final_bankroll": 670132.009947022,
-      "n_steps": 26127,
-      "n_trades": 2482,
-      "mean_log_growth": 0.00024907087391391573,
-      "max_drawdown": 0.8581220028508091,
-      "hit_rate": 0.5850120870265915,
-      "avg_edge": 0.014946822667128823,
-      "avg_stake": 16750.301750766565,
-      "holdout_trace_csv": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_404.csv"
-    },
-    {
-      "scenario_seed": 505,
-      "score": 6.523106506808305,
-      "final_bankroll": 680689.6713778023,
-      "n_steps": 26127,
-      "n_trades": 2489,
-      "mean_log_growth": 0.00024966917391236286,
-      "max_drawdown": 0.8532983390701642,
-      "hit_rate": 0.5845721173161912,
-      "avg_edge": 0.014908629962240188,
-      "avg_stake": 15928.574420528084,
-      "holdout_trace_csv": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_505.csv"
-    }
-  ],
-  "data_split": {
-    "holdout_frac": 0.05,
-    "split_idx": 496408,
-    "tune_rows": 496408,
-    "holdout_rows": 26127,
-    "holdout_start_opened": "2025-12-17T05:34:00"
-  },
-  "artifacts": {
-    "holdout_trace_dir": "data\\simulations\\holdout_trace_20260318_160726",
-    "holdout_trace_csv_by_scenario": {
-      "101": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_101.csv",
-      "202": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_202.csv",
-      "303": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_303.csv",
-      "404": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_404.csv",
-      "505": "data\\simulations\\holdout_trace_20260318_160726\\scenario_seed_505.csv"
-    }
-  },
-  "sanity": {
-    "target_match_ratio": 1.0,
-    "decision_rows": 522536,
-    "trade_rows": 522535
-  },
-  "generated_at_utc": "2026-03-18T16:07:26.926345+00:00"
+  "model_proba_error_sim": {
+    "enabled": false,
+    "abs_diff_mean": 0.003136730568813267,
+    "abs_diff_max": 0.026809411202558198,
+    "abs_diff_std": 0.008936470400852733,
+    "policy": "disabled",
+    "prob_min_clip": 1e-06
+  }
 }

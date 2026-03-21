@@ -33,9 +33,10 @@ SYMBOL = "BTCUSDT"
 INTERVAL = "1m"
 FUTURES_REST_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
 
-OUTPUT_JSON = Path("data/analysis/indicator_stability_summary.json")
-OUTPUT_CSV = Path("data/analysis/indicator_stability_report.csv")
-MODELS_DIR = Path("data/models")
+OUTPUT_DIR = Path("data/analysis/indicator_stability")
+OUTPUT_JSON = OUTPUT_DIR / "summary.json"
+OUTPUT_CSV = OUTPUT_DIR / "report.csv"
+MODELS_DIR = Path("data/models/runs")
 META_PATH_ENV = "AUDIT_MODEL_META_PATH"
 REFERENCE_PATH_ENV = "AUDIT_REFERENCE_PATH"
 
@@ -100,7 +101,7 @@ def resolve_meta_path() -> Path:
         return override
 
     candidates = sorted(
-        MODELS_DIR.glob("lgbm_meta_*.json"),
+        MODELS_DIR.glob("*/lgbm_meta_*.json"),
         key=lambda path: (path.stat().st_mtime, path.name),
         reverse=True,
     )

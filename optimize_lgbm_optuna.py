@@ -8,6 +8,7 @@ import optuna
 import pandas as pd
 from features.candle_features import RAW_OHLCV_COLS
 from modeling_dataset_utils import (
+    load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
     load_modeling_dataset_settings,
     resolve_modeling_dataset_output_paths,
@@ -95,33 +96,69 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "path_smooth": 18.354650904317488,
       "extra_trees": False
     },
-    {'learning_rate': 0.0032826894654068746, 'num_leaves': 240, 'min_data_in_leaf': 51, 'max_depth': 76, 'feature_fraction': 0.2600155012187151, 'bagging_fraction': 0.9386274411409469, 'bagging_freq': 4, 'lambda_l2': 8.97624362058438, 'lambda_l1': 5.935593621429428, 'min_sum_hessian_in_leaf': 0.22629666928997544, 'min_gain_to_split': 1.247365118812283, 'feature_fraction_bynode': 0.98701845583249, 'path_smooth': 18.823257423983854, 'extra_trees': False}
+    {'learning_rate': 0.0032826894654068746,
+     'num_leaves': 240, 'min_data_in_leaf': 51, 'max_depth': 76, 'feature_fraction': 0.2600155012187151, 'bagging_fraction': 0.9386274411409469, 'bagging_freq': 4, 'lambda_l2': 8.97624362058438,
+     'lambda_l1': 5.935593621429428, 'min_sum_hessian_in_leaf': 0.22629666928997544, 'min_gain_to_split': 1.247365118812283, 'feature_fraction_bynode': 0.98701845583249, 'path_smooth': 18.823257423983854, 'extra_trees': False},
+    {
+        "learning_rate": 0.00149752979585742,
+        "num_leaves": 128,
+        "min_data_in_leaf": 31,
+        "max_depth": 10,
+        "feature_fraction": 0.3668497153192713,
+        "bagging_fraction": 0.6842364646883217,
+        "bagging_freq": 18,
+        "lambda_l2": 16.915746933977747,
+        "lambda_l1": 2.0712451188077488,
+        "min_sum_hessian_in_leaf": 0.25380833829794036,
+        "min_gain_to_split": 0.8504082880772725,
+        "feature_fraction_bynode": 0.32836945948911733,
+        "path_smooth": 68.45674322734372,
+        "extra_trees": False
+      },
+      {
+      "learning_rate": 0.0047168930397256115,
+      "num_leaves": 203,
+      "min_data_in_leaf": 6,
+      "max_depth": 41,
+      "feature_fraction": 0.3535849279738236,
+      "bagging_fraction": 0.8060837855401768,
+      "bagging_freq": 10,
+      "lambda_l2": 6.467328293921802,
+      "lambda_l1": 4.930249967778666,
+      "min_sum_hessian_in_leaf": 0.014887735545909926,
+      "min_gain_to_split": 1.031237481486823,
+      "feature_fraction_bynode": 0.8821060783972539,
+      "path_smooth": 3.743686767424939,
+      "extra_trees": False
+    }
 ]
 
-N_TRIALS = 250
+N_TRIALS = 20
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "de_besta"
-STORAGE = "sqlite:///data/optuna/lgbm_generic_tpe_hyperband_gpu.db"
+STUDY_NAME = "de_besta_v5"
+STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
-BEST_RESULT_PATH = Path("data/models/lgbm_generic_optuna_best_mean_std.json")
-TRIALS_CSV_PATH = Path("data/optuna/lgbm_generic_optuna_trials_mean_std.csv")
-RUN_MODE = "recheck-topn"  # "optimize" or "recheck-topn"
+BEST_RESULT_PATH = Path(
+    "data/optuna/lgbm/lgbm_generic_optuna_best_mean_std.json"
+)
+TRIALS_CSV_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_trials_mean_std.csv")
+RUN_MODE = "optimize"  # "optimize" or "recheck-topn"
 RECHECK_STUDY_NAME = STUDY_NAME
 RECHECK_STORAGE = STORAGE
 TOP_TRIALS_RECHECK_N = 10
-TOP_TRIALS_RECHECK_OUTPUT_DIR = Path("data/optuna/recheck")
+TOP_TRIALS_RECHECK_OUTPUT_DIR = Path("data/optuna/lgbm/recheck")
 TOP_TRIALS_RECHECK_OUTPUT_JSON_PATH = None
 TOP_TRIALS_RECHECK_OUTPUT_CSV_PATH = None
 
 PRUNER_MIN_RESOURCE = 100
 PRUNER_REDUCTION_FACTOR = 3
 PRUNER_BOOTSTRAP_COUNT = 2
-TPE_STARTUP_TRIALS = 20
+TPE_STARTUP_TRIALS = int(N_TRIALS*0.1)
 
 FEATURE_HORIZON_RE = re.compile(r"(?:_fit_|_target_)(\d+)m(?:_ahead_ret)?")
 TARGET_HORIZON_RE = re.compile(r"target_(\d+)m")
@@ -174,7 +211,11 @@ def make_walk_forward_folds(
     return folds
 
 
-def load_generic_training_data(data_path, feature_subset=None):
+def load_generic_training_data(data_path, feature_subset=None, excluded_features=None):
+    excluded_feature_names = (
+        tuple(excluded_features["features"]) if excluded_features else tuple()
+    )
+    excluded_feature_set = set(excluded_feature_names)
     selected_feature_columns = (
         list(feature_subset["features"]) if feature_subset else None
     )
@@ -232,6 +273,20 @@ def load_generic_training_data(data_path, feature_subset=None):
                 f"Missing_count={len(missing_selected_features)} preview=[{preview}]"
             )
         x = x.loc[:, selected_feature_columns]
+    if excluded_feature_set:
+        excluded_present_features = [
+            col for col in x.columns if col in excluded_feature_set
+        ]
+        excluded_missing_features = [
+            col for col in excluded_feature_names if col not in x.columns
+        ]
+        if excluded_present_features:
+            x = x.drop(columns=excluded_present_features)
+        print(
+            "load data | exclusions "
+            f"dropped={len(excluded_present_features)} "
+            f"missing_requested={len(excluded_missing_features)}"
+        )
     if x.shape[1] == 0:
         raise ValueError("No numeric feature columns left after preprocessing.")
     print(
@@ -715,6 +770,37 @@ def build_top_trial_recheck_summary_row(result):
     return row
 
 
+def build_top_trial_recheck_best_trial(result):
+    best_metric_mean = result["recheck_cv_mean_metrics"].get(
+        RECHECK_OBJECTIVE_BASE_METRIC
+    )
+    best_metric_std = result["recheck_cv_std_metrics"].get(
+        RECHECK_OBJECTIVE_BASE_METRIC
+    )
+    binary_logloss_mean = result["recheck_cv_mean_metrics"].get("binary_logloss")
+    binary_logloss_std = result["recheck_cv_std_metrics"].get("binary_logloss")
+    return {
+        "recheck_rank": int(result["recheck_rank"]),
+        "optuna_rank": int(result["optuna_rank"]),
+        "number": int(result["trial_number"]),
+        f"objective_{RECHECK_OBJECTIVE_NAME}": float(result["recheck_objective"]),
+        f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_mean": (
+            float(best_metric_mean) if best_metric_mean is not None else None
+        ),
+        f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_std": (
+            float(best_metric_std) if best_metric_std is not None else None
+        ),
+        "cv_binary_logloss_mean": (
+            float(binary_logloss_mean) if binary_logloss_mean is not None else None
+        ),
+        "cv_binary_logloss_std": (
+            float(binary_logloss_std) if binary_logloss_std is not None else None
+        ),
+        "mean_best_iteration": int(result["recheck_mean_best_iteration"]),
+        "params": result["params"],
+    }
+
+
 def run_top_trials_recheck(
     study_name,
     storage,
@@ -728,9 +814,11 @@ def run_top_trials_recheck(
     dataset_settings = load_modeling_dataset_settings()
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
     feature_subset = load_feature_subset_from_settings(dataset_settings)
+    excluded_features = load_excluded_feature_names_from_settings(dataset_settings)
     training_data = load_walk_forward_training_frame(
         data_path=data_path,
         feature_subset=feature_subset,
+        excluded_features=excluded_features,
     )
     x = training_data["x"]
     y = training_data["y"]
@@ -853,6 +941,7 @@ def run_top_trials_recheck(
     summary_rows = [
         build_top_trial_recheck_summary_row(result) for result in recheck_results
     ]
+    best_result = recheck_results[0]
     payload = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "study_name": study_name,
@@ -860,7 +949,10 @@ def run_top_trials_recheck(
         "top_n_requested": int(top_n),
         "top_n_evaluated": int(len(recheck_results)),
         "data_path": str(data_path),
-        "feature_selection": summarize_feature_subset(feature_subset),
+        "feature_selection": summarize_feature_subset(
+            feature_subset,
+            excluded_features=excluded_features,
+        ),
         "sample_weight": {
             "used": True,
             "source": training_data["sample_weight_source"],
@@ -877,6 +969,8 @@ def run_top_trials_recheck(
             "aggregation": "cv_mean + std_penalty * cv_std",
             "std_penalty": float(RECHECK_STD_PENALTY),
         },
+        "best_trial": build_top_trial_recheck_best_trial(best_result),
+        "best_params": best_result["params"],
         "results": recheck_results,
     }
 
@@ -886,7 +980,6 @@ def run_top_trials_recheck(
     csv_path.parent.mkdir(parents=True, exist_ok=True)
     pd.DataFrame(summary_rows).to_csv(csv_path, index=False)
 
-    best_result = recheck_results[0]
     print(
         f"best recheck | trial_number={best_result['trial_number']} "
         f"recheck_objective={best_result['recheck_objective']:.8f} "
@@ -904,6 +997,7 @@ def run_optuna_optimization():
     dataset_settings = load_modeling_dataset_settings()
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
     feature_subset = load_feature_subset_from_settings(dataset_settings)
+    excluded_features = load_excluded_feature_names_from_settings(dataset_settings)
 
     (
         x_np,
@@ -915,6 +1009,7 @@ def run_optuna_optimization():
     ) = load_generic_training_data(
         data_path=data_path,
         feature_subset=feature_subset,
+        excluded_features=excluded_features,
     )
     folds = make_walk_forward_folds(
         n_rows=len(x_np),
@@ -1007,7 +1102,10 @@ def run_optuna_optimization():
             "source": sample_weight_source,
             **sample_weight_summary,
         },
-        "feature_selection": summarize_feature_subset(feature_subset),
+        "feature_selection": summarize_feature_subset(
+            feature_subset,
+            excluded_features=excluded_features,
+        ),
         "rows_after_target_notna": int(rows_after_target_notna),
         "decision_row_filter": {
             "enabled": False,
