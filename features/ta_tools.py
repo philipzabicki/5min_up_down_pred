@@ -1,8 +1,6 @@
 from numpy import int64, empty, where
-from pandas import Series
 from numba import jit
 import talib
-import pandas_ta as p_ta
 from tindicators import ti
 
 from .ta_custom_ma import (
@@ -58,9 +56,7 @@ MA_FUNCS = {
     "NWMA_BIW": lambda s, period: NadarayWatsonMA(s, period, kernel=4),
     "NWMA_COS": lambda s, period: NadarayWatsonMA(s, period, kernel=5),
     # Volume Weighted
-    "VWMA_PTA": lambda s, period, v: p_ta.vwma(
-        Series(s), Series(v), length=period
-    ).to_numpy(),
+    "VWMA_PTA": lambda s, period, v: VWMA(s, v, timeperiod=period), # legacy name, same as "VWMA"
     "VWMA": lambda s, period, v: VWMA(s, v, timeperiod=period),
 }
 

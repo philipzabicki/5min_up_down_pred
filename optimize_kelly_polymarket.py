@@ -17,7 +17,7 @@ INPUT_PATH = Path("data/BTCUSDT1m_oof_predictions.parquet")
 RUNTIME_CONFIG_PATH = Path("configs/kelly_config.json")
 OPTUNA_STORAGE = "sqlite:///data/optuna/databases/kelly_polymarket.db"
 OPTUNA_OUTPUT_DIR = Path("data/optuna/kelly_polymarket")
-STUDY_NAME = "kelly_polymarket_opt_v17"
+STUDY_NAME = "kelly_polymarket_opt_v18"
 SIMULATIONS_DIR = Path("data/simulations")
 
 REQUIRED_COLUMNS = [
@@ -62,7 +62,7 @@ N_TRIALS = 1_500
 HOLDOUT_FRAC = 0.05
 EXECUTION_SCENARIO_SEEDS = [101, 202, 303, 404, 505]
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.2)
-TARGET_FOLD_DAYS = 21
+TARGET_FOLD_DAYS = 28
 HOLDOUT_WINDOW_DAYS = 7
 HOLDOUT_WINDOW_RUNS = 25
 HOLDOUT_WINDOW_SCENARIO_SEEDS = [10_000 + idx for idx in range(1, HOLDOUT_WINDOW_RUNS + 1)]

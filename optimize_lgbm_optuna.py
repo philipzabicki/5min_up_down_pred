@@ -96,9 +96,21 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "path_smooth": 18.354650904317488,
       "extra_trees": False
     },
-    {'learning_rate': 0.0032826894654068746,
-     'num_leaves': 240, 'min_data_in_leaf': 51, 'max_depth': 76, 'feature_fraction': 0.2600155012187151, 'bagging_fraction': 0.9386274411409469, 'bagging_freq': 4, 'lambda_l2': 8.97624362058438,
-     'lambda_l1': 5.935593621429428, 'min_sum_hessian_in_leaf': 0.22629666928997544, 'min_gain_to_split': 1.247365118812283, 'feature_fraction_bynode': 0.98701845583249, 'path_smooth': 18.823257423983854, 'extra_trees': False},
+    {
+        'learning_rate': 0.0032826894654068746,
+        'num_leaves': 240,
+        'min_data_in_leaf': 51,
+        'max_depth': 76,
+        'feature_fraction': 0.2600155012187151,
+        'bagging_fraction': 0.9386274411409469,
+        'bagging_freq': 4,
+        'lambda_l2': 8.97624362058438,
+        'lambda_l1': 5.935593621429428,
+        'min_sum_hessian_in_leaf': 0.22629666928997544,
+        'min_gain_to_split': 1.247365118812283,
+        'feature_fraction_bynode': 0.98701845583249, 
+        'path_smooth': 18.823257423983854,
+        'extra_trees': False},
     {
         "learning_rate": 0.00149752979585742,
         "num_leaves": 128,
@@ -133,14 +145,14 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     }
 ]
 
-N_TRIALS = 20
+N_TRIALS = 10
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "de_besta_v5"
+STUDY_NAME = "de_besta_v8"
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
 BEST_RESULT_PATH = Path(
@@ -157,7 +169,7 @@ TOP_TRIALS_RECHECK_OUTPUT_CSV_PATH = None
 
 PRUNER_MIN_RESOURCE = 100
 PRUNER_REDUCTION_FACTOR = 3
-PRUNER_BOOTSTRAP_COUNT = 2
+PRUNER_BOOTSTRAP_COUNT = 0
 TPE_STARTUP_TRIALS = int(N_TRIALS*0.1)
 
 FEATURE_HORIZON_RE = re.compile(r"(?:_fit_|_target_)(\d+)m(?:_ahead_ret)?")

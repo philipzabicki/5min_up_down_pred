@@ -1,10 +1,6 @@
-from typing import Any
-
 import numpy as np
 import talib
 from numba import jit
-from numpy import ndarray, dtype, floating
-from numpy._typing import _64Bit
 
 
 ### Helper Functions ###

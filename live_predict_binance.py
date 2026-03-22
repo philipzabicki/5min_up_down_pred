@@ -64,9 +64,7 @@ SYMBOL = "BTCUSDT"
 INTERVAL = "1m"
 FETCH_CONFIG_PATH = Path("configs/fetch_config.json")
 INDEX_PRICE_SYNTHETIC_VOLUME_DEFAULT = 60.0
-MODEL_META_PATH = Path(
-    "data\\models\\runs\\20260321_052019\\lgbm_meta_20260321_052019.json"
-)
+MODEL_META_PATH = Path("data/models/runs/20260322_031836/lgbm_meta_20260322_031836.json")
 KELLY_CONFIG_PATH = Path("configs/kelly_config.json")
 INDICATOR_STABILITY_SUMMARY_PATH = Path("data/analysis/indicator_stability/summary.json")
 SETTLEMENT_SOURCE = os.getenv("LIVE_SETTLEMENT_SOURCE", "polymarket").strip().lower()
