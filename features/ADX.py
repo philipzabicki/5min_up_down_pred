@@ -158,19 +158,19 @@ def get_adx_features(params, ohlcv_np):
     }
 
 
-@lru_cache(maxsize=29)
+@lru_cache(maxsize=16)
 def custom_atr_cache(atr_ma_type, atr_period):
     true_range = frombuffer(TRANGE_BYTES).reshape(TRANGE_SHAPE)
     return get_1d_ma(true_range, atr_ma_type, atr_period)
 
 
-@lru_cache(maxsize=29)
+@lru_cache(maxsize=16)
 def custom_pos_dm_cache(ma_type_posDM, posDM_period):
     up_move = frombuffer(UP_MOVE_BYTES).reshape(UP_MOVE_SHAPE)
     return get_1d_ma(up_move, ma_type_posDM, posDM_period)
 
 
-@lru_cache(maxsize=29)
+@lru_cache(maxsize=16)
 def custom_neg_dm_cache(ma_type_negDM, negDM_period):
     down_move = frombuffer(DOWN_MOVE_BYTES).reshape(DOWN_MOVE_SHAPE)
     return get_1d_ma(down_move, ma_type_negDM, negDM_period)

@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "fast_source": "ohlc4",
+      "slow_source": "open",
+      "fast_ma_type": "LMA",
+      "slow_ma_type": "LINREG",
+      "signal_ma_type": "HMA",
+      "fast_period": 995,
+      "slow_period": 1082,
+      "signal_period": 1760
+    },
+    "abs_corr": 1.7568637375007679
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 71
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.15,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

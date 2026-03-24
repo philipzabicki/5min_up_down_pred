@@ -163,12 +163,12 @@ def bollinger_bands_initializer(
     METRIC_MIN_VALID_SEGMENTS = max(1, int(min_valid_segments))
 
 
-@lru_cache(maxsize=43)
+@lru_cache(maxsize=24)
 def bb_ma_cache(ma_type, ma_period, ma_source):
     return apply_ma(SOURCE_CACHE[ma_source], ma_type, ma_period, VOLUME_CACHE)
 
 
-@lru_cache(maxsize=43)
+@lru_cache(maxsize=24)
 def bb_std_cache(ma_type, ma_period, ma_source, std_ma_type, std_ma_period, std_source):
     center_ma = bb_ma_cache(ma_type, ma_period, ma_source)
     src = SOURCE_CACHE[std_source]

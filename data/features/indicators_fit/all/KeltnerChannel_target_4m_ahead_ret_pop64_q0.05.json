@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "TEMA",
+      "atr_ma_type": "FBA",
+      "source": "open",
+      "ma_period": 33,
+      "atr_period": 1129,
+      "atr_multi": 12.092168710526702
+    },
+    "abs_corr": 1.5587111437381256
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 58
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.05,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

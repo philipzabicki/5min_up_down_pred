@@ -1,0 +1,37 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 727,
+      "posDM_period": 1502,
+      "negDM_period": 672,
+      "adx_period": 728,
+      "ma_type_atr": "FBA",
+      "ma_type_posDM": "WMA",
+      "ma_type_negDM": "LWMA",
+      "ma_type_adx": "HAMMING"
+    },
+    "score": 2.111312753001141,
+    "abs_corr": 2.111312753001141
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 176
+  },
+  "proxy_target": {
+    "horizon_minutes": 5,
+    "price_col": "Close"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 600,
+    "min_valid_segments": 12,
+    "q_ext": 0.1,
+    "q_mid": 0.2
+  },
+  "fit_config_hash": "2c40699de12e1415"
+}

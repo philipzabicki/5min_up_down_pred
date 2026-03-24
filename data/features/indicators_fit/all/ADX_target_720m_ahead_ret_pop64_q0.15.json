@@ -1,0 +1,27 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 1913,
+      "posDM_period": 1875,
+      "negDM_period": 1668,
+      "adx_period": 1557,
+      "ma_type_atr": "FBA",
+      "ma_type_posDM": "SWMA",
+      "ma_type_negDM": "SWMA_INV",
+      "ma_type_adx": "LINREG",
+      "adx_threshold": 80.7990585313088
+    },
+    "abs_corr": 1.4950368198435031
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 96
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.15,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

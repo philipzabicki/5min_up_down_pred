@@ -41,8 +41,8 @@ OOF_EXPORT_BASE_COLS = [
 OOF_PREVIEW_ROWS = 1000
 CV_FOLDS = 20
 WF_TEST_TO_TRAIN_RATIO = 0.2
-N_ESTIMATORS = 5000
-EARLY_STOPPING_ROUNDS = 50
+N_ESTIMATORS = 3000
+EARLY_STOPPING_ROUNDS = 25
 SEED = 37
 N_JOBS = 14
 MODELS_DIR = Path("data/models/runs")
@@ -56,19 +56,19 @@ PRIMARY_REPORTING_METRIC = "brier_score"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0047168930397256115,
-      "num_leaves": 203,
-      "min_data_in_leaf": 6,
-      "max_depth": 41,
-      "feature_fraction": 0.3535849279738236,
-      "bagging_fraction": 0.8060837855401768,
-      "bagging_freq": 10,
-      "lambda_l2": 6.467328293921802,
-      "lambda_l1": 4.930249967778666,
-      "min_sum_hessian_in_leaf": 0.014887735545909926,
-      "min_gain_to_split": 1.031237481486823,
-      "feature_fraction_bynode": 0.8821060783972539,
-      "path_smooth": 3.743686767424939,
+      "learning_rate": 0.0032826894654068746,
+      "num_leaves": 240,
+      "min_data_in_leaf": 51,
+      "max_depth": 76,
+      "feature_fraction": 0.2600155012187151,
+      "bagging_fraction": 0.9386274411409469,
+      "bagging_freq": 4,
+      "lambda_l2": 8.97624362058438,
+      "lambda_l1": 5.935593621429428,
+      "min_sum_hessian_in_leaf": 0.22629666928997544,
+      "min_gain_to_split": 1.247365118812283,
+      "feature_fraction_bynode": 0.98701845583249,
+      "path_smooth": 18.823257423983854,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {

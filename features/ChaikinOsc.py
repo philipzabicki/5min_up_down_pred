@@ -132,7 +132,7 @@ def adl_initializer(
     METRIC_MIN_VALID_SEGMENTS = max(1, int(min_valid_segments))
 
 
-@lru_cache(maxsize=86)
+@lru_cache(maxsize=64)
 def get_adl_ma_cache(ma_type, period):
     adl = frombuffer(ADL_BYTES).reshape(ADL_SHAPE)
     return get_1d_ma(adl, ma_type, period)

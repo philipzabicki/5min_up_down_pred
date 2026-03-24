@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "VWMA_PTA",
+      "atr_ma_type": "FBA",
+      "source": "open",
+      "ma_period": 20,
+      "atr_period": 1174,
+      "atr_multi": 13.67600622994294
+    },
+    "abs_corr": 1.7050490319171085
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 58
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.15,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

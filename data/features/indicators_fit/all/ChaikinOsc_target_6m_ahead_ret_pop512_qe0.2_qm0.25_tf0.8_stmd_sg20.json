@@ -1,0 +1,33 @@
+{
+  "best": {
+    "params": {
+      "fast_period": 282,
+      "slow_period": 17,
+      "fast_ma_type": "KAMA",
+      "slow_ma_type": "AHMA"
+    },
+    "score": 2.9029690970125217,
+    "abs_corr": 2.9029690970125217
+  },
+  "population": {
+    "base_pop_size": 512,
+    "adjusted_pop_size": 361
+  },
+  "proxy_target": {
+    "horizon_minutes": 6,
+    "price_col": "Close"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 20,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "median",
+    "clip_q": 0.01,
+    "min_bucket_size": 600,
+    "min_valid_segments": 19,
+    "q_ext": 0.2,
+    "q_mid": 0.25
+  },
+  "fit_config_hash": "271e8bc68c590783"
+}

@@ -164,12 +164,12 @@ def keltner_channel_initializer(
     METRIC_MIN_VALID_SEGMENTS = max(1, int(min_valid_segments))
 
 
-@lru_cache(maxsize=43)
+@lru_cache(maxsize=24)
 def get_ma_from_source_cache(ma_type, ma_period, source):
     return apply_ma(SOURCE_CACHE[source], ma_type, ma_period, VOLUME_CACHE)
 
 
-@lru_cache(maxsize=43)
+@lru_cache(maxsize=24)
 def custom_atr_cache(atr_ma_type, atr_period):
     true_range = frombuffer(TRANGE_BYTES).reshape(TRANGE_SHAPE)
     return get_1d_ma(true_range, atr_ma_type, atr_period)

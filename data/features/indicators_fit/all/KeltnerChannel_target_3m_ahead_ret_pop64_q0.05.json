@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "LWMA",
+      "atr_ma_type": "FBA",
+      "source": "hlcc4",
+      "ma_period": 1948,
+      "atr_period": 159,
+      "atr_multi": 4.87045396490345
+    },
+    "abs_corr": 1.4690350468095155
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 58
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.05,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

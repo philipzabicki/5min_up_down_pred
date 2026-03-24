@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 1948,
+      "posDM_period": 1614,
+      "negDM_period": 813,
+      "adx_period": 578,
+      "ma_type_atr": "GMA",
+      "ma_type_posDM": "LINREG",
+      "ma_type_negDM": "NWMA_COS",
+      "ma_type_adx": "T3"
+    },
+    "abs_corr": 35.61523941176402
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 176
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

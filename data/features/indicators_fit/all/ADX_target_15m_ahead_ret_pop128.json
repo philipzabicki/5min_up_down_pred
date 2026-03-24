@@ -1,0 +1,32 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 1222,
+      "posDM_period": 897,
+      "negDM_period": 4,
+      "adx_period": 553,
+      "ma_type_atr": "TRIMA",
+      "ma_type_posDM": "LINREG",
+      "ma_type_negDM": "TEMA",
+      "ma_type_adx": "RMA"
+    },
+    "score": 2.8754174819342952,
+    "abs_corr": 2.8754174819342952
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 176
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 1500,
+    "q_ext": 0.1,
+    "q_mid": 0.1,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 500,
+    "min_valid_segments": 10
+  }
+}

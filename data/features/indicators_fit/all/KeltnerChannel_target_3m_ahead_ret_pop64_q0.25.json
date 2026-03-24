@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "AHMA",
+      "atr_ma_type": "EMA",
+      "source": "ohlc4",
+      "ma_period": 648,
+      "atr_period": 1033,
+      "atr_multi": 6.137717616083368
+    },
+    "abs_corr": 1.8220316478962668
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 58
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.25,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

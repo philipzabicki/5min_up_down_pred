@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "NWMA_GAUSS",
+      "atr_ma_type": "FBA",
+      "source": "ohlc4",
+      "ma_period": 1648,
+      "atr_period": 368,
+      "atr_multi": 4.613054751415502
+    },
+    "abs_corr": 3.3338272254017096
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 119
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

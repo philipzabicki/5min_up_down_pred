@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 255,
+      "posDM_period": 1416,
+      "negDM_period": 488,
+      "adx_period": 1248,
+      "ma_type_atr": "EMA",
+      "ma_type_posDM": "T3",
+      "ma_type_negDM": "FBA",
+      "ma_type_adx": "MGD"
+    },
+    "abs_corr": 4.29310785368224
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 176
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 860,
+      "posDM_period": 1137,
+      "negDM_period": 1164,
+      "adx_period": 973,
+      "ma_type_atr": "HMA",
+      "ma_type_posDM": "T3",
+      "ma_type_negDM": "SHMMA",
+      "ma_type_adx": "DEMA"
+    },
+    "score": 3.049740980726346,
+    "abs_corr": 3.049740980726346
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 176
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 1500,
+    "q_ext": 0.1,
+    "q_mid": 0.1,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 500,
+    "min_valid_segments": 10
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "best": {
+    "params": {
+      "fastK_period": 965,
+      "slowK_period": 229,
+      "slowD_period": 1371,
+      "slowK_ma_type": "T3",
+      "slowD_ma_type": "NWMA_COS"
+    },
+    "abs_corr": 1.6096830203720842
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 56
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.15,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

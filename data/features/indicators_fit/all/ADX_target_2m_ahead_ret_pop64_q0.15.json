@@ -1,0 +1,27 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 1837,
+      "posDM_period": 1087,
+      "negDM_period": 937,
+      "adx_period": 1970,
+      "ma_type_atr": "WMA",
+      "ma_type_posDM": "NWMA_TRIA",
+      "ma_type_negDM": "SMA",
+      "ma_type_adx": "NWMA_GAUSS",
+      "adx_threshold": 93.67824101259674
+    },
+    "abs_corr": 1.8185011710808987
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 96
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.15,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

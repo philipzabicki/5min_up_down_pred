@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "VWMA_PTA",
+      "atr_ma_type": "ALMA",
+      "source": "high",
+      "ma_period": 19,
+      "atr_period": 43,
+      "atr_multi": 13.389164565906752
+    },
+    "abs_corr": 1.6570354096540454
+  },
+  "population": {
+    "base_pop_size": 16,
+    "adjusted_pop_size": 14
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

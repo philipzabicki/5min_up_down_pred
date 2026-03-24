@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "NWMA_COS",
+      "ma_source": "hlcc4",
+      "std_ma_type": "FBA",
+      "std_source": "low",
+      "ma_period": 56,
+      "std_ma_period": 101,
+      "std_multi": 14.427112652205189
+    },
+    "abs_corr": 1.746836668442028
+  },
+  "population": {
+    "base_pop_size": 16,
+    "adjusted_pop_size": 15
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

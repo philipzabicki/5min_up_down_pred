@@ -33,7 +33,7 @@ MA_WARMUP_REPEATS: int = 1
 MA_REPEATS: int = 3
 MA_SLOWEST_CASES_TOP_N: int = 10
 
-SUMMARY_TOP_N: int = 5
+SUMMARY_TOP_N: int = 20
 DETAIL_TOP_N: int = 30
 PRINT_DETAILS: bool = False
 JSON_OUT: Path | None = None

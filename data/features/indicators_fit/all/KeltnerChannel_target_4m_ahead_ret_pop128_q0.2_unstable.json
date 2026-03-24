@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "HAMMING",
+      "atr_ma_type": "FBA",
+      "source": "hlcc4",
+      "ma_period": 1616,
+      "atr_period": 23,
+      "atr_multi": 13.535926148837543
+    },
+    "abs_corr": 3.445742565006153
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 119
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

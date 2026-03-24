@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "fast_source": "high",
+      "slow_source": "close",
+      "fast_ma_type": "SWMA",
+      "slow_ma_type": "T3",
+      "signal_ma_type": "SMA",
+      "fast_period": 2,
+      "slow_period": 977,
+      "signal_period": 159
+    },
+    "abs_corr": 1.8467140547575511
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 71
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.25,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

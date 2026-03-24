@@ -1,0 +1,36 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "VWMA",
+      "ma_source": "ohlc4",
+      "std_ma_type": "HAMMING",
+      "std_source": "ohlc4",
+      "ma_period": 466,
+      "std_ma_period": 335,
+      "std_multi": 1.6863177755494427
+    },
+    "score": 2.571701886789198,
+    "abs_corr": 2.571701886789198
+  },
+  "population": {
+    "base_pop_size": 512,
+    "adjusted_pop_size": 508
+  },
+  "proxy_target": {
+    "horizon_minutes": 3,
+    "price_col": "Close"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "median",
+    "clip_q": 0.01,
+    "min_bucket_size": 600,
+    "min_valid_segments": 12,
+    "q_ext": 0.15,
+    "q_mid": 0.25
+  },
+  "fit_config_hash": "7e8db128276c910e"
+}

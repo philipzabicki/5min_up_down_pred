@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "HAMMING",
+      "atr_ma_type": "SMA",
+      "source": "open",
+      "ma_period": 225,
+      "atr_period": 212,
+      "atr_multi": 2.8007933557767646
+    },
+    "abs_corr": 2.3499382116789063
+  },
+  "population": {
+    "base_pop_size": 16,
+    "adjusted_pop_size": 14
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

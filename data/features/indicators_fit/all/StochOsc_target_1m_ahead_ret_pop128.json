@@ -1,0 +1,29 @@
+{
+  "best": {
+    "params": {
+      "fastK_period": 55,
+      "slowK_period": 3,
+      "slowD_period": 1079,
+      "slowK_ma_type": "HMA",
+      "slowD_ma_type": "LWMA"
+    },
+    "score": 2.0783568800624965,
+    "abs_corr": 2.0783568800624965
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 116
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 1500,
+    "q_ext": 0.2,
+    "q_mid": 0.2,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 500,
+    "min_valid_segments": 10
+  }
+}

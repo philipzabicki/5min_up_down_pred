@@ -1,11 +1,11 @@
 {
-  "fractional_kelly": 0.9836253870125437,
-  "cap": 0.3872461943658165,
-  "min_edge": 0.006471341767818155,
-  "prob_shrink": 0.9690614044467007,
+  "fractional_kelly": 0.9499123975936375,
+  "cap": 0.47922734999633676,
+  "min_edge": 0.003793963395594953,
+  "prob_shrink": 0.9266153230479588,
   "min_stake_usdc": 1.0,
-  "sigma": 0.002,
-  "spread_half": 0.005,
+  "sigma": 0.0319,
+  "spread_half": "not used (legacy)",
   "fee_model": {
     "feeRate": 0.25,
     "exponent": 2.0,
@@ -13,9 +13,24 @@
     "min_fee": 0.0001
   },
   "price_sim": {
-    "base_price": 0.53,
-    "price_clip_lo": 0.02,
-    "price_clip_hi": 0.98
+    "base_price": 0.4704,
+    "sigma": 0.0319,
+    "spread_half_values": [
+      0.005,
+      0.01,
+      0.015,
+      0.02,
+      0.03
+    ],
+    "spread_half_probs": [
+      0.6575342465753424,
+      0.2534246575342466,
+      0.07534246575342465,
+      0.00684931506849315,
+      0.00684931506849315
+    ],
+    "price_clip_lo": 0.39,
+    "price_clip_hi": 0.55
   },
   "model_proba_error_sim": {
     "enabled": false,

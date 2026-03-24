@@ -39,14 +39,12 @@ data/analysis/profile_ma_funcs/*
 data/features/indicators_fit/*
 !data/features/indicators_fit/.gitkeep
 !data/features/indicators_fit/all/
-!data/features/indicators_fit/tuning/
-!data/features/indicators_fit/unstable/
-data/features/indicators_fit/all/*
+
+data/features/indicators_fit/all/**
 !data/features/indicators_fit/all/.gitkeep
-data/features/indicators_fit/tuning/*
-!data/features/indicators_fit/tuning/.gitkeep
-data/features/indicators_fit/unstable/*
-!data/features/indicators_fit/unstable/.gitkeep
+!data/features/indicators_fit/all/**/
+!data/features/indicators_fit/all/*.json
+!data/features/indicators_fit/all/**/*.json
 
 data/features/state/*
 !data/features/state/.gitkeep

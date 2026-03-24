@@ -142,19 +142,6 @@ def SWMA_INV_fast(close, period):
     return out
 
 
-# @feature_timeit
-# @jit(nopython=True, nogil=True, cache=True)
-# def RMA(close, timeperiod):
-#     alpha = 1.0 / timeperiod
-#     # rma = [0.0] * len(close)
-#     rma = np.zeros_like(close)
-#     # Calculating the SMA for the first 'length' values
-#     sma = np.sum(close[:timeperiod]) / timeperiod
-#     rma[timeperiod - 1] = sma
-#     # Calculating the rma for the rest of the values
-#     for i in range(timeperiod, len(close)):
-#         rma[i] = (alpha * close[i]) + ((1 - alpha) * rma[i - 1])
-#     return rma
 @jit(nopython=True, nogil=True, cache=True)
 def RMA(close, timeperiod):
     close = np.ascontiguousarray(close)
@@ -193,21 +180,6 @@ def LSMA(close, timeperiod):
     return lsma
 
 
-# @feature_timeit
-# @jit(nopython=True, nogil=True, cache=True)
-# def ALMA(close, timeperiod, offset=0.85, sigma=6):
-#     # close = np.ascontiguousarray(close)
-#     m = offset * (timeperiod - 1)
-#     s = timeperiod / sigma
-#     denominator = 2 * s**2
-#     wtd = np.array(
-#         [np.exp(-((i - m) ** 2) / denominator) for i in range(timeperiod)],
-#         dtype=close.dtype,
-#     )
-#     wtd /= wtd.sum()
-#     alma = np.convolve(close, wtd, "valid")
-#     return np.concatenate((np.zeros(timeperiod - 1), alma))
-
 def ALMA(close, timeperiod, offset=0.85, sigma=6):
     close = np.ascontiguousarray(close)
     n = close.shape[0]
@@ -233,33 +205,6 @@ def ALMA(close, timeperiod, offset=0.85, sigma=6):
     out[timeperiod - 1:] = alma_valid
     return out
 
-
-# @jit(nopython=True, nogil=True, cache=True)
-# def GMA(close, period):
-#     close_abs = np.abs(close).astype(np.float64)
-#     eps = 1e-12
-#     n = close_abs.shape[0]
-
-#     for i in range(n):
-#         if close_abs[i] <= eps:
-#             close_abs[i] = eps
-
-#     log_close = np.log(close_abs)
-#     gma = np.zeros_like(close_abs)
-#     inv_period = 1.0 / period
-
-#     window_sum = 0.0
-#     for i in range(period):
-#         window_sum += log_close[i]
-
-#     gma[period - 1] = window_sum * inv_period
-
-#     for i in range(period, n):
-#         window_sum -= log_close[i - period]
-#         window_sum += log_close[i]
-#         gma[i] = window_sum * inv_period
-
-#     return np.exp(gma)
 
 # Geometric MA cannot be computed for non-positive values, so we fall back to SMA in that case.
 # Which is closest to GMA in terms of smoothing properties, but can handle any values.
@@ -318,19 +263,6 @@ def VWMAv1(close, volume, timeperiod):
     return np.concatenate((np.zeros(timeperiod - 1), vwma))
 
 
-# @jit(nopython=True, nogil=True, cache=True)
-# def VWMA(close, volume, timeperiod):
-#     vwma = np.zeros_like(close)
-#     window_sum_volume = np.sum(volume[:timeperiod])
-#     window_sum_cxv = np.sum(close[:timeperiod] * volume[:timeperiod])
-#     vwma[timeperiod - 1] = window_sum_cxv / window_sum_volume
-#     for i in range(timeperiod, len(close)):
-#         window_sum_volume -= volume[i - timeperiod]
-#         window_sum_volume += volume[i]
-#         window_sum_cxv -= close[i - timeperiod] * volume[i - timeperiod]
-#         window_sum_cxv += close[i] * volume[i]
-#         vwma[i] = window_sum_cxv / window_sum_volume
-#     return vwma
 @jit(nopython=True, nogil=True, cache=True)
 def VWMA(close, volume, timeperiod):
     close = np.ascontiguousarray(close)
@@ -367,12 +299,6 @@ def VWMA(close, volume, timeperiod):
     return out
 
 
-# @feature_timeit
-# @jit(nopython=True, nogil=True, cache=True)
-# def HammingMA(close, timeperiod):
-#     w = np.hamming(timeperiod)
-#     hma = np.convolve(close, w, mode="valid") / w.sum()
-#     return np.concatenate((np.zeros(timeperiod - 1), hma))
 def HammingMA(close, timeperiod):
     close = np.ascontiguousarray(close)
     n = close.shape[0]
@@ -389,115 +315,6 @@ def HammingMA(close, timeperiod):
     return out
 
 
-# @jit(nopython=True, nogil=True, cache=True)
-# def NadarayWatsonMA(close, timeperiod, kernel=0):
-#     close = np.ascontiguousarray(close)
-#     # nwma = np.empty_like(close)
-#     if timeperiod % 2 == 1:
-#         distances = np.concatenate(
-#             (np.arange(timeperiod // 2 + 1, 0, -1), np.arange(2, timeperiod // 2 + 2))
-#         )
-#     else:
-#         distances = np.concatenate(
-#             (np.arange(timeperiod // 2, 0, -1), np.arange(1, timeperiod // 2 + 1))
-#         )
-#     if kernel == 0:
-#         weights = np.ascontiguousarray(
-#             np.exp(-0.5 * (distances / timeperiod) ** 2) / np.sqrt(2 * np.pi)
-#         )
-#     elif kernel == 1:
-#         weights = np.ascontiguousarray(
-#             np.where(
-#                 np.abs(distances / timeperiod) <= 1,
-#                 3 / 4 * (1 - (distances / timeperiod) ** 2),
-#                 0,
-#             )
-#         )
-#     elif kernel == 2:
-#         weights = np.ascontiguousarray(
-#             np.where(np.abs(distances / timeperiod) <= 1, 0.5, 0)
-#         )
-#     elif kernel == 3:
-#         weights = np.ascontiguousarray(
-#             np.where(
-#                 np.abs(distances / timeperiod) <= 1,
-#                 1 - np.abs(distances / timeperiod),
-#                 0,
-#             )
-#         )
-#     elif kernel == 4:
-#         weights = np.ascontiguousarray(
-#             np.where(
-#                 np.abs(distances / timeperiod) <= 1,
-#                 (15 / 16) * (1 - (distances / timeperiod) ** 2) ** 2,
-#                 0,
-#             )
-#         )
-#     elif kernel == 5:
-#         weights = np.ascontiguousarray(
-#             np.where(
-#                 np.abs(distances / timeperiod) <= 1,
-#                 np.pi / 4 * np.cos(np.pi / 2 * (distances / timeperiod)),
-#                 0,
-#             )
-#         )
-#     else:
-#         raise ValueError("kernel argument must be int from 0 to 5")
-#     # weights = weights.astype(close.dtype)
-#     weights_sum = weights.sum()
-#     nwma = np.array(
-#         [
-#             (weights @ close[i - timeperiod + 1 : i + 1]) / weights_sum
-#             for i in range(timeperiod - 1, len(close))
-#         ]
-#     )
-#     return np.concatenate((np.zeros(timeperiod - 1), nwma))
-# @jit(nopython=True, nogil=True, cache=True)
-# def NadarayWatsonMA(close, timeperiod, kernel=0):
-#     close = np.ascontiguousarray(close)
-#     n = close.shape[0]
-
-#     out = np.empty_like(close)
-#     out[:] = np.nan
-
-#     if timeperiod <= 0 or timeperiod > n:
-#         return out
-
-#     if timeperiod % 2 == 1:
-#         distances = np.concatenate(
-#             (np.arange(timeperiod // 2 + 1, 0, -1), np.arange(2, timeperiod // 2 + 2))
-#         )
-#     else:
-#         distances = np.concatenate(
-#             (np.arange(timeperiod // 2, 0, -1), np.arange(1, timeperiod // 2 + 1))
-#         )
-
-#     u = distances / timeperiod
-
-#     if kernel == 0:
-#         weights = np.ascontiguousarray(np.exp(-0.5 * u ** 2) / np.sqrt(2 * np.pi))
-#     elif kernel == 1:
-#         weights = np.ascontiguousarray(np.where(np.abs(u) <= 1, 0.75 * (1 - u ** 2), 0))
-#     elif kernel == 2:
-#         weights = np.ascontiguousarray(np.where(np.abs(u) <= 1, 0.5, 0))
-#     elif kernel == 3:
-#         weights = np.ascontiguousarray(np.where(np.abs(u) <= 1, 1 - np.abs(u), 0))
-#     elif kernel == 4:
-#         weights = np.ascontiguousarray(np.where(np.abs(u) <= 1, (15 / 16) * (1 - u ** 2) ** 2, 0))
-#     elif kernel == 5:
-#         weights = np.ascontiguousarray(np.where(np.abs(u) <= 1, (np.pi / 4) * np.cos((np.pi / 2) * u), 0))
-#     else:
-#         # numba nie lubi raise ValueError w każdej ścieżce, ale tu OK jeśli używasz w Pythonie
-#         return out
-
-#     weights_sum = weights.sum()
-#     if weights_sum == 0.0:
-#         return out
-
-#     for i in range(timeperiod - 1, n):
-#         out[i] = (weights @ close[i - timeperiod + 1 : i + 1]) / weights_sum
-
-#     return out
 @jit(nopython=True, nogil=True, cache=True)
 def NadarayWatsonMA(close, timeperiod, kernel=0):
     close = np.ascontiguousarray(close)
@@ -543,18 +360,6 @@ def NadarayWatsonMA(close, timeperiod, kernel=0):
     return out
 
 
-# @jit(nopython=True, nogil=True, cache=True)
-# def LWMA(close, period):
-#     close = np.ascontiguousarray(close)
-#     weights = np.ascontiguousarray(np.arange(1, period + 1, dtype=close.dtype))
-#     weights_sum = weights.sum()
-#     lwma = np.array(
-#         [
-#             np.dot(close[i - period + 1 : i + 1], weights) / weights_sum
-#             for i in range(period - 1, len(close))
-#         ]
-#     )
-#     return np.concatenate((np.zeros(period - 1), lwma))
 @jit(nopython=True, nogil=True, cache=True)
 def LWMA(close, period):
     close = np.ascontiguousarray(close)
@@ -575,26 +380,6 @@ def LWMA(close, period):
     return out
 
 
-# @feature_timeit
-# @jit(nopython=True, nogil=True, cache=True)
-# def MGD(close, period):
-#     md = np.empty_like(close)
-#     md[0] = close[0]
-#     eps = 1e-12
-
-#     for i in range(1, close.shape[0]):
-#         prev = md[i - 1]
-#         denom = prev if prev != 0.0 else 1.0
-
-#         ratio = close[i] / denom
-#         scale = period * np.power(ratio, 4)
-
-#         if not np.isfinite(scale) or abs(scale) < eps:
-#             md[i] = prev
-#         else:
-#             md[i] = prev + (close[i] - prev) / scale
-
-#     return md
 @jit(nopython=True, nogil=True, cache=True)
 def MGD(close, period):
     close = np.ascontiguousarray(close)

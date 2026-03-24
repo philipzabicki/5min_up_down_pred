@@ -1,0 +1,27 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 102,
+      "posDM_period": 1734,
+      "negDM_period": 1879,
+      "adx_period": 61,
+      "ma_type_atr": "TRIMA",
+      "ma_type_posDM": "DEMA",
+      "ma_type_negDM": "LINREG",
+      "ma_type_adx": "KAMA",
+      "adx_threshold": 73.12671958610893
+    },
+    "abs_corr": 1.5928440059702482
+  },
+  "population": {
+    "base_pop_size": 16,
+    "adjusted_pop_size": 24
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

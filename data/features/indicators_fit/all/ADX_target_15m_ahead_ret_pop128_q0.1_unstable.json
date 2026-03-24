@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 1659,
+      "posDM_period": 588,
+      "negDM_period": 1279,
+      "adx_period": 597,
+      "ma_type_atr": "AHMA",
+      "ma_type_posDM": "SHMMA",
+      "ma_type_negDM": "NWMA_EPAN",
+      "ma_type_adx": "AHMA"
+    },
+    "abs_corr": 6.0238052121388215
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 176
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

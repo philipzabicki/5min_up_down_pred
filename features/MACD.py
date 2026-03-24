@@ -154,7 +154,7 @@ def macd_initializer(
     METRIC_MIN_VALID_SEGMENTS = max(1, int(min_valid_segments))
 
 
-@lru_cache(maxsize=86)
+@lru_cache(maxsize=64)
 def get_ma_from_source_cache(ma_type, ma_period, source):
     return apply_ma(SOURCE_CACHE[source], ma_type, ma_period, VOLUME_CACHE)
 

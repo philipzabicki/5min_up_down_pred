@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "fast_source": "low",
+      "slow_source": "open",
+      "fast_ma_type": "LMA",
+      "slow_ma_type": "GMA",
+      "signal_ma_type": "FBA",
+      "fast_period": 925,
+      "slow_period": 1999,
+      "signal_period": 777
+    },
+    "abs_corr": 3.3065821891876457
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 146
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

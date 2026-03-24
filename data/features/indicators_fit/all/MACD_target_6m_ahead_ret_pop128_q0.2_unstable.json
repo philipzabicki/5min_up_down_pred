@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "fast_source": "high",
+      "slow_source": "hlcc4",
+      "fast_ma_type": "LWMA",
+      "slow_ma_type": "T3",
+      "signal_ma_type": "TEMA",
+      "fast_period": 653,
+      "slow_period": 324,
+      "signal_period": 1273
+    },
+    "abs_corr": 3.1545561859166376
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 146
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "HAMMING",
+      "atr_ma_type": "ALMA",
+      "source": "close",
+      "ma_period": 186,
+      "atr_period": 1861,
+      "atr_multi": 14.000479413947895
+    },
+    "score": 1.3608570971467444,
+    "abs_corr": 1.3608570971467444
+  },
+  "population": {
+    "base_pop_size": 512,
+    "adjusted_pop_size": 474
+  },
+  "proxy_target": {
+    "horizon_minutes": 1,
+    "price_col": "Close"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "median",
+    "clip_q": 0.01,
+    "min_bucket_size": 600,
+    "min_valid_segments": 12,
+    "q_ext": 0.15,
+    "q_mid": 0.25
+  },
+  "fit_config_hash": "7e8db128276c910e"
+}

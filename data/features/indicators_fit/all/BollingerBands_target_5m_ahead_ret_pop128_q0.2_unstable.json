@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "NWMA_EPAN",
+      "ma_source": "high",
+      "std_ma_type": "TRIMA",
+      "std_source": "hlc3",
+      "ma_period": 941,
+      "std_ma_period": 124,
+      "std_multi": 13.179043666763228
+    },
+    "abs_corr": 3.56907770854533
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 127
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

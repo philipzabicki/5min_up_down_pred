@@ -1,0 +1,30 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "NWMA_UNIF",
+      "atr_ma_type": "NWMA_UNIF",
+      "source": "open",
+      "ma_period": 991,
+      "atr_period": 667,
+      "atr_multi": 3.076443913967534
+    },
+    "score": 2.4113854880118293,
+    "abs_corr": 2.4113854880118293
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 119
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 1500,
+    "q_ext": 0.1,
+    "q_mid": 0.1,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 500,
+    "min_valid_segments": 10
+  }
+}

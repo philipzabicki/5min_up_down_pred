@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "ALMA",
+      "atr_ma_type": "ALMA",
+      "source": "ohlc4",
+      "ma_period": 588,
+      "atr_period": 1995,
+      "atr_multi": 12.157503524981747
+    },
+    "abs_corr": 3.2745596980025886
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 119
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "best": {
+    "params": {
+      "fast_period": 201,
+      "slow_period": 3,
+      "fast_ma_type": "MAMA",
+      "slow_ma_type": "FBA"
+    },
+    "abs_corr": 1.6870523351382465
+  },
+  "population": {
+    "base_pop_size": 16,
+    "adjusted_pop_size": 10
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

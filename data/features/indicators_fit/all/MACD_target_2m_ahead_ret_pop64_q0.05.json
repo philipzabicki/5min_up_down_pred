@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "fast_source": "hlcc4",
+      "slow_source": "high",
+      "fast_ma_type": "TRIMA",
+      "slow_ma_type": "NWMA_COS",
+      "signal_ma_type": "LWMA",
+      "fast_period": 378,
+      "slow_period": 1165,
+      "signal_period": 978
+    },
+    "abs_corr": 1.67531937339649
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 71
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.05,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

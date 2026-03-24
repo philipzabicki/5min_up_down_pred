@@ -133,7 +133,7 @@ def stochastic_oscillator_initializer(
     METRIC_MIN_VALID_SEGMENTS = max(1, int(min_valid_segments))
 
 
-@lru_cache(maxsize=86)
+@lru_cache(maxsize=64)
 def stochf_cache(fastk_period):
     ohlcv_array = frombuffer(OHLCV_BYTES).reshape(OHLCV_SHAPE)
     fastK, _ = STOCHF(

@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "SHMMA",
+      "ma_source": "ohlc4",
+      "std_ma_type": "NWMA_EPAN",
+      "std_source": "close",
+      "ma_period": 1256,
+      "std_ma_period": 18,
+      "std_multi": 7.844751982508147
+    },
+    "abs_corr": 1.7186934687836335
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 62
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.25,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

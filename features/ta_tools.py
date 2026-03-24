@@ -31,23 +31,26 @@ MA_FUNCS = {
     "TEMA": lambda s, period: talib.TEMA(s, timeperiod=period),
     "T3": lambda s, period: talib.T3(s, timeperiod=period),
     "MAMA": lambda s, _: talib.MAMA(s)[0],
+    
     # Pandas-TA & External Libs (ti)
     "EHMA": lambda s, period: ti.ehma(s, period),
     "LMA": lambda s, period: ti.lma(s, period),
     "SHMMA": lambda s, period: ti.shmma(s, period),
     "AHMA": lambda s, period: ti.ahma(s, period),
+
     # Custom Functions
     "LINREG": lambda s, period: LINEARREG_fast(s, period),
-    "SWMA": lambda s, period: SWMA_fast(s, period),
-    "SWMA_INV": lambda s, period: SWMA_INV_fast(s, period),
+    "SWMA": lambda s, period: SWMA_fast(s, period), # slow af
+    "SWMA_INV": lambda s, period: SWMA_INV_fast(s, period), # slow af
     "HMA": lambda s, period: HullMA(s, max(period, 4)),
     "RMA": lambda s, period: RMA(s, timeperiod=period),
-    "ALMA": lambda s, period: ALMA(s, timeperiod=period),
-    "HAMMING": lambda s, period: HammingMA(s, period),
+    "ALMA": lambda s, period: ALMA(s, timeperiod=period), # slow af
+    "HAMMING": lambda s, period: HammingMA(s, period), # slow af
     "LWMA": lambda s, period: LWMA(s, period),
     "MGD": lambda s, period: MGD(s, period),
     "GMA": lambda s, period: GMA_or_SMA(s, period), # SMA for s<=0
     "FBA": lambda s, period: FBA(s, period),
+
     # Nadaraya-Watson (Kernel variations)
     "NWMA_GAUSS": lambda s, period: NadarayWatsonMA(s, period, kernel=0),
     "NWMA_EPAN": lambda s, period: NadarayWatsonMA(s, period, kernel=1),
@@ -55,6 +58,7 @@ MA_FUNCS = {
     "NWMA_TRIA": lambda s, period: NadarayWatsonMA(s, period, kernel=3),
     "NWMA_BIW": lambda s, period: NadarayWatsonMA(s, period, kernel=4),
     "NWMA_COS": lambda s, period: NadarayWatsonMA(s, period, kernel=5),
+
     # Volume Weighted
     "VWMA_PTA": lambda s, period, v: VWMA(s, v, timeperiod=period), # legacy name, same as "VWMA"
     "VWMA": lambda s, period, v: VWMA(s, v, timeperiod=period),

@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "LMA",
+      "atr_ma_type": "LWMA",
+      "source": "open",
+      "ma_period": 1078,
+      "atr_period": 221,
+      "atr_multi": 1.4147735584994616
+    },
+    "abs_corr": 2.512190997581921
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 119
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

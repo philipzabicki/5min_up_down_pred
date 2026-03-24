@@ -1,0 +1,27 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 647,
+      "posDM_period": 337,
+      "negDM_period": 108,
+      "adx_period": 158,
+      "ma_type_atr": "HAMMING",
+      "ma_type_posDM": "HAMMING",
+      "ma_type_negDM": "T3",
+      "ma_type_adx": "EMA",
+      "adx_threshold": 74.84122681289277
+    },
+    "abs_corr": 1.6961770036729773
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 96
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.15,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

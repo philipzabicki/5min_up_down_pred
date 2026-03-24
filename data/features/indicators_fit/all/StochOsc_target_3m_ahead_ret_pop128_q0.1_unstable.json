@@ -1,0 +1,23 @@
+{
+  "best": {
+    "params": {
+      "fastK_period": 506,
+      "slowK_period": 1176,
+      "slowD_period": 1948,
+      "slowK_ma_type": "HMA",
+      "slowD_ma_type": "EMA"
+    },
+    "abs_corr": 3.0484809336462604
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 116
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

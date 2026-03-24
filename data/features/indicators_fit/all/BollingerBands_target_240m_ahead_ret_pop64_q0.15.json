@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "NWMA_TRIA",
+      "ma_source": "high",
+      "std_ma_type": "TRIMA",
+      "std_source": "open",
+      "ma_period": 1522,
+      "std_ma_period": 830,
+      "std_multi": 10.793967152382692
+    },
+    "abs_corr": 1.7795444788281627
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 62
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.15,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

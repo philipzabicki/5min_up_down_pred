@@ -1,0 +1,26 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 1871,
+      "posDM_period": 442,
+      "negDM_period": 1525,
+      "adx_period": 625,
+      "ma_type_atr": "GMA",
+      "ma_type_posDM": "SMA",
+      "ma_type_negDM": "WMA",
+      "ma_type_adx": "EHMA"
+    },
+    "abs_corr": 256.50556545861474
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 176
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

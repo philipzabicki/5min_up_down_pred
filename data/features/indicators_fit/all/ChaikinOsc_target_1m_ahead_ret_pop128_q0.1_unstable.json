@@ -1,0 +1,22 @@
+{
+  "best": {
+    "params": {
+      "fast_period": 564,
+      "slow_period": 1632,
+      "fast_ma_type": "ALMA",
+      "slow_ma_type": "T3"
+    },
+    "abs_corr": 2.6533834110415437
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 85
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

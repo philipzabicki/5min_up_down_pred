@@ -1,0 +1,32 @@
+{
+  "best": {
+    "params": {
+      "fast_source": "high",
+      "slow_source": "open",
+      "fast_ma_type": "HAMMING",
+      "slow_ma_type": "SMA",
+      "signal_ma_type": "SMA",
+      "fast_period": 29,
+      "slow_period": 1223,
+      "signal_period": 6
+    },
+    "score": 1.7691877242719307,
+    "abs_corr": 1.7691877242719307
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 146
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 1500,
+    "q_ext": 0.2,
+    "q_mid": 0.2,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 500,
+    "min_valid_segments": 10
+  }
+}

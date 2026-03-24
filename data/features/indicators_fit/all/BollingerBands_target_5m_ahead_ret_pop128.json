@@ -1,0 +1,31 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "NWMA_BIW",
+      "ma_source": "ohlc4",
+      "std_ma_type": "NWMA_EPAN",
+      "std_source": "high",
+      "ma_period": 1590,
+      "std_ma_period": 115,
+      "std_multi": 6.089798966764407
+    },
+    "score": 2.1882573515671147,
+    "abs_corr": 2.1882573515671147
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 127
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 1500,
+    "q_ext": 0.1,
+    "q_mid": 0.1,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 500,
+    "min_valid_segments": 10
+  }
+}

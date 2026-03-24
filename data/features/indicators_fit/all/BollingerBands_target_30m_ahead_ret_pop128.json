@@ -1,0 +1,31 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "ALMA",
+      "ma_source": "hlcc4",
+      "std_ma_type": "TRIMA",
+      "std_source": "high",
+      "ma_period": 1301,
+      "std_ma_period": 1401,
+      "std_multi": 6.0060346387605685
+    },
+    "score": 3.4056370070318063,
+    "abs_corr": 3.4056370070318063
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 127
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 1500,
+    "q_ext": 0.1,
+    "q_mid": 0.1,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 500,
+    "min_valid_segments": 10
+  }
+}

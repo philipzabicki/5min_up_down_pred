@@ -1,5 +1,6 @@
 import json
 import re
+import gc
 from datetime import datetime, timezone
 from pathlib import Path
 import lightgbm as lgb
@@ -31,8 +32,8 @@ TARGET_COL = "target_5m_candle_up"
 CV_FOLDS = 10
 WF_TEST_TO_TRAIN_RATIO = 0.2
 
-MAX_N_ESTIMATORS = 5000
-EARLY_STOPPING_ROUNDS = 50
+MAX_N_ESTIMATORS = 3000
+EARLY_STOPPING_ROUNDS = 25
 PRUNE_REPORT_EVERY_N_ITER = 10
 
 SEED = 37
@@ -46,7 +47,7 @@ LGBM_OPTUNA_SEARCH_SPACE = {
     "learning_rate": {"type": "float", "low": 0.001, "high": 0.5, "log": True},
     "num_leaves": {"type": "int", "low": 16, "high": 256},
     "min_data_in_leaf": {"type": "int", "low": 2, "high": 4096, "log": True},
-    "max_depth": {"type": "int", "low": 2, "high": 128},
+    "max_depth": {"type": "int", "low": 2, "high": 196},
     "feature_fraction": {"type": "float", "low": 0.1, "high": 1.0},
     "bagging_fraction": {"type": "float", "low": 0.1, "high": 1.0},
     "bagging_freq": {"type": "int", "low": 0, "high": 25},
@@ -142,27 +143,43 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "feature_fraction_bynode": 0.8821060783972539,
       "path_smooth": 3.743686767424939,
       "extra_trees": False
+    },
+    {
+      "learning_rate": 0.02082784518014535,
+      "num_leaves": 37,
+      "min_data_in_leaf": 103,
+      "max_depth": 169,
+      "feature_fraction": 0.37752257586311444,
+      "bagging_fraction": 0.6274488270891571,
+      "bagging_freq": 23,
+      "lambda_l2": 53.12614038557139,
+      "lambda_l1": 10.31812331923178,
+      "min_sum_hessian_in_leaf": 0.0061350132104521764,
+      "min_gain_to_split": 0.07525941090726794,
+      "feature_fraction_bynode": 0.7170577314073263,
+      "path_smooth": 1.124852812228145,
+      "extra_trees": False
     }
 ]
 
-N_TRIALS = 10
+N_TRIALS = 300
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "de_besta_v8"
+STUDY_NAME = "de_besta_v13"
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
 BEST_RESULT_PATH = Path(
     "data/optuna/lgbm/lgbm_generic_optuna_best_mean_std.json"
 )
 TRIALS_CSV_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_trials_mean_std.csv")
-RUN_MODE = "optimize"  # "optimize" or "recheck-topn"
+RUN_MODE = "recheck-topn"  # "optimize" or "recheck-topn"
 RECHECK_STUDY_NAME = STUDY_NAME
 RECHECK_STORAGE = STORAGE
-TOP_TRIALS_RECHECK_N = 10
+TOP_TRIALS_RECHECK_N = 5
 TOP_TRIALS_RECHECK_OUTPUT_DIR = Path("data/optuna/lgbm/recheck")
 TOP_TRIALS_RECHECK_OUTPUT_JSON_PATH = None
 TOP_TRIALS_RECHECK_OUTPUT_CSV_PATH = None
@@ -732,6 +749,8 @@ def make_objective(
         std_series = np.asarray(
             cv_results["valid binary_logloss-stdv"], dtype=np.float64
         )
+        del cv_results
+        gc.collect()
         objective_series = mean_series + (CV_LOGLOSS_STD_PENALTY * std_series)
         best_index = int(np.argmin(objective_series))
         best_iteration = best_index + 1
@@ -1096,7 +1115,7 @@ def run_optuna_optimization():
         n_trials=N_TRIALS,
         timeout=TIMEOUT_SECONDS,
         n_jobs=OPTUNA_OPTIMIZE_N_JOBS,
-        gc_after_trial=False,
+        gc_after_trial=True,
         show_progress_bar=True,
         catch=(lgb.basic.LightGBMError, OSError),
     )

@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "HAMMING",
+      "ma_source": "close",
+      "std_ma_type": "KAMA",
+      "std_source": "ohlc4",
+      "ma_period": 1849,
+      "std_ma_period": 1670,
+      "std_multi": 0.11643876073052743
+    },
+    "abs_corr": 1.8142849506510348
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 123
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

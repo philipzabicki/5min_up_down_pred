@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "KAMA",
+      "ma_source": "hlc3",
+      "std_ma_type": "NWMA_GAUSS",
+      "std_source": "open",
+      "ma_period": 210,
+      "std_ma_period": 473,
+      "std_multi": 0.4313611014185473
+    },
+    "abs_corr": 3.161483499187558
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 127
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

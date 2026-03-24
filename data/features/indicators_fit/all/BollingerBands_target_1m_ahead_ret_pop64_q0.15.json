@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "SWMA_INV",
+      "ma_source": "hl2",
+      "std_ma_type": "NWMA_UNIF",
+      "std_source": "hlcc4",
+      "ma_period": 1707,
+      "std_ma_period": 513,
+      "std_multi": 10.661606309090008
+    },
+    "abs_corr": 2.1737115546854593
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 62
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.15,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

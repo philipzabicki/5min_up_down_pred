@@ -72,12 +72,12 @@ VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
     "step": {"type": "int", "low": 1, "high": 200, "log": True},
     "neighbor_bins": {"type": "int", "low": 1, "high": 32},
     "local_window": {"type": "int", "low": 1, "high": 256, "log": True},
-    "sigma_divisor": {"type": "float", "low": 0.25, "high": 50.0, "log": True},
-    "min_sigma": {"type": "float", "low": 0.25, "high": 256.0, "log": True},
+    "sigma_divisor": {"type": "float", "low": 0.05, "high": 50.0, "log": True},
+    "min_sigma": {"type": "float", "low": 0.05, "high": 256.0, "log": True},
     "short_half_life_candles": {
         "type": "int",
         "low": 10,
-        "high": 2_400,
+        "high": 4_320,
         "log": True,
     },
     "medium_half_life_candles": {
@@ -138,7 +138,7 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     }
 ]
 
-N_TRIALS = 500
+N_TRIALS = 100
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS*0.1)
@@ -146,7 +146,7 @@ TPE_STARTUP_TRIALS = int(N_TRIALS*0.1)
 CV_OBJECTIVE_NAME = "brier_score_mean_plus_std_penalty"
 CV_BRIER_STD_PENALTY = 1.0
 CRASH_PENALTY = 1.0
-STUDY_NAME = "volume_profile_opt_brier_mean_std_1520_20032026"
+STUDY_NAME = "volume_profile_opt_brier_mean_std_1230_23032026"
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
 BEST_RESULT_PATH = Path(
     "data/optuna/volume_profile/volume_profile_best_mean_std.json"
