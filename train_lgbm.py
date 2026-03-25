@@ -56,19 +56,19 @@ PRIMARY_REPORTING_METRIC = "brier_score"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0032826894654068746,
-      "num_leaves": 240,
-      "min_data_in_leaf": 51,
-      "max_depth": 76,
-      "feature_fraction": 0.2600155012187151,
-      "bagging_fraction": 0.9386274411409469,
-      "bagging_freq": 4,
-      "lambda_l2": 8.97624362058438,
-      "lambda_l1": 5.935593621429428,
-      "min_sum_hessian_in_leaf": 0.22629666928997544,
-      "min_gain_to_split": 1.247365118812283,
-      "feature_fraction_bynode": 0.98701845583249,
-      "path_smooth": 18.823257423983854,
+      "learning_rate": 0.0025914974621187976,
+      "num_leaves": 237,
+      "min_data_in_leaf": 49,
+      "max_depth": 161,
+      "feature_fraction": 0.918050769867607,
+      "bagging_fraction": 0.5850053283449519,
+      "bagging_freq": 1,
+      "lambda_l2": 10.54627242322395,
+      "lambda_l1": 3.7649708630783136,
+      "min_sum_hessian_in_leaf": 0.04560966202115141,
+      "min_gain_to_split": 0.33195911076530266,
+      "feature_fraction_bynode": 0.769865397653978,
+      "path_smooth": 24.493777701228996,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {

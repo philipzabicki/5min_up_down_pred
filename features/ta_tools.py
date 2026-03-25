@@ -40,12 +40,12 @@ MA_FUNCS = {
 
     # Custom Functions
     "LINREG": lambda s, period: LINEARREG_fast(s, period),
-    "SWMA": lambda s, period: SWMA_fast(s, period), # slow af
-    "SWMA_INV": lambda s, period: SWMA_INV_fast(s, period), # slow af
+    # "SWMA": lambda s, period: SWMA_fast(s, period), # slow af
+    # "SWMA_INV": lambda s, period: SWMA_INV_fast(s, period), # slow af
     "HMA": lambda s, period: HullMA(s, max(period, 4)),
     "RMA": lambda s, period: RMA(s, timeperiod=period),
-    "ALMA": lambda s, period: ALMA(s, timeperiod=period), # slow af
-    "HAMMING": lambda s, period: HammingMA(s, period), # slow af
+    # "ALMA": lambda s, period: ALMA(s, timeperiod=period), # slow af
+    # "HAMMING": lambda s, period: HammingMA(s, period), # slow af
     "LWMA": lambda s, period: LWMA(s, period),
     "MGD": lambda s, period: MGD(s, period),
     "GMA": lambda s, period: GMA_or_SMA(s, period), # SMA for s<=0

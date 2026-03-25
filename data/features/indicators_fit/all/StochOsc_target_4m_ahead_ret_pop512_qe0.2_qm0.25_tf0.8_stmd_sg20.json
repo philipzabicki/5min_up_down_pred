@@ -1,14 +1,14 @@
 {
   "best": {
     "params": {
-      "fastK_period": 579,
-      "slowK_period": 47,
-      "slowD_period": 1305,
-      "slowK_ma_type": "EMA",
-      "slowD_ma_type": "FBA"
+      "fastK_period": 601,
+      "slowK_period": 41,
+      "slowD_period": 529,
+      "slowK_ma_type": "KAMA",
+      "slowD_ma_type": "KAMA"
     },
-    "score": 2.098409489513847,
-    "abs_corr": 2.098409489513847
+    "score": 2.370842638101339,
+    "abs_corr": 2.370842638101339
   },
   "population": {
     "base_pop_size": 512,
@@ -30,5 +30,5 @@
     "q_ext": 0.2,
     "q_mid": 0.25
   },
-  "fit_config_hash": "271e8bc68c590783"
+  "fit_config_hash": "4a03e32e28926fb0"
 }

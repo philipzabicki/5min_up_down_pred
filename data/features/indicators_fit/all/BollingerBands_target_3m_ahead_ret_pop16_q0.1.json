@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "HMA",
+      "ma_source": "hl2",
+      "std_ma_type": "MAMA",
+      "std_source": "high",
+      "ma_period": 275,
+      "std_ma_period": 891,
+      "std_multi": 11.99540675024966
+    },
+    "abs_corr": 1.7420208743314909
+  },
+  "population": {
+    "base_pop_size": 16,
+    "adjusted_pop_size": 15
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

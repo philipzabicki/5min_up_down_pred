@@ -1,0 +1,36 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "RMA",
+      "ma_source": "high",
+      "std_ma_type": "FBA",
+      "std_source": "close",
+      "ma_period": 1962,
+      "std_ma_period": 1662,
+      "std_multi": 10.730750024981482
+    },
+    "score": 2.909522847369432,
+    "abs_corr": 2.909522847369432
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 127
+  },
+  "proxy_target": {
+    "horizon_minutes": 720,
+    "price_col": "Close"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 15,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 600,
+    "min_valid_segments": 12,
+    "q_ext": 0.1,
+    "q_mid": 0.2
+  },
+  "fit_config_hash": "2c40699de12e1415"
+}

@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "AHMA",
+      "ma_source": "hl2",
+      "std_ma_type": "NWMA_TRIA",
+      "std_source": "close",
+      "ma_period": 1504,
+      "std_ma_period": 1610,
+      "std_multi": 6.733044957781988
+    },
+    "abs_corr": 2.940418376826545
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 127
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir",
+    "corr_segments_count": 20,
+    "q": 0.1,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

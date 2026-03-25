@@ -1,15 +1,15 @@
 {
   "best": {
     "params": {
-      "ma_type": "TEMA",
-      "ma_source": "high",
-      "std_ma_type": "SMA",
-      "std_source": "high",
-      "ma_period": 3,
-      "std_ma_period": 22
+      "ma_type": "FBA",
+      "ma_source": "close",
+      "std_ma_type": "NWMA_GAUSS",
+      "std_source": "hlc3",
+      "ma_period": 971,
+      "std_ma_period": 949
     },
-    "score": 2.461385528069374,
-    "abs_corr": 2.461385528069374
+    "score": 1.4332626728568172,
+    "abs_corr": 1.4332626728568172
   },
   "population": {
     "base_pop_size": 512,
@@ -31,5 +31,5 @@
     "q_ext": 0.2,
     "q_mid": 0.25
   },
-  "fit_config_hash": "271e8bc68c590783"
+  "fit_config_hash": "4a03e32e28926fb0"
 }

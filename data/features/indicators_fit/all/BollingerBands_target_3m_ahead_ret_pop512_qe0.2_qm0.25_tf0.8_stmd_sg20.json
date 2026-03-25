@@ -1,15 +1,15 @@
 {
   "best": {
     "params": {
-      "ma_type": "VWMA",
+      "ma_type": "KAMA",
       "ma_source": "high",
-      "std_ma_type": "NWMA_UNIF",
-      "std_source": "low",
-      "ma_period": 535,
-      "std_ma_period": 1989
+      "std_ma_type": "DEMA",
+      "std_source": "ohlc4",
+      "ma_period": 1539,
+      "std_ma_period": 1859
     },
-    "score": 1.8844601802118073,
-    "abs_corr": 1.8844601802118073
+    "score": 2.2462663114871075,
+    "abs_corr": 2.2462663114871075
   },
   "population": {
     "base_pop_size": 512,
@@ -31,5 +31,5 @@
     "q_ext": 0.2,
     "q_mid": 0.25
   },
-  "fit_config_hash": "271e8bc68c590783"
+  "fit_config_hash": "4a03e32e28926fb0"
 }

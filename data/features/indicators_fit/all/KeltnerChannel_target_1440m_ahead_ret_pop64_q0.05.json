@@ -1,0 +1,24 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "T3",
+      "atr_ma_type": "NWMA_GAUSS",
+      "source": "open",
+      "ma_period": 1993,
+      "atr_period": 1423,
+      "atr_multi": 7.0524027392984845
+    },
+    "abs_corr": 2.1728386414264427
+  },
+  "population": {
+    "base_pop_size": 64,
+    "adjusted_pop_size": 58
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 25,
+    "q": 0.05,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}

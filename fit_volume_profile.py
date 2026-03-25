@@ -146,7 +146,7 @@ TPE_STARTUP_TRIALS = int(N_TRIALS*0.1)
 CV_OBJECTIVE_NAME = "brier_score_mean_plus_std_penalty"
 CV_BRIER_STD_PENALTY = 1.0
 CRASH_PENALTY = 1.0
-STUDY_NAME = "volume_profile_opt_brier_mean_std_1230_23032026"
+STUDY_NAME = "volume_profile_opt_brier_mean_std_1725_24032026"
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
 BEST_RESULT_PATH = Path(
     "data/optuna/volume_profile/volume_profile_best_mean_std.json"

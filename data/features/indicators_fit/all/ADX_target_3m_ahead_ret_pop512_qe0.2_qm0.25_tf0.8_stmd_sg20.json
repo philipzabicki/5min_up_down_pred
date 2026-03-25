@@ -1,17 +1,17 @@
 {
   "best": {
     "params": {
-      "atr_period": 1021,
-      "posDM_period": 41,
-      "negDM_period": 152,
-      "adx_period": 6,
-      "ma_type_atr": "WMA",
+      "atr_period": 1979,
+      "posDM_period": 55,
+      "negDM_period": 136,
+      "adx_period": 15,
+      "ma_type_atr": "SMA",
       "ma_type_posDM": "KAMA",
-      "ma_type_negDM": "LINREG",
-      "ma_type_adx": "NWMA_TRIA"
+      "ma_type_negDM": "TEMA",
+      "ma_type_adx": "HMA"
     },
-    "score": 1.6977982737883945,
-    "abs_corr": 1.6977982737883945
+    "score": 1.7983119813934831,
+    "abs_corr": 1.7983119813934831
   },
   "population": {
     "base_pop_size": 512,
@@ -33,5 +33,5 @@
     "q_ext": 0.2,
     "q_mid": 0.25
   },
-  "fit_config_hash": "271e8bc68c590783"
+  "fit_config_hash": "4a03e32e28926fb0"
 }

@@ -162,14 +162,14 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     }
 ]
 
-N_TRIALS = 300
+N_TRIALS = 50
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "de_besta_v13"
+STUDY_NAME = "de_besta_0300_25032026"
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
 BEST_RESULT_PATH = Path(

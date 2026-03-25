@@ -1,17 +1,17 @@
 {
   "best": {
     "params": {
-      "atr_period": 859,
-      "posDM_period": 16,
-      "negDM_period": 19,
-      "adx_period": 39,
-      "ma_type_atr": "NWMA_COS",
+      "atr_period": 127,
+      "posDM_period": 35,
+      "negDM_period": 831,
+      "adx_period": 18,
+      "ma_type_atr": "HMA",
       "ma_type_posDM": "KAMA",
-      "ma_type_negDM": "EMA",
-      "ma_type_adx": "NWMA_COS"
+      "ma_type_negDM": "FBA",
+      "ma_type_adx": "NWMA_GAUSS"
     },
-    "score": 1.5105507360525992,
-    "abs_corr": 1.5105507360525992
+    "score": 1.4444208681834656,
+    "abs_corr": 1.4444208681834656
   },
   "population": {
     "base_pop_size": 512,
@@ -33,5 +33,5 @@
     "q_ext": 0.2,
     "q_mid": 0.25
   },
-  "fit_config_hash": "271e8bc68c590783"
+  "fit_config_hash": "4a03e32e28926fb0"
 }

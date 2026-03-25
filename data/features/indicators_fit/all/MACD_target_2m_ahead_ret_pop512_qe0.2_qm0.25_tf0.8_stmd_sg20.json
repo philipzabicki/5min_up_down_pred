@@ -1,17 +1,17 @@
 {
   "best": {
     "params": {
-      "fast_source": "hl2",
+      "fast_source": "ohlc4",
       "slow_source": "hlc3",
-      "fast_ma_type": "AHMA",
-      "slow_ma_type": "MGD",
-      "signal_ma_type": "NWMA_EPAN",
-      "fast_period": 7,
-      "slow_period": 1304,
-      "signal_period": 207
+      "fast_ma_type": "FBA",
+      "slow_ma_type": "NWMA_COS",
+      "signal_ma_type": "KAMA",
+      "fast_period": 581,
+      "slow_period": 1730,
+      "signal_period": 242
     },
-    "score": 1.6577021969026344,
-    "abs_corr": 1.6577021969026344
+    "score": 1.583553215852881,
+    "abs_corr": 1.583553215852881
   },
   "population": {
     "base_pop_size": 512,
@@ -33,5 +33,5 @@
     "q_ext": 0.2,
     "q_mid": 0.25
   },
-  "fit_config_hash": "271e8bc68c590783"
+  "fit_config_hash": "4a03e32e28926fb0"
 }

@@ -21,7 +21,7 @@
       "intervals": {
         "1m": {
           "data_path": "C:\\Cloud\\filips19mail\\github\\5min_up_down_pred\\data\\",
-          "data_file": "BTCUSDT_INDEXVOL1m.csv",
+          "data_file": "BTCUSDT1m.csv",
           "indicators": [
             "ADX",
             "ChaikinOsc",

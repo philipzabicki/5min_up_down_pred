@@ -15,21 +15,21 @@
     "enabled": true,
     "price_min": 0.0,
     "price_max": 200000.0,
-    "step": 54,
-    "neighbor_bins": 15,
-    "local_window": 128,
-    "sigma_divisor": 13.808327590597779,
-    "min_sigma": 37.674893963884564,
+    "step": 78,
+    "neighbor_bins": 26,
+    "local_window": 102,
+    "sigma_divisor": 0.054098968936193106,
+    "min_sigma": 1.7656835512412214,
     "eps": 1e-06,
     "horizons": {
       "short": {
-        "half_life_candles": 91
+        "half_life_candles": 101
       },
       "medium": {
-        "half_life_candles": 2942
+        "half_life_candles": 2944
       },
       "long": {
-        "half_life_candles": 60205
+        "half_life_candles": 75104
       },
       "all": {
         "half_life_candles": null
@@ -41,8 +41,6 @@
     "min_block_len": 3
   },
   "preview_rows": 1000,
-  "feature_subset_path": "data\\analysis\\feature_selector\\20260323_135603\\recommended_features.json",
-  "excluded_feature_names": [
-    "ADX_fit_60m_pop64_adxper1451_adxthr43.428234_atrper1026_matypadxrma_matypatralma_matypnegdmnwmabiw_matypposdmehma_negdmper261_posdmper1446"
-  ]
+  "feature_subset_path": "data\\analysis\\feature_selector\\20260325_012835\\recommended_features.json",
+  "excluded_feature_names": []
 }

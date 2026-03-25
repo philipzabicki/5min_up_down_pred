@@ -17,7 +17,7 @@ INPUT_PATH = Path("data/BTCUSDT1m_oof_predictions.parquet")
 RUNTIME_CONFIG_PATH = Path("configs/kelly_config.json")
 OPTUNA_STORAGE = "sqlite:///data/optuna/databases/kelly_polymarket.db"
 OPTUNA_OUTPUT_DIR = Path("data/optuna/kelly_polymarket")
-STUDY_NAME = "kelly_polymarket_opt_v25"
+STUDY_NAME = "kelly_polymarket_opt_1430_25032026"
 SIMULATIONS_DIR = Path("data/simulations")
 
 REQUIRED_COLUMNS = [
@@ -31,13 +31,11 @@ DECISION_MINUTE_MODULO = 5
 DECISION_MINUTE_REMAINDER = 4
 TARGET_SANITY_MIN_MATCH = 0.995
 
-BASE_PRICE = 0.4704
-SIGMA = 0.0319
-PRICE_CLIP_LO = 0.39
+BASE_PRICE = 0.422
+SPREAD_HALF = 0.0075
+SIGMA = 0.060
+PRICE_CLIP_LO = 0.35
 PRICE_CLIP_HI = 0.55
-SPREAD_HALF_VALUES = np.array([0.005, 0.010, 0.015, 0.020, 0.030], dtype=np.float64)
-SPREAD_HALF_PROBS = np.array([96, 37, 11, 1, 1], dtype=np.float64)
-SPREAD_HALF_PROBS /= SPREAD_HALF_PROBS.sum()
 
 FEE_RATE = 0.25
 FEE_EXPONENT = 2
@@ -60,11 +58,11 @@ PROB_MIN_CLIP = 1e-6
 START_BANKROLL = 1000.0
 
 SEED = 37
-N_TRIALS = 3000
+N_TRIALS = 1_500
 HOLDOUT_FRAC = 0.05
 EXECUTION_SCENARIO_SEEDS = [101, 202, 303, 404, 505]
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.2)
-TARGET_FOLD_DAYS = 21
+TARGET_FOLD_DAYS = 28
 HOLDOUT_WINDOW_DAYS = 7
 HOLDOUT_WINDOW_RUNS = 25
 HOLDOUT_WINDOW_SCENARIO_SEEDS = [10_000 + idx for idx in range(1, HOLDOUT_WINDOW_RUNS + 1)]
@@ -238,22 +236,11 @@ def build_trial_static_arrays(
     eps: np.ndarray,
     model_error_abs_z: np.ndarray,
     model_error_sign_bits: np.ndarray,
-    spread_half_draws: np.ndarray,
     sigma: float = SIGMA,
+    spread_half: float = SPREAD_HALF,
 ) -> dict[str, np.ndarray]:
-    eps = np.asarray(eps, dtype=np.float64)
-    spread_half_draws = np.asarray(spread_half_draws, dtype=np.float64)
-
-    if eps.ndim != 1:
-        raise ValueError(f"eps must be 1D, got shape={eps.shape}")
-    if spread_half_draws.shape != eps.shape:
-        raise ValueError(
-            f"spread_half_draws shape must match eps shape, "
-            f"got {spread_half_draws.shape} vs {eps.shape}"
-        )
-
     price = np.clip(
-        BASE_PRICE + sigma * eps + spread_half_draws,
+        BASE_PRICE + spread_half + np.abs(sigma * eps),
         PRICE_CLIP_LO,
         PRICE_CLIP_HI,
     )
@@ -277,7 +264,6 @@ def build_trial_static_arrays(
 
     return {
         "price": price,
-        "spread_half": spread_half_draws,
         "fee_coef": fee_coef,
         "valid": valid,
         "c_eff": c_eff,
@@ -293,38 +279,26 @@ def build_execution_scenario_static_arrays(
     scenarios: list[dict[str, Any]] = []
     for scenario_seed in scenario_seeds:
         rng = np.random.default_rng(int(scenario_seed))
-
         eps_tune = rng.standard_normal(n_tune_rows).astype(np.float64, copy=False)
         eps_holdout = rng.standard_normal(n_holdout_rows).astype(np.float64, copy=False)
-
-        spread_half_tune = rng.choice(
-            SPREAD_HALF_VALUES, size=n_tune_rows, p=SPREAD_HALF_PROBS
-        ).astype(np.float64, copy=False)
-        spread_half_holdout = rng.choice(
-            SPREAD_HALF_VALUES, size=n_holdout_rows, p=SPREAD_HALF_PROBS
-        ).astype(np.float64, copy=False)
-
         model_error_abs_z_tune, model_error_sign_bits_tune = (
             sample_model_proba_error_components(rng, n_tune_rows)
         )
         model_error_abs_z_holdout, model_error_sign_bits_holdout = (
             sample_model_proba_error_components(rng, n_holdout_rows)
         )
-
         scenarios.append(
             {
                 "seed": int(scenario_seed),
                 "tune_static_arrays": build_trial_static_arrays(
-                    eps=eps_tune,
-                    model_error_abs_z=model_error_abs_z_tune,
-                    model_error_sign_bits=model_error_sign_bits_tune,
-                    spread_half_draws=spread_half_tune,
+                    eps_tune,
+                    model_error_abs_z_tune,
+                    model_error_sign_bits_tune,
                 ),
                 "holdout_static_arrays": build_trial_static_arrays(
-                    eps=eps_holdout,
-                    model_error_abs_z=model_error_abs_z_holdout,
-                    model_error_sign_bits=model_error_sign_bits_holdout,
-                    spread_half_draws=spread_half_holdout,
+                    eps_holdout,
+                    model_error_abs_z_holdout,
+                    model_error_sign_bits_holdout,
                 ),
             }
         )
@@ -337,21 +311,14 @@ def build_single_execution_static_arrays(
 ) -> dict[str, np.ndarray]:
     rng = np.random.default_rng(int(scenario_seed))
     eps = rng.standard_normal(n_rows).astype(np.float64, copy=False)
-
-    spread_half_draws = rng.choice(
-        SPREAD_HALF_VALUES, size=n_rows, p=SPREAD_HALF_PROBS
-    ).astype(np.float64, copy=False)
-
     model_error_abs_z, model_error_sign_bits = sample_model_proba_error_components(
         rng,
         n_rows,
     )
-
     return build_trial_static_arrays(
-        eps=eps,
-        model_error_abs_z=model_error_abs_z,
-        model_error_sign_bits=model_error_sign_bits,
-        spread_half_draws=spread_half_draws,
+        eps,
+        model_error_abs_z,
+        model_error_sign_bits,
     )
 
 
@@ -777,7 +744,7 @@ def build_runtime_config(
         "prob_shrink": float(prob_shrink),
         "min_stake_usdc": float(MIN_STAKE_USDC),
         "sigma": float(SIGMA),
-        "spread_half": "not used (legacy)",
+        "spread_half": float(SPREAD_HALF),
         "fee_model": {
             "feeRate": float(FEE_RATE),
             "exponent": float(FEE_EXPONENT),
@@ -786,9 +753,6 @@ def build_runtime_config(
         },
         "price_sim": {
             "base_price": float(BASE_PRICE),
-            "sigma": float(SIGMA),
-            "spread_half_values": SPREAD_HALF_VALUES.tolist(),
-            "spread_half_probs": SPREAD_HALF_PROBS.tolist(),
             "price_clip_lo": float(PRICE_CLIP_LO),
             "price_clip_hi": float(PRICE_CLIP_HI),
         },
@@ -1162,12 +1126,12 @@ def main() -> None:
         "price sanity | "
         f"min_price={min_price:.6f} "
         f"min_price_minus_base={min_price_minus_base:.6f} "
-        f"spread_half_probs={SPREAD_HALF_PROBS}"
+        f"spread_half={SPREAD_HALF:.6f}"
     )
-    # if min_price_minus_base + 1e-12 < SPREAD_HALF:
-    #     raise ValueError(
-    #         "Invalid price construction: min(price - BASE_PRICE) below spread_half."
-    #     )
+    if min_price_minus_base + 1e-12 < SPREAD_HALF:
+        raise ValueError(
+            "Invalid price construction: min(price - BASE_PRICE) below spread_half."
+        )
 
     holdout_window_summary = summarize_holdout_results(holdout_window_results)
     full_holdout_output = {

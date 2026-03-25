@@ -1,14 +1,14 @@
 {
   "best": {
     "params": {
-      "ma_type": "NWMA_GAUSS",
-      "atr_ma_type": "TRIMA",
-      "source": "low",
-      "ma_period": 645,
-      "atr_period": 1153
+      "ma_type": "MGD",
+      "atr_ma_type": "EMA",
+      "source": "hlcc4",
+      "ma_period": 140,
+      "atr_period": 1959
     },
-    "score": 1.463985518192309,
-    "abs_corr": 1.463985518192309
+    "score": 1.903161663868345,
+    "abs_corr": 1.903161663868345
   },
   "population": {
     "base_pop_size": 512,
@@ -30,5 +30,5 @@
     "q_ext": 0.2,
     "q_mid": 0.25
   },
-  "fit_config_hash": "271e8bc68c590783"
+  "fit_config_hash": "4a03e32e28926fb0"
 }

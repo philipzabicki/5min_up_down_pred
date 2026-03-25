@@ -1,14 +1,14 @@
 {
   "best": {
     "params": {
-      "ma_type": "DEMA",
-      "atr_ma_type": "FBA",
-      "source": "high",
-      "ma_period": 2,
-      "atr_period": 316
+      "ma_type": "FBA",
+      "atr_ma_type": "NWMA_COS",
+      "source": "close",
+      "ma_period": 750,
+      "atr_period": 1356
     },
-    "score": 2.865633183936478,
-    "abs_corr": 2.865633183936478
+    "score": 1.4397329909242707,
+    "abs_corr": 1.4397329909242707
   },
   "population": {
     "base_pop_size": 512,
@@ -30,5 +30,5 @@
     "q_ext": 0.2,
     "q_mid": 0.25
   },
-  "fit_config_hash": "271e8bc68c590783"
+  "fit_config_hash": "4a03e32e28926fb0"
 }

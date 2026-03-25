@@ -1,0 +1,25 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "VWMA_PTA",
+      "ma_source": "low",
+      "std_ma_type": "MAMA",
+      "std_source": "open",
+      "ma_period": 22,
+      "std_ma_period": 132,
+      "std_multi": 3.1318313313222097
+    },
+    "abs_corr": 1.804350511763911
+  },
+  "population": {
+    "base_pop_size": 16,
+    "adjusted_pop_size": 15
+  },
+  "metric": {
+    "name": "rank_spread_ir",
+    "corr_segments_count": 20,
+    "q": 0.2,
+    "use_abs": true,
+    "min_segment_size": 200
+  }
+}
