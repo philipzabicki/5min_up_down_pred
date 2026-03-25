@@ -22,7 +22,7 @@ from py_clob_client.clob_types import (
     OrderType,
 )
 from py_clob_client.http_helpers import helpers as pyclob_http_helpers
-from py_clob_client.order_builder.constants import BUY
+from py_clob_client.order_builder.constants import BUY, SELL
 from websocket import WebSocketApp
 
 try:
@@ -74,7 +74,7 @@ POLYMARKET_FEE_ROUND_DECIMALS = 4
 POLYMARKET_MIN_FEE_USDC = 0.0001
 POLYMARKET_COLLATERAL_DECIMALS = 6
 POLYMARKET_VALID_TICK_SIZES = {"0.1", "0.01", "0.001", "0.0001"}
-POLYMARKET_CLOSED_POSITIONS_LIMIT = 200
+POLYMARKET_CLOSED_POSITIONS_PAGE_LIMIT = 50
 POLYMARKET_BACKGROUND_SYNC_MIN_INTERVAL_SEC = 2.0
 POLYMARKET_USDC_E_ADDRESS = to_checksum_address(
     "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
@@ -135,6 +135,8 @@ LIVE_TRADE_LATENCY_NUMERIC_COLUMNS = (
 )
 LIVE_TRADE_EXPORT_COLUMNS = (
     "record_id",
+    "pm_model_hash",
+    "pm_run_started_at_utc",
     "record_snapshot_at",
 ) + tuple(BASE_PREDICTIONS_EXPORT_COLUMNS) + (
     "pm_mode",
@@ -174,6 +176,14 @@ LIVE_TRADE_EXPORT_COLUMNS = (
     "pm_allowance_info",
     "pm_market_error",
     "pm_order_error",
+    "pm_exit_order_status",
+    "pm_exit_order_response",
+    "pm_exit_order_error",
+    "pm_exit_reason",
+    "pm_exit_price",
+    "pm_exit_shares",
+    "pm_exit_fee_usdc",
+    "pm_exit_proceeds_usdc",
     *LIVE_TRADE_LATENCY_TIMESTAMP_COLUMNS,
     *LIVE_TRADE_LATENCY_NUMERIC_COLUMNS,
 )
@@ -619,6 +629,16 @@ def load_polymarket_settings(default_records_path, model_hash):
         execution_mode=_env_text("POLY_EXECUTION_MODE", "fok").lower(),
         relayer_api_key=_env_text("POLY_RELAYER_API_KEY", ""),
         relayer_api_key_address=_env_text("POLY_RELAYER_API_KEY_ADDRESS", ""),
+
+        resume_existing_records=_env_bool("POLY_RESUME_EXISTING_RECORDS", True),
+        import_untracked_open_positions=_env_bool("POLY_IMPORT_UNTRACKED_OPEN_POSITIONS", False),
+
+        enable_exit_orders=_env_bool("POLY_ENABLE_EXIT_ORDERS", True),
+        exit_min_profit_usdc=_env_float("POLY_EXIT_MIN_PROFIT_USDC", 0.15),
+        exit_min_roi=_env_float("POLY_EXIT_MIN_ROI", 0.01),
+        exit_min_seconds_to_close=_env_int("POLY_EXIT_MIN_SECONDS_TO_CLOSE", 45),
+
+        redeem_resolved_positions=_env_bool("POLY_REDEEM_RESOLVED_POSITIONS", True),
     )
 
 
@@ -763,13 +783,40 @@ class PolymarketLiveTrader(LivePredictor):
         )
         return payload if isinstance(payload, list) else []
 
-    def _fetch_closed_positions(self):
-        payload = self._get_json(
-            self.pm_cfg.data_api_host,
-            "/closed-positions",
-            {"user": self.pm_cfg.funder, "limit": POLYMARKET_CLOSED_POSITIONS_LIMIT},
-        )
-        return payload if isinstance(payload, list) else []
+    def _fetch_closed_positions(self, condition_ids=None):
+        condition_ids = [str(x) for x in (condition_ids or []) if str(x)]
+        if not condition_ids:
+            return []
+
+        rows = []
+        chunk_size = 20  # bezpiecznie, żeby query string nie urósł za bardzo
+        for i in range(0, len(condition_ids), chunk_size):
+            chunk = condition_ids[i : i + chunk_size]
+            offset = 0
+
+            while True:
+                payload = self._get_json(
+                    self.pm_cfg.data_api_host,
+                    "/closed-positions",
+                    {
+                        "user": self.pm_cfg.funder,
+                        "market": ",".join(chunk),
+                        "sortBy": "TIMESTAMP",
+                        "sortDirection": "DESC",
+                        "limit": POLYMARKET_CLOSED_POSITIONS_PAGE_LIMIT,
+                        "offset": offset,
+                    },
+                )
+                page = payload if isinstance(payload, list) else []
+                if not page:
+                    break
+
+                rows.extend(page)
+                if len(page) < POLYMARKET_CLOSED_POSITIONS_PAGE_LIMIT:
+                    break
+                offset += POLYMARKET_CLOSED_POSITIONS_PAGE_LIMIT
+
+        return rows
 
     def _refresh_live_cash_state(self, sync_bankroll):
         try:
@@ -801,6 +848,15 @@ class PolymarketLiveTrader(LivePredictor):
         except Exception as exc:
             print(f"[pm] failed to load existing records: {exc}")
             return
+        
+        if not self.pm_cfg.resume_existing_records:
+            return
+
+        if "pm_model_hash" in df.columns:
+            df["pm_model_hash"] = df["pm_model_hash"].map(_safe_text)
+            df = df.loc[df["pm_model_hash"] == self.model_hash].copy()
+        else:
+            self.pm_storage_requires_rewrite = True
 
         existing_columns = list(df.columns)
         expected_columns = list(LIVE_TRADE_EXPORT_COLUMNS)
@@ -955,7 +1011,7 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _build_redeem_transactions(self, candidates):
         transactions = []
-        asset_ids = []
+        condition_ids = []
         seen_conditions = set()
         for item in candidates:
             condition_id = str(item.get("conditionId", ""))
@@ -972,9 +1028,8 @@ class PolymarketLiveTrader(LivePredictor):
             )
             transactions.append(tx)
             seen_conditions.add(condition_id)
-            if asset_id:
-                asset_ids.append(asset_id)
-        return transactions, asset_ids
+            condition_ids.append(condition_id)
+        return transactions, condition_ids
 
     def _submit_redeem_batch(self, candidates):
         if not candidates:
@@ -992,7 +1047,7 @@ class PolymarketLiveTrader(LivePredictor):
         if not self._relayer_safe_is_deployed():
             raise RuntimeError(f"Relayer safe {self.pm_cfg.funder} is not deployed")
 
-        transactions, asset_ids = self._build_redeem_transactions(candidates)
+        transactions, condition_ids = self._build_redeem_transactions(candidates)
         if not transactions:
             return
 
@@ -1015,7 +1070,7 @@ class PolymarketLiveTrader(LivePredictor):
         if not tx_id:
             raise RuntimeError(f"relayer_submit_missing_transaction_id:{response}")
         self._mark_redeem_submission(
-            asset_ids=asset_ids,
+            condition_ids=condition_ids,
             tx_id=tx_id,
             tx_hash=tx_hash,
             tx_state="STATE_NEW",
@@ -1025,17 +1080,17 @@ class PolymarketLiveTrader(LivePredictor):
     def _mark_redeem_submission(
         self,
         *,
-        asset_ids,
+        condition_ids,
         tx_id,
         tx_hash,
         tx_state,
         error,
     ):
-        target_assets = set(str(asset_id) for asset_id in asset_ids if str(asset_id))
+        target_conditions = set(str(x) for x in condition_ids if str(x))
         with self.records_lock:
             for rec in self.records:
-                asset = str(rec.get("pm_selected_token_id", ""))
-                if asset not in target_assets:
+                condition_id = _safe_text(rec.get("pm_condition_id"))
+                if condition_id not in target_conditions:
                     continue
                 rec["pm_redeem_tx_id"] = tx_id
                 rec["pm_redeem_tx_hash"] = tx_hash
@@ -1083,7 +1138,17 @@ class PolymarketLiveTrader(LivePredictor):
     def _is_managed_position(self, position):
         slug = str(position.get("slug", "") or position.get("eventSlug", "") or "")
         return slug.startswith(self.pm_cfg.market_slug_prefix)
-
+    
+    def _tracked_condition_ids(self):
+        condition_ids = set()
+        for rec in self._records_snapshot():
+            if str(rec.get("pm_mode", "")) != "live":
+                continue
+            condition_id = _safe_text(rec.get("pm_condition_id"))
+            if condition_id:
+                condition_ids.add(condition_id)
+        return sorted(condition_ids)
+    
     def _build_external_position_record(self, position, sync_at):
         asset = str(position.get("asset", ""))
         initial_value = _safe_float(position.get("initialValue"))
@@ -1093,6 +1158,8 @@ class PolymarketLiveTrader(LivePredictor):
 
         return {
             "record_id": f"external:{asset}" if asset else "",
+            "pm_model_hash": self.model_hash,
+            "pm_run_started_at_utc": self.run_started_at_utc,
             "prediction_time": pd.Timestamp.now(tz="UTC"),
             "bucket_start": None,
             "bucket_end": None,
@@ -1187,39 +1254,207 @@ class PolymarketLiveTrader(LivePredictor):
             self.records.extend(external_records)
             for rec in external_records:
                 _mark_record_dirty(self.pm_dirty_record_ids, rec)
+    
+    def _estimate_sell_proceeds(self, shares, price, fee_rate_bps):
+        shares = float(shares)
+        price = float(price)
+        fee_rate = _polymarket_fee_rate_from_bps(int(fee_rate_bps))
+        eff_rate = fee_rate * float((price * (1.0 - price)) ** POLYMARKET_CRYPTO_FEE_EXPONENT)
+
+        gross = shares * price
+        fee_raw = gross * eff_rate
+        fee = round(fee_raw, POLYMARKET_FEE_ROUND_DECIMALS)
+        if fee < POLYMARKET_MIN_FEE_USDC:
+            fee = 0.0
+
+        return {
+            "gross_usdc": float(gross),
+            "fee_usdc": float(fee),
+            "net_usdc": float(gross - fee),
+            "eff_rate": float(eff_rate),
+        }
+    
+    def _collect_exit_candidates(self, open_positions):
+        records_by_asset = {
+            _safe_text(rec.get("pm_selected_token_id")): rec
+            for rec in self._records_snapshot()
+            if str(rec.get("pm_mode", "")) == "live" and _safe_text(rec.get("pm_selected_token_id"))
+        }
+
+        candidates = []
+        for pos in open_positions:
+            asset = _safe_text(pos.get("asset"))
+            if not asset:
+                continue
+
+            rec = records_by_asset.get(asset)
+            if rec is None:
+                continue
+
+            # tylko pozycje nadal otwarte i jeszcze nierozliczone
+            if self._has_binary_flag(rec.get("actual_up")):
+                continue
+            if _safe_text(rec.get("pm_settlement_status")) in {
+                "exit_submitted",
+                "redeem_submitted",
+                "redeem_confirmed_waiting_close_sync",
+                "closed",
+            }:
+                continue
+
+            shares = _safe_float(pos.get("size"))
+            if not np.isfinite(shares) or shares <= 0.0:
+                continue
+
+            best_bid_book = self._fetch_order_book_summary(asset)
+            best_bid = _safe_float(best_bid_book.get("best_bid"))
+            if not np.isfinite(best_bid) or best_bid <= 0.0:
+                continue
+
+            stake_usdc = _safe_float(rec.get("stake_usdc"))
+            if not np.isfinite(stake_usdc) or stake_usdc <= 0.0:
+                continue
+
+            fee_rate_bps = int(rec.get("pm_fee_rate_bps", 0) or 0)
+            proceeds = self._estimate_sell_proceeds(
+                shares=shares,
+                price=best_bid,
+                fee_rate_bps=fee_rate_bps,
+            )
+            pnl_usdc = float(proceeds["net_usdc"] - stake_usdc)
+            roi = float(pnl_usdc / stake_usdc)
+
+            market_end = pd.Timestamp(rec.get("pm_market_end"))
+            seconds_to_close = float((market_end - _utc_now()).total_seconds())
+            if seconds_to_close <= float(self.pm_cfg.exit_min_seconds_to_close):
+                continue
+
+            if pnl_usdc < float(self.pm_cfg.exit_min_profit_usdc):
+                continue
+            if roi < float(self.pm_cfg.exit_min_roi):
+                continue
+
+            candidates.append(
+                {
+                    "asset": asset,
+                    "shares": float(shares),
+                    "price": float(best_bid),
+                    "fee_rate_bps": fee_rate_bps,
+                    "tick_size": rec.get("pm_tick_size"),
+                    "neg_risk": False,
+                    "stake_usdc": float(stake_usdc),
+                    "pnl_usdc": pnl_usdc,
+                    "proceeds_net_usdc": float(proceeds["net_usdc"]),
+                    "fee_usdc": float(proceeds["fee_usdc"]),
+                }
+            )
+
+        return candidates
+
+    def _submit_exit_candidates(self, open_positions):
+        candidates = self._collect_exit_candidates(open_positions)
+        if not candidates:
+            return
+
+        for candidate in candidates:
+            self._submit_single_exit_candidate(candidate)
+
+    def _submit_single_exit_candidate(self, candidate):
+        asset = str(candidate["asset"])
+        shares = float(candidate["shares"])
+        price = float(candidate["price"])
+
+        status = "skipped"
+        response_txt = ""
+        error_txt = ""
+
+        try:
+            if self.pm_cfg.paper_mode:
+                status = "paper_exit_intent"
+            elif self.pm_cfg.disable_order_submission:
+                status = "exit_submission_disabled"
+            elif self.pm_client is None:
+                status = "exit_client_unavailable"
+                error_txt = "pm_client_not_initialized"
+            else:
+                options = _partial_create_order_options(
+                    candidate.get("tick_size"),
+                    candidate.get("neg_risk"),
+                )
+                order = MarketOrderArgs(
+                    token_id=asset,
+                    amount=shares,           # SELL => shares, nie USDC
+                    side=SELL,
+                    price=price,            # floor = obecny best bid
+                    fee_rate_bps=int(candidate.get("fee_rate_bps", 0) or 0),
+                    order_type=OrderType.FOK,
+                )
+                signed_order = self.pm_client.create_market_order(order, options=options)
+                response = self.pm_client.post_order(signed_order, OrderType.FOK)
+                response_txt = _json_compact(response)
+                if isinstance(response, dict) and bool(response.get("success", False)):
+                    status = "submitted_fok"
+                else:
+                    status = "submission_rejected"
+        except Exception as exc:
+            status = "submission_error"
+            error_txt = str(exc)
+
+        with self.records_lock:
+            for rec in self.records:
+                if _safe_text(rec.get("pm_selected_token_id")) != asset:
+                    continue
+                rec["pm_exit_order_status"] = status
+                rec["pm_exit_order_response"] = response_txt
+                rec["pm_exit_order_error"] = error_txt
+                rec["pm_exit_reason"] = "profit_take"
+                rec["pm_exit_price"] = price
+                rec["pm_exit_shares"] = shares
+                rec["pm_exit_fee_usdc"] = float(candidate["fee_usdc"])
+                rec["pm_exit_proceeds_usdc"] = float(candidate["proceeds_net_usdc"])
+                if status == "submitted_fok":
+                    rec["pm_settlement_status"] = "exit_submitted"
+                _mark_record_dirty(self.pm_dirty_record_ids, rec)
 
     def _collect_redeem_candidates(self, open_positions):
-        records_by_asset = {
-            str(rec.get("pm_selected_token_id", "")): rec
+        records_by_condition = {
+            _safe_text(rec.get("pm_condition_id")): rec
             for rec in self._records_snapshot()
-            if str(rec.get("pm_selected_token_id", ""))
+            if str(rec.get("pm_mode", "")) == "live" and _safe_text(rec.get("pm_condition_id"))
         }
+
         candidates = []
         for pos in open_positions:
             if not self._is_managed_position(pos):
                 continue
-            if not bool(pos.get("redeemable", False)):
-                continue
             if bool(pos.get("negativeRisk", False)):
                 continue
-            asset = str(pos.get("asset", ""))
-            if not asset:
+
+            condition_id = _safe_text(pos.get("conditionId"))
+            if not condition_id:
                 continue
-            rec = records_by_asset.get(asset)
-            if rec is not None:
-                tx_state = _safe_text(rec.get("pm_redeem_tx_state"))
-                settlement_status = _safe_text(rec.get("pm_settlement_status"))
-                if tx_state in POLYMARKET_RELAYER_PENDING_STATES.union(
-                    POLYMARKET_RELAYER_TERMINAL_STATES
-                ):
-                    continue
-                if settlement_status in {
-                    "redeem_submitted",
-                    "redeem_confirmed_waiting_close_sync",
-                    "closed",
-                }:
-                    continue
+
+            rec = records_by_condition.get(condition_id)
+            if rec is None:
+                continue
+
+            # redeem dopiero po resolution
+            if rec.get("resolved_at") is None and not self._has_binary_flag(rec.get("actual_up")):
+                continue
+
+            tx_state = _safe_text(rec.get("pm_redeem_tx_state"))
+            settlement_status = _safe_text(rec.get("pm_settlement_status"))
+
+            # skip tylko gdy tx naprawdę jeszcze pending albo rekord już finalnie zamknięty
+            if tx_state in POLYMARKET_RELAYER_PENDING_STATES:
+                continue
+            if settlement_status in {"redeem_submitted", "redeem_confirmed_waiting_close_sync", "closed"}:
+                continue
+
+            # NIE wymagaj pos.get("redeemable")==True
+            # chcemy też spalić losing balances jako cleanup
             candidates.append(pos)
+
         return candidates
 
     def _poll_background_sync(self):
@@ -1275,9 +1510,12 @@ class PolymarketLiveTrader(LivePredictor):
 
         cash_balance_usdc = self._refresh_live_cash_state(sync_bankroll=True)
         open_positions = self._fetch_open_positions()
-        closed_positions = self._fetch_closed_positions()
+        tracked_condition_ids = self._tracked_condition_ids()
+        closed_positions = self._fetch_closed_positions(condition_ids=tracked_condition_ids)
         sync_at = pd.Timestamp.now(tz="UTC").isoformat()
-        self._ensure_records_for_open_positions(open_positions, sync_at)
+
+        if self.pm_cfg.import_untracked_open_positions:
+            self._ensure_records_for_open_positions(open_positions, sync_at)
         self.pm_positions_value_usdc = float(
             sum(
                 _safe_float(item.get("currentValue"), 0.0) or 0.0
@@ -1294,7 +1532,11 @@ class PolymarketLiveTrader(LivePredictor):
             sync_at=sync_at,
             reason=reason,
         )
-        self._submit_redeem_batch(self._collect_redeem_candidates(open_positions))
+        if self.pm_cfg.enable_exit_orders:
+            self._submit_exit_candidates(open_positions)
+
+        if self.pm_cfg.redeem_resolved_positions:
+            self._submit_redeem_batch(self._collect_redeem_candidates(open_positions))
         self._save_records()
 
     def _reconcile_live_records(
@@ -1379,11 +1621,23 @@ class PolymarketLiveTrader(LivePredictor):
                     rec["pm_position_current_value"] = 0.0
                     rec["pm_position_redeemable"] = False
                     rec["pm_settlement_status"] = "closed"
+                    if _safe_text(rec.get("pm_exit_order_status")) == "submitted_fok":
+                        rec["pm_settlement_status"] = "closed"
+                    elif _safe_text(rec.get("pm_redeem_tx_state")) == "STATE_CONFIRMED":
+                        rec["pm_settlement_status"] = "closed"
+                    else:
+                        rec["pm_settlement_status"] = "closed"
                     continue
 
                 open_pos = open_by_asset.get(asset)
                 if open_pos is None:
-                    if rec.get("pm_order_status") == "submitted_fok":
+                    settlement_status = _safe_text(rec.get("pm_settlement_status"))
+
+                    if settlement_status == "exit_submitted":
+                        rec["pm_settlement_status"] = "awaiting_exit_close_sync"
+                    elif settlement_status == "redeem_submitted":
+                        rec["pm_settlement_status"] = "awaiting_redeem_close_sync"
+                    elif rec.get("pm_order_status") == "submitted_fok":
                         rec["pm_settlement_status"] = (
                             "awaiting_close_sync"
                             if rec.get("resolved_at") is not None
@@ -1416,11 +1670,19 @@ class PolymarketLiveTrader(LivePredictor):
                     float(current_value) if np.isfinite(current_value) else np.nan
                 )
                 rec["pm_position_redeemable"] = bool(redeemable)
-                tx_state = str(rec.get("pm_redeem_tx_state", "") or "")
-                if tx_state == "STATE_CONFIRMED":
+                current_status = _safe_text(rec.get("pm_settlement_status"))
+                tx_state = _safe_text(rec.get("pm_redeem_tx_state"))
+
+                if current_status == "exit_submitted":
+                    rec["pm_settlement_status"] = "exit_submitted"
+                elif tx_state in POLYMARKET_RELAYER_PENDING_STATES:
+                    rec["pm_settlement_status"] = "redeem_submitted"
+                elif tx_state == "STATE_CONFIRMED":
                     rec["pm_settlement_status"] = "redeem_confirmed_waiting_close_sync"
                 elif tx_state in {"STATE_FAILED", "STATE_INVALID"}:
                     rec["pm_settlement_status"] = "redeem_failed"
+                elif rec.get("resolved_at") is not None:
+                    rec["pm_settlement_status"] = "resolved_waiting_settlement"
                 else:
                     rec["pm_settlement_status"] = (
                         "redeemable_open" if redeemable else "open"
@@ -2098,22 +2360,15 @@ class PolymarketLiveTrader(LivePredictor):
                 ):
                     continue
 
-                stake_usdc = float(rec.get("stake_usdc", 0.0) or 0.0)
-                side = str(rec.get("kelly_side", "none"))
-                actual_up = int(rec["actual_up"])
-                if stake_usdc > 0.0 and side in {"up", "down"}:
-                    rec["trade_is_win"] = int(
-                        (side == "up" and actual_up == 1)
-                        or (side == "down" and actual_up == 0)
-                    )
-                else:
-                    rec["trade_is_win"] = None
-
+                rec["trade_is_win"] = None
                 rec["payout_usdc"] = None
                 rec["pnl_usdc"] = None
                 rec["bankroll_after_resolve"] = None
+
                 if rec.get("pm_order_status") == "submitted_fok":
-                    rec["pm_settlement_status"] = "awaiting_close_sync"
+                    rec["pm_settlement_status"] = "resolved_waiting_settlement"
+                else:
+                    rec["pm_settlement_status"] = rec.get("pm_settlement_status") or "resolved_no_position"
                 _mark_record_dirty(self.pm_dirty_record_ids, rec)
                 resolved_now += 1
 
@@ -2213,6 +2468,8 @@ class PolymarketLiveTrader(LivePredictor):
 
         return {
             "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
+            "pm_model_hash": self.model_hash,
+            "pm_run_started_at_utc": self.run_started_at_utc,
             "prediction_time": _utc_now(),
             "bucket_start": bucket_start,
             "bucket_end": bucket_end,
@@ -2271,7 +2528,7 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_position_current_value": np.nan,
             "pm_position_redeemable": False,
             "pm_settlement_status": (
-                "submitted" if order_status == "submitted_fok" else ""
+                "entry_submitted" if order_status == "submitted_fok" else ""
             ),
             "pm_account_sync_at": self.pm_last_account_sync_at,
             "pm_account_sync_reason": self.pm_last_account_sync_reason,
@@ -2293,6 +2550,14 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_allowance_info": str(submit_result["allowance_info"]),
             "pm_market_error": market_error,
             "pm_order_error": str(submit_result["error"]),
+            "pm_exit_order_status": "",
+            "pm_exit_order_response": "",
+            "pm_exit_order_error": "",
+            "pm_exit_reason": "",
+            "pm_exit_price": np.nan,
+            "pm_exit_shares": np.nan,
+            "pm_exit_fee_usdc": np.nan,
+            "pm_exit_proceeds_usdc": np.nan,
             **latency_payload,
         }
 
@@ -2414,6 +2679,8 @@ class PolymarketLiveTrader(LivePredictor):
             if bool(submit_result["commit_bankroll"])
             else 0.0
         )
+        if self.pm_cfg.paper_mode and stake_usdc > 0.0:
+            self.live_bankroll_usdc -= stake_usdc
         bankroll_after_entry = float(self.live_bankroll_usdc)
 
         record = self._build_prediction_record(
@@ -2458,8 +2725,10 @@ class PolymarketLiveTrader(LivePredictor):
         )
 
     def _record_is_traded(self, record):
-        return self._has_binary_flag(record.get("actual_up")) and self._has_binary_flag(
-            record.get("trade_is_win")
+        return (
+            _safe_text(record.get("pm_settlement_status")) == "closed"
+            and self._has_binary_flag(record.get("trade_is_win"))
+            and record.get("pnl_usdc") is not None
         )
 
     def _running_win_rates(self, records):

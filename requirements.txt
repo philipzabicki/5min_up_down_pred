@@ -12,6 +12,7 @@ eth-abi
 eth-account
 eth-utils
 py-clob-client
+py-builder-relayer-client
 requests
 httpx
 python-dateutil
