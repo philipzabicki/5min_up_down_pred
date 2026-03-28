@@ -1,6 +1,7 @@
 {
   "profiles": {
     "default": {
+      "output_dir": "data/modeling_datasets",
       "output_suffix": "_model_ready",
       "fit_results_dir": "data/features/indicators_fit/all",
       "preview_rows": 1000,

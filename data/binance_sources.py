@@ -10,14 +10,17 @@ from binance_data import DataClient
 from dateutil.relativedelta import relativedelta
 
 from data.raw_ohlcv_repair import repair_raw_ohlcv_csv
+from project_config import DATA_DIR, RAW_DATASETS_DIR
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REPO_DATA_DIR = PROJECT_ROOT / "data"
+REPO_DATA_DIR = PROJECT_ROOT / DATA_DIR
+RAW_DATA_DIR = PROJECT_ROOT / RAW_DATASETS_DIR
 VISION_TMP_DIR = REPO_DATA_DIR / "_tmp" / "binance_vision"
 DATACLIENT_TMP_DIR = REPO_DATA_DIR / "_tmp" / "binance_dataclient"
 
 print(f"[paths] PROJECT_ROOT={PROJECT_ROOT}")
 print(f"[paths] REPO_DATA_DIR={REPO_DATA_DIR}")
+print(f"[paths] RAW_DATA_DIR={RAW_DATA_DIR}")
 
 LAST_DATA_POINT_DELAY = 0
 ITV_ALIASES = {
@@ -132,8 +135,8 @@ def _final_csv_path(
     volume_ticker="",
     volume_market_type="",
 ):
-    REPO_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    return REPO_DATA_DIR / (f"{ticker}" f"{_data_type_file_suffix(
+    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return RAW_DATA_DIR / (f"{ticker}" f"{_data_type_file_suffix(
                 data_type,
                 price_source,
                 volume_source,

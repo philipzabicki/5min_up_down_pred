@@ -4,6 +4,7 @@ import os
 import re
 import time
 from collections import deque
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from pathlib import Path
 
@@ -36,8 +37,8 @@ from features.candle_features import (
     STREAK_FEATURE_PREFIX,
     SUPPORTED_CANDLE_FEATURE_COLS,
     build_latest_candle_derived_feature_dict_fast,
+    build_latest_candle_pattern_feature_dict_fast,
     build_latest_candle_streak_feature_dict_fast,
-    build_latest_candle_pattern_feature_dict,
     resolve_candle_derived_feature_cols,
     resolve_candle_pattern_feature_cols,
     resolve_streak_interval_to_rule,
@@ -47,6 +48,11 @@ from features.ADX import get_adx_values
 from features.BollingerBands import get_bollinger_bands_values
 from features.ChaikinOsc import get_chaikin_oscillator_values
 from features.KeltnerChannel import get_keltner_channel_values
+from features.live_indicator_runtime import (
+    LATEST_VALUE_BUILDERS as LIVE_LATEST_VALUE_BUILDERS,
+    IndicatorFullHistoryScratch,
+    IndicatorWindowScratch,
+)
 from features.MACD import get_macd_values
 from features.session_open_features import (
     SUPPORTED_SESSION_COUNTER_COLS,
@@ -158,11 +164,28 @@ VALUE_BUILDERS = {
 
 
 class IndicatorSpec:
-    __slots__ = ("feature_col", "builder", "params", "required_candles")
+    __slots__ = (
+        "indicator",
+        "feature_col",
+        "builder",
+        "latest_builder",
+        "params",
+        "required_candles",
+    )
 
-    def __init__(self, feature_col, builder, params, required_candles):
+    def __init__(
+        self,
+        indicator,
+        feature_col,
+        builder,
+        latest_builder,
+        params,
+        required_candles,
+    ):
+        self.indicator = indicator
         self.feature_col = feature_col
         self.builder = builder
+        self.latest_builder = latest_builder
         self.params = params
         self.required_candles = required_candles
 
@@ -621,19 +644,90 @@ def load_kelly_runtime_config(config_path):
         "min_edge": _read_float(payload, "min_edge"),
         "prob_shrink": _read_float(payload, "prob_shrink"),
         "min_stake_usdc": _read_float(payload, "min_stake_usdc"),
-        "sigma": _read_float(payload, "sigma"),
-        "spread_half": _read_float(payload, "spread_half"),
         "fee_rate": _read_float(fee_model, "feeRate"),
         "fee_exponent": _read_float(fee_model, "exponent"),
         "fee_round_decimals": int(fee_model.get("fee_round_decimals", 4)),
         "min_fee": _read_float(fee_model, "min_fee"),
-        "base_price": _read_float(price_sim, "base_price"),
-        "price_clip_lo": _read_float(price_sim, "price_clip_lo"),
-        "price_clip_hi": _read_float(price_sim, "price_clip_hi"),
+        "price_sim_model": str(price_sim.get("model", "legacy_symmetric_clip")),
         "seed": int(cv_meta.get("seed", 37)),
     }
-    if cfg["price_clip_lo"] >= cfg["price_clip_hi"]:
-        raise ValueError("Kelly config invalid: price_clip_lo must be < price_clip_hi")
+    if cfg["price_sim_model"] == "neutral_conservative_fixed":
+        cfg.update(
+            {
+                "ask_price": _read_float(price_sim, "ask_price"),
+                "order_price_cap": float(
+                    price_sim.get("order_price_cap", 0.55) or 0.55
+                ),
+                "order_min_size": float(
+                    price_sim.get("order_min_size", 5.0) or 5.0
+                ),
+                "price_policy": str(price_sim.get("policy", "")),
+            }
+        )
+    elif cfg["price_sim_model"] == "parametric_market_mid_overround":
+        overround_ticks_values = price_sim.get("overround_ticks_values", [])
+        overround_ticks_probs = price_sim.get("overround_ticks_probs", [])
+        if len(overround_ticks_values) != len(overround_ticks_probs):
+            raise ValueError(
+                "Kelly config invalid: overround_ticks_values/probs length mismatch."
+            )
+        if not overround_ticks_values:
+            raise ValueError(
+                "Kelly config invalid: missing overround_ticks_values for parametric price sim."
+            )
+        cfg.update(
+            {
+                "tick_size": _read_float(price_sim, "tick_size"),
+                "half_tick": _read_float(price_sim, "half_tick"),
+                "mid_intercept_mean": _read_float(price_sim, "mid_intercept_mean"),
+                "mid_intercept_std": _read_float(price_sim, "mid_intercept_std"),
+                "mid_intercept_min": _read_float(price_sim, "mid_intercept_min"),
+                "mid_intercept_max": _read_float(price_sim, "mid_intercept_max"),
+                "mid_slope_mean": _read_float(price_sim, "mid_slope_mean"),
+                "mid_slope_std": _read_float(price_sim, "mid_slope_std"),
+                "mid_slope_min": _read_float(price_sim, "mid_slope_min"),
+                "mid_slope_max": _read_float(price_sim, "mid_slope_max"),
+                "mid_residual_std": _read_float(price_sim, "mid_residual_std"),
+                "mid_residual_abs_q99": _read_float(
+                    price_sim,
+                    "mid_residual_abs_q99",
+                ),
+                "overround_ticks_values": [
+                    int(value) for value in overround_ticks_values
+                ],
+                "overround_ticks_probs": [
+                    float(value) for value in overround_ticks_probs
+                ],
+                "order_price_cap": float(
+                    price_sim.get("order_price_cap", 0.55) or 0.55
+                ),
+                "order_min_size": float(
+                    price_sim.get("order_min_size", 5.0) or 5.0
+                ),
+            }
+        )
+        total_prob = float(sum(cfg["overround_ticks_probs"]))
+        if not np.isfinite(total_prob) or total_prob <= 0.0:
+            raise ValueError(
+                "Kelly config invalid: overround_ticks_probs must sum to a positive value."
+            )
+        cfg["overround_ticks_probs"] = [
+            float(value / total_prob) for value in cfg["overround_ticks_probs"]
+        ]
+    else:
+        cfg.update(
+            {
+                "sigma": _read_float(payload, "sigma"),
+                "spread_half": _read_float(payload, "spread_half"),
+                "base_price": _read_float(price_sim, "base_price"),
+                "price_clip_lo": _read_float(price_sim, "price_clip_lo"),
+                "price_clip_hi": _read_float(price_sim, "price_clip_hi"),
+            }
+        )
+        if cfg["price_clip_lo"] >= cfg["price_clip_hi"]:
+            raise ValueError(
+                "Kelly config invalid: price_clip_lo must be < price_clip_hi"
+            )
     if cfg["cap"] <= 0.0 or cfg["cap"] > 1.0:
         raise ValueError("Kelly config invalid: cap must be in (0, 1].")
     if cfg["fractional_kelly"] <= 0.0:
@@ -672,11 +766,18 @@ def load_indicator_specs(feature_columns):
             raise ValueError(
                 f"Indicator '{indicator}' not supported by live VALUE_BUILDERS for feature '{col}'."
             )
+        latest_builder = LIVE_LATEST_VALUE_BUILDERS.get(indicator)
+        if latest_builder is None:
+            raise ValueError(
+                f"Indicator '{indicator}' not supported by live latest value builders for feature '{col}'."
+            )
 
         specs.append(
             IndicatorSpec(
+                indicator=indicator,
                 feature_col=col,
                 builder=builder,
+                latest_builder=latest_builder,
                 params=params,
                 required_candles=estimate_required_candles(indicator, params),
             )
@@ -880,6 +981,7 @@ class LivePredictor:
         self.kelly_runtime = load_kelly_runtime_config(KELLY_CONFIG_PATH)
         self.live_bankroll_usdc = LIVE_INITIAL_BANKROLL_USDC
         self.price_rng = np.random.default_rng(int(self.kelly_runtime["seed"]))
+        self.price_sim_scenario = self._sample_price_sim_scenario()
 
         feature_parts = split_feature_subset(self.feature_columns)
         if feature_parts["streak_intervals"]:
@@ -908,6 +1010,9 @@ class LivePredictor:
         self.volume_profile_state_path = VOLUME_PROFILE_RUNTIME_STATE_PATH
         self.volume_profile_modeling_state_path = VOLUME_PROFILE_MODELING_STATE_PATH
         self.volume_profile_state_source_path = None
+        self.volume_profile_save_pool = (
+            ThreadPoolExecutor(max_workers=1) if self.volume_profile_enabled else None
+        )
 
         self.indicator_specs = load_indicator_specs(self.feature_columns)
         self.indicator_history_requirements = load_indicator_history_requirements(
@@ -997,16 +1102,15 @@ class LivePredictor:
             return self.ohlcv_np
         return self.ohlcv_np[-window_len:, :]
 
-    def _compute_latest_indicator_value(self, spec):
-        window = self._slice_indicator_ohlcv_window(spec.feature_col)
-        series = np.asarray(
-            spec.builder(spec.params, window), dtype=np.float64
-        ).reshape(-1)
-        if series.shape[0] != window.shape[0]:
-            raise ValueError(
-                f"Length mismatch for {spec.feature_col}: {series.shape[0]} != {window.shape[0]}"
-            )
-        return float(series[-1])
+    def _compute_latest_indicator_value(
+        self, spec, full_history_scratch, window_scratch_by_len
+    ):
+        window_len = max(2, int(self._resolve_indicator_window_len(spec.feature_col)))
+        window_scratch = window_scratch_by_len.get(window_len)
+        if window_scratch is None:
+            window_scratch = IndicatorWindowScratch(full_history_scratch, window_len)
+            window_scratch_by_len[window_len] = window_scratch
+        return float(spec.latest_builder(spec.params, window_scratch))
 
     def _append_new_candle(self, opened, ohlcv):
         ohlcv_row = np.asarray(ohlcv, dtype=np.float64).reshape(1, len(OHLCV_COLS))
@@ -1235,6 +1339,48 @@ class LivePredictor:
             print(f"[vp] saved {context} -> {paths['npz']}")
         return paths
 
+    def _snapshot_volume_profile_state_for_save(self):
+        state = self.volume_profile_state
+        if state is None:
+            raise RuntimeError("volume profile state is not initialized")
+
+        snapshot = dict(state)
+        snapshot["horizon_names"] = tuple(state["horizon_names"])
+        snapshot["half_lives"] = tuple(state["half_lives"])
+        snapshot["feature_columns"] = tuple(state["feature_columns"])
+        snapshot["decays"] = np.array(state["decays"], dtype=np.float64, copy=True)
+        snapshot["global_scales"] = np.array(
+            state["global_scales"], dtype=np.float64, copy=True
+        )
+        snapshot["raw_profiles"] = np.array(
+            state["raw_profiles"], dtype=np.float32, copy=True
+        )
+        return snapshot
+
+    def _save_runtime_volume_profile_state_async(self, log=False, context="state"):
+        if self.volume_profile_state is None:
+            return None
+        if self.volume_profile_save_pool is None:
+            return self._save_runtime_volume_profile_state(log=log, context=context)
+
+        state_snapshot = self._snapshot_volume_profile_state_for_save()
+        future = self.volume_profile_save_pool.submit(
+            save_volume_profile_state,
+            state_snapshot,
+            self.volume_profile_state_path,
+        )
+        if log:
+            def _log_saved(done_future, *, save_context=context):
+                try:
+                    paths = done_future.result()
+                except Exception as exc:
+                    print(f"[vp] async save failed ({save_context}): {exc}")
+                    return
+                print(f"[vp] saved {save_context} -> {paths['npz']}")
+
+            future.add_done_callback(_log_saved)
+        return future
+
     def _load_volume_profile_state_candidates(self, bootstrap_df):
         history_last_opened = pd.Timestamp(bootstrap_df["Opened"].iloc[-1])
         candidates = []
@@ -1386,7 +1532,7 @@ class LivePredictor:
 
         return self._extract_volume_profile_features_for_latest_candle()
 
-    def _update_volume_profile_state_for_latest_candle(self, opened):
+    def _update_volume_profile_state_for_latest_candle(self, opened, *, persist=True):
         if not self.volume_profile_enabled:
             return
         latest_ohlcv = self.ohlcv_np[-1, :]
@@ -1399,7 +1545,8 @@ class LivePredictor:
         self.volume_profile_state["last_candle_time"] = str(
             pd.Timestamp(opened).isoformat()
         )
-        self._save_runtime_volume_profile_state()
+        if persist:
+            self._save_runtime_volume_profile_state_async()
 
     def _sync_closed_candles_from_rest(self, stop_before_opened=None):
         if not self.opened_candles:
@@ -1429,10 +1576,14 @@ class LivePredictor:
                 opened,
                 (row.Open, row.High, row.Low, row.Close, row.Volume),
             )
-            self._update_volume_profile_state_for_latest_candle(opened)
+            self._update_volume_profile_state_for_latest_candle(
+                opened,
+                persist=False,
+            )
             added += 1
 
         if added > 0:
+            self._save_runtime_volume_profile_state_async()
             print(
                 "[sync] caught_up_closed_candles="
                 f"{added} first={catchup_df['Opened'].iloc[0].isoformat()} "
@@ -1476,8 +1627,9 @@ class LivePredictor:
             )
         if self.candle_pattern_feature_columns:
             values.update(
-                build_latest_candle_pattern_feature_dict(
+                build_latest_candle_pattern_feature_dict_fast(
                     opened_values=opened_values,
+                    opened_ns_values=self.opened_ns_np,
                     open_values=self.ohlcv_np[:, 0],
                     high_values=self.ohlcv_np[:, 1],
                     low_values=self.ohlcv_np[:, 2],
@@ -1507,8 +1659,17 @@ class LivePredictor:
             values.update(volume_profile_values)
 
         indicator_nan_cols = []
+        indicator_full_history_scratch = None
+        indicator_window_scratch_by_len = None
+        if self.indicator_specs:
+            indicator_full_history_scratch = IndicatorFullHistoryScratch(self.ohlcv_np)
+            indicator_window_scratch_by_len = {}
         for spec in self.indicator_specs:
-            raw_value = self._compute_latest_indicator_value(spec)
+            raw_value = self._compute_latest_indicator_value(
+                spec,
+                indicator_full_history_scratch,
+                indicator_window_scratch_by_len,
+            )
             values[spec.feature_col] = raw_value
             if not np.isfinite(raw_value):
                 indicator_nan_cols.append(spec.feature_col)
@@ -1520,7 +1681,110 @@ class LivePredictor:
             vector[0, i] = float(values.get(col, np.nan))
         return vector
 
-    def _simulate_execution_price(self):
+    def _sample_price_sim_scenario(self):
+        if self.kelly_runtime.get("price_sim_model") != "parametric_market_mid_overround":
+            return None
+
+        intercept = float(self.kelly_runtime["mid_intercept_mean"])
+        intercept_std = float(self.kelly_runtime["mid_intercept_std"])
+        if intercept_std > 0.0:
+            intercept += intercept_std * float(self.price_rng.standard_normal())
+        intercept = float(
+            np.clip(
+                intercept,
+                float(self.kelly_runtime["mid_intercept_min"]),
+                float(self.kelly_runtime["mid_intercept_max"]),
+            )
+        )
+
+        slope = float(self.kelly_runtime["mid_slope_mean"])
+        slope_std = float(self.kelly_runtime["mid_slope_std"])
+        if slope_std > 0.0:
+            slope += slope_std * float(self.price_rng.standard_normal())
+        slope = float(
+            np.clip(
+                slope,
+                float(self.kelly_runtime["mid_slope_min"]),
+                float(self.kelly_runtime["mid_slope_max"]),
+            )
+        )
+
+        return {
+            "mid_intercept": float(intercept),
+            "mid_slope": float(slope),
+        }
+
+    def _simulate_execution_quotes(self, prob_up_raw):
+        if self.kelly_runtime.get("price_sim_model") == "neutral_conservative_fixed":
+            ask_price = float(self.kelly_runtime["ask_price"])
+            return {
+                "up_price": float(ask_price),
+                "down_price": float(ask_price),
+                "market_mid_up": 0.5,
+                "price_policy": str(self.kelly_runtime.get("price_policy", "")),
+            }
+
+        if self.kelly_runtime.get("price_sim_model") == "parametric_market_mid_overround":
+            tick_size = float(self.kelly_runtime["tick_size"])
+            half_tick = float(self.kelly_runtime["half_tick"])
+            scenario = self.price_sim_scenario or self._sample_price_sim_scenario()
+
+            residual = float(self.kelly_runtime["mid_residual_std"]) * float(
+                self.price_rng.standard_normal()
+            )
+            residual = float(
+                np.clip(
+                    residual,
+                    -float(self.kelly_runtime["mid_residual_abs_q99"]),
+                    float(self.kelly_runtime["mid_residual_abs_q99"]),
+                )
+            )
+
+            ask_mid_up = (
+                0.5
+                + float(scenario["mid_intercept"])
+                + float(scenario["mid_slope"]) * (float(prob_up_raw) - 0.5)
+                + residual
+            )
+
+            overround_ticks = int(
+                self.price_rng.choice(
+                    np.asarray(
+                        self.kelly_runtime["overround_ticks_values"],
+                        dtype=np.int64,
+                    ),
+                    p=np.asarray(
+                        self.kelly_runtime["overround_ticks_probs"],
+                        dtype=np.float64,
+                    ),
+                )
+            )
+
+            mid_half_ticks_float = ask_mid_up / half_tick
+            mid_half_ticks = int(round(mid_half_ticks_float))
+            lower_mid_half_ticks = int(overround_ticks + 2)
+            upper_mid_half_ticks = int(198 - overround_ticks)
+            mid_half_ticks = int(
+                np.clip(mid_half_ticks, lower_mid_half_ticks, upper_mid_half_ticks)
+            )
+            if (mid_half_ticks + overround_ticks) % 2 != 0:
+                mid_half_ticks += 1 if mid_half_ticks_float >= mid_half_ticks else -1
+
+            up_ticks = int((mid_half_ticks + overround_ticks) // 2)
+            down_ticks = int((overround_ticks - mid_half_ticks + 200) // 2)
+            up_price = float(tick_size * up_ticks)
+            down_price = float(tick_size * down_ticks)
+
+            return {
+                "up_price": up_price,
+                "down_price": down_price,
+                "market_mid_up": float(ask_mid_up),
+                "overround_ticks": int(overround_ticks),
+                "mid_intercept": float(scenario["mid_intercept"]),
+                "mid_slope": float(scenario["mid_slope"]),
+                "mid_residual": float(residual),
+            }
+
         sigma = float(self.kelly_runtime["sigma"])
         spread_half = float(self.kelly_runtime["spread_half"])
         base_price = float(self.kelly_runtime["base_price"])
@@ -1529,7 +1793,12 @@ class LivePredictor:
         eps = float(self.price_rng.standard_normal())
         slip = abs(sigma * eps)
         price = float(np.clip(base_price + spread_half + slip, clip_lo, clip_hi))
-        return price, eps, slip
+        return {
+            "up_price": float(price),
+            "down_price": float(price),
+            "eps": float(eps),
+            "slip": float(slip),
+        }
 
     def _recommend_kelly_bet(self, prob_up_raw):
         bankroll = float(self.live_bankroll_usdc)
@@ -1544,31 +1813,50 @@ class LivePredictor:
             )
         )
 
-        price, eps, slip = self._simulate_execution_price()
+        quotes = self._simulate_execution_quotes(prob_up_raw=prob_up_raw)
         fee_rate = float(self.kelly_runtime["fee_rate"])
         fee_exponent = float(self.kelly_runtime["fee_exponent"])
-        eff_rate = fee_rate * float((price * (1.0 - price)) ** fee_exponent)
-        if eff_rate >= 0.99:
+        candidates = []
+        for side, price, p_side in (
+            ("up", float(quotes["up_price"]), float(p)),
+            ("down", float(quotes["down_price"]), float(1.0 - p)),
+        ):
+            eff_rate = fee_rate * float((price * (1.0 - price)) ** fee_exponent)
+            if eff_rate >= 0.99:
+                continue
+            c_eff = price / (1.0 - eff_rate)
+            edge = p_side - c_eff
+            candidates.append(
+                {
+                    "side": side,
+                    "entry_price": float(price),
+                    "prob_win_adj": float(p_side),
+                    "edge": float(edge),
+                    "c_eff": float(c_eff),
+                    "eff_rate": float(eff_rate),
+                }
+            )
+
+        if not candidates:
             return {
                 "reason": "eff_rate_too_high",
                 "prob_win_raw": float(prob_up_raw),
                 "prob_win_adj": p,
-                "entry_price": price,
-                "eps": eps,
-                "slip": slip,
+                "up_price": float(quotes["up_price"]),
+                "down_price": float(quotes["down_price"]),
+                "eps": float(quotes.get("eps", np.nan)),
+                "slip": float(quotes.get("slip", np.nan)),
             }
 
-        c_eff = price / (1.0 - eff_rate)
-        edge_up = p - c_eff
-        edge_down = (1.0 - p) - c_eff
-        if edge_up >= edge_down:
-            side = "up"
-            selected_edge = edge_up
-            p_side = p
-        else:
-            side = "down"
-            selected_edge = edge_down
-            p_side = 1.0 - p
+        best = max(candidates, key=lambda item: float(item["edge"]))
+        side = str(best["side"])
+        selected_edge = float(best["edge"])
+        p_side = float(best["prob_win_adj"])
+        price = float(best["entry_price"])
+        c_eff = float(best["c_eff"])
+        eff_rate = float(best["eff_rate"])
+        order_price_cap = float(self.kelly_runtime.get("order_price_cap", np.inf))
+        order_min_size = float(self.kelly_runtime.get("order_min_size", 0.0))
 
         if selected_edge < float(self.kelly_runtime["min_edge"]):
             return {
@@ -1580,8 +1868,27 @@ class LivePredictor:
                 "entry_price": float(price),
                 "c_eff": float(c_eff),
                 "eff_rate": float(eff_rate),
-                "eps": eps,
-                "slip": slip,
+                "up_price": float(quotes["up_price"]),
+                "down_price": float(quotes["down_price"]),
+                "eps": float(quotes.get("eps", np.nan)),
+                "slip": float(quotes.get("slip", np.nan)),
+            }
+
+        if price > order_price_cap:
+            return {
+                "reason": "price_above_cap",
+                "side": side,
+                "edge": float(selected_edge),
+                "prob_win_raw": float(prob_up_raw),
+                "prob_win_adj": float(p_side),
+                "entry_price": float(price),
+                "order_price_cap": float(order_price_cap),
+                "c_eff": float(c_eff),
+                "eff_rate": float(eff_rate),
+                "up_price": float(quotes["up_price"]),
+                "down_price": float(quotes["down_price"]),
+                "eps": float(quotes.get("eps", np.nan)),
+                "slip": float(quotes.get("slip", np.nan)),
             }
 
         f_star = (p_side - c_eff) / (1.0 - c_eff)
@@ -1600,8 +1907,10 @@ class LivePredictor:
                 "entry_price": float(price),
                 "c_eff": float(c_eff),
                 "eff_rate": float(eff_rate),
-                "eps": eps,
-                "slip": slip,
+                "up_price": float(quotes["up_price"]),
+                "down_price": float(quotes["down_price"]),
+                "eps": float(quotes.get("eps", np.nan)),
+                "slip": float(quotes.get("slip", np.nan)),
             }
 
         stake = bankroll * f
@@ -1617,8 +1926,10 @@ class LivePredictor:
                 "entry_price": float(price),
                 "c_eff": float(c_eff),
                 "eff_rate": float(eff_rate),
-                "eps": eps,
-                "slip": slip,
+                "up_price": float(quotes["up_price"]),
+                "down_price": float(quotes["down_price"]),
+                "eps": float(quotes.get("eps", np.nan)),
+                "slip": float(quotes.get("slip", np.nan)),
             }
 
         fee_raw = stake * eff_rate
@@ -1642,6 +1953,27 @@ class LivePredictor:
             }
 
         shares_net = (stake - fee) / price
+        if shares_net < order_min_size:
+            return {
+                "reason": "shares_below_order_min",
+                "side": side,
+                "edge": float(selected_edge),
+                "fraction": float(f),
+                "bet_usdc": float(stake),
+                "prob_win_raw": float(prob_up_raw),
+                "prob_win_adj": float(p_side),
+                "entry_price": float(price),
+                "fee_usdc": float(fee),
+                "fee_raw_usdc": float(fee_raw),
+                "shares_net": float(shares_net),
+                "order_min_size": float(order_min_size),
+                "c_eff": float(c_eff),
+                "eff_rate": float(eff_rate),
+                "up_price": float(quotes["up_price"]),
+                "down_price": float(quotes["down_price"]),
+                "eps": float(quotes.get("eps", np.nan)),
+                "slip": float(quotes.get("slip", np.nan)),
+            }
         return {
             "reason": "ok",
             "side": side,
@@ -1656,8 +1988,10 @@ class LivePredictor:
             "shares_net": float(shares_net),
             "c_eff": float(c_eff),
             "eff_rate": float(eff_rate),
-            "eps": eps,
-            "slip": slip,
+            "up_price": float(quotes["up_price"]),
+            "down_price": float(quotes["down_price"]),
+            "eps": float(quotes.get("eps", np.nan)),
+            "slip": float(quotes.get("slip", np.nan)),
         }
 
     def _upsert_closed_candle(self, kline):
@@ -2134,13 +2468,36 @@ class LivePredictor:
         )
         print(
             "Price/Fee model | "
-            f"base_price={self.kelly_runtime['base_price']:.6f} "
-            f"sigma={self.kelly_runtime['sigma']:.6f} "
-            f"spread_half={self.kelly_runtime['spread_half']:.6f} "
-            f"clip=[{self.kelly_runtime['price_clip_lo']:.3f},{self.kelly_runtime['price_clip_hi']:.3f}] "
             f"fee_rate={self.kelly_runtime['fee_rate']:.6f} "
             f"fee_exp={self.kelly_runtime['fee_exponent']:.3f}"
         )
+        if self.kelly_runtime.get("price_sim_model") == "neutral_conservative_fixed":
+            print(
+                "Price sim | "
+                f"model={self.kelly_runtime['price_sim_model']} "
+                f"ask_price={self.kelly_runtime['ask_price']:.6f} "
+                f"order_price_cap={self.kelly_runtime['order_price_cap']:.3f} "
+                f"order_min_size={self.kelly_runtime['order_min_size']:.2f}"
+            )
+        elif self.kelly_runtime.get("price_sim_model") == "parametric_market_mid_overround":
+            print(
+                "Price sim | "
+                f"model={self.kelly_runtime['price_sim_model']} "
+                f"mid_slope_mean={self.kelly_runtime['mid_slope_mean']:.6f} "
+                f"mid_slope_std={self.kelly_runtime['mid_slope_std']:.6f} "
+                f"mid_residual_std={self.kelly_runtime['mid_residual_std']:.6f} "
+                f"order_price_cap={self.kelly_runtime['order_price_cap']:.3f} "
+                f"order_min_size={self.kelly_runtime['order_min_size']:.2f}"
+            )
+        else:
+            print(
+                "Price sim | "
+                f"model={self.kelly_runtime['price_sim_model']} "
+                f"base_price={self.kelly_runtime['base_price']:.6f} "
+                f"sigma={self.kelly_runtime['sigma']:.6f} "
+                f"spread_half={self.kelly_runtime['spread_half']:.6f} "
+                f"clip=[{self.kelly_runtime['price_clip_lo']:.3f},{self.kelly_runtime['price_clip_hi']:.3f}]"
+            )
         print(f"Kelly config: {KELLY_CONFIG_PATH}")
         print(
             "Runtime hashes | "

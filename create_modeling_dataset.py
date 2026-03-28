@@ -10,6 +10,7 @@ from modeling_dataset_utils import (
     load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
     load_modeling_dataset_settings,
+    resolve_raw_dataset_input_path,
     resolve_modeling_float_dtype,
     resolve_modeling_float_dtype_name,
     resolve_modeling_dataset_output_paths,
@@ -355,7 +356,6 @@ def add_indicator_values(df, ohlcv_np, configs, float_dtype=np.float64):
 
 
 def build_dataset_from_settings(settings):
-    data_dir = Path(settings["data_dir"])
     fit_results_dir = Path(settings["fit_results_dir"])
     base_data_file = str(settings["base_data_file"])
     streak_intervals = list(settings["candle_streak_intervals"])
@@ -422,7 +422,7 @@ def build_dataset_from_settings(settings):
     else:
         streak_interval_to_rule = configured_streak_interval_to_rule
 
-    input_file = data_dir / base_data_file
+    input_file = resolve_raw_dataset_input_path(settings)
     if not input_file.exists():
         raise FileNotFoundError(f"Missing base dataset: {input_file}")
 
@@ -641,7 +641,8 @@ def main():
     print(
         "modeling dataset settings: "
         f"config={MODELING_DATASET_CONFIG_FILE} | "
-        f"data_dir={settings['data_dir']} | "
+        f"raw_data_dir={settings['raw_data_dir']} | "
+        f"modeling_output_dir={settings['modeling_output_dir']} | "
         f"base_data_file={settings['base_data_file']} | "
         f"fit_results_dir={settings['fit_results_dir']} | "
         f"candle_streak_intervals={settings['candle_streak_intervals']} | "

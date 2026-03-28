@@ -29,7 +29,9 @@ TARGET_COL = "target_5m_candle_up"
 TARGET_HORIZON_MINUTES = 5
 
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
-BASE_DATA_PATH = Path("data") / str(MODELING_DATASET_SETTINGS["base_data_file"])
+BASE_DATA_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
+    MODELING_DATASET_SETTINGS["base_data_file"]
+)
 SEED = 37
 
 CV_FOLDS = 10

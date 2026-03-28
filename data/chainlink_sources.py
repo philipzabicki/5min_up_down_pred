@@ -8,10 +8,12 @@ import pandas as pd
 import requests
 
 from data.raw_ohlcv_repair import repair_raw_ohlcv_csv
+from project_config import DATA_DIR, RAW_DATASETS_DIR
 from project_env import load_repo_env
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-REPO_DATA_DIR = PROJECT_ROOT / "data"
+REPO_DATA_DIR = PROJECT_ROOT / DATA_DIR
+RAW_DATA_DIR = PROJECT_ROOT / RAW_DATASETS_DIR
 CHAINLINK_DATA_DIR = REPO_DATA_DIR / "chainlink"
 CHAINLINK_META_DIR = CHAINLINK_DATA_DIR / "metadata"
 CHAINLINK_RAW_REPORTS_DIR = CHAINLINK_DATA_DIR / "raw_reports"
@@ -69,6 +71,7 @@ def _env_int(name, default):
 def _ensure_dirs():
     for path in (
         REPO_DATA_DIR,
+        RAW_DATA_DIR,
         CHAINLINK_DATA_DIR,
         CHAINLINK_META_DIR,
         CHAINLINK_RAW_REPORTS_DIR,
@@ -176,7 +179,7 @@ def _raw_reports_archive_path(symbol_info):
 
 
 def _final_csv_path(symbol_info, interval):
-    return REPO_DATA_DIR / f"{symbol_info['compact_symbol']}_CHAINLINK{interval}.csv"
+    return RAW_DATA_DIR / f"{symbol_info['compact_symbol']}_CHAINLINK{interval}.csv"
 
 
 def _extract_next_data_payload(html):

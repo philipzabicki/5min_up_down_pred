@@ -13,7 +13,7 @@
       "max_ws_reconnect_delay_sec": 15,
       "ws_ping_interval_sec": 20,
       "ws_ping_timeout_sec": 10,
-      "live_initial_bankroll_usdc": 1000.0,
+      "live_initial_bankroll_usdc": 750.0,
       "min_proba_clip": 1e-06,
       "indicator_history_margin_ratio": 0.01,
       "indicator_history_min_extra_candles": 1

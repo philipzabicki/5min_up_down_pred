@@ -17,6 +17,7 @@ from modeling_dataset_utils import (
     load_modeling_dataset_settings,
     resolve_modeling_float_dtype_name,
     resolve_modeling_dataset_output_paths,
+    resolve_oof_prediction_output_paths,
     split_feature_subset,
     summarize_feature_subset,
 )
@@ -28,7 +29,6 @@ from target_weights import (
 
 TARGET_COL = "target_5m_candle_up"
 OOF_PRED_COL = "oof_pred_proba_up"
-OOF_OUTPUT_PATH = Path("data/BTCUSDT1m_oof_predictions.parquet")
 OOF_EXPORT_BASE_COLS = [
     "Opened",
     "Open",
@@ -46,7 +46,7 @@ N_ESTIMATORS = 3000
 EARLY_STOPPING_ROUNDS = 25
 SEED = 37
 N_JOBS = 14
-MODELS_DIR = Path("data/models/runs")
+MODELS_DIR = Path("data/models")
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
 PREDICTION_THRESHOLD = 0.5
@@ -526,6 +526,11 @@ def main():
     dataset_settings = load_modeling_dataset_settings()
     parquet_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
+    oof_output_paths = resolve_oof_prediction_output_paths(
+        dataset_settings,
+        preview_rows=OOF_PREVIEW_ROWS,
+    )
+    oof_output_path = oof_output_paths["parquet"]
     feature_subset = load_feature_subset_from_settings(dataset_settings)
     excluded_features = load_excluded_feature_names_from_settings(dataset_settings)
     train_lgbm_settings = dict(dataset_settings.get("train_lgbm") or {})
@@ -630,14 +635,10 @@ def main():
         oof_export = df.loc[oof_mask, OOF_EXPORT_BASE_COLS].assign(
             **{OOF_PRED_COL: oof_pred_proba[oof_mask].astype(np.float64, copy=False)}
         )
-        OOF_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        oof_export.to_parquet(OOF_OUTPUT_PATH, index=False)
-        oof_head_csv = OOF_OUTPUT_PATH.with_name(
-            f"{OOF_OUTPUT_PATH.stem}_head{OOF_PREVIEW_ROWS}.csv"
-        )
-        oof_tail_csv = OOF_OUTPUT_PATH.with_name(
-            f"{OOF_OUTPUT_PATH.stem}_tail{OOF_PREVIEW_ROWS}.csv"
-        )
+        oof_output_path.parent.mkdir(parents=True, exist_ok=True)
+        oof_export.to_parquet(oof_output_path, index=False)
+        oof_head_csv = oof_output_paths["head_csv"]
+        oof_tail_csv = oof_output_paths["tail_csv"]
         oof_export.head(OOF_PREVIEW_ROWS).to_csv(oof_head_csv, index=False)
         oof_export.tail(OOF_PREVIEW_ROWS).to_csv(oof_tail_csv, index=False)
 
@@ -724,7 +725,9 @@ def main():
         "oof_predictions": {
             "enabled": save_oof_predictions,
             "path": (
-                path_to_portable_str(OOF_OUTPUT_PATH) if save_oof_predictions else None
+                path_to_portable_str(oof_output_path)
+                if save_oof_predictions
+                else None
             ),
             "prediction_col": OOF_PRED_COL if save_oof_predictions else None,
             "model_variant": "optuna" if save_oof_predictions else None,
@@ -798,7 +801,7 @@ def main():
                 for model_variant, path in cv_fi_paths.items()
             },
             "oof_predictions_path": (
-                path_to_portable_str(OOF_OUTPUT_PATH)
+                path_to_portable_str(oof_output_path)
                 if save_oof_predictions
                 else None
             ),
@@ -812,7 +815,7 @@ def main():
     for model_variant, cv_fi_path in cv_fi_paths.items():
         print(f"CV feature importance saved ({model_variant}): {cv_fi_path}")
     if save_oof_predictions:
-        print(f"OOF predictions saved (parquet): {OOF_OUTPUT_PATH}")
+        print(f"OOF predictions saved (parquet): {oof_output_path}")
         print(f"OOF preview head saved: {oof_head_csv}")
         print(f"OOF preview tail saved: {oof_tail_csv}")
     else:

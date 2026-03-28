@@ -132,8 +132,10 @@ def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
     )
 
     return {
-        "data_dir": Path(settings["data_dir"]),
+        "raw_data_dir": Path(settings["raw_data_dir"]),
+        "data_dir": Path(settings["raw_data_dir"]),
         "base_data_file": str(settings["base_data_file"]),
+        "modeling_output_dir": Path(settings["modeling_output_dir"]),
         "output_suffix": str(settings["output_suffix"]),
         "fit_results_dir": Path(settings["fit_results_dir"]),
         "preview_rows": int(settings["preview_rows"]),
@@ -156,20 +158,34 @@ def resolve_modeling_dataset_output_stem(settings):
     return f"{Path(settings['base_data_file']).stem}{settings['output_suffix']}"
 
 
+def resolve_raw_dataset_input_path(settings):
+    return Path(settings["raw_data_dir"]) / str(settings["base_data_file"])
+
+
 def resolve_modeling_dataset_output_paths(settings):
-    data_dir = Path(settings["data_dir"])
+    output_dir = Path(settings["modeling_output_dir"])
     output_stem = resolve_modeling_dataset_output_stem(settings)
     preview_rows = int(settings["preview_rows"])
     return {
-        "parquet": data_dir / f"{output_stem}.parquet",
-        "head_csv": data_dir / f"{output_stem}_head{preview_rows}.csv",
-        "tail_csv": data_dir / f"{output_stem}_tail{preview_rows}.csv",
+        "parquet": output_dir / f"{output_stem}.parquet",
+        "head_csv": output_dir / f"{output_stem}_head{preview_rows}.csv",
+        "tail_csv": output_dir / f"{output_stem}_tail{preview_rows}.csv",
     }
 
 
 def resolve_modeling_dataset_parquet_path(config_path=MODELING_DATASET_CONFIG_FILE):
     settings = load_modeling_dataset_settings(config_path=config_path)
     return resolve_modeling_dataset_output_paths(settings)["parquet"]
+
+
+def resolve_oof_prediction_output_paths(settings, *, preview_rows):
+    output_dir = Path(settings["modeling_output_dir"])
+    output_stem = f"{Path(settings['base_data_file']).stem}_oof_predictions"
+    return {
+        "parquet": output_dir / f"{output_stem}.parquet",
+        "head_csv": output_dir / f"{output_stem}_head{int(preview_rows)}.csv",
+        "tail_csv": output_dir / f"{output_stem}_tail{int(preview_rows)}.csv",
+    }
 
 
 def resolve_modeling_float_dtype_name(settings):

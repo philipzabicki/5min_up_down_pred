@@ -19,7 +19,9 @@ OUTPUT_DIR = Path("data/analysis/fit_results_stability")
 
 # Read only raw OHLCV and compute indicators sequentially from this source.
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
-REFERENCE_PATH = Path("data") / str(MODELING_DATASET_SETTINGS["base_data_file"])
+REFERENCE_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
+    MODELING_DATASET_SETTINGS["base_data_file"]
+)
 
 ANCHORS = audit.ANCHORS
 MAX_WINDOW = audit.MAX_WINDOW

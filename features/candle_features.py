@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import talib
+from talib import abstract as talib_abstract
 from numba import njit
 from pandas.tseries.frequencies import to_offset
 
@@ -109,6 +110,9 @@ _DERIVED_FEATURE_SPEC_BY_COL.update(
     }
 )
 _PATTERN_FUNC_BY_COL = {col: getattr(talib, col) for col in CANDLE_PATTERN_COLS}
+_PATTERN_LOOKBACK_BY_COL = {
+    col: int(talib_abstract.Function(col).lookback) + 1 for col in CANDLE_PATTERN_COLS
+}
 _PATTERN_FEATURE_SPEC_BY_COL = {col: (col, None) for col in CANDLE_PATTERN_COLS}
 _PATTERN_FEATURE_SPEC_BY_COL.update(
     {
@@ -999,6 +1003,192 @@ def build_latest_candle_pattern_feature_dict(
         )
         for feature_col in interval_feature_cols:
             out[feature_col] = int(interval_patterns[feature_col].iloc[-1])
+    return out
+
+
+def _compute_latest_complete_interval_pattern_values_fast(
+    opened_ns,
+    open_values,
+    high_values,
+    low_values,
+    close_values,
+    *,
+    bucket_ns,
+    expected_count,
+    base_pattern_cols,
+):
+    if not base_pattern_cols or len(opened_ns) == 0:
+        return {}
+
+    needed_complete = max(_PATTERN_LOOKBACK_BY_COL[col] for col in base_pattern_cols)
+    tail_len = min(len(opened_ns), int(expected_count) * (int(needed_complete) + 1))
+    opened_ns = opened_ns[-tail_len:]
+    open_values = open_values[-tail_len:]
+    high_values = high_values[-tail_len:]
+    low_values = low_values[-tail_len:]
+    close_values = close_values[-tail_len:]
+
+    bucket_start_ns = (opened_ns // bucket_ns) * bucket_ns
+    segment_breaks = np.empty(len(bucket_start_ns), dtype=bool)
+    segment_breaks[0] = True
+    segment_breaks[1:] = bucket_start_ns[1:] != bucket_start_ns[:-1]
+    segment_starts = np.flatnonzero(segment_breaks)
+    segment_ends = np.empty(len(segment_starts), dtype=np.int64)
+    segment_ends[:-1] = segment_starts[1:]
+    segment_ends[-1] = len(opened_ns)
+
+    agg_open = []
+    agg_high = []
+    agg_low = []
+    agg_close = []
+    for start, end in zip(segment_starts, segment_ends):
+        if int(end - start) != int(expected_count):
+            continue
+        agg_open.append(float(open_values[start]))
+        agg_high.append(float(np.max(high_values[start:end])))
+        agg_low.append(float(np.min(low_values[start:end])))
+        agg_close.append(float(close_values[end - 1]))
+
+    if not agg_open:
+        return {col: 0 for col in base_pattern_cols}
+
+    tail_len = max(_PATTERN_LOOKBACK_BY_COL[col] for col in base_pattern_cols)
+    take_slice = slice(max(len(agg_open) - tail_len, 0), len(agg_open))
+    patterns = build_candle_pattern_features_from_series(
+        open_=np.asarray(agg_open[take_slice], dtype=np.float64),
+        high=np.asarray(agg_high[take_slice], dtype=np.float64),
+        low=np.asarray(agg_low[take_slice], dtype=np.float64),
+        close=np.asarray(agg_close[take_slice], dtype=np.float64),
+        pattern_cols=base_pattern_cols,
+    )
+    return {col: int(patterns[col][-1]) for col in base_pattern_cols}
+
+
+def build_latest_candle_pattern_feature_dict_fast(
+    opened_values,
+    opened_ns_values,
+    open_values,
+    high_values,
+    low_values,
+    close_values,
+    pattern_cols=None,
+):
+    selected_pattern_cols = resolve_candle_pattern_feature_cols(pattern_cols)
+    if not selected_pattern_cols:
+        return {}
+    if len(open_values) == 0:
+        return {}
+
+    opened_ns = np.asarray(opened_ns_values, dtype=np.int64)
+    open_arr = np.asarray(open_values, dtype=np.float64)
+    high_arr = np.asarray(high_values, dtype=np.float64)
+    low_arr = np.asarray(low_values, dtype=np.float64)
+    close_arr = np.asarray(close_values, dtype=np.float64)
+    if not (
+        len(opened_ns)
+        == len(open_arr)
+        == len(high_arr)
+        == len(low_arr)
+        == len(close_arr)
+    ):
+        return build_latest_candle_pattern_feature_dict(
+            opened_values=opened_values,
+            open_values=open_values,
+            high_values=high_values,
+            low_values=low_values,
+            close_values=close_values,
+            pattern_cols=selected_pattern_cols,
+        )
+    if len(opened_ns) > 1 and np.any(np.diff(opened_ns) <= 0):
+        return build_latest_candle_pattern_feature_dict(
+            opened_values=opened_values,
+            open_values=open_values,
+            high_values=high_values,
+            low_values=low_values,
+            close_values=close_values,
+            pattern_cols=selected_pattern_cols,
+        )
+
+    (
+        base_pattern_cols,
+        direct_pattern_feature_cols,
+        interval_to_pattern_feature_cols,
+    ) = _split_pattern_feature_cols(selected_pattern_cols)
+    out = {}
+
+    direct_pattern_cols = tuple(
+        _PATTERN_FEATURE_SPEC_BY_COL[feature_col][0]
+        for feature_col in direct_pattern_feature_cols
+    )
+    direct_compute_cols = _dedupe_ordered((*base_pattern_cols, *direct_pattern_cols))
+    if direct_compute_cols:
+        direct_tail_len = max(_PATTERN_LOOKBACK_BY_COL[col] for col in direct_compute_cols)
+        pattern_values = build_candle_pattern_features_from_series(
+            open_=open_arr[-direct_tail_len:],
+            high=high_arr[-direct_tail_len:],
+            low=low_arr[-direct_tail_len:],
+            close=close_arr[-direct_tail_len:],
+            pattern_cols=direct_compute_cols,
+        )
+        out.update({col: int(pattern_values[col][-1]) for col in base_pattern_cols})
+        for feature_col in direct_pattern_feature_cols:
+            base_col = _PATTERN_FEATURE_SPEC_BY_COL[feature_col][0]
+            out[feature_col] = int(pattern_values[base_col][-1])
+
+    for (
+        interval_label,
+        interval_feature_cols,
+    ) in interval_to_pattern_feature_cols.items():
+        rule = PATTERN_INTERVAL_TO_RULE.get(interval_label)
+        if rule is None:
+            return build_latest_candle_pattern_feature_dict(
+                opened_values=opened_values,
+                open_values=open_values,
+                high_values=high_values,
+                low_values=low_values,
+                close_values=close_values,
+                pattern_cols=selected_pattern_cols,
+            )
+        offset = to_offset(rule)
+        bucket_ns = int(offset.nanos)
+        if bucket_ns <= 0 or bucket_ns % _MINUTE_NS != 0:
+            return build_latest_candle_pattern_feature_dict(
+                opened_values=opened_values,
+                open_values=open_values,
+                high_values=high_values,
+                low_values=low_values,
+                close_values=close_values,
+                pattern_cols=selected_pattern_cols,
+            )
+        expected_count = int(bucket_ns // _MINUTE_NS)
+        if expected_count <= 0:
+            return build_latest_candle_pattern_feature_dict(
+                opened_values=opened_values,
+                open_values=open_values,
+                high_values=high_values,
+                low_values=low_values,
+                close_values=close_values,
+                pattern_cols=selected_pattern_cols,
+            )
+
+        interval_base_pattern_cols = _dedupe_ordered(
+            _PATTERN_FEATURE_SPEC_BY_COL[feature_col][0]
+            for feature_col in interval_feature_cols
+        )
+        interval_values = _compute_latest_complete_interval_pattern_values_fast(
+            opened_ns=opened_ns,
+            open_values=open_arr,
+            high_values=high_arr,
+            low_values=low_arr,
+            close_values=close_arr,
+            bucket_ns=bucket_ns,
+            expected_count=expected_count,
+            base_pattern_cols=interval_base_pattern_cols,
+        )
+        for feature_col in interval_feature_cols:
+            base_col = _PATTERN_FEATURE_SPEC_BY_COL[feature_col][0]
+            out[feature_col] = int(interval_values.get(base_col, 0))
+
     return out
 
 

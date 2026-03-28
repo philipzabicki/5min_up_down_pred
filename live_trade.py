@@ -1424,7 +1424,7 @@ class PolymarketLiveTrader(LivePredictor):
 
         return candidates
 
-    def _poll_background_sync(self):
+    def _poll_background_sync(self, *, reschedule_pending=True):
         future = None
         pending_reason = ""
         with self.pm_bg_lock:
@@ -1440,7 +1440,7 @@ class PolymarketLiveTrader(LivePredictor):
         except Exception as exc:
             print(f"[pm] background sync failed: {exc}")
 
-        if pending_reason:
+        if pending_reason and reschedule_pending:
             self._schedule_background_sync(pending_reason, force=True)
 
     def _schedule_background_sync(self, reason, force=False):
@@ -2816,7 +2816,9 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _on_message(self, _ws, message):
         try:
-            self._poll_background_sync()
+            # Keep completed background-sync bookkeeping, but do not start any new
+            # network work before the current predict->submit cycle finishes.
+            self._poll_background_sync(reschedule_pending=False)
             payload = json.loads(message)
             closed_candle, live_minute_opened, _event_at = self._consume_ws_payload(
                 payload

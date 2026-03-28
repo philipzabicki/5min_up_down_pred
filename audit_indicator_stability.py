@@ -58,7 +58,7 @@ REST_TIMEOUT_SEC = 20
 
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
 MODELING_OUTPUT_PATHS = resolve_modeling_dataset_output_paths(MODELING_DATASET_SETTINGS)
-OHLCV_LOCAL_PATH = Path(MODELING_DATASET_SETTINGS["data_dir"]) / str(
+OHLCV_LOCAL_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
     MODELING_DATASET_SETTINGS["base_data_file"]
 )
 FIT_RESULTS_DIR = Path(MODELING_DATASET_SETTINGS["fit_results_dir"])
@@ -119,7 +119,7 @@ def resolve_meta_path():
 
     if not RUNTIME_MODEL_META_PATH.exists():
         raise FileNotFoundError(
-            "Runtime model metadata path from data/runtime/active.json is missing: "
+            "Runtime model metadata path from configs/runtime/active.json is missing: "
             f"{RUNTIME_MODEL_META_PATH}"
         )
     return RUNTIME_MODEL_META_PATH

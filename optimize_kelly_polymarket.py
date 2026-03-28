@@ -9,22 +9,76 @@ import pandas as pd
 from numba import njit
 
 from kelly_utils import adjust_probability_for_kelly
+from modeling_dataset_utils import (
+    load_modeling_dataset_settings,
+    resolve_oof_prediction_output_paths,
+)
 from project_config import load_runtime_artifact_paths
 
 optuna.logging.set_verbosity(optuna.logging.INFO)
 
 RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
+MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
 
-INPUT_PATH = Path("data/BTCUSDT1m_oof_predictions.parquet")
+
+def resolve_kelly_input_path():
+    candidate_paths = []
+    model_meta_path = Path(RUNTIME_ARTIFACT_PATHS["model_meta_path"])
+    if model_meta_path.exists():
+        payload = json.loads(model_meta_path.read_text(encoding="utf-8"))
+        artifacts = payload.get("artifacts") if isinstance(payload, dict) else None
+        if isinstance(artifacts, dict):
+            raw_artifact_path = str(artifacts.get("oof_predictions_path", "")).strip()
+            if raw_artifact_path:
+                artifact_path = Path(raw_artifact_path)
+                candidate_paths.append(artifact_path)
+                candidate_paths.append(
+                    Path(MODELING_DATASET_SETTINGS["modeling_output_dir"])
+                    / artifact_path.name
+                )
+        oof_section = payload.get("oof_predictions") if isinstance(payload, dict) else None
+        if isinstance(oof_section, dict):
+            raw_meta_path = str(oof_section.get("path", "")).strip()
+            if raw_meta_path:
+                meta_path = Path(raw_meta_path)
+                candidate_paths.append(meta_path)
+                candidate_paths.append(
+                    Path(MODELING_DATASET_SETTINGS["modeling_output_dir"])
+                    / meta_path.name
+                )
+
+    candidate_paths.append(
+        resolve_oof_prediction_output_paths(
+            MODELING_DATASET_SETTINGS,
+            preview_rows=1000,
+        )["parquet"]
+    )
+
+    seen = set()
+    for candidate in candidate_paths:
+        candidate = Path(candidate)
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        if candidate.exists():
+            return candidate
+
+    searched = ", ".join(str(path) for path in candidate_paths)
+    raise FileNotFoundError(
+        "Could not resolve Kelly input parquet from runtime model metadata or "
+        f"active modeling settings. Searched: {searched}"
+    )
+
+
+# Artifact paths
+INPUT_PATH = resolve_kelly_input_path()
 RUNTIME_CONFIG_PATH = Path(RUNTIME_ARTIFACT_PATHS["kelly_runtime_config_path"])
 OPTUNA_STORAGE = "sqlite:///data/optuna/databases/kelly_polymarket.db"
 OPTUNA_OUTPUT_DIR = Path("data/optuna/kelly_polymarket")
-
 STUDY_NAME_PREFIX = "kelly_polymarket_opt_v2"
-
 SIMULATIONS_DIR = Path("data/simulations")
 
-
+# Input schema
 REQUIRED_COLUMNS = [
     "Opened",
     "target_5m_candle_up",
@@ -32,94 +86,61 @@ REQUIRED_COLUMNS = [
     "Close",
 ]
 
+# Decision cadence and sanity checks
+DECISION_INTERVAL_MINUTES = 5
+DECISION_MINUTE_OFFSET = 4
+TARGET_ALIGNMENT_MIN_MATCH_RATIO = 0.995
+MIN_WALK_FORWARD_FOLDS = 10
 
-DECISION_MINUTE_MODULO = 5
-
-DECISION_MINUTE_REMAINDER = 4
-
-TARGET_SANITY_MIN_MATCH = 0.995
-
-
+# Fee, bankroll and probability clipping
 FEE_RATE = 0.25
-
 FEE_EXPONENT = 2
-
 FEE_ROUND_DECIMALS = 4
-
 MIN_FEE = 0.0001
-
 MIN_STAKE_USDC = 1.0
+PROBABILITY_MIN_CLIP = 1e-6
+SIMULATION_START_BANKROLL_USDC = 1000.0
 
-MIN_FRACTIONAL_KELLY = 0.01
+# Optuna search space
+TRIAL_PARAM_BOUNDS = {
+    "fractional_kelly": (0.01, 1.0),
+    "cap": (0.001, 1.0),
+    "min_edge": (0.0, 0.15),
+    "prob_shrink": (0.0, 1.0),
+}
 
-MAX_FRACTIONAL_KELLY = 1.0
+# CV / holdout settings
+RANDOM_SEED = 37
+N_TRIALS = 2_000
+OPTUNA_TPE_STARTUP_TRIALS = int(N_TRIALS * 0.2)
+HOLDOUT_FRACTION = 0.05
+EXECUTION_SCENARIO_SEEDS = [101, 202, 303, 404, 505]
+CV_TARGET_FOLD_DAYS = 35
+HOLDOUT_WINDOW_DAYS = 7
+HOLDOUT_WINDOW_RUNS = 50
+HOLDOUT_WINDOW_SCENARIO_SEEDS = [
+    10_000 + idx for idx in range(1, HOLDOUT_WINDOW_RUNS + 1)
+]
+FULL_HOLDOUT_SCENARIO_SEED = 20_001
 
-MIN_CAP = 0.001
-
-MAX_CAP = 0.75
-
-MIN_MIN_EDGE = 0.0
-
-MAX_MIN_EDGE = 0.05
-
-MIN_PROB_SHRINK = 0.0
-
-MAX_PROB_SHRINK = 1.0
-
-SCENARIO_SCORE_MEAN_WEIGHT = 0.45
-
-SCENARIO_SCORE_Q10_WEIGHT = 0.30
-
-SCENARIO_SCORE_MIN_WEIGHT = 0.15
-
-SCENARIO_SCORE_Q90_DRAWDOWN_PENALTY = 0.10
-
+# Scenario scoring
+SCENARIO_SCORE_WEIGHTS = {
+    "mean": 0.60,
+    "q10": 0.25,
+    "min": 0.10,
+    "q90_drawdown_penalty": 0.05,
+}
 
 # Manual live-vs-modeling probability error fit used only inside Kelly optimization.
-
 # Update these by hand from the accepted parity audit snapshot.
-
-ENABLE_MODEL_PROBA_ERROR_SIM = False
-
-MODEL_PROBA_ABS_DIFF_MEAN = 0.003136730568813267
-
-MODEL_PROBA_ABS_DIFF_MAX = 0.026809411202558198
-
-MODEL_PROBA_ABS_DIFF_STD = MODEL_PROBA_ABS_DIFF_MAX / 3.0
-
+MODEL_PROBA_ERROR_SIM_ENABLED = False
+MODEL_PROBA_ERROR_ABS_DIFF_MEAN = 0.003136730568813267
+MODEL_PROBA_ERROR_ABS_DIFF_MAX = 0.026809411202558198
+MODEL_PROBA_ERROR_ABS_DIFF_STD = MODEL_PROBA_ERROR_ABS_DIFF_MAX / 3.0
 MODEL_PROBA_ERROR_POLICY = (
     "signed_error = random_sign * max(normal(mean_abs_diff, max_abs_diff/3), 0.0); "
     "p_simulated = clip(p_raw + signed_error); prob_shrink applied after simulated model error"
 )
-
-PROB_MIN_CLIP = 1e-6
-
-
-START_BANKROLL = 1000.0
-
-
-SEED = 37
-
-N_TRIALS = 1_000
-
-HOLDOUT_FRAC = 0.05
-
-EXECUTION_SCENARIO_SEEDS = [101, 202, 303, 404, 505]
-
-TPE_STARTUP_TRIALS = int(N_TRIALS * 0.2)
-
-TARGET_FOLD_DAYS = 28
-
-HOLDOUT_WINDOW_DAYS = 7
-
-HOLDOUT_WINDOW_RUNS = 25
-
-HOLDOUT_WINDOW_SCENARIO_SEEDS = [
-    10_000 + idx for idx in range(1, HOLDOUT_WINDOW_RUNS + 1)
-]
-
-FULL_HOLDOUT_SCENARIO_SEED = 20_001
-
 
 SCORING_FORMULA = (
     "fold_score = log(final_bankroll / start_bankroll), "
@@ -131,16 +152,15 @@ SCORING_FORMULA = (
     "if total scenario trades == 0: scenario_score = -1e9"
 )
 
-EMPIRICAL_ORDERBOOK_GLOB = "live_trade_polymarket_*.state.json"
-
-EMPIRICAL_ORDERBOOK_PROBA_BINS = 6
-
-EMPIRICAL_ORDERBOOK_MIN_ROWS = 50
-
-DEFAULT_ORDER_PRICE_CAP = 0.55
-
-DEFAULT_ORDER_MIN_SIZE = 5.0
-
+# Neutral execution model
+NEUTRAL_PRICE_SIM_MODEL = "neutral_conservative_fixed"
+NEUTRAL_ORDER_PRICE_CAP = 0.53
+NEUTRAL_ORDER_MIN_SIZE = 1.0
+NEUTRAL_FIXED_ASK_PRICE = NEUTRAL_ORDER_PRICE_CAP
+NEUTRAL_PRICE_POLICY = (
+    "market-neutral symmetric ask; both sides always execute at the same "
+    "pessimistic fixed price"
+)
 
 STEP_LOG_COLUMNS = [
     "Opened",
@@ -224,8 +244,8 @@ def load_oof_frame():
 
 def build_decision_frame(df):
 
-    decision_mask = (df["Opened"].dt.minute % DECISION_MINUTE_MODULO) == (
-        DECISION_MINUTE_REMAINDER
+    decision_mask = (df["Opened"].dt.minute % DECISION_INTERVAL_MINUTES) == (
+        DECISION_MINUTE_OFFSET
     )
 
     decision_rows = int(decision_mask.sum())
@@ -235,13 +255,15 @@ def build_decision_frame(df):
     if len(df5) < 2:
 
         raise ValueError(
-            "Not enough decision rows after 5m mapping. Need at least 2 rows in df5."
+            "Not enough decision rows after decision-cadence mapping. "
+            "Need at least 2 rows in df5."
         )
 
     print(f"rows | df={len(df)} df5={len(df5)}")
 
     print(
-        f"decision mask | condition=Opened.minute%5==4 "
+        "decision mask | "
+        f"condition=Opened.minute%{DECISION_INTERVAL_MINUTES}=={DECISION_MINUTE_OFFSET} "
         f"rows_matching={decision_rows}"
     )
 
@@ -260,14 +282,14 @@ def sanity_check_target_alignment(df5):
 
     print(
         f"target sanity | match_ratio={match_ratio:.6f} "
-        f"threshold={TARGET_SANITY_MIN_MATCH:.3f}"
+        f"threshold={TARGET_ALIGNMENT_MIN_MATCH_RATIO:.3f}"
     )
 
-    if match_ratio < TARGET_SANITY_MIN_MATCH:
+    if match_ratio < TARGET_ALIGNMENT_MIN_MATCH_RATIO:
 
         raise ValueError(
             "Target sanity-check failed for 1m->5m boundary mapping: "
-            f"match_ratio={match_ratio:.6f} < {TARGET_SANITY_MIN_MATCH:.3f}. "
+            f"match_ratio={match_ratio:.6f} < {TARGET_ALIGNMENT_MIN_MATCH_RATIO:.3f}. "
             "Definitions are inconsistent with boundary-based tie-is-up target."
         )
 
@@ -276,9 +298,11 @@ def sanity_check_target_alignment(df5):
 
 def make_walk_forward_folds(n_obs, n_folds):
 
-    if n_folds < 10:
+    if n_folds < MIN_WALK_FORWARD_FOLDS:
 
-        raise ValueError(f"n_folds must be >=10, got {n_folds}")
+        raise ValueError(
+            f"n_folds must be >={MIN_WALK_FORWARD_FOLDS}, got {n_folds}"
+        )
 
     if n_obs <= n_folds:
 
@@ -316,11 +340,11 @@ def infer_n_folds_for_target_days(
 
         raise ValueError(f"target_fold_days must be > 0, got {target_fold_days}")
 
-    decision_rows_per_day = (24 * 60) // DECISION_MINUTE_MODULO
+    decision_rows_per_day = (24 * 60) // DECISION_INTERVAL_MINUTES
 
     target_rows_per_fold = max(int(target_fold_days * decision_rows_per_day), 1)
 
-    n_folds = max(10, int(round(n_obs / target_rows_per_fold)))
+    n_folds = max(MIN_WALK_FORWARD_FOLDS, int(round(n_obs / target_rows_per_fold)))
 
     n_folds = min(n_folds, n_obs - 1)
 
@@ -329,128 +353,45 @@ def infer_n_folds_for_target_days(
     return n_folds, float(approx_fold_days)
 
 
-def load_empirical_orderbook_model(live_trade_dir=Path("data/live/trade")):
-    rows = []
-    live_trade_dir = Path(live_trade_dir)
-    for path in sorted(live_trade_dir.glob(EMPIRICAL_ORDERBOOK_GLOB)):
-        try:
-            payload = json.loads(path.read_text(encoding="utf-8"))
-        except Exception:
-            continue
-        if not isinstance(payload, list):
-            continue
-        for record in payload:
-            up_ask = pd.to_numeric(record.get("pm_up_best_ask"), errors="coerce")
-            down_ask = pd.to_numeric(record.get("pm_down_best_ask"), errors="coerce")
-            proba_up = pd.to_numeric(record.get("proba_up"), errors="coerce")
-            price_cap = pd.to_numeric(record.get("pm_order_price_cap"), errors="coerce")
-            order_min_size = pd.to_numeric(
-                record.get("pm_order_min_size"),
-                errors="coerce",
-            )
-            if not (
-                np.isfinite(up_ask)
-                and np.isfinite(down_ask)
-                and np.isfinite(proba_up)
-                and 0.0 < float(up_ask) < 1.0
-                and 0.0 < float(down_ask) < 1.0
-                and 0.0 < float(proba_up) < 1.0
-            ):
-                continue
-            rows.append(
-                {
-                    "proba_up": float(proba_up),
-                    "up_ask": float(up_ask),
-                    "down_ask": float(down_ask),
-                    "order_price_cap": (
-                        float(price_cap)
-                        if np.isfinite(price_cap)
-                        else float(DEFAULT_ORDER_PRICE_CAP)
-                    ),
-                    "order_min_size": (
-                        float(order_min_size)
-                        if np.isfinite(order_min_size) and float(order_min_size) > 0.0
-                        else float(DEFAULT_ORDER_MIN_SIZE)
-                    ),
-                }
-            )
-
-    frame = pd.DataFrame(rows)
-    if len(frame) < EMPIRICAL_ORDERBOOK_MIN_ROWS:
+def build_neutral_price_simulation_model():
+    ask_price = float(NEUTRAL_FIXED_ASK_PRICE)
+    if ask_price <= 0.0 or ask_price >= 1.0:
         raise ValueError(
-            "Not enough empirical live trade orderbook rows for Kelly optimization. "
-            f"Found {len(frame)}, require at least {EMPIRICAL_ORDERBOOK_MIN_ROWS}."
+            "Neutral execution ask price must stay in (0,1). "
+            f"Received {ask_price:.6f}."
         )
-
-    q = np.linspace(0.0, 1.0, EMPIRICAL_ORDERBOOK_PROBA_BINS + 1)
-    bin_edges = np.quantile(frame["proba_up"].to_numpy(dtype=np.float64), q)
-    bin_edges = np.unique(bin_edges)
-    if len(bin_edges) < 2:
-        bin_edges = np.asarray([0.0, 1.0], dtype=np.float64)
-    else:
-        bin_edges[0] = 0.0
-        bin_edges[-1] = 1.0
-
-    bin_ids = np.searchsorted(bin_edges, frame["proba_up"].to_numpy(dtype=np.float64), side="right") - 1
-    bin_ids = np.clip(bin_ids, 0, len(bin_edges) - 2)
-    bin_indices = []
-    for bin_id in range(len(bin_edges) - 1):
-        idx = np.flatnonzero(bin_ids == bin_id)
-        if len(idx) == 0:
-            idx = np.arange(len(frame), dtype=np.int64)
-        bin_indices.append(idx.astype(np.int64, copy=False))
-
     return {
-        "up_ask": frame["up_ask"].to_numpy(dtype=np.float64, copy=False),
-        "down_ask": frame["down_ask"].to_numpy(dtype=np.float64, copy=False),
-        "order_price_cap": frame["order_price_cap"].to_numpy(
-            dtype=np.float64,
-            copy=False,
-        ),
-        "order_min_size": frame["order_min_size"].to_numpy(
-            dtype=np.float64,
-            copy=False,
-        ),
-        "proba_bin_edges": np.asarray(bin_edges, dtype=np.float64),
-        "bin_indices": bin_indices,
-        "n_rows": int(len(frame)),
+        "model": NEUTRAL_PRICE_SIM_MODEL,
+        "ask_price": float(ask_price),
+        "order_price_cap": float(NEUTRAL_ORDER_PRICE_CAP),
+        "order_min_size": float(NEUTRAL_ORDER_MIN_SIZE),
+        "policy": str(NEUTRAL_PRICE_POLICY),
     }
 
 
-def sample_empirical_orderbook_arrays(p_raw, empirical_orderbook_model, rng):
+def sample_neutral_orderbook_arrays(
+    p_raw,
+    price_sim_model,
+):
     p_raw = np.asarray(p_raw, dtype=np.float64)
     n_rows = len(p_raw)
-    up_ask = np.empty(n_rows, dtype=np.float64)
-    down_ask = np.empty(n_rows, dtype=np.float64)
-    order_price_cap = np.empty(n_rows, dtype=np.float64)
-    order_min_size = np.empty(n_rows, dtype=np.float64)
-
-    bin_edges = empirical_orderbook_model["proba_bin_edges"]
-    sampled_bins = np.searchsorted(bin_edges, p_raw, side="right") - 1
-    sampled_bins = np.clip(sampled_bins, 0, len(bin_edges) - 2)
-
-    source_up = empirical_orderbook_model["up_ask"]
-    source_down = empirical_orderbook_model["down_ask"]
-    source_price_cap = empirical_orderbook_model["order_price_cap"]
-    source_order_min_size = empirical_orderbook_model["order_min_size"]
-
-    for bin_id, pool_indices in enumerate(empirical_orderbook_model["bin_indices"]):
-        mask = sampled_bins == bin_id
-        count = int(np.count_nonzero(mask))
-        if count <= 0:
-            continue
-        take = rng.integers(0, len(pool_indices), size=count)
-        sampled_idx = pool_indices[take]
-        up_ask[mask] = source_up[sampled_idx]
-        down_ask[mask] = source_down[sampled_idx]
-        order_price_cap[mask] = source_price_cap[sampled_idx]
-        order_min_size[mask] = source_order_min_size[sampled_idx]
+    ask_price = float(price_sim_model["ask_price"])
+    up_ask = np.full(n_rows, ask_price, dtype=np.float64)
+    down_ask = np.full(n_rows, ask_price, dtype=np.float64)
 
     return {
         "up_ask": up_ask,
         "down_ask": down_ask,
-        "order_price_cap": order_price_cap,
-        "order_min_size": order_min_size,
+        "order_price_cap": np.full(
+            n_rows,
+            float(price_sim_model["order_price_cap"]),
+            dtype=np.float64,
+        ),
+        "order_min_size": np.full(
+            n_rows,
+            float(price_sim_model["order_min_size"]),
+            dtype=np.float64,
+        ),
     }
 
 
@@ -459,7 +400,7 @@ def sample_model_proba_error_components(
     n_rows,
 ):
 
-    if not ENABLE_MODEL_PROBA_ERROR_SIM:
+    if not MODEL_PROBA_ERROR_SIM_ENABLED:
 
         return (
             np.zeros(n_rows, dtype=np.float64),
@@ -480,15 +421,13 @@ def sample_model_proba_error_components(
 
 def build_trial_static_arrays(
     p_raw,
-    empirical_orderbook_model,
-    rng,
+    price_sim_model,
     model_error_abs_z,
     model_error_sign_bits,
 ):
-    sampled_orderbook = sample_empirical_orderbook_arrays(
+    sampled_orderbook = sample_neutral_orderbook_arrays(
         p_raw=p_raw,
-        empirical_orderbook_model=empirical_orderbook_model,
-        rng=rng,
+        price_sim_model=price_sim_model,
     )
 
     up_price = sampled_orderbook["up_ask"]
@@ -524,10 +463,11 @@ def build_trial_static_arrays(
 
     down_c_eff[~down_valid] = np.nan
 
-    if ENABLE_MODEL_PROBA_ERROR_SIM:
+    if MODEL_PROBA_ERROR_SIM_ENABLED:
 
         model_error_abs = np.maximum(
-            MODEL_PROBA_ABS_DIFF_MEAN + MODEL_PROBA_ABS_DIFF_STD * model_error_abs_z,
+            MODEL_PROBA_ERROR_ABS_DIFF_MEAN
+            + MODEL_PROBA_ERROR_ABS_DIFF_STD * model_error_abs_z,
             0.0,
         )
 
@@ -558,7 +498,7 @@ def build_execution_scenario_static_arrays(
     p_raw_tune,
     p_raw_holdout,
     scenario_seeds,
-    empirical_orderbook_model,
+    price_sim_model,
 ):
 
     scenarios = []
@@ -580,15 +520,13 @@ def build_execution_scenario_static_arrays(
                 "seed": int(scenario_seed),
                 "tune_static_arrays": build_trial_static_arrays(
                     p_raw_tune,
-                    empirical_orderbook_model,
-                    rng,
+                    price_sim_model,
                     model_error_abs_z_tune,
                     model_error_sign_bits_tune,
                 ),
                 "holdout_static_arrays": build_trial_static_arrays(
                     p_raw_holdout,
-                    empirical_orderbook_model,
-                    rng,
+                    price_sim_model,
                     model_error_abs_z_holdout,
                     model_error_sign_bits_holdout,
                 ),
@@ -601,7 +539,7 @@ def build_execution_scenario_static_arrays(
 def build_single_execution_static_arrays(
     p_raw,
     scenario_seed,
-    empirical_orderbook_model,
+    price_sim_model,
 ):
 
     rng = np.random.default_rng(int(scenario_seed))
@@ -613,8 +551,7 @@ def build_single_execution_static_arrays(
 
     return build_trial_static_arrays(
         p_raw,
-        empirical_orderbook_model,
-        rng,
+        price_sim_model,
         model_error_abs_z,
         model_error_sign_bits,
     )
@@ -631,14 +568,14 @@ def build_trial_arrays(
 
     p_simulated = np.clip(
         p_raw + static_arrays["model_proba_error"],
-        PROB_MIN_CLIP,
-        1.0 - PROB_MIN_CLIP,
+        PROBABILITY_MIN_CLIP,
+        1.0 - PROBABILITY_MIN_CLIP,
     )
 
     p = adjust_probability_for_kelly(
         p_simulated,
         prob_shrink=prob_shrink,
-        min_clip=PROB_MIN_CLIP,
+        min_clip=PROBABILITY_MIN_CLIP,
     )
 
     up_price = static_arrays["up_price"]
@@ -819,7 +756,7 @@ def simulate_segment_fast(
     start_idx,
     end_idx,
     min_stake_usdc,
-    start_bankroll=START_BANKROLL,
+    start_bankroll=SIMULATION_START_BANKROLL_USDC,
 ):
 
     overflowed, final_bankroll, trades, max_drawdown, sum_g, sum_fraction, n_steps = (
@@ -860,7 +797,7 @@ def simulate_segment_trace(
     min_stake_usdc,
     opened,
     scenario_seed,
-    start_bankroll=START_BANKROLL,
+    start_bankroll=SIMULATION_START_BANKROLL_USDC,
 ):
 
     price = trial_arrays["price"]
@@ -1143,7 +1080,7 @@ def evaluate_cv_folds_for_scenario(
             start_idx=start_idx,
             end_idx=end_idx,
             min_stake_usdc=min_stake_usdc,
-            start_bankroll=START_BANKROLL,
+            start_bankroll=SIMULATION_START_BANKROLL_USDC,
         )
 
         mean_g = float(segment_result["sum_g"]) / int(segment_result["n_steps"])
@@ -1165,10 +1102,10 @@ def evaluate_cv_folds_for_scenario(
     fold_avg_fraction_arr = np.asarray(fold_avg_fraction, dtype=np.float64)
 
     scenario_score = float(
-        SCENARIO_SCORE_MEAN_WEIGHT * np.mean(fold_scores_arr)
-        + SCENARIO_SCORE_Q10_WEIGHT * np.quantile(fold_scores_arr, 0.10)
-        + SCENARIO_SCORE_MIN_WEIGHT * np.min(fold_scores_arr)
-        - SCENARIO_SCORE_Q90_DRAWDOWN_PENALTY
+        SCENARIO_SCORE_WEIGHTS["mean"] * np.mean(fold_scores_arr)
+        + SCENARIO_SCORE_WEIGHTS["q10"] * np.quantile(fold_scores_arr, 0.10)
+        + SCENARIO_SCORE_WEIGHTS["min"] * np.min(fold_scores_arr)
+        - SCENARIO_SCORE_WEIGHTS["q90_drawdown_penalty"]
         * np.quantile(np.asarray(fold_max_drawdown, dtype=np.float64), 0.90)
     )
 
@@ -1256,9 +1193,10 @@ def evaluate_trial_across_execution_scenarios(
 
     return {
         "score": float(
-            SCENARIO_SCORE_MEAN_WEIGHT * np.mean(scenario_scores_arr)
-            + SCENARIO_SCORE_Q10_WEIGHT * np.quantile(scenario_scores_arr, 0.10)
-            + SCENARIO_SCORE_MIN_WEIGHT * np.min(scenario_scores_arr)
+            SCENARIO_SCORE_WEIGHTS["mean"] * np.mean(scenario_scores_arr)
+            + SCENARIO_SCORE_WEIGHTS["q10"]
+            * np.quantile(scenario_scores_arr, 0.10)
+            + SCENARIO_SCORE_WEIGHTS["min"] * np.min(scenario_scores_arr)
         ),
         "mean_scenario_score": float(np.mean(scenario_scores_arr)),
         "q10_scenario_score": float(np.quantile(scenario_scores_arr, 0.10)),
@@ -1276,11 +1214,19 @@ def evaluate_trial_across_execution_scenarios(
     }
 
 
+def suggest_trial_params(trial):
+    return {
+        name: float(trial.suggest_float(name, bounds[0], bounds[1]))
+        for name, bounds in TRIAL_PARAM_BOUNDS.items()
+    }
+
+
 def build_runtime_config(
     fractional_kelly,
     cap,
     min_edge,
     prob_shrink,
+    price_sim_model,
 ):
 
     return {
@@ -1296,25 +1242,26 @@ def build_runtime_config(
             "min_fee": float(MIN_FEE),
         },
         "price_sim": {
-            "model": "empirical_orderbook_bootstrap",
-            "source_glob": EMPIRICAL_ORDERBOOK_GLOB,
-            "proba_bins": int(EMPIRICAL_ORDERBOOK_PROBA_BINS),
-            "min_source_rows": int(EMPIRICAL_ORDERBOOK_MIN_ROWS),
-            "default_order_price_cap": float(DEFAULT_ORDER_PRICE_CAP),
-            "default_order_min_size": float(DEFAULT_ORDER_MIN_SIZE),
+            "model": str(price_sim_model["model"]),
+            "ask_price": float(price_sim_model["ask_price"]),
+            "order_price_cap": float(price_sim_model["order_price_cap"]),
+            "order_min_size": float(price_sim_model["order_min_size"]),
+            "policy": str(price_sim_model["policy"]),
         },
         "model_proba_error_sim": {
-            "enabled": bool(ENABLE_MODEL_PROBA_ERROR_SIM),
-            "abs_diff_mean": float(MODEL_PROBA_ABS_DIFF_MEAN),
-            "abs_diff_max": float(MODEL_PROBA_ABS_DIFF_MAX),
-            "abs_diff_std": float(MODEL_PROBA_ABS_DIFF_STD),
+            "enabled": bool(MODEL_PROBA_ERROR_SIM_ENABLED),
+            "abs_diff_mean": float(MODEL_PROBA_ERROR_ABS_DIFF_MEAN),
+            "abs_diff_max": float(MODEL_PROBA_ERROR_ABS_DIFF_MAX),
+            "abs_diff_std": float(MODEL_PROBA_ERROR_ABS_DIFF_STD),
             "policy": (
-                MODEL_PROBA_ERROR_POLICY if ENABLE_MODEL_PROBA_ERROR_SIM else "disabled"
+                MODEL_PROBA_ERROR_POLICY
+                if MODEL_PROBA_ERROR_SIM_ENABLED
+                else "disabled"
             ),
-            "prob_min_clip": float(PROB_MIN_CLIP),
+            "prob_min_clip": float(PROBABILITY_MIN_CLIP),
         },
         "cv_meta": {
-            "seed": int(SEED),
+            "seed": int(RANDOM_SEED),
             "scoring_formula": SCORING_FORMULA,
         },
     }
@@ -1463,7 +1410,9 @@ def summarize_holdout_results(results):
         "score": float(0.75 * np.mean(scores) + 0.25 * np.min(scores)),
         "mean_final_bankroll": float(np.mean(final_bankrolls)),
         "worst_final_bankroll": float(np.min(final_bankrolls)),
-        "total_pnl": float(np.mean(final_bankrolls) - START_BANKROLL),
+        "total_pnl": float(
+            np.mean(final_bankrolls) - SIMULATION_START_BANKROLL_USDC
+        ),
         "mean_n_trades": float(np.mean(trades)),
         "min_n_trades": int(np.min(trades)),
         "mean_hit_rate": float(np.mean(hit_rates)),
@@ -1508,23 +1457,22 @@ def main():
 
     print(
         "model error sim | "
-        f"enabled={ENABLE_MODEL_PROBA_ERROR_SIM} "
-        f"abs_mean={MODEL_PROBA_ABS_DIFF_MEAN:.6f} "
-        f"abs_max={MODEL_PROBA_ABS_DIFF_MAX:.6f} "
-        f"abs_std={MODEL_PROBA_ABS_DIFF_STD:.6f} "
-        f"policy={MODEL_PROBA_ERROR_POLICY if ENABLE_MODEL_PROBA_ERROR_SIM else 'disabled'}"
+        f"enabled={MODEL_PROBA_ERROR_SIM_ENABLED} "
+        f"abs_mean={MODEL_PROBA_ERROR_ABS_DIFF_MEAN:.6f} "
+        f"abs_max={MODEL_PROBA_ERROR_ABS_DIFF_MAX:.6f} "
+        f"abs_std={MODEL_PROBA_ERROR_ABS_DIFF_STD:.6f} "
+        f"policy={MODEL_PROBA_ERROR_POLICY if MODEL_PROBA_ERROR_SIM_ENABLED else 'disabled'}"
     )
 
-    empirical_orderbook_model = load_empirical_orderbook_model()
+    price_sim_model = build_neutral_price_simulation_model()
 
     print(
-        "empirical orderbook | "
-        f"rows={empirical_orderbook_model['n_rows']} "
-        f"bins={len(empirical_orderbook_model['bin_indices'])} "
-        f"up_ask_mean={float(np.mean(empirical_orderbook_model['up_ask'])):.6f} "
-        f"down_ask_mean={float(np.mean(empirical_orderbook_model['down_ask'])):.6f} "
-        f"price_cap_mean={float(np.mean(empirical_orderbook_model['order_price_cap'])):.6f} "
-        f"order_min_size_mode={float(pd.Series(empirical_orderbook_model['order_min_size']).mode().iloc[0]):.4f}"
+        "price sim | "
+        f"model={price_sim_model['model']} "
+        f"ask_price={price_sim_model['ask_price']:.6f} "
+        f"order_price_cap={price_sim_model['order_price_cap']:.3f} "
+        f"order_min_size={price_sim_model['order_min_size']:.4f} "
+        f"policy={price_sim_model['policy']}"
     )
 
     n_decision_rows = len(df5)
@@ -1541,7 +1489,7 @@ def main():
 
     opened_trade = df5["Opened"].iloc[:-1].to_numpy(dtype="datetime64[ns]", copy=False)
 
-    split_idx = int(len(target) * (1.0 - HOLDOUT_FRAC))
+    split_idx = int(len(target) * (1.0 - HOLDOUT_FRACTION))
 
     if split_idx <= 0 or split_idx >= len(target):
 
@@ -1563,26 +1511,26 @@ def main():
         p_raw_tune=p_raw_tune,
         p_raw_holdout=p_raw_holdout,
         scenario_seeds=EXECUTION_SCENARIO_SEEDS,
-        empirical_orderbook_model=empirical_orderbook_model,
+        price_sim_model=price_sim_model,
     )
 
     n_folds, approx_fold_days = infer_n_folds_for_target_days(
         n_obs=len(target_tune),
-        target_fold_days=TARGET_FOLD_DAYS,
+        target_fold_days=CV_TARGET_FOLD_DAYS,
     )
 
     folds = make_walk_forward_folds(n_obs=len(target_tune), n_folds=n_folds)
 
     print(
         f"cv setup | n_folds={n_folds} approx_fold_days={approx_fold_days:.2f} "
-        f"target_fold_days={TARGET_FOLD_DAYS} n_trials={N_TRIALS} "
+        f"target_fold_days={CV_TARGET_FOLD_DAYS} n_trials={N_TRIALS} "
         f"n_execution_scenarios={len(execution_scenarios)} "
         f"n_trades_tune={len(target_tune)} "
         f"first_fold=[{folds[0][0]}:{folds[0][1]}]"
     )
 
     print(
-        f"data split | holdout_frac={HOLDOUT_FRAC:.3f} split_idx={split_idx} "
+        f"data split | holdout_frac={HOLDOUT_FRACTION:.3f} split_idx={split_idx} "
         f"tune_rows={len(target_tune)} holdout_rows={len(target_holdout)} "
         f"holdout_start_opened={pd.Timestamp(opened_holdout[0]).isoformat()} "
         f"holdout_end_opened={pd.Timestamp(opened_holdout[-1]).isoformat()}"
@@ -1591,40 +1539,25 @@ def main():
     print(f"execution scenarios | seeds={EXECUTION_SCENARIO_SEEDS}")
 
     def objective(trial):
-
-        fractional_kelly = trial.suggest_float(
-            "fractional_kelly",
-            MIN_FRACTIONAL_KELLY,
-            MAX_FRACTIONAL_KELLY,
-        )
-
-        cap = trial.suggest_float("cap", MIN_CAP, MAX_CAP)
-
-        min_edge = trial.suggest_float("min_edge", MIN_MIN_EDGE, MAX_MIN_EDGE)
-
-        prob_shrink = trial.suggest_float(
-            "prob_shrink",
-            MIN_PROB_SHRINK,
-            MAX_PROB_SHRINK,
-        )
+        trial_params = suggest_trial_params(trial)
 
         cv_result = evaluate_trial_across_execution_scenarios(
             target=target_tune,
             p_raw=p_raw_tune,
             scenario_static_arrays=execution_scenarios,
             folds=folds,
-            fractional_kelly=fractional_kelly,
-            cap=cap,
-            min_edge=min_edge,
-            prob_shrink=prob_shrink,
+            fractional_kelly=trial_params["fractional_kelly"],
+            cap=trial_params["cap"],
+            min_edge=trial_params["min_edge"],
+            prob_shrink=trial_params["prob_shrink"],
             min_stake_usdc=MIN_STAKE_USDC,
         )
 
         return float(cv_result["score"])
 
     sampler = optuna.samplers.TPESampler(
-        seed=SEED,
-        n_startup_trials=TPE_STARTUP_TRIALS,
+        seed=RANDOM_SEED,
+        n_startup_trials=OPTUNA_TPE_STARTUP_TRIALS,
     )
 
     study_name = f"{STUDY_NAME_PREFIX}_{run_timestamp}"
@@ -1711,7 +1644,7 @@ def main():
         static_arrays = build_single_execution_static_arrays(
             p_raw=p_raw_holdout,
             scenario_seed=int(scenario_seed),
-            empirical_orderbook_model=empirical_orderbook_model,
+            price_sim_model=price_sim_model,
         )
 
         holdout_static_arrays_by_seed[int(scenario_seed)] = static_arrays
@@ -1751,7 +1684,7 @@ def main():
             min_stake_usdc=MIN_STAKE_USDC,
             opened=opened_holdout,
             scenario_seed=scenario_seed,
-            start_bankroll=START_BANKROLL,
+            start_bankroll=SIMULATION_START_BANKROLL_USDC,
         )
 
         holdout_trace_path = holdout_trace_dir / (
@@ -1810,7 +1743,7 @@ def main():
         min_stake_usdc=MIN_STAKE_USDC,
         opened=opened_holdout,
         scenario_seed=FULL_HOLDOUT_SCENARIO_SEED,
-        start_bankroll=START_BANKROLL,
+        start_bankroll=SIMULATION_START_BANKROLL_USDC,
     )
 
     full_holdout_trace_path = (
@@ -1827,7 +1760,7 @@ def main():
         "price sanity | "
         f"min_price={min_price:.6f} "
         f"max_price={max_price:.6f} "
-        f"empirical_rows={empirical_orderbook_model['n_rows']}"
+        f"price_sim_model={price_sim_model['model']}"
     )
 
     if min_price <= 0.0 or max_price >= 1.0:
@@ -1846,7 +1779,9 @@ def main():
         "end_opened": pd.Timestamp(opened_holdout[-1]).isoformat(),
         "score": float(full_holdout_result["fold_score"]),
         "final_bankroll": float(full_holdout_result["final_bankroll"]),
-        "total_pnl": float(full_holdout_result["final_bankroll"] - START_BANKROLL),
+        "total_pnl": float(
+            full_holdout_result["final_bankroll"] - SIMULATION_START_BANKROLL_USDC
+        ),
         "n_steps": int(full_holdout_result["n_steps"]),
         "n_trades": int(full_holdout_result["trades"]),
         "mean_log_growth": float(full_holdout_result["mean_g"]),
@@ -1863,6 +1798,7 @@ def main():
         cap=best_cap,
         min_edge=best_min_edge,
         prob_shrink=best_prob_shrink,
+        price_sim_model=price_sim_model,
     )
 
     study.trials_dataframe().to_csv(trials_csv_path, index=False)
@@ -1874,25 +1810,30 @@ def main():
         "storage": OPTUNA_STORAGE,
         "runtime_config": runtime_config,
         "cv_meta": {
-            "model_proba_error_enabled": bool(ENABLE_MODEL_PROBA_ERROR_SIM),
-            "model_proba_abs_diff_mean": float(MODEL_PROBA_ABS_DIFF_MEAN),
-            "model_proba_abs_diff_max": float(MODEL_PROBA_ABS_DIFF_MAX),
-            "model_proba_abs_diff_std": float(MODEL_PROBA_ABS_DIFF_STD),
+            "model_proba_error_enabled": bool(MODEL_PROBA_ERROR_SIM_ENABLED),
+            "model_proba_abs_diff_mean": float(MODEL_PROBA_ERROR_ABS_DIFF_MEAN),
+            "model_proba_abs_diff_max": float(MODEL_PROBA_ERROR_ABS_DIFF_MAX),
+            "model_proba_abs_diff_std": float(MODEL_PROBA_ERROR_ABS_DIFF_STD),
             "model_proba_error_policy": (
-                MODEL_PROBA_ERROR_POLICY if ENABLE_MODEL_PROBA_ERROR_SIM else "disabled"
+                MODEL_PROBA_ERROR_POLICY
+                if MODEL_PROBA_ERROR_SIM_ENABLED
+                else "disabled"
             ),
             "n_folds": int(n_folds),
-            "target_fold_days": int(TARGET_FOLD_DAYS),
+            "target_fold_days": int(CV_TARGET_FOLD_DAYS),
             "approx_fold_days": float(approx_fold_days),
             "n_trials": N_TRIALS,
-            "seed": SEED,
+            "seed": RANDOM_SEED,
+            "trial_param_bounds": {
+                name: [float(bounds[0]), float(bounds[1])]
+                for name, bounds in TRIAL_PARAM_BOUNDS.items()
+            },
             "execution_scenario_seeds": EXECUTION_SCENARIO_SEEDS,
-            "price_sim_model": "empirical_orderbook_bootstrap",
-            "empirical_orderbook_source_glob": EMPIRICAL_ORDERBOOK_GLOB,
-            "empirical_orderbook_rows": int(empirical_orderbook_model["n_rows"]),
-            "empirical_orderbook_proba_bins": int(
-                len(empirical_orderbook_model["bin_indices"])
-            ),
+            "price_sim_model": str(price_sim_model["model"]),
+            "price_sim_ask_price": float(price_sim_model["ask_price"]),
+            "price_sim_order_price_cap": float(price_sim_model["order_price_cap"]),
+            "price_sim_order_min_size": float(price_sim_model["order_min_size"]),
+            "price_sim_policy": str(price_sim_model["policy"]),
             "scoring_formula": SCORING_FORMULA,
             "best_trial_number": int(best_trial.number),
             "best_trial_score": float(best_trial.value),
@@ -1939,7 +1880,7 @@ def main():
             "full_run": full_holdout_output,
         },
         "data_split": {
-            "holdout_frac": HOLDOUT_FRAC,
+            "holdout_frac": HOLDOUT_FRACTION,
             "split_idx": int(split_idx),
             "tune_rows": len(target_tune),
             "holdout_rows": len(target_holdout),

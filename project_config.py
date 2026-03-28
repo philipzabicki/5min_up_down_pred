@@ -9,13 +9,16 @@ from common_config_utils import (
 )
 
 CONFIGS_DIR = Path("configs")
+DATA_DIR = Path("data")
+RAW_DATASETS_DIR = DATA_DIR / "raw_datasets"
+MODELING_DATASETS_DIR = DATA_DIR / "modeling_datasets"
 DATASETS_CONFIG_PATH = CONFIGS_DIR / "datasets.json"
 MODELING_CONFIG_PATH = CONFIGS_DIR / "modeling.json"
 INDICATOR_FIT_CONFIG_PATH = CONFIGS_DIR / "indicator_fit.json"
 LIVE_CONFIG_PATH = CONFIGS_DIR / "live.json"
 ACTIVE_CONFIG_PATH = CONFIGS_DIR / "active.json"
 
-RUNTIME_DIR = Path("data/runtime")
+RUNTIME_DIR = CONFIGS_DIR / "runtime"
 RUNTIME_ACTIVE_PATH = RUNTIME_DIR / "active.json"
 
 
@@ -51,6 +54,19 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
             source_label="modeling.train_lgbm",
         ),
     }
+
+
+def _require_text_with_fallback(payload, key, fallback_key=None, *, source_label=None):
+    if key in payload:
+        return require_text(payload, key)
+    if fallback_key and fallback_key in payload:
+        return require_text(payload, fallback_key)
+    label = source_label or key
+    if fallback_key:
+        raise ValueError(
+            f"Missing required config key: {key} (fallback: {fallback_key}) in {label}"
+        )
+    raise ValueError(f"Missing required config key: {label}")
 
 
 def _load_profiles(config_path):
@@ -102,11 +118,16 @@ def load_dataset_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_
         "volume_source",
         "volume_symbol",
         "volume_market",
-        "data_dir",
         "base_data_file",
     )
     for key in required_keys:
         require_text(profile, key)
+    profile["raw_data_dir"] = _require_text_with_fallback(
+        profile,
+        "raw_data_dir",
+        "data_dir",
+        source_label=f"dataset profile '{profile_name}'",
+    )
     intervals = profile.get("intervals")
     if not isinstance(intervals, list) or not intervals:
         raise ValueError(
@@ -123,6 +144,7 @@ def load_dataset_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_
     profile["start_date"] = str(profile.get("start_date", "") or "").strip()
     profile["end_date"] = str(profile.get("end_date", "") or "").strip()
     profile["raw_ohlcv_repair"] = profile.get("raw_ohlcv_repair")
+    profile["data_dir"] = profile["raw_data_dir"]
     return profile
 
 
@@ -143,6 +165,13 @@ def load_modeling_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG
         )
     if selection_mode == "artifact":
         require_text(feature_selection, "artifact_path")
+    profile["output_dir"] = str(
+        profile.get("output_dir") or path_to_portable_str(MODELING_DATASETS_DIR)
+    ).strip()
+    if not profile["output_dir"]:
+        raise ValueError(
+            f"Modeling profile '{profile_name}' must define non-empty 'output_dir'."
+        )
     require_text(profile, "output_suffix")
     require_text(profile, "fit_results_dir")
     require_positive_int(profile, "preview_rows")
@@ -262,8 +291,10 @@ def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
             "modeling.feature_selection.excluded_feature_names must be a JSON array."
         )
     return {
-        "data_dir": coerce_path(require_text(dataset, "data_dir")),
+        "raw_data_dir": coerce_path(require_text(dataset, "raw_data_dir")),
+        "data_dir": coerce_path(require_text(dataset, "raw_data_dir")),
         "base_data_file": require_text(dataset, "base_data_file"),
+        "modeling_output_dir": coerce_path(require_text(modeling, "output_dir")),
         "output_suffix": require_text(modeling, "output_suffix"),
         "fit_results_dir": coerce_path(require_text(modeling, "fit_results_dir")),
         "preview_rows": require_positive_int(modeling, "preview_rows"),
@@ -320,7 +351,7 @@ def build_indicator_fit_legacy_config(*, active_config_path=ACTIVE_CONFIG_PATH):
                 "drop_frozen_ohlc_blocks": fit.get("drop_frozen_ohlc_blocks"),
                 "intervals": {
                     dataset["interval"]: {
-                        "data_path": path_to_portable_str(dataset["data_dir"]),
+                        "data_path": path_to_portable_str(dataset["raw_data_dir"]),
                         "data_file": dataset["base_data_file"],
                         "indicators": list(fit["indicators"]),
                     }

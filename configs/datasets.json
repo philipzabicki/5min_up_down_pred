@@ -27,7 +27,7 @@
         "gap_chart_context_before": 50,
         "gap_chart_context_after": 50
       },
-      "data_dir": "data",
+      "raw_data_dir": "data/raw_datasets",
       "base_data_file": "BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv"
     }
   }

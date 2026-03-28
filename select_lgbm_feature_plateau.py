@@ -19,8 +19,9 @@ from target_weights import (
     compute_target_weights_from_opened,
     summarize_target_weights,
 )
+from modeling_dataset_utils import resolve_modeling_dataset_parquet_path
 
-DATA_PATH = Path("data\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet")
+DATA_PATH = resolve_modeling_dataset_parquet_path()
 OUTPUT_ROOT = Path("data/analysis/feature_selector")
 
 TARGET_COL = "target_5m_candle_up"
