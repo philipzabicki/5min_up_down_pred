@@ -356,14 +356,25 @@ def _merge_interval_events(base_df, events, feature_cols, opened_col=OPENED_COL)
         return pd.DataFrame(index=base_df.index)
 
     base_opened = base_df[[opened_col]].copy()
-    base_opened[opened_col] = pd.to_datetime(base_opened[opened_col], errors="raise")
-    base_opened = base_opened.sort_values(opened_col).reset_index()
+    base_opened[opened_col] = pd.to_datetime(
+        base_opened[opened_col], errors="raise", utc=True
+    )
+    base_merge_key = pd.DatetimeIndex(base_opened[opened_col]).as_unit("ns")
+    if base_merge_key.hasnans:
+        raise ValueError(f"{opened_col} contains NaT values in base_df.")
+    base_opened["__merge_opened_ns"] = base_merge_key.asi8
+    base_opened = base_opened.sort_values("__merge_opened_ns").reset_index()
 
-    events = events.sort_values(opened_col).reset_index(drop=True)
+    events = events.copy()
+    events[opened_col] = pd.to_datetime(events[opened_col], errors="coerce", utc=True)
+    events = events.dropna(subset=[opened_col])
+    event_merge_key = pd.DatetimeIndex(events[opened_col]).as_unit("ns")
+    events["__merge_opened_ns"] = event_merge_key.asi8
+    events = events.sort_values("__merge_opened_ns").reset_index(drop=True)
     merged = pd.merge_asof(
         base_opened,
         events,
-        on=opened_col,
+        on="__merge_opened_ns",
         direction="backward",
     )
     out = merged[list(feature_cols)]

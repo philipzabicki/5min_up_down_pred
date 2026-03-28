@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 import fit_indicators as fi
+from common_config_utils import coerce_path
 from features import ta_tools
 from project_config import INDICATOR_FIT_CONFIG_PATH, build_indicator_fit_legacy_config
 
@@ -116,7 +117,7 @@ def resolve_dataset_context(
     selected_interval = _pick_single(list(intervals_cfg.keys()), interval, "interval")
     interval_cfg = intervals_cfg[selected_interval]
 
-    data_path = Path(interval_cfg["data_path"])
+    data_path = coerce_path(interval_cfg["data_path"])
     if not data_path.is_absolute():
         data_path = (PROJECT_ROOT / data_path).resolve()
     data_file = str(interval_cfg.get("data_file", "dataset.csv"))

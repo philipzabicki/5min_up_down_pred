@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import lightgbm as lgb
+from common_config_utils import path_to_portable_str
 from features.candle_features import (
     CANDLE_PATTERN_COLS,
     RAW_OHLCV_COLS,
@@ -698,7 +699,7 @@ def main():
         )
 
     meta_payload = {
-        "data_path": str(data_path),
+        "data_path": path_to_portable_str(data_path),
         "target_col": TARGET_COL,
         "rows_used": len(df),
         "rows_after_target_notna": len(df),
@@ -722,7 +723,9 @@ def main():
         "prediction_threshold": PREDICTION_THRESHOLD,
         "oof_predictions": {
             "enabled": save_oof_predictions,
-            "path": str(OOF_OUTPUT_PATH) if save_oof_predictions else None,
+            "path": (
+                path_to_portable_str(OOF_OUTPUT_PATH) if save_oof_predictions else None
+            ),
             "prediction_col": OOF_PRED_COL if save_oof_predictions else None,
             "model_variant": "optuna" if save_oof_predictions else None,
             "rows": len(oof_export) if oof_export is not None else 0,
@@ -787,15 +790,17 @@ def main():
             for model_variant, cv_data in cv_results.items()
         },
         "artifacts": {
-            "run_dir": str(run_dir),
-            "final_model_path": str(model_path),
-            "final_feature_importance_csv": str(fi_path),
+            "run_dir": path_to_portable_str(run_dir),
+            "final_model_path": path_to_portable_str(model_path),
+            "final_feature_importance_csv": path_to_portable_str(fi_path),
             "cv_feature_importance_csv": {
-                model_variant: str(path)
+                model_variant: path_to_portable_str(path)
                 for model_variant, path in cv_fi_paths.items()
             },
             "oof_predictions_path": (
-                str(OOF_OUTPUT_PATH) if save_oof_predictions else None
+                path_to_portable_str(OOF_OUTPUT_PATH)
+                if save_oof_predictions
+                else None
             ),
         },
     }

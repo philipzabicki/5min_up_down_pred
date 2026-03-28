@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 
@@ -29,3 +30,20 @@ def require_positive_int(payload, key):
     if value <= 0:
         raise ValueError(f"Config key '{key}' must be > 0, got: {value}")
     return value
+
+
+def normalize_path_text(value):
+    raw = str(value).strip()
+    if not raw:
+        return raw
+    if os.sep == "/":
+        return raw.replace("\\", "/")
+    return raw.replace("/", "\\")
+
+
+def coerce_path(value):
+    return Path(normalize_path_text(value))
+
+
+def path_to_portable_str(path):
+    return Path(path).as_posix()

@@ -1,6 +1,12 @@
 from pathlib import Path
 
-from common_config_utils import load_json_object, require_positive_int, require_text
+from common_config_utils import (
+    coerce_path,
+    load_json_object,
+    path_to_portable_str,
+    require_positive_int,
+    require_text,
+)
 
 CONFIGS_DIR = Path("configs")
 DATASETS_CONFIG_PATH = CONFIGS_DIR / "datasets.json"
@@ -245,7 +251,9 @@ def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
     feature_subset_path = None
     feature_subset_list_key = None
     if selection_mode == "artifact":
-        feature_subset_path = Path(require_text(feature_selection, "artifact_path"))
+        feature_subset_path = coerce_path(
+            require_text(feature_selection, "artifact_path")
+        )
         raw_list_key = str(feature_selection.get("artifact_list_key", "") or "").strip()
         feature_subset_list_key = raw_list_key or None
     excluded_feature_names = feature_selection.get("excluded_feature_names", [])
@@ -254,10 +262,10 @@ def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
             "modeling.feature_selection.excluded_feature_names must be a JSON array."
         )
     return {
-        "data_dir": Path(require_text(dataset, "data_dir")),
+        "data_dir": coerce_path(require_text(dataset, "data_dir")),
         "base_data_file": require_text(dataset, "base_data_file"),
         "output_suffix": require_text(modeling, "output_suffix"),
-        "fit_results_dir": Path(require_text(modeling, "fit_results_dir")),
+        "fit_results_dir": coerce_path(require_text(modeling, "fit_results_dir")),
         "preview_rows": require_positive_int(modeling, "preview_rows"),
         "candle_streak_intervals": list(modeling["candle_streak_intervals"]),
         "feature_subset_path": feature_subset_path,
@@ -312,7 +320,7 @@ def build_indicator_fit_legacy_config(*, active_config_path=ACTIVE_CONFIG_PATH):
                 "drop_frozen_ohlc_blocks": fit.get("drop_frozen_ohlc_blocks"),
                 "intervals": {
                     dataset["interval"]: {
-                        "data_path": str(Path(dataset["data_dir"])),
+                        "data_path": path_to_portable_str(dataset["data_dir"]),
                         "data_file": dataset["base_data_file"],
                         "indicators": list(fit["indicators"]),
                     }
@@ -330,11 +338,11 @@ def load_runtime_artifact_paths(runtime_manifest_path=RUNTIME_ACTIVE_PATH):
             f"Missing or invalid 'artifacts' object in runtime manifest: {runtime_manifest_path}"
         )
     return {
-        "model_meta_path": Path(require_text(artifacts, "model_meta_path")),
-        "kelly_runtime_config_path": Path(
+        "model_meta_path": coerce_path(require_text(artifacts, "model_meta_path")),
+        "kelly_runtime_config_path": coerce_path(
             require_text(artifacts, "kelly_runtime_config_path")
         ),
-        "indicator_history_requirements_path": Path(
+        "indicator_history_requirements_path": coerce_path(
             require_text(artifacts, "indicator_history_requirements_path")
         ),
     }

@@ -67,7 +67,6 @@ DEFAULT_GAMMA_HOST = "https://gamma-api.polymarket.com"
 DEFAULT_CLOB_HOST = "https://clob.polymarket.com"
 DEFAULT_DATA_API_HOST = "https://data-api.polymarket.com"
 DEFAULT_RELAYER_HOST = "https://relayer-v2.polymarket.com"
-POLYMARKET_ORDER_PRICE_CAP = 0.537
 POLYMARKET_CRYPTO_FEE_EXPONENT = 2.0
 POLYMARKET_FEE_ROUND_DECIMALS = 4
 POLYMARKET_MIN_FEE_USDC = 0.0001
@@ -119,6 +118,13 @@ def _env_int(name, default):
 def _env_float(name, default):
     raw = os.getenv(name)
     return float(raw) if raw is not None and raw.strip() else float(default)
+
+
+def _env_required_float(name):
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        raise ValueError(f"Missing required env var: {name}")
+    return float(raw)
 
 
 def _env_bool(name, default):
@@ -434,6 +440,11 @@ def resolve_polymarket_records_path(default_records_path, model_hash):
 
 
 def load_polymarket_settings(default_records_path, model_hash):
+    order_price_cap = _env_required_float("POLY_ORDER_PRICE_CAP")
+    if not np.isfinite(order_price_cap) or not (0.0 < order_price_cap < 1.0):
+        raise ValueError(
+            "POLY_ORDER_PRICE_CAP must be a finite float strictly between 0 and 1."
+        )
     return PolymarketSettings(
         gamma_host=_env_text("POLY_GAMMA_HOST", DEFAULT_GAMMA_HOST),
         clob_host=_env_text("POLY_CLOB_HOST", DEFAULT_CLOB_HOST),
@@ -467,6 +478,7 @@ def load_polymarket_settings(default_records_path, model_hash):
             "POLY_MARKET_LOOKUP_PREFETCH_MAX_AGE_MS", 2500
         ),
         execution_mode=_env_text("POLY_EXECUTION_MODE", "fok").lower(),
+        order_price_cap=float(order_price_cap),
         relayer_api_key=_env_text("POLY_RELAYER_API_KEY", ""),
         relayer_api_key_address=_env_text("POLY_RELAYER_API_KEY_ADDRESS", ""),
         resume_existing_records=_env_bool("POLY_RESUME_EXISTING_RECORDS", True),
@@ -1053,7 +1065,7 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_fee_rate_bps": 0,
             "pm_tick_size": np.nan,
             "pm_order_min_size": np.nan,
-            "pm_order_price_cap": float(POLYMARKET_ORDER_PRICE_CAP),
+            "pm_order_price_cap": float(self.pm_cfg.order_price_cap),
             "pm_position_size": size,
             "pm_position_current_value": current_value,
             "pm_position_redeemable": redeemable,
@@ -1985,9 +1997,9 @@ class PolymarketLiveTrader(LivePredictor):
         if float(best["bet_usdc"]) < float(self.live_kelly_sizing["min_stake_usdc"]):
             best["reason"] = "stake_below_min"
             return best
-        if float(best["entry_price"]) > POLYMARKET_ORDER_PRICE_CAP:
+        if float(best["entry_price"]) > float(self.pm_cfg.order_price_cap):
             best["reason"] = "price_above_order_cap"
-            best["order_price_cap"] = float(POLYMARKET_ORDER_PRICE_CAP)
+            best["order_price_cap"] = float(self.pm_cfg.order_price_cap)
             return best
         if float(best["fee_usdc"]) >= float(best["bet_usdc"]):
             best["reason"] = "fee_ge_stake"
@@ -1998,7 +2010,7 @@ class PolymarketLiveTrader(LivePredictor):
         best["seconds_to_close"] = float(seconds_to_close)
         best["tick_size"] = float(market.tick_size)
         best["neg_risk"] = bool(market.neg_risk)
-        best["order_price_cap"] = float(POLYMARKET_ORDER_PRICE_CAP)
+        best["order_price_cap"] = float(self.pm_cfg.order_price_cap)
         return best
 
     def _submit_result(
@@ -2077,9 +2089,7 @@ class PolymarketLiveTrader(LivePredictor):
                     token_id=str(intent["token_id"]),
                     amount=float(intent["bet_usdc"]),
                     side=BUY,
-                    price=float(
-                        intent.get("order_price_cap", POLYMARKET_ORDER_PRICE_CAP)
-                    ),
+                    price=float(intent.get("order_price_cap", self.pm_cfg.order_price_cap)),
                     fee_rate_bps=int(intent.get("fee_rate_bps", 0) or 0),
                     order_type=OrderType.FOK,
                 )
@@ -2275,7 +2285,7 @@ class PolymarketLiveTrader(LivePredictor):
                 np.nan if market is None else float(market.order_min_size)
             ),
             "pm_order_price_cap": float(
-                intent.get("order_price_cap", POLYMARKET_ORDER_PRICE_CAP)
+                intent.get("order_price_cap", self.pm_cfg.order_price_cap)
             ),
             "pm_position_size": np.nan,
             "pm_position_current_value": np.nan,
@@ -2631,7 +2641,7 @@ class PolymarketLiveTrader(LivePredictor):
             f"market_slug_prefix={self.pm_cfg.market_slug_prefix} "
             f"settlement_source={self.settlement_source} "
             f"execution_mode={self.pm_cfg.execution_mode} "
-            f"order_price_cap={POLYMARKET_ORDER_PRICE_CAP:.3f} "
+            f"order_price_cap={self.pm_cfg.order_price_cap:.3f} "
             f"records={self.predictions_path}"
         )
         if self.pm_cfg.paper_mode:

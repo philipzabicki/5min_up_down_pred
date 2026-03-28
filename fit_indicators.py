@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from common_config_utils import coerce_path
 from data_quality_filters import drop_frozen_ohlc_blocks
 
 from pymoo.core.mixed import MixedVariableGA
@@ -425,7 +426,7 @@ def main():
 
     for pair, pair_cfg in cfg["pairs"].items():
         for interval, interval_cfg in pair_cfg["intervals"].items():
-            data_path = Path(interval_cfg["data_path"])
+            data_path = coerce_path(interval_cfg["data_path"])
             data_file = interval_cfg.get("data_file", "dataset.csv")
             proxy_target_horizonts = _resolve_proxy_target_horizonts(
                 interval_cfg, pair_cfg

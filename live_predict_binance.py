@@ -12,6 +12,7 @@ import pandas as pd
 import requests
 
 import lightgbm as lgb
+from common_config_utils import coerce_path
 from live_common import (
     LIVE_PREDICTION_EXPORT_COLUMNS,
     as_utc_timestamp,
@@ -373,6 +374,7 @@ def _hash_path_contents(path):
 
 
 def resolve_model_meta_and_path(meta_path):
+    meta_path = coerce_path(meta_path)
     if not meta_path.exists():
         raise FileNotFoundError(f"Model metadata not found: {meta_path}")
 
@@ -383,7 +385,7 @@ def resolve_model_meta_and_path(meta_path):
     if isinstance(artifacts, dict):
         final_model_path = artifacts.get("final_model_path")
         if isinstance(final_model_path, str) and final_model_path.strip():
-            candidate_paths.append(Path(final_model_path))
+            candidate_paths.append(coerce_path(final_model_path))
 
     candidate_paths.extend(
         [
@@ -478,7 +480,7 @@ def load_indicator_history_requirements(
     indicator_specs=None,
     allow_unstable=False,
 ):
-    artifact_path = Path(artifact_path)
+    artifact_path = coerce_path(artifact_path)
     if not artifact_path.exists():
         raise FileNotFoundError(
             "Indicator history requirements artifact is required for live runtime: "
@@ -592,7 +594,7 @@ def load_required_stable_window(
 
 
 def load_kelly_runtime_config(config_path):
-    config_path = Path(config_path)
+    config_path = coerce_path(config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"Kelly config not found: {config_path}")
 

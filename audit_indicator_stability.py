@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
+from common_config_utils import coerce_path
 from create_modeling_dataset import parse_fit_results
 from modeling_dataset_utils import (
     load_modeling_dataset_settings,
@@ -104,7 +105,7 @@ class IndicatorSpec:
 
 def _resolve_env_path(env_name):
     raw = os.environ.get(env_name, "").strip()
-    return Path(raw) if raw else None
+    return coerce_path(raw) if raw else None
 
 
 def resolve_meta_path():
@@ -136,7 +137,7 @@ def resolve_reference_path(meta):
     candidates = []
     meta_data_path_raw = str(meta.get("data_path", "")).strip()
     if meta_data_path_raw:
-        candidates.append(Path(meta_data_path_raw))
+        candidates.append(coerce_path(meta_data_path_raw))
     candidates.extend(
         [
             MODELING_OUTPUT_PATHS["parquet"],
