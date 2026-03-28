@@ -1,8 +1,8 @@
 {
-  "fractional_kelly": 0.9253063522875468,
-  "cap": 0.5830048326538699,
-  "min_edge": 0.007592228888388604,
-  "prob_shrink": 0.9999563814995586,
+  "fractional_kelly": 0.010010820903317856,
+  "cap": 0.09233651740436653,
+  "min_edge": 0.07998565889653979,
+  "prob_shrink": 0.16955840884346768,
   "min_stake_usdc": 1.0,
   "sigma": 0.06,
   "spread_half": 0.0075,
@@ -13,16 +13,43 @@
     "min_fee": 0.0001
   },
   "price_sim": {
+    "model": "complementary_yes_no_asks",
     "base_price": 0.422,
     "price_clip_lo": 0.35,
     "price_clip_hi": 0.55
   },
   "model_proba_error_sim": {
-    "enabled": false,
+    "enabled": true,
     "abs_diff_mean": 0.003136730568813267,
     "abs_diff_max": 0.026809411202558198,
     "abs_diff_std": 0.008936470400852733,
-    "policy": "disabled",
+    "policy": "signed_error = random_sign * max(normal(mean_abs_diff, max_abs_diff/3), 0.0); p_simulated = clip(p_raw + signed_error); prob_shrink applied after simulated model error",
     "prob_min_clip": 1e-06
+  },
+  "score_penalties": {
+    "fold_drawdown_penalty": 0.2,
+    "fold_avg_fraction_penalty": 0.05
+  },
+  "search_bounds": {
+    "fractional_kelly": [
+      0.01,
+      0.35
+    ],
+    "cap": [
+      0.01,
+      0.25
+    ],
+    "min_edge": [
+      0.0,
+      0.08
+    ],
+    "prob_shrink": [
+      0.0,
+      0.85
+    ]
+  },
+  "cv_meta": {
+    "seed": 37,
+    "scoring_formula": "fold_score = mean_log_growth - 0.20 * max_drawdown - 0.05 * avg_fraction, scenario_score = 0.50 * mean(fold_scores) + 0.30 * q10(fold_scores) + 0.20 * min(fold_scores), trial_score = 0.50 * mean(scenario_scores) + 0.30 * q10(scenario_scores) + 0.20 * min(scenario_scores), if total scenario trades == 0: scenario_score = -1e9"
   }
 }

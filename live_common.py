@@ -10,6 +10,9 @@ LIVE_RECORD_TIMESTAMP_COLUMNS = (
     "resolved_at",
     "bucket_start",
     "bucket_end",
+    "pm_account_sync_at",
+    "pm_account_sync_at_entry",
+    "pm_account_sync_at_resolve",
 )
 
 LIVE_PREDICTION_EXPORT_COLUMNS = (
@@ -47,6 +50,10 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
     "pm_mode",
     "pm_market_slug",
     "pm_order_status",
+    "decision_delay_ms",
+    "market_lookup_ms",
+    "submit_order_ms",
+    "execution_ms",
     "pm_order_error",
     "pm_settlement_status",
     "shares_net",
@@ -54,6 +61,15 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
     "pm_up_best_ask",
     "pm_down_best_bid",
     "pm_down_best_ask",
+    "pm_account_sync_at",
+    "pm_account_cash_balance_usdc",
+    "pm_account_positions_value_usdc",
+    "pm_account_sync_at_entry",
+    "pm_account_cash_balance_entry_usdc",
+    "pm_account_positions_value_entry_usdc",
+    "pm_account_sync_at_resolve",
+    "pm_account_cash_balance_resolve_usdc",
+    "pm_account_positions_value_resolve_usdc",
 )
 
 

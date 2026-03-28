@@ -235,6 +235,22 @@ def _delay_ms_since(timestamp, *, now=None):
     return float(max(delay_ms, 0.0))
 
 
+def _elapsed_ms(started_perf):
+    return float(max((time.perf_counter() - float(started_perf)) * 1000.0, 0.0))
+
+
+def _is_missing_orderbook_http_error(exc):
+    if not isinstance(exc, requests.HTTPError):
+        return False
+    if _http_status_code(exc) != 404:
+        return False
+    response = getattr(exc, "response", None)
+    if response is None:
+        return False
+    text = str(getattr(response, "text", "") or "")
+    return "No orderbook exists for the requested token id" in text
+
+
 def _set_pyclob_auth_time_offset(offset_sec):
     global _PYCLOB_AUTH_TIME_OFFSET_SEC
     _PYCLOB_AUTH_TIME_OFFSET_SEC = float(offset_sec)
@@ -354,6 +370,16 @@ def _backfill_record_analysis_fields(record):
     record.setdefault("pm_closed_payout_usdc", np.nan)
     record.setdefault("pm_account_cash_balance_usdc", np.nan)
     record.setdefault("pm_account_positions_value_usdc", np.nan)
+    record.setdefault("pm_account_sync_at_entry", None)
+    record.setdefault("pm_account_cash_balance_entry_usdc", np.nan)
+    record.setdefault("pm_account_positions_value_entry_usdc", np.nan)
+    record.setdefault("pm_account_sync_at_resolve", None)
+    record.setdefault("pm_account_cash_balance_resolve_usdc", np.nan)
+    record.setdefault("pm_account_positions_value_resolve_usdc", np.nan)
+    record.setdefault("decision_delay_ms", np.nan)
+    record.setdefault("market_lookup_ms", np.nan)
+    record.setdefault("submit_order_ms", np.nan)
+    record.setdefault("execution_ms", np.nan)
     record.setdefault("pm_exit_decision_at", None)
     record.setdefault("pm_exit_best_bid", np.nan)
     record.setdefault("pm_exit_seconds_to_close", np.nan)
@@ -1084,6 +1110,16 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_account_positions_value_usdc": float(self.pm_positions_value_usdc)
             if np.isfinite(self.pm_positions_value_usdc)
             else np.nan,
+            "pm_account_sync_at_entry": sync_at,
+            "pm_account_cash_balance_entry_usdc": float(self.pm_cash_balance_usdc)
+            if np.isfinite(self.pm_cash_balance_usdc)
+            else np.nan,
+            "pm_account_positions_value_entry_usdc": float(self.pm_positions_value_usdc)
+            if np.isfinite(self.pm_positions_value_usdc)
+            else np.nan,
+            "pm_account_sync_at_resolve": None,
+            "pm_account_cash_balance_resolve_usdc": np.nan,
+            "pm_account_positions_value_resolve_usdc": np.nan,
             "pm_redeem_tx_id": "",
             "pm_redeem_tx_hash": "",
             "pm_redeem_tx_state": "",
@@ -1187,7 +1223,12 @@ class PolymarketLiveTrader(LivePredictor):
             if not np.isfinite(shares) or shares <= 0.0:
                 continue
 
-            best_bid_book = self._fetch_order_book_summary(asset)
+            try:
+                best_bid_book = self._fetch_order_book_summary(asset)
+            except requests.HTTPError as exc:
+                if _is_missing_orderbook_http_error(exc):
+                    continue
+                raise
             best_bid = _safe_float(best_bid_book.get("best_bid"))
             if not np.isfinite(best_bid) or best_bid <= 0.0:
                 continue
@@ -1506,6 +1547,28 @@ class PolymarketLiveTrader(LivePredictor):
                     if np.isfinite(self.pm_positions_value_usdc)
                     else np.nan
                 )
+                if not _safe_text(rec.get("pm_account_sync_at_entry")):
+                    rec["pm_account_sync_at_entry"] = _safe_text(
+                        rec.get("pm_account_sync_at")
+                    ) or sync_at
+                if not np.isfinite(
+                    _safe_float(rec.get("pm_account_cash_balance_entry_usdc"))
+                ):
+                    rec["pm_account_cash_balance_entry_usdc"] = (
+                        float(rec["pm_account_cash_balance_usdc"])
+                        if np.isfinite(_safe_float(rec.get("pm_account_cash_balance_usdc")))
+                        else np.nan
+                    )
+                if not np.isfinite(
+                    _safe_float(rec.get("pm_account_positions_value_entry_usdc"))
+                ):
+                    rec["pm_account_positions_value_entry_usdc"] = (
+                        float(rec["pm_account_positions_value_usdc"])
+                        if np.isfinite(
+                            _safe_float(rec.get("pm_account_positions_value_usdc"))
+                        )
+                        else np.nan
+                    )
                 closed_pos = closed_by_asset.get(asset)
                 if closed_pos is not None:
                     avg_price = _safe_float(closed_pos.get("avgPrice"))
@@ -1556,6 +1619,24 @@ class PolymarketLiveTrader(LivePredictor):
                         if np.isfinite(cash_balance_usdc)
                         else rec.get("bankroll_after_resolve")
                     )
+                    if not _safe_text(rec.get("pm_account_sync_at_resolve")):
+                        rec["pm_account_sync_at_resolve"] = sync_at
+                    if not np.isfinite(
+                        _safe_float(rec.get("pm_account_cash_balance_resolve_usdc"))
+                    ):
+                        rec["pm_account_cash_balance_resolve_usdc"] = (
+                            float(cash_balance_usdc)
+                            if np.isfinite(cash_balance_usdc)
+                            else np.nan
+                        )
+                    if not np.isfinite(
+                        _safe_float(rec.get("pm_account_positions_value_resolve_usdc"))
+                    ):
+                        rec["pm_account_positions_value_resolve_usdc"] = (
+                            float(self.pm_positions_value_usdc)
+                            if np.isfinite(self.pm_positions_value_usdc)
+                            else np.nan
+                        )
                     rec["pm_position_size"] = 0.0
                     rec["pm_position_current_value"] = 0.0
                     rec["pm_position_redeemable"] = False
@@ -2181,29 +2262,42 @@ class PolymarketLiveTrader(LivePredictor):
         proba_up,
         market_future,
     ):
+        execution_started_perf = time.perf_counter()
+        market_lookup_started_perf = execution_started_perf
         market = None
         intent = {"reason": "not_evaluated"}
         submit_result = self._submit_result(
             commit_bankroll=False,
             status="not_attempted",
         )
+        market_lookup_ms = np.nan
+        submit_order_ms = np.nan
 
         try:
             market = self._resolve_market_snapshot(bucket_start, market_future)
+            market_lookup_ms = _elapsed_ms(market_lookup_started_perf)
             intent = self._recommend_polymarket_bet(prob_up_raw=proba_up, market=market)
+            submit_started_perf = time.perf_counter()
             submit_result = self._maybe_submit_order(intent)
         except Exception as exc:
+            if not np.isfinite(market_lookup_ms):
+                market_lookup_ms = _elapsed_ms(market_lookup_started_perf)
             intent = {"reason": "market_lookup_failed"}
             submit_result = self._submit_result(
                 commit_bankroll=False,
                 status="market_lookup_failed",
                 error=str(exc),
             )
+        else:
+            submit_order_ms = _elapsed_ms(submit_started_perf)
 
         return {
             "market": market,
             "intent": intent,
             "submit_result": submit_result,
+            "market_lookup_ms": float(market_lookup_ms),
+            "submit_order_ms": float(submit_order_ms),
+            "execution_ms": _elapsed_ms(execution_started_perf),
         }
 
     def _build_prediction_record(
@@ -2219,6 +2313,10 @@ class PolymarketLiveTrader(LivePredictor):
         market,
         intent,
         submit_result,
+        decision_delay_ms,
+        market_lookup_ms,
+        submit_order_ms,
+        execution_ms,
     ):
         order_status = str(submit_result["status"])
 
@@ -2307,6 +2405,16 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_account_positions_value_usdc": float(self.pm_positions_value_usdc)
             if np.isfinite(self.pm_positions_value_usdc)
             else np.nan,
+            "pm_account_sync_at_entry": self.pm_last_account_sync_at,
+            "pm_account_cash_balance_entry_usdc": float(self.pm_cash_balance_usdc)
+            if np.isfinite(self.pm_cash_balance_usdc)
+            else np.nan,
+            "pm_account_positions_value_entry_usdc": float(self.pm_positions_value_usdc)
+            if np.isfinite(self.pm_positions_value_usdc)
+            else np.nan,
+            "pm_account_sync_at_resolve": None,
+            "pm_account_cash_balance_resolve_usdc": np.nan,
+            "pm_account_positions_value_resolve_usdc": np.nan,
             "pm_redeem_tx_id": "",
             "pm_redeem_tx_hash": "",
             "pm_redeem_tx_state": "",
@@ -2321,6 +2429,10 @@ class PolymarketLiveTrader(LivePredictor):
             ),
             "pm_seconds_to_close": float(intent.get("seconds_to_close", np.nan)),
             "pm_order_status": order_status,
+            "decision_delay_ms": float(decision_delay_ms),
+            "market_lookup_ms": float(market_lookup_ms),
+            "submit_order_ms": float(submit_order_ms),
+            "execution_ms": float(execution_ms),
             "pm_order_error": str(submit_result["error"]),
             "pm_order_response": str(submit_result.get("response_text", "")),
             "pm_exit_order_status": "",
@@ -2354,6 +2466,9 @@ class PolymarketLiveTrader(LivePredictor):
         intent,
         submit_result,
         decision_delay_ms,
+        market_lookup_ms,
+        submit_order_ms,
+        execution_ms,
     ):
         return {
             "decision_local": minute_close.tz_convert(self.local_tz).isoformat(),
@@ -2372,6 +2487,9 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_order_status": str(submit_result["status"]),
             "pm_order_error": str(submit_result["error"]),
             "decision_delay_ms": float(decision_delay_ms),
+            "market_lookup_ms": float(market_lookup_ms),
+            "submit_order_ms": float(submit_order_ms),
+            "execution_ms": float(execution_ms),
         }
 
     def _predict_next_bucket(self, volume_profile_values=None):
@@ -2419,6 +2537,10 @@ class PolymarketLiveTrader(LivePredictor):
             market=execution["market"],
             intent=intent,
             submit_result=submit_result,
+            decision_delay_ms=decision_delay_ms,
+            market_lookup_ms=execution["market_lookup_ms"],
+            submit_order_ms=execution["submit_order_ms"],
+            execution_ms=execution["execution_ms"],
         )
         with self.records_lock:
             self.records.append(record)
@@ -2436,6 +2558,9 @@ class PolymarketLiveTrader(LivePredictor):
             intent=intent,
             submit_result=submit_result,
             decision_delay_ms=decision_delay_ms,
+            market_lookup_ms=execution["market_lookup_ms"],
+            submit_order_ms=execution["submit_order_ms"],
+            execution_ms=execution["execution_ms"],
         )
 
     def _has_binary_flag(self, value):
@@ -2548,6 +2673,10 @@ class PolymarketLiveTrader(LivePredictor):
                     f"decision_delay_ms={pred['decision_delay_ms']:.0f}",
                 ]
             )
+            if np.isfinite(_safe_float(pred.get("market_lookup_ms", np.nan))):
+                msg.append(f"market_lookup_ms={pred['market_lookup_ms']:.0f}")
+            if np.isfinite(_safe_float(pred.get("submit_order_ms", np.nan))):
+                msg.append(f"submit_order_ms={pred['submit_order_ms']:.0f}")
             if pred.get("pm_order_error"):
                 msg.append(f"pm_order_error={pred['pm_order_error']}")
         if np.isfinite(self.pm_cash_balance_usdc):

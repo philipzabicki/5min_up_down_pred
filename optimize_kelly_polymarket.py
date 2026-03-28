@@ -20,7 +20,7 @@ RUNTIME_CONFIG_PATH = Path(RUNTIME_ARTIFACT_PATHS["kelly_runtime_config_path"])
 OPTUNA_STORAGE = "sqlite:///data/optuna/databases/kelly_polymarket.db"
 OPTUNA_OUTPUT_DIR = Path("data/optuna/kelly_polymarket")
 
-STUDY_NAME = "kelly_polymarket_opt_0432_28032026"
+STUDY_NAME_PREFIX = "kelly_polymarket_opt_v2"
 
 SIMULATIONS_DIR = Path("data/simulations")
 
@@ -66,7 +66,7 @@ MIN_STAKE_USDC = 1.0
 
 # Update these by hand from the accepted parity audit snapshot.
 
-ENABLE_MODEL_PROBA_ERROR_SIM = False
+ENABLE_MODEL_PROBA_ERROR_SIM = True
 
 MODEL_PROBA_ABS_DIFF_MEAN = 0.003136730568813267
 
@@ -109,14 +109,39 @@ FULL_HOLDOUT_SCENARIO_SEED = 20_001
 
 
 SCORING_FORMULA = (
-    "fold_score = log(final_bankroll / start_bankroll), "
+    "fold_score = mean_log_growth - 0.20 * max_drawdown - 0.05 * avg_fraction, "
     "scenario_score = "
-    "0.45 * mean(fold_scores) + 0.30 * q10(fold_scores) + 0.15 * min(fold_scores) "
-    "- 0.10 * q90(fold_max_drawdowns), "
+    "0.50 * mean(fold_scores) + 0.30 * q10(fold_scores) + 0.20 * min(fold_scores), "
     "trial_score = "
-    "0.45 * mean(scenario_scores) + 0.30 * q10(scenario_scores) + 0.15 * min(scenario_scores), "
+    "0.50 * mean(scenario_scores) + 0.30 * q10(scenario_scores) + 0.20 * min(scenario_scores), "
     "if total scenario trades == 0: scenario_score = -1e9"
 )
+
+MIN_FRACTIONAL_KELLY = 0.01
+
+MAX_FRACTIONAL_KELLY = 0.35
+
+MIN_CAP = 0.01
+
+MAX_CAP = 0.25
+
+MIN_MIN_EDGE = 0.0
+
+MAX_MIN_EDGE = 0.08
+
+MIN_PROB_SHRINK = 0.0
+
+MAX_PROB_SHRINK = 0.85
+
+FOLD_DRAWDOWN_PENALTY = 0.20
+
+FOLD_AVG_FRACTION_PENALTY = 0.05
+
+SCENARIO_SCORE_MEAN_WEIGHT = 0.50
+
+SCENARIO_SCORE_Q10_WEIGHT = 0.30
+
+SCENARIO_SCORE_MIN_WEIGHT = 0.20
 
 
 STEP_LOG_COLUMNS = [
@@ -338,21 +363,42 @@ def build_trial_static_arrays(
     spread_half=SPREAD_HALF,
 ):
 
-    price = np.clip(
-        BASE_PRICE + spread_half + np.abs(sigma * eps),
+    up_price = np.clip(
+        BASE_PRICE + sigma * eps + spread_half,
         PRICE_CLIP_LO,
         PRICE_CLIP_HI,
     )
 
-    fee_coef = FEE_RATE * np.power(price * (1.0 - price), FEE_EXPONENT)
+    down_price = np.clip(
+        (1.0 - BASE_PRICE) - sigma * eps + spread_half,
+        PRICE_CLIP_LO,
+        PRICE_CLIP_HI,
+    )
 
-    valid = fee_coef < 0.99
+    up_fee_coef = FEE_RATE * np.power(up_price * (1.0 - up_price), FEE_EXPONENT)
 
-    c_eff = np.empty_like(price, dtype=np.float64)
+    down_fee_coef = FEE_RATE * np.power(
+        down_price * (1.0 - down_price),
+        FEE_EXPONENT,
+    )
 
-    c_eff[valid] = price[valid] / (1.0 - fee_coef[valid])
+    up_valid = up_fee_coef < 0.99
 
-    c_eff[~valid] = np.nan
+    down_valid = down_fee_coef < 0.99
+
+    up_c_eff = np.empty_like(up_price, dtype=np.float64)
+
+    down_c_eff = np.empty_like(down_price, dtype=np.float64)
+
+    up_c_eff[up_valid] = up_price[up_valid] / (1.0 - up_fee_coef[up_valid])
+
+    up_c_eff[~up_valid] = np.nan
+
+    down_c_eff[down_valid] = down_price[down_valid] / (
+        1.0 - down_fee_coef[down_valid]
+    )
+
+    down_c_eff[~down_valid] = np.nan
 
     if ENABLE_MODEL_PROBA_ERROR_SIM:
 
@@ -370,10 +416,14 @@ def build_trial_static_arrays(
         model_proba_error = np.zeros_like(eps, dtype=np.float64)
 
     return {
-        "price": price,
-        "fee_coef": fee_coef,
-        "valid": valid,
-        "c_eff": c_eff,
+        "up_price": up_price,
+        "down_price": down_price,
+        "up_fee_coef": up_fee_coef,
+        "down_fee_coef": down_fee_coef,
+        "up_valid": up_valid,
+        "down_valid": down_valid,
+        "up_c_eff": up_c_eff,
+        "down_c_eff": down_c_eff,
         "model_proba_error": model_proba_error,
     }
 
@@ -463,29 +513,45 @@ def build_trial_arrays(
         min_clip=PROB_MIN_CLIP,
     )
 
-    price = static_arrays["price"]
+    up_price = static_arrays["up_price"]
 
-    fee_coef = static_arrays["fee_coef"]
+    down_price = static_arrays["down_price"]
 
-    valid = static_arrays["valid"]
+    up_fee_coef = static_arrays["up_fee_coef"]
 
-    c_eff = static_arrays["c_eff"]
+    down_fee_coef = static_arrays["down_fee_coef"]
 
-    edge_up = np.where(valid, p - c_eff, -np.inf)
+    up_valid = static_arrays["up_valid"]
 
-    edge_down = np.where(valid, (1.0 - p) - c_eff, -np.inf)
+    down_valid = static_arrays["down_valid"]
+
+    up_c_eff = static_arrays["up_c_eff"]
+
+    down_c_eff = static_arrays["down_c_eff"]
+
+    edge_up = np.where(up_valid, p - up_c_eff, -np.inf)
+
+    edge_down = np.where(down_valid, (1.0 - p) - down_c_eff, -np.inf)
 
     choose_up = edge_up >= edge_down
 
     selected_edge = np.where(choose_up, edge_up, edge_down)
 
-    can_trade = valid & (selected_edge >= min_edge)
+    selected_valid = np.where(choose_up, up_valid, down_valid)
+
+    selected_price = np.where(choose_up, up_price, down_price)
+
+    selected_fee_coef = np.where(choose_up, up_fee_coef, down_fee_coef)
+
+    selected_c_eff = np.where(choose_up, up_c_eff, down_c_eff)
+
+    can_trade = selected_valid & (selected_edge >= min_edge)
 
     p_side = np.where(choose_up, p, 1.0 - p)
 
     with np.errstate(divide="ignore", invalid="ignore"):
 
-        f_star = (p_side - c_eff) / (1.0 - c_eff)
+        f_star = (p_side - selected_c_eff) / (1.0 - selected_c_eff)
 
     f_star = np.where(can_trade, np.maximum(f_star, 0.0), 0.0)
 
@@ -494,12 +560,14 @@ def build_trial_arrays(
     f = np.where(np.isfinite(f), np.maximum(f, 0.0), 0.0)
 
     return {
-        "price": price,
-        "fee_coef": fee_coef,
+        "price": selected_price,
+        "fee_coef": selected_fee_coef,
         "can_trade": can_trade,
         "choose_up": choose_up,
         "edge": selected_edge,
         "f": f,
+        "up_price": up_price,
+        "down_price": down_price,
     }
 
 
@@ -526,6 +594,8 @@ def _simulate_segment_fast_numba(
     trades = 0
 
     sum_g = 0.0
+
+    sum_fraction = 0.0
 
     n_steps = end_idx - start_idx
 
@@ -567,11 +637,13 @@ def _simulate_segment_fast_numba(
 
                     if (not np.isfinite(bankroll)) or bankroll <= 0.0:
 
-                        return 1, 0.0, 0, 0.0, 0.0, 0
+                        return 1, 0.0, 0, 0.0, 0.0, 0.0, 0
 
                     trades += 1
 
                     sum_g += np.log(bankroll / bankroll_before)
+
+                    sum_fraction += f_arr[i]
 
         if bankroll > equity_peak:
 
@@ -585,7 +657,7 @@ def _simulate_segment_fast_numba(
 
                 max_drawdown = drawdown
 
-    return 0, bankroll, trades, max_drawdown, sum_g, n_steps
+    return 0, bankroll, trades, max_drawdown, sum_g, sum_fraction, n_steps
 
 
 def simulate_segment_fast(
@@ -601,7 +673,7 @@ def simulate_segment_fast(
     start_bankroll=START_BANKROLL,
 ):
 
-    overflowed, final_bankroll, trades, max_drawdown, sum_g, n_steps = (
+    overflowed, final_bankroll, trades, max_drawdown, sum_g, sum_fraction, n_steps = (
         _simulate_segment_fast_numba(
             target=target,
             price=price,
@@ -625,6 +697,7 @@ def simulate_segment_fast(
         "n_trades": int(trades),
         "max_drawdown": float(max_drawdown),
         "sum_g": float(sum_g),
+        "avg_fraction": float(sum_fraction / trades) if trades > 0 else 0.0,
         "n_steps": int(n_steps),
     }
 
@@ -673,6 +746,8 @@ def simulate_segment_trace(
     sum_edge = 0.0
 
     sum_stake = 0.0
+
+    sum_fraction = 0.0
 
     n_steps = end_idx - start_idx
 
@@ -768,6 +843,8 @@ def simulate_segment_trace(
 
                     sum_stake += stake
 
+                    sum_fraction += f_i
+
         resolved += 1
 
         resolved_wins += int(resolved_win)
@@ -842,9 +919,15 @@ def simulate_segment_trace(
 
         avg_stake = 0.0
 
+    avg_fraction = sum_fraction / trades if trades > 0 else 0.0
+
     mean_g = sum_g / n_steps if n_steps > 0 else 0.0
 
-    fold_score = float(sum_g)
+    fold_score = float(
+        mean_g
+        - FOLD_DRAWDOWN_PENALTY * max_drawdown
+        - FOLD_AVG_FRACTION_PENALTY * avg_fraction
+    )
 
     result = {
         "final_bankroll": float(bankroll),
@@ -857,6 +940,7 @@ def simulate_segment_trace(
         "fold_score": float(fold_score),
         "avg_edge": float(avg_edge),
         "avg_stake": float(avg_stake),
+        "avg_fraction": float(avg_fraction),
         "max_drawdown": float(max_drawdown),
         "scenario_seed": int(scenario_seed),
         "step_log": step_log,
@@ -879,6 +963,8 @@ def evaluate_cv_folds_for_scenario(
     fold_log_growth = []
 
     fold_max_drawdown = []
+
+    fold_avg_fraction = []
 
     price = trial_arrays["price"]
 
@@ -907,7 +993,11 @@ def evaluate_cv_folds_for_scenario(
 
         mean_g = float(segment_result["sum_g"]) / int(segment_result["n_steps"])
 
-        fold_score = float(segment_result["sum_g"])
+        fold_score = float(
+            mean_g
+            - FOLD_DRAWDOWN_PENALTY * float(segment_result["max_drawdown"])
+            - FOLD_AVG_FRACTION_PENALTY * float(segment_result["avg_fraction"])
+        )
 
         fold_scores.append(fold_score)
 
@@ -917,15 +1007,18 @@ def evaluate_cv_folds_for_scenario(
 
         fold_max_drawdown.append(float(segment_result["max_drawdown"]))
 
+        fold_avg_fraction.append(float(segment_result["avg_fraction"]))
+
     fold_scores_arr = np.asarray(fold_scores, dtype=np.float64)
 
     fold_max_drawdown_arr = np.asarray(fold_max_drawdown, dtype=np.float64)
 
+    fold_avg_fraction_arr = np.asarray(fold_avg_fraction, dtype=np.float64)
+
     score = float(
-        0.45 * np.mean(fold_scores_arr)
-        + 0.30 * np.quantile(fold_scores_arr, 0.10)
-        + 0.15 * np.min(fold_scores_arr)
-        - 0.10 * np.quantile(fold_max_drawdown_arr, 0.90)
+        SCENARIO_SCORE_MEAN_WEIGHT * np.mean(fold_scores_arr)
+        + SCENARIO_SCORE_Q10_WEIGHT * np.quantile(fold_scores_arr, 0.10)
+        + SCENARIO_SCORE_MIN_WEIGHT * np.min(fold_scores_arr)
     )
 
     if sum(fold_trades) == 0:
@@ -938,6 +1031,9 @@ def evaluate_cv_folds_for_scenario(
         "fold_trades": fold_trades,
         "fold_log_growth": fold_log_growth,
         "fold_max_drawdown": fold_max_drawdown,
+        "fold_avg_fraction": fold_avg_fraction,
+        "mean_fold_avg_fraction": float(np.mean(fold_avg_fraction_arr)),
+        "q90_fold_avg_fraction": float(np.quantile(fold_avg_fraction_arr, 0.90)),
     }
 
 
@@ -962,6 +1058,8 @@ def evaluate_trial_across_execution_scenarios(
     fold_log_growth = []
 
     fold_max_drawdown = []
+
+    fold_avg_fraction = []
 
     for scenario in scenario_static_arrays:
 
@@ -991,6 +1089,8 @@ def evaluate_trial_across_execution_scenarios(
 
         fold_max_drawdown.extend(scenario_result["fold_max_drawdown"])
 
+        fold_avg_fraction.extend(scenario_result["fold_avg_fraction"])
+
     scenario_scores_arr = np.asarray(scenario_scores, dtype=np.float64)
 
     fold_scores_arr = np.asarray(fold_scores, dtype=np.float64)
@@ -1001,11 +1101,13 @@ def evaluate_trial_across_execution_scenarios(
 
     fold_max_drawdown_arr = np.asarray(fold_max_drawdown, dtype=np.float64)
 
+    fold_avg_fraction_arr = np.asarray(fold_avg_fraction, dtype=np.float64)
+
     return {
         "score": float(
-            0.45 * np.mean(scenario_scores_arr)
-            + 0.30 * np.quantile(scenario_scores_arr, 0.10)
-            + 0.15 * np.min(scenario_scores_arr)
+            SCENARIO_SCORE_MEAN_WEIGHT * np.mean(scenario_scores_arr)
+            + SCENARIO_SCORE_Q10_WEIGHT * np.quantile(scenario_scores_arr, 0.10)
+            + SCENARIO_SCORE_MIN_WEIGHT * np.min(scenario_scores_arr)
         ),
         "mean_scenario_score": float(np.mean(scenario_scores_arr)),
         "q10_scenario_score": float(np.quantile(scenario_scores_arr, 0.10)),
@@ -1018,6 +1120,8 @@ def evaluate_trial_across_execution_scenarios(
         "mean_fold_log_growth": float(np.mean(fold_log_growth_arr)),
         "mean_fold_max_drawdown": float(np.mean(fold_max_drawdown_arr)),
         "q90_fold_max_drawdown": float(np.quantile(fold_max_drawdown_arr, 0.90)),
+        "mean_fold_avg_fraction": float(np.mean(fold_avg_fraction_arr)),
+        "q90_fold_avg_fraction": float(np.quantile(fold_avg_fraction_arr, 0.90)),
     }
 
 
@@ -1043,6 +1147,7 @@ def build_runtime_config(
             "min_fee": float(MIN_FEE),
         },
         "price_sim": {
+            "model": "complementary_yes_no_asks",
             "base_price": float(BASE_PRICE),
             "price_clip_lo": float(PRICE_CLIP_LO),
             "price_clip_hi": float(PRICE_CLIP_HI),
@@ -1056,6 +1161,23 @@ def build_runtime_config(
                 MODEL_PROBA_ERROR_POLICY if ENABLE_MODEL_PROBA_ERROR_SIM else "disabled"
             ),
             "prob_min_clip": float(PROB_MIN_CLIP),
+        },
+        "score_penalties": {
+            "fold_drawdown_penalty": float(FOLD_DRAWDOWN_PENALTY),
+            "fold_avg_fraction_penalty": float(FOLD_AVG_FRACTION_PENALTY),
+        },
+        "search_bounds": {
+            "fractional_kelly": [
+                float(MIN_FRACTIONAL_KELLY),
+                float(MAX_FRACTIONAL_KELLY),
+            ],
+            "cap": [float(MIN_CAP), float(MAX_CAP)],
+            "min_edge": [float(MIN_MIN_EDGE), float(MAX_MIN_EDGE)],
+            "prob_shrink": [float(MIN_PROB_SHRINK), float(MAX_PROB_SHRINK)],
+        },
+        "cv_meta": {
+            "seed": int(SEED),
+            "scoring_formula": SCORING_FORMULA,
         },
     }
 
@@ -1186,6 +1308,10 @@ def summarize_holdout_results(results):
         [float(result["avg_stake"]) for result in results], dtype=np.float64
     )
 
+    avg_fractions = np.asarray(
+        [float(result["avg_fraction"]) for result in results], dtype=np.float64
+    )
+
     mean_g = np.asarray(
         [float(result["mean_g"]) for result in results], dtype=np.float64
     )
@@ -1205,6 +1331,7 @@ def summarize_holdout_results(results):
         "mean_hit_rate": float(np.mean(hit_rates)),
         "mean_avg_edge": float(np.mean(avg_edges)),
         "mean_avg_stake": float(np.mean(avg_stakes)),
+        "mean_avg_fraction": float(np.mean(avg_fractions)),
         "mean_log_growth": float(np.mean(mean_g)),
         "worst_log_growth": float(np.min(mean_g)),
         "mean_max_drawdown": float(np.mean(max_drawdowns)),
@@ -1314,13 +1441,21 @@ def main():
 
     def objective(trial):
 
-        fractional_kelly = trial.suggest_float("fractional_kelly", 0.01, 1.0)
+        fractional_kelly = trial.suggest_float(
+            "fractional_kelly",
+            MIN_FRACTIONAL_KELLY,
+            MAX_FRACTIONAL_KELLY,
+        )
 
-        cap = trial.suggest_float("cap", 0.001, 0.75)
+        cap = trial.suggest_float("cap", MIN_CAP, MAX_CAP)
 
-        min_edge = trial.suggest_float("min_edge", 0.0, 0.05)
+        min_edge = trial.suggest_float("min_edge", MIN_MIN_EDGE, MAX_MIN_EDGE)
 
-        prob_shrink = trial.suggest_float("prob_shrink", 0.0, 1.0)
+        prob_shrink = trial.suggest_float(
+            "prob_shrink",
+            MIN_PROB_SHRINK,
+            MAX_PROB_SHRINK,
+        )
 
         cv_result = evaluate_trial_across_execution_scenarios(
             target=target_tune,
@@ -1341,19 +1476,21 @@ def main():
         n_startup_trials=TPE_STARTUP_TRIALS,
     )
 
+    study_name = f"{STUDY_NAME_PREFIX}_{run_timestamp}"
+
     print(
         "optuna setup | "
         f"n_trials={N_TRIALS} folds={len(folds)} "
         f"n_execution_scenarios={len(execution_scenarios)} "
-        f"study={STUDY_NAME} storage={OPTUNA_STORAGE}"
+        f"study={study_name} storage={OPTUNA_STORAGE}"
     )
 
     study = optuna.create_study(
         direction="maximize",
         sampler=sampler,
-        study_name=STUDY_NAME,
+        study_name=study_name,
         storage=OPTUNA_STORAGE,
-        load_if_exists=True,
+        load_if_exists=False,
     )
 
     study.optimize(
@@ -1408,7 +1545,7 @@ def main():
 
     min_price = float("inf")
 
-    min_price_minus_base = float("inf")
+    max_price = float("-inf")
 
     holdout_window_results = []
 
@@ -1427,11 +1564,16 @@ def main():
 
         holdout_static_arrays_by_seed[int(scenario_seed)] = static_arrays
 
-        min_price = min(min_price, float(np.min(static_arrays["price"])))
+        min_price = min(
+            min_price,
+            float(np.min(static_arrays["up_price"])),
+            float(np.min(static_arrays["down_price"])),
+        )
 
-        min_price_minus_base = min(
-            min_price_minus_base,
-            float(np.min(static_arrays["price"] - BASE_PRICE)),
+        max_price = max(
+            max_price,
+            float(np.max(static_arrays["up_price"])),
+            float(np.max(static_arrays["down_price"])),
         )
 
     holdout_trace_csv_by_window_id = {}
@@ -1494,6 +1636,7 @@ def main():
                 "hit_rate": float(holdout_result["hit_rate"]),
                 "avg_edge": float(holdout_result["avg_edge"]),
                 "avg_stake": float(holdout_result["avg_stake"]),
+                "avg_fraction": float(holdout_result["avg_fraction"]),
                 "holdout_trace_csv": str(holdout_trace_path),
             }
         )
@@ -1531,14 +1674,14 @@ def main():
     print(
         "price sanity | "
         f"min_price={min_price:.6f} "
-        f"min_price_minus_base={min_price_minus_base:.6f} "
+        f"max_price={max_price:.6f} "
         f"spread_half={SPREAD_HALF:.6f}"
     )
 
-    if min_price_minus_base + 1e-12 < SPREAD_HALF:
+    if min_price + 1e-12 < PRICE_CLIP_LO or max_price - 1e-12 > PRICE_CLIP_HI:
 
         raise ValueError(
-            "Invalid price construction: min(price - BASE_PRICE) below spread_half."
+            "Invalid price construction: simulated prices escaped configured clip range."
         )
 
     holdout_window_summary = summarize_holdout_results(holdout_window_results)
@@ -1559,6 +1702,7 @@ def main():
         "hit_rate": float(full_holdout_result["hit_rate"]),
         "avg_edge": float(full_holdout_result["avg_edge"]),
         "avg_stake": float(full_holdout_result["avg_stake"]),
+        "avg_fraction": float(full_holdout_result["avg_fraction"]),
         "holdout_trace_csv": str(full_holdout_trace_path),
     }
 
@@ -1574,7 +1718,7 @@ def main():
     run_output = {
         "generated_at_utc": run_started_at_utc.isoformat(),
         "input_path": str(INPUT_PATH),
-        "study_name": STUDY_NAME,
+        "study_name": study_name,
         "storage": OPTUNA_STORAGE,
         "runtime_config": runtime_config,
         "cv_meta": {
@@ -1605,6 +1749,8 @@ def main():
             "mean_fold_log_growth": float(best_cv_result["mean_fold_log_growth"]),
             "mean_fold_max_drawdown": float(best_cv_result["mean_fold_max_drawdown"]),
             "q90_fold_max_drawdown": float(best_cv_result["q90_fold_max_drawdown"]),
+            "mean_fold_avg_fraction": float(best_cv_result["mean_fold_avg_fraction"]),
+            "q90_fold_avg_fraction": float(best_cv_result["q90_fold_avg_fraction"]),
         },
         "summary": {
             "holdout_window_score": float(holdout_window_summary["score"]),
@@ -1618,10 +1764,14 @@ def main():
                 holdout_window_summary["mean_n_trades"]
             ),
             "holdout_window_min_n_trades": int(holdout_window_summary["min_n_trades"]),
+            "holdout_window_mean_avg_fraction": float(
+                holdout_window_summary["mean_avg_fraction"]
+            ),
             "full_holdout_score": float(full_holdout_output["score"]),
             "full_holdout_final_bankroll": float(full_holdout_output["final_bankroll"]),
             "full_holdout_n_trades": int(full_holdout_output["n_trades"]),
             "full_holdout_max_drawdown": float(full_holdout_output["max_drawdown"]),
+            "full_holdout_avg_fraction": float(full_holdout_output["avg_fraction"]),
         },
         "holdout": {
             "window_days": int(HOLDOUT_WINDOW_DAYS),
