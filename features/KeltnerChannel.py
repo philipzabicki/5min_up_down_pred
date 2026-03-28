@@ -176,7 +176,13 @@ def custom_atr_cache(atr_ma_type, atr_period):
 
 
 def custom_keltner_channel(
-    ohlcv, ma_type, ma_period, atr_ma_type, atr_period, source, atr_multi=1.0,
+    ohlcv,
+    ma_type,
+    ma_period,
+    atr_ma_type,
+    atr_period,
+    source,
+    atr_multi=1.0,
 ):
     if ohlcv is None:
         return keltner_channel_signal(

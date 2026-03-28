@@ -1,17 +1,8 @@
 import numpy as np
 import pandas as pd
 import talib
+from numba import njit
 from pandas.tseries.frequencies import to_offset
-
-try:
-    from numba import njit
-except ImportError:  # pragma: no cover - runtime fallback when numba is unavailable
-    def njit(*args, **kwargs):
-        def decorator(func):
-            return func
-
-        return decorator
-
 
 RAW_OHLCV_COLS = ("Open", "High", "Low", "Close", "Volume")
 ALL_CANDLE_DERIVED_COLS = (
@@ -47,13 +38,9 @@ INTERVAL_CANDLE_DERIVED_COLS = tuple(
     for lag in lags
 )
 CANDLE_DERIVED_COLS = (
-    ALL_CANDLE_DERIVED_COLS
-    + LAGGED_CANDLE_DERIVED_COLS
-    + INTERVAL_CANDLE_DERIVED_COLS
+    ALL_CANDLE_DERIVED_COLS + LAGGED_CANDLE_DERIVED_COLS + INTERVAL_CANDLE_DERIVED_COLS
 )
-CANDLE_PATTERN_COLS = tuple(
-    talib.get_function_groups().get("Pattern Recognition", ())
-)
+CANDLE_PATTERN_COLS = tuple(talib.get_function_groups().get("Pattern Recognition", ()))
 OPENED_COL = "Opened"
 OPEN_COL = "Open"
 HIGH_COL = "High"
@@ -84,8 +71,8 @@ PATTERN_INTERVAL_TO_RULE = {
     "5m": INTERVAL_TO_RULE["5m"],
 }
 DIRECT_PATTERN_INTERVAL_LABELS = ("1m",)
-DEFAULT_PATTERN_INTERVAL_LABELS = (
-    DIRECT_PATTERN_INTERVAL_LABELS + tuple(PATTERN_INTERVAL_TO_RULE.keys())
+DEFAULT_PATTERN_INTERVAL_LABELS = DIRECT_PATTERN_INTERVAL_LABELS + tuple(
+    PATTERN_INTERVAL_TO_RULE.keys()
 )
 INTERVAL_CANDLE_PATTERN_COLS = tuple(
     f"{col}_{interval_label}"
@@ -93,9 +80,7 @@ INTERVAL_CANDLE_PATTERN_COLS = tuple(
     for col in CANDLE_PATTERN_COLS
 )
 DEFAULT_CANDLE_PATTERN_COLS = INTERVAL_CANDLE_PATTERN_COLS
-CANDLE_FEATURE_COLS = (
-    CANDLE_DERIVED_COLS + DEFAULT_CANDLE_PATTERN_COLS
-)
+CANDLE_FEATURE_COLS = CANDLE_DERIVED_COLS + DEFAULT_CANDLE_PATTERN_COLS
 SUPPORTED_CANDLE_FEATURE_COLS = (
     CANDLE_DERIVED_COLS + CANDLE_PATTERN_COLS + INTERVAL_CANDLE_PATTERN_COLS
 )
@@ -103,9 +88,7 @@ _EPS = 1e-12
 _DERIVED_BASE_COL_TO_INDEX = {
     col: idx for idx, col in enumerate(ALL_CANDLE_DERIVED_COLS)
 }
-_DERIVED_FEATURE_SPEC_BY_COL = {
-    col: (col, None, 0) for col in ALL_CANDLE_DERIVED_COLS
-}
+_DERIVED_FEATURE_SPEC_BY_COL = {col: (col, None, 0) for col in ALL_CANDLE_DERIVED_COLS}
 _DERIVED_FEATURE_SPEC_BY_COL.update(
     {
         _derived_lag_feature_col(base_col, lag): (base_col, None, lag)
@@ -231,10 +214,14 @@ def _split_pattern_feature_cols(pattern_cols=None):
             direct_pattern_feature_cols.append(feature_col)
             continue
         interval_to_feature_cols.setdefault(interval_label, []).append(feature_col)
-    return tuple(base_pattern_cols), tuple(direct_pattern_feature_cols), {
-        interval_label: tuple(feature_cols)
-        for interval_label, feature_cols in interval_to_feature_cols.items()
-    }
+    return (
+        tuple(base_pattern_cols),
+        tuple(direct_pattern_feature_cols),
+        {
+            interval_label: tuple(feature_cols)
+            for interval_label, feature_cols in interval_to_feature_cols.items()
+        },
+    )
 
 
 def _safe_divide(num, den):
@@ -303,9 +290,7 @@ def build_candle_pattern_features_from_series(
     high_arr = np.asarray(high, dtype=np.float64)
     low_arr = np.asarray(low, dtype=np.float64)
     close_arr = np.asarray(close, dtype=np.float64)
-    if not (
-        len(open_arr) == len(high_arr) == len(low_arr) == len(close_arr)
-    ):
+    if not (len(open_arr) == len(high_arr) == len(low_arr) == len(close_arr)):
         raise ValueError("OHLC inputs must have the same length for candle patterns.")
 
     out = {}
@@ -356,9 +341,7 @@ def _resample_complete_interval_frame(
 
     # Only expose fully built HTF candles. This uses the actual bucket width,
     # so the last candle is kept when it is complete and dropped otherwise.
-    is_complete = (
-        agg["__count"].to_numpy(dtype=np.float64) == expected_count
-    )
+    is_complete = agg["__count"].to_numpy(dtype=np.float64) == expected_count
     agg = agg.loc[is_complete].copy()
     if agg.empty:
         return agg
@@ -453,19 +436,25 @@ def _compute_interval_patterns(
 
     events = pd.DataFrame(
         {
-            opened_col: pd.to_datetime(agg["__close_opened"], errors="coerce").to_numpy(),
+            opened_col: pd.to_datetime(
+                agg["__close_opened"], errors="coerce"
+            ).to_numpy(),
             **{
                 feature_col: patterns[_PATTERN_FEATURE_SPEC_BY_COL[feature_col][0]]
                 for feature_col in feature_cols
             },
         }
     )
-    out = _merge_interval_events(
-        base_df=base_df,
-        events=events,
-        feature_cols=feature_cols,
-        opened_col=opened_col,
-    ).fillna(0).astype(np.int32, copy=False)
+    out = (
+        _merge_interval_events(
+            base_df=base_df,
+            events=events,
+            feature_cols=feature_cols,
+            opened_col=opened_col,
+        )
+        .fillna(0)
+        .astype(np.int32, copy=False)
+    )
     return out.reindex(base_df.index)
 
 
@@ -521,16 +510,22 @@ def _compute_interval_derived_features(
 
     events = pd.DataFrame(
         {
-            opened_col: pd.to_datetime(agg["__close_opened"], errors="coerce").to_numpy(),
+            opened_col: pd.to_datetime(
+                agg["__close_opened"], errors="coerce"
+            ).to_numpy(),
         }
     )
     for feature_col in feature_cols:
         base_col, _, lag = _DERIVED_FEATURE_SPEC_BY_COL[feature_col]
         # For HTF features lag1 means the latest fully closed HTF candle visible
         # at the current 1m row, lag2 the previous HTF candle, and so on.
-        events[feature_col] = derived_df[base_col].shift(int(lag) - 1).to_numpy(
-            dtype=np.float64,
-            copy=False,
+        events[feature_col] = (
+            derived_df[base_col]
+            .shift(int(lag) - 1)
+            .to_numpy(
+                dtype=np.float64,
+                copy=False,
+            )
         )
 
     return _merge_interval_events(
@@ -545,8 +540,7 @@ def add_candle_derived_features(df, feature_cols=None):
     missing = [col for col in RAW_OHLCV_COLS if col not in df.columns]
     if missing:
         raise ValueError(
-            "Missing required OHLCV columns for candle features: "
-            + ", ".join(missing)
+            "Missing required OHLCV columns for candle features: " + ", ".join(missing)
         )
 
     selected_cols = resolve_candle_feature_cols(feature_cols)
@@ -584,9 +578,13 @@ def add_candle_derived_features(df, feature_cols=None):
         for lag, lag_feature_cols in lag_to_derived_feature_cols.items():
             for feature_col in lag_feature_cols:
                 base_col, _, _ = _DERIVED_FEATURE_SPEC_BY_COL[feature_col]
-                feature_values[feature_col] = derived_df[base_col].shift(int(lag)).to_numpy(
-                    dtype=np.float64,
-                    copy=False,
+                feature_values[feature_col] = (
+                    derived_df[base_col]
+                    .shift(int(lag))
+                    .to_numpy(
+                        dtype=np.float64,
+                        copy=False,
+                    )
                 )
 
     if interval_to_derived_feature_cols:
@@ -597,7 +595,10 @@ def add_candle_derived_features(df, feature_cols=None):
         derived_base = df[
             [OPENED_COL, OPEN_COL, HIGH_COL, LOW_COL, CLOSE_COL, VOLUME_COL]
         ].copy()
-        for interval_label, interval_feature_cols in interval_to_derived_feature_cols.items():
+        for (
+            interval_label,
+            interval_feature_cols,
+        ) in interval_to_derived_feature_cols.items():
             interval_rule = INTERVAL_TO_RULE[interval_label]
             interval_derived = _compute_interval_derived_features(
                 base_df=derived_base,
@@ -650,7 +651,10 @@ def add_candle_derived_features(df, feature_cols=None):
                 f"Missing required column for interval candle patterns: {OPENED_COL}"
             )
         pattern_base = df[[OPENED_COL, OPEN_COL, HIGH_COL, LOW_COL, CLOSE_COL]].copy()
-        for interval_label, interval_feature_cols in interval_to_pattern_feature_cols.items():
+        for (
+            interval_label,
+            interval_feature_cols,
+        ) in interval_to_pattern_feature_cols.items():
             interval_rule = PATTERN_INTERVAL_TO_RULE[interval_label]
             interval_patterns = _compute_interval_patterns(
                 base_df=pattern_base,
@@ -827,7 +831,9 @@ def build_latest_candle_derived_feature_dict_fast(
 
     for feature_col in direct_derived_feature_cols:
         base_col, _, _ = _DERIVED_FEATURE_SPEC_BY_COL[feature_col]
-        out[feature_col] = float(direct_matrix[-1, _DERIVED_BASE_COL_TO_INDEX[base_col]])
+        out[feature_col] = float(
+            direct_matrix[-1, _DERIVED_BASE_COL_TO_INDEX[base_col]]
+        )
     for lag, lag_feature_cols in lag_to_derived_feature_cols.items():
         if lag >= direct_matrix.shape[0]:
             return build_latest_candle_derived_feature_dict(
@@ -844,7 +850,10 @@ def build_latest_candle_derived_feature_dict_fast(
             base_col, _, _ = _DERIVED_FEATURE_SPEC_BY_COL[feature_col]
             out[feature_col] = float(row[_DERIVED_BASE_COL_TO_INDEX[base_col]])
 
-    for interval_label, interval_feature_cols in interval_to_derived_feature_cols.items():
+    for (
+        interval_label,
+        interval_feature_cols,
+    ) in interval_to_derived_feature_cols.items():
         rule = INTERVAL_TO_RULE.get(interval_label)
         if rule is None:
             return build_latest_candle_derived_feature_dict(
@@ -961,7 +970,10 @@ def build_latest_candle_pattern_feature_dict(
             CLOSE_COL: np.asarray(close_values, dtype=np.float64),
         }
     )
-    for interval_label, interval_feature_cols in interval_to_pattern_feature_cols.items():
+    for (
+        interval_label,
+        interval_feature_cols,
+    ) in interval_to_pattern_feature_cols.items():
         interval_rule = PATTERN_INTERVAL_TO_RULE[interval_label]
         interval_patterns = _compute_interval_patterns(
             base_df=base,
@@ -1058,13 +1070,11 @@ def _compute_interval_streak(
     streak = signed_streak_from_signs(signs)
 
     close_opened = pd.to_datetime(agg["__close_opened"], errors="coerce").to_numpy()
-    events = (
-        pd.DataFrame(
-            {
-                opened_col: close_opened,
-                _streak_feature_col(interval_label): streak,
-            }
-        )
+    events = pd.DataFrame(
+        {
+            opened_col: close_opened,
+            _streak_feature_col(interval_label): streak,
+        }
     )
 
     merged = _merge_interval_events(
@@ -1087,7 +1097,9 @@ def validate_signed_streak_logic():
     expected = np.array([1, 2, 3, -1, 1], dtype=np.int32)
     got = signed_streak_from_signs(signs)
     if not np.array_equal(got, expected):
-        raise RuntimeError(f"Signed streak logic invalid: got={got}, expected={expected}")
+        raise RuntimeError(
+            f"Signed streak logic invalid: got={got}, expected={expected}"
+        )
 
 
 def add_candle_streak_features(
@@ -1154,9 +1166,7 @@ def _prepare_latest_streak_inputs(
     open_arr = np.asarray(open_values, dtype=np.float64)
     close_arr = np.asarray(close_values, dtype=np.float64)
 
-    if not (
-        len(opened_index) == len(open_arr) == len(close_arr)
-    ):
+    if not (len(opened_index) == len(open_arr) == len(close_arr)):
         raise ValueError("Opened/Open/Close inputs must have the same length.")
 
     if not opened_index.is_monotonic_increasing:
@@ -1247,9 +1257,9 @@ def _compute_latest_interval_streak_value_pandas(
     agg = indexed_base.resample(rule, label="left", closed="left").agg(
         {open_col: "first", close_col: "last"}
     )
-    agg["__count"] = indexed_base[open_col].resample(
-        rule, label="left", closed="left"
-    ).size()
+    agg["__count"] = (
+        indexed_base[open_col].resample(rule, label="left", closed="left").size()
+    )
     agg = agg.dropna(subset=[open_col, close_col]).copy()
     if agg.empty:
         return 0
@@ -1373,7 +1383,9 @@ def build_latest_candle_streak_feature_dict_fast(
         )
         if value is None:
             if indexed_base is None:
-                opened_index = pd.DatetimeIndex(pd.to_datetime(opened_values, errors="raise"))
+                opened_index = pd.DatetimeIndex(
+                    pd.to_datetime(opened_values, errors="raise")
+                )
                 indexed_base = _prepare_latest_streak_base(
                     opened_index=opened_index,
                     open_values=open_arr,

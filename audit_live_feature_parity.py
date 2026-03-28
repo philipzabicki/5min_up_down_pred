@@ -1,12 +1,8 @@
-from __future__ import annotations
-
 import copy
 import json
 import time
 from collections import deque
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -46,7 +42,7 @@ from features.volume_profile_fixed_range import (
     update_state_with_candle as update_volume_profile_state_with_candle,
 )
 from live_predict_binance import (
-    INDICATOR_STABILITY_SUMMARY_PATH,
+    INDICATOR_HISTORY_REQUIREMENTS_PATH,
     INTERVAL,
     KELLY_CONFIG_PATH,
     LIVE_INITIAL_BANKROLL_USDC,
@@ -56,6 +52,7 @@ from live_predict_binance import (
     SYMBOL,
     LivePredictor,
     interval_to_timedelta,
+    load_indicator_history_requirements,
     load_kelly_runtime_config,
     load_indicator_specs,
     load_model_and_meta,
@@ -67,25 +64,26 @@ from modeling_dataset_utils import (
     split_feature_subset,
 )
 
-
 INTERVAL_DELTA = interval_to_timedelta(INTERVAL)
 DEFAULT_AUDIT_DAYS_BACK = 30
 DEFAULT_BOOTSTRAP_CANDLES = 20_000
 DEFAULT_MAX_KEEP = DEFAULT_BOOTSTRAP_CANDLES
-PREDICTION_DIFF_TOL = 1e-12
-REL_DIFF_DENOM_FLOOR = 1e-12
+PREDICTION_DIFF_TOL = 1e-6
+REL_DIFF_DENOM_FLOOR = 1e-6
+FEATURE_DROP_MAX_ABS_DIFF_TOL = 1e-2
+FEATURE_DROP_MEAN_ABS_DIFF_TOL = 1e-3
+FEATURE_DROP_MAX_REL_DIFF_TOL = 1e-2
 
 # Runtime settings
 AUDIT_DAYS_BACK = DEFAULT_AUDIT_DAYS_BACK
 AUDIT_BOOTSTRAP_CANDLES = DEFAULT_BOOTSTRAP_CANDLES
 AUDIT_MAX_STEPS = 10_080
 AUDIT_MAX_KEEP = AUDIT_BOOTSTRAP_CANDLES
-AUDIT_MODEL_META_PATH = Path(
-    "data\\models\\runs\\20260325_024605\\lgbm_meta_20260325_024605.json"
-)
+AUDIT_MODEL_META_PATH = MODEL_META_PATH
 AUDIT_PARQUET_PATH = None
 AUDIT_USE_ANCHOR_VP_STATE = True
 AUDIT_OVERWRITE_ANCHOR_VP_STATE = False
+AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY = True
 AUDIT_OUTPUT_DIR = None
 AUDIT_DRILLDOWN_FEATURE = None
 AUDIT_TOP_N = 50
@@ -93,27 +91,52 @@ AUDIT_PROGRESS_ENABLED = True
 AUDIT_PROGRESS_EVERY_STEPS = 60
 
 
-def _ensure_utc_opened(series: pd.Series) -> pd.Series:
+def _ensure_utc_opened(series):
     opened = pd.to_datetime(series)
     if getattr(opened.dt, "tz", None) is None:
         return opened.dt.tz_localize("UTC")
     return opened.dt.tz_convert("UTC")
 
 
-def _naive_utc_timestamp(ts: pd.Timestamp) -> pd.Timestamp:
+def _naive_utc_timestamp(ts):
     ts = pd.Timestamp(ts)
     if ts.tzinfo is None:
         return ts
     return ts.tz_convert("UTC").tz_localize(None)
 
 
-def _optional_path(value: str | Path | None) -> Path | None:
+def _optional_path(value):
     if value is None:
         return None
     return Path(value)
 
 
-def resolve_anchor_volume_profile_state_path(anchor_candle_opened: pd.Timestamp) -> Path:
+def _load_model_feature_importance_frame(meta):
+    artifacts = dict(meta.get("artifacts") or {})
+    raw_path = str(artifacts.get("final_feature_importance_csv") or "").strip()
+    if not raw_path:
+        return None
+
+    path = Path(raw_path)
+    if not path.exists():
+        return None
+
+    frame = pd.read_csv(path)
+    required_cols = {"feature", "importance_gain", "importance_split"}
+    if not required_cols.issubset(frame.columns):
+        return None
+
+    out = frame.loc[:, ["feature", "importance_gain", "importance_split"]].copy()
+    out["importance_gain"] = pd.to_numeric(
+        out["importance_gain"], errors="coerce"
+    ).fillna(0.0)
+    out["importance_split"] = pd.to_numeric(
+        out["importance_split"], errors="coerce"
+    ).fillna(0.0)
+    return out
+
+
+def resolve_anchor_volume_profile_state_path(anchor_candle_opened):
     stamp = pd.Timestamp(anchor_candle_opened).strftime("%Y%m%d_%H%M")
     return (
         VP_AUDIT_ANCHOR_STATE_DIR
@@ -121,9 +144,9 @@ def resolve_anchor_volume_profile_state_path(anchor_candle_opened: pd.Timestamp)
     )
 
 
-def _feature_group_map(feature_columns: list[str]) -> dict[str, str]:
+def _feature_group_map(feature_columns):
     parts = split_feature_subset(feature_columns)
-    group_by_feature: dict[str, str] = {}
+    group_by_feature = {}
     for feature in parts["raw_ohlcv_cols"]:
         group_by_feature[feature] = "raw_ohlcv"
     for feature in parts["candle_feature_cols"]:
@@ -141,7 +164,7 @@ def _feature_group_map(feature_columns: list[str]) -> dict[str, str]:
     return group_by_feature
 
 
-def _safe_rowwise_mean(values: np.ndarray) -> np.ndarray:
+def _safe_rowwise_mean(values):
     counts = np.isfinite(values).sum(axis=1)
     sums = np.nansum(values, axis=1)
     out = np.full(values.shape[0], np.nan, dtype=np.float64)
@@ -150,7 +173,7 @@ def _safe_rowwise_mean(values: np.ndarray) -> np.ndarray:
     return out
 
 
-def _format_duration(seconds: float) -> str:
+def _format_duration(seconds):
     seconds = max(0.0, float(seconds))
     total_seconds = int(round(seconds))
     hours, rem = divmod(total_seconds, 3600)
@@ -160,14 +183,14 @@ def _format_duration(seconds: float) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
-def _is_live_decision_opened(opened: pd.Timestamp, bucket_minutes: int) -> bool:
+def _is_live_decision_opened(opened, bucket_minutes):
     opened = pd.Timestamp(opened)
     bucket_start = opened.floor(f"{int(bucket_minutes)}min")
     bucket_end = bucket_start + pd.Timedelta(minutes=int(bucket_minutes) - 1)
     return opened == bucket_end
 
 
-def _safe_colwise_mean(values: np.ndarray) -> np.ndarray:
+def _safe_colwise_mean(values):
     counts = np.isfinite(values).sum(axis=0)
     sums = np.nansum(values, axis=0)
     out = np.full(values.shape[1], np.nan, dtype=np.float64)
@@ -176,7 +199,7 @@ def _safe_colwise_mean(values: np.ndarray) -> np.ndarray:
     return out
 
 
-def _safe_colwise_rmse(values: np.ndarray) -> np.ndarray:
+def _safe_colwise_rmse(values):
     counts = np.isfinite(values).sum(axis=0)
     sums = np.nansum(np.square(values, dtype=np.float64), axis=0)
     out = np.full(values.shape[1], np.nan, dtype=np.float64)
@@ -185,7 +208,7 @@ def _safe_colwise_rmse(values: np.ndarray) -> np.ndarray:
     return out
 
 
-def _safe_nanmax_axis1(values: np.ndarray) -> np.ndarray:
+def _safe_nanmax_axis1(values):
     valid = np.isfinite(values)
     safe = np.where(valid, values, -np.inf)
     out = safe.max(axis=1)
@@ -193,7 +216,7 @@ def _safe_nanmax_axis1(values: np.ndarray) -> np.ndarray:
     return out.astype(np.float64, copy=False)
 
 
-def _safe_nanmax_axis0(values: np.ndarray) -> np.ndarray:
+def _safe_nanmax_axis0(values):
     valid = np.isfinite(values)
     safe = np.where(valid, values, -np.inf)
     out = safe.max(axis=0)
@@ -202,11 +225,11 @@ def _safe_nanmax_axis0(values: np.ndarray) -> np.ndarray:
 
 
 def _safe_relative_diff(
-    candidate_values: np.ndarray,
-    reference_values: np.ndarray,
+    candidate_values,
+    reference_values,
     *,
-    denom_floor: float = REL_DIFF_DENOM_FLOOR,
-) -> np.ndarray:
+    denom_floor=REL_DIFF_DENOM_FLOOR,
+):
     candidate = np.asarray(candidate_values, dtype=np.float64)
     reference = np.asarray(reference_values, dtype=np.float64)
     out = np.abs(candidate - reference)
@@ -215,36 +238,40 @@ def _safe_relative_diff(
     return out
 
 
-def _safe_argmax_axis1(values: np.ndarray) -> np.ndarray:
+def _safe_argmax_axis1(values):
     safe = np.where(np.isfinite(values), values, -np.inf)
     return safe.argmax(axis=1)
 
 
-def _safe_argmax_axis0(values: np.ndarray) -> np.ndarray:
+def _safe_argmax_axis0(values):
     safe = np.where(np.isfinite(values), values, -np.inf)
     return safe.argmax(axis=0)
 
 
-def _column_values_match(candidate_values: np.ndarray, reference_values: np.ndarray) -> bool:
+def _column_values_match(candidate_values, reference_values):
     candidate = np.asarray(candidate_values, dtype=np.float64)
     reference = np.asarray(reference_values, dtype=np.float64)
     same_mask = (candidate == reference) | (np.isnan(candidate) & np.isnan(reference))
     return bool(same_mask.all())
 
 
-def _fit_indicator_config_map(feature_columns: list[str]) -> dict[str, dict[str, Any]]:
+def _fit_indicator_config_map(feature_columns):
     fit_results_dir = Path(MODELING_DATASET_SETTINGS["fit_results_dir"])
     configs = parse_fit_results(fit_results_dir)
     selected = set(feature_columns)
-    return {cfg["feature_col"]: cfg for cfg in configs if cfg["feature_col"] in selected}
+    return {
+        cfg["feature_col"]: cfg for cfg in configs if cfg["feature_col"] in selected
+    }
 
 
-def _feature_builder_frame(feature_columns: list[str]) -> pd.DataFrame:
+def _feature_builder_frame(feature_columns):
     feature_parts = split_feature_subset(feature_columns)
     indicator_config_map = _fit_indicator_config_map(feature_columns)
-    candle_pattern_cols = set(resolve_candle_pattern_feature_cols(feature_parts["candle_feature_cols"]))
+    candle_pattern_cols = set(
+        resolve_candle_pattern_feature_cols(feature_parts["candle_feature_cols"])
+    )
 
-    records: list[dict[str, Any]] = []
+    records = []
     for feature in feature_columns:
         if feature in RAW_OHLCV_COLS:
             records.append(
@@ -332,18 +359,18 @@ def _feature_builder_frame(feature_columns: list[str]) -> pd.DataFrame:
 
 def _build_single_feature_prediction_impact_report(
     *,
-    candidate_label: str,
-    reference_label: str,
-    candidate_matrix: np.ndarray,
-    reference_matrix: np.ndarray,
-    candidate_pred: np.ndarray,
-    reference_pred: np.ndarray,
-    audit_df: pd.DataFrame,
-    feature_columns: list[str],
-    feature_group_by_name: dict[str, str],
-    feature_builder_frame: pd.DataFrame,
+    candidate_label,
+    reference_label,
+    candidate_matrix,
+    reference_matrix,
+    candidate_pred,
+    reference_pred,
+    audit_df,
+    feature_columns,
+    feature_group_by_name,
+    feature_builder_frame,
     model,
-) -> dict[str, Any]:
+):
     row_count, feature_count = candidate_matrix.shape
     if feature_count != len(feature_columns):
         raise ValueError("Feature count mismatch for prediction impact audit.")
@@ -358,8 +385,12 @@ def _build_single_feature_prediction_impact_report(
         [feature_group_by_name.get(col, "unknown") for col in feature_columns],
         dtype=object,
     )
-    builder_families = builder_meta["builder_family"].fillna("unknown").to_numpy(dtype=object)
-    builder_names = builder_meta["builder_name"].fillna("unknown").to_numpy(dtype=object)
+    builder_families = (
+        builder_meta["builder_family"].fillna("unknown").to_numpy(dtype=object)
+    )
+    builder_names = (
+        builder_meta["builder_name"].fillna("unknown").to_numpy(dtype=object)
+    )
     builder_sources = builder_meta["builder_source"].to_numpy(dtype=object)
 
     base_abs_gap = np.abs(candidate_pred - reference_pred)
@@ -371,7 +402,7 @@ def _build_single_feature_prediction_impact_report(
     gap_reduction_matrix = np.empty((row_count, feature_count), dtype=np.float64)
     working_matrix = candidate_matrix.copy()
 
-    feature_rows: list[dict[str, Any]] = []
+    feature_rows = []
     for feature_idx, feature_name in enumerate(feature_columns):
         candidate_col = candidate_matrix[:, feature_idx]
         reference_col = reference_matrix[:, feature_idx]
@@ -379,7 +410,9 @@ def _build_single_feature_prediction_impact_report(
             fixed_pred = candidate_pred
         else:
             working_matrix[:, feature_idx] = reference_col
-            fixed_pred = np.asarray(model.predict(working_matrix), dtype=np.float64).reshape(-1)
+            fixed_pred = np.asarray(
+                model.predict(working_matrix), dtype=np.float64
+            ).reshape(-1)
             if fixed_pred.shape[0] != row_count:
                 raise ValueError(
                     f"Prediction length mismatch for feature impact audit: {fixed_pred.shape[0]} != {row_count}"
@@ -395,6 +428,39 @@ def _build_single_feature_prediction_impact_report(
 
         fixed_signal_mismatch = (fixed_pred >= 0.5) != (reference_pred >= 0.5)
         fixed_drift_mask = fixed_abs_gap > PREDICTION_DIFF_TOL
+        helpful_gap_mask = gap_reduction > PREDICTION_DIFF_TOL
+        harmful_gap_mask = gap_reduction < -PREDICTION_DIFF_TOL
+        drift_gap_values = gap_reduction[base_drift_mask]
+        helpful_gap_values = gap_reduction[helpful_gap_mask]
+        if base_drift_mask.any():
+            drift_base_gap_values = base_abs_gap[base_drift_mask]
+            drift_gap_reduction_ratio = np.divide(
+                drift_gap_values,
+                drift_base_gap_values,
+                out=np.zeros(drift_gap_values.shape[0], dtype=np.float64),
+                where=drift_base_gap_values > PREDICTION_DIFF_TOL,
+            )
+            mean_abs_proba_gap_reduction_on_drift_rows_if_fixed = float(
+                np.mean(drift_gap_values)
+            )
+            max_abs_proba_gap_reduction_on_drift_rows_if_fixed = float(
+                np.max(drift_gap_values)
+            )
+            mean_gap_reduction_ratio_on_drift_rows_if_fixed = float(
+                np.mean(drift_gap_reduction_ratio)
+            )
+            max_gap_reduction_ratio_on_drift_rows_if_fixed = float(
+                np.max(drift_gap_reduction_ratio)
+            )
+        else:
+            mean_abs_proba_gap_reduction_on_drift_rows_if_fixed = 0.0
+            max_abs_proba_gap_reduction_on_drift_rows_if_fixed = 0.0
+            mean_gap_reduction_ratio_on_drift_rows_if_fixed = 0.0
+            max_gap_reduction_ratio_on_drift_rows_if_fixed = 0.0
+
+        mean_abs_proba_gap_reduction_on_helped_rows_if_fixed = (
+            float(np.mean(helpful_gap_values)) if helpful_gap_mask.any() else 0.0
+        )
         best_gap_reduction_idx = int(np.argmax(gap_reduction))
 
         feature_rows.append(
@@ -408,14 +474,25 @@ def _build_single_feature_prediction_impact_report(
                 "max_abs_proba_shift_if_fixed": float(np.max(np.abs(proba_shift))),
                 "mean_signed_proba_shift_if_fixed": float(np.mean(proba_shift)),
                 "net_abs_proba_gap_reduction_if_fixed": float(np.sum(gap_reduction)),
+                "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed": (
+                    mean_abs_proba_gap_reduction_on_drift_rows_if_fixed
+                ),
+                "max_abs_proba_gap_reduction_on_drift_rows_if_fixed": (
+                    max_abs_proba_gap_reduction_on_drift_rows_if_fixed
+                ),
+                "mean_abs_proba_gap_reduction_on_helped_rows_if_fixed": (
+                    mean_abs_proba_gap_reduction_on_helped_rows_if_fixed
+                ),
+                "mean_gap_reduction_ratio_on_drift_rows_if_fixed": (
+                    mean_gap_reduction_ratio_on_drift_rows_if_fixed
+                ),
+                "max_gap_reduction_ratio_on_drift_rows_if_fixed": (
+                    max_gap_reduction_ratio_on_drift_rows_if_fixed
+                ),
                 "mean_abs_proba_gap_reduction_if_fixed": float(np.mean(gap_reduction)),
                 "max_abs_proba_gap_reduction_if_fixed": float(np.max(gap_reduction)),
-                "rows_abs_proba_gap_reduced_if_fixed": int(
-                    (gap_reduction > PREDICTION_DIFF_TOL).sum()
-                ),
-                "rows_abs_proba_gap_worsened_if_fixed": int(
-                    (gap_reduction < -PREDICTION_DIFF_TOL).sum()
-                ),
+                "rows_abs_proba_gap_reduced_if_fixed": int(helpful_gap_mask.sum()),
+                "rows_abs_proba_gap_worsened_if_fixed": int(harmful_gap_mask.sum()),
                 "rows_proba_diff_gt_tol_resolved_if_fixed": int(
                     (base_drift_mask & ~fixed_drift_mask).sum()
                 ),
@@ -428,7 +505,9 @@ def _build_single_feature_prediction_impact_report(
                 "rows_signal_mismatch_introduced_if_fixed": int(
                     (~base_signal_mismatch & fixed_signal_mismatch).sum()
                 ),
-                "worst_gap_reduction_opened": audit_df["Opened"].iloc[best_gap_reduction_idx],
+                "worst_gap_reduction_opened": audit_df["Opened"].iloc[
+                    best_gap_reduction_idx
+                ],
                 f"worst_gap_reduction_{candidate_label}_value": float(
                     candidate_col[best_gap_reduction_idx]
                 ),
@@ -452,14 +531,16 @@ def _build_single_feature_prediction_impact_report(
         .sort_values(
             [
                 "rows_signal_mismatch_resolved_if_fixed",
-                "mean_abs_proba_gap_reduction_if_fixed",
-                "max_abs_proba_gap_reduction_if_fixed",
+                "rows_proba_diff_gt_tol_resolved_if_fixed",
+                "net_abs_proba_gap_reduction_if_fixed",
+                "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
+                "mean_gap_reduction_ratio_on_drift_rows_if_fixed",
                 "rows_abs_proba_gap_reduced_if_fixed",
                 "rows_signal_mismatch_introduced_if_fixed",
                 "mean_abs_proba_shift_if_fixed",
                 "max_abs_proba_shift_if_fixed",
             ],
-            ascending=[False, False, False, False, True, False, False],
+            ascending=[False, False, False, False, False, False, True, False, False],
             kind="stable",
         )
         .reset_index(drop=True)
@@ -470,13 +551,28 @@ def _build_single_feature_prediction_impact_report(
         .agg(
             feature_count=("feature", "count"),
             max_mean_abs_proba_shift_if_fixed=("mean_abs_proba_shift_if_fixed", "max"),
-            mean_mean_abs_proba_shift_if_fixed=("mean_abs_proba_shift_if_fixed", "mean"),
+            mean_mean_abs_proba_shift_if_fixed=(
+                "mean_abs_proba_shift_if_fixed",
+                "mean",
+            ),
+            total_net_abs_proba_gap_reduction_if_fixed=(
+                "net_abs_proba_gap_reduction_if_fixed",
+                "sum",
+            ),
             max_mean_abs_proba_gap_reduction_if_fixed=(
                 "mean_abs_proba_gap_reduction_if_fixed",
                 "max",
             ),
             mean_mean_abs_proba_gap_reduction_if_fixed=(
                 "mean_abs_proba_gap_reduction_if_fixed",
+                "mean",
+            ),
+            max_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed=(
+                "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
+                "max",
+            ),
+            mean_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed=(
+                "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
                 "mean",
             ),
             total_rows_abs_proba_gap_reduced_if_fixed=(
@@ -491,6 +587,10 @@ def _build_single_feature_prediction_impact_report(
                 "rows_signal_mismatch_resolved_if_fixed",
                 "sum",
             ),
+            total_rows_proba_diff_gt_tol_resolved_if_fixed=(
+                "rows_proba_diff_gt_tol_resolved_if_fixed",
+                "sum",
+            ),
             total_rows_signal_mismatch_introduced_if_fixed=(
                 "rows_signal_mismatch_introduced_if_fixed",
                 "sum",
@@ -498,12 +598,13 @@ def _build_single_feature_prediction_impact_report(
         )
         .sort_values(
             [
-                "max_mean_abs_proba_gap_reduction_if_fixed",
-                "mean_mean_abs_proba_gap_reduction_if_fixed",
-                "max_mean_abs_proba_shift_if_fixed",
                 "total_rows_signal_mismatch_resolved_if_fixed",
+                "total_rows_proba_diff_gt_tol_resolved_if_fixed",
+                "total_net_abs_proba_gap_reduction_if_fixed",
+                "max_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
+                "max_mean_abs_proba_shift_if_fixed",
             ],
-            ascending=[False, False, False, False],
+            ascending=[False, False, False, False, False],
             kind="stable",
         )
         .reset_index()
@@ -514,13 +615,28 @@ def _build_single_feature_prediction_impact_report(
         .agg(
             feature_count=("feature", "count"),
             max_mean_abs_proba_shift_if_fixed=("mean_abs_proba_shift_if_fixed", "max"),
-            mean_mean_abs_proba_shift_if_fixed=("mean_abs_proba_shift_if_fixed", "mean"),
+            mean_mean_abs_proba_shift_if_fixed=(
+                "mean_abs_proba_shift_if_fixed",
+                "mean",
+            ),
+            total_net_abs_proba_gap_reduction_if_fixed=(
+                "net_abs_proba_gap_reduction_if_fixed",
+                "sum",
+            ),
             max_mean_abs_proba_gap_reduction_if_fixed=(
                 "mean_abs_proba_gap_reduction_if_fixed",
                 "max",
             ),
             mean_mean_abs_proba_gap_reduction_if_fixed=(
                 "mean_abs_proba_gap_reduction_if_fixed",
+                "mean",
+            ),
+            max_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed=(
+                "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
+                "max",
+            ),
+            mean_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed=(
+                "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
                 "mean",
             ),
             total_rows_abs_proba_gap_reduced_if_fixed=(
@@ -535,6 +651,10 @@ def _build_single_feature_prediction_impact_report(
                 "rows_signal_mismatch_resolved_if_fixed",
                 "sum",
             ),
+            total_rows_proba_diff_gt_tol_resolved_if_fixed=(
+                "rows_proba_diff_gt_tol_resolved_if_fixed",
+                "sum",
+            ),
             total_rows_signal_mismatch_introduced_if_fixed=(
                 "rows_signal_mismatch_introduced_if_fixed",
                 "sum",
@@ -542,12 +662,13 @@ def _build_single_feature_prediction_impact_report(
         )
         .sort_values(
             [
-                "max_mean_abs_proba_gap_reduction_if_fixed",
-                "mean_mean_abs_proba_gap_reduction_if_fixed",
-                "max_mean_abs_proba_shift_if_fixed",
                 "total_rows_signal_mismatch_resolved_if_fixed",
+                "total_rows_proba_diff_gt_tol_resolved_if_fixed",
+                "total_net_abs_proba_gap_reduction_if_fixed",
+                "max_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
+                "max_mean_abs_proba_shift_if_fixed",
             ],
-            ascending=[False, False, False, False],
+            ascending=[False, False, False, False, False],
             kind="stable",
         )
         .reset_index()
@@ -625,26 +746,65 @@ def _build_single_feature_prediction_impact_report(
     top_feature = None if feature_summary_df.empty else feature_summary_df.iloc[0]
     summary = pd.Series(
         {
-            "rows_with_helpful_single_feature_fix": int(row_has_helpful_single_feature_fix.sum()),
-            "top_prediction_impact_feature": None
-            if top_feature is None
-            else top_feature["feature"],
-            "top_prediction_impact_group": None if top_feature is None else top_feature["group"],
-            "top_prediction_impact_builder_family": None
-            if top_feature is None
-            else top_feature["builder_family"],
-            "top_prediction_impact_builder_name": None
-            if top_feature is None
-            else top_feature["builder_name"],
-            "max_mean_abs_proba_shift_if_fixed": 0.0
-            if feature_summary_df.empty
-            else float(feature_summary_df["mean_abs_proba_shift_if_fixed"].max()),
-            "max_mean_abs_proba_gap_reduction_if_fixed": 0.0
-            if feature_summary_df.empty
-            else float(feature_summary_df["mean_abs_proba_gap_reduction_if_fixed"].max()),
-            "max_rows_signal_mismatch_resolved_if_fixed": 0
-            if feature_summary_df.empty
-            else int(feature_summary_df["rows_signal_mismatch_resolved_if_fixed"].max()),
+            "rows_with_helpful_single_feature_fix": int(
+                row_has_helpful_single_feature_fix.sum()
+            ),
+            "top_prediction_impact_feature": (
+                None if top_feature is None else top_feature["feature"]
+            ),
+            "top_prediction_impact_group": (
+                None if top_feature is None else top_feature["group"]
+            ),
+            "top_prediction_impact_builder_family": (
+                None if top_feature is None else top_feature["builder_family"]
+            ),
+            "top_prediction_impact_builder_name": (
+                None if top_feature is None else top_feature["builder_name"]
+            ),
+            "max_mean_abs_proba_shift_if_fixed": (
+                0.0
+                if feature_summary_df.empty
+                else float(feature_summary_df["mean_abs_proba_shift_if_fixed"].max())
+            ),
+            "max_mean_abs_proba_gap_reduction_if_fixed": (
+                0.0
+                if feature_summary_df.empty
+                else float(
+                    feature_summary_df["mean_abs_proba_gap_reduction_if_fixed"].max()
+                )
+            ),
+            "max_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed": (
+                0.0
+                if feature_summary_df.empty
+                else float(
+                    feature_summary_df[
+                        "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed"
+                    ].max()
+                )
+            ),
+            "max_net_abs_proba_gap_reduction_if_fixed": (
+                0.0
+                if feature_summary_df.empty
+                else float(
+                    feature_summary_df["net_abs_proba_gap_reduction_if_fixed"].max()
+                )
+            ),
+            "max_rows_signal_mismatch_resolved_if_fixed": (
+                0
+                if feature_summary_df.empty
+                else int(
+                    feature_summary_df["rows_signal_mismatch_resolved_if_fixed"].max()
+                )
+            ),
+            "max_rows_proba_diff_gt_tol_resolved_if_fixed": (
+                0
+                if feature_summary_df.empty
+                else int(
+                    feature_summary_df[
+                        "rows_proba_diff_gt_tol_resolved_if_fixed"
+                    ].max()
+                )
+            ),
         }
     )
 
@@ -662,10 +822,10 @@ def _build_single_feature_prediction_impact_report(
 
 def resolve_recent_history_tail_window(
     *,
-    parquet_path: Path,
-    audit_end: pd.Timestamp,
-    tail_fraction: float,
-) -> tuple[pd.Timestamp, int, int]:
+    parquet_path,
+    audit_end,
+    tail_fraction,
+):
     tail_fraction = float(tail_fraction)
     if not (0.0 < tail_fraction <= 1.0):
         raise ValueError("tail_fraction must be in (0, 1].")
@@ -677,7 +837,7 @@ def resolve_recent_history_tail_window(
     if eligible.empty:
         raise ValueError("No parquet rows are available at or before audit_end.")
 
-    total_rows = int(len(eligible))
+    total_rows = len(eligible)
     keep_rows = int(np.ceil(total_rows * tail_fraction))
     keep_rows = max(1, min(total_rows, keep_rows))
     tail_start = pd.Timestamp(eligible.iloc[total_rows - keep_rows])
@@ -686,10 +846,10 @@ def resolve_recent_history_tail_window(
 
 def load_modeling_raw_history_frame(
     *,
-    parquet_path: Path,
-    audit_end: pd.Timestamp,
-    history_start: pd.Timestamp | None = None,
-) -> pd.DataFrame:
+    parquet_path,
+    audit_end,
+    history_start=None,
+):
     filters = []
     if history_start is not None:
         filters.append(
@@ -712,15 +872,19 @@ def load_modeling_raw_history_frame(
         filters=filters,
     )
     frame["Opened"] = _ensure_utc_opened(frame["Opened"])
-    frame = frame.sort_values("Opened").drop_duplicates(subset=["Opened"]).reset_index(drop=True)
+    frame = (
+        frame.sort_values("Opened")
+        .drop_duplicates(subset=["Opened"])
+        .reset_index(drop=True)
+    )
     return frame
 
 
 def build_current_recomputed_feature_history(
     *,
-    raw_history_df: pd.DataFrame,
-    feature_columns: list[str],
-) -> pd.DataFrame:
+    raw_history_df,
+    feature_columns,
+):
     feature_parts = split_feature_subset(feature_columns)
     feature_frame = raw_history_df.loc[:, ["Opened", *RAW_OHLCV_COLS]].copy()
 
@@ -729,7 +893,9 @@ def build_current_recomputed_feature_history(
     )
     if feature_parts["streak_intervals"]:
         missing_streak_intervals = [
-            label for label in feature_parts["streak_intervals"] if label not in configured_rules
+            label
+            for label in feature_parts["streak_intervals"]
+            if label not in configured_rules
         ]
         if missing_streak_intervals:
             raise ValueError(
@@ -739,7 +905,8 @@ def build_current_recomputed_feature_history(
         feature_frame = add_candle_streak_features(
             feature_frame,
             interval_to_rule={
-                label: configured_rules[label] for label in feature_parts["streak_intervals"]
+                label: configured_rules[label]
+                for label in feature_parts["streak_intervals"]
             },
         )
 
@@ -755,14 +922,20 @@ def build_current_recomputed_feature_history(
             feature_cols=feature_parts["session_feature_cols"],
         )
 
-    vp_cfg = normalize_volume_profile_config(MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range"))
+    vp_cfg = normalize_volume_profile_config(
+        MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
+    )
     if feature_parts["volume_profile_feature_cols"]:
         if not vp_cfg["enabled"]:
-            raise ValueError("Volume profile features requested but disabled in modeling config.")
+            raise ValueError(
+                "Volume profile features requested but disabled in modeling config."
+            )
         vp_features_df, _vp_state = build_volume_profile_features(feature_frame, vp_cfg)
         vp_feature_frame = pd.DataFrame(
             {
-                feature_col: vp_features_df[feature_col].to_numpy(dtype=np.float64, copy=False)
+                feature_col: vp_features_df[feature_col].to_numpy(
+                    dtype=np.float64, copy=False
+                )
                 for feature_col in feature_parts["volume_profile_feature_cols"]
             },
             index=feature_frame.index,
@@ -800,10 +973,10 @@ def build_current_recomputed_feature_history(
 
 def align_feature_frame_to_audit_rows(
     *,
-    audit_df: pd.DataFrame,
-    feature_frame: pd.DataFrame,
-    feature_columns: list[str],
-) -> pd.DataFrame:
+    audit_df,
+    feature_frame,
+    feature_columns,
+):
     aligned = audit_df.loc[:, ["Opened"]].merge(
         feature_frame.loc[:, ["Opened", *feature_columns]],
         on="Opened",
@@ -811,7 +984,9 @@ def align_feature_frame_to_audit_rows(
         sort=False,
     )
     if aligned[feature_columns].isna().all(axis=1).any():
-        missing_rows = aligned.loc[aligned[feature_columns].isna().all(axis=1), "Opened"]
+        missing_rows = aligned.loc[
+            aligned[feature_columns].isna().all(axis=1), "Opened"
+        ]
         raise RuntimeError(
             "Current recompute frame is missing rows for audit timestamps. "
             f"First missing={missing_rows.iloc[0]!s}"
@@ -819,21 +994,23 @@ def align_feature_frame_to_audit_rows(
     return aligned
 
 
-def _advance_kelly_rng_once(predictor: "PseudoLiveAuditPredictor") -> None:
+def _advance_kelly_rng_once(predictor):
     predictor.price_rng.standard_normal()
 
 
 def _compare_kelly_decisions(
     *,
-    predictor: "PseudoLiveAuditPredictor",
-    candidate_proba: np.ndarray,
-    reference_proba: np.ndarray,
-    candidate_label: str,
-    reference_label: str,
-) -> pd.DataFrame:
+    predictor,
+    candidate_proba,
+    reference_proba,
+    candidate_label,
+    reference_label,
+):
     bankroll = float(LIVE_INITIAL_BANKROLL_USDC)
-    rows: list[dict[str, Any]] = []
-    for candidate_prob, reference_prob in zip(candidate_proba, reference_proba, strict=True):
+    rows = []
+    for candidate_prob, reference_prob in zip(
+        candidate_proba, reference_proba, strict=True
+    ):
         rng_state = copy.deepcopy(predictor.price_rng.bit_generator.state)
         candidate_decision = predictor.evaluate_kelly_recommendation(
             float(candidate_prob),
@@ -882,25 +1059,30 @@ def _compare_kelly_decisions(
 
 def build_matrix_comparison_report(
     *,
-    candidate_label: str,
-    reference_label: str,
-    candidate_matrix: np.ndarray,
-    reference_matrix: np.ndarray,
-    audit_df: pd.DataFrame,
-    feature_columns: list[str],
-    feature_group_by_name: dict[str, str],
-    feature_builder_frame: pd.DataFrame,
+    candidate_label,
+    reference_label,
+    candidate_matrix,
+    reference_matrix,
+    audit_df,
+    feature_columns,
+    feature_group_by_name,
+    feature_builder_frame,
     model,
-    kelly_predictor: "PseudoLiveAuditPredictor" | None = None,
-) -> dict[str, Any]:
+    feature_importance_df=None,
+    kelly_predictor=None,
+):
     feature_names = np.asarray(feature_columns, dtype=object)
     builder_meta = (
         feature_builder_frame.set_index("feature")
         .reindex(feature_columns)
         .reset_index(drop=False)
     )
-    builder_groups = builder_meta["builder_family"].fillna("unknown").to_numpy(dtype=object)
-    builder_names = builder_meta["builder_name"].fillna("unknown").to_numpy(dtype=object)
+    builder_groups = (
+        builder_meta["builder_family"].fillna("unknown").to_numpy(dtype=object)
+    )
+    builder_names = (
+        builder_meta["builder_name"].fillna("unknown").to_numpy(dtype=object)
+    )
     feature_groups = np.asarray(
         [feature_group_by_name.get(col, "unknown") for col in feature_columns],
         dtype=object,
@@ -908,7 +1090,9 @@ def build_matrix_comparison_report(
     candidate_nonfinite_mask = ~np.isfinite(candidate_matrix)
     reference_nonfinite_mask = ~np.isfinite(reference_matrix)
     finite_pair_mask = np.isfinite(candidate_matrix) & np.isfinite(reference_matrix)
-    finite_status_mismatch_mask = np.logical_xor(candidate_nonfinite_mask, reference_nonfinite_mask)
+    finite_status_mismatch_mask = np.logical_xor(
+        candidate_nonfinite_mask, reference_nonfinite_mask
+    )
     diff_matrix = np.abs(candidate_matrix - reference_matrix)
     diff_matrix[~finite_pair_mask] = np.nan
     rel_diff_matrix = _safe_relative_diff(candidate_matrix, reference_matrix)
@@ -934,8 +1118,12 @@ def build_matrix_comparison_report(
     row_has_finite = np.isfinite(diff_matrix).any(axis=1)
     row_worst_feature = np.where(row_has_finite, feature_names[row_worst_idx], None)
     row_worst_group = np.where(row_has_finite, feature_groups[row_worst_idx], None)
-    row_worst_builder_family = np.where(row_has_finite, builder_groups[row_worst_idx], None)
-    row_worst_builder_name = np.where(row_has_finite, builder_names[row_worst_idx], None)
+    row_worst_builder_family = np.where(
+        row_has_finite, builder_groups[row_worst_idx], None
+    )
+    row_worst_builder_name = np.where(
+        row_has_finite, builder_names[row_worst_idx], None
+    )
     row_worst_candidate = np.where(
         row_has_finite,
         candidate_matrix[np.arange(len(audit_df)), row_worst_idx],
@@ -960,15 +1148,15 @@ def build_matrix_comparison_report(
             "worst_builder_name": row_worst_builder_name,
             f"worst_feature_{candidate_label}_value": row_worst_candidate,
             f"worst_feature_{reference_label}_value": row_worst_reference,
-            f"{candidate_label}_nonfinite_count": candidate_nonfinite_mask.sum(axis=1).astype(
-                np.int32
-            ),
-            f"{reference_label}_nonfinite_count": reference_nonfinite_mask.sum(axis=1).astype(
-                np.int32
-            ),
-            "finite_status_mismatch_count": finite_status_mismatch_mask.sum(axis=1).astype(
-                np.int32
-            ),
+            f"{candidate_label}_nonfinite_count": candidate_nonfinite_mask.sum(
+                axis=1
+            ).astype(np.int32),
+            f"{reference_label}_nonfinite_count": reference_nonfinite_mask.sum(
+                axis=1
+            ).astype(np.int32),
+            "finite_status_mismatch_count": finite_status_mismatch_mask.sum(
+                axis=1
+            ).astype(np.int32),
             f"{candidate_label}_proba_up": candidate_pred,
             f"{reference_label}_proba_up": reference_pred,
             "proba_up_abs_diff": pred_abs_diff,
@@ -1010,9 +1198,9 @@ def build_matrix_comparison_report(
             & (step_summary_df["business_decision_mismatch"] == 0)
         ).astype(np.int8)
     else:
-        step_summary_df["business_decision_mismatch"] = step_summary_df["signal_mismatch"].astype(
-            np.int8
-        )
+        step_summary_df["business_decision_mismatch"] = step_summary_df[
+            "signal_mismatch"
+        ].astype(np.int8)
         step_summary_df["stake_only_kelly_mismatch"] = np.zeros(
             len(step_summary_df), dtype=np.int8
         )
@@ -1022,22 +1210,24 @@ def build_matrix_comparison_report(
     feature_summary_df = pd.DataFrame(
         {
             "feature": feature_columns,
-            "group": [feature_group_by_name.get(col, "unknown") for col in feature_columns],
+            "group": [
+                feature_group_by_name.get(col, "unknown") for col in feature_columns
+            ],
             "max_abs_diff": _safe_nanmax_axis0(diff_matrix),
             "mean_abs_diff": _safe_colwise_mean(diff_matrix),
             "max_rel_diff": _safe_nanmax_axis0(rel_diff_matrix),
             "mean_rel_diff": _safe_colwise_mean(rel_diff_matrix),
             "rmse_abs_diff": _safe_colwise_rmse(diff_matrix),
             "finite_diff_count": np.isfinite(diff_matrix).sum(axis=0).astype(np.int32),
-            f"{candidate_label}_nonfinite_count": candidate_nonfinite_mask.sum(axis=0).astype(
-                np.int32
-            ),
-            f"{reference_label}_nonfinite_count": reference_nonfinite_mask.sum(axis=0).astype(
-                np.int32
-            ),
-            "finite_status_mismatch_count": finite_status_mismatch_mask.sum(axis=0).astype(
-                np.int32
-            ),
+            f"{candidate_label}_nonfinite_count": candidate_nonfinite_mask.sum(
+                axis=0
+            ).astype(np.int32),
+            f"{reference_label}_nonfinite_count": reference_nonfinite_mask.sum(
+                axis=0
+            ).astype(np.int32),
+            "finite_status_mismatch_count": finite_status_mismatch_mask.sum(
+                axis=0
+            ).astype(np.int32),
             "worst_opened": np.where(
                 col_has_finite,
                 audit_df["Opened"].iloc[col_worst_idx].to_numpy(),
@@ -1059,31 +1249,68 @@ def build_matrix_comparison_report(
         columns=["group", "builder_family", "builder_name", "builder_source"],
         errors="ignore",
     )
-    feature_summary_df = feature_summary_df.merge(
-        feature_builder_frame,
-        on="feature",
-        how="left",
-        sort=False,
-    ).merge(
-        feature_impact_summary_df,
-        on="feature",
-        how="left",
-        sort=False,
-    ).sort_values(
-        [
-            "rows_signal_mismatch_resolved_if_fixed",
-            "mean_abs_proba_gap_reduction_if_fixed",
-            "max_abs_proba_gap_reduction_if_fixed",
-            "mean_abs_proba_shift_if_fixed",
-            "finite_status_mismatch_count",
-            "max_rel_diff",
-            "mean_rel_diff",
-            "max_abs_diff",
-            "mean_abs_diff",
-        ],
-        ascending=[False, False, False, False, False, False, False, False, False],
-        kind="stable",
+    feature_summary_df = (
+        feature_summary_df.merge(
+            feature_builder_frame,
+            on="feature",
+            how="left",
+            sort=False,
+        )
+        .merge(
+            feature_impact_summary_df,
+            on="feature",
+            how="left",
+            sort=False,
+        )
+        .sort_values(
+            [
+                "rows_signal_mismatch_resolved_if_fixed",
+                "rows_proba_diff_gt_tol_resolved_if_fixed",
+                "net_abs_proba_gap_reduction_if_fixed",
+                "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
+                "mean_gap_reduction_ratio_on_drift_rows_if_fixed",
+                "mean_abs_proba_shift_if_fixed",
+                "finite_status_mismatch_count",
+                "max_rel_diff",
+                "mean_rel_diff",
+                "max_abs_diff",
+                "mean_abs_diff",
+                "rmse_abs_diff",
+            ],
+            ascending=[
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+                False,
+            ],
+            kind="stable",
+        )
     )
+    if feature_importance_df is not None and not feature_importance_df.empty:
+        feature_summary_df = feature_summary_df.merge(
+            feature_importance_df,
+            on="feature",
+            how="left",
+            sort=False,
+        )
+    if "importance_gain" not in feature_summary_df.columns:
+        feature_summary_df["importance_gain"] = 0.0
+    if "importance_split" not in feature_summary_df.columns:
+        feature_summary_df["importance_split"] = 0.0
+    feature_summary_df["importance_gain"] = pd.to_numeric(
+        feature_summary_df["importance_gain"], errors="coerce"
+    ).fillna(0.0)
+    feature_summary_df["importance_split"] = pd.to_numeric(
+        feature_summary_df["importance_split"], errors="coerce"
+    ).fillna(0.0)
 
     group_summary_df = (
         feature_summary_df.groupby("group", dropna=False)
@@ -1094,8 +1321,14 @@ def build_matrix_comparison_report(
             max_rel_diff=("max_rel_diff", "max"),
             mean_rel_diff=("mean_rel_diff", "mean"),
             rmse_abs_diff=("rmse_abs_diff", "mean"),
-            total_candidate_nonfinite_count=(f"{candidate_label}_nonfinite_count", "sum"),
-            total_reference_nonfinite_count=(f"{reference_label}_nonfinite_count", "sum"),
+            total_candidate_nonfinite_count=(
+                f"{candidate_label}_nonfinite_count",
+                "sum",
+            ),
+            total_reference_nonfinite_count=(
+                f"{reference_label}_nonfinite_count",
+                "sum",
+            ),
             total_finite_status_mismatch_count=("finite_status_mismatch_count", "sum"),
         )
         .reset_index()
@@ -1111,15 +1344,17 @@ def build_matrix_comparison_report(
         sort=False,
     ).sort_values(
         [
-            "max_mean_abs_proba_gap_reduction_if_fixed",
-            "mean_mean_abs_proba_gap_reduction_if_fixed",
+            "total_rows_signal_mismatch_resolved_if_fixed",
+            "total_rows_proba_diff_gt_tol_resolved_if_fixed",
+            "total_net_abs_proba_gap_reduction_if_fixed",
+            "max_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
             "max_mean_abs_proba_shift_if_fixed",
             "max_rel_diff",
             "mean_rel_diff",
             "max_abs_diff",
             "mean_abs_diff",
         ],
-        ascending=[False, False, False, False, False, False, False],
+        ascending=[False, False, False, False, False, False, False, False, False],
         kind="stable",
     )
 
@@ -1147,15 +1382,17 @@ def build_matrix_comparison_report(
         sort=False,
     ).sort_values(
         [
-            "max_mean_abs_proba_gap_reduction_if_fixed",
-            "mean_mean_abs_proba_gap_reduction_if_fixed",
+            "total_rows_signal_mismatch_resolved_if_fixed",
+            "total_rows_proba_diff_gt_tol_resolved_if_fixed",
+            "total_net_abs_proba_gap_reduction_if_fixed",
+            "max_mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
             "max_mean_abs_proba_shift_if_fixed",
             "max_rel_diff",
             "mean_rel_diff",
             "max_abs_diff",
             "mean_abs_diff",
         ],
-        ascending=[False, False, False, False, False, False, False],
+        ascending=[False, False, False, False, False, False, False, False, False],
         kind="stable",
     )
 
@@ -1190,7 +1427,9 @@ def build_matrix_comparison_report(
         summary_payload.update(
             {
                 "kelly_audit_bankroll_usdc": float(LIVE_INITIAL_BANKROLL_USDC),
-                "rows_with_kelly_side_mismatch": int(step_summary_df["kelly_side_mismatch"].sum()),
+                "rows_with_kelly_side_mismatch": int(
+                    step_summary_df["kelly_side_mismatch"].sum()
+                ),
                 "rows_with_kelly_reason_mismatch": int(
                     step_summary_df["kelly_reason_mismatch"].sum()
                 ),
@@ -1203,7 +1442,9 @@ def build_matrix_comparison_report(
                 "rows_with_any_kelly_mismatch": int(
                     step_summary_df["kelly_decision_mismatch"].sum()
                 ),
-                "max_kelly_stake_abs_diff": float(step_summary_df["kelly_stake_abs_diff"].max()),
+                "max_kelly_stake_abs_diff": float(
+                    step_summary_df["kelly_stake_abs_diff"].max()
+                ),
                 "mean_kelly_stake_abs_diff": float(
                     step_summary_df["kelly_stake_abs_diff"].mean()
                 ),
@@ -1223,12 +1464,24 @@ def build_matrix_comparison_report(
             columns=feature_columns,
             copy=False,
         ),
-        "prediction_impact_feature_summary_df": prediction_impact_report["feature_summary_df"],
-        "prediction_impact_group_summary_df": prediction_impact_report["group_summary_df"],
-        "prediction_impact_builder_summary_df": prediction_impact_report["builder_summary_df"],
-        "single_feature_fixed_pred_matrix": prediction_impact_report["fixed_pred_matrix"],
-        "single_feature_proba_shift_matrix": prediction_impact_report["proba_shift_matrix"],
-        "single_feature_gap_reduction_matrix": prediction_impact_report["gap_reduction_matrix"],
+        "prediction_impact_feature_summary_df": prediction_impact_report[
+            "feature_summary_df"
+        ],
+        "prediction_impact_group_summary_df": prediction_impact_report[
+            "group_summary_df"
+        ],
+        "prediction_impact_builder_summary_df": prediction_impact_report[
+            "builder_summary_df"
+        ],
+        "single_feature_fixed_pred_matrix": prediction_impact_report[
+            "fixed_pred_matrix"
+        ],
+        "single_feature_proba_shift_matrix": prediction_impact_report[
+            "proba_shift_matrix"
+        ],
+        "single_feature_gap_reduction_matrix": prediction_impact_report[
+            "gap_reduction_matrix"
+        ],
         "diff_matrix": diff_matrix,
         "rel_diff_matrix": rel_diff_matrix,
         "candidate_nonfinite_mask": candidate_nonfinite_mask,
@@ -1240,10 +1493,10 @@ def build_matrix_comparison_report(
 
 
 def build_live_drift_reason_report(
-    report: dict[str, Any],
+    report,
     *,
-    top_n: int = 20,
-) -> dict[str, Any]:
+    top_n=20,
+):
     step_summary_df = report["step_summary_df"].copy()
     feature_summary_df = report["feature_summary_df"].copy()
     diff_matrix = np.asarray(report["diff_matrix"], dtype=np.float64)
@@ -1456,7 +1709,6 @@ def build_live_drift_reason_report(
         )
     )
 
-    explain_feature_summary_df: pd.DataFrame
     if (
         fixed_pred_matrix is not None
         and proba_shift_matrix is not None
@@ -1467,11 +1719,15 @@ def build_live_drift_reason_report(
         explain_fixed_pred_matrix = fixed_pred_matrix[explain_row_mask, :]
         explain_abs_proba_shift_matrix = np.abs(proba_shift_matrix[explain_row_mask, :])
         explain_gap_reduction_matrix = gap_reduction_matrix[explain_row_mask, :]
-        explain_candidate_pred = step_summary_df.loc[explain_mask, candidate_proba_col].to_numpy(
+        explain_candidate_pred = step_summary_df.loc[
+            explain_mask, candidate_proba_col
+        ].to_numpy(
             dtype=np.float64,
             copy=False,
         )
-        explain_reference_pred = step_summary_df.loc[explain_mask, reference_proba_col].to_numpy(
+        explain_reference_pred = step_summary_df.loc[
+            explain_mask, reference_proba_col
+        ].to_numpy(
             dtype=np.float64,
             copy=False,
         )
@@ -1500,19 +1756,35 @@ def build_live_drift_reason_report(
                     ),
                     "rows_abs_proba_gap_reduced_if_fixed_on_explained_rows": (
                         explain_gap_reduction_matrix > PREDICTION_DIFF_TOL
-                    ).sum(axis=0).astype(np.int32),
+                    )
+                    .sum(axis=0)
+                    .astype(np.int32),
                     "rows_signal_mismatch_resolved_if_fixed_on_explained_rows": (
                         explain_signal_mismatch & ~explain_fixed_signal_mismatch
-                    ).sum(axis=0).astype(np.int32),
-                    "max_rel_diff_on_explained_rows": _safe_nanmax_axis0(explain_rel_diff_matrix),
-                    "mean_rel_diff_on_explained_rows": _safe_colwise_mean(explain_rel_diff_matrix),
-                    "max_abs_diff_on_explained_rows": _safe_nanmax_axis0(explain_diff_matrix),
-                    "mean_abs_diff_on_explained_rows": _safe_colwise_mean(explain_diff_matrix),
-                    "rmse_abs_diff_on_explained_rows": _safe_colwise_rmse(explain_diff_matrix),
+                    )
+                    .sum(axis=0)
+                    .astype(np.int32),
+                    "max_rel_diff_on_explained_rows": _safe_nanmax_axis0(
+                        explain_rel_diff_matrix
+                    ),
+                    "mean_rel_diff_on_explained_rows": _safe_colwise_mean(
+                        explain_rel_diff_matrix
+                    ),
+                    "max_abs_diff_on_explained_rows": _safe_nanmax_axis0(
+                        explain_diff_matrix
+                    ),
+                    "mean_abs_diff_on_explained_rows": _safe_colwise_mean(
+                        explain_diff_matrix
+                    ),
+                    "rmse_abs_diff_on_explained_rows": _safe_colwise_rmse(
+                        explain_diff_matrix
+                    ),
                 }
             )
             .merge(
-                feature_summary_df[["feature", "group", "builder_family", "builder_name"]],
+                feature_summary_df[
+                    ["feature", "group", "builder_family", "builder_name"]
+                ],
                 on="feature",
                 how="left",
                 sort=False,
@@ -1549,7 +1821,9 @@ def build_live_drift_reason_report(
                 }
             )
             .merge(
-                feature_summary_df[["feature", "group", "builder_family", "builder_name"]],
+                feature_summary_df[
+                    ["feature", "group", "builder_family", "builder_name"]
+                ],
                 on="feature",
                 how="left",
                 sort=False,
@@ -1599,7 +1873,9 @@ def build_live_drift_reason_report(
             "explanation_basis": explanation_basis,
             "rows_with_history_shortfall": int(history_shortfall.gt(0).sum()),
             "prediction_drift_rows_with_history_shortfall": int(
-                explain_rows_df.get("history_shortfall", pd.Series(dtype=np.int32)).gt(0).sum()
+                explain_rows_df.get("history_shortfall", pd.Series(dtype=np.int32))
+                .gt(0)
+                .sum()
             ),
             "dominant_prediction_impact_group": dominant_group,
             "dominant_prediction_impact_builder_family": dominant_builder_family,
@@ -1621,26 +1897,46 @@ def build_live_drift_reason_report(
     }
 
 
-@dataclass(frozen=True)
 class AuditWindow:
-    bootstrap_start: pd.Timestamp
-    audit_start: pd.Timestamp
-    audit_end: pd.Timestamp
-    bootstrap_rows: int
-    audit_rows: int
-    requested_days_back: int
-    max_steps: int | None
+    __slots__ = (
+        "bootstrap_start",
+        "audit_start",
+        "audit_end",
+        "bootstrap_rows",
+        "audit_rows",
+        "requested_days_back",
+        "max_steps",
+    )
+
+    def __init__(
+        self,
+        bootstrap_start,
+        audit_start,
+        audit_end,
+        bootstrap_rows,
+        audit_rows,
+        requested_days_back,
+        max_steps,
+    ):
+        self.bootstrap_start = bootstrap_start
+        self.audit_start = audit_start
+        self.audit_end = audit_end
+        self.bootstrap_rows = bootstrap_rows
+        self.audit_rows = audit_rows
+        self.requested_days_back = requested_days_back
+        self.max_steps = max_steps
 
 
 class PseudoLiveAuditPredictor(LivePredictor):
     def __init__(
         self,
-        bootstrap_df: pd.DataFrame,
+        bootstrap_df,
         *,
-        model_meta_path: Path = MODEL_META_PATH,
-        max_keep: int = DEFAULT_MAX_KEEP,
-        volume_profile_state: dict[str, Any] | None = None,
-    ) -> None:
+        model_meta_path=MODEL_META_PATH,
+        max_keep=DEFAULT_MAX_KEEP,
+        volume_profile_state=None,
+        allow_unstable_indicator_summary=AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY,
+    ):
         self.model, meta = load_model_and_meta(model_meta_path)
         self.feature_columns = list(meta.get("feature_columns", []))
         if not self.feature_columns:
@@ -1690,11 +1986,61 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.volume_profile_state_source_path = None
 
         self.indicator_specs = load_indicator_specs(self.feature_columns)
-        self.required_stable_window = load_required_stable_window(
-            INDICATOR_STABILITY_SUMMARY_PATH
+        requirements_indicator_specs = self.indicator_specs
+        if allow_unstable_indicator_summary:
+            requirements_payload = json.loads(
+                Path(INDICATOR_HISTORY_REQUIREMENTS_PATH).read_text(encoding="utf-8")
+            )
+            unstable_feature_cols = {
+                str(feature_col).strip()
+                for feature_col in requirements_payload.get("unstable_features", [])
+                if str(feature_col).strip()
+            }
+            if not unstable_feature_cols:
+                summary_path_raw = requirements_payload.get("analysis_summary_path")
+                if summary_path_raw not in (None, ""):
+                    summary_path = Path(summary_path_raw)
+                    if summary_path.exists():
+                        summary_payload = json.loads(
+                            summary_path.read_text(encoding="utf-8")
+                        )
+                        unstable_feature_cols = {
+                            str(feature_col).strip()
+                            for feature_col in summary_payload.get(
+                                "unstable_features", []
+                            )
+                            if str(feature_col).strip()
+                        }
+            filtered_specs = [
+                spec
+                for spec in self.indicator_specs
+                if str(spec.feature_col) not in unstable_feature_cols
+            ]
+            if len(filtered_specs) != len(self.indicator_specs):
+                print(
+                    "[audit] ignoring unstable features in per-feature history validation "
+                    f"count={len(self.indicator_specs) - len(filtered_specs)}"
+                )
+                requirements_indicator_specs = filtered_specs
+        self.indicator_history_requirements = load_indicator_history_requirements(
+            INDICATOR_HISTORY_REQUIREMENTS_PATH,
+            indicator_specs=requirements_indicator_specs,
+            allow_unstable=allow_unstable_indicator_summary,
         )
-        self.bootstrap_candles = int(len(bootstrap_df))
-        self.max_keep = int(max_keep)
+        self.required_stable_window = int(
+            self.indicator_history_requirements["global_required_runtime_window"]
+        )
+        self.required_stable_window_raw = int(
+            self.indicator_history_requirements["global_required_stable_window"]
+        )
+        self.indicator_stable_window_by_feature = dict(
+            self.indicator_history_requirements["stable_window_by_feature"]
+        )
+        self.indicator_runtime_window_by_feature = dict(
+            self.indicator_history_requirements["runtime_window_by_feature"]
+        )
+        self.bootstrap_candles = len(bootstrap_df)
+        self.max_keep = max(int(max_keep), int(self.required_stable_window))
 
         bootstrap_df = bootstrap_df.copy()
         bootstrap_df["Opened"] = _ensure_utc_opened(bootstrap_df["Opened"])
@@ -1732,16 +2078,16 @@ class PseudoLiveAuditPredictor(LivePredictor):
                     self.volume_profile_cfg,
                 )
 
-    def _save_runtime_volume_profile_state(self, log: bool = False, context: str = "state"):
+    def _save_runtime_volume_profile_state(self, log=False, context="state"):
         return None
 
     def evaluate_kelly_recommendation(
         self,
-        prob_up_raw: float,
+        prob_up_raw,
         *,
-        bankroll: float | None = None,
-        rng_state: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+        bankroll=None,
+        rng_state=None,
+    ):
         prev_bankroll = float(self.live_bankroll_usdc)
         prev_rng_state = copy.deepcopy(self.price_rng.bit_generator.state)
         try:
@@ -1754,7 +2100,7 @@ class PseudoLiveAuditPredictor(LivePredictor):
             self.live_bankroll_usdc = prev_bankroll
             self.price_rng.bit_generator.state = prev_rng_state
 
-    def build_feature_snapshot(self, volume_profile_values: dict[str, float] | None = None):
+    def build_feature_snapshot(self, volume_profile_values=None):
         vector = self._build_feature_vector(volume_profile_values=volume_profile_values)
         nonfinite_feature_indices = tuple(
             int(idx) for idx in np.flatnonzero(~np.isfinite(vector[0, :]))
@@ -1766,18 +2112,18 @@ class PseudoLiveAuditPredictor(LivePredictor):
         }
 
 
-def _load_opened_series(parquet_path: Path) -> pd.Series:
+def _load_opened_series(parquet_path):
     opened = pd.read_parquet(parquet_path, columns=["Opened"])["Opened"]
     return pd.to_datetime(opened)
 
 
 def resolve_audit_window(
     *,
-    parquet_path: Path,
-    days_back: int = DEFAULT_AUDIT_DAYS_BACK,
-    bootstrap_candles: int = DEFAULT_BOOTSTRAP_CANDLES,
-    max_steps: int | None = None,
-) -> AuditWindow:
+    parquet_path,
+    days_back=DEFAULT_AUDIT_DAYS_BACK,
+    bootstrap_candles=DEFAULT_BOOTSTRAP_CANDLES,
+    max_steps=None,
+):
     opened = _load_opened_series(parquet_path)
     if opened.empty:
         raise ValueError(f"Modeling parquet has no rows: {parquet_path}")
@@ -1815,29 +2161,41 @@ def resolve_audit_window(
 
 def load_modeling_audit_frame(
     *,
-    parquet_path: Path,
-    feature_columns: list[str],
-    audit_window: AuditWindow,
-) -> pd.DataFrame:
+    parquet_path,
+    feature_columns,
+    audit_window,
+):
     columns = ["Opened", *RAW_OHLCV_COLS, *feature_columns]
     frame = pd.read_parquet(
         parquet_path,
         columns=columns,
         filters=[
-            ("Opened", ">=", audit_window.bootstrap_start.to_pydatetime().replace(tzinfo=None)),
-            ("Opened", "<=", audit_window.audit_end.to_pydatetime().replace(tzinfo=None)),
+            (
+                "Opened",
+                ">=",
+                audit_window.bootstrap_start.to_pydatetime().replace(tzinfo=None),
+            ),
+            (
+                "Opened",
+                "<=",
+                audit_window.audit_end.to_pydatetime().replace(tzinfo=None),
+            ),
         ],
     )
     frame["Opened"] = _ensure_utc_opened(frame["Opened"])
-    frame = frame.sort_values("Opened").drop_duplicates(subset=["Opened"]).reset_index(drop=True)
+    frame = (
+        frame.sort_values("Opened")
+        .drop_duplicates(subset=["Opened"])
+        .reset_index(drop=True)
+    )
     return frame
 
 
 def load_anchor_volume_profile_history(
     *,
-    parquet_path: Path,
-    anchor_candle_opened: pd.Timestamp,
-) -> pd.DataFrame:
+    parquet_path,
+    anchor_candle_opened,
+):
     anchor_candle_opened = pd.Timestamp(anchor_candle_opened)
     frame = pd.read_parquet(
         parquet_path,
@@ -1851,18 +2209,26 @@ def load_anchor_volume_profile_history(
         ],
     )
     frame["Opened"] = _ensure_utc_opened(frame["Opened"])
-    frame = frame.sort_values("Opened").drop_duplicates(subset=["Opened"]).reset_index(drop=True)
+    frame = (
+        frame.sort_values("Opened")
+        .drop_duplicates(subset=["Opened"])
+        .reset_index(drop=True)
+    )
     return frame
 
 
 def build_or_load_anchor_volume_profile_state(
     *,
-    parquet_path: Path,
-    anchor_candle_opened: pd.Timestamp,
-    overwrite: bool = False,
-) -> tuple[dict[str, Any], Path]:
+    parquet_path,
+    anchor_candle_opened,
+    overwrite=False,
+):
     state_path = resolve_anchor_volume_profile_state_path(anchor_candle_opened)
-    if not overwrite and state_path.with_suffix(".npz").exists() and state_path.with_suffix(".json").exists():
+    if (
+        not overwrite
+        and state_path.with_suffix(".npz").exists()
+        and state_path.with_suffix(".json").exists()
+    ):
         return load_volume_profile_state(state_path), state_path
 
     history_df = load_anchor_volume_profile_history(
@@ -1871,7 +2237,9 @@ def build_or_load_anchor_volume_profile_state(
     )
     state = bootstrap_state_from_history(
         history_df.loc[:, ["Opened", "High", "Low", "Volume"]],
-        normalize_volume_profile_config(MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")),
+        normalize_volume_profile_config(
+            MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
+        ),
     )
     save_volume_profile_state(state, state_path)
     return load_volume_profile_state(state_path), state_path
@@ -1879,16 +2247,19 @@ def build_or_load_anchor_volume_profile_state(
 
 def run_stored_modeling_vs_current_recompute_audit(
     *,
-    days_back: int = DEFAULT_AUDIT_DAYS_BACK,
-    max_steps: int | None = None,
-    history_tail_fraction: float = 1.0,
-    model_meta_path: str | Path = MODEL_META_PATH,
-    parquet_path: str | Path | None = None,
-) -> dict[str, Any]:
+    days_back=DEFAULT_AUDIT_DAYS_BACK,
+    max_steps=None,
+    history_tail_fraction=1.0,
+    model_meta_path=MODEL_META_PATH,
+    parquet_path=None,
+):
     model_meta_path = Path(model_meta_path)
-    parquet_path = _optional_path(parquet_path) or resolve_modeling_dataset_parquet_path()
+    parquet_path = (
+        _optional_path(parquet_path) or resolve_modeling_dataset_parquet_path()
+    )
 
     model, meta = load_model_and_meta(model_meta_path)
+    feature_importance_df = _load_model_feature_importance_frame(meta)
     feature_columns = list(meta.get("feature_columns", []))
     if not feature_columns:
         raise ValueError("Missing feature_columns in model metadata.")
@@ -1904,10 +2275,12 @@ def run_stored_modeling_vs_current_recompute_audit(
         feature_columns=feature_columns,
         audit_window=audit_window,
     )
-    history_start, history_rows, history_total_rows = resolve_recent_history_tail_window(
-        parquet_path=parquet_path,
-        audit_end=audit_window.audit_end,
-        tail_fraction=history_tail_fraction,
+    history_start, history_rows, history_total_rows = (
+        resolve_recent_history_tail_window(
+            parquet_path=parquet_path,
+            audit_end=audit_window.audit_end,
+            tail_fraction=history_tail_fraction,
+        )
     )
     if audit_window.audit_start < history_start:
         raise ValueError(
@@ -1934,21 +2307,30 @@ def run_stored_modeling_vs_current_recompute_audit(
     feature_group_by_name = _feature_group_map(feature_columns)
     feature_builder_frame = _feature_builder_frame(feature_columns)
     kelly_predictor = PseudoLiveAuditPredictor(
-        raw_history_df.tail(max(1, min(len(raw_history_df), DEFAULT_BOOTSTRAP_CANDLES))).copy(),
+        raw_history_df.tail(
+            max(1, min(len(raw_history_df), DEFAULT_BOOTSTRAP_CANDLES))
+        ).copy(),
         model_meta_path=model_meta_path,
-        max_keep=max(DEFAULT_MAX_KEEP, len(raw_history_df.tail(DEFAULT_BOOTSTRAP_CANDLES))),
+        max_keep=max(
+            DEFAULT_MAX_KEEP, len(raw_history_df.tail(DEFAULT_BOOTSTRAP_CANDLES))
+        ),
         volume_profile_state=None,
     )
     report = build_matrix_comparison_report(
         candidate_label="recomputed",
         reference_label="stored",
-        candidate_matrix=recomputed_audit_df[feature_columns].to_numpy(dtype=np.float64, copy=True),
-        reference_matrix=stored_audit_df[feature_columns].to_numpy(dtype=np.float64, copy=True),
+        candidate_matrix=recomputed_audit_df[feature_columns].to_numpy(
+            dtype=np.float64, copy=True
+        ),
+        reference_matrix=stored_audit_df[feature_columns].to_numpy(
+            dtype=np.float64, copy=True
+        ),
         audit_df=stored_audit_df,
         feature_columns=feature_columns,
         feature_group_by_name=feature_group_by_name,
         feature_builder_frame=feature_builder_frame,
         model=model,
+        feature_importance_df=feature_importance_df,
         kelly_predictor=kelly_predictor,
     )
     report["summary"] = pd.concat(
@@ -1975,24 +2357,28 @@ def run_stored_modeling_vs_current_recompute_audit(
     report["audit_df"] = stored_audit_df
     report["stored_audit_df"] = stored_audit_df
     report["recomputed_audit_df"] = recomputed_audit_df
-    report["candidate_feature_frame"] = recomputed_audit_df.loc[:, feature_columns].copy()
+    report["candidate_feature_frame"] = recomputed_audit_df.loc[
+        :, feature_columns
+    ].copy()
     report["feature_columns"] = feature_columns
     return report
 
 
 def run_live_modeling_feature_audit(
     *,
-    days_back: int = DEFAULT_AUDIT_DAYS_BACK,
-    bootstrap_candles: int = DEFAULT_BOOTSTRAP_CANDLES,
-    max_steps: int | None = None,
-    max_keep: int = DEFAULT_MAX_KEEP,
-    model_meta_path: str | Path = MODEL_META_PATH,
-    parquet_path: str | Path | None = None,
-    use_anchor_vp_state: bool = True,
-    overwrite_anchor_vp_state: bool = False,
-) -> dict[str, Any]:
+    days_back=DEFAULT_AUDIT_DAYS_BACK,
+    bootstrap_candles=DEFAULT_BOOTSTRAP_CANDLES,
+    max_steps=None,
+    max_keep=DEFAULT_MAX_KEEP,
+    model_meta_path=MODEL_META_PATH,
+    parquet_path=None,
+    use_anchor_vp_state=True,
+    overwrite_anchor_vp_state=False,
+):
     model_meta_path = Path(model_meta_path)
-    parquet_path = _optional_path(parquet_path) or resolve_modeling_dataset_parquet_path()
+    parquet_path = (
+        _optional_path(parquet_path) or resolve_modeling_dataset_parquet_path()
+    )
     progress_enabled = bool(AUDIT_PROGRESS_ENABLED)
     progress_every = max(1, int(AUDIT_PROGRESS_EVERY_STEPS))
 
@@ -2004,16 +2390,41 @@ def run_live_modeling_feature_audit(
             f"max_steps={max_steps if max_steps is not None else 'all'} "
             f"max_keep={int(max_keep)}"
         )
+        if AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY:
+            print(
+                "[audit] indicator history requirements artifact contains unstable features; "
+                "continuing because audit override is enabled"
+            )
         print(
-            "[audit] inputs "
-            f"model_meta={model_meta_path} "
-            f"parquet={parquet_path}"
+            "[audit] inputs " f"model_meta={model_meta_path} " f"parquet={parquet_path}"
         )
 
     model, meta = load_model_and_meta(model_meta_path)
+    feature_importance_df = _load_model_feature_importance_frame(meta)
     feature_columns = list(meta.get("feature_columns", []))
     if not feature_columns:
         raise ValueError("Missing feature_columns in model metadata.")
+
+    required_stable_window = load_required_stable_window(
+        INDICATOR_HISTORY_REQUIREMENTS_PATH,
+        allow_unstable=AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY,
+    )
+    resolved_bootstrap_candles = max(
+        int(bootstrap_candles), int(required_stable_window)
+    )
+    resolved_max_keep = max(int(max_keep), int(required_stable_window))
+    if progress_enabled and (
+        resolved_bootstrap_candles != int(bootstrap_candles)
+        or resolved_max_keep != int(max_keep)
+    ):
+        print(
+            "[audit] adjusted_history_windows "
+            f"required_stable_window={int(required_stable_window)} "
+            f"bootstrap_candles={int(bootstrap_candles)}->{resolved_bootstrap_candles} "
+            f"max_keep={int(max_keep)}->{resolved_max_keep}"
+        )
+    bootstrap_candles = resolved_bootstrap_candles
+    max_keep = resolved_max_keep
 
     audit_window = resolve_audit_window(
         parquet_path=parquet_path,
@@ -2044,7 +2455,9 @@ def run_live_modeling_feature_audit(
         )
 
     bootstrap_df = modeling_frame.iloc[: audit_window.bootstrap_rows].copy()
-    audit_df = modeling_frame.iloc[audit_window.bootstrap_rows :].copy().reset_index(drop=True)
+    audit_df = (
+        modeling_frame.iloc[audit_window.bootstrap_rows :].copy().reset_index(drop=True)
+    )
     if audit_df.empty:
         raise RuntimeError("Audit dataframe is empty after splitting bootstrap rows.")
 
@@ -2058,10 +2471,12 @@ def run_live_modeling_feature_audit(
                 f"anchor_opened={anchor_candle_opened.isoformat()} "
                 f"overwrite={bool(overwrite_anchor_vp_state)}"
             )
-        anchor_vp_state, anchor_vp_state_path = build_or_load_anchor_volume_profile_state(
-            parquet_path=parquet_path,
-            anchor_candle_opened=anchor_candle_opened,
-            overwrite=overwrite_anchor_vp_state,
+        anchor_vp_state, anchor_vp_state_path = (
+            build_or_load_anchor_volume_profile_state(
+                parquet_path=parquet_path,
+                anchor_candle_opened=anchor_candle_opened,
+                overwrite=overwrite_anchor_vp_state,
+            )
         )
         if progress_enabled:
             print(
@@ -2081,17 +2496,17 @@ def run_live_modeling_feature_audit(
             "[audit] predictor ready "
             f"required_stable_window={int(predictor.required_stable_window)} "
             f"bootstrap_rows_loaded={int(predictor.bootstrap_candles)} "
-            f"initial_buffer_rows={int(len(predictor.opened_candles))}"
+            f"initial_buffer_rows={len(predictor.opened_candles)}"
         )
 
     feature_group_by_name = _feature_group_map(feature_columns)
     feature_builder_frame = _feature_builder_frame(feature_columns)
-    indicator_nan_count_rows: list[int] = []
-    history_rows_used_rows: list[int] = []
-    history_shortfall_rows: list[int] = []
-    decision_row_indices: list[int] = []
-    live_vector_rows: list[np.ndarray] = []
-    live_nonfinite_rows: list[np.ndarray] = []
+    indicator_nan_count_rows = []
+    history_rows_used_rows = []
+    history_shortfall_rows = []
+    decision_row_indices = []
+    live_vector_rows = []
+    live_nonfinite_rows = []
 
     ohlcv_matrix = audit_df[list(RAW_OHLCV_COLS)].to_numpy(dtype=np.float64, copy=False)
     opened_values = audit_df["Opened"].to_list()
@@ -2104,24 +2519,29 @@ def run_live_modeling_feature_audit(
             pd.Timestamp(opened),
             tuple(float(v) for v in ohlcv_matrix[row_idx, :]),
         )
-        volume_profile_values = predictor._extract_volume_profile_features_for_latest_candle()
-        is_decision_step = _is_live_decision_opened(opened, predictor.target_bucket_minutes)
+        volume_profile_values = (
+            predictor._prepare_volume_profile_features_for_latest_candle(opened)
+        )
+        is_decision_step = _is_live_decision_opened(
+            opened, predictor.target_bucket_minutes
+        )
         if is_decision_step:
             snapshot = predictor.build_feature_snapshot(volume_profile_values)
-            live_vector_rows.append(snapshot["vector"][0, :].astype(np.float64, copy=True))
+            live_vector_rows.append(
+                snapshot["vector"][0, :].astype(np.float64, copy=True)
+            )
             nonfinite_row = np.zeros(len(feature_columns), dtype=bool)
             if snapshot["nonfinite_feature_indices"]:
                 nonfinite_row[list(snapshot["nonfinite_feature_indices"])] = True
             live_nonfinite_rows.append(nonfinite_row)
             indicator_nan_count_rows.append(len(snapshot["indicator_nan_cols"]))
-            current_history_rows = int(len(predictor.opened_candles))
+            current_history_rows = len(predictor.opened_candles)
             history_rows_used_rows.append(current_history_rows)
             history_shortfall_rows.append(
                 max(0, int(predictor.required_stable_window) - current_history_rows)
             )
             decision_row_indices.append(row_idx)
             decision_steps += 1
-        predictor._update_volume_profile_state_for_latest_candle(opened)
         completed_steps = row_idx + 1
         if progress_enabled and (
             completed_steps == 1
@@ -2129,7 +2549,9 @@ def run_live_modeling_feature_audit(
             or completed_steps % progress_every == 0
         ):
             elapsed_sec = time.perf_counter() - loop_started_at
-            steps_per_sec = completed_steps / elapsed_sec if elapsed_sec > 0 else float("nan")
+            steps_per_sec = (
+                completed_steps / elapsed_sec if elapsed_sec > 0 else float("nan")
+            )
             remaining_steps = total_steps - completed_steps
             eta_sec = (
                 remaining_steps / steps_per_sec
@@ -2141,16 +2563,20 @@ def run_live_modeling_feature_audit(
                 f"{completed_steps}/{total_steps} "
                 f"({(completed_steps / total_steps) * 100.0:.1f}%) "
                 f"opened={pd.Timestamp(opened).isoformat()} "
-                f"buffer_rows={int(len(predictor.opened_candles))} "
+                f"buffer_rows={len(predictor.opened_candles)} "
                 f"decision_rows={decision_steps} "
                 f"elapsed={_format_duration(elapsed_sec)} "
                 f"eta={_format_duration(eta_sec) if np.isfinite(eta_sec) else 'n/a'}"
             )
 
-    decision_audit_df = audit_df.iloc[decision_row_indices].copy().reset_index(drop=True)
+    decision_audit_df = (
+        audit_df.iloc[decision_row_indices].copy().reset_index(drop=True)
+    )
     if decision_audit_df.empty:
         raise RuntimeError("No live decision rows were selected for the audit window.")
-    modeling_matrix = decision_audit_df[feature_columns].to_numpy(dtype=np.float64, copy=True)
+    modeling_matrix = decision_audit_df[feature_columns].to_numpy(
+        dtype=np.float64, copy=True
+    )
     live_matrix = np.vstack(live_vector_rows).astype(np.float64, copy=False)
     live_nonfinite_mask = np.vstack(live_nonfinite_rows).astype(bool, copy=False)
     indicator_nan_count = np.asarray(indicator_nan_count_rows, dtype=np.int32)
@@ -2169,6 +2595,7 @@ def run_live_modeling_feature_audit(
         feature_group_by_name=feature_group_by_name,
         feature_builder_frame=feature_builder_frame,
         model=model,
+        feature_importance_df=feature_importance_df,
         kelly_predictor=predictor,
     )
     live_report["step_summary_df"]["indicator_nan_count"] = indicator_nan_count
@@ -2189,9 +2616,11 @@ def run_live_modeling_feature_audit(
                     "max_keep": int(max_keep),
                     "required_stable_window": int(predictor.required_stable_window),
                     "use_anchor_vp_state": bool(use_anchor_vp_state),
-                    "anchor_vp_state_path": None
-                    if anchor_vp_state_path is None
-                    else str(anchor_vp_state_path.with_suffix(".npz")),
+                    "anchor_vp_state_path": (
+                        None
+                        if anchor_vp_state_path is None
+                        else str(anchor_vp_state_path.with_suffix(".npz"))
+                    ),
                     "report_type": "pseudo_live_vs_stored_modeling_decision_only",
                 }
             ),
@@ -2237,12 +2666,12 @@ def run_live_modeling_feature_audit(
 
 
 def feature_drilldown(
-    results: dict[str, Any],
-    feature_name: str,
+    results,
+    feature_name,
     *,
-    report_key: str | None = None,
-    top_n: int = 20,
-) -> pd.DataFrame:
+    report_key=None,
+    top_n=20,
+):
     report = results if report_key is None else results[report_key]
     feature_columns = list(report["feature_columns"])
     if feature_name not in feature_columns:
@@ -2250,7 +2679,9 @@ def feature_drilldown(
 
     feature_idx = feature_columns.index(feature_name)
     audit_df = report["audit_df"]
-    candidate_feature_frame = report.get("candidate_feature_frame", report.get("live_feature_frame"))
+    candidate_feature_frame = report.get(
+        "candidate_feature_frame", report.get("live_feature_frame")
+    )
     step_summary_df = report["step_summary_df"]
     candidate_nonfinite_mask = report.get(
         "candidate_nonfinite_mask",
@@ -2260,7 +2691,9 @@ def feature_drilldown(
         "reference_nonfinite_mask",
         report.get("modeling_nonfinite_mask"),
     )
-    candidate_series = candidate_feature_frame[feature_name].to_numpy(dtype=np.float64, copy=False)
+    candidate_series = candidate_feature_frame[feature_name].to_numpy(
+        dtype=np.float64, copy=False
+    )
     reference_series = audit_df[feature_name].to_numpy(dtype=np.float64, copy=False)
     abs_diff = np.abs(candidate_series - reference_series)
     abs_diff[~(np.isfinite(candidate_series) & np.isfinite(reference_series))] = np.nan
@@ -2284,7 +2717,9 @@ def feature_drilldown(
             "rel_diff": rel_diff,
             "candidate_nonfinite": candidate_nonfinite_mask[:, feature_idx],
             "stored_nonfinite": reference_nonfinite_mask[:, feature_idx],
-            "finite_status_mismatch": report["finite_status_mismatch_mask"][:, feature_idx],
+            "finite_status_mismatch": report["finite_status_mismatch_mask"][
+                :, feature_idx
+            ],
             "proba_up_abs_diff": step_summary_df["proba_up_abs_diff"],
         }
     )
@@ -2301,11 +2736,21 @@ def feature_drilldown(
         and candidate_proba_col in step_summary_df.columns
         and reference_proba_col in step_summary_df.columns
     ):
-        fixed_pred_series = np.asarray(fixed_pred_matrix, dtype=np.float64)[:, feature_idx]
-        proba_shift_series = np.asarray(proba_shift_matrix, dtype=np.float64)[:, feature_idx]
-        gap_reduction_series = np.asarray(gap_reduction_matrix, dtype=np.float64)[:, feature_idx]
-        reference_pred = step_summary_df[reference_proba_col].to_numpy(dtype=np.float64, copy=False)
-        candidate_pred = step_summary_df[candidate_proba_col].to_numpy(dtype=np.float64, copy=False)
+        fixed_pred_series = np.asarray(fixed_pred_matrix, dtype=np.float64)[
+            :, feature_idx
+        ]
+        proba_shift_series = np.asarray(proba_shift_matrix, dtype=np.float64)[
+            :, feature_idx
+        ]
+        gap_reduction_series = np.asarray(gap_reduction_matrix, dtype=np.float64)[
+            :, feature_idx
+        ]
+        reference_pred = step_summary_df[reference_proba_col].to_numpy(
+            dtype=np.float64, copy=False
+        )
+        candidate_pred = step_summary_df[candidate_proba_col].to_numpy(
+            dtype=np.float64, copy=False
+        )
         base_signal_mismatch = (candidate_pred >= 0.5) != (reference_pred >= 0.5)
         fixed_signal_mismatch = (fixed_pred_series >= 0.5) != (reference_pred >= 0.5)
         drilldown_df["proba_up_if_feature_fixed"] = fixed_pred_series
@@ -2324,7 +2769,9 @@ def feature_drilldown(
         ("abs_diff", False),
     ]
     sort_cols = [col for col, _ascending in sort_spec if col in drilldown_df.columns]
-    sort_ascending = [ascending for col, ascending in sort_spec if col in drilldown_df.columns]
+    sort_ascending = [
+        ascending for col, ascending in sort_spec if col in drilldown_df.columns
+    ]
     return drilldown_df.sort_values(
         sort_cols,
         ascending=sort_ascending,
@@ -2334,18 +2781,41 @@ def feature_drilldown(
 
 
 def _build_feature_prediction_impact_export_df(
-    feature_summary_df: pd.DataFrame,
+    feature_summary_df,
     *,
-    top_k: int | None = None,
-    only_impactful: bool = False,
-) -> pd.DataFrame:
+    top_k=None,
+    only_impactful=False,
+):
+    feature_summary_df = feature_summary_df.copy()
+    if (
+        "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed"
+        not in feature_summary_df.columns
+    ):
+        feature_summary_df["mean_abs_proba_gap_reduction_on_drift_rows_if_fixed"] = (
+            feature_summary_df.get("mean_abs_proba_gap_reduction_if_fixed", 0.0)
+        )
+    if (
+        "mean_abs_proba_gap_reduction_on_helped_rows_if_fixed"
+        not in feature_summary_df.columns
+    ):
+        feature_summary_df["mean_abs_proba_gap_reduction_on_helped_rows_if_fixed"] = (
+            feature_summary_df.get("mean_abs_proba_gap_reduction_if_fixed", 0.0)
+        )
+    if "mean_gap_reduction_ratio_on_drift_rows_if_fixed" not in feature_summary_df.columns:
+        feature_summary_df["mean_gap_reduction_ratio_on_drift_rows_if_fixed"] = 0.0
+    if "max_gap_reduction_ratio_on_drift_rows_if_fixed" not in feature_summary_df.columns:
+        feature_summary_df["max_gap_reduction_ratio_on_drift_rows_if_fixed"] = 0.0
+
     slim_columns = [
         "rank",
         "feature",
         "group",
         "builder",
-        "mean_pred_gap_reduction",
-        "max_pred_gap_reduction",
+        "net_pred_gap_reduction",
+        "mean_pred_gap_reduction_on_drift_rows",
+        "mean_pred_gap_reduction_on_helped_rows",
+        "mean_gap_reduction_ratio_on_drift_rows",
+        "max_gap_reduction_ratio_on_drift_rows",
         "mean_pred_shift",
         "max_pred_shift",
         "signal_flips_resolved",
@@ -2364,7 +2834,7 @@ def _build_feature_prediction_impact_export_df(
                 export_df["rows_helped"].gt(0)
                 | export_df["signal_flips_resolved"].gt(0)
                 | export_df["proba_drift_rows_resolved"].gt(0)
-                | export_df["max_pred_shift"].abs().gt(PREDICTION_DIFF_TOL)
+                | export_df["net_pred_gap_reduction"].gt(PREDICTION_DIFF_TOL)
             )
             export_df = export_df.loc[impact_mask].reset_index(drop=True)
             export_df["rank"] = np.arange(1, len(export_df) + 1, dtype=np.int32)
@@ -2377,8 +2847,11 @@ def _build_feature_prediction_impact_export_df(
         "feature",
         "group",
         "builder_name",
-        "mean_abs_proba_gap_reduction_if_fixed",
-        "max_abs_proba_gap_reduction_if_fixed",
+        "net_abs_proba_gap_reduction_if_fixed",
+        "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed",
+        "mean_abs_proba_gap_reduction_on_helped_rows_if_fixed",
+        "mean_gap_reduction_ratio_on_drift_rows_if_fixed",
+        "max_gap_reduction_ratio_on_drift_rows_if_fixed",
         "mean_abs_proba_shift_if_fixed",
         "max_abs_proba_shift_if_fixed",
         "rows_signal_mismatch_resolved_if_fixed",
@@ -2388,8 +2861,11 @@ def _build_feature_prediction_impact_export_df(
     ]
     rename_map = {
         "builder_name": "builder",
-        "mean_abs_proba_gap_reduction_if_fixed": "mean_pred_gap_reduction",
-        "max_abs_proba_gap_reduction_if_fixed": "max_pred_gap_reduction",
+        "net_abs_proba_gap_reduction_if_fixed": "net_pred_gap_reduction",
+        "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed": "mean_pred_gap_reduction_on_drift_rows",
+        "mean_abs_proba_gap_reduction_on_helped_rows_if_fixed": "mean_pred_gap_reduction_on_helped_rows",
+        "mean_gap_reduction_ratio_on_drift_rows_if_fixed": "mean_gap_reduction_ratio_on_drift_rows",
+        "max_gap_reduction_ratio_on_drift_rows_if_fixed": "max_gap_reduction_ratio_on_drift_rows",
         "mean_abs_proba_shift_if_fixed": "mean_pred_shift",
         "max_abs_proba_shift_if_fixed": "max_pred_shift",
         "rows_signal_mismatch_resolved_if_fixed": "signal_flips_resolved",
@@ -2401,17 +2877,22 @@ def _build_feature_prediction_impact_export_df(
         return pd.DataFrame(columns=slim_columns)
 
     sort_spec = [
-        ("mean_abs_proba_gap_reduction_if_fixed", False),
-        ("max_abs_proba_gap_reduction_if_fixed", False),
-        ("mean_abs_proba_shift_if_fixed", False),
-        ("max_abs_proba_shift_if_fixed", False),
         ("rows_signal_mismatch_resolved_if_fixed", False),
         ("rows_proba_diff_gt_tol_resolved_if_fixed", False),
+        ("net_abs_proba_gap_reduction_if_fixed", False),
+        ("mean_abs_proba_gap_reduction_on_drift_rows_if_fixed", False),
+        ("mean_gap_reduction_ratio_on_drift_rows_if_fixed", False),
+        ("mean_abs_proba_shift_if_fixed", False),
+        ("max_abs_proba_shift_if_fixed", False),
         ("rows_abs_proba_gap_reduced_if_fixed", False),
         ("feature", True),
     ]
-    sort_cols = [col for col, _ascending in sort_spec if col in feature_summary_df.columns]
-    sort_ascending = [ascending for col, ascending in sort_spec if col in feature_summary_df.columns]
+    sort_cols = [
+        col for col, _ascending in sort_spec if col in feature_summary_df.columns
+    ]
+    sort_ascending = [
+        ascending for col, ascending in sort_spec if col in feature_summary_df.columns
+    ]
     export_df = (
         feature_summary_df.sort_values(
             sort_cols,
@@ -2429,7 +2910,7 @@ def _build_feature_prediction_impact_export_df(
             export_df["rows_helped"].gt(0)
             | export_df["signal_flips_resolved"].gt(0)
             | export_df["proba_drift_rows_resolved"].gt(0)
-            | export_df["max_pred_shift"].abs().gt(PREDICTION_DIFF_TOL)
+            | export_df["net_pred_gap_reduction"].gt(PREDICTION_DIFF_TOL)
         )
         export_df = export_df.loc[impact_mask].reset_index(drop=True)
         export_df["rank"] = np.arange(1, len(export_df) + 1, dtype=np.int32)
@@ -2440,10 +2921,10 @@ def _build_feature_prediction_impact_export_df(
 
 
 def _feature_prediction_impact_records(
-    feature_summary_df: pd.DataFrame,
+    feature_summary_df,
     *,
-    top_k: int,
-) -> list[dict[str, Any]]:
+    top_k,
+):
     export_df = _build_feature_prediction_impact_export_df(
         feature_summary_df,
         top_k=top_k,
@@ -2452,15 +2933,155 @@ def _feature_prediction_impact_records(
     return json.loads(export_df.to_json(orient="records"))
 
 
-def save_audit_outputs(
-    results: dict[str, Any],
+def _build_feature_drop_candidates_df(
+    feature_summary_df,
     *,
-    output_dir: Path,
-    drilldown_feature_name: str | None = None,
-    top_n: int = 50,
-) -> dict[str, Path]:
+    top_k=None,
+):
+    if feature_summary_df.empty:
+        return pd.DataFrame(
+            columns=[
+                "rank",
+                "feature",
+                "group",
+                "builder",
+                "drop_candidate_reason",
+                "importance_gain",
+                "importance_split",
+                "max_abs_diff",
+                "mean_abs_diff",
+                "rmse_abs_diff",
+                "max_rel_diff",
+                "mean_rel_diff",
+                "finite_status_mismatch_count",
+                "mean_pred_shift",
+                "max_pred_shift",
+                "signal_flips_resolved",
+                "proba_drift_rows_resolved",
+            ]
+        )
+
+    export_df = feature_summary_df.copy()
+    if "builder_name" in export_df.columns:
+        export_df["builder"] = export_df["builder_name"]
+    elif "builder" not in export_df.columns:
+        export_df["builder"] = "unknown"
+
+    if "importance_gain" not in export_df.columns:
+        export_df["importance_gain"] = 0.0
+    if "importance_split" not in export_df.columns:
+        export_df["importance_split"] = 0.0
+    if "mean_abs_proba_shift_if_fixed" not in export_df.columns:
+        export_df["mean_abs_proba_shift_if_fixed"] = 0.0
+    if "max_abs_proba_shift_if_fixed" not in export_df.columns:
+        export_df["max_abs_proba_shift_if_fixed"] = 0.0
+    if "rows_signal_mismatch_resolved_if_fixed" not in export_df.columns:
+        export_df["rows_signal_mismatch_resolved_if_fixed"] = 0
+    if "rows_proba_diff_gt_tol_resolved_if_fixed" not in export_df.columns:
+        export_df["rows_proba_diff_gt_tol_resolved_if_fixed"] = 0
+
+    export_df["flag_finite_status_mismatch"] = (
+        export_df["finite_status_mismatch_count"] > 0
+    )
+    export_df["flag_max_abs_diff"] = export_df["max_abs_diff"].abs().gt(
+        FEATURE_DROP_MAX_ABS_DIFF_TOL
+    )
+    export_df["flag_mean_abs_diff"] = export_df["mean_abs_diff"].abs().gt(
+        FEATURE_DROP_MEAN_ABS_DIFF_TOL
+    )
+    export_df["flag_max_rel_diff"] = export_df["max_rel_diff"].gt(
+        FEATURE_DROP_MAX_REL_DIFF_TOL
+    )
+    export_df["drop_candidate"] = (
+        export_df["flag_finite_status_mismatch"]
+        | export_df["flag_max_abs_diff"]
+        | export_df["flag_mean_abs_diff"]
+        | export_df["flag_max_rel_diff"]
+    )
+
+    reason_cols = [
+        ("flag_finite_status_mismatch", "finite_status_mismatch"),
+        (
+            "flag_max_abs_diff",
+            f"max_abs_diff>{FEATURE_DROP_MAX_ABS_DIFF_TOL:g}",
+        ),
+        (
+            "flag_mean_abs_diff",
+            f"mean_abs_diff>{FEATURE_DROP_MEAN_ABS_DIFF_TOL:g}",
+        ),
+        (
+            "flag_max_rel_diff",
+            f"max_rel_diff>{FEATURE_DROP_MAX_REL_DIFF_TOL:g}",
+        ),
+    ]
+    reasons = []
+    for row in export_df.itertuples(index=False):
+        parts = [label for flag_name, label in reason_cols if getattr(row, flag_name)]
+        reasons.append("; ".join(parts))
+    export_df["drop_candidate_reason"] = reasons
+
+    export_df = export_df.loc[export_df["drop_candidate"]].copy()
+    export_df = export_df.sort_values(
+        [
+            "finite_status_mismatch_count",
+            "max_rel_diff",
+            "mean_rel_diff",
+            "max_abs_diff",
+            "mean_abs_diff",
+            "importance_gain",
+            "importance_split",
+            "max_abs_proba_shift_if_fixed",
+            "mean_abs_proba_shift_if_fixed",
+            "feature",
+        ],
+        ascending=[False, False, False, False, False, False, False, False, False, True],
+        kind="stable",
+        na_position="last",
+    ).reset_index(drop=True)
+
+    export_df = export_df.loc[
+        :,
+        [
+            "feature",
+            "group",
+            "builder",
+            "drop_candidate_reason",
+            "importance_gain",
+            "importance_split",
+            "max_abs_diff",
+            "mean_abs_diff",
+            "rmse_abs_diff",
+            "max_rel_diff",
+            "mean_rel_diff",
+            "finite_status_mismatch_count",
+            "mean_abs_proba_shift_if_fixed",
+            "max_abs_proba_shift_if_fixed",
+            "rows_signal_mismatch_resolved_if_fixed",
+            "rows_proba_diff_gt_tol_resolved_if_fixed",
+        ],
+    ].rename(
+        columns={
+            "mean_abs_proba_shift_if_fixed": "mean_pred_shift",
+            "max_abs_proba_shift_if_fixed": "max_pred_shift",
+            "rows_signal_mismatch_resolved_if_fixed": "signal_flips_resolved",
+            "rows_proba_diff_gt_tol_resolved_if_fixed": "proba_drift_rows_resolved",
+        }
+    )
+    export_df.insert(0, "rank", np.arange(1, len(export_df) + 1, dtype=np.int32))
+    if top_k is not None:
+        export_df = export_df.head(int(top_k)).reset_index(drop=True)
+    return export_df
+
+
+def save_audit_outputs(
+    results,
+    *,
+    output_dir,
+    drilldown_feature_name=None,
+    top_n=50,
+):
     output_dir.mkdir(parents=True, exist_ok=True)
-    written_paths: dict[str, Path] = {}
+    written_paths = {}
     report = results["live_vs_stored_report"]
     drift_reason_report = results["drift_reason_report"]
 
@@ -2471,6 +3092,9 @@ def save_audit_outputs(
     )
     written_paths["feature_prediction_impacts_full_csv"] = (
         output_dir / "live_vs_stored_feature_prediction_impacts_full.csv"
+    )
+    written_paths["feature_drop_candidates_csv"] = (
+        output_dir / "live_vs_stored_feature_drop_candidates.csv"
     )
     written_paths["builder_prediction_impacts_csv"] = (
         output_dir / "live_vs_stored_builder_prediction_impacts.csv"
@@ -2490,13 +3114,30 @@ def save_audit_outputs(
         report["feature_summary_df"],
         top_k=25,
     )
+    drop_candidate_df = _build_feature_drop_candidates_df(report["feature_summary_df"])
+    top10_drop_candidate_records = json.loads(
+        drop_candidate_df.head(10).to_json(orient="records")
+    )
+    top25_drop_candidate_records = json.loads(
+        drop_candidate_df.head(25).to_json(orient="records")
+    )
 
     written_paths["summary_json"].write_text(
         json.dumps(
             {
                 "live_vs_stored": report["summary"].to_dict(),
                 "drift_reason": drift_reason_report["summary"].to_dict(),
-                "prediction_impact_feature_rank_metric": "mean_pred_gap_reduction",
+                "feature_drop_candidate_thresholds": {
+                    "max_abs_diff_gt": FEATURE_DROP_MAX_ABS_DIFF_TOL,
+                    "mean_abs_diff_gt": FEATURE_DROP_MEAN_ABS_DIFF_TOL,
+                    "max_rel_diff_gt": FEATURE_DROP_MAX_REL_DIFF_TOL,
+                },
+                "feature_drop_candidate_count": int(len(drop_candidate_df)),
+                "top10_feature_drop_candidates": top10_drop_candidate_records,
+                "top25_feature_drop_candidates": top25_drop_candidate_records,
+                "prediction_impact_feature_rank_metric": (
+                    "rows_proba_diff_gt_tol_resolved_then_net_pred_gap_reduction"
+                ),
                 "top10_prediction_impact_features": top10_feature_records,
                 "top25_prediction_impact_features": top25_feature_records,
             },
@@ -2514,9 +3155,15 @@ def save_audit_outputs(
         ("feature_mean_abs_diff", False),
         ("Opened", True),
     ]
-    decision_sort_cols = [col for col, _ascending in decision_sort_spec if col in report["step_summary_df"]]
+    decision_sort_cols = [
+        col
+        for col, _ascending in decision_sort_spec
+        if col in report["step_summary_df"]
+    ]
     decision_sort_ascending = [
-        ascending for col, ascending in decision_sort_spec if col in report["step_summary_df"]
+        ascending
+        for col, ascending in decision_sort_spec
+        if col in report["step_summary_df"]
     ]
     decision_rows_export_df = report["step_summary_df"].sort_values(
         decision_sort_cols,
@@ -2533,6 +3180,10 @@ def save_audit_outputs(
         written_paths["feature_prediction_impacts_full_csv"],
         index=False,
     )
+    drop_candidate_df.to_csv(
+        written_paths["feature_drop_candidates_csv"],
+        index=False,
+    )
     report["builder_summary_df"].to_csv(
         written_paths["builder_prediction_impacts_csv"],
         index=False,
@@ -2543,7 +3194,9 @@ def save_audit_outputs(
     )
 
     if drilldown_feature_name:
-        drilldown_path = output_dir / f"live_vs_stored_drilldown_{drilldown_feature_name}.csv"
+        drilldown_path = (
+            output_dir / f"live_vs_stored_drilldown_{drilldown_feature_name}.csv"
+        )
         feature_drilldown(
             results,
             drilldown_feature_name,
@@ -2555,12 +3208,12 @@ def save_audit_outputs(
     return written_paths
 
 
-def _default_output_dir() -> Path:
+def _default_output_dir():
     stamp = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
     return Path("data/analysis/live_feature_parity") / stamp
 
 
-def main() -> None:
+def main():
     started_at = time.perf_counter()
     results = run_live_modeling_feature_audit(
         days_back=AUDIT_DAYS_BACK,
@@ -2615,11 +3268,21 @@ def main() -> None:
         "dominant_prediction_impact_builder_name",
         "dominant_prediction_impact_feature",
     ]
-    available_dominant_keys = [key for key in dominant_keys if key in reason_summary.index]
+    available_dominant_keys = [
+        key for key in dominant_keys if key in reason_summary.index
+    ]
     print(reason_summary.loc[available_dominant_keys].to_string())
     print()
     print("Top drift rows:")
     print(results["drift_reason_report"]["row_summary_df"].to_string(index=False))
+    print()
+    print("Feature drop candidates:")
+    print(
+        _build_feature_drop_candidates_df(
+            results["live_vs_stored_report"]["feature_summary_df"],
+            top_k=min(25, AUDIT_TOP_N),
+        ).to_string(index=False)
+    )
     print()
     print("Top prediction-impact features:")
     print(

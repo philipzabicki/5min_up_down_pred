@@ -97,63 +97,59 @@ VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
 # Seed trials are injected before optimization starts.
 OPTUNA_SEED_TRIAL_PARAMS = [
     {
-      "step": 73,
-      "neighbor_bins": 15,
-      "local_window": 19,
-      "sigma_divisor": 22.103834316321777,
-      "min_sigma": 158.51656478094498,
-      "short_half_life_candles": 60,
-      "medium_half_life_candles": 4017,
-      "long_half_life_candles": 22587
+        "step": 73,
+        "neighbor_bins": 15,
+        "local_window": 19,
+        "sigma_divisor": 22.103834316321777,
+        "min_sigma": 158.51656478094498,
+        "short_half_life_candles": 60,
+        "medium_half_life_candles": 4017,
+        "long_half_life_candles": 22587,
     },
     {
-      "step": 54,
-      "neighbor_bins": 15,
-      "local_window": 128,
-      "sigma_divisor": 13.808327590597779,
-      "min_sigma": 37.674893963884564,
-      "short_half_life_candles": 91,
-      "medium_half_life_candles": 2942,
-      "long_half_life_candles": 60205
+        "step": 54,
+        "neighbor_bins": 15,
+        "local_window": 128,
+        "sigma_divisor": 13.808327590597779,
+        "min_sigma": 37.674893963884564,
+        "short_half_life_candles": 91,
+        "medium_half_life_candles": 2942,
+        "long_half_life_candles": 60205,
     },
     {
-    "step": 42,
-    "neighbor_bins": 9,
-    "local_window": 77,
-    "sigma_divisor": 8.250626386620294,
-    "min_sigma": 247.31082044719778,
-    "short_half_life_candles": 67,
-    "medium_half_life_candles": 5415,
-    "long_half_life_candles": 19529
+        "step": 42,
+        "neighbor_bins": 9,
+        "local_window": 77,
+        "sigma_divisor": 8.250626386620294,
+        "min_sigma": 247.31082044719778,
+        "short_half_life_candles": 67,
+        "medium_half_life_candles": 5415,
+        "long_half_life_candles": 19529,
     },
     {
-      "step": 48,
-      "neighbor_bins": 16,
-      "local_window": 223,
-      "sigma_divisor": 0.5914936678621061,
-      "min_sigma": 1.0057446932628438,
-      "short_half_life_candles": 34,
-      "medium_half_life_candles": 2513,
-      "long_half_life_candles": 79742
-    }
+        "step": 48,
+        "neighbor_bins": 16,
+        "local_window": 223,
+        "sigma_divisor": 0.5914936678621061,
+        "min_sigma": 1.0057446932628438,
+        "short_half_life_candles": 34,
+        "medium_half_life_candles": 2513,
+        "long_half_life_candles": 79742,
+    },
 ]
 
-N_TRIALS = 100
+N_TRIALS = 8
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
-TPE_STARTUP_TRIALS = int(N_TRIALS*0.1)
+TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
 
 CV_OBJECTIVE_NAME = "brier_score_mean_plus_std_penalty"
 CV_BRIER_STD_PENALTY = 1.0
 CRASH_PENALTY = 1.0
-STUDY_NAME = "volume_profile_opt_brier_mean_std_1725_24032026"
+STUDY_NAME = "volume_profile_opt_brier_mean_std_0030_26032026"
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
-BEST_RESULT_PATH = Path(
-    "data/optuna/volume_profile/volume_profile_best_mean_std.json"
-)
-TRIALS_CSV_PATH = Path(
-    "data/optuna/volume_profile/volume_profile_trials_mean_std.csv"
-)
+BEST_RESULT_PATH = Path("data/optuna/volume_profile/volume_profile_best_mean_std.json")
+TRIALS_CSV_PATH = Path("data/optuna/volume_profile/volume_profile_trials_mean_std.csv")
 
 
 def require_columns(df, required_columns):
@@ -171,7 +167,9 @@ def build_target_frame(df):
         close_values=out[TARGET_PRICE_COL],
         horizon_minutes=TARGET_HORIZON_MINUTES,
     )
-    out = add_target_weights(out, opened_col=TARGET_TIME_COL, weight_col=TARGET_WEIGHT_COL)
+    out = add_target_weights(
+        out, opened_col=TARGET_TIME_COL, weight_col=TARGET_WEIGHT_COL
+    )
     return out
 
 
@@ -194,7 +192,7 @@ def load_base_ohlcv_frame(data_path):
     print(f"load raw data | path={data_path}")
     df = pd.read_csv(data_path, usecols=required_columns)
     require_columns(df, required_columns)
-    raw_rows = int(len(df))
+    raw_rows = len(df)
     df, drop_frozen_summary = drop_frozen_ohlc_blocks(
         df,
         raw_config=MODELING_DATASET_SETTINGS.get("drop_frozen_ohlc_blocks"),
@@ -211,7 +209,7 @@ def load_base_ohlcv_frame(data_path):
 
     df = build_target_frame(df)
     df = df[df[TARGET_COL].notna()].reset_index(drop=True)
-    rows_after_target_notna = int(len(df))
+    rows_after_target_notna = len(df)
     if rows_after_target_notna == 0:
         raise ValueError("No rows left after target construction.")
 
@@ -237,10 +235,14 @@ def load_base_ohlcv_frame(data_path):
     sample_weight_filtered = sample_weight_full[keep_mask]
     class_distribution = {
         int(cls): int(count)
-        for cls, count in zip(*np.unique(y_filtered.astype(np.int8), return_counts=True))
+        for cls, count in zip(
+            *np.unique(y_filtered.astype(np.int8), return_counts=True)
+        )
     }
     weighted_class_distribution = {
-        str(int(class_id)): float(sample_weight_filtered[y_filtered == float(class_id)].sum())
+        str(int(class_id)): float(
+            sample_weight_filtered[y_filtered == float(class_id)].sum()
+        )
         for class_id in sorted(class_distribution.keys())
     }
     row_filter_info = {
@@ -415,9 +417,7 @@ class ObjectiveAlignedLightGBMPruningCallback:
         self._trial.report(current_objective, step=env.iteration)
 
         if self._trial.should_prune():
-            raise optuna.TrialPruned(
-                f"Trial was pruned at iteration {env.iteration}."
-            )
+            raise optuna.TrialPruned(f"Trial was pruned at iteration {env.iteration}.")
 
 
 def get_supported_volume_profile_param_names(normalized_base):
@@ -466,9 +466,7 @@ def validate_optuna_search_spec(name, spec):
                 f"Integer log search space requires low >= 1 for {name!r}."
             )
         if high_i < low_i:
-            raise ValueError(
-                f"Integer search space requires high >= low for {name!r}."
-            )
+            raise ValueError(f"Integer search space requires high >= low for {name!r}.")
         return
 
     low_f = float(low)
@@ -904,8 +902,8 @@ def run_optuna_optimization():
         "decision_row_filter": base_data["row_filter_info"],
         "feature_set": {
             "mode": "volume_profile_fixed_range_only",
-            "base_feature_count": int(len(normalized_base_vp_config["feature_columns"])),
-            "best_feature_count": int(len(best_normalized_vp_config["feature_columns"])),
+            "base_feature_count": len(normalized_base_vp_config["feature_columns"]),
+            "best_feature_count": len(best_normalized_vp_config["feature_columns"]),
         },
         "study_name": STUDY_NAME,
         "storage": STORAGE,

@@ -1,12 +1,11 @@
 import numpy as np
 import pandas as pd
 
-
 TARGET_WEIGHT_COL = "target_5m_weight"
 TARGET_WEIGHT_MINUTE_MODULO = 5
 TARGET_WEIGHT_MINUTE_REMAINDER = 4
 TARGET_WEIGHT_DECISION_VALUE = 0.75
-TARGET_WEIGHT_OTHER_VALUE = 0.25/4
+TARGET_WEIGHT_OTHER_VALUE = 0.25 / 4
 
 
 def _format_weight_key(value):
@@ -53,7 +52,9 @@ def compute_binary_close_target_from_opened(
     )
     close_series = pd.Series(close_np, index=opened_index)
     future_opened = opened_index + pd.Timedelta(minutes=horizon)
-    future_close = close_series.reindex(future_opened).to_numpy(dtype=np.float64, copy=False)
+    future_close = close_series.reindex(future_opened).to_numpy(
+        dtype=np.float64, copy=False
+    )
     current_close = close_series.to_numpy(dtype=np.float64, copy=False)
 
     target = np.full(len(close_series), np.nan, dtype=np.float64)

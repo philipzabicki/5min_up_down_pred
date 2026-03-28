@@ -4,13 +4,11 @@ import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
 
 import audit_indicator_stability as audit
-
 
 DEFAULT_OUTPUT_DIR = Path("data/analysis/indicator_instability")
 DEFAULT_WINDOW_POINTS = 10
@@ -133,7 +131,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_audit_context(summary_path: Path, report_path: Path):
+def load_audit_context(summary_path, report_path):
     if not summary_path.exists():
         raise FileNotFoundError(f"Missing audit summary JSON: {summary_path}")
     if not report_path.exists():
@@ -163,7 +161,9 @@ def load_audit_context(summary_path: Path, report_path: Path):
         "unstable_features": unstable_features,
         "meta_path": meta_path,
         "meta": meta,
-        "fit_results_dir": Path(str(summary.get("fit_results_dir", audit.FIT_RESULTS_DIR))),
+        "fit_results_dir": Path(
+            str(summary.get("fit_results_dir", audit.FIT_RESULTS_DIR))
+        ),
         "reference_path": Path(
             str(summary.get("reference_path", audit.resolve_reference_path(meta)))
         ),
@@ -174,7 +174,7 @@ def load_audit_context(summary_path: Path, report_path: Path):
     }
 
 
-def resolve_specs(meta: dict, fit_results_dir: Path, feature_names: list[str]):
+def resolve_specs(meta, fit_results_dir, feature_names):
     feature_columns = list(meta.get("feature_columns", []))
     specs, _ = audit.load_indicator_specs(feature_columns, fit_results_dir)
     spec_by_feature = {spec.feature_col: spec for spec in specs}
@@ -190,11 +190,11 @@ def resolve_specs(meta: dict, fit_results_dir: Path, feature_names: list[str]):
 
 
 def load_aligned_reference_and_ohlcv(
-    reference_path: Path,
-    unstable_features: list[str],
-    specs_by_feature: dict[str, audit.IndicatorSpec],
-    anchors: int,
-    max_window: int,
+    reference_path,
+    unstable_features,
+    specs_by_feature,
+    anchors,
+    max_window,
 ):
     reference_df = audit.read_reference_tail(reference_path, unstable_features, anchors)
     max_estimate = max(
@@ -233,7 +233,11 @@ def load_aligned_reference_and_ohlcv(
         )
 
     anchor_match = audit.compare_anchor_ohlcv(reference_df, ohlcv_df, anchor_positions)
-    if anchor_match["checked"] and not anchor_match["is_match"] and ohlcv_source != "local_csv":
+    if (
+        anchor_match["checked"]
+        and not anchor_match["is_match"]
+        and ohlcv_source != "local_csv"
+    ):
         ohlcv_df = audit.load_local_ohlcv()
         ohlcv_source = "local_csv_fallback_after_rest_ohlcv_mismatch"
         ohlcv_index = pd.Index(ohlcv_df["Opened"])
@@ -242,7 +246,9 @@ def load_aligned_reference_and_ohlcv(
             raise RuntimeError(
                 "Fallback local OHLCV does not cover the same anchor timestamps as the audit reference."
             )
-        anchor_match = audit.compare_anchor_ohlcv(reference_df, ohlcv_df, anchor_positions)
+        anchor_match = audit.compare_anchor_ohlcv(
+            reference_df, ohlcv_df, anchor_positions
+        )
 
     if anchor_match["checked"] and not anchor_match["is_match"]:
         raise RuntimeError(
@@ -252,7 +258,7 @@ def load_aligned_reference_and_ohlcv(
     return reference_df, ohlcv_df, anchor_positions, ohlcv_source, anchor_match
 
 
-def extract_periods(params: dict[str, Any]) -> dict[str, int]:
+def extract_periods(params):
     return {
         str(name): int(value)
         for name, value in params.items()
@@ -260,7 +266,7 @@ def extract_periods(params: dict[str, Any]) -> dict[str, int]:
     }
 
 
-def extract_ma_types(params: dict[str, Any]) -> dict[str, str]:
+def extract_ma_types(params):
     out = {}
     for name, value in params.items():
         key = str(name).lower()
@@ -269,7 +275,7 @@ def extract_ma_types(params: dict[str, Any]) -> dict[str, str]:
     return out
 
 
-def classify_ma_types(ma_types: dict[str, str]):
+def classify_ma_types(ma_types):
     recursive = sorted(
         {value for value in ma_types.values() if value in INFINITE_MEMORY_MA_TYPES}
     )
@@ -288,11 +294,11 @@ def classify_ma_types(ma_types: dict[str, str]):
 
 
 def build_diagnostic_windows(
-    spec: audit.IndicatorSpec,
-    upper_bound: int,
-    formula_window: int,
-    first_all_finite_window: int | None,
-    max_points: int,
+    spec,
+    upper_bound,
+    formula_window,
+    first_all_finite_window,
+    max_points,
 ):
     periods = list(extract_periods(spec.params).values())
     windows = {2, int(upper_bound), int(formula_window)}
@@ -324,15 +330,15 @@ def build_diagnostic_windows(
 
 
 def evaluate_window(
-    spec: audit.IndicatorSpec,
-    ohlcv_np: np.ndarray,
-    anchor_positions: np.ndarray,
-    anchor_opened: pd.Series,
-    reference_values: np.ndarray,
-    window_len: int,
-    abs_tol: float,
-    rel_tol: float,
-    include_anchor_rows: bool,
+    spec,
+    ohlcv_np,
+    anchor_positions,
+    anchor_opened,
+    reference_values,
+    window_len,
+    abs_tol,
+    rel_tol,
+    include_anchor_rows,
 ):
     status_counts = Counter()
     anchor_rows = []
@@ -455,7 +461,9 @@ def evaluate_window(
 
     return {
         "window_len": int(window_len),
-        "all_finite": bool(finite_count == reference_finite_count and reference_finite_count > 0),
+        "all_finite": bool(
+            finite_count == reference_finite_count and reference_finite_count > 0
+        ),
         "all_within_tol": bool(
             within_tol_count == reference_finite_count and reference_finite_count > 0
         ),
@@ -474,7 +482,7 @@ def evaluate_window(
 
 def find_first_all_finite_window(
     evaluate_window_summary,
-    upper_bound: int,
+    upper_bound,
 ):
     lower = 2
     lower_result = evaluate_window_summary(lower)
@@ -510,11 +518,11 @@ def find_first_all_finite_window(
 
 
 def infer_likely_causes(
-    spec: audit.IndicatorSpec,
-    formula_window: int,
-    first_all_finite_window: int | None,
-    max_diag: dict[str, Any],
-    best_window_tested: int | None,
+    spec,
+    formula_window,
+    first_all_finite_window,
+    max_diag,
+    best_window_tested,
 ):
     periods = extract_periods(spec.params)
     ma_types = extract_ma_types(spec.params)
@@ -537,7 +545,9 @@ def infer_likely_causes(
         causes.append("recursive_ma_memory")
     if max_period >= 1000:
         causes.append("very_large_periods")
-    if best_window_tested is not None and best_window_tested > max(int(formula_window) * 4, 2048):
+    if best_window_tested is not None and best_window_tested > max(
+        int(formula_window) * 4, 2048
+    ):
         causes.append("max_window_far_above_formula")
 
     if spec.indicator in {"MACD", "ChaikinOsc"}:
@@ -553,26 +563,26 @@ def infer_likely_causes(
 
 
 def diagnose_feature(
-    feature_col: str,
-    spec: audit.IndicatorSpec,
-    report_row: pd.Series,
-    reference_df: pd.DataFrame,
-    anchor_positions: np.ndarray,
-    ohlcv_np: np.ndarray,
-    abs_tol: float,
-    rel_tol: float,
-    max_window: int,
-    window_points: int,
-    finite_scan_upper: int,
+    feature_col,
+    spec,
+    report_row,
+    reference_df,
+    anchor_positions,
+    ohlcv_np,
+    abs_tol,
+    rel_tol,
+    max_window,
+    window_points,
+    finite_scan_upper,
 ):
     reference_values = reference_df[feature_col].to_numpy(dtype=np.float64)
     anchor_opened = reference_df["Opened"]
     upper_bound = min(int(max_window), int(np.min(anchor_positions)) + 1)
     formula_window = max(2, int(spec.required_candles_estimate))
 
-    summary_cache: dict[int, dict[str, Any]] = {}
+    summary_cache = {}
 
-    def evaluate_summary(window_len: int):
+    def evaluate_summary(window_len):
         window_len = int(window_len)
         if window_len not in summary_cache:
             summary_cache[window_len] = evaluate_window(
@@ -623,7 +633,10 @@ def diagnose_feature(
             key: value for key, value in diag.items() if key != "anchor_rows"
         }
 
-        if np.isfinite(diag["max_abs_error"]) and diag["max_abs_error"] < best_window_error:
+        if (
+            np.isfinite(diag["max_abs_error"])
+            and diag["max_abs_error"] < best_window_error
+        ):
             best_window_tested = int(window_len)
             best_window_error = float(diag["max_abs_error"])
 
@@ -640,9 +653,21 @@ def diagnose_feature(
                 "n_within_tol": int(diag["n_within_tol"]),
                 "dominant_status": diag["dominant_status"],
                 "status_counts_json": json.dumps(diag["status_counts"], sort_keys=True),
-                "max_abs_error": float(diag["max_abs_error"]) if np.isfinite(diag["max_abs_error"]) else np.nan,
-                "max_rel_error": float(diag["max_rel_error"]) if np.isfinite(diag["max_rel_error"]) else np.nan,
-                "mean_abs_error": float(diag["mean_abs_error"]) if np.isfinite(diag["mean_abs_error"]) else np.nan,
+                "max_abs_error": (
+                    float(diag["max_abs_error"])
+                    if np.isfinite(diag["max_abs_error"])
+                    else np.nan
+                ),
+                "max_rel_error": (
+                    float(diag["max_rel_error"])
+                    if np.isfinite(diag["max_rel_error"])
+                    else np.nan
+                ),
+                "mean_abs_error": (
+                    float(diag["mean_abs_error"])
+                    if np.isfinite(diag["mean_abs_error"])
+                    else np.nan
+                ),
                 "worst_anchor_opened": (
                     pd.Timestamp(worst_anchor["Opened"]).isoformat()
                     if worst_anchor.get("Opened") is not None
@@ -707,7 +732,9 @@ def diagnose_feature(
                 }
             )
 
-    formula_diag = summary_cache.get(int(formula_window)) or evaluate_summary(int(formula_window))
+    formula_diag = summary_cache.get(int(formula_window)) or evaluate_summary(
+        int(formula_window)
+    )
     max_diag = summary_cache.get(int(upper_bound)) or evaluate_summary(int(upper_bound))
     periods = extract_periods(spec.params)
     ma_types = extract_ma_types(spec.params)
@@ -736,7 +763,9 @@ def diagnose_feature(
                 else np.nan
             ),
             "first_all_finite_window": (
-                int(first_all_finite_window) if first_all_finite_window is not None else np.nan
+                int(first_all_finite_window)
+                if first_all_finite_window is not None
+                else np.nan
             ),
             "max_window_tested": int(upper_bound),
             "max_window_all_finite": bool(max_diag["all_finite"]),
@@ -761,7 +790,9 @@ def diagnose_feature(
             "unknown_ma_types": "|".join(unknown),
             "likely_causes": "|".join(causes),
             "likely_cause_explanations": " | ".join(
-                CAUSE_EXPLANATIONS[cause] for cause in causes if cause in CAUSE_EXPLANATIONS
+                CAUSE_EXPLANATIONS[cause]
+                for cause in causes
+                if cause in CAUSE_EXPLANATIONS
             ),
         },
         "window_rows": window_rows,
@@ -839,15 +870,21 @@ def main():
             f"causes={result['feature_row']['likely_causes']}"
         )
 
-    feature_df = pd.DataFrame(feature_rows).sort_values(
-        by=["indicator", "feature_col"]
-    ).reset_index(drop=True)
-    window_df = pd.DataFrame(window_rows).sort_values(
-        by=["feature_col", "window_len"]
-    ).reset_index(drop=True)
-    anchor_df = pd.DataFrame(anchor_rows).sort_values(
-        by=["feature_col", "window_len", "anchor_idx"]
-    ).reset_index(drop=True)
+    feature_df = (
+        pd.DataFrame(feature_rows)
+        .sort_values(by=["indicator", "feature_col"])
+        .reset_index(drop=True)
+    )
+    window_df = (
+        pd.DataFrame(window_rows)
+        .sort_values(by=["feature_col", "window_len"])
+        .reset_index(drop=True)
+    )
+    anchor_df = (
+        pd.DataFrame(anchor_rows)
+        .sort_values(by=["feature_col", "window_len", "anchor_idx"])
+        .reset_index(drop=True)
+    )
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     feature_path = args.output_dir / "feature_report.csv"
@@ -866,7 +903,7 @@ def main():
         "meta_path": str(context["meta_path"]),
         "reference_path": str(context["reference_path"]),
         "fit_results_dir": str(context["fit_results_dir"]),
-        "unstable_feature_count": int(len(unstable_features)),
+        "unstable_feature_count": len(unstable_features),
         "anchors_used": int(context["anchors"]),
         "max_window": int(context["max_window"]),
         "abs_tol": float(context["abs_tol"]),

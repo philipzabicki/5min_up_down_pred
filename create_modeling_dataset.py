@@ -119,7 +119,9 @@ def build_target(df):
         close_values=out[TARGET_PRICE_COL],
         horizon_minutes=TARGET_HORIZON_MINUTES,
     )
-    out = add_target_weights(out, opened_col=TARGET_TIME_COL, weight_col=TARGET_WEIGHT_COL)
+    out = add_target_weights(
+        out, opened_col=TARGET_TIME_COL, weight_col=TARGET_WEIGHT_COL
+    )
     return out
 
 
@@ -216,7 +218,9 @@ def _metric_suffix_for_feature(payload, json_path):
 
 
 def _build_feature_col(indicator, horizon, pop, params, metric_suffix):
-    base = f"{indicator}_fit_{horizon}_pop{int(pop)}_{_param_suffix_for_feature(params)}"
+    base = (
+        f"{indicator}_fit_{horizon}_pop{int(pop)}_{_param_suffix_for_feature(params)}"
+    )
     if not metric_suffix:
         return base
     return f"{base}_{metric_suffix}"
@@ -232,7 +236,10 @@ def parse_fit_results(fit_dir):
     seen_feature_cols = {}
 
     for json_path in sorted(fit_dir.rglob("*.json")):
-        if json_path.name == "fit_indicators_config.json":
+        if json_path.name in {
+            "fit_indicators_config.json",
+            "fit_indicators_applied_config.json",
+        }:
             continue
 
         match = FIT_RESULT_BASE_RE.match(json_path.stem)
@@ -309,15 +316,18 @@ def resolve_volume_profile_modeling_state_path(base_data_file):
         raise ValueError(
             "Could not derive symbol/interval for volume profile modeling state from "
             f"base_data_file={base_data_file!r}. Expected e.g. BTCUSDT1m.csv"
-    )
+        )
     symbol = match.group("symbol")
     interval = match.group("interval")
-    return VP_MODELING_STATE_DIR / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
+    return (
+        VP_MODELING_STATE_DIR / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
+    )
 
 
 def add_indicator_values(df, ohlcv_np, configs, float_dtype=np.float64):
     feature_values = {}
     for cfg in configs:
+        print(f"processing fit config: {cfg['json_path'].name} -> feature_col={cfg['feature_col']}")
         indicator = cfg["indicator"]
         horizon = cfg["horizon"]
         feature_col = cfg["feature_col"]
@@ -335,7 +345,9 @@ def add_indicator_values(df, ohlcv_np, configs, float_dtype=np.float64):
         if feature_col in df.columns:
             raise ValueError(f"Column {feature_col} already exists in dataframe")
         if feature_col in feature_values:
-            raise ValueError(f"Duplicate indicator feature column requested: {feature_col}")
+            raise ValueError(
+                f"Duplicate indicator feature column requested: {feature_col}"
+            )
         feature_values[feature_col] = values.astype(float_dtype, copy=False)
 
     feature_frame = pd.DataFrame(feature_values, index=df.index)
@@ -388,7 +400,9 @@ def build_dataset_from_settings(settings):
                 f"Missing_count={len(missing_vp_features)} preview=[{preview}]"
             )
 
-    configured_streak_interval_to_rule = resolve_streak_interval_to_rule(streak_intervals)
+    configured_streak_interval_to_rule = resolve_streak_interval_to_rule(
+        streak_intervals
+    )
     if feature_subset_parts:
         requested_streak_intervals = feature_subset_parts["streak_intervals"]
         unsupported_streak_intervals = [
@@ -414,7 +428,9 @@ def build_dataset_from_settings(settings):
 
     configs = parse_fit_results(fit_results_dir)
     if feature_subset_parts:
-        selected_indicator_feature_cols = set(feature_subset_parts["indicator_feature_cols"])
+        selected_indicator_feature_cols = set(
+            feature_subset_parts["indicator_feature_cols"]
+        )
         available_indicator_feature_cols = {cfg["feature_col"] for cfg in configs}
         missing_indicator_features = [
             col
@@ -429,7 +445,9 @@ def build_dataset_from_settings(settings):
                 f"preview=[{preview}]"
             )
         configs = [
-            cfg for cfg in configs if cfg["feature_col"] in selected_indicator_feature_cols
+            cfg
+            for cfg in configs
+            if cfg["feature_col"] in selected_indicator_feature_cols
         ]
     elif excluded_feature_set:
         configs = [
@@ -533,9 +551,7 @@ def build_dataset_from_settings(settings):
         TARGET_WEIGHT_COL,
         *ohlcv_cols,
     }
-    excluded_present_cols = [
-        col for col in excluded_feature_names if col in df.columns
-    ]
+    excluded_present_cols = [col for col in excluded_feature_names if col in df.columns]
     excluded_droppable_cols = [
         col for col in excluded_present_cols if col not in protected_cols
     ]
@@ -590,9 +606,7 @@ def build_dataset_from_settings(settings):
             f"dropped_feature_cols=0 missing_requested={len(excluded_missing_cols)} "
             f"protected_kept={len(excluded_protected_cols)}"
         )
-    float_cols = [
-        col for col in df.columns if pd.api.types.is_float_dtype(df[col])
-    ]
+    float_cols = [col for col in df.columns if pd.api.types.is_float_dtype(df[col])]
     if float_cols:
         df = df.astype({col: float_dtype for col in float_cols}, copy=False)
 

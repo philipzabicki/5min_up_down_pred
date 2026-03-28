@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-
 DEFAULT_DROP_FROZEN_OHLC_BLOCKS_CONFIG = {
     "enabled": False,
     "min_block_len": 3,
@@ -42,9 +41,9 @@ def drop_frozen_ohlc_blocks(
     summary = {
         "enabled": bool(config["enabled"]),
         "min_block_len": int(config["min_block_len"]),
-        "rows_before": int(len(df)),
+        "rows_before": len(df),
         "rows_removed": 0,
-        "rows_after": int(len(df)),
+        "rows_after": len(df),
         "blocks_removed": 0,
         "largest_block_len": 0,
         "first_removed_opened": None,
@@ -60,9 +59,9 @@ def drop_frozen_ohlc_blocks(
             + ", ".join(required_cols)
         )
 
-    same_prev_mask = df.loc[:, list(ohlc_cols)].eq(
-        df.loc[:, list(ohlc_cols)].shift(1)
-    ).all(axis=1)
+    same_prev_mask = (
+        df.loc[:, list(ohlc_cols)].eq(df.loc[:, list(ohlc_cols)].shift(1)).all(axis=1)
+    )
     same_prev_mask = same_prev_mask.fillna(False)
     run_group = (~same_prev_mask).cumsum()
     run_lengths = same_prev_mask.groupby(run_group).transform("sum")

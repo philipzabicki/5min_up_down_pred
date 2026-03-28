@@ -8,14 +8,13 @@ import pandas as pd
 import requests
 
 from data.raw_ohlcv_repair import repair_raw_ohlcv_csv
-
+from project_env import load_repo_env
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_DATA_DIR = PROJECT_ROOT / "data"
 CHAINLINK_DATA_DIR = REPO_DATA_DIR / "chainlink"
 CHAINLINK_META_DIR = CHAINLINK_DATA_DIR / "metadata"
 CHAINLINK_RAW_REPORTS_DIR = CHAINLINK_DATA_DIR / "raw_reports"
-ENV_FILE_PATH = PROJECT_ROOT / ".env"
 
 CHAINLINK_STREAM_PAGE_URL = "https://data.chain.link/streams/{stream_slug}"
 CHAINLINK_PUBLIC_LIVE_REPORTS_URL = "https://data.chain.link/api/query-timescale"
@@ -54,36 +53,7 @@ _TOKEN_CACHE = {
 }
 
 
-def _strip_wrapping_quotes(value):
-    value = str(value).strip()
-    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
-        return value[1:-1]
-    return value
-
-
-def _load_env_file(env_path=ENV_FILE_PATH):
-    if not env_path.exists():
-        return False
-
-    for raw_line in env_path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("export "):
-            line = line[7:].strip()
-        if "=" not in line:
-            continue
-
-        key, value = line.split("=", 1)
-        key = key.strip()
-        if not key:
-            continue
-        if key not in os.environ:
-            os.environ[key] = _strip_wrapping_quotes(value)
-    return True
-
-
-_load_env_file()
+load_repo_env(overwrite=False)
 
 
 def _env_text(name, default=""):
@@ -170,7 +140,9 @@ def _normalize_symbol(ticker):
         compact = parts[0]
         base = quote = None
         for candidate_quote in KNOWN_QUOTES:
-            if compact.endswith(candidate_quote) and len(compact) > len(candidate_quote):
+            if compact.endswith(candidate_quote) and len(compact) > len(
+                candidate_quote
+            ):
                 base = compact[: -len(candidate_quote)]
                 quote = candidate_quote
                 break
@@ -210,7 +182,9 @@ def _final_csv_path(symbol_info, interval):
 def _extract_next_data_payload(html):
     match = _NEXT_DATA_RE.search(html)
     if not match:
-        raise ValueError("Could not find __NEXT_DATA__ payload on Chainlink stream page.")
+        raise ValueError(
+            "Could not find __NEXT_DATA__ payload on Chainlink stream page."
+        )
     return json.loads(match.group(1))
 
 
@@ -475,7 +449,9 @@ def _fetch_authenticated_forward_batches(
     )
 
 
-def _fetch_authenticated_backward_all_available(ctx, interval, end_exclusive, session=None):
+def _fetch_authenticated_backward_all_available(
+    ctx, interval, end_exclusive, session=None
+):
     max_window = _candlestick_max_window(interval)
     max_batches = _env_int("CHAINLINK_CANDLESTICK_MAX_BATCHES", CHAINLINK_MAX_BATCHES)
     empty_batch_stop = _env_int(
@@ -565,7 +541,9 @@ def fetch_authenticated_candlestick_ohlcv(
     )
 
 
-def fetch_public_recent_live_reports(ticker="BTCUSD", refresh_metadata=False, session=None):
+def fetch_public_recent_live_reports(
+    ticker="BTCUSD", refresh_metadata=False, session=None
+):
     ctx = _build_stream_context(
         ticker=ticker,
         refresh_metadata=refresh_metadata,
@@ -588,18 +566,24 @@ def fetch_public_recent_live_reports(ticker="BTCUSD", refresh_metadata=False, se
 
     out = pd.DataFrame(
         {
-            "ObservedAt": [_to_utc_timestamp(row["validFromTimestamp"]) for row in rows],
+            "ObservedAt": [
+                _to_utc_timestamp(row["validFromTimestamp"]) for row in rows
+            ],
             "Price": [float(row["price"]) / ctx["multiply"] for row in rows],
             "Bid": [
-                float(row["bid"]) / ctx["multiply"]
-                if row.get("bid") not in (None, "")
-                else float("nan")
+                (
+                    float(row["bid"]) / ctx["multiply"]
+                    if row.get("bid") not in (None, "")
+                    else float("nan")
+                )
                 for row in rows
             ],
             "Ask": [
-                float(row["ask"]) / ctx["multiply"]
-                if row.get("ask") not in (None, "")
-                else float("nan")
+                (
+                    float(row["ask"]) / ctx["multiply"]
+                    if row.get("ask") not in (None, "")
+                    else float("nan")
+                )
                 for row in rows
             ],
         }
@@ -657,7 +641,9 @@ def _parse_public_candlestick_text(text):
     for field, ts, value in _CANDLESTICK_VALUE_RE.findall(str(text)):
         parsed[field] = float(value)
         parsed[f"{field}_ts"] = _to_utc_timestamp(ts)
-    missing = [field for field in ("open", "high", "low", "close") if field not in parsed]
+    missing = [
+        field for field in ("open", "high", "low", "close") if field not in parsed
+    ]
     if missing:
         raise ValueError(
             "Malformed public Chainlink candlestick payload. "
@@ -769,9 +755,8 @@ def _resample_ohlcv(df, interval):
     if out.empty:
         return pd.DataFrame(columns=OHLCV_COLS)
 
-    complete_mask = (
-        (out["Opened"] >= coverage_start)
-        & ((out["Opened"] + interval_delta) <= coverage_end)
+    complete_mask = (out["Opened"] >= coverage_start) & (
+        (out["Opened"] + interval_delta) <= coverage_end
     )
     out = out.loc[complete_mask].reset_index(drop=True)
     if out.empty:
@@ -805,9 +790,8 @@ def _public_reports_to_ohlcv(raw_reports_df, interval):
     if out.empty:
         return pd.DataFrame(columns=OHLCV_COLS)
 
-    complete_mask = (
-        (out["Opened"] >= coverage_start)
-        & ((out["Opened"] + interval_delta) <= coverage_end)
+    complete_mask = (out["Opened"] >= coverage_start) & (
+        (out["Opened"] + interval_delta) <= coverage_end
     )
     out = out.loc[complete_mask].reset_index(drop=True)
     if out.empty:
@@ -823,7 +807,10 @@ def _integrity_report(df, interval, ticker, source_mode, volume_mode):
         return
 
     gap_count = int(
-        (df["Opened"].sort_values().diff().dropna() > _interval_to_timedelta(interval)).sum()
+        (
+            df["Opened"].sort_values().diff().dropna()
+            > _interval_to_timedelta(interval)
+        ).sum()
     )
     newest = pd.Timestamp(df["Opened"].iloc[-1])
     oldest = pd.Timestamp(df["Opened"].iloc[0])

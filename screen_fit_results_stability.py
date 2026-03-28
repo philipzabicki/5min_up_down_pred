@@ -4,7 +4,6 @@ import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -13,7 +12,6 @@ import analyze_indicator_instability as instability
 import audit_indicator_stability as audit
 from create_modeling_dataset import parse_fit_results
 from modeling_dataset_utils import load_modeling_dataset_settings
-
 
 INPUT_DIR = Path("data/features/indicators_fit/all")
 UNSTABLE_DIR = Path("data/features/indicators_fit/unstable")
@@ -35,7 +33,7 @@ MOVE_UNSTABLE = True
 PROGRESS_EVERY = 25
 
 
-def load_full_reference_ohlcv(reference_path: Path) -> pd.DataFrame:
+def load_full_reference_ohlcv(reference_path):
     if reference_path.suffix.lower() != ".csv":
         raise ValueError(
             f"REFERENCE_PATH must point to raw OHLCV CSV, got: {reference_path}"
@@ -51,28 +49,34 @@ def load_full_reference_ohlcv(reference_path: Path) -> pd.DataFrame:
     )
     df["Opened"] = audit.normalize_opened_to_utc_naive(df["Opened"])
     if df["Opened"].isna().any():
-        raise RuntimeError(f"Reference dataset contains invalid Opened timestamps: {reference_path}")
+        raise RuntimeError(
+            f"Reference dataset contains invalid Opened timestamps: {reference_path}"
+        )
     return df
 
 
-def build_indicator_spec(cfg: dict[str, Any]) -> audit.IndicatorSpec:
+def build_indicator_spec(cfg):
     indicator = str(cfg["indicator"])
     builder = audit.VALUE_BUILDERS.get(indicator)
     if builder is None:
-        raise ValueError(f"Unsupported indicator '{indicator}' in fit config: {cfg['json_path']}")
+        raise ValueError(
+            f"Unsupported indicator '{indicator}' in fit config: {cfg['json_path']}"
+        )
     return audit.IndicatorSpec(
         feature_col=str(cfg["feature_col"]),
         indicator=indicator,
         builder=builder,
         params=dict(cfg["params"]),
-        required_candles_estimate=audit.estimate_required_candles(indicator, cfg["params"]),
+        required_candles_estimate=audit.estimate_required_candles(
+            indicator, cfg["params"]
+        ),
     )
 
 
 def compute_reference_anchor_values(
-    spec: audit.IndicatorSpec,
-    full_ohlcv_np: np.ndarray,
-    anchor_positions: np.ndarray,
+    spec,
+    full_ohlcv_np,
+    anchor_positions,
 ):
     try:
         built = spec.builder(spec.params, full_ohlcv_np)
@@ -101,7 +105,7 @@ def compute_reference_anchor_values(
 
 
 def count_problematic_variables(
-    flagged_cfgs: list[dict[str, Any]],
+    flagged_cfgs,
 ):
     counts = Counter()
     for cfg in flagged_cfgs:
@@ -127,21 +131,27 @@ def count_problematic_variables(
     ]
     if not rows:
         return pd.DataFrame(columns=["variable_kind", "variable_name", "count"])
-    return pd.DataFrame(rows).sort_values(
-        by=["count", "variable_kind", "variable_name"],
-        ascending=[False, True, True],
-    ).reset_index(drop=True)
+    return (
+        pd.DataFrame(rows)
+        .sort_values(
+            by=["count", "variable_kind", "variable_name"],
+            ascending=[False, True, True],
+        )
+        .reset_index(drop=True)
+    )
 
 
 def split_problematic_variables_by_kind(
-    variable_counts_df: pd.DataFrame,
-    top_n: int = 20,
+    variable_counts_df,
+    top_n=20,
 ):
     if variable_counts_df.empty:
         return {}
 
     grouped = {}
-    for variable_kind, group_df in variable_counts_df.groupby("variable_kind", sort=True):
+    for variable_kind, group_df in variable_counts_df.groupby(
+        "variable_kind", sort=True
+    ):
         top_df = group_df.sort_values(
             by=["count", "variable_name"],
             ascending=[False, True],
@@ -151,10 +161,10 @@ def split_problematic_variables_by_kind(
 
 
 def move_screened_configs(
-    flagged_cfgs: list[dict[str, Any]],
-    input_dir: Path,
-    unstable_dir: Path,
-    move_files: bool,
+    flagged_cfgs,
+    input_dir,
+    unstable_dir,
+    move_files,
 ):
     manifest_rows = []
     for cfg in flagged_cfgs:
@@ -284,7 +294,9 @@ def main():
         if not is_stable:
             move_reason = f"never_stable_within_{int(MAX_WINDOW)}"
         elif requires_more_history_than_allowed:
-            move_reason = f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}"
+            move_reason = (
+                f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}"
+            )
 
         screen_rows.append(
             {
@@ -296,7 +308,9 @@ def main():
                 "formula_window_checked": int(result["formula_window"]),
                 "formula_is_stable": bool(result["formula_is_stable"]),
                 "formula_max_abs_error": float(result["formula_max_abs_error"]),
-                "stable_min_window": stable_min_window if stable_min_window is not None else np.nan,
+                "stable_min_window": (
+                    stable_min_window if stable_min_window is not None else np.nan
+                ),
                 "stable_minus_estimate": (
                     float(result["stable_min_window"] - spec.required_candles_estimate)
                     if result["stable_min_window"] is not None
@@ -305,11 +319,15 @@ def main():
                 "stable_used_anchors": int(result["stable_used_anchors"]),
                 "stable_max_abs_error": float(result["stable_max_abs_error"]),
                 "is_stable": bool(is_stable),
-                "requires_more_history_than_allowed": bool(requires_more_history_than_allowed),
+                "requires_more_history_than_allowed": bool(
+                    requires_more_history_than_allowed
+                ),
                 "max_allowed_stable_window": int(MAX_ALLOWED_STABLE_WINDOW),
-                "should_move": bool(bool(move_reason)),
+                "should_move": bool(move_reason),
                 "move_reason": move_reason,
-                "reference_error_text": "" if ref_error is None else str(ref_error["error_text"]),
+                "reference_error_text": (
+                    "" if ref_error is None else str(ref_error["error_text"])
+                ),
             }
         )
 
@@ -331,7 +349,9 @@ def main():
                 reference_anchor_df = pd.DataFrame(
                     {
                         "Opened": anchor_opened,
-                        spec.feature_col: np.asarray(reference_values, dtype=np.float64),
+                        spec.feature_col: np.asarray(
+                            reference_values, dtype=np.float64
+                        ),
                     }
                 )
                 diag = instability.diagnose_feature(
@@ -357,7 +377,9 @@ def main():
                         "feature_col": spec.feature_col,
                         "indicator": spec.indicator,
                         "audit_status": str(result["status"]),
-                        "required_candles_estimate": int(spec.required_candles_estimate),
+                        "required_candles_estimate": int(
+                            spec.required_candles_estimate
+                        ),
                         "formula_window": int(result["formula_window"]),
                         "formula_all_finite": False,
                         "formula_all_within_tol": False,
@@ -371,7 +393,9 @@ def main():
                         "max_window_max_abs_error": np.nan,
                         "best_window_tested": np.nan,
                         "best_window_max_abs_error": np.nan,
-                        "max_period": max(instability.extract_periods(spec.params).values(), default=0),
+                        "max_period": max(
+                            instability.extract_periods(spec.params).values(), default=0
+                        ),
                         "period_params_json": json.dumps(
                             instability.extract_periods(spec.params), sort_keys=True
                         ),
@@ -397,7 +421,9 @@ def main():
 
     screen_df = pd.DataFrame(screen_rows)
     if not screen_df.empty:
-        screen_df = screen_df.sort_values(by=["indicator", "feature_col"]).reset_index(drop=True)
+        screen_df = screen_df.sort_values(by=["indicator", "feature_col"]).reset_index(
+            drop=True
+        )
 
     unstable_feature_df = pd.DataFrame(unstable_feature_rows)
     if not unstable_feature_df.empty:
@@ -419,7 +445,9 @@ def main():
     variable_counts_df = count_problematic_variables(flagged_cfgs)
 
     stable_mask = screen_df["is_stable"].astype(bool)
-    stable_values = screen_df.loc[stable_mask, "stable_min_window"].to_numpy(dtype=np.float64)
+    stable_values = screen_df.loc[stable_mask, "stable_min_window"].to_numpy(
+        dtype=np.float64
+    )
     global_stable_window = int(np.nanmax(stable_values)) if stable_values.size else None
     requires_more_history_df = screen_df.loc[
         screen_df["requires_more_history_than_allowed"].astype(bool)
@@ -496,12 +524,15 @@ def main():
     requires_more_history_path = (
         OUTPUT_DIR / f"configs_require_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}.csv"
     )
-    never_stable_path = OUTPUT_DIR / f"configs_never_stable_within_{int(MAX_WINDOW)}.csv"
+    never_stable_path = (
+        OUTPUT_DIR / f"configs_never_stable_within_{int(MAX_WINDOW)}.csv"
+    )
     move_candidates_path = (
         OUTPUT_DIR / f"configs_unstable_above_{int(MAX_ALLOWED_STABLE_WINDOW)}.csv"
     )
     move_candidates_summary_path = (
-        OUTPUT_DIR / f"configs_unstable_above_{int(MAX_ALLOWED_STABLE_WINDOW)}_summary.csv"
+        OUTPUT_DIR
+        / f"configs_unstable_above_{int(MAX_ALLOWED_STABLE_WINDOW)}_summary.csv"
     )
     move_manifest_path = OUTPUT_DIR / "unstable_move_manifest.csv"
     summary_path = OUTPUT_DIR / "summary.json"
@@ -513,32 +544,38 @@ def main():
     variable_counts_df.to_csv(variable_counts_path, index=False)
     indicator_summary_df.to_csv(indicator_summary_path, index=False)
     export_df.loc[
-        export_df["move_reason"] == f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}"
+        export_df["move_reason"]
+        == f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}"
     ].to_csv(requires_more_history_path, index=False)
     export_df.loc[
         export_df["move_reason"] == f"never_stable_within_{int(MAX_WINDOW)}"
     ].to_csv(never_stable_path, index=False)
-    export_df.loc[export_df["move_reason"] != ""].to_csv(move_candidates_path, index=False)
+    export_df.loc[export_df["move_reason"] != ""].to_csv(
+        move_candidates_path, index=False
+    )
     pd.DataFrame(
         [
             {
                 "bucket": f"all_above_{int(MAX_ALLOWED_STABLE_WINDOW)}_or_never_stable",
-                "count": int(len(move_candidates_df)),
+                "count": len(move_candidates_df),
             },
             {
                 "bucket": f"never_stable_within_{int(MAX_WINDOW)}",
-                "count": int(len(never_stable_df)),
+                "count": len(never_stable_df),
             },
             {
                 "bucket": f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}",
-                "count": int(len(requires_more_history_df)),
+                "count": len(requires_more_history_df),
             },
         ]
     ).to_csv(move_candidates_summary_path, index=False)
     move_manifest_df.to_csv(move_manifest_path, index=False)
 
     worst_unstable = []
-    if not unstable_feature_df.empty and "max_window_max_abs_error" in unstable_feature_df.columns:
+    if (
+        not unstable_feature_df.empty
+        and "max_window_max_abs_error" in unstable_feature_df.columns
+    ):
         top_unstable = unstable_feature_df.sort_values(
             by=["max_window_max_abs_error", "feature_col"],
             ascending=[False, True],
@@ -559,10 +596,14 @@ def main():
 
     top_stable = []
     if stable_mask.any():
-        stable_sorted = screen_df.loc[stable_mask].sort_values(
-            by=["stable_min_window", "feature_col"],
-            ascending=[False, True],
-        ).head(20)
+        stable_sorted = (
+            screen_df.loc[stable_mask]
+            .sort_values(
+                by=["stable_min_window", "feature_col"],
+                ascending=[False, True],
+            )
+            .head(20)
+        )
         for _, row in stable_sorted.iterrows():
             top_stable.append(
                 {
@@ -591,7 +632,7 @@ def main():
         "input_dir": str(INPUT_DIR),
         "unstable_dir": str(UNSTABLE_DIR),
         "reference_path": str(REFERENCE_PATH),
-        "total_fit_configs": int(len(screen_df)),
+        "total_fit_configs": len(screen_df),
         "stable_count": int(stable_mask.sum()),
         "unstable_count": int((~stable_mask).sum()),
         "unstable_ratio": float((~stable_mask).mean()),
@@ -606,8 +647,8 @@ def main():
         "status_counts": status_counts,
         "indicator_counts": indicator_summary_df.to_dict(orient="records"),
         "unstable_indicator_counts": unstable_indicator_counts,
-        "requires_more_than_allowed_history_count": int(len(requires_more_history_df)),
-        "never_stable_within_max_window_count": int(len(never_stable_df)),
+        "requires_more_than_allowed_history_count": len(requires_more_history_df),
+        "never_stable_within_max_window_count": len(never_stable_df),
         "move_reason_counts": (
             screen_df.loc[screen_df["should_move"].astype(bool), "move_reason"]
             .value_counts()
@@ -620,7 +661,7 @@ def main():
         "worst_unstable_features": worst_unstable,
         "highest_required_stable_windows": top_stable,
         "move_mode": "move" if MOVE_UNSTABLE else "plan_only",
-        "moved_or_planned_unstable_files": int(len(move_manifest_df)),
+        "moved_or_planned_unstable_files": len(move_manifest_df),
         "artifacts": {
             "screen_report_csv": str(screen_path),
             "unstable_feature_report_csv": str(unstable_feature_path),

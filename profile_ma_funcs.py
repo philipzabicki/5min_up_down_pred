@@ -1,53 +1,62 @@
 import json
 import time
 import warnings
-from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Sequence
 
 import numpy as np
 import pandas as pd
 
 import fit_indicators as fi
 from features import ta_tools
+from project_config import INDICATOR_FIT_CONFIG_PATH, build_indicator_fit_legacy_config
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 
 # -----------------------------------------------------------------------------
 # CONFIG (edit here; no CLI parser)
 # -----------------------------------------------------------------------------
-FIT_CONFIG_PATH = Path("configs/fit_indicators_config.json")
-PAIR: str | None = None
-INTERVAL: str | None = None
+FIT_CONFIG_PATH = INDICATOR_FIT_CONFIG_PATH
+PAIR = None
+INTERVAL = None
 
 # None -> full dataset
-ROWS_LIMIT: int | None = None
+ROWS_LIMIT = None
 
 # Deterministic MA sweep across the search bounds used by indicators such as
 # Integer(bounds=(2, 2000)).
-MA_PERIOD_MIN: int = 2
-MA_PERIOD_MAX: int = 2000
-MA_PERIOD_STEP: int = 100
-MA_WARMUP_REPEATS: int = 1
-MA_REPEATS: int = 3
-MA_SLOWEST_CASES_TOP_N: int = 10
+MA_PERIOD_MIN = 2
+MA_PERIOD_MAX = 2000
+MA_PERIOD_STEP = 100
+MA_WARMUP_REPEATS = 1
+MA_REPEATS = 3
+MA_SLOWEST_CASES_TOP_N = 10
 
-SUMMARY_TOP_N: int = 20
-DETAIL_TOP_N: int = 30
-PRINT_DETAILS: bool = False
-JSON_OUT: Path | None = None
+SUMMARY_TOP_N = 20
+DETAIL_TOP_N = 30
+PRINT_DETAILS = False
+JSON_OUT = None
 
 
-@dataclass
 class DatasetContext:
-    pair: str
-    interval: str
-    data_path: Path
-    data_file: str
+    __slots__ = ("pair", "interval", "data_path", "data_file")
+
+    def __init__(self, pair, interval, data_path, data_file):
+        self.pair = pair
+        self.interval = interval
+        self.data_path = data_path
+        self.data_file = data_file
+
+    def to_dict(self):
+        return {
+            "pair": self.pair,
+            "interval": self.interval,
+            "data_path": self.data_path,
+            "data_file": self.data_file,
+        }
 
 
-def _serialize_value(value: Any) -> Any:
+def _serialize_value(value):
     if isinstance(value, (np.integer,)):
         return int(value)
     if isinstance(value, (np.floating,)):
@@ -63,12 +72,14 @@ def _serialize_value(value: Any) -> Any:
     return value
 
 
-def default_json_report_path() -> Path:
+def default_json_report_path():
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    return Path("data") / "analysis" / "profile_ma_funcs" / f"profile_ma_funcs_{ts}.json"
+    return (
+        Path("data") / "analysis" / "profile_ma_funcs" / f"profile_ma_funcs_{ts}.json"
+    )
 
 
-def _pick_single(values: Sequence[str], requested: str | None, field_name: str) -> str:
+def _pick_single(values, requested, field_name):
     if requested:
         if requested not in values:
             raise ValueError(
@@ -86,11 +97,16 @@ def _pick_single(values: Sequence[str], requested: str | None, field_name: str) 
 
 
 def resolve_dataset_context(
-    config_path: Path,
-    pair: str | None,
-    interval: str | None,
-) -> DatasetContext:
-    cfg = json.loads(config_path.read_text(encoding="utf-8"))
+    config_path,
+    pair,
+    interval,
+):
+    if Path(config_path) != INDICATOR_FIT_CONFIG_PATH:
+        raise ValueError(
+            "Custom fit config path overrides are no longer supported. "
+            f"Expected: {INDICATOR_FIT_CONFIG_PATH}"
+        )
+    cfg = build_indicator_fit_legacy_config()
 
     all_pairs = list(cfg.get("pairs", {}).keys())
     selected_pair = _pick_single(all_pairs, pair, "pair")
@@ -113,9 +129,9 @@ def resolve_dataset_context(
 
 
 def load_ohlcv_array(
-    context: DatasetContext,
-    rows: int | None,
-) -> tuple[np.ndarray, Dict[str, float], int]:
+    context,
+    rows,
+):
     csv_path = context.data_path / context.data_file
     t0 = time.perf_counter()
     df = pd.read_csv(csv_path)
@@ -133,16 +149,16 @@ def load_ohlcv_array(
         "csv_load_sec": float(csv_sec),
         "array_prepare_sec": float(arrays_sec),
     }
-    return ohlcv_np, stage_times, int(len(df))
+    return ohlcv_np, stage_times, len(df)
 
 
 def _build_ma_period_grid(
     *,
-    period_min: int,
-    period_max: int,
-    period_step: int,
-    max_allowed: int,
-) -> List[int]:
+    period_min,
+    period_max,
+    period_step,
+    max_allowed,
+):
     lo = max(2, int(period_min))
     hi = min(int(period_max), int(max_allowed))
     if hi < lo:
@@ -158,21 +174,21 @@ def _build_ma_period_grid(
     return periods
 
 
-def _finite_float_values(values: Sequence[float]) -> np.ndarray:
+def _finite_float_values(values):
     arr = np.asarray(values, dtype=np.float64).reshape(-1)
     return arr[np.isfinite(arr)]
 
 
 def benchmark_ma_funcs_direct(
-    ohlcv_np: np.ndarray,
+    ohlcv_np,
     *,
-    period_min: int,
-    period_max: int,
-    period_step: int,
-    warmup_repeats: int,
-    repeats: int,
-    slowest_cases_top_n: int,
-) -> Dict[str, Any]:
+    period_min,
+    period_max,
+    period_step,
+    warmup_repeats,
+    repeats,
+    slowest_cases_top_n,
+):
     if ohlcv_np.ndim != 2 or ohlcv_np.shape[1] < 5:
         raise ValueError("ohlcv_np must have shape (n, >=5).")
 
@@ -191,8 +207,8 @@ def benchmark_ma_funcs_direct(
     warmups = int(max(0, int(warmup_repeats)))
     reps = int(max(1, int(repeats)))
     top_n = int(max(1, int(slowest_cases_top_n)))
-    rows: List[Dict[str, Any]] = []
-    global_case_rows: List[Dict[str, Any]] = []
+    rows = []
+    global_case_rows = []
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", RuntimeWarning)
@@ -200,19 +216,17 @@ def benchmark_ma_funcs_direct(
             use_volume = ma_name in {"VWMA_PTA", "VWMA"}
             total_sec = 0.0
             total_calls = 0
-            period_avg_ms_values: List[float] = []
-            finite_ratio_values: List[float] = []
-            ma_case_rows: List[Dict[str, Any]] = []
+            period_avg_ms_values = []
+            finite_ratio_values = []
+            ma_case_rows = []
 
             for period in periods:
                 args = (
-                    (close, int(period), volume)
-                    if use_volume
-                    else (close, int(period))
+                    (close, int(period), volume) if use_volume else (close, int(period))
                 )
 
-                sample_out: Any = None
-                error_text: str | None = None
+                sample_out = None
+                error_text = None
                 measured_total_sec = 0.0
                 measured_ok = 0
 
@@ -275,24 +289,22 @@ def benchmark_ma_funcs_direct(
                 ma_case_rows,
                 key=lambda row: (
                     1 if not np.isfinite(float(row["avg_call_ms"])) else 0,
-                    -float(row["avg_call_ms"])
-                    if np.isfinite(float(row["avg_call_ms"]))
-                    else float("-inf"),
+                    (
+                        -float(row["avg_call_ms"])
+                        if np.isfinite(float(row["avg_call_ms"]))
+                        else float("-inf")
+                    ),
                 ),
             )[:top_n]
             unique_errors = sorted(
-                {
-                    str(row["error"])
-                    for row in ma_case_rows
-                    if row.get("error")
-                }
+                {str(row["error"]) for row in ma_case_rows if row.get("error")}
             )
 
             rows.append(
                 {
                     "ma_type": ma_name,
                     "uses_volume": bool(use_volume),
-                    "period_count": int(len(periods)),
+                    "period_count": len(periods),
                     "period_min": int(periods[0]),
                     "period_max": int(periods[-1]),
                     "warmup_repeats": int(warmups),
@@ -330,7 +342,9 @@ def benchmark_ma_funcs_direct(
                         if slowest_cases
                         else float("nan")
                     ),
-                    "periods_failed": int(sum(1 for row in ma_case_rows if row.get("error"))),
+                    "periods_failed": int(
+                        sum(1 for row in ma_case_rows if row.get("error"))
+                    ),
                     "finite_ratio_mean": (
                         float(np.mean(finite_ratio_arr))
                         if finite_ratio_arr.size
@@ -344,18 +358,22 @@ def benchmark_ma_funcs_direct(
     rows.sort(
         key=lambda row: (
             1 if not np.isfinite(float(row["total_sec"])) else 0,
-            -float(row["total_sec"])
-            if np.isfinite(float(row["total_sec"]))
-            else float("-inf"),
+            (
+                -float(row["total_sec"])
+                if np.isfinite(float(row["total_sec"]))
+                else float("-inf")
+            ),
         )
     )
     global_slowest_cases = sorted(
         global_case_rows,
         key=lambda row: (
             1 if not np.isfinite(float(row["avg_call_ms"])) else 0,
-            -float(row["avg_call_ms"])
-            if np.isfinite(float(row["avg_call_ms"]))
-            else float("-inf"),
+            (
+                -float(row["avg_call_ms"])
+                if np.isfinite(float(row["avg_call_ms"]))
+                else float("-inf")
+            ),
         ),
     )[:top_n]
     return {
@@ -364,7 +382,7 @@ def benchmark_ma_funcs_direct(
         "period_step": int(max(1, int(period_step))),
         "period_min_used": int(periods[0]),
         "period_max_used": int(periods[-1]),
-        "period_count": int(len(periods)),
+        "period_count": len(periods),
         "warmup_repeats": int(warmups),
         "repeat_count_requested": int(reps),
         "slowest_cases": global_slowest_cases,
@@ -372,7 +390,7 @@ def benchmark_ma_funcs_direct(
     }
 
 
-def main() -> None:
+def main():
     context = resolve_dataset_context(
         config_path=FIT_CONFIG_PATH,
         pair=PAIR,
@@ -392,8 +410,8 @@ def main() -> None:
         repeats=MA_REPEATS,
         slowest_cases_top_n=MA_SLOWEST_CASES_TOP_N,
     )
-    report: Dict[str, Any] = {
-        "context": _serialize_value(asdict(context)),
+    report = {
+        "context": _serialize_value(context.to_dict()),
         "run_params": {
             "rows_used": int(rows_used),
             "rows_limit": None if ROWS_LIMIT is None else int(ROWS_LIMIT),

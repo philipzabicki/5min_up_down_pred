@@ -1,8 +1,7 @@
-import json
 from pathlib import Path
 import sys
 
-CONFIG_FILE = "configs/fetch_config.json"
+from project_config import ACTIVE_CONFIG_PATH, DATASETS_CONFIG_PATH, load_fetch_settings
 
 
 def fetch_all(
@@ -15,11 +14,15 @@ def fetch_all(
     quiet,
     price_source="trade",
     volume_source="same",
+    volume_symbol="",
+    volume_market="",
     raw_ohlcv_repair_config=None,
 ):
     print(
         f"[INFO] source={source} price_source={price_source} volume_source={volume_source} "
-        f"market={market} symbol={symbol} intervals={len(intervals)} "
+        f"market={market} symbol={symbol} "
+        f"volume_market={volume_market or market} volume_symbol={volume_symbol or symbol} "
+        f"intervals={len(intervals)} "
         f"raw_ohlcv_repair={raw_ohlcv_repair_config}"
     )
     successes, failures = 0, []
@@ -36,6 +39,8 @@ def fetch_all(
                     data_type="klines",
                     price_source=price_source,
                     volume_source=volume_source,
+                    volume_ticker=volume_symbol,
+                    volume_market_type=volume_market,
                     start_date=start_date,
                     end_date=end_date,
                     raw_ohlcv_repair_config=raw_ohlcv_repair_config,
@@ -61,7 +66,9 @@ def fetch_all(
                     raw_ohlcv_repair_config=raw_ohlcv_repair_config,
                 )
             if not quiet:
-                print(f"[OK] {interval:<3} rows={len(df):,} last={df['Opened'].iloc[-1]}")
+                print(
+                    f"[OK] {interval:<3} rows={len(df):,} last={df['Opened'].iloc[-1]}"
+                )
             successes += 1
         except Exception as exc:
             print(f"[FAIL] {interval}: {exc}")
@@ -76,21 +83,21 @@ def fetch_all(
 
 
 def main():
-    CONFIG_PATH = Path(CONFIG_FILE)
-    with CONFIG_PATH.open('r', encoding='utf-8') as f:
-        cfg = json.load(f)
+    cfg = load_fetch_settings()
 
     fetch_all(
-        cfg.get('symbol'),
-        cfg.get('market'),
-        cfg.get('source'),
-        cfg.get('intervals'),
-        cfg.get('start_date'),
-        cfg.get('end_date'),
-        cfg.get('quiet'),
-        cfg.get('price_source', 'trade'),
-        cfg.get('volume_source', 'same'),
-        cfg.get('raw_ohlcv_repair'),
+        cfg["symbol"],
+        cfg["market"],
+        cfg["source"],
+        cfg["intervals"],
+        cfg["start_date"],
+        cfg["end_date"],
+        cfg["quiet"],
+        cfg["price_source"],
+        cfg["volume_source"],
+        cfg["volume_symbol"],
+        cfg["volume_market"],
+        cfg["raw_ohlcv_repair"],
     )
 
 

@@ -1,0 +1,22 @@
+{
+  "profiles": {
+    "paper_polymarket": {
+      "symbol": "BTCUSDT",
+      "interval": "1m",
+      "polymarket_gamma_host": "https://gamma-api.polymarket.com",
+      "polymarket_series_slug": "btc-up-or-down-5m",
+      "polymarket_market_slug_prefix": "btc-updown-5m",
+      "polymarket_market_slug_override": "",
+      "polymarket_market_request_timeout_sec": 3.0,
+      "index_price_synthetic_volume_default": 60.0,
+      "default_bootstrap_candles": 20000,
+      "max_ws_reconnect_delay_sec": 15,
+      "ws_ping_interval_sec": 20,
+      "ws_ping_timeout_sec": 10,
+      "live_initial_bankroll_usdc": 1000.0,
+      "min_proba_clip": 1e-06,
+      "indicator_history_margin_ratio": 0.01,
+      "indicator_history_min_extra_candles": 1
+    }
+  }
+}

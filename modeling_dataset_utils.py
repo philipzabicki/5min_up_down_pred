@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 
-from common_config_utils import load_json_object, require_positive_int, require_text
 from data_quality_filters import normalize_drop_frozen_ohlc_blocks_config
 from features.candle_features import (
     RAW_OHLCV_COLS,
@@ -16,14 +15,20 @@ from features.session_open_features import (
     is_session_counter_feature,
 )
 from features.volume_profile_fixed_range import is_volume_profile_feature
+from project_config import (
+    ACTIVE_CONFIG_PATH,
+    MODELING_CONFIG_PATH,
+    load_modeling_settings,
+)
 
-
-MODELING_DATASET_CONFIG_FILE = Path("configs/modeling_dataset_config.json")
+MODELING_DATASET_CONFIG_FILE = MODELING_CONFIG_PATH
+ACTIVE_PROFILE_CONFIG_FILE = ACTIVE_CONFIG_PATH
 FEATURE_SUBSET_JSON_KEYS = (
     "final_feature_list",
     "recommended_features",
     "feature_columns",
 )
+SUPPORTED_MODELING_FLOAT_PRECISIONS = ("float32", "float64")
 _TXT_METADATA_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 
 
@@ -43,7 +48,9 @@ def _normalize_feature_names(features, source_path):
     for raw_feature in features:
         feature = str(raw_feature).strip()
         if not feature:
-            raise ValueError(f"Feature subset contains an empty feature name: {source_path}")
+            raise ValueError(
+                f"Feature subset contains an empty feature name: {source_path}"
+            )
         normalized.append(feature)
 
     normalized = _dedupe_ordered(normalized)
@@ -69,6 +76,22 @@ def _normalize_optional_feature_names(features, source_label):
     return tuple(_dedupe_ordered(normalized))
 
 
+def _normalize_modeling_float_precision(raw_value, *, source_label):
+    if raw_value is None:
+        allowed = ", ".join(SUPPORTED_MODELING_FLOAT_PRECISIONS)
+        raise ValueError(
+            f"Missing required {source_label}. Expected one of: {allowed}."
+        )
+
+    dtype_name = str(raw_value).strip().lower()
+    if dtype_name not in SUPPORTED_MODELING_FLOAT_PRECISIONS:
+        allowed = ", ".join(SUPPORTED_MODELING_FLOAT_PRECISIONS)
+        raise ValueError(
+            f"Invalid {source_label}: {raw_value!r}. Expected one of: {allowed}."
+        )
+    return dtype_name
+
+
 def _exclude_features(feature_names, excluded_feature_names, *, source_label):
     if not excluded_feature_names:
         return tuple(feature_names), tuple()
@@ -92,41 +115,40 @@ def _exclude_features(feature_names, excluded_feature_names, *, source_label):
 
 
 def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
-    payload = load_json_object(config_path)
-    streak_intervals = payload.get("candle_streak_intervals")
-    if not isinstance(streak_intervals, list) or not streak_intervals:
+    if Path(config_path) != MODELING_DATASET_CONFIG_FILE:
         raise ValueError(
-            "Missing or invalid config key: candle_streak_intervals (non-empty list required)."
+            "Custom modeling config path overrides are no longer supported. "
+            f"Expected: {MODELING_DATASET_CONFIG_FILE}"
         )
 
-    feature_subset_path = payload.get("feature_subset_path")
-    if feature_subset_path is None or str(feature_subset_path).strip() == "":
-        feature_subset_path = None
-    else:
-        feature_subset_path = Path(str(feature_subset_path).strip())
-
-    feature_subset_list_key = str(payload.get("feature_subset_list_key", "")).strip()
-    if not feature_subset_list_key:
-        feature_subset_list_key = None
+    settings = load_modeling_settings(active_config_path=ACTIVE_PROFILE_CONFIG_FILE)
     excluded_feature_names = _normalize_optional_feature_names(
-        payload.get("excluded_feature_names"),
-        source_label="config key 'excluded_feature_names'",
+        list(settings.get("excluded_feature_names") or ()),
+        source_label="modeling.feature_selection.excluded_feature_names",
+    )
+    float_precision = _normalize_modeling_float_precision(
+        settings.get("float_precision"),
+        source_label="modeling.float_precision",
     )
 
     return {
-        "data_dir": Path(require_text(payload, "data_dir")),
-        "base_data_file": require_text(payload, "base_data_file"),
-        "output_suffix": require_text(payload, "output_suffix"),
-        "fit_results_dir": Path(require_text(payload, "fit_results_dir")),
-        "preview_rows": require_positive_int(payload, "preview_rows"),
-        "candle_streak_intervals": [str(v) for v in streak_intervals],
-        "feature_subset_path": feature_subset_path,
-        "feature_subset_list_key": feature_subset_list_key,
+        "data_dir": Path(settings["data_dir"]),
+        "base_data_file": str(settings["base_data_file"]),
+        "output_suffix": str(settings["output_suffix"]),
+        "fit_results_dir": Path(settings["fit_results_dir"]),
+        "preview_rows": int(settings["preview_rows"]),
+        "candle_streak_intervals": [
+            str(v) for v in settings["candle_streak_intervals"]
+        ],
+        "feature_subset_path": settings.get("feature_subset_path"),
+        "feature_subset_list_key": settings.get("feature_subset_list_key"),
         "excluded_feature_names": excluded_feature_names,
-        "volume_profile_fixed_range": payload.get("volume_profile_fixed_range"),
+        "float_precision": float_precision,
+        "volume_profile_fixed_range": settings.get("volume_profile_fixed_range"),
         "drop_frozen_ohlc_blocks": normalize_drop_frozen_ohlc_blocks_config(
-            payload.get("drop_frozen_ohlc_blocks")
+            settings.get("drop_frozen_ohlc_blocks")
         ),
+        "train_lgbm": dict(settings.get("train_lgbm") or {}),
     }
 
 
@@ -150,16 +172,11 @@ def resolve_modeling_dataset_parquet_path(config_path=MODELING_DATASET_CONFIG_FI
     return resolve_modeling_dataset_output_paths(settings)["parquet"]
 
 
-def is_feature_selection_precision_mode(settings):
-    return bool(settings.get("feature_subset_path")) or bool(
-        settings.get("excluded_feature_names")
-    )
-
-
 def resolve_modeling_float_dtype_name(settings):
-    if is_feature_selection_precision_mode(settings):
-        return "float64"
-    return "float32"
+    return _normalize_modeling_float_precision(
+        settings.get("float_precision"),
+        source_label="settings['float_precision']",
+    )
 
 
 def resolve_modeling_float_dtype(settings):
@@ -320,7 +337,9 @@ def split_feature_subset(feature_names):
             streak_feature_cols.append(feature_name)
             streak_intervals.append(feature_name[len(STREAK_FEATURE_PREFIX) :])
             continue
-        if feature_name in session_feature_set or is_session_counter_feature(feature_name):
+        if feature_name in session_feature_set or is_session_counter_feature(
+            feature_name
+        ):
             session_feature_cols.append(feature_name)
             continue
         if is_volume_profile_feature(feature_name):

@@ -67,51 +67,54 @@ LGBM_OPTUNA_SEARCH_SPACE = {
 
 # Seed trials are injected before optimization starts.
 OPTUNA_SEED_TRIAL_PARAMS = [
-    {'learning_rate': 0.005345243845517257,
-     'num_leaves': 249,
-     'min_data_in_leaf': 1092,
-     'max_depth': 47,
-     'feature_fraction': 0.547406725512275,
-     'bagging_fraction': 0.8720848738316145,
-     'bagging_freq': 19,
-     'lambda_l2': 11.793596403657679,
-     'lambda_l1': 16.802466762568642,
-     'min_sum_hessian_in_leaf': 28.814446384235985,
-     'min_gain_to_split': 0.3523220198504663,
-     'feature_fraction_bynode': 0.5741253197885922,
-     'path_smooth': 29.535516337206555,
-     'extra_trees': False},
-     {
-      "learning_rate": 0.0021574582075051204,
-      "num_leaves": 196,
-      "min_data_in_leaf": 21,
-      "max_depth": 58,
-      "feature_fraction": 0.8187932858940383,
-      "bagging_fraction": 0.8714798148611362,
-      "bagging_freq": 4,
-      "lambda_l2": 15.442114704888553,
-      "lambda_l1": 2.212521909423135,
-      "min_sum_hessian_in_leaf": 0.13475540327517857,
-      "min_gain_to_split": 1.5679522702774737,
-      "feature_fraction_bynode": 0.6443195011832288,
-      "path_smooth": 18.354650904317488,
-      "extra_trees": False
+    {
+        "learning_rate": 0.005345243845517257,
+        "num_leaves": 249,
+        "min_data_in_leaf": 1092,
+        "max_depth": 47,
+        "feature_fraction": 0.547406725512275,
+        "bagging_fraction": 0.8720848738316145,
+        "bagging_freq": 19,
+        "lambda_l2": 11.793596403657679,
+        "lambda_l1": 16.802466762568642,
+        "min_sum_hessian_in_leaf": 28.814446384235985,
+        "min_gain_to_split": 0.3523220198504663,
+        "feature_fraction_bynode": 0.5741253197885922,
+        "path_smooth": 29.535516337206555,
+        "extra_trees": False,
     },
     {
-        'learning_rate': 0.0032826894654068746,
-        'num_leaves': 240,
-        'min_data_in_leaf': 51,
-        'max_depth': 76,
-        'feature_fraction': 0.2600155012187151,
-        'bagging_fraction': 0.9386274411409469,
-        'bagging_freq': 4,
-        'lambda_l2': 8.97624362058438,
-        'lambda_l1': 5.935593621429428,
-        'min_sum_hessian_in_leaf': 0.22629666928997544,
-        'min_gain_to_split': 1.247365118812283,
-        'feature_fraction_bynode': 0.98701845583249, 
-        'path_smooth': 18.823257423983854,
-        'extra_trees': False},
+        "learning_rate": 0.0021574582075051204,
+        "num_leaves": 196,
+        "min_data_in_leaf": 21,
+        "max_depth": 58,
+        "feature_fraction": 0.8187932858940383,
+        "bagging_fraction": 0.8714798148611362,
+        "bagging_freq": 4,
+        "lambda_l2": 15.442114704888553,
+        "lambda_l1": 2.212521909423135,
+        "min_sum_hessian_in_leaf": 0.13475540327517857,
+        "min_gain_to_split": 1.5679522702774737,
+        "feature_fraction_bynode": 0.6443195011832288,
+        "path_smooth": 18.354650904317488,
+        "extra_trees": False,
+    },
+    {
+        "learning_rate": 0.0032826894654068746,
+        "num_leaves": 240,
+        "min_data_in_leaf": 51,
+        "max_depth": 76,
+        "feature_fraction": 0.2600155012187151,
+        "bagging_fraction": 0.9386274411409469,
+        "bagging_freq": 4,
+        "lambda_l2": 8.97624362058438,
+        "lambda_l1": 5.935593621429428,
+        "min_sum_hessian_in_leaf": 0.22629666928997544,
+        "min_gain_to_split": 1.247365118812283,
+        "feature_fraction_bynode": 0.98701845583249,
+        "path_smooth": 18.823257423983854,
+        "extra_trees": False,
+    },
     {
         "learning_rate": 0.00149752979585742,
         "num_leaves": 128,
@@ -126,57 +129,55 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "min_gain_to_split": 0.8504082880772725,
         "feature_fraction_bynode": 0.32836945948911733,
         "path_smooth": 68.45674322734372,
-        "extra_trees": False
-      },
-      {
-      "learning_rate": 0.0047168930397256115,
-      "num_leaves": 203,
-      "min_data_in_leaf": 6,
-      "max_depth": 41,
-      "feature_fraction": 0.3535849279738236,
-      "bagging_fraction": 0.8060837855401768,
-      "bagging_freq": 10,
-      "lambda_l2": 6.467328293921802,
-      "lambda_l1": 4.930249967778666,
-      "min_sum_hessian_in_leaf": 0.014887735545909926,
-      "min_gain_to_split": 1.031237481486823,
-      "feature_fraction_bynode": 0.8821060783972539,
-      "path_smooth": 3.743686767424939,
-      "extra_trees": False
+        "extra_trees": False,
     },
     {
-      "learning_rate": 0.02082784518014535,
-      "num_leaves": 37,
-      "min_data_in_leaf": 103,
-      "max_depth": 169,
-      "feature_fraction": 0.37752257586311444,
-      "bagging_fraction": 0.6274488270891571,
-      "bagging_freq": 23,
-      "lambda_l2": 53.12614038557139,
-      "lambda_l1": 10.31812331923178,
-      "min_sum_hessian_in_leaf": 0.0061350132104521764,
-      "min_gain_to_split": 0.07525941090726794,
-      "feature_fraction_bynode": 0.7170577314073263,
-      "path_smooth": 1.124852812228145,
-      "extra_trees": False
-    }
+        "learning_rate": 0.0047168930397256115,
+        "num_leaves": 203,
+        "min_data_in_leaf": 6,
+        "max_depth": 41,
+        "feature_fraction": 0.3535849279738236,
+        "bagging_fraction": 0.8060837855401768,
+        "bagging_freq": 10,
+        "lambda_l2": 6.467328293921802,
+        "lambda_l1": 4.930249967778666,
+        "min_sum_hessian_in_leaf": 0.014887735545909926,
+        "min_gain_to_split": 1.031237481486823,
+        "feature_fraction_bynode": 0.8821060783972539,
+        "path_smooth": 3.743686767424939,
+        "extra_trees": False,
+    },
+    {
+        "learning_rate": 0.02082784518014535,
+        "num_leaves": 37,
+        "min_data_in_leaf": 103,
+        "max_depth": 169,
+        "feature_fraction": 0.37752257586311444,
+        "bagging_fraction": 0.6274488270891571,
+        "bagging_freq": 23,
+        "lambda_l2": 53.12614038557139,
+        "lambda_l1": 10.31812331923178,
+        "min_sum_hessian_in_leaf": 0.0061350132104521764,
+        "min_gain_to_split": 0.07525941090726794,
+        "feature_fraction_bynode": 0.7170577314073263,
+        "path_smooth": 1.124852812228145,
+        "extra_trees": False,
+    },
 ]
 
-N_TRIALS = 50
+N_TRIALS = 300
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "de_besta_0300_25032026"
+STUDY_NAME = "de_besta_0432_28032026"
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
-BEST_RESULT_PATH = Path(
-    "data/optuna/lgbm/lgbm_generic_optuna_best_mean_std.json"
-)
+BEST_RESULT_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_best_mean_std.json")
 TRIALS_CSV_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_trials_mean_std.csv")
-RUN_MODE = "recheck-topn"  # "optimize" or "recheck-topn"
+RUN_MODE = "optimize"  # "optimize" or "recheck-topn"
 RECHECK_STUDY_NAME = STUDY_NAME
 RECHECK_STORAGE = STORAGE
 TOP_TRIALS_RECHECK_N = 5
@@ -187,7 +188,7 @@ TOP_TRIALS_RECHECK_OUTPUT_CSV_PATH = None
 PRUNER_MIN_RESOURCE = 100
 PRUNER_REDUCTION_FACTOR = 3
 PRUNER_BOOTSTRAP_COUNT = 0
-TPE_STARTUP_TRIALS = int(N_TRIALS*0.1)
+TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
 
 FEATURE_HORIZON_RE = re.compile(r"(?:_fit_|_target_)(\d+)m(?:_ahead_ret)?")
 TARGET_HORIZON_RE = re.compile(r"target_(\d+)m")
@@ -270,7 +271,7 @@ def load_generic_training_data(data_path, feature_subset=None, excluded_features
     print(f"load data | raw_rows={raw_rows} raw_cols={raw_cols}")
 
     df = df[df[TARGET_COL].notna()]
-    rows_after_target_notna = int(len(df))
+    rows_after_target_notna = len(df)
     if rows_after_target_notna == 0:
         raise ValueError("No rows left after TARGET_COL non-null filtering.")
     if TARGET_WEIGHT_COL not in df.columns:
@@ -379,7 +380,9 @@ def load_generic_training_data(data_path, feature_subset=None, excluded_features
         ]
         x_np = x_np[:, finite_by_col]
     if x_np.shape[1] == 0:
-        raise ValueError("No usable features left after dropping fully invalid columns.")
+        raise ValueError(
+            "No usable features left after dropping fully invalid columns."
+        )
 
     invalid = ~np.isfinite(x_np)
     invalid_after_trim = int(invalid.sum())
@@ -534,9 +537,7 @@ class ObjectiveAlignedLightGBMPruningCallback:
         self._trial.report(current_objective, step=env.iteration)
 
         if self._trial.should_prune():
-            raise optuna.TrialPruned(
-                f"Trial was pruned at iteration {env.iteration}."
-            )
+            raise optuna.TrialPruned(f"Trial was pruned at iteration {env.iteration}.")
 
 
 def validate_optuna_search_spec(name, spec):
@@ -579,9 +580,7 @@ def validate_optuna_search_spec(name, spec):
                 f"Integer log search space requires low >= 1 for {name!r}."
             )
         if high_i < low_i:
-            raise ValueError(
-                f"Integer search space requires high >= low for {name!r}."
-            )
+            raise ValueError(f"Integer search space requires high >= low for {name!r}.")
         return
 
     low_f = float(low)
@@ -978,7 +977,7 @@ def run_top_trials_recheck(
         "study_name": study_name,
         "storage": storage,
         "top_n_requested": int(top_n),
-        "top_n_evaluated": int(len(recheck_results)),
+        "top_n_evaluated": len(recheck_results),
         "data_path": str(data_path),
         "feature_selection": summarize_feature_subset(
             feature_subset,
@@ -1175,9 +1174,7 @@ def run_optuna_optimization():
                 else None
             ),
             "cv_binary_logloss_std": (
-                float(best_cv_logloss_std)
-                if best_cv_logloss_std is not None
-                else None
+                float(best_cv_logloss_std) if best_cv_logloss_std is not None else None
             ),
             "best_iteration": best.user_attrs.get("best_iteration"),
             "params": best.params,

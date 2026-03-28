@@ -3,7 +3,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-
 OHLCV_COLS = ["Opened", "Open", "High", "Low", "Close", "Volume"]
 PRICE_COLS = ["Open", "High", "Low", "Close"]
 _INSERTED_GAP_VOLUME_SENTINEL = -1.0
@@ -26,7 +25,9 @@ class HistogramSampler:
         clean = np.asarray(values, dtype=np.float64)
         clean = clean[np.isfinite(clean)]
         if clean.size == 0:
-            raise ValueError("HistogramSampler requires at least one finite observation.")
+            raise ValueError(
+                "HistogramSampler requires at least one finite observation."
+            )
 
         self._rng = rng
         self._constant = None
@@ -118,7 +119,9 @@ class VolumeRangeMeanMap:
         if self.edges is None or self.means is None or self.populated_indices is None:
             return float(self.global_mean), True
 
-        bin_idx = int(np.searchsorted(self.edges, float(candle_range), side="right") - 1)
+        bin_idx = int(
+            np.searchsorted(self.edges, float(candle_range), side="right") - 1
+        )
         bin_idx = max(0, min(bin_idx, len(self.means) - 1))
         if np.isfinite(self.means[bin_idx]):
             return float(self.means[bin_idx]), False
@@ -127,9 +130,7 @@ class VolumeRangeMeanMap:
             return float(self.global_mean), True
 
         nearest_idx = int(
-            self.populated_indices[
-                np.argmin(np.abs(self.populated_indices - bin_idx))
-            ]
+            self.populated_indices[np.argmin(np.abs(self.populated_indices - bin_idx))]
         )
         return float(self.means[nearest_idx]), True
 
@@ -140,13 +141,14 @@ def normalize_raw_ohlcv_repair_config(raw_config):
     if not isinstance(raw_config, dict):
         raise ValueError("raw_ohlcv_repair config must be a JSON object.")
 
-    mode = str(
-        raw_config.get("mode", DEFAULT_RAW_OHLCV_REPAIR_CONFIG["mode"])
-    ).strip().lower()
+    mode = (
+        str(raw_config.get("mode", DEFAULT_RAW_OHLCV_REPAIR_CONFIG["mode"]))
+        .strip()
+        .lower()
+    )
     if mode not in {"monte_carlo_histogram"}:
         raise ValueError(
-            "raw_ohlcv_repair.mode must be 'monte_carlo_histogram'. "
-            f"Got: {mode!r}"
+            "raw_ohlcv_repair.mode must be 'monte_carlo_histogram'. " f"Got: {mode!r}"
         )
 
     histogram_bins = int(
@@ -284,10 +286,10 @@ def _prepare_ohlcv_frame(df):
         }
     out = out[~out.isin(OHLCV_COLS).any(axis=1)].copy()
 
-    rows_before = int(len(out))
+    rows_before = len(out)
     out["Opened"] = pd.to_datetime(out["Opened"], errors="raise")
     out = out.sort_values("Opened").drop_duplicates(subset=["Opened"], keep="last")
-    rows_after_dedup = int(len(out))
+    rows_after_dedup = len(out)
 
     for col in OHLCV_COLS[1:]:
         out[col] = pd.to_numeric(out[col], errors="coerce")
@@ -305,7 +307,11 @@ def _prepare_ohlcv_frame(df):
 def _reindex_with_gap_placeholders(df, interval):
     rule = _interval_to_pandas_rule(interval)
     full_index = pd.DataFrame(
-        {"Opened": pd.date_range(df["Opened"].iloc[0], df["Opened"].iloc[-1], freq=rule)}
+        {
+            "Opened": pd.date_range(
+                df["Opened"].iloc[0], df["Opened"].iloc[-1], freq=rule
+            )
+        }
     )
     out = full_index.merge(df, on="Opened", how="left")
 
@@ -327,9 +333,9 @@ def _reindex_with_gap_placeholders(df, interval):
 
 
 def _detect_gap_blocks(df, min_block_len):
-    same_prev_mask = df.loc[:, OHLCV_COLS[1:]].eq(
-        df.loc[:, OHLCV_COLS[1:]].shift(1)
-    ).all(axis=1)
+    same_prev_mask = (
+        df.loc[:, OHLCV_COLS[1:]].eq(df.loc[:, OHLCV_COLS[1:]].shift(1)).all(axis=1)
+    )
     same_prev_mask = same_prev_mask.fillna(False)
     run_id = (~same_prev_mask).cumsum()
     run_sizes = run_id.groupby(run_id).transform("size")
@@ -445,9 +451,7 @@ def _simulate_gap_prices(df, blocks, samplers, bridge_weight_power):
             left_anchor_close = float(out.at[start, "Open"])
 
         has_right_anchor = end + 1 < len(out)
-        right_anchor_open = (
-            float(out.at[end + 1, "Open"]) if has_right_anchor else None
-        )
+        right_anchor_open = float(out.at[end + 1, "Open"]) if has_right_anchor else None
 
         raw_returns = np.asarray(
             [samplers["returns"].sample() for _ in range(block_len)],
@@ -455,9 +459,7 @@ def _simulate_gap_prices(df, blocks, samplers, bridge_weight_power):
         )
         raw_return_sum = float(raw_returns.sum())
         target_return_sum = (
-            float(right_anchor_open - left_anchor_close)
-            if has_right_anchor
-            else None
+            float(right_anchor_open - left_anchor_close) if has_right_anchor else None
         )
         adjusted_returns, bridge_correction_total = _bridge_returns(
             raw_returns,
@@ -534,10 +536,9 @@ def _simulate_gap_prices(df, blocks, samplers, bridge_weight_power):
 
 def _fill_invalid_volume(df, invalid_mask, range_bins):
     out = df.copy()
-    candle_ranges = (
-        out["High"].to_numpy(dtype=np.float64, copy=False)
-        - out["Low"].to_numpy(dtype=np.float64, copy=False)
-    )
+    candle_ranges = out["High"].to_numpy(dtype=np.float64, copy=False) - out[
+        "Low"
+    ].to_numpy(dtype=np.float64, copy=False)
     volumes = out["Volume"].to_numpy(dtype=np.float64, copy=True)
     original_valid_mask = (
         np.isfinite(candle_ranges)
@@ -749,8 +750,12 @@ def _write_gap_artifacts(csv_path, original_df, repaired_df, gap_records, config
         rel_gap_start = start_idx - view_start
         rel_gap_end = end_idx - view_start
 
-        original_slice = original_df.iloc[view_start : view_end + 1].reset_index(drop=True)
-        repaired_slice = repaired_df.iloc[view_start : view_end + 1].reset_index(drop=True)
+        original_slice = original_df.iloc[view_start : view_end + 1].reset_index(
+            drop=True
+        )
+        repaired_slice = repaired_df.iloc[view_start : view_end + 1].reset_index(
+            drop=True
+        )
 
         chart_name = (
             f"gap_{int(gap_record['gap_index']):03d}_"
@@ -802,9 +807,7 @@ def _write_gap_artifacts(csv_path, original_df, repaired_df, gap_records, config
                 "right_anchor_open": gap_record["right_anchor_open"],
                 "raw_return_sum": float(gap_record["raw_return_sum"]),
                 "target_return_sum": gap_record["target_return_sum"],
-                "bridge_correction_total": float(
-                    gap_record["bridge_correction_total"]
-                ),
+                "bridge_correction_total": float(gap_record["bridge_correction_total"]),
                 "bridge_correction_per_candle": float(
                     gap_record["bridge_correction_per_candle"]
                 ),
@@ -823,7 +826,7 @@ def _write_gap_artifacts(csv_path, original_df, repaired_df, gap_records, config
     return {
         "gap_artifacts_dir": str(run_dir),
         "gap_summary_csv": str(summary_csv),
-        "gap_chart_count": int(len(summary_rows)),
+        "gap_chart_count": len(summary_rows),
     }
 
 
@@ -848,8 +851,8 @@ def repair_raw_ohlcv_frame(
         "volume_range_bins": int(config["volume_range_bins"]),
         "random_seed": config["random_seed"],
         "bridge_weight_power": float(config["bridge_weight_power"]),
-        "rows_after_cleanup": int(len(prepared)),
-        "rows_after_repair": int(len(prepared)),
+        "rows_after_cleanup": len(prepared),
+        "rows_after_repair": len(prepared),
         "missing_intervals_inserted": 0,
         "gap_blocks_repaired": 0,
         "gap_rows_repaired": 0,
@@ -882,7 +885,7 @@ def repair_raw_ohlcv_frame(
             min_block_len=config["gap_min_block_len"],
         )
         summary["missing_intervals_inserted"] = int(inserted_mask.sum())
-        summary["gap_blocks_repaired"] = int(len(gap_blocks))
+        summary["gap_blocks_repaired"] = len(gap_blocks)
 
         if gap_blocks:
             rng = np.random.default_rng(config["random_seed"])
@@ -927,7 +930,7 @@ def repair_raw_ohlcv_frame(
 
     summary.update(
         {
-            "rows_after_repair": int(len(repaired)),
+            "rows_after_repair": len(repaired),
             "distribution_observations": distribution_summary,
             "rounding_applied": bool(rounding_summary["rounding_applied"]),
             "gap_records": gap_records,

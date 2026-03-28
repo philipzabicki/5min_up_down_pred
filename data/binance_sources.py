@@ -11,7 +11,6 @@ from dateutil.relativedelta import relativedelta
 
 from data.raw_ohlcv_repair import repair_raw_ohlcv_csv
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_DATA_DIR = PROJECT_ROOT / "data"
 VISION_TMP_DIR = REPO_DATA_DIR / "_tmp" / "binance_vision"
@@ -33,10 +32,22 @@ REST_KLINES_ENDPOINTS = {
     ("spot", "klines"): ("https://api.binance.com/api/v3/klines", "symbol"),
     ("um", "klines"): ("https://fapi.binance.com/fapi/v1/klines", "symbol"),
     ("cm", "klines"): ("https://dapi.binance.com/dapi/v1/klines", "symbol"),
-    ("um", "indexPriceKlines"): ("https://fapi.binance.com/fapi/v1/indexPriceKlines", "pair"),
-    ("cm", "indexPriceKlines"): ("https://dapi.binance.com/dapi/v1/indexPriceKlines", "pair"),
-    ("um", "markPriceKlines"): ("https://fapi.binance.com/fapi/v1/markPriceKlines", "symbol"),
-    ("cm", "markPriceKlines"): ("https://dapi.binance.com/dapi/v1/markPriceKlines", "symbol"),
+    ("um", "indexPriceKlines"): (
+        "https://fapi.binance.com/fapi/v1/indexPriceKlines",
+        "pair",
+    ),
+    ("cm", "indexPriceKlines"): (
+        "https://dapi.binance.com/dapi/v1/indexPriceKlines",
+        "pair",
+    ),
+    ("um", "markPriceKlines"): (
+        "https://fapi.binance.com/fapi/v1/markPriceKlines",
+        "symbol",
+    ),
+    ("cm", "markPriceKlines"): (
+        "https://dapi.binance.com/dapi/v1/markPriceKlines",
+        "symbol",
+    ),
     ("um", "premiumIndexKlines"): (
         "https://fapi.binance.com/fapi/v1/premiumIndexKlines",
         "symbol",
@@ -46,7 +57,11 @@ REST_KLINES_ENDPOINTS = {
         "symbol",
     ),
 }
-SYNTHETIC_VOLUME_DATA_TYPES = {"indexPriceKlines", "markPriceKlines", "premiumIndexKlines"}
+SYNTHETIC_VOLUME_DATA_TYPES = {
+    "indexPriceKlines",
+    "markPriceKlines",
+    "premiumIndexKlines",
+}
 
 
 def _normalize_source_selection(price_source, volume_source="same"):
@@ -69,7 +84,15 @@ def _normalize_source_selection(price_source, volume_source="same"):
     return normalized_price_source, normalized_volume_source
 
 
-def _data_type_file_suffix(data_type, price_source="trade", volume_source="trade"):
+def _data_type_file_suffix(
+    data_type,
+    price_source="trade",
+    volume_source="trade",
+    ticker="",
+    market_type="",
+    volume_ticker="",
+    volume_market_type="",
+):
     suffix_by_data_type = {
         "klines": "",
         "indexPriceKlines": "_INDEX",
@@ -77,8 +100,26 @@ def _data_type_file_suffix(data_type, price_source="trade", volume_source="trade
         "premiumIndexKlines": "_PREMIUM",
     }
     if price_source == "index" and volume_source == "trade":
-        return "_INDEXVOL"
-    return suffix_by_data_type.get(str(data_type), f"_{str(data_type).upper()}")
+        base_suffix = "_INDEXVOL"
+    else:
+        base_suffix = suffix_by_data_type.get(
+            str(data_type), f"_{str(data_type).upper()}"
+        )
+
+    price_ticker_norm = str(ticker).strip().upper()
+    price_market_norm = str(market_type).strip().lower()
+    volume_ticker_norm = str(volume_ticker).strip().upper()
+    volume_market_norm = str(volume_market_type).strip().lower()
+
+    detail_parts = []
+    if volume_market_norm and volume_market_norm != price_market_norm:
+        detail_parts.append(volume_market_norm.upper())
+    if volume_ticker_norm and volume_ticker_norm != price_ticker_norm:
+        detail_parts.append(volume_ticker_norm)
+
+    if detail_parts:
+        return f"{base_suffix}_{'_'.join(detail_parts)}"
+    return base_suffix
 
 
 def _final_csv_path(
@@ -87,12 +128,20 @@ def _final_csv_path(
     data_type="klines",
     price_source="trade",
     volume_source="trade",
+    market_type="",
+    volume_ticker="",
+    volume_market_type="",
 ):
     REPO_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    return (
-        REPO_DATA_DIR
-        / f"{ticker}{_data_type_file_suffix(data_type, price_source, volume_source)}{interval}.csv"
-    )
+    return REPO_DATA_DIR / (f"{ticker}" f"{_data_type_file_suffix(
+                data_type,
+                price_source,
+                volume_source,
+                ticker=ticker,
+                market_type=market_type,
+                volume_ticker=volume_ticker,
+                volume_market_type=volume_market_type,
+            )}" f"{interval}.csv")
 
 
 def _vision_tmp_root(ticker, interval, market_type, data_type):
@@ -111,6 +160,18 @@ def _coerce_date(value, default):
     if value in ("", None):
         return default
     return pd.Timestamp(value).date()
+
+
+def _normalize_market_type(market_type, field_name="market_type"):
+    normalized = str(market_type).strip().lower()
+    if normalized not in {"spot", "um", "cm"}:
+        raise ValueError(f"{field_name} must be one of {{'spot', 'um', 'cm'}}")
+    return normalized
+
+
+def _normalize_optional_symbol(value):
+    text = str(value).strip().upper()
+    return text if text else ""
 
 
 def _resolve_binance_data_type(market_type, data_type, price_source):
@@ -184,10 +245,10 @@ def _clean_ohlcv_df(df, itv):
         out = out.iloc[:, : len(OHLCV_COLS)].copy()
     out.columns = OHLCV_COLS
     out = out[~out.isin(OHLCV_COLS).any(axis=1)].copy()
-    rows_before = int(len(out))
+    rows_before = len(out)
     out["Opened"] = pd.to_datetime(out["Opened"], errors="raise")
     out = out.sort_values("Opened").drop_duplicates(subset=["Opened"], keep="last")
-    rows_after_dedup = int(len(out))
+    rows_after_dedup = len(out)
 
     for col in OHLCV_COLS[1:]:
         out[col] = pd.to_numeric(out[col], errors="coerce")
@@ -207,6 +268,7 @@ def _clean_ohlcv_df(df, itv):
     )
     return out.reset_index(drop=True)
 
+
 def _download_and_unzip(url, output_dir):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -220,7 +282,9 @@ def _download_and_unzip(url, output_dir):
         return False
 
 
-def _fetch_rest_klines_tail(ticker, interval, market_type, start_opened, data_type="klines"):
+def _fetch_rest_klines_tail(
+    ticker, interval, market_type, start_opened, data_type="klines"
+):
     endpoint = REST_KLINES_ENDPOINTS.get((str(market_type), str(data_type)))
     if endpoint is None:
         raise ValueError(
@@ -265,7 +329,11 @@ def _fetch_rest_klines_tail(ticker, interval, market_type, start_opened, data_ty
                     "High": float(row[2]),
                     "Low": float(row[3]),
                     "Close": float(row[4]),
-                    "Volume": float(row[8]) if _uses_synthetic_volume(data_type) else float(row[5]),
+                    "Volume": (
+                        float(row[8])
+                        if _uses_synthetic_volume(data_type)
+                        else float(row[5])
+                    ),
                 }
             )
 
@@ -288,7 +356,9 @@ def _read_partial_df(unzip_dir, data_type="klines"):
     if not csv_files:
         raise FileNotFoundError(f"No CSV files found in {unzip_dir}")
 
-    usecols = [0, 1, 2, 3, 4, 8] if _uses_synthetic_volume(data_type) else [0, 1, 2, 3, 4, 5]
+    usecols = (
+        [0, 1, 2, 3, 4, 8] if _uses_synthetic_volume(data_type) else [0, 1, 2, 3, 4, 5]
+    )
     df_temp = pd.read_csv(csv_files[0], sep=",", usecols=usecols)
     df_temp.columns = OHLCV_COLS
     try:
@@ -328,7 +398,9 @@ def _collect_to_date(
     temp_root = Path(temp_root)
 
     while start_date <= cursor:
-        archive_token = cursor.strftime("%Y-%m") if delta_itv == "months" else str(cursor)
+        archive_token = (
+            cursor.strftime("%Y-%m") if delta_itv == "months" else str(cursor)
+        )
         archive_url = f"{url_prefix}{archive_token}.zip"
         output_dir = temp_root / delta_itv / archive_token
 
@@ -356,30 +428,62 @@ def by_BinanceVision(
     data_type="klines",
     price_source="trade",
     volume_source="same",
+    volume_ticker="",
+    volume_market_type="",
     start_date="",
     end_date="2030-01-01 00:00:00",
     split=False,
     delay=LAST_DATA_POINT_DELAY,
     raw_ohlcv_repair_config=None,
 ):
+    market_type = _normalize_market_type(market_type, field_name="market_type")
+    ticker = _normalize_optional_symbol(ticker)
+    if not ticker:
+        raise ValueError("ticker must be a non-empty string.")
+
+    volume_ticker = _normalize_optional_symbol(volume_ticker)
+    volume_market_type = (
+        _normalize_market_type(volume_market_type, field_name="volume_market_type")
+        if str(volume_market_type).strip()
+        else ""
+    )
+
     price_decimals = 2 if market_type in {"um", "cm"} else None
     volume_decimals = 3 if market_type in {"um", "cm"} else None
     price_source, volume_source = _normalize_source_selection(
         price_source=price_source,
         volume_source=volume_source,
     )
-    if price_source != volume_source:
+    effective_volume_ticker = volume_ticker or ticker
+    effective_volume_market_type = volume_market_type or market_type
+    uses_cross_volume_target = (
+        effective_volume_ticker != ticker or effective_volume_market_type != market_type
+    )
+
+    if uses_cross_volume_target and price_source == volume_source:
+        raise ValueError(
+            "volume_ticker/volume_market_type overrides require a hybrid source. "
+            "Use e.g. price_source='index' and volume_source='trade'."
+        )
+
+    if price_source != volume_source or uses_cross_volume_target:
         final_csv = _final_csv_path(
             ticker,
             interval,
             data_type=data_type,
             price_source=price_source,
             volume_source=volume_source,
+            market_type=market_type,
+            volume_ticker=effective_volume_ticker,
+            volume_market_type=effective_volume_market_type,
         )
         print(f"Hybrid final CSV: {final_csv}")
         print(
             "Binance hybrid source: "
-            f"ohlc={price_source} volume={volume_source}"
+            f"ohlc={price_source} "
+            f"volume={volume_source} "
+            f"volume_market={effective_volume_market_type} "
+            f"volume_ticker={effective_volume_ticker}"
         )
         price_df = by_BinanceVision(
             ticker=ticker,
@@ -388,6 +492,8 @@ def by_BinanceVision(
             data_type=data_type,
             price_source=price_source,
             volume_source="same",
+            volume_ticker="",
+            volume_market_type="",
             start_date=start_date,
             end_date=end_date,
             split=False,
@@ -395,12 +501,14 @@ def by_BinanceVision(
             raw_ohlcv_repair_config={"enabled": False},
         )
         volume_df = by_BinanceVision(
-            ticker=ticker,
+            ticker=effective_volume_ticker,
             interval=interval,
-            market_type=market_type,
+            market_type=effective_volume_market_type,
             data_type=data_type,
             price_source=volume_source,
             volume_source="same",
+            volume_ticker="",
+            volume_market_type="",
             start_date=start_date,
             end_date=end_date,
             split=False,
@@ -445,6 +553,7 @@ def by_BinanceVision(
         data_type=data_type,
         price_source=price_source,
         volume_source=volume_source,
+        market_type=market_type,
     )
     temp_root = _vision_tmp_root(
         ticker=ticker,

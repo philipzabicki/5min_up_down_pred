@@ -1,9 +1,7 @@
 import json
 import os
 import time
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import numpy as np
 import pandas as pd
@@ -13,6 +11,7 @@ from modeling_dataset_utils import (
     load_modeling_dataset_settings,
     resolve_modeling_dataset_output_paths,
 )
+from project_config import load_runtime_artifact_paths
 
 from features.ADX import get_adx_values
 from features.BollingerBands import get_bollinger_bands_values
@@ -28,7 +27,6 @@ from features.MACD import get_macd_values
 from features.session_open_features import SUPPORTED_SESSION_COUNTER_COLS
 from features.StochOsc import get_stochastic_oscillator_values
 
-
 SYMBOL = "BTCUSDT"
 INTERVAL = "1m"
 FUTURES_REST_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
@@ -36,9 +34,13 @@ FUTURES_REST_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
 OUTPUT_DIR = Path("data/analysis/indicator_stability")
 OUTPUT_JSON = OUTPUT_DIR / "summary.json"
 OUTPUT_CSV = OUTPUT_DIR / "report.csv"
-MODELS_DIR = Path("data/models/runs")
 META_PATH_ENV = "AUDIT_MODEL_META_PATH"
 REFERENCE_PATH_ENV = "AUDIT_REFERENCE_PATH"
+RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
+RUNTIME_INDICATOR_HISTORY_REQUIREMENTS_PATH = Path(
+    RUNTIME_ARTIFACT_PATHS["indicator_history_requirements_path"]
+)
+RUNTIME_MODEL_META_PATH = Path(RUNTIME_ARTIFACT_PATHS["model_meta_path"])
 
 ANCHORS = 20
 MAX_WINDOW = 100_000
@@ -55,9 +57,8 @@ REST_TIMEOUT_SEC = 20
 
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
 MODELING_OUTPUT_PATHS = resolve_modeling_dataset_output_paths(MODELING_DATASET_SETTINGS)
-OHLCV_LOCAL_PATH = (
-    Path(MODELING_DATASET_SETTINGS["data_dir"])
-    / str(MODELING_DATASET_SETTINGS["base_data_file"])
+OHLCV_LOCAL_PATH = Path(MODELING_DATASET_SETTINGS["data_dir"]) / str(
+    MODELING_DATASET_SETTINGS["base_data_file"]
 )
 FIT_RESULTS_DIR = Path(MODELING_DATASET_SETTINGS["fit_results_dir"])
 
@@ -77,21 +78,36 @@ VALUE_BUILDERS = {
 }
 
 
-@dataclass(frozen=True)
 class IndicatorSpec:
-    feature_col: str
-    indicator: str
-    builder: Callable
-    params: dict
-    required_candles_estimate: int
+    __slots__ = (
+        "feature_col",
+        "indicator",
+        "builder",
+        "params",
+        "required_candles_estimate",
+    )
+
+    def __init__(
+        self,
+        feature_col,
+        indicator,
+        builder,
+        params,
+        required_candles_estimate,
+    ):
+        self.feature_col = feature_col
+        self.indicator = indicator
+        self.builder = builder
+        self.params = params
+        self.required_candles_estimate = required_candles_estimate
 
 
-def _resolve_env_path(env_name: str) -> Path | None:
+def _resolve_env_path(env_name):
     raw = os.environ.get(env_name, "").strip()
     return Path(raw) if raw else None
 
 
-def resolve_meta_path() -> Path:
+def resolve_meta_path():
     override = _resolve_env_path(META_PATH_ENV)
     if override is not None:
         if not override.exists():
@@ -100,19 +116,15 @@ def resolve_meta_path() -> Path:
             )
         return override
 
-    candidates = sorted(
-        MODELS_DIR.glob("*/lgbm_meta_*.json"),
-        key=lambda path: (path.stat().st_mtime, path.name),
-        reverse=True,
-    )
-    if not candidates:
+    if not RUNTIME_MODEL_META_PATH.exists():
         raise FileNotFoundError(
-            f"No model metadata files found in {MODELS_DIR.resolve()}."
+            "Runtime model metadata path from data/runtime/active.json is missing: "
+            f"{RUNTIME_MODEL_META_PATH}"
         )
-    return candidates[0]
+    return RUNTIME_MODEL_META_PATH
 
 
-def resolve_reference_path(meta: dict) -> Path:
+def resolve_reference_path(meta):
     override = _resolve_env_path(REFERENCE_PATH_ENV)
     if override is not None:
         if not override.exists():
@@ -140,8 +152,10 @@ def resolve_reference_path(meta: dict) -> Path:
         if candidate.exists():
             return candidate
 
-    searched = ", ".join(str(Path(path)) for path in candidates)
-    raise FileNotFoundError(f"Could not resolve reference dataset. Searched: {searched}")
+    searched = ", ".join(str(path) for path in candidates)
+    raise FileNotFoundError(
+        f"Could not resolve reference dataset. Searched: {searched}"
+    )
 
 
 def normalize_opened_to_utc_naive(values):
@@ -228,6 +242,56 @@ def load_indicator_specs(feature_columns, fit_results_dir):
     return specs, skipped_non_tuned_features
 
 
+def build_feature_window_map(report_df, value_col):
+    if value_col not in report_df.columns or report_df.empty:
+        return {}
+
+    out = {}
+    for row in report_df.loc[:, ["feature_col", value_col]].itertuples(index=False):
+        raw_value = getattr(row, value_col)
+        if pd.isna(raw_value):
+            continue
+        out[str(row.feature_col)] = int(raw_value)
+    return out
+
+
+def build_runtime_indicator_history_requirements(summary):
+    required_keys = (
+        "meta_path",
+        "fit_results_dir",
+        "unstable_feature_count",
+        "global_required_stable_window",
+        "required_stable_window_by_feature",
+    )
+    missing = [key for key in required_keys if key not in summary]
+    if missing:
+        joined = ", ".join(missing)
+        raise ValueError(
+            "Cannot publish runtime indicator history requirements because summary "
+            f"is missing keys: {joined}"
+        )
+
+    stable_window_by_feature = summary["required_stable_window_by_feature"]
+    if not isinstance(stable_window_by_feature, dict) or not stable_window_by_feature:
+        raise ValueError(
+            "Cannot publish runtime indicator history requirements without a non-empty "
+            "required_stable_window_by_feature map."
+        )
+
+    return {
+        "meta_path": str(summary["meta_path"]),
+        "fit_results_dir": str(summary["fit_results_dir"]),
+        "analysis_summary_path": str(OUTPUT_JSON),
+        "analysis_report_path": str(OUTPUT_CSV),
+        "unstable_feature_count": int(summary["unstable_feature_count"]),
+        "global_required_stable_window": int(summary["global_required_stable_window"]),
+        "required_stable_window_by_feature": {
+            str(feature_col): int(window)
+            for feature_col, window in stable_window_by_feature.items()
+        },
+    }
+
+
 def _read_parquet_tail(path, columns, n_tail):
     try:
         import pyarrow as pa
@@ -281,8 +345,7 @@ def read_reference_tail(reference_path, feature_columns, anchors):
             if missing_ohlcv:
                 raise ValueError(
                     "Reference CSV misses candle feature columns and required OHLCV "
-                    "columns to rebuild them: "
-                    + ", ".join(missing_ohlcv)
+                    "columns to rebuild them: " + ", ".join(missing_ohlcv)
                 )
             usecols = list(dict.fromkeys(usecols + OHLCV_COLS))
 
@@ -320,8 +383,7 @@ def read_reference_tail(reference_path, feature_columns, anchors):
             if missing_ohlcv:
                 raise ValueError(
                     "Reference Parquet misses candle feature columns and required OHLCV "
-                    "columns to rebuild them: "
-                    + ", ".join(missing_ohlcv[:10])
+                    "columns to rebuild them: " + ", ".join(missing_ohlcv[:10])
                 )
             usecols = list(dict.fromkeys(usecols + OHLCV_COLS))
 
@@ -357,7 +419,9 @@ def fetch_historical_ohlcv(session, candles):
         if end_time_ms is not None:
             params["endTime"] = end_time_ms
 
-        response = session.get(FUTURES_REST_KLINES_URL, params=params, timeout=REST_TIMEOUT_SEC)
+        response = session.get(
+            FUTURES_REST_KLINES_URL, params=params, timeout=REST_TIMEOUT_SEC
+        )
         response.raise_for_status()
         data = response.json()
         if not data:
@@ -439,9 +503,13 @@ def compare_anchor_ohlcv(reference_df, ohlcv_df, anchor_positions):
         }
 
     ref_ohlcv = reference_df.loc[:, OHLCV_COLS].to_numpy(dtype=np.float64, copy=False)
-    audit_ohlcv = ohlcv_df.iloc[anchor_positions].loc[:, OHLCV_COLS].to_numpy(
-        dtype=np.float64,
-        copy=False,
+    audit_ohlcv = (
+        ohlcv_df.iloc[anchor_positions]
+        .loc[:, OHLCV_COLS]
+        .to_numpy(
+            dtype=np.float64,
+            copy=False,
+        )
     )
     abs_diff = np.abs(audit_ohlcv - ref_ohlcv)
     finite_diff = abs_diff[np.isfinite(abs_diff)]
@@ -637,7 +705,9 @@ def main():
     if not feature_columns:
         raise RuntimeError("No feature_columns in model meta.")
 
-    specs, skipped_non_tuned_features = load_indicator_specs(feature_columns, FIT_RESULTS_DIR)
+    specs, skipped_non_tuned_features = load_indicator_specs(
+        feature_columns, FIT_RESULTS_DIR
+    )
     if skipped_non_tuned_features:
         preview = ", ".join(skipped_non_tuned_features[:10])
         print(
@@ -759,7 +829,9 @@ def main():
                 "formula_window_checked": int(formula),
                 "formula_is_stable": bool(result["formula_is_stable"]),
                 "formula_max_abs_error": float(result["formula_max_abs_error"]),
-                "stable_min_window": (int(stable_min) if stable_min is not None else np.nan),
+                "stable_min_window": (
+                    int(stable_min) if stable_min is not None else np.nan
+                ),
                 "stable_minus_estimate": (
                     float(stable_min - spec.required_candles_estimate)
                     if stable_min is not None
@@ -771,14 +843,32 @@ def main():
         )
 
         if i % 10 == 0 or i == len(specs):
-            print(f"[progress] {i}/{len(specs)} {spec.feature_col} status={result['status']}")
+            print(
+                f"[progress] {i}/{len(specs)} {spec.feature_col} status={result['status']}"
+            )
 
     report_df = pd.DataFrame(rows)
     stable_mask = report_df["stable_min_window"].notna()
-    stable_values = report_df.loc[stable_mask, "stable_min_window"].to_numpy(dtype=np.float64)
+    stable_values = report_df.loc[stable_mask, "stable_min_window"].to_numpy(
+        dtype=np.float64
+    )
     global_stable_window = int(np.nanmax(stable_values)) if stable_values.size else None
-    global_estimate_window = int(report_df["required_candles_estimate"].max()) if len(report_df) else None
+    global_estimate_window = (
+        int(report_df["required_candles_estimate"].max()) if len(report_df) else None
+    )
     unstable_features = report_df.loc[~stable_mask, "feature_col"].tolist()
+    stable_window_by_feature = build_feature_window_map(
+        report_df,
+        "stable_min_window",
+    )
+    estimate_window_by_feature = build_feature_window_map(
+        report_df,
+        "required_candles_estimate",
+    )
+    formula_window_by_feature = build_feature_window_map(
+        report_df,
+        "formula_window_checked",
+    )
 
     summary = {
         "meta_path": str(meta_path),
@@ -787,16 +877,19 @@ def main():
         "ohlcv_symbol": SYMBOL,
         "ohlcv_interval": INTERVAL,
         "reference_path": str(reference_path),
-        "meta_feature_count": int(len(feature_columns)),
-        "feature_count_evaluated": int(len(report_df)),
-        "skipped_non_tuned_feature_count": int(len(skipped_non_tuned_features)),
+        "meta_feature_count": len(feature_columns),
+        "feature_count_evaluated": len(report_df),
+        "skipped_non_tuned_feature_count": len(skipped_non_tuned_features),
         "stable_feature_count": int(stable_mask.sum()),
         "unstable_feature_count": int((~stable_mask).sum()),
         "global_required_stable_window": global_stable_window,
         "global_required_estimate_window": global_estimate_window,
+        "required_stable_window_by_feature": stable_window_by_feature,
+        "required_estimate_window_by_feature": estimate_window_by_feature,
+        "formula_window_by_feature": formula_window_by_feature,
         "abs_tol": float(ABS_TOL),
         "rel_tol": float(REL_TOL),
-        "anchors_used": int(len(reference_df)),
+        "anchors_used": len(reference_df),
         "max_window": int(MAX_WINDOW),
         "search_method": "binary_search_from_smallest_window_with_formula_baseline_and_local_backscan",
         "anchor_ohlcv_abs_tol": float(OHLCV_MATCH_ABS_TOL),
@@ -817,6 +910,14 @@ def main():
     OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     report_df.to_csv(OUTPUT_CSV, index=False)
     OUTPUT_JSON.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+    runtime_requirements = build_runtime_indicator_history_requirements(summary)
+    RUNTIME_INDICATOR_HISTORY_REQUIREMENTS_PATH.parent.mkdir(
+        parents=True, exist_ok=True
+    )
+    RUNTIME_INDICATOR_HISTORY_REQUIREMENTS_PATH.write_text(
+        json.dumps(runtime_requirements, indent=2),
+        encoding="utf-8",
+    )
 
     print(
         f"[done] stable={summary['stable_feature_count']}/{summary['feature_count_evaluated']} "
@@ -825,6 +926,10 @@ def main():
     )
     print(f"[done] report_csv={OUTPUT_CSV}")
     print(f"[done] summary_json={OUTPUT_JSON}")
+    print(
+        "[done] runtime_indicator_history_requirements="
+        f"{RUNTIME_INDICATOR_HISTORY_REQUIREMENTS_PATH}"
+    )
 
 
 if __name__ == "__main__":

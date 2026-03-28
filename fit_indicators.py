@@ -33,6 +33,11 @@ from features.common_utils import (
     normalize_indicators,
     resolve_base_pop_size,
 )
+from project_config import (
+    ACTIVE_CONFIG_PATH,
+    INDICATOR_FIT_CONFIG_PATH,
+    build_indicator_fit_legacy_config,
+)
 from features.KeltnerChannel import KeltnerChannelFitting, keltner_channel_initializer
 from features.MACD import MACDFitting, macd_initializer
 from features.StochOsc import (
@@ -40,8 +45,7 @@ from features.StochOsc import (
     stochastic_oscillator_initializer,
 )
 
-
-CONFIG_FILE = "configs/fit_indicators_config.json"
+CONFIG_FILE = str(INDICATOR_FIT_CONFIG_PATH)
 CPU_CORES_COUNT = 17
 FIT_RESULTS_ROOT = Path("data/features/indicators_fit/tuning")
 
@@ -146,7 +150,9 @@ def _resolve_existing_column_name(df, requested_col):
     for col in df.columns:
         if str(col).lower() == requested_l:
             return str(col)
-    raise ValueError(f"proxy_target_price_col='{requested_col}' not found in dataframe.")
+    raise ValueError(
+        f"proxy_target_price_col='{requested_col}' not found in dataframe."
+    )
 
 
 def _build_proxy_target_np(price_np, horizon_minutes):
@@ -189,7 +195,9 @@ def _normalize_prob_param_values(raw_value, field_name):
 
 def _resolve_metric_configs(interval_cfg, pair_cfg):
     metric_name = str(
-        interval_cfg.get("metric_name", pair_cfg.get("metric_name", DEFAULT_METRIC_NAME))
+        interval_cfg.get(
+            "metric_name", pair_cfg.get("metric_name", DEFAULT_METRIC_NAME)
+        )
     )
     if metric_name != SELECTION_METRIC_NAME:
         raise ValueError(
@@ -212,9 +220,13 @@ def _resolve_metric_configs(interval_cfg, pair_cfg):
         )
     )
     if not (0.0 < train_frac < 1.0):
-        raise ValueError(f"metric_train_frac must satisfy 0 < frac < 1, got: {train_frac}")
+        raise ValueError(
+            f"metric_train_frac must satisfy 0 < frac < 1, got: {train_frac}"
+        )
 
-    gap = int(interval_cfg.get("metric_gap", pair_cfg.get("metric_gap", DEFAULT_METRIC_GAP)))
+    gap = int(
+        interval_cfg.get("metric_gap", pair_cfg.get("metric_gap", DEFAULT_METRIC_GAP))
+    )
     if gap < 0:
         raise ValueError(f"metric_gap must be >= 0, got: {gap}")
     q_ext_values = _normalize_prob_param_values(
@@ -226,11 +238,17 @@ def _resolve_metric_configs(interval_cfg, pair_cfg):
         "q_mid",
     )
 
-    stat = str(interval_cfg.get("stat", pair_cfg.get("stat", DEFAULT_METRIC_STAT))).strip().lower()
+    stat = (
+        str(interval_cfg.get("stat", pair_cfg.get("stat", DEFAULT_METRIC_STAT)))
+        .strip()
+        .lower()
+    )
     if stat not in {"mean_clip", "median"}:
         raise ValueError(f"stat must be 'mean_clip' or 'median', got: {stat}")
 
-    clip_q = float(interval_cfg.get("clip_q", pair_cfg.get("clip_q", DEFAULT_METRIC_CLIP_Q)))
+    clip_q = float(
+        interval_cfg.get("clip_q", pair_cfg.get("clip_q", DEFAULT_METRIC_CLIP_Q))
+    )
     if not (0.0 <= clip_q < 0.5):
         raise ValueError(f"clip_q must satisfy 0 <= clip_q < 0.5, got: {clip_q}")
 
@@ -298,9 +316,14 @@ def _metric_filename_suffix(metric_config):
     )
 
 
-def _fit_config_hash(config_path):
-    raw = config_path.read_bytes()
-    return hashlib.sha256(raw).hexdigest()[:16]
+def _fit_config_hash(config_payload):
+    normalized = json.dumps(
+        config_payload,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    return hashlib.sha256(normalized).hexdigest()[:16]
 
 
 def _fit_result_filename(ind_name, target_col, filename_pop_size, metric_config):
@@ -385,16 +408,20 @@ def run_indicator_ga(
 
 
 def main():
-    cfg_path = Path(CONFIG_FILE)
-    cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
-    config_hash = _fit_config_hash(cfg_path)
+    cfg = build_indicator_fit_legacy_config()
+    config_hash = _fit_config_hash(cfg)
     results_dir = FIT_RESULTS_ROOT / config_hash
     results_dir.mkdir(parents=True, exist_ok=True)
-    (results_dir / "fit_indicators_config.json").write_text(
-        cfg_path.read_text(encoding="utf-8"),
+    (results_dir / "fit_indicators_applied_config.json").write_text(
+        json.dumps(cfg, indent=2),
         encoding="utf-8",
     )
-    print(f"fit results dir: {results_dir} (config_hash={config_hash})")
+    print(
+        "fit results dir: "
+        f"{results_dir} (config_hash={config_hash}, "
+        f"indicator_fit_config={INDICATOR_FIT_CONFIG_PATH}, "
+        f"active_profiles={ACTIVE_CONFIG_PATH})"
+    )
 
     for pair, pair_cfg in cfg["pairs"].items():
         for interval, interval_cfg in pair_cfg["intervals"].items():
@@ -520,8 +547,12 @@ def main():
                             "metric": dict(metric_config),
                             "fit_config_hash": config_hash,
                         }
-                        out_json.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-                        print(f"[{interval} {ind_name} {target_col}] saved -> {out_json}")
+                        out_json.write_text(
+                            json.dumps(payload, indent=2), encoding="utf-8"
+                        )
+                        print(
+                            f"[{interval} {ind_name} {target_col}] saved -> {out_json}"
+                        )
 
 
 if __name__ == "__main__":

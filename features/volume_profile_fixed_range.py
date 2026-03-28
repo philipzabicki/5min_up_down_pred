@@ -1,14 +1,10 @@
-from __future__ import annotations
-
 import json
 import math
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pandas as pd
 from numba import njit
-
 
 FEATURE_VERSION = "vp_fixed_range_v1"
 VP_FEATURE_PREFIX = "vp_"
@@ -44,18 +40,18 @@ _RENORMALIZE_SCALE_MIN = 1e-3
 _SQRT_TWO = math.sqrt(2.0)
 
 
-def is_volume_profile_feature(feature_name: str) -> bool:
+def is_volume_profile_feature(feature_name):
     return str(feature_name).startswith(VP_FEATURE_PREFIX)
 
 
-def normalize_config(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+def normalize_config(cfg=None):
     user_cfg = dict(cfg or {})
     user_horizons = user_cfg.pop("horizons", None)
 
     merged = dict(DEFAULT_CONFIG)
     merged.update(user_cfg)
 
-    horizons: dict[str, dict[str, Any]] = {}
+    horizons = {}
     user_horizons = user_horizons if isinstance(user_horizons, dict) else {}
     for horizon_name in _HORIZON_ORDER:
         horizon_cfg = dict(DEFAULT_CONFIG["horizons"][horizon_name])
@@ -68,7 +64,9 @@ def normalize_config(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     price_max = float(merged["price_max"])
     step_raw = float(merged["step"])
     if not np.isfinite(price_min) or not np.isfinite(price_max):
-        raise ValueError("volume profile config requires finite price_min and price_max.")
+        raise ValueError(
+            "volume profile config requires finite price_min and price_max."
+        )
     if price_max <= price_min:
         raise ValueError("volume profile config requires price_max > price_min.")
     if not np.isfinite(step_raw) or step_raw <= 0.0:
@@ -98,9 +96,9 @@ def normalize_config(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     if eps <= 0.0:
         raise ValueError("volume profile config requires eps > 0.")
 
-    half_lives: list[int | None] = []
-    decays: list[float] = []
-    horizon_names: list[str] = []
+    half_lives = []
+    decays = []
+    horizon_names = []
     for horizon_name in _HORIZON_ORDER:
         half_life = horizons[horizon_name].get("half_life_candles")
         if half_life is None:
@@ -143,12 +141,12 @@ def normalize_config(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     return normalized
 
 
-def config_signature(cfg: dict[str, Any] | None = None) -> str:
+def config_signature(cfg=None):
     normalized = cfg if cfg and "horizon_names" in cfg else normalize_config(cfg)
     return _config_signature_from_normalized(normalized)
 
 
-def _config_signature_from_normalized(normalized: dict[str, Any]) -> str:
+def _config_signature_from_normalized(normalized):
     payload = {
         "version": normalized["version"],
         "enabled": bool(normalized["enabled"]),
@@ -172,9 +170,9 @@ def _config_signature_from_normalized(normalized: dict[str, Any]) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
-def get_feature_columns(cfg: dict[str, Any] | None = None) -> tuple[str, ...]:
+def get_feature_columns(cfg=None):
     normalized = cfg if cfg and "horizon_names" in cfg else normalize_config(cfg)
-    cols: list[str] = []
+    cols = []
     neighbor_bins = int(normalized["neighbor_bins"])
     for horizon_name in normalized["horizon_names"]:
         for shift in range(-neighbor_bins, 0):
@@ -187,7 +185,7 @@ def get_feature_columns(cfg: dict[str, Any] | None = None) -> tuple[str, ...]:
     return tuple(cols)
 
 
-def create_empty_state(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
+def create_empty_state(cfg=None):
     normalized = cfg if cfg and "horizon_names" in cfg else normalize_config(cfg)
     horizon_count = len(normalized["horizon_names"])
     bins = int(normalized["bins"])
@@ -214,18 +212,18 @@ def create_empty_state(cfg: dict[str, Any] | None = None) -> dict[str, Any]:
     }
 
 
-def state_matches_config(state: dict[str, Any], cfg: dict[str, Any] | None = None) -> bool:
+def state_matches_config(state, cfg=None):
     return str(state.get("config_signature", "")) == config_signature(cfg)
 
 
-def _state_base_path(path: str | Path) -> Path:
+def _state_base_path(path):
     base_path = Path(path)
     if base_path.suffix.lower() in {".npz", ".json"}:
         return base_path.with_suffix("")
     return base_path
 
 
-def _state_metadata_dict(state: dict[str, Any]) -> dict[str, Any]:
+def _state_metadata_dict(state):
     horizon_meta = {}
     for idx, name in enumerate(state["horizon_names"]):
         horizon_meta[name] = {
@@ -253,7 +251,7 @@ def _state_metadata_dict(state: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def save_state(state: dict[str, Any], path: str | Path) -> dict[str, Path]:
+def save_state(state, path):
     base_path = _state_base_path(path)
     base_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -267,13 +265,15 @@ def save_state(state: dict[str, Any], path: str | Path) -> dict[str, Path]:
         decays=state["decays"],
     )
     json_path.write_text(
-        json.dumps(_state_metadata_dict(state), indent=2, sort_keys=True, ensure_ascii=True),
+        json.dumps(
+            _state_metadata_dict(state), indent=2, sort_keys=True, ensure_ascii=True
+        ),
         encoding="utf-8",
     )
     return {"npz": npz_path, "json": json_path}
 
 
-def load_state(path: str | Path) -> dict[str, Any]:
+def load_state(path):
     base_path = _state_base_path(path)
     npz_path = base_path.with_suffix(".npz")
     json_path = base_path.with_suffix(".json")
@@ -330,17 +330,21 @@ def load_state(path: str | Path) -> dict[str, Any]:
     state["global_scales"][:] = global_scales
     state["decays"][:] = decays
     state["last_candle_time"] = meta.get("last_candle_time")
-    state["config_signature"] = str(meta.get("config_signature", state["config_signature"]))
+    state["config_signature"] = str(
+        meta.get("config_signature", state["config_signature"])
+    )
     return state
 
 
-def _require_dataframe_columns(df: pd.DataFrame, required: tuple[str, ...]) -> None:
+def _require_dataframe_columns(df, required):
     missing = [col for col in required if col not in df.columns]
     if missing:
-        raise ValueError(f"volume profile dataframe missing required columns: {missing}")
+        raise ValueError(
+            f"volume profile dataframe missing required columns: {missing}"
+        )
 
 
-def _price_to_bin_index(price: float, price_min: float, step: float, bins: int) -> int:
+def _price_to_bin_index(price, price_min, step, bins):
     idx = int((float(price) - price_min) / step)
     if idx < 0:
         return 0
@@ -349,7 +353,7 @@ def _price_to_bin_index(price: float, price_min: float, step: float, bins: int) 
     return idx
 
 
-def _normal_cdf(x: float) -> float:
+def _normal_cdf(x):
     return 0.5 * (1.0 + math.erf(float(x) / _SQRT_TWO))
 
 
@@ -558,22 +562,6 @@ def _build_volume_profile_feature_matrix_numba(
     for row_idx in range(row_count):
         row_high = high[row_idx]
         row_low = low[row_idx]
-        if keep_mask[row_idx]:
-            _extract_feature_row_array_numba(
-                raw_profiles=raw_profiles,
-                global_scales=global_scales,
-                high=row_high,
-                low=row_low,
-                price_min=price_min,
-                step=step,
-                bins=bins,
-                neighbor_bins=neighbor_bins,
-                local_window=local_window,
-                eps=eps,
-                out_row=feature_matrix[out_idx],
-            )
-            out_idx += 1
-
         _update_state_with_candle_numba(
             raw_profiles=raw_profiles,
             global_scales=global_scales,
@@ -590,10 +578,26 @@ def _build_volume_profile_feature_matrix_numba(
             weight_buffer=weight_buffer,
         )
 
+        if keep_mask[row_idx]:
+            _extract_feature_row_array_numba(
+                raw_profiles=raw_profiles,
+                global_scales=global_scales,
+                high=row_high,
+                low=row_low,
+                price_min=price_min,
+                step=step,
+                bins=bins,
+                neighbor_bins=neighbor_bins,
+                local_window=local_window,
+                eps=eps,
+                out_row=feature_matrix[out_idx],
+            )
+            out_idx += 1
+
     return feature_matrix, raw_profiles, global_scales
 
 
-def _normalize_keep_mask(keep_mask, row_count: int) -> np.ndarray:
+def _normalize_keep_mask(keep_mask, row_count):
     if keep_mask is None:
         return np.ones(row_count, dtype=np.bool_)
 
@@ -609,9 +613,9 @@ def build_volume_profile_feature_matrix_from_arrays(
     high,
     low,
     volume,
-    cfg: dict[str, Any] | None = None,
+    cfg=None,
     keep_mask=None,
-) -> tuple[np.ndarray, dict[str, Any]]:
+):
     normalized = normalize_config(cfg)
     state = create_empty_state(normalized)
     row_count = len(high)
@@ -654,15 +658,15 @@ def build_volume_profile_feature_matrix_from_arrays(
 
 
 def _build_candle_contribution_slice(
-    high: float,
-    low: float,
-    volume: float,
-    price_min: float,
-    step: float,
-    bins: int,
-    sigma_divisor: float,
-    min_sigma: float,
-) -> tuple[int | None, np.ndarray]:
+    high,
+    low,
+    volume,
+    price_min,
+    step,
+    bins,
+    sigma_divisor,
+    min_sigma,
+):
     if not np.isfinite(high) or not np.isfinite(low) or not np.isfinite(volume):
         return None, np.empty(0, dtype=np.float32)
     if volume == 0.0:
@@ -702,10 +706,10 @@ def _build_candle_contribution_slice(
 
 
 def _extract_feature_row_array(
-    state: dict[str, Any],
-    high: float,
-    low: float,
-) -> np.ndarray:
+    state,
+    high,
+    low,
+):
     if not state["enabled"]:
         return np.empty(0, dtype=np.float32)
 
@@ -714,7 +718,9 @@ def _extract_feature_row_array(
     eps = float(state["eps"])
     bins = int(state["bins"])
     price_ref = 0.5 * (float(high) + float(low))
-    bin_idx = _price_to_bin_index(price_ref, float(state["price_min"]), float(state["step"]), bins)
+    bin_idx = _price_to_bin_index(
+        price_ref, float(state["price_min"]), float(state["step"]), bins
+    )
 
     out = np.empty(len(state["feature_columns"]), dtype=np.float32)
     cursor = 0
@@ -757,10 +763,10 @@ def _extract_feature_row_array(
 
 
 def extract_features_from_state(
-    state: dict[str, Any],
-    high: float,
-    low: float,
-) -> dict[str, float]:
+    state,
+    high,
+    low,
+):
     values = _extract_feature_row_array(state, high=high, low=low)
     return {
         feature_col: float(values[idx])
@@ -769,11 +775,11 @@ def extract_features_from_state(
 
 
 def update_state_with_candle(
-    state: dict[str, Any],
-    high: float,
-    low: float,
-    volume: float,
-) -> dict[str, Any]:
+    state,
+    high,
+    low,
+    volume,
+):
     if not state["enabled"]:
         return state
 
@@ -809,9 +815,9 @@ def update_state_with_candle(
 
 
 def bootstrap_state_from_history(
-    df_hist: pd.DataFrame,
-    cfg: dict[str, Any] | None = None,
-) -> dict[str, Any]:
+    df_hist,
+    cfg=None,
+):
     _require_dataframe_columns(df_hist, _REQUIRED_COLUMNS)
     normalized = normalize_config(cfg)
     state = create_empty_state(normalized)
@@ -832,16 +838,18 @@ def bootstrap_state_from_history(
     )
 
     if "Opened" in df_hist.columns and len(df_hist) > 0:
-        state["last_candle_time"] = str(pd.Timestamp(df_hist["Opened"].iloc[-1]).isoformat())
+        state["last_candle_time"] = str(
+            pd.Timestamp(df_hist["Opened"].iloc[-1]).isoformat()
+        )
     print("[vp] bootstrap state done")
     return state
 
 
 def build_volume_profile_features(
-    df: pd.DataFrame,
-    cfg: dict[str, Any] | None = None,
-    verbose: bool = True,
-) -> tuple[pd.DataFrame, dict[str, Any]]:
+    df,
+    cfg=None,
+    verbose=True,
+):
     _require_dataframe_columns(df, _REQUIRED_COLUMNS)
     normalized = normalize_config(cfg)
     state = create_empty_state(normalized)
@@ -865,18 +873,20 @@ def build_volume_profile_features(
     if "Opened" in df.columns and row_count > 0:
         state["last_candle_time"] = str(pd.Timestamp(df["Opened"].iloc[-1]).isoformat())
 
-    feature_df = pd.DataFrame(feature_matrix, columns=state["feature_columns"], index=df.index)
+    feature_df = pd.DataFrame(
+        feature_matrix, columns=state["feature_columns"], index=df.index
+    )
     if verbose:
         print("[vp] build columns: " + ", ".join(state["feature_columns"]))
     return feature_df, state
 
 
 def check_batch_live_consistency(
-    df: pd.DataFrame,
-    cfg: dict[str, Any] | None = None,
-    atol: float = 1e-6,
-    rtol: float = 1e-6,
-) -> dict[str, Any]:
+    df,
+    cfg=None,
+    atol=1e-6,
+    rtol=1e-6,
+):
     _require_dataframe_columns(df, _REQUIRED_COLUMNS)
     batch_df, _ = build_volume_profile_features(df, cfg)
     live_state = create_empty_state(cfg)
@@ -887,30 +897,40 @@ def check_batch_live_consistency(
 
     live_matrix = np.empty_like(batch_df.to_numpy(dtype=np.float32, copy=True))
     for row_idx in range(len(df)):
-        live_matrix[row_idx, :] = _extract_feature_row_array(
-            live_state,
-            high=float(high[row_idx]),
-            low=float(low[row_idx]),
-        )
         update_state_with_candle(
             live_state,
             high=float(high[row_idx]),
             low=float(low[row_idx]),
             volume=float(volume[row_idx]),
         )
+        live_matrix[row_idx, :] = _extract_feature_row_array(
+            live_state,
+            high=float(high[row_idx]),
+            low=float(low[row_idx]),
+        )
 
     batch_matrix = batch_df.to_numpy(dtype=np.float64, copy=False)
     live_matrix64 = live_matrix.astype(np.float64, copy=False)
     allclose = bool(
-        np.allclose(batch_matrix, live_matrix64, atol=float(atol), rtol=float(rtol), equal_nan=True)
+        np.allclose(
+            batch_matrix,
+            live_matrix64,
+            atol=float(atol),
+            rtol=float(rtol),
+            equal_nan=True,
+        )
     )
-    max_abs_diff = float(np.nanmax(np.abs(batch_matrix - live_matrix64))) if batch_matrix.size else 0.0
+    max_abs_diff = (
+        float(np.nanmax(np.abs(batch_matrix - live_matrix64)))
+        if batch_matrix.size
+        else 0.0
+    )
     return {
         "ok": allclose,
         "max_abs_diff": max_abs_diff,
         "atol": float(atol),
         "rtol": float(rtol),
-        "rows": int(len(df)),
+        "rows": len(df),
         "feature_count": int(batch_matrix.shape[1]) if batch_matrix.ndim == 2 else 0,
     }
 

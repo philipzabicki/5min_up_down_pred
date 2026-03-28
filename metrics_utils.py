@@ -10,8 +10,7 @@ def _resolve_sample_weight(sample_weight, n_obs):
         raise ValueError("Sample weights must be a 1D array.")
     if weights.shape[0] != int(n_obs):
         raise ValueError(
-            "Sample weights length mismatch: "
-            f"{weights.shape[0]} != {int(n_obs)}"
+            "Sample weights length mismatch: " f"{weights.shape[0]} != {int(n_obs)}"
         )
     return weights
 

@@ -12,12 +12,24 @@ import pandas as pd
 import requests
 
 import lightgbm as lgb
+from live_common import (
+    LIVE_PREDICTION_EXPORT_COLUMNS,
+    as_utc_timestamp,
+    interval_to_floor_rule,
+    interval_to_timedelta,
+    write_records_csv,
+)
 from websocket import WebSocketApp
 from create_modeling_dataset import (
     parse_fit_results,
     resolve_volume_profile_modeling_state_path,
 )
-from data.chainlink_sources import by_ChainlinkDataStream
+from project_config import (
+    load_dataset_profile,
+    load_live_profile,
+    load_runtime_artifact_paths,
+)
+from project_env import load_repo_env
 from features.candle_features import (
     RAW_OHLCV_COLS,
     STREAK_FEATURE_PREFIX,
@@ -59,72 +71,76 @@ from modeling_dataset_utils import (
     split_feature_subset,
 )
 
+load_repo_env()
+LIVE_PROFILE = load_live_profile()
+DATASET_PROFILE = load_dataset_profile()
+RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
 
-SYMBOL = "BTCUSDT"
-INTERVAL = "1m"
-FETCH_CONFIG_PATH = Path("configs/fetch_config.json")
-INDEX_PRICE_SYNTHETIC_VOLUME_DEFAULT = 60.0
-MODEL_META_PATH = Path("data/models/runs/20260325_141129/lgbm_meta_20260325_141129.json")
-KELLY_CONFIG_PATH = Path("configs/kelly_config.json")
-INDICATOR_STABILITY_SUMMARY_PATH = Path("data/analysis/indicator_stability/summary.json")
-SETTLEMENT_SOURCE = os.getenv("LIVE_SETTLEMENT_SOURCE", "polymarket").strip().lower()
-SETTLEMENT_TICKER = os.getenv("LIVE_SETTLEMENT_TICKER", "BTCUSD").strip().upper()
-POLYMARKET_GAMMA_HOST = (
-    os.getenv("POLY_GAMMA_HOST", "https://gamma-api.polymarket.com").strip().rstrip("/")
+SYMBOL = str(LIVE_PROFILE["symbol"]).strip().upper()
+INTERVAL = str(LIVE_PROFILE["interval"]).strip()
+INDEX_PRICE_SYNTHETIC_VOLUME_DEFAULT = float(
+    LIVE_PROFILE["index_price_synthetic_volume_default"]
 )
-POLYMARKET_SERIES_SLUG = os.getenv("POLY_SERIES_SLUG", "btc-up-or-down-5m").strip()
-POLYMARKET_MARKET_SLUG_PREFIX = os.getenv(
-    "POLY_MARKET_SLUG_PREFIX", "btc-updown-5m"
+MODEL_META_PATH = Path(RUNTIME_ARTIFACT_PATHS["model_meta_path"])
+KELLY_CONFIG_PATH = Path(RUNTIME_ARTIFACT_PATHS["kelly_runtime_config_path"])
+INDICATOR_HISTORY_REQUIREMENTS_PATH = Path(
+    RUNTIME_ARTIFACT_PATHS["indicator_history_requirements_path"]
+)
+# Polymarket 5m up/down markets resolve from the market itself.
+SETTLEMENT_SOURCE = "polymarket"
+POLYMARKET_GAMMA_HOST = (
+    os.getenv(
+        "POLY_GAMMA_HOST",
+        str(LIVE_PROFILE["polymarket_gamma_host"]),
+    )
+    .strip()
+    .rstrip("/")
+)
+POLYMARKET_SERIES_SLUG = os.getenv(
+    "POLY_SERIES_SLUG",
+    str(LIVE_PROFILE["polymarket_series_slug"]),
 ).strip()
-POLYMARKET_MARKET_SLUG_OVERRIDE = os.getenv("POLY_MARKET_SLUG_OVERRIDE", "").strip()
+POLYMARKET_MARKET_SLUG_PREFIX = os.getenv(
+    "POLY_MARKET_SLUG_PREFIX",
+    str(LIVE_PROFILE["polymarket_market_slug_prefix"]),
+).strip()
+POLYMARKET_MARKET_SLUG_OVERRIDE = os.getenv(
+    "POLY_MARKET_SLUG_OVERRIDE",
+    str(LIVE_PROFILE.get("polymarket_market_slug_override", "")),
+).strip()
 POLYMARKET_MARKET_REQUEST_TIMEOUT_SEC = float(
-    os.getenv("POLY_MARKET_REQUEST_TIMEOUT_SEC", "3.0").strip() or "3.0"
+    os.getenv(
+        "POLY_MARKET_REQUEST_TIMEOUT_SEC",
+        str(LIVE_PROFILE["polymarket_market_request_timeout_sec"]),
+    ).strip()
 )
 LIVE_ROOT_DIR = Path("data/live")
 LIVE_PREDICTIONS_DIR = LIVE_ROOT_DIR / "predictions"
 LIVE_TRADE_DIR = LIVE_ROOT_DIR / "trade"
 RUN_STARTED_AT_UTC = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
 PREDICTIONS_OUTPUT_PATH = Path(
-    LIVE_PREDICTIONS_DIR / f"live_predictions_{SYMBOL}_{INTERVAL}_{RUN_STARTED_AT_UTC}.csv"
+    LIVE_PREDICTIONS_DIR
+    / f"live_predictions_{SYMBOL}_{INTERVAL}_{RUN_STARTED_AT_UTC}.csv"
 )
 VOLUME_PROFILE_RUNTIME_STATE_PATH = (
     VP_RUNTIME_STATE_DIR / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}"
 )
 
-DEFAULT_BOOTSTRAP_CANDLES = 20_000
-MAX_WS_RECONNECT_DELAY_SEC = 15
-WS_PING_INTERVAL_SEC = 20
-WS_PING_TIMEOUT_SEC = 10
+DEFAULT_BOOTSTRAP_CANDLES = int(LIVE_PROFILE["default_bootstrap_candles"])
+DEFAULT_INDICATOR_HISTORY_MARGIN_RATIO = float(
+    LIVE_PROFILE["indicator_history_margin_ratio"]
+)
+DEFAULT_INDICATOR_HISTORY_MIN_EXTRA_CANDLES = int(
+    LIVE_PROFILE["indicator_history_min_extra_candles"]
+)
+MAX_WS_RECONNECT_DELAY_SEC = int(LIVE_PROFILE["max_ws_reconnect_delay_sec"])
+WS_PING_INTERVAL_SEC = int(LIVE_PROFILE["ws_ping_interval_sec"])
+WS_PING_TIMEOUT_SEC = int(LIVE_PROFILE["ws_ping_timeout_sec"])
 
-LIVE_INITIAL_BANKROLL_USDC = 1000.0
-MIN_PROBA_CLIP = 1e-6
+LIVE_INITIAL_BANKROLL_USDC = float(LIVE_PROFILE["live_initial_bankroll_usdc"])
+MIN_PROBA_CLIP = float(LIVE_PROFILE["min_proba_clip"])
 
 OHLCV_COLS = list(RAW_OHLCV_COLS)
-PREDICTIONS_EXPORT_COLUMNS = (
-    "prediction_time",
-    "resolved_at",
-    "bucket_start",
-    "bucket_end",
-    "proba_up",
-    "signal_up",
-    "kelly_side",
-    "kelly_reason",
-    "kelly_edge",
-    "kelly_fraction",
-    "stake_usdc",
-    "entry_price",
-    "entry_fee_usdc",
-    "bankroll_after_entry",
-    "bankroll_after_resolve",
-    "bucket_open_price",
-    "bucket_close_price",
-    "actual_up",
-    "is_correct",
-    "trade_is_win",
-    "pnl_usdc",
-    "win_rate_resolved",
-    "win_rate_traded",
-)
 BASE_FEATURE_COLS = (
     set(OHLCV_COLS)
     | set(SUPPORTED_CANDLE_FEATURE_COLS)
@@ -149,6 +165,7 @@ class IndicatorSpec:
         self.params = params
         self.required_candles = required_candles
 
+
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
 FIT_RESULTS_DIR = MODELING_DATASET_SETTINGS["fit_results_dir"]
 VOLUME_PROFILE_MODELING_STATE_PATH = resolve_volume_profile_modeling_state_path(
@@ -156,78 +173,23 @@ VOLUME_PROFILE_MODELING_STATE_PATH = resolve_volume_profile_modeling_state_path(
 )
 
 
-def as_utc_timestamp(value):
-    ts = pd.Timestamp(value)
-    return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
-
-
-def interval_to_timedelta(interval):
-    if interval.endswith("m"):
-        return pd.Timedelta(minutes=int(interval[:-1]))
-    if interval.endswith("h"):
-        return pd.Timedelta(hours=int(interval[:-1]))
-    if interval.endswith("d"):
-        return pd.Timedelta(days=int(interval[:-1]))
-    raise ValueError(f"Unsupported interval: {interval}")
-
-
-def interval_to_floor_rule(interval):
-    if interval.endswith("m"):
-        return f"{int(interval[:-1])}min"
-    if interval.endswith("h"):
-        return f"{int(interval[:-1])}h"
-    if interval.endswith("d"):
-        return f"{int(interval[:-1])}d"
-    raise ValueError(f"Unsupported floor rule interval: {interval}")
-
-
-def resolve_default_feature_source_selection(config_path=FETCH_CONFIG_PATH):
-    default_price_source = "trade"
-    default_volume_source = "same"
-    config_path = Path(config_path)
-    if not config_path.exists():
-        return default_price_source, default_volume_source
-
-    try:
-        payload = json.loads(config_path.read_text(encoding="utf-8"))
-    except Exception:
-        return default_price_source, default_volume_source
-
-    config_symbol = str(payload.get("symbol", "")).strip().upper()
-    config_market = str(payload.get("market", "")).strip().lower()
-    config_source = str(payload.get("source", "")).strip().lower()
-    config_intervals = {
-        str(interval).strip()
-        for interval in payload.get("intervals", [])
-        if str(interval).strip()
-    }
-    if config_symbol != SYMBOL or INTERVAL not in config_intervals:
-        return default_price_source, default_volume_source
-    if config_market not in {"um", "cm"}:
-        return default_price_source, default_volume_source
-    if config_source not in {"vision", "dataclient"}:
-        return default_price_source, default_volume_source
-
-    price_source = str(payload.get("price_source", default_price_source)).strip().lower()
-    volume_source = str(payload.get("volume_source", default_volume_source)).strip().lower()
-    return price_source or default_price_source, volume_source or default_volume_source
-
-
 def normalize_live_source_selection(price_source, volume_source):
     normalized_price_source = str(price_source).strip().lower()
     if normalized_price_source not in {"trade", "index"}:
-        raise ValueError("BINANCE_PRICE_SOURCE must be one of {'trade', 'index'}")
+        raise ValueError("Configured price_source must be one of {'trade', 'index'}")
 
     normalized_volume_source = str(volume_source).strip().lower()
     if normalized_volume_source in {"", "same"}:
         normalized_volume_source = normalized_price_source
 
     if normalized_volume_source not in {"trade", "index"}:
-        raise ValueError("BINANCE_VOLUME_SOURCE must be one of {'same', 'trade', 'index'}")
+        raise ValueError(
+            "Configured volume_source must be one of {'same', 'trade', 'index'}"
+        )
 
     if normalized_price_source == "trade" and normalized_volume_source == "index":
         raise ValueError(
-            "BINANCE_VOLUME_SOURCE='index' is not supported when BINANCE_PRICE_SOURCE='trade'."
+            "volume_source='index' is not supported when price_source='trade'."
         )
 
     return normalized_price_source, normalized_volume_source
@@ -275,8 +237,12 @@ def resolve_polymarket_actual_up_from_market_payload(market_payload):
     if not isinstance(market_payload, dict):
         return None
 
-    resolution_status = str(market_payload.get("umaResolutionStatus", "") or "").strip().lower()
-    winning_outcome = str(market_payload.get("winning_outcome", "") or "").strip().lower()
+    resolution_status = (
+        str(market_payload.get("umaResolutionStatus", "") or "").strip().lower()
+    )
+    winning_outcome = (
+        str(market_payload.get("winning_outcome", "") or "").strip().lower()
+    )
     if winning_outcome in {"up", "yes"}:
         return 1
     if winning_outcome in {"down", "no"}:
@@ -322,7 +288,7 @@ def resolve_rest_klines_endpoint(price_source):
         return "https://fapi.binance.com/fapi/v1/klines", "symbol"
     if price_source == "index":
         return "https://fapi.binance.com/fapi/v1/indexPriceKlines", "pair"
-    raise ValueError(f"Unsupported BINANCE_PRICE_SOURCE: {price_source}")
+    raise ValueError(f"Unsupported price_source: {price_source}")
 
 
 def resolve_ws_stream_name(symbol, interval, source):
@@ -343,16 +309,38 @@ def resolve_ws_url(symbol, interval, price_source, volume_source):
     return "wss://fstream.binance.com/stream?streams=" + "/".join(streams)
 
 
-DEFAULT_PRICE_SOURCE, DEFAULT_VOLUME_SOURCE = resolve_default_feature_source_selection()
-PRICE_SOURCE = os.getenv("BINANCE_PRICE_SOURCE", DEFAULT_PRICE_SOURCE).strip().lower()
-VOLUME_SOURCE = os.getenv("BINANCE_VOLUME_SOURCE", DEFAULT_VOLUME_SOURCE).strip().lower()
+# OHLC/V source must stay consistent with the dataset used to build the modeling set.
 PRICE_SOURCE, VOLUME_SOURCE = normalize_live_source_selection(
-    PRICE_SOURCE,
-    VOLUME_SOURCE,
+    DATASET_PROFILE["price_source"],
+    DATASET_PROFILE["volume_source"],
 )
 INTERVAL_DELTA = interval_to_timedelta(INTERVAL)
 INTERVAL_FLOOR_RULE = interval_to_floor_rule(INTERVAL)
 WS_URL = resolve_ws_url(SYMBOL, INTERVAL, PRICE_SOURCE, VOLUME_SOURCE)
+INDICATOR_HISTORY_MARGIN_RATIO = float(
+    os.getenv(
+        "LIVE_INDICATOR_HISTORY_MARGIN_RATIO",
+        str(DEFAULT_INDICATOR_HISTORY_MARGIN_RATIO),
+    ).strip()
+    or str(DEFAULT_INDICATOR_HISTORY_MARGIN_RATIO)
+)
+INDICATOR_HISTORY_MIN_EXTRA_CANDLES = int(
+    os.getenv(
+        "LIVE_INDICATOR_HISTORY_MIN_EXTRA_CANDLES",
+        str(DEFAULT_INDICATOR_HISTORY_MIN_EXTRA_CANDLES),
+    ).strip()
+    or str(DEFAULT_INDICATOR_HISTORY_MIN_EXTRA_CANDLES)
+)
+
+if (
+    not np.isfinite(INDICATOR_HISTORY_MARGIN_RATIO)
+    or INDICATOR_HISTORY_MARGIN_RATIO < 0.0
+):
+    raise ValueError(
+        "LIVE_INDICATOR_HISTORY_MARGIN_RATIO must be a finite number >= 0."
+    )
+if INDICATOR_HISTORY_MIN_EXTRA_CANDLES < 0:
+    raise ValueError("LIVE_INDICATOR_HISTORY_MIN_EXTRA_CANDLES must be >= 0.")
 
 
 def parse_target_bucket_minutes(target_col):
@@ -399,8 +387,12 @@ def resolve_model_meta_and_path(meta_path):
 
     candidate_paths.extend(
         [
-            meta_path.with_name(meta_path.name.replace("_meta_", "_")).with_suffix(".txt"),
-            meta_path.with_name(meta_path.stem.replace("_meta", "")).with_suffix(".txt"),
+            meta_path.with_name(meta_path.name.replace("_meta_", "_")).with_suffix(
+                ".txt"
+            ),
+            meta_path.with_name(meta_path.stem.replace("_meta", "")).with_suffix(
+                ".txt"
+            ),
             meta_path.with_name(meta_path.name.replace("_meta.json", ".txt")),
         ]
     )
@@ -418,19 +410,6 @@ def resolve_model_meta_and_path(meta_path):
 def load_model_and_meta(meta_path):
     meta, model_path = resolve_model_meta_and_path(meta_path)
     return lgb.Booster(model_file=str(model_path)), meta
-
-
-def build_live_trade_records_path(
-    run_started_at_utc,
-    model_hash,
-    kelly_config_hash,
-    modeling_dataset_config_hash,
-):
-    return LIVE_TRADE_DIR / (
-        f"live_trade_polymarket_{SYMBOL}_{INTERVAL}_"
-        f"model_{model_hash}_kelly_{kelly_config_hash}_"
-        f"modeling_{modeling_dataset_config_hash}_{run_started_at_utc}.csv"
-    )
 
 
 def estimate_required_candles(indicator, params):
@@ -455,27 +434,161 @@ def estimate_required_candles(indicator, params):
     return required
 
 
-def load_required_stable_window(summary_path):
-    if not summary_path.exists():
+def apply_indicator_history_margin(
+    required_window,
+    *,
+    margin_ratio=INDICATOR_HISTORY_MARGIN_RATIO,
+    min_extra_candles=INDICATOR_HISTORY_MIN_EXTRA_CANDLES,
+):
+    base_window = int(required_window or 0)
+    if base_window <= 0:
+        return 0
+
+    extra = max(
+        int(min_extra_candles),
+        int(np.ceil(float(base_window) * float(margin_ratio))),
+    )
+    return int(base_window + extra)
+
+
+def _normalize_feature_window_map(raw_map):
+    if not isinstance(raw_map, dict):
+        return {}
+
+    normalized = {}
+    for raw_feature_col, raw_window in raw_map.items():
+        feature_col = str(raw_feature_col).strip()
+        if not feature_col:
+            continue
+        try:
+            window = int(raw_window or 0)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "Indicator history requirements artifact contains a non-integer per-feature "
+                f"window for '{feature_col}'."
+            ) from exc
+        if window > 0:
+            normalized[feature_col] = int(window)
+    return normalized
+
+
+def load_indicator_history_requirements(
+    artifact_path,
+    *,
+    indicator_specs=None,
+    allow_unstable=False,
+):
+    artifact_path = Path(artifact_path)
+    if not artifact_path.exists():
         raise FileNotFoundError(
-            "Indicator stability summary is required for live runtime: "
-            f"{summary_path}"
+            "Indicator history requirements artifact is required for live runtime: "
+            f"{artifact_path}"
         )
 
-    payload = json.loads(summary_path.read_text(encoding="utf-8"))
-    required_window = int(payload.get("global_required_stable_window", 0) or 0)
-    unstable_count = int(payload.get("unstable_feature_count", 0) or 0)
-    if required_window <= 0:
+    payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
         raise ValueError(
-            "Indicator stability summary missing valid global_required_stable_window: "
-            f"{summary_path}"
+            "Indicator history requirements artifact must contain a JSON object: "
+            f"{artifact_path}"
         )
-    if unstable_count != 0:
+
+    if "unstable_feature_count" not in payload:
         raise ValueError(
-            "Indicator stability summary reports unstable features; "
+            "Indicator history requirements artifact is missing unstable_feature_count: "
+            f"{artifact_path}"
+        )
+    unstable_count = int(payload["unstable_feature_count"])
+    if unstable_count != 0 and not allow_unstable:
+        raise ValueError(
+            "Indicator history requirements artifact reports unstable features; "
             "live runtime should not proceed."
         )
-    return required_window
+
+    if "global_required_stable_window" not in payload:
+        raise ValueError(
+            "Indicator history requirements artifact is missing global_required_stable_window: "
+            f"{artifact_path}"
+        )
+    global_required_stable_window = int(payload["global_required_stable_window"])
+    if global_required_stable_window <= 0:
+        raise ValueError(
+            "Indicator history requirements artifact contains invalid "
+            "global_required_stable_window: "
+            f"{artifact_path}"
+        )
+
+    stable_window_by_feature = _normalize_feature_window_map(
+        payload.get("required_stable_window_by_feature")
+    )
+    if not stable_window_by_feature:
+        raise ValueError(
+            "Indicator history requirements artifact is missing "
+            "required_stable_window_by_feature: "
+            f"{artifact_path}"
+        )
+
+    stable_window_max = max(stable_window_by_feature.values())
+    if global_required_stable_window != stable_window_max:
+        raise ValueError(
+            "Indicator history requirements artifact is inconsistent: "
+            "global_required_stable_window must equal max(required_stable_window_by_feature). "
+            f"path={artifact_path} "
+            f"global_required_stable_window={global_required_stable_window} "
+            f"stable_window_max={stable_window_max}"
+        )
+
+    if indicator_specs is not None:
+        specs = list(indicator_specs)
+        missing_feature_cols = sorted(
+            {
+                str(spec.feature_col)
+                for spec in specs
+                if str(spec.feature_col) not in stable_window_by_feature
+            }
+        )
+        if missing_feature_cols:
+            preview = ", ".join(missing_feature_cols[:10])
+            raise ValueError(
+                "Indicator history requirements artifact is missing per-feature windows "
+                f"for {len(missing_feature_cols)} model features. "
+                f"path={artifact_path} preview=[{preview}]"
+            )
+
+    runtime_window_by_feature = {
+        feature_col: apply_indicator_history_margin(required_window)
+        for feature_col, required_window in stable_window_by_feature.items()
+    }
+    global_required_runtime_window = max(
+        runtime_window_by_feature.values(),
+        default=apply_indicator_history_margin(global_required_stable_window),
+    )
+    if global_required_runtime_window <= 0:
+        raise ValueError(
+            "Indicator history requirements artifact produced an invalid runtime "
+            f"window: {artifact_path}"
+        )
+
+    return {
+        "payload": payload,
+        "global_required_stable_window": int(global_required_stable_window),
+        "global_required_runtime_window": int(global_required_runtime_window),
+        "stable_window_by_feature": stable_window_by_feature,
+        "runtime_window_by_feature": runtime_window_by_feature,
+    }
+
+
+def load_required_stable_window(
+    artifact_path,
+    *,
+    allow_unstable=False,
+    indicator_specs=None,
+):
+    requirements = load_indicator_history_requirements(
+        artifact_path,
+        indicator_specs=indicator_specs,
+        allow_unstable=allow_unstable,
+    )
+    return int(requirements["global_required_runtime_window"])
 
 
 def load_kelly_runtime_config(config_path):
@@ -617,40 +730,6 @@ def _merge_price_and_volume_frames(price_df, volume_df):
     if merged.empty:
         return pd.DataFrame(columns=["Opened", *OHLCV_COLS])
     return merged.loc[:, ["Opened", *OHLCV_COLS]]
-
-
-def fetch_settlement_closed_ohlcv_range(start_opened, end_opened=None):
-    start_ts = as_utc_timestamp(start_opened)
-    if end_opened is None:
-        end_ts = pd.Timestamp.now(tz="UTC").floor(INTERVAL_FLOOR_RULE) - INTERVAL_DELTA
-    else:
-        end_ts = as_utc_timestamp(end_opened)
-    if end_ts < start_ts:
-        return pd.DataFrame(columns=["Opened", *OHLCV_COLS])
-
-    if SETTLEMENT_SOURCE != "chainlink":
-        raise ValueError(
-            "fetch_settlement_closed_ohlcv_range is only available when "
-            "LIVE_SETTLEMENT_SOURCE='chainlink'. "
-            f"Got: {SETTLEMENT_SOURCE!r}"
-        )
-
-    settlement_df = by_ChainlinkDataStream(
-        ticker=SETTLEMENT_TICKER,
-        interval=INTERVAL,
-        start_date=start_ts.isoformat(),
-        end_date=end_ts.isoformat(),
-    )
-    if settlement_df is None or settlement_df.empty:
-        return pd.DataFrame(columns=["Opened", *OHLCV_COLS])
-
-    out = settlement_df.loc[:, ["Opened", *OHLCV_COLS]].copy()
-    out["Opened"] = pd.to_datetime(out["Opened"], utc=True, errors="raise")
-    return (
-        out.drop_duplicates(subset=["Opened"], keep="last")
-        .sort_values("Opened")
-        .reset_index(drop=True)
-    )
 
 
 def _fetch_single_source_closed_ohlcv_range(
@@ -814,7 +893,10 @@ class LivePredictor:
         self.volume_profile_cfg = normalize_volume_profile_config(
             MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
         )
-        if self.volume_profile_feature_columns and not self.volume_profile_cfg["enabled"]:
+        if (
+            self.volume_profile_feature_columns
+            and not self.volume_profile_cfg["enabled"]
+        ):
             raise ValueError(
                 "Model requires volume profile features but volume_profile_fixed_range.enabled is false."
             )
@@ -826,8 +908,21 @@ class LivePredictor:
         self.volume_profile_state_source_path = None
 
         self.indicator_specs = load_indicator_specs(self.feature_columns)
-        self.required_stable_window = load_required_stable_window(
-            INDICATOR_STABILITY_SUMMARY_PATH
+        self.indicator_history_requirements = load_indicator_history_requirements(
+            INDICATOR_HISTORY_REQUIREMENTS_PATH,
+            indicator_specs=self.indicator_specs,
+        )
+        self.required_stable_window = int(
+            self.indicator_history_requirements["global_required_runtime_window"]
+        )
+        self.required_stable_window_raw = int(
+            self.indicator_history_requirements["global_required_stable_window"]
+        )
+        self.indicator_stable_window_by_feature = dict(
+            self.indicator_history_requirements["stable_window_by_feature"]
+        )
+        self.indicator_runtime_window_by_feature = dict(
+            self.indicator_history_requirements["runtime_window_by_feature"]
         )
         max_needed = max((s.required_candles for s in self.indicator_specs), default=0)
         self.bootstrap_candles = max(
@@ -873,16 +968,43 @@ class LivePredictor:
         self.local_tz = datetime.now().astimezone().tzinfo
         self.last_indicator_nan_cols = []
         self.settlement_source = SETTLEMENT_SOURCE
-        self.settlement_ticker = SETTLEMENT_TICKER
-        self.settlement_candle_open_close = {}
         self.settlement_market_cache = {}
-        self.last_processed_closed_opened = self.opened_candles[-1] if self.opened_candles else None
+        self.last_processed_closed_opened = (
+            self.opened_candles[-1] if self.opened_candles else None
+        )
 
         self.predictions_path = PREDICTIONS_OUTPUT_PATH
         self.predictions_path.parent.mkdir(parents=True, exist_ok=True)
         self.volume_profile_state = None
         if self.volume_profile_enabled:
             self._initialize_volume_profile_state(bootstrap_df)
+
+    def _resolve_indicator_window_len(self, feature_col):
+        if not self.indicator_runtime_window_by_feature:
+            return int(self.required_stable_window)
+        return int(
+            self.indicator_runtime_window_by_feature.get(
+                feature_col,
+                self.required_stable_window,
+            )
+        )
+
+    def _slice_indicator_ohlcv_window(self, feature_col):
+        window_len = max(2, int(self._resolve_indicator_window_len(feature_col)))
+        if self.ohlcv_np.shape[0] <= window_len:
+            return self.ohlcv_np
+        return self.ohlcv_np[-window_len:, :]
+
+    def _compute_latest_indicator_value(self, spec):
+        window = self._slice_indicator_ohlcv_window(spec.feature_col)
+        series = np.asarray(
+            spec.builder(spec.params, window), dtype=np.float64
+        ).reshape(-1)
+        if series.shape[0] != window.shape[0]:
+            raise ValueError(
+                f"Length mismatch for {spec.feature_col}: {series.shape[0]} != {window.shape[0]}"
+            )
+        return float(series[-1])
 
     def _append_new_candle(self, opened, ohlcv):
         ohlcv_row = np.asarray(ohlcv, dtype=np.float64).reshape(1, len(OHLCV_COLS))
@@ -895,7 +1017,10 @@ class LivePredictor:
             self.opened_ns_np = np.concatenate((self.opened_ns_np, opened_ns_row))
 
         self.opened_candles.append(opened)
-        self.candle_open_close[opened] = (float(ohlcv_row[0, 0]), float(ohlcv_row[0, 3]))
+        self.candle_open_close[opened] = (
+            float(ohlcv_row[0, 0]),
+            float(ohlcv_row[0, 3]),
+        )
 
         if len(self.opened_candles) > self.max_keep:
             dropped_opened = self.opened_candles.popleft()
@@ -1080,7 +1205,9 @@ class LivePredictor:
             return None, live_minute_opened, event_at
 
         if stream_name == index_stream_name and PRICE_SOURCE == "index":
-            price_candle, live_minute_opened = self._extract_closed_index_price_candle(data)
+            price_candle, live_minute_opened = self._extract_closed_index_price_candle(
+                data
+            )
             if price_candle is None:
                 return None, live_minute_opened, event_at
             closed_candle = self._store_pending_ws_price_candle(price_candle)
@@ -1115,7 +1242,9 @@ class LivePredictor:
         ):
             try:
                 state = load_volume_profile_state(path)
-                if not volume_profile_state_matches_config(state, self.volume_profile_cfg):
+                if not volume_profile_state_matches_config(
+                    state, self.volume_profile_cfg
+                ):
                     raise ValueError("config mismatch")
                 last_candle_ts = self._volume_profile_state_last_candle_timestamp(state)
                 if last_candle_ts is not None and last_candle_ts > history_last_opened:
@@ -1187,7 +1316,9 @@ class LivePredictor:
                 self.volume_profile_state_source_path != self.volume_profile_state_path
                 or not self.volume_profile_state_path.with_suffix(".npz").exists()
             ):
-                self._save_runtime_volume_profile_state(log=True, context="runtime state")
+                self._save_runtime_volume_profile_state(
+                    log=True, context="runtime state"
+                )
             return
 
         print(f"[vp] catch-up state with {len(sync_df)} candles")
@@ -1235,6 +1366,24 @@ class LivePredictor:
             low=float(latest_ohlcv[2]),
         )
 
+    def _prepare_volume_profile_features_for_latest_candle(self, opened):
+        if not self.volume_profile_enabled:
+            return {}
+
+        opened = pd.Timestamp(opened)
+        last_candle_ts = self._volume_profile_state_last_candle_timestamp(
+            self.volume_profile_state
+        )
+        if last_candle_ts is None or last_candle_ts < opened:
+            self._update_volume_profile_state_for_latest_candle(opened)
+        elif last_candle_ts > opened:
+            raise RuntimeError(
+                "volume profile state is ahead of the latest closed candle "
+                f"({last_candle_ts.isoformat()} > {opened.isoformat()})"
+            )
+
+        return self._extract_volume_profile_features_for_latest_candle()
+
     def _update_volume_profile_state_for_latest_candle(self, opened):
         if not self.volume_profile_enabled:
             return
@@ -1245,7 +1394,9 @@ class LivePredictor:
             low=float(latest_ohlcv[2]),
             volume=float(latest_ohlcv[4]),
         )
-        self.volume_profile_state["last_candle_time"] = str(pd.Timestamp(opened).isoformat())
+        self.volume_profile_state["last_candle_time"] = str(
+            pd.Timestamp(opened).isoformat()
+        )
         self._save_runtime_volume_profile_state()
 
     def _sync_closed_candles_from_rest(self, stop_before_opened=None):
@@ -1353,17 +1504,9 @@ class LivePredictor:
         if volume_profile_values:
             values.update(volume_profile_values)
 
-        ohlcv_np = self.ohlcv_np
         indicator_nan_cols = []
         for spec in self.indicator_specs:
-            series = np.asarray(
-                spec.builder(spec.params, ohlcv_np), dtype=np.float64
-            ).reshape(-1)
-            if series.shape[0] != ohlcv_np.shape[0]:
-                raise ValueError(
-                    f"Length mismatch for {spec.feature_col}: {series.shape[0]} != {ohlcv_np.shape[0]}"
-                )
-            raw_value = float(series[-1])
+            raw_value = self._compute_latest_indicator_value(spec)
             values[spec.feature_col] = raw_value
             if not np.isfinite(raw_value):
                 indicator_nan_cols.append(spec.feature_col)
@@ -1537,85 +1680,6 @@ class LivePredictor:
         self._append_new_candle(opened, ohlcv)
         return opened
 
-    def _pending_settlement_boundaries(self, records):
-        pending_boundaries = []
-        for rec in records:
-            if rec.get("actual_up") is not None:
-                continue
-            pending_boundaries.extend([rec.get("bucket_start"), rec.get("bucket_end")])
-        return pending_boundaries
-
-    def _prune_settlement_candle_cache(self, min_keep_opened=None):
-        if not self.settlement_candle_open_close:
-            return
-        if min_keep_opened is None:
-            self.settlement_candle_open_close.clear()
-            return
-        min_keep_opened = as_utc_timestamp(min_keep_opened)
-        self.settlement_candle_open_close = {
-            opened: open_close
-            for opened, open_close in self.settlement_candle_open_close.items()
-            if opened >= min_keep_opened
-        }
-
-    def _refresh_settlement_candles(self, needed_opened_values):
-        needed_opened = sorted(
-            {
-                as_utc_timestamp(value)
-                for value in needed_opened_values
-                if value is not None and pd.notna(value)
-            }
-        )
-        if not needed_opened:
-            self._prune_settlement_candle_cache(min_keep_opened=None)
-            return 0
-
-        min_keep_opened = needed_opened[0] - INTERVAL_DELTA
-        self._prune_settlement_candle_cache(min_keep_opened=min_keep_opened)
-
-        missing_opened = [
-            opened
-            for opened in needed_opened
-            if opened not in self.settlement_candle_open_close
-        ]
-        if not missing_opened:
-            return 0
-
-        latest_closed_opened = pd.Timestamp.now(tz="UTC").floor(INTERVAL_FLOOR_RULE) - INTERVAL_DELTA
-        fetch_start = missing_opened[0]
-        fetch_end = min(needed_opened[-1], latest_closed_opened)
-        if fetch_end < fetch_start:
-            return 0
-
-        try:
-            settlement_df = fetch_settlement_closed_ohlcv_range(
-                start_opened=fetch_start,
-                end_opened=fetch_end,
-            )
-        except Exception as exc:
-            print(f"[settlement] truth refresh failed: {exc}")
-            return 0
-
-        if settlement_df.empty:
-            return 0
-
-        added = 0
-        for row in settlement_df.itertuples(index=False):
-            opened = as_utc_timestamp(row.Opened)
-            open_close = (float(row.Open), float(row.Close))
-            if opened not in self.settlement_candle_open_close:
-                added += 1
-            self.settlement_candle_open_close[opened] = open_close
-
-        print(
-            "[settlement] refreshed "
-            f"source={self.settlement_source} ticker={self.settlement_ticker} "
-            f"rows={len(settlement_df)} added={added} "
-            f"range={settlement_df['Opened'].iloc[0].isoformat()}.."
-            f"{settlement_df['Opened'].iloc[-1].isoformat()}"
-        )
-        return added
-
     def _settlement_http_session(self):
         session = getattr(self, "pm_session", None)
         return session if session is not None else self.session
@@ -1699,41 +1763,16 @@ class LivePredictor:
         return True
 
     def _resolve_record_outcome_from_settlement_truth(self, rec, resolved_at):
-        if self.settlement_source == "polymarket":
-            return self._resolve_record_outcome_from_polymarket_market(
-                rec,
-                resolved_at=resolved_at,
-            )
-
-        bucket_start = as_utc_timestamp(rec["bucket_start"])
-        bucket_end = as_utc_timestamp(rec["bucket_end"])
-        start_candle = self.settlement_candle_open_close.get(bucket_start)
-        end_candle = self.settlement_candle_open_close.get(bucket_end)
-        if start_candle is None or end_candle is None:
-            return False
-
-        bucket_open = float(start_candle[0])
-        bucket_close = float(end_candle[1])
-        # Polymarket crypto up/down markets resolve "Up" on ties as well.
-        actual_up = int(bucket_close >= bucket_open)
-
-        rec["bucket_open_price"] = bucket_open
-        rec["bucket_close_price"] = bucket_close
-        rec["actual_up"] = actual_up
-        rec["is_correct"] = int(actual_up == rec["signal_up"])
-        rec["resolved_at"] = resolved_at
-        return True
+        return self._resolve_record_outcome_from_polymarket_market(
+            rec,
+            resolved_at=resolved_at,
+        )
 
     def _resolve_pending(self):
         if not self.records:
             return 0
 
-        if self.settlement_source == "polymarket":
-            self._refresh_polymarket_markets(self.records)
-        else:
-            self._refresh_settlement_candles(
-                self._pending_settlement_boundaries(self.records)
-            )
+        self._refresh_polymarket_markets(self.records)
         resolved_now = 0
         resolved_at = pd.Timestamp.now(tz="UTC")
 
@@ -1752,7 +1791,8 @@ class LivePredictor:
             actual_up = int(rec["actual_up"])
             if stake_usdc > 0.0 and side in {"up", "down"}:
                 is_trade_win = int(
-                    (side == "up" and actual_up == 1) or (side == "down" and actual_up == 0)
+                    (side == "up" and actual_up == 1)
+                    or (side == "down" and actual_up == 0)
                 )
                 shares_net = float(rec.get("shares_net", 0.0) or 0.0)
                 payout = float(shares_net) if is_trade_win else 0.0
@@ -1772,6 +1812,12 @@ class LivePredictor:
         return resolved_now
 
     def _predict_next_bucket(self, volume_profile_values=None):
+        if volume_profile_values is None:
+            volume_profile_values = (
+                self._prepare_volume_profile_features_for_latest_candle(
+                    self.opened_candles[-1]
+                )
+            )
         proba_up = float(
             self.model.predict(
                 self._build_feature_vector(volume_profile_values=volume_profile_values)
@@ -1851,44 +1897,15 @@ class LivePredictor:
     def _save_records(self):
         if not self.records:
             return
-
-        out = pd.DataFrame(self.records)
-        resolved_rates = []
-        traded_rates = []
-        resolved_count = 0
-        resolved_wins = 0
-        traded_count = 0
-        traded_wins = 0
-
-        for rec in self.records:
-            row_resolved = rec["actual_up"] is not None and rec["is_correct"] is not None
-            row_traded = (
-                rec["actual_up"] is not None and rec["trade_is_win"] is not None
-            )
-            if not row_resolved:
-                resolved_rates.append(np.nan)
-                traded_rates.append(np.nan)
-                continue
-
-            resolved_count += 1
-            resolved_wins += int(rec["is_correct"])
-            if row_traded:
-                traded_count += 1
-                traded_wins += int(rec["trade_is_win"])
-
-            resolved_rates.append(float(resolved_wins / resolved_count))
-            traded_rates.append(
-                float(traded_wins / traded_count) if traded_count else np.nan
-            )
-
-        out["win_rate_resolved"] = resolved_rates
-        out["win_rate_traded"] = traded_rates
-        out = out.loc[:, list(PREDICTIONS_EXPORT_COLUMNS)]
-        for col in ["prediction_time", "bucket_start", "bucket_end", "resolved_at"]:
-            out[col] = out[col].map(
-                lambda x: x.isoformat() if isinstance(x, pd.Timestamp) else ""
-            )
-        out.to_csv(self.predictions_path, index=False)
+        write_records_csv(
+            self.records,
+            self.predictions_path,
+            export_columns=LIVE_PREDICTION_EXPORT_COLUMNS,
+            is_resolved=lambda rec: rec.get("actual_up") is not None
+            and rec.get("is_correct") is not None,
+            is_traded=lambda rec: rec.get("actual_up") is not None
+            and rec.get("trade_is_win") is not None,
+        )
 
     def _stats(self):
         resolved = sum(1 for rec in self.records if rec["actual_up"] is not None)
@@ -1907,7 +1924,9 @@ class LivePredictor:
             for rec in self.records
             if rec["actual_up"] is not None and rec["trade_is_win"] is not None
         )
-        resolved_win_rate = float(resolved_wins / resolved) if resolved else float("nan")
+        resolved_win_rate = (
+            float(resolved_wins / resolved) if resolved else float("nan")
+        )
         traded_win_rate = float(traded_wins / traded) if traded else float("nan")
         total_pnl = float(
             sum(
@@ -2022,7 +2041,9 @@ class LivePredictor:
             if closed_candle is None:
                 return
 
-            opened_from_ws = pd.to_datetime(int(closed_candle["t"]), unit="ms", utc=True)
+            opened_from_ws = pd.to_datetime(
+                int(closed_candle["t"]), unit="ms", utc=True
+            )
             self._maybe_sync_missing_candles(opened_from_ws)
 
             opened = self._upsert_closed_candle(closed_candle)
@@ -2036,7 +2057,9 @@ class LivePredictor:
             if PRICE_SOURCE == "index":
                 self._maybe_sync_missing_candles(live_minute_opened)
 
-            volume_profile_values = self._extract_volume_profile_features_for_latest_candle()
+            volume_profile_values = (
+                self._prepare_volume_profile_features_for_latest_candle(opened)
+            )
 
             resolved_now = self._resolve_pending()
 
@@ -2055,7 +2078,6 @@ class LivePredictor:
                         volume_profile_values=volume_profile_values
                     )
 
-            self._update_volume_profile_state_for_latest_candle(opened)
             self.last_processed_closed_opened = opened
 
             if resolved_now > 0 or pred is not None:
@@ -2077,25 +2099,18 @@ class LivePredictor:
             f"session_features={len(self.session_feature_columns)} "
             f"vp_features={len(self.volume_profile_feature_columns)}"
         )
-        if self.settlement_source == "polymarket":
-            market_selector = (
-                f"market_slug_override={POLYMARKET_MARKET_SLUG_OVERRIDE}"
-                if POLYMARKET_MARKET_SLUG_OVERRIDE
-                else f"market_slug_prefix={POLYMARKET_MARKET_SLUG_PREFIX}"
-            )
-            print(
-                "Settlement source | "
-                f"source=polymarket gamma_host={POLYMARKET_GAMMA_HOST} "
-                f"series_slug={POLYMARKET_SERIES_SLUG} "
-                f"{market_selector} "
-                "rule=market_resolution"
-            )
-        else:
-            print(
-                "Settlement source | "
-                f"source={self.settlement_source} ticker={self.settlement_ticker} "
-                "rule=close_gte_open"
-            )
+        market_selector = (
+            f"market_slug_override={POLYMARKET_MARKET_SLUG_OVERRIDE}"
+            if POLYMARKET_MARKET_SLUG_OVERRIDE
+            else f"market_slug_prefix={POLYMARKET_MARKET_SLUG_PREFIX}"
+        )
+        print(
+            "Settlement source | "
+            f"source=polymarket gamma_host={POLYMARKET_GAMMA_HOST} "
+            f"series_slug={POLYMARKET_SERIES_SLUG} "
+            f"{market_selector} "
+            "rule=market_resolution"
+        )
         if PRICE_SOURCE == "index" and VOLUME_SOURCE == "trade":
             print(
                 "Hybrid mode uses /indexPriceKlines for OHLC, /klines for Volume, "
@@ -2136,7 +2151,9 @@ class LivePredictor:
             print(
                 f"VP modeling state path: {self.volume_profile_modeling_state_path.with_suffix('.npz')}"
             )
-            print(f"VP runtime state path: {self.volume_profile_state_path.with_suffix('.npz')}")
+            print(
+                f"VP runtime state path: {self.volume_profile_state_path.with_suffix('.npz')}"
+            )
             if self.volume_profile_state_source_path is not None:
                 print(
                     "VP source state: "
@@ -2162,6 +2179,7 @@ class LivePredictor:
             print(f"[ws] reconnect in {delay}s...")
             time.sleep(delay)
             delay = min(delay * 2, MAX_WS_RECONNECT_DELAY_SEC)
+
 
 def main():
     predictor = LivePredictor()

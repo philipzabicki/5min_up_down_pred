@@ -89,15 +89,19 @@ def _triangle_weights(period, dtype=np.float64, inverted=False):
     half = period // 2
 
     if period % 2 == 1:
-        raw = np.concatenate((
-            np.arange(1, half + 2, dtype=np.float64),
-            np.arange(half, 0, -1, dtype=np.float64),
-        ))
+        raw = np.concatenate(
+            (
+                np.arange(1, half + 2, dtype=np.float64),
+                np.arange(half, 0, -1, dtype=np.float64),
+            )
+        )
     else:
-        raw = np.concatenate((
-            np.arange(1, half + 1, dtype=np.float64),
-            np.arange(half, 0, -1, dtype=np.float64),
-        ))
+        raw = np.concatenate(
+            (
+                np.arange(1, half + 1, dtype=np.float64),
+                np.arange(half, 0, -1, dtype=np.float64),
+            )
+        )
 
     if inverted:
         raw = raw.max() + 1.0 - raw
@@ -120,7 +124,7 @@ def SWMA_fast(close, period):
 
     # np.convolve odwraca drugi wektor
     valid = np.convolve(close, w[::-1], mode="valid")
-    out[period - 1:] = valid
+    out[period - 1 :] = valid
     return out
 
 
@@ -138,7 +142,7 @@ def SWMA_INV_fast(close, period):
 
     # np.convolve odwraca drugi wektor
     valid = np.convolve(close, w[::-1], mode="valid")
-    out[period - 1:] = valid
+    out[period - 1 :] = valid
     return out
 
 
@@ -166,6 +170,7 @@ def RMA(close, timeperiod):
         out[i] = (alpha * close[i]) + ((1.0 - alpha) * out[i - 1])
 
     return out
+
 
 @jit(nopython=True, nogil=True, cache=True)
 def LSMA(close, timeperiod):
@@ -202,7 +207,7 @@ def ALMA(close, timeperiod, offset=0.85, sigma=6):
 
     # convolve odwraca kernel, więc dla ALMA trzeba odwrócić wagi ręcznie
     alma_valid = np.convolve(close, wtd[::-1], "valid")
-    out[timeperiod - 1:] = alma_valid
+    out[timeperiod - 1 :] = alma_valid
     return out
 
 
@@ -215,6 +220,7 @@ def GMA_or_SMA(close, period):
         return talib.SMA(close, timeperiod=period)
 
     return GMA(close, period)
+
 
 @jit(nopython=True, nogil=True, cache=True)
 def GMA(close, period):
@@ -311,7 +317,7 @@ def HammingMA(close, timeperiod):
 
     w = np.hamming(timeperiod).astype(close.dtype)
     hma_valid = np.convolve(close, w, mode="valid") / w.sum()
-    out[timeperiod - 1:] = hma_valid
+    out[timeperiod - 1 :] = hma_valid
     return out
 
 
@@ -332,18 +338,20 @@ def NadarayWatsonMA(close, timeperiod, kernel=0):
 
     # oldest -> newest, więc newest ma lag 0 i największą wagę
     lags = np.arange(timeperiod - 1, -1, -1, dtype=np.float64)
-    u = lags / timeperiod  # zostawiam obecną skalę, żeby nie rozjechać charakteru wygładzania
+    u = (
+        lags / timeperiod
+    )  # zostawiam obecną skalę, żeby nie rozjechać charakteru wygładzania
 
     if kernel == 0:
-        weights = np.exp(-0.5 * u ** 2) / np.sqrt(2.0 * np.pi)
+        weights = np.exp(-0.5 * u**2) / np.sqrt(2.0 * np.pi)
     elif kernel == 1:
-        weights = np.where(u <= 1.0, 0.75 * (1.0 - u ** 2), 0.0)
+        weights = np.where(u <= 1.0, 0.75 * (1.0 - u**2), 0.0)
     elif kernel == 2:
         weights = np.where(u <= 1.0, 0.5, 0.0)
     elif kernel == 3:
         weights = np.where(u <= 1.0, 1.0 - u, 0.0)
     elif kernel == 4:
-        weights = np.where(u <= 1.0, (15.0 / 16.0) * (1.0 - u ** 2) ** 2, 0.0)
+        weights = np.where(u <= 1.0, (15.0 / 16.0) * (1.0 - u**2) ** 2, 0.0)
     elif kernel == 5:
         weights = np.where(u <= 1.0, (np.pi / 4.0) * np.cos((np.pi / 2.0) * u), 0.0)
     else:
@@ -436,7 +444,6 @@ def FBA(close, period):
 
 # @jit(nopython=True, nogil=True, cache=True)
 def CWMA(close, weights, period):
-    """Custom Weighted Moving Average"""
     cwma = np.zeros_like(close)
     window_weight_sum = np.sum(weights)
     window_prod_sum = np.sum(close[:period] * weights)
@@ -452,6 +459,5 @@ def CWMA(close, weights, period):
 
 # @jit(nopython=True, nogil=True, cache=True)
 def FWMA(close, period):
-    """Fibonacci Weighted Moving Average"""
     print(f"fibs {fib_to(period + 1, normalization=True)[1:]}")
     return CWMA(close, fib_to(period + 1, normalization=True)[1:], period)

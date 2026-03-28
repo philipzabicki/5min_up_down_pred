@@ -56,21 +56,21 @@ PRIMARY_REPORTING_METRIC = "brier_score"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0025914974621187976,
-      "num_leaves": 237,
-      "min_data_in_leaf": 49,
-      "max_depth": 161,
-      "feature_fraction": 0.918050769867607,
-      "bagging_fraction": 0.5850053283449519,
-      "bagging_freq": 1,
-      "lambda_l2": 10.54627242322395,
-      "lambda_l1": 3.7649708630783136,
-      "min_sum_hessian_in_leaf": 0.04560966202115141,
-      "min_gain_to_split": 0.33195911076530266,
-      "feature_fraction_bynode": 0.769865397653978,
-      "path_smooth": 24.493777701228996,
-      "extra_trees": False
-    }
+    "learning_rate": 0.0047168930397256115,
+    "num_leaves": 203,
+    "min_data_in_leaf": 6,
+    "max_depth": 41,
+    "feature_fraction": 0.3535849279738236,
+    "bagging_fraction": 0.8060837855401768,
+    "bagging_freq": 10,
+    "lambda_l2": 6.467328293921802,
+    "lambda_l1": 4.930249967778666,
+    "min_sum_hessian_in_leaf": 0.014887735545909926,
+    "min_gain_to_split": 1.031237481486823,
+    "feature_fraction_bynode": 0.8821060783972539,
+    "path_smooth": 3.743686767424939,
+    "extra_trees": False,
+}
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
     "num_leaves": 31,
@@ -432,7 +432,7 @@ def evaluate_walk_forward_variant(
             sample_weight=w_test,
         )
 
-        covered_test_rows += int(len(x_test))
+        covered_test_rows += len(x_test)
         if oof_pred_proba is not None:
             oof_pred_proba[te_s:te_e] = y_pred_proba
 
@@ -445,18 +445,20 @@ def evaluate_walk_forward_variant(
                 cv_gain_sum[feature_name] = cv_gain_sum.get(feature_name, 0.0) + float(
                     gain_value
                 )
-                cv_split_sum[feature_name] = cv_split_sum.get(feature_name, 0.0) + float(
-                    split_value
+                cv_split_sum[feature_name] = cv_split_sum.get(
+                    feature_name, 0.0
+                ) + float(split_value)
+                cv_fold_presence[feature_name] = (
+                    cv_fold_presence.get(feature_name, 0) + 1
                 )
-                cv_fold_presence[feature_name] = cv_fold_presence.get(feature_name, 0) + 1
 
         best_iterations.append(best_iteration)
         fold_results.append(
             {
                 "fold_id": fold_id,
-                "train_size": int(len(x_train)),
-                "test_size": int(len(x_test)),
-                "dropped_all_nan_train_features_count": int(len(dropped_nan_features)),
+                "train_size": len(x_train),
+                "test_size": len(x_test),
+                "dropped_all_nan_train_features_count": len(dropped_nan_features),
                 "best_iteration": best_iteration,
                 "metrics": metrics,
             }
@@ -490,8 +492,11 @@ def evaluate_walk_forward_variant(
         "cv_mean_metrics": {m: float(np.mean(metric_arrays[m])) for m in metric_names},
         "cv_std_metrics": {m: float(np.std(metric_arrays[m])) for m in metric_names},
         "folds": fold_results,
-        "oof_rows": oof_rows,
-        "oof_coverage_ratio": oof_coverage_ratio,
+        "oof_predictions_enabled": bool(collect_oof_predictions),
+        "oof_rows": oof_rows if collect_oof_predictions else 0,
+        "oof_coverage_ratio": (
+            oof_coverage_ratio if collect_oof_predictions else 0.0
+        ),
     }
     cv_feature_importance = None
     if collect_feature_importance:
@@ -502,9 +507,13 @@ def evaluate_walk_forward_variant(
                     "feature": feature_name,
                     "fold_presence": int(cv_fold_presence[feature_name]),
                     "importance_gain_sum": float(cv_gain_sum[feature_name]),
-                    "importance_gain_mean": float(cv_gain_sum[feature_name] / len(folds)),
+                    "importance_gain_mean": float(
+                        cv_gain_sum[feature_name] / len(folds)
+                    ),
                     "importance_split_sum": float(cv_split_sum[feature_name]),
-                    "importance_split_mean": float(cv_split_sum[feature_name] / len(folds)),
+                    "importance_split_mean": float(
+                        cv_split_sum[feature_name] / len(folds)
+                    ),
                 }
                 for feature_name in cv_gain_sum
             ]
@@ -518,6 +527,9 @@ def main():
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
     feature_subset = load_feature_subset_from_settings(dataset_settings)
     excluded_features = load_excluded_feature_names_from_settings(dataset_settings)
+    train_lgbm_settings = dict(dataset_settings.get("train_lgbm") or {})
+    train_default_model = bool(train_lgbm_settings.get("train_default_model", True))
+    save_oof_predictions = bool(train_lgbm_settings.get("save_oof_predictions", True))
     training_data = load_walk_forward_training_frame(
         data_path=data_path,
         feature_subset=feature_subset,
@@ -552,23 +564,32 @@ def main():
         f"parquet_float_columns={parquet_float_dtype_name} "
         "train_feature_matrix=float64 sample_weight=float64"
     )
+    print(
+        "Train switches | "
+        f"default_model={train_default_model} "
+        f"save_oof_predictions={save_oof_predictions}"
+    )
 
-    cv_variants = {
-        "default": LGBM_DEFAULT_PARAMS,
-        "optuna": LGBM_OPTUNA_BEST_PARAMS,
-    }
+    cv_variants = {}
+    if train_default_model:
+        cv_variants["default"] = LGBM_DEFAULT_PARAMS
+    cv_variants["optuna"] = LGBM_OPTUNA_BEST_PARAMS
     cv_results = {}
     cv_oof_predictions = {}
     cv_feature_importance_by_variant = {}
 
     for model_variant, param_overrides in cv_variants.items():
-        cv_result, oof_pred_proba, cv_feature_importance = evaluate_walk_forward_variant(
-            x=x,
-            y=y,
-            sample_weight=sample_weight,
-            folds=folds,
-            param_overrides=param_overrides,
-            model_variant=model_variant,
+        collect_oof_predictions = save_oof_predictions and model_variant == "optuna"
+        cv_result, oof_pred_proba, cv_feature_importance = (
+            evaluate_walk_forward_variant(
+                x=x,
+                y=y,
+                sample_weight=sample_weight,
+                folds=folds,
+                param_overrides=param_overrides,
+                model_variant=model_variant,
+                collect_oof_predictions=collect_oof_predictions,
+            )
         )
         cv_results[model_variant] = cv_result
         cv_oof_predictions[model_variant] = oof_pred_proba
@@ -586,27 +607,38 @@ def main():
         )
         print(
             f"OOF[{model_variant}] | "
-            f"rows={cv_result['oof_rows']}, "
-            f"coverage={cv_result['oof_coverage_ratio']:.4f}"
+            + (
+                f"rows={cv_result['oof_rows']}, "
+                f"coverage={cv_result['oof_coverage_ratio']:.4f}"
+                if cv_result["oof_predictions_enabled"]
+                else "disabled"
+            )
         )
 
     cv_result = cv_results["optuna"]
     oof_pred_proba = cv_oof_predictions["optuna"]
-
-    oof_mask = np.isfinite(oof_pred_proba)
-    oof_export = df.loc[oof_mask, OOF_EXPORT_BASE_COLS].assign(
-        **{OOF_PRED_COL: oof_pred_proba[oof_mask].astype(np.float64, copy=False)}
-    )
-    OOF_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    oof_export.to_parquet(OOF_OUTPUT_PATH, index=False)
-    oof_head_csv = OOF_OUTPUT_PATH.with_name(
-        f"{OOF_OUTPUT_PATH.stem}_head{OOF_PREVIEW_ROWS}.csv"
-    )
-    oof_tail_csv = OOF_OUTPUT_PATH.with_name(
-        f"{OOF_OUTPUT_PATH.stem}_tail{OOF_PREVIEW_ROWS}.csv"
-    )
-    oof_export.head(OOF_PREVIEW_ROWS).to_csv(oof_head_csv, index=False)
-    oof_export.tail(OOF_PREVIEW_ROWS).to_csv(oof_tail_csv, index=False)
+    oof_export = None
+    oof_head_csv = None
+    oof_tail_csv = None
+    if save_oof_predictions:
+        if oof_pred_proba is None:
+            raise RuntimeError(
+                "save_oof_predictions=True but optuna OOF predictions were not collected."
+            )
+        oof_mask = np.isfinite(oof_pred_proba)
+        oof_export = df.loc[oof_mask, OOF_EXPORT_BASE_COLS].assign(
+            **{OOF_PRED_COL: oof_pred_proba[oof_mask].astype(np.float64, copy=False)}
+        )
+        OOF_OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+        oof_export.to_parquet(OOF_OUTPUT_PATH, index=False)
+        oof_head_csv = OOF_OUTPUT_PATH.with_name(
+            f"{OOF_OUTPUT_PATH.stem}_head{OOF_PREVIEW_ROWS}.csv"
+        )
+        oof_tail_csv = OOF_OUTPUT_PATH.with_name(
+            f"{OOF_OUTPUT_PATH.stem}_tail{OOF_PREVIEW_ROWS}.csv"
+        )
+        oof_export.head(OOF_PREVIEW_ROWS).to_csv(oof_head_csv, index=False)
+        oof_export.tail(OOF_PREVIEW_ROWS).to_csv(oof_tail_csv, index=False)
 
     best_iteration = max(10, int(cv_result["mean_best_iteration"]))
 
@@ -656,7 +688,10 @@ def main():
     ).sort_values("importance_gain", ascending=False)
     fi_df.to_csv(fi_path, index=False)
 
-    for model_variant, cv_feature_importance in cv_feature_importance_by_variant.items():
+    for (
+        model_variant,
+        cv_feature_importance,
+    ) in cv_feature_importance_by_variant.items():
         cv_feature_importance.drop(columns=["model_variant"]).to_csv(
             cv_fi_paths[model_variant],
             index=False,
@@ -665,8 +700,8 @@ def main():
     meta_payload = {
         "data_path": str(data_path),
         "target_col": TARGET_COL,
-        "rows_used": int(len(df)),
-        "rows_after_target_notna": int(len(df)),
+        "rows_used": len(df),
+        "rows_after_target_notna": len(df),
         "decision_row_filter": {
             "enabled": False,
         },
@@ -686,25 +721,27 @@ def main():
         "best_iteration": best_iteration,
         "prediction_threshold": PREDICTION_THRESHOLD,
         "oof_predictions": {
-            "path": str(OOF_OUTPUT_PATH),
-            "prediction_col": OOF_PRED_COL,
-            "model_variant": "optuna",
-            "rows": int(len(oof_export)),
-            "rows_without_oof": int(len(df) - len(oof_export)),
+            "enabled": save_oof_predictions,
+            "path": str(OOF_OUTPUT_PATH) if save_oof_predictions else None,
+            "prediction_col": OOF_PRED_COL if save_oof_predictions else None,
+            "model_variant": "optuna" if save_oof_predictions else None,
+            "rows": len(oof_export) if oof_export is not None else 0,
+            "rows_without_oof": (
+                len(df) - len(oof_export) if oof_export is not None else len(df)
+            ),
             "coverage_ratio": (
-                float(len(oof_export) / len(df)) if len(df) > 0 else float("nan")
+                float(len(oof_export) / len(df))
+                if oof_export is not None and len(df) > 0
+                else 0.0
             ),
         },
         "metrics": {
             "cv": {
-                "default": {
-                    "mean": cv_results["default"]["cv_mean_metrics"],
-                    "std": cv_results["default"]["cv_std_metrics"],
-                },
-                "optuna": {
-                    "mean": cv_results["optuna"]["cv_mean_metrics"],
-                    "std": cv_results["optuna"]["cv_std_metrics"],
-                },
+                model_variant: {
+                    "mean": cv_data["cv_mean_metrics"],
+                    "std": cv_data["cv_std_metrics"],
+                }
+                for model_variant, cv_data in cv_results.items()
             },
             "full_fit_optuna": full_fit_metrics,
         },
@@ -732,7 +769,8 @@ def main():
                 "n_jobs": N_JOBS,
                 "max_bin": LGBM_MAX_BIN,
             },
-            "cv_default_params": LGBM_DEFAULT_PARAMS,
+            "cv_variants_trained": list(cv_variants.keys()),
+            "cv_default_params": LGBM_DEFAULT_PARAMS if train_default_model else None,
             "cv_optuna_params": LGBM_OPTUNA_BEST_PARAMS,
             "final_model_variant": "optuna",
         },
@@ -740,19 +778,25 @@ def main():
             "cv_folds": CV_FOLDS,
             "walk_forward_test_to_train_ratio": WF_TEST_TO_TRAIN_RATIO,
             "primary_reporting_metric": PRIMARY_REPORTING_METRIC,
+            "train_default_model": train_default_model,
+            "save_oof_predictions": save_oof_predictions,
         },
         "walk_forward_folds": folds,
         "walk_forward_details": {
-            "default": cv_results["default"]["folds"],
-            "optuna": cv_results["optuna"]["folds"],
+            model_variant: cv_data["folds"]
+            for model_variant, cv_data in cv_results.items()
         },
         "artifacts": {
             "run_dir": str(run_dir),
             "final_model_path": str(model_path),
             "final_feature_importance_csv": str(fi_path),
-            "cv_feature_importance_csv_default": str(cv_fi_paths["default"]),
-            "cv_feature_importance_csv_optuna": str(cv_fi_paths["optuna"]),
-            "oof_predictions_path": str(OOF_OUTPUT_PATH),
+            "cv_feature_importance_csv": {
+                model_variant: str(path)
+                for model_variant, path in cv_fi_paths.items()
+            },
+            "oof_predictions_path": (
+                str(OOF_OUTPUT_PATH) if save_oof_predictions else None
+            ),
         },
     }
     meta_path.write_text(json.dumps(meta_payload, indent=2), encoding="utf-8")
@@ -760,18 +804,30 @@ def main():
     print(f"Model saved: {model_path}")
     print(f"Metadata saved: {meta_path}")
     print(f"Feature importance saved (csv): {fi_path}")
-    print(f"CV feature importance saved (default): {cv_fi_paths['default']}")
-    print(f"CV feature importance saved (optuna): {cv_fi_paths['optuna']}")
-    print(f"OOF predictions saved (parquet): {OOF_OUTPUT_PATH}")
-    print(f"OOF preview head saved: {oof_head_csv}")
-    print(f"OOF preview tail saved: {oof_tail_csv}")
-    print(
-        "Metrics | "
-        f"CV[default] brier={cv_results['default']['cv_mean_metrics']['brier_score']:.6f}, "
-        f"logloss={cv_results['default']['cv_mean_metrics']['binary_logloss']:.6f} | "
-        f"CV[optuna] brier={cv_results['optuna']['cv_mean_metrics']['brier_score']:.6f}, "
-        f"logloss={cv_results['optuna']['cv_mean_metrics']['binary_logloss']:.6f} | "
-        f"FULL_FIT brier={full_fit_metrics['brier_score']:.6f}, "
+    for model_variant, cv_fi_path in cv_fi_paths.items():
+        print(f"CV feature importance saved ({model_variant}): {cv_fi_path}")
+    if save_oof_predictions:
+        print(f"OOF predictions saved (parquet): {OOF_OUTPUT_PATH}")
+        print(f"OOF preview head saved: {oof_head_csv}")
+        print(f"OOF preview tail saved: {oof_tail_csv}")
+    else:
+        print("OOF predictions export disabled")
+
+    metrics_summary_parts = []
+    if "default" in cv_results:
+        metrics_summary_parts.append(
+            "CV[default] "
+            f"brier={cv_results['default']['cv_mean_metrics']['brier_score']:.6f}, "
+            f"logloss={cv_results['default']['cv_mean_metrics']['binary_logloss']:.6f}"
+        )
+    metrics_summary_parts.append(
+        "CV[optuna] "
+        f"brier={cv_results['optuna']['cv_mean_metrics']['brier_score']:.6f}, "
+        f"logloss={cv_results['optuna']['cv_mean_metrics']['binary_logloss']:.6f}"
+    )
+    metrics_summary_parts.append(
+        "FULL_FIT "
+        f"brier={full_fit_metrics['brier_score']:.6f}, "
         f"logloss={full_fit_metrics['binary_logloss']:.6f}, "
         f"acc={full_fit_metrics['accuracy']:.4f}, "
         f"bal_acc={full_fit_metrics['balanced_accuracy']:.4f}, "
@@ -779,6 +835,7 @@ def main():
         f"recall={full_fit_metrics['recall']:.4f}, "
         f"f1={full_fit_metrics['f1']:.4f}"
     )
+    print("Metrics | " + " | ".join(metrics_summary_parts))
 
 
 if __name__ == "__main__":

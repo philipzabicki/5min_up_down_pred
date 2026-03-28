@@ -1,5 +1,6 @@
 import hashlib
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -19,8 +20,7 @@ from target_weights import (
     summarize_target_weights,
 )
 
-
-DATA_PATH = Path("data\\BTCUSDT1m_model_ready.parquet")
+DATA_PATH = Path("data\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet")
 OUTPUT_ROOT = Path("data/analysis/feature_selector")
 
 TARGET_COL = "target_5m_candle_up"
@@ -34,7 +34,8 @@ SAMPLE_WEIGHT_COL = TARGET_WEIGHT_COL
 FALLBACK_TO_UNIT_WEIGHTS = False
 MIN_SAMPLE_WEIGHT = 0.75
 
-N_SPLITS = 10
+RANKING_N_SPLITS = 20
+TOPK_N_SPLITS = 10
 WF_TEST_TO_TRAIN_RATIO = 0.2
 
 LGBM_DEVICE_TYPE = "gpu"
@@ -66,7 +67,7 @@ EARLY_STOPPING_ROUNDS = 40
 RANDOM_SEEDS = [37]
 
 SCORER = {
-    "name": "brier_score",
+    "name": "binary_logloss",
     "greater_is_better": False,
 }
 
@@ -89,6 +90,12 @@ NEAR_CONSTANT_THRESHOLD = 0.9999
 DROP_DUPLICATE_COLUMNS = True
 MAX_ABS_CORRELATION = 0.999
 ENABLE_CORRELATION_FILTER = True
+CORRELATION_FILTER_MODE = "screened_exact"  # modes: "screened_exact" or "full_matrix"
+CORRELATION_SCREEN_SAMPLE_ROWS = 50_000  # rows used for the initial correlation screening
+CORRELATION_SCREEN_MARGIN = 0.05  # lowers the screening threshold below the final drop threshold
+CORRELATION_SCREEN_MIN_ROWS = 100_000  # minimum row count required to use screened_exact
+CORRELATION_SCREEN_MIN_COLS = 64  # minimum feature count required to use screened_exact
+CORRELATION_SCREEN_MIN_THRESHOLD = 0.98  # minimum MAX_ABS_CORRELATION required to use screened_exact
 
 CONSOLE_PREVIEW_FEATURES = 50
 
@@ -109,9 +116,13 @@ def format_feature_preview_for_cli(label, features, limit):
 def print_prefilter_report_cli(filter_report_df):
     print("prefilter")
     for _, row in filter_report_df.iterrows():
+        duration = float(row.get("duration_sec", np.nan))
+        duration_text = ""
+        if np.isfinite(duration):
+            duration_text = f" time={duration:.3f}s"
         print(
             f"  {row['step']}: removed={int(row['removed_count'])} "
-            f"remaining={int(row['remaining_count'])}"
+            f"remaining={int(row['remaining_count'])}{duration_text}"
         )
 
 
@@ -206,8 +217,8 @@ def filter_rows_by_min_sample_weight(df, context_label):
         "enabled": True,
         "weight_col": SAMPLE_WEIGHT_COL,
         "min_weight": min_weight,
-        "rows_before": int(len(df)),
-        "rows_after": int(len(filtered_df)),
+        "rows_before": len(df),
+        "rows_after": len(filtered_df),
         "rows_removed": int((~keep_mask).sum()),
     }
     print(
@@ -219,7 +230,9 @@ def filter_rows_by_min_sample_weight(df, context_label):
         filtered_df,
         filtered_weight,
         source,
-        summarize_target_weights(filtered_weight.to_numpy(dtype=np.float32, copy=False)),
+        summarize_target_weights(
+            filtered_weight.to_numpy(dtype=np.float32, copy=False)
+        ),
         row_filter_info,
     )
 
@@ -309,13 +322,65 @@ def find_duplicate_columns(df):
     return duplicates, duplicate_map
 
 
-def find_highly_correlated_columns(df, threshold):
+def find_near_constant_columns(df, threshold, nunique=None):
+    if df.shape[1] == 0:
+        return []
+
+    threshold = float(threshold)
+    if not (0.0 <= threshold <= 1.0):
+        raise ValueError("NEAR_CONSTANT_THRESHOLD must be in [0, 1].")
+
+    n_rows = len(df)
+    if n_rows == 0:
+        return []
+
+    min_dominant_count = int(np.ceil(threshold * n_rows))
+    max_non_dominant = max(0, n_rows - min_dominant_count)
+    max_candidate_unique = max_non_dominant + 1
+    if nunique is None:
+        nunique = df.nunique(dropna=False)
+
+    candidate_cols = nunique[nunique <= max_candidate_unique].index.tolist()
+    near_constant_cols = []
+    for col in candidate_cols:
+        dominant_count = int(df[col].value_counts(dropna=False, sort=False).max())
+        if dominant_count >= min_dominant_count:
+            near_constant_cols.append(col)
+
+    return near_constant_cols
+
+
+def should_use_screened_correlation(df, threshold):
+    if CORRELATION_FILTER_MODE != "screened_exact":
+        return False
+    if (
+        CORRELATION_SCREEN_SAMPLE_ROWS is None
+        or int(CORRELATION_SCREEN_SAMPLE_ROWS) <= 0
+    ):
+        return False
+    return (
+        len(df) >= int(CORRELATION_SCREEN_MIN_ROWS)
+        and df.shape[1] >= int(CORRELATION_SCREEN_MIN_COLS)
+        and float(threshold) >= float(CORRELATION_SCREEN_MIN_THRESHOLD)
+    )
+
+
+def build_evenly_spaced_row_index(n_rows, sample_rows):
+    sample_rows = int(sample_rows)
+    if sample_rows <= 0 or n_rows <= sample_rows:
+        return np.arange(n_rows, dtype=np.int64)
+
+    sample_idx = np.linspace(0, n_rows - 1, num=sample_rows, dtype=np.int64)
+    return np.unique(sample_idx)
+
+
+def find_highly_correlated_columns_full(df, threshold):
     if df.shape[1] <= 1:
-        return [], {}
+        return [], {}, {"mode": "full_matrix", "exact_pair_checks": 0}
 
     abs_corr = df.corr(method="pearson", min_periods=3).abs()
     if abs_corr.empty:
-        return [], {}
+        return [], {}, {"mode": "full_matrix", "exact_pair_checks": 0}
 
     col_names = abs_corr.columns.to_list()
     corr_values = abs_corr.to_numpy(copy=False)
@@ -337,115 +402,239 @@ def find_highly_correlated_columns(df, threshold):
         dropped_cols.append(dropped_col)
         drop_map[dropped_col] = kept_col
 
-    return dropped_cols, drop_map
+    return dropped_cols, drop_map, {"mode": "full_matrix", "exact_pair_checks": 0}
+
+
+def find_highly_correlated_columns_screened(df, threshold):
+    threshold = float(threshold)
+    screen_threshold = max(0.0, threshold - float(CORRELATION_SCREEN_MARGIN))
+    sample_idx = build_evenly_spaced_row_index(len(df), CORRELATION_SCREEN_SAMPLE_ROWS)
+    sample_df = df.iloc[sample_idx]
+    abs_corr = sample_df.corr(method="pearson", min_periods=3).abs()
+    if abs_corr.empty:
+        return [], {}, {
+            "mode": "screened_exact",
+            "screen_sample_rows": int(len(sample_idx)),
+            "screen_threshold": screen_threshold,
+            "screen_candidate_pairs": 0,
+            "exact_pair_checks": 0,
+        }
+
+    col_names = abs_corr.columns.to_list()
+    corr_values = abs_corr.to_numpy(copy=False)
+    screened_prior_map = {}
+    screen_candidate_pairs = 0
+
+    for col_idx in range(1, len(col_names)):
+        prior_corr = corr_values[:col_idx, col_idx]
+        candidate_idx = np.flatnonzero(np.greater_equal(prior_corr, screen_threshold))
+        if candidate_idx.size == 0:
+            continue
+        screened_prior_map[col_idx] = candidate_idx
+        screen_candidate_pairs += int(candidate_idx.size)
+
+    if not screened_prior_map:
+        return [], {}, {
+            "mode": "screened_exact",
+            "screen_sample_rows": int(len(sample_idx)),
+            "screen_threshold": screen_threshold,
+            "screen_candidate_pairs": 0,
+            "exact_pair_checks": 0,
+        }
+
+    kept_mask = np.ones(len(col_names), dtype=bool)
+    dropped_cols = []
+    drop_map = {}
+    exact_pair_checks = 0
+
+    series_by_idx = [df.iloc[:, idx] for idx in range(df.shape[1])]
+    for col_idx in range(1, len(col_names)):
+        candidate_idx = screened_prior_map.get(col_idx)
+        if candidate_idx is None:
+            continue
+
+        for keeper_idx in candidate_idx:
+            if not kept_mask[int(keeper_idx)]:
+                continue
+
+            exact_pair_checks += 1
+            corr = series_by_idx[int(keeper_idx)].corr(
+                series_by_idx[col_idx],
+                method="pearson",
+                min_periods=3,
+            )
+            if pd.isna(corr) or abs(float(corr)) < threshold:
+                continue
+
+            kept_mask[col_idx] = False
+            dropped_col = col_names[col_idx]
+            kept_col = col_names[int(keeper_idx)]
+            dropped_cols.append(dropped_col)
+            drop_map[dropped_col] = kept_col
+            break
+
+    return dropped_cols, drop_map, {
+        "mode": "screened_exact",
+        "screen_sample_rows": int(len(sample_idx)),
+        "screen_threshold": screen_threshold,
+        "screen_candidate_pairs": int(screen_candidate_pairs),
+        "exact_pair_checks": int(exact_pair_checks),
+    }
+
+
+def find_highly_correlated_columns(df, threshold):
+    if df.shape[1] <= 1:
+        return [], {}, {"mode": "skipped", "exact_pair_checks": 0}
+
+    if should_use_screened_correlation(df, threshold):
+        return find_highly_correlated_columns_screened(df, threshold)
+
+    return find_highly_correlated_columns_full(df, threshold)
+
+
+def make_prefilter_report_row(
+    step,
+    removed_features,
+    remaining_count,
+    duration_sec,
+    details=None,
+):
+    if details is None:
+        details = {}
+    return {
+        "step": step,
+        "removed_count": len(removed_features),
+        "remaining_count": int(remaining_count),
+        "duration_sec": float(duration_sec),
+        "removed_features_json": json.dumps(removed_features),
+        "details_json": json.dumps(details),
+    }
 
 
 def prefilter_features(x):
-    work = x.copy()
+    work = x
     report_rows = [
         {
             "step": "input",
             "removed_count": 0,
             "remaining_count": int(work.shape[1]),
+            "duration_sec": 0.0,
             "removed_features_json": json.dumps([]),
+            "details_json": json.dumps({}),
         }
     ]
     duplicate_map = {}
     high_corr_drop_map = {}
 
+    started = time.perf_counter()
     all_missing_cols = [col for col in work.columns if work[col].isna().all()]
     if all_missing_cols:
         work = work.drop(columns=all_missing_cols)
     report_rows.append(
-        {
-            "step": "all_missing",
-            "removed_count": int(len(all_missing_cols)),
-            "remaining_count": int(work.shape[1]),
-            "removed_features_json": json.dumps(all_missing_cols),
-        }
+        make_prefilter_report_row(
+            step="all_missing",
+            removed_features=all_missing_cols,
+            remaining_count=work.shape[1],
+            duration_sec=time.perf_counter() - started,
+        )
     )
 
-    constant_cols = [
-        col for col in work.columns if work[col].nunique(dropna=False) <= 1
-    ]
+    started = time.perf_counter()
+    nunique = work.nunique(dropna=False) if work.shape[1] > 0 else pd.Series(dtype=np.int64)
+    constant_cols = nunique[nunique <= 1].index.tolist()
     if constant_cols:
         work = work.drop(columns=constant_cols)
+        nunique = nunique.drop(labels=constant_cols)
     report_rows.append(
-        {
-            "step": "constant",
-            "removed_count": int(len(constant_cols)),
-            "remaining_count": int(work.shape[1]),
-            "removed_features_json": json.dumps(constant_cols),
-        }
+        make_prefilter_report_row(
+            step="constant",
+            removed_features=constant_cols,
+            remaining_count=work.shape[1],
+            duration_sec=time.perf_counter() - started,
+        )
     )
 
+    started = time.perf_counter()
     near_constant_cols = []
     if work.shape[1] > 0 and NEAR_CONSTANT_THRESHOLD is not None:
-        for col in work.columns:
-            dominant_ratio = (
-                work[col].value_counts(dropna=False, normalize=True).iloc[0]
-            )
-            if dominant_ratio >= float(NEAR_CONSTANT_THRESHOLD):
-                near_constant_cols.append(col)
+        near_constant_cols = find_near_constant_columns(
+            work,
+            threshold=NEAR_CONSTANT_THRESHOLD,
+            nunique=nunique,
+        )
         if near_constant_cols:
             work = work.drop(columns=near_constant_cols)
+            nunique = nunique.drop(labels=near_constant_cols)
     report_rows.append(
-        {
-            "step": "near_constant",
-            "removed_count": int(len(near_constant_cols)),
-            "remaining_count": int(work.shape[1]),
-            "removed_features_json": json.dumps(near_constant_cols),
-        }
+        make_prefilter_report_row(
+            step="near_constant",
+            removed_features=near_constant_cols,
+            remaining_count=work.shape[1],
+            duration_sec=time.perf_counter() - started,
+        )
     )
 
+    started = time.perf_counter()
     high_missing_cols = []
     if work.shape[1] > 0 and MAX_MISSING_RATIO is not None:
         missing_ratio = work.isna().mean()
-        high_missing_cols = missing_ratio[missing_ratio > float(MAX_MISSING_RATIO)].index.tolist()
+        high_missing_cols = missing_ratio[
+            missing_ratio > float(MAX_MISSING_RATIO)
+        ].index.tolist()
         if high_missing_cols:
             work = work.drop(columns=high_missing_cols)
+            nunique = nunique.drop(labels=high_missing_cols, errors="ignore")
     report_rows.append(
-        {
-            "step": "high_missing_ratio",
-            "removed_count": int(len(high_missing_cols)),
-            "remaining_count": int(work.shape[1]),
-            "removed_features_json": json.dumps(high_missing_cols),
-        }
+        make_prefilter_report_row(
+            step="high_missing_ratio",
+            removed_features=high_missing_cols,
+            remaining_count=work.shape[1],
+            duration_sec=time.perf_counter() - started,
+        )
     )
 
+    started = time.perf_counter()
     duplicate_cols = []
     if work.shape[1] > 0 and DROP_DUPLICATE_COLUMNS:
         duplicate_cols, duplicate_map = find_duplicate_columns(work)
         if duplicate_cols:
             work = work.drop(columns=duplicate_cols)
+            nunique = nunique.drop(labels=duplicate_cols, errors="ignore")
     report_rows.append(
-        {
-            "step": "duplicate_columns",
-            "removed_count": int(len(duplicate_cols)),
-            "remaining_count": int(work.shape[1]),
-            "removed_features_json": json.dumps(duplicate_cols),
-        }
+        make_prefilter_report_row(
+            step="duplicate_columns",
+            removed_features=duplicate_cols,
+            remaining_count=work.shape[1],
+            duration_sec=time.perf_counter() - started,
+        )
     )
 
+    started = time.perf_counter()
     high_corr_cols = []
+    high_corr_details = {}
     if (
         work.shape[1] > 1
         and ENABLE_CORRELATION_FILTER
         and MAX_ABS_CORRELATION is not None
     ):
-        high_corr_cols, high_corr_drop_map = find_highly_correlated_columns(
+        (
+            high_corr_cols,
+            high_corr_drop_map,
+            high_corr_details,
+        ) = find_highly_correlated_columns(
             work,
             threshold=MAX_ABS_CORRELATION,
         )
         if high_corr_cols:
             work = work.drop(columns=high_corr_cols)
     report_rows.append(
-        {
-            "step": "very_high_correlation",
-            "removed_count": int(len(high_corr_cols)),
-            "remaining_count": int(work.shape[1]),
-            "removed_features_json": json.dumps(high_corr_cols),
-        }
+        make_prefilter_report_row(
+            step="very_high_correlation",
+            removed_features=high_corr_cols,
+            remaining_count=work.shape[1],
+            duration_sec=time.perf_counter() - started,
+            details=high_corr_details,
+        )
     )
 
     return work, pd.DataFrame(report_rows), duplicate_map, high_corr_drop_map
@@ -455,7 +644,7 @@ def make_walk_forward_folds(n_rows, n_splits, test_to_train_ratio):
     if n_rows < 100:
         raise ValueError(f"Dataset too small for walk-forward CV: {n_rows} rows.")
     if n_splits < 2:
-        raise ValueError("N_SPLITS must be >= 2.")
+        raise ValueError("n_splits must be >= 2.")
     if not (0.0 < test_to_train_ratio < 1.0):
         raise ValueError("WF_TEST_TO_TRAIN_RATIO must be in (0, 1).")
 
@@ -488,7 +677,7 @@ def make_walk_forward_folds(n_rows, n_splits, test_to_train_ratio):
     if len(folds) != n_splits:
         raise ValueError(
             f"Created {len(folds)} walk-forward folds, expected {n_splits}. "
-            "Increase dataset size or lower N_SPLITS."
+            "Increase dataset size or lower n_splits."
         )
 
     return folds
@@ -763,9 +952,9 @@ def run_feature_ranking(x, y, sample_weight, folds):
         fold_metadata.append(
             {
                 "fold_id": fold_id,
-                "train_size": int(len(train_idx)),
-                "valid_size": int(len(valid_idx)),
-                "dropped_all_nan_train_features_count": int(len(dropped_all_nan)),
+                "train_size": len(train_idx),
+                "valid_size": len(valid_idx),
+                "dropped_all_nan_train_features_count": len(dropped_all_nan),
                 "mean_best_iteration": float(np.mean(best_iterations)),
             }
         )
@@ -779,12 +968,24 @@ def run_feature_ranking(x, y, sample_weight, folds):
     ranking_df = pd.DataFrame(
         {
             "feature": feature_order,
-            "mean_gain": fold_gain_table.mean(axis=1).to_numpy(dtype=np.float64, copy=False),
-            "median_gain": fold_gain_table.median(axis=1).to_numpy(dtype=np.float64, copy=False),
-            "mean_split": fold_split_table.mean(axis=1).to_numpy(dtype=np.float64, copy=False),
-            "median_split": fold_split_table.median(axis=1).to_numpy(dtype=np.float64, copy=False),
-            "used_folds": fold_used_table.sum(axis=1).to_numpy(dtype=np.int32, copy=False),
-            "used_ratio": fold_used_table.mean(axis=1).to_numpy(dtype=np.float64, copy=False),
+            "mean_gain": fold_gain_table.mean(axis=1).to_numpy(
+                dtype=np.float64, copy=False
+            ),
+            "median_gain": fold_gain_table.median(axis=1).to_numpy(
+                dtype=np.float64, copy=False
+            ),
+            "mean_split": fold_split_table.mean(axis=1).to_numpy(
+                dtype=np.float64, copy=False
+            ),
+            "median_split": fold_split_table.median(axis=1).to_numpy(
+                dtype=np.float64, copy=False
+            ),
+            "used_folds": fold_used_table.sum(axis=1).to_numpy(
+                dtype=np.int32, copy=False
+            ),
+            "used_ratio": fold_used_table.mean(axis=1).to_numpy(
+                dtype=np.float64, copy=False
+            ),
             "gain_per_fold_json": fold_gain_table.apply(
                 lambda row: json.dumps([float(v) for v in row.tolist()]),
                 axis=1,
@@ -795,8 +996,8 @@ def run_feature_ranking(x, y, sample_weight, folds):
             ).to_numpy(),
         }
     )
-    ranking_df["eligible_for_selection"] = (
-        ranking_df["used_folds"] >= int(MIN_NONZERO_IMPORTANCE_FOLDS)
+    ranking_df["eligible_for_selection"] = ranking_df["used_folds"] >= int(
+        MIN_NONZERO_IMPORTANCE_FOLDS
     )
     ranking_df = sort_feature_table(ranking_df)
     ranking_df.insert(0, "rank", np.arange(1, len(ranking_df) + 1, dtype=np.int32))
@@ -1030,9 +1231,8 @@ def run_topk_sweep(
     coarse_ks = build_coarse_k_grid(pool_size)
     max_refinement_rounds = resolve_max_refinement_rounds(pool_size)
     max_sweep_evaluations = resolve_max_sweep_evaluations()
-    if (
-        max_sweep_evaluations is not None
-        and len(coarse_ks) > int(max_sweep_evaluations)
+    if max_sweep_evaluations is not None and len(coarse_ks) > int(
+        max_sweep_evaluations
     ):
         raise ValueError(
             "MAX_SWEEP_EVALUATIONS is smaller than the required coarse grid size."
@@ -1066,7 +1266,9 @@ def run_topk_sweep(
     refinement_rounds_completed = 0
     for round_idx in range(1, max_refinement_rounds + 1):
         results_df = pd.DataFrame(rows).sort_values("k").reset_index(drop=True)
-        candidates = [k for k in find_refinement_candidates(results_df) if int(k) not in seen]
+        candidates = [
+            k for k in find_refinement_candidates(results_df) if int(k) not in seen
+        ]
         if not candidates:
             break
 
@@ -1110,7 +1312,7 @@ def run_topk_sweep(
         "min_coarse_k": int(MIN_COARSE_K),
         "max_refinement_rounds_used": int(max_refinement_rounds),
         "refinement_rounds_completed": int(refinement_rounds_completed),
-        "total_k_evaluations": int(len(rows)),
+        "total_k_evaluations": len(rows),
         "evaluated_ks": evaluated_ks,
         "coarse_ks": [int(k) for k in coarse_ks],
         "refined_ks": sorted(set(int(k) for k in refined_ks)),
@@ -1198,6 +1400,8 @@ def write_outputs(
         f"target_col={summary_payload['target_col']}",
         f"input_features={summary_payload['input_feature_count']}",
         f"prefiltered_features={summary_payload['prefilter_feature_count']}",
+        f"ranking_n_splits={summary_payload['ranking_n_splits']}",
+        f"topk_n_splits={summary_payload['topk_n_splits']}",
         f"topk_selection_mode={summary_payload['topk_selection_mode']}",
         f"topk_selection_formula={summary_payload['topk_selection_formula']}",
         f"best_k={summary_payload['best_k']}",
@@ -1249,9 +1453,14 @@ def main():
     y_raw = df[TARGET_COL]
 
     y, class_mapping = prepare_binary_target(y_raw)
-    folds = make_walk_forward_folds(
+    ranking_folds = make_walk_forward_folds(
         n_rows=len(df),
-        n_splits=N_SPLITS,
+        n_splits=RANKING_N_SPLITS,
+        test_to_train_ratio=WF_TEST_TO_TRAIN_RATIO,
+    )
+    topk_folds = make_walk_forward_folds(
+        n_rows=len(df),
+        n_splits=TOPK_N_SPLITS,
         test_to_train_ratio=WF_TEST_TO_TRAIN_RATIO,
     )
 
@@ -1262,7 +1471,8 @@ def main():
     )
     print_prefilter_report_cli(filter_report_df)
     print(
-        f"cv setup | walk_forward folds={len(folds)} "
+        f"cv setup | ranking_folds={len(ranking_folds)} "
+        f"topk_folds={len(topk_folds)} "
         f"test_to_train_ratio={WF_TEST_TO_TRAIN_RATIO} "
         f"scorer={SCORER['name']} greater_is_better={SCORER['greater_is_better']}"
     )
@@ -1271,7 +1481,7 @@ def main():
         x=x_prefilter,
         y=y,
         sample_weight=sample_weight,
-        folds=folds,
+        folds=ranking_folds,
     )
     global_feature_order = ranking_df["feature"].tolist()
 
@@ -1279,7 +1489,7 @@ def main():
         x=x_prefilter,
         y=y,
         sample_weight=sample_weight,
-        folds=folds,
+        folds=topk_folds,
         global_feature_order=global_feature_order,
     )
     topk_sweep_metadata = dict(topk_df.attrs.get("sweep_metadata", {}))
@@ -1304,7 +1514,7 @@ def main():
         "data_path": str(DATA_PATH),
         "target_col": TARGET_COL,
         "scorer": SCORER["name"],
-        "input_feature_count": int(len(raw_input_feature_cols)),
+        "input_feature_count": len(raw_input_feature_cols),
         "prefilter_feature_count": int(x_prefilter.shape[1]),
         "eligible_feature_count": int(ranking_df["eligible_for_selection"].sum()),
         "dropped_non_numeric_features": dropped_non_numeric,
@@ -1316,7 +1526,8 @@ def main():
             **sample_weight_summary,
         },
         "row_filter": row_filter_info,
-        "n_splits": int(len(folds)),
+        "ranking_n_splits": len(ranking_folds),
+        "topk_n_splits": len(topk_folds),
         "walk_forward_test_to_train_ratio": float(WF_TEST_TO_TRAIN_RATIO),
         "random_seeds": [int(seed) for seed in RANDOM_SEEDS],
         "topk_selection_mode": TOPK_SELECTION_MODE,

@@ -4,7 +4,6 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 
-
 OPENED_COL = "Opened"
 SESSION_COUNTER_FEATURE_PREFIX = "session_counter_"
 DEFAULT_SESSION_WEEKDAYS = (0, 1, 2, 3, 4)
@@ -172,7 +171,9 @@ def _normalize_sessions(raw_sessions):
         if not timezone_name:
             raise ValueError(f"Session '{session_name}' has an empty timezone.")
         if not weekdays:
-            raise ValueError(f"Session '{session_name}' must define at least one weekday.")
+            raise ValueError(
+                f"Session '{session_name}' must define at least one weekday."
+            )
         if any(day < 0 or day > 6 for day in weekdays):
             raise ValueError(
                 f"Session '{session_name}' weekdays must be integers in [0, 6]."
@@ -200,7 +201,8 @@ def _normalize_sessions(raw_sessions):
 
 SESSIONS = _normalize_sessions(_RAW_SESSIONS)
 SUPPORTED_SESSION_COUNTER_COLS = tuple(
-    f"{SESSION_COUNTER_FEATURE_PREFIX}{session_name}" for session_name in SESSIONS.keys()
+    f"{SESSION_COUNTER_FEATURE_PREFIX}{session_name}"
+    for session_name in SESSIONS.keys()
 )
 SESSION_NAME_BY_FEATURE_COL = {
     feature_col: feature_col[len(SESSION_COUNTER_FEATURE_PREFIX) :]
@@ -260,7 +262,9 @@ def _build_trading_calendar(local_date_days, session_cfg):
         calendar_end + np.timedelta64(1, "D"),
         np.timedelta64(1, "D"),
     )
-    weekday_arr = pd.DatetimeIndex(calendar_days.astype("datetime64[ns]")).dayofweek.to_numpy(
+    weekday_arr = pd.DatetimeIndex(
+        calendar_days.astype("datetime64[ns]")
+    ).dayofweek.to_numpy(
         dtype=np.int8,
         copy=False,
     )
@@ -322,8 +326,10 @@ def _compute_session_counter_values(opened_utc, session_cfg, tz_parts_cache):
     ) = _build_trading_calendar(local_date_days, session_cfg)
 
     row_date_pos = (
-        local_date_days - calendar_days[0]
-    ).astype("timedelta64[D]").astype(np.int32, copy=False)
+        (local_date_days - calendar_days[0])
+        .astype("timedelta64[D]")
+        .astype(np.int32, copy=False)
+    )
     row_is_trading_day = trading_day_mask[row_date_pos]
     start_minute = int(session_cfg["start_minute"])
     end_minute = int(session_cfg["end_minute"])
@@ -458,8 +464,7 @@ def _compute_latest_session_counter_value(local_dt, session_cfg):
     )
     return -int(
         (
-            local_dt.astimezone(_UTC_ZONEINFO)
-            - close_local.astimezone(_UTC_ZONEINFO)
+            local_dt.astimezone(_UTC_ZONEINFO) - close_local.astimezone(_UTC_ZONEINFO)
         ).total_seconds()
         // 60
     )

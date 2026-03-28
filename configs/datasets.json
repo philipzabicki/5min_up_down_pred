@@ -1,0 +1,34 @@
+{
+  "profiles": {
+    "btc_1m_main": {
+      "symbol": "BTCUSD",
+      "interval": "1m",
+      "market": "cm",
+      "source": "vision",
+      "price_source": "index",
+      "volume_source": "trade",
+      "volume_symbol": "BTCUSDT",
+      "volume_market": "um",
+      "intervals": [
+        "1m"
+      ],
+      "start_date": "",
+      "end_date": "",
+      "quiet": false,
+      "raw_ohlcv_repair": {
+        "enabled": true,
+        "mode": "monte_carlo_histogram",
+        "histogram_bins": 10000,
+        "gap_min_block_len": 3,
+        "volume_range_bins": 10000,
+        "random_seed": 37,
+        "bridge_weight_power": 2.0,
+        "save_gap_charts": true,
+        "gap_chart_context_before": 50,
+        "gap_chart_context_after": 50
+      },
+      "data_dir": "data",
+      "base_data_file": "BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv"
+    }
+  }
+}

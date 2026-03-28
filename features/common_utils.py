@@ -176,9 +176,13 @@ def _segment_score_extremes_vs_mid_oof_numba(
     raw = np.abs(mu_top - mu_mid) + np.abs(mu_bot - mu_mid)
 
     # expected |diff of means| under null ~ sqrt(2/pi) * std * sqrt(1/n1 + 1/n2)
-    noise = np.sqrt(2 / np.pi) * np.std(test_y) * (
-        np.sqrt(1.0 / top_count + 1.0 / mid_count) +
-        np.sqrt(1.0 / bot_count + 1.0 / mid_count)
+    noise = (
+        np.sqrt(2 / np.pi)
+        * np.std(test_y)
+        * (
+            np.sqrt(1.0 / top_count + 1.0 / mid_count)
+            + np.sqrt(1.0 / bot_count + 1.0 / mid_count)
+        )
     )
 
     score = raw - noise
