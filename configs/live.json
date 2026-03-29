@@ -1,8 +1,6 @@
 {
   "profiles": {
     "paper_polymarket": {
-      "symbol": "BTCUSDT",
-      "interval": "1m",
       "polymarket_gamma_host": "https://gamma-api.polymarket.com",
       "polymarket_series_slug": "btc-up-or-down-5m",
       "polymarket_market_slug_prefix": "btc-updown-5m",

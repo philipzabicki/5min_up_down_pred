@@ -35,7 +35,6 @@ from py_clob_client.clob_types import (
 )
 from py_clob_client.http_helpers import helpers as pyclob_http_helpers
 from py_clob_client.order_builder.constants import BUY, SELL
-from websocket import WebSocketApp
 
 from live_common import (
     LIVE_TRADE_EXPORT_COLUMNS,
@@ -53,14 +52,15 @@ from live_predict_binance import (
     INTERVAL,
     LIVE_TRADE_DIR,
     LivePredictor,
-    MAX_WS_RECONNECT_DELAY_SEC,
     PRICE_SOURCE,
+    PRICE_MARKET,
     resolve_record_accuracy_from_side,
     SYMBOL,
+    VOLUME_MARKET,
+    VOLUME_SYMBOL,
     VOLUME_SOURCE,
-    WS_PING_INTERVAL_SEC,
-    WS_PING_TIMEOUT_SEC,
-    WS_URL,
+    WS_TARGETS,
+    _load_ws_payload,
 )
 from kelly_utils import adjust_probability_for_kelly
 
@@ -2783,6 +2783,8 @@ class PolymarketLiveTrader(LivePredictor):
         print(
             "Polymarket execution | "
             f"mode={'paper' if self.pm_cfg.paper_mode else 'live'} "
+            f"price_symbol={SYMBOL} price_market={PRICE_MARKET} "
+            f"volume_symbol={VOLUME_SYMBOL} volume_market={VOLUME_MARKET} "
             f"price_source={PRICE_SOURCE} volume_source={VOLUME_SOURCE} "
             f"series_slug={self.pm_cfg.series_slug} "
             f"market_slug_prefix={self.pm_cfg.market_slug_prefix} "
@@ -2790,6 +2792,12 @@ class PolymarketLiveTrader(LivePredictor):
             f"execution_mode={self.pm_cfg.execution_mode} "
             f"order_price_cap={self.pm_cfg.order_price_cap:.3f} "
             f"records={self.predictions_path}"
+        )
+        print(
+            "Websocket targets | "
+            + ", ".join(
+                f"{target['label']}->{target['url']}" for target in WS_TARGETS
+            )
         )
         if self.pm_cfg.paper_mode:
             print(
@@ -2819,64 +2827,52 @@ class PolymarketLiveTrader(LivePredictor):
         print(f"Bankroll source: {self.bankroll_source}")
         print(f"Records file: {self.predictions_path}")
 
-    def _run_websocket_once(self):
-        ws = WebSocketApp(
-            WS_URL,
-            on_open=self._on_open,
-            on_message=self._on_message,
-            on_error=self._on_error,
-            on_close=self._on_close,
-        )
-        ws.run_forever(
-            ping_interval=WS_PING_INTERVAL_SEC,
-            ping_timeout=WS_PING_TIMEOUT_SEC,
-        )
-
     def _on_message(self, _ws, message):
-        try:
-            # Keep completed background-sync bookkeeping, but do not start any new
-            # network work before the current predict->submit cycle finishes.
-            self._poll_background_sync(reschedule_pending=False)
-            payload = json.loads(message)
-            closed_candle, live_minute_opened, _event_at = self._consume_ws_payload(
-                payload
-            )
-            if closed_candle is None:
-                return
+        with self.ws_message_lock:
+            try:
+                # Keep completed background-sync bookkeeping, but do not start any new
+                # network work before the current predict->submit cycle finishes.
+                self._poll_background_sync(reschedule_pending=False)
+                payload = _load_ws_payload(message)
+                closed_candle, live_minute_opened, _event_at = self._consume_ws_payload(
+                    payload
+                )
+                if closed_candle is None:
+                    return
 
-            opened_from_ws = pd.to_datetime(
-                int(closed_candle["t"]), unit="ms", utc=True
-            )
-            self._maybe_sync_missing_candles(opened_from_ws)
+                opened_from_ws = pd.to_datetime(
+                    int(closed_candle["t"]), unit="ms", utc=True
+                )
+                self._maybe_sync_missing_candles(opened_from_ws)
 
-            opened = self._upsert_closed_candle(closed_candle)
-            if opened is None:
-                return
-            if (
-                self.last_processed_closed_opened is not None
-                and opened <= self.last_processed_closed_opened
-            ):
-                return
-            if PRICE_SOURCE == "index":
-                self._maybe_sync_missing_candles(live_minute_opened)
+                opened = self._upsert_closed_candle(closed_candle)
+                if opened is None:
+                    return
+                if (
+                    self.last_processed_closed_opened is not None
+                    and opened <= self.last_processed_closed_opened
+                ):
+                    return
+                if PRICE_SOURCE == "index":
+                    self._maybe_sync_missing_candles(live_minute_opened)
 
-            volume_profile_values = (
-                self._prepare_volume_profile_features_for_latest_candle(opened)
-            )
-            pred = self._maybe_predict_closed_bucket(opened, volume_profile_values)
-            resolved_now = self._resolve_pending()
+                volume_profile_values = (
+                    self._prepare_volume_profile_features_for_latest_candle(opened)
+                )
+                pred = self._maybe_predict_closed_bucket(opened, volume_profile_values)
+                resolved_now = self._resolve_pending()
 
-            self.last_processed_closed_opened = opened
-            self._schedule_market_snapshot_prefetch(
-                self._next_unpredicted_bucket_start()
-            )
+                self.last_processed_closed_opened = opened
+                self._schedule_market_snapshot_prefetch(
+                    self._next_unpredicted_bucket_start()
+                )
 
-            self._schedule_post_cycle_syncs(pred, resolved_now)
-            self._persist_cycle_results(pred, resolved_now)
+                self._schedule_post_cycle_syncs(pred, resolved_now)
+                self._persist_cycle_results(pred, resolved_now)
 
-            self._poll_background_sync()
-        except Exception as exc:
-            print(f"[pred] message handling failed: {exc}")
+                self._poll_background_sync()
+            except Exception as exc:
+                print(f"[pred] message handling failed: {exc}")
 
     def run_forever(self):
         self._print_runtime_configuration()
@@ -2889,16 +2885,7 @@ class PolymarketLiveTrader(LivePredictor):
         self._schedule_market_snapshot_prefetch(next_bucket_start)
         self._schedule_background_sync("startup", force=True)
 
-        delay = 1
-        while True:
-            try:
-                self._run_websocket_once()
-            except Exception as exc:
-                print(f"[ws] run failed: {exc}")
-
-            print(f"[ws] reconnect in {delay}s...")
-            time.sleep(delay)
-            delay = min(delay * 2, MAX_WS_RECONNECT_DELAY_SEC)
+        self._run_all_websocket_targets_forever()
 
 
 def main():

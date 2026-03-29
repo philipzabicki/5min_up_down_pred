@@ -251,6 +251,7 @@ def load_live_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PAT
     if profile_name is None:
         profile_name = load_active_profile_names(active_config_path)["live_profile"]
     profile = _load_named_profile(LIVE_CONFIG_PATH, profile_name)
+    dataset = load_dataset_profile(active_config_path=active_config_path)
     for key in (
         "settlement_source",
         "settlement_ticker",
@@ -259,14 +260,28 @@ def load_live_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PAT
     ):
         profile.pop(key, None)
     required_text_keys = (
-        "symbol",
-        "interval",
         "polymarket_gamma_host",
         "polymarket_series_slug",
         "polymarket_market_slug_prefix",
     )
     for key in required_text_keys:
         require_text(profile, key)
+    live_symbol = str(profile.get("symbol", "") or "").strip().upper()
+    if live_symbol and live_symbol != str(dataset["symbol"]).strip().upper():
+        raise ValueError(
+            f"Live profile '{profile_name}' symbol={live_symbol!r} does not match "
+            f"dataset symbol={dataset['symbol']!r}. Live market data must match the "
+            "active modeling dataset."
+        )
+    live_interval = str(profile.get("interval", "") or "").strip()
+    if live_interval and live_interval != str(dataset["interval"]).strip():
+        raise ValueError(
+            f"Live profile '{profile_name}' interval={live_interval!r} does not match "
+            f"dataset interval={dataset['interval']!r}. Live market data must match "
+            "the active modeling dataset."
+        )
+    profile["symbol"] = dataset["symbol"]
+    profile["interval"] = dataset["interval"]
     if "polymarket_market_slug_override" not in profile:
         profile["polymarket_market_slug_override"] = ""
     return profile
