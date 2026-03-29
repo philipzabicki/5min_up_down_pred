@@ -925,6 +925,12 @@ def _rest_kline_params(
     return rest_url, params
 
 
+def _rest_limit_for_market_type(market_type, requested_limit):
+    market_type = normalize_live_market_type(market_type, "market_type")
+    max_limit = 1000 if market_type == "spot" else 1500
+    return max(1, min(int(requested_limit), int(max_limit)))
+
+
 def _volume_from_rest_row(row, source):
     if source == "index":
         try:
@@ -962,12 +968,17 @@ def _fetch_single_source_closed_ohlcv_range(
     market_type="um",
 ):
     start_ts = pd.Timestamp(start_opened)
-    end_ts = pd.Timestamp(end_opened) if end_opened is not None else None
+    if end_opened is None:
+        end_ts = pd.Timestamp.now(tz="UTC").floor(INTERVAL_FLOOR_RULE) - INTERVAL_DELTA
+    else:
+        end_ts = pd.Timestamp(end_opened)
     if end_ts is not None and end_ts < start_ts:
         return pd.DataFrame(columns=["Opened", *OHLCV_COLS])
 
+    now_ms = int(time.time() * 1000)
     all_rows = []
-    next_start = start_ts
+    next_end = pd.Timestamp(end_ts)
+    effective_limit = _rest_limit_for_market_type(market_type, limit)
     interval_ms = int(INTERVAL_DELTA.total_seconds() * 1000)
 
     while True:
@@ -975,11 +986,9 @@ def _fetch_single_source_closed_ohlcv_range(
             source=source,
             market_type=market_type,
             symbol=symbol,
-            limit=limit,
-            start_time_ms=int(next_start.value // 1_000_000),
+            limit=effective_limit,
+            end_time_ms=int(next_end.value // 1_000_000) + interval_ms - 1,
         )
-        if end_ts is not None:
-            params["endTime"] = int(end_ts.value // 1_000_000) + interval_ms - 1
 
         response = session.get(rest_url, params=params, timeout=20)
         response.raise_for_status()
@@ -988,19 +997,17 @@ def _fetch_single_source_closed_ohlcv_range(
             break
 
         all_rows.extend(data)
-        if len(data) < limit:
+        first_opened = pd.to_datetime(int(data[0][0]), unit="ms", utc=True)
+        if first_opened <= start_ts:
             break
-
-        last_opened = pd.to_datetime(int(data[-1][0]), unit="ms", utc=True)
-        next_start = last_opened + INTERVAL_DELTA
-        if end_ts is not None and next_start > end_ts:
+        if len(data) < effective_limit:
             break
+        next_end = first_opened - INTERVAL_DELTA
         time.sleep(0.05)
 
     if not all_rows:
         return pd.DataFrame(columns=["Opened", *OHLCV_COLS])
 
-    now_ms = int(time.time() * 1000)
     rows = []
     for row in all_rows:
         if int(row[6]) >= now_ms:
