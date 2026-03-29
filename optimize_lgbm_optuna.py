@@ -37,7 +37,7 @@ EARLY_STOPPING_ROUNDS = 25
 PRUNE_REPORT_EVERY_N_ITER = 10
 
 SEED = 37
-LGBM_NUM_THREADS = 14
+LGBM_NUM_THREADS = 12
 OPTUNA_OPTIMIZE_N_JOBS = 1
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
@@ -165,14 +165,14 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     },
 ]
 
-N_TRIALS = 300
+N_TRIALS = 10
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "de_besta_0432_28032026"
+STUDY_NAME = "de_besta_0315_29032026"
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
 BEST_RESULT_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_best_mean_std.json")

@@ -1360,11 +1360,12 @@ class LivePredictor:
     def _save_runtime_volume_profile_state_async(self, log=False, context="state"):
         if self.volume_profile_state is None:
             return None
-        if self.volume_profile_save_pool is None:
+        save_pool = getattr(self, "volume_profile_save_pool", None)
+        if save_pool is None:
             return self._save_runtime_volume_profile_state(log=log, context=context)
 
         state_snapshot = self._snapshot_volume_profile_state_for_save()
-        future = self.volume_profile_save_pool.submit(
+        future = save_pool.submit(
             save_volume_profile_state,
             state_snapshot,
             self.volume_profile_state_path,

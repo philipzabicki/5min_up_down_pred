@@ -45,12 +45,12 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data\\analysis\\feature_selector\\20260328_032535\\recommended_features.json",
+        "artifact_path": "data\\analysis\\feature_selector\\20260329_010329\\recommended_features.json",
         "artifact_list_key": "final_feature_list",
-        "excluded_feature_names": []
+        "excluded_feature_names": ["ChaikinOsc_fit_720m_pop64_fasmatypema_fasper35_slomatyphma_sloper1155"]
       },
       "train_lgbm": {
-        "train_default_model": true,
+        "train_default_model": false,
         "save_oof_predictions": true
       }
     }

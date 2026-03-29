@@ -1957,6 +1957,7 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.kelly_runtime = load_kelly_runtime_config(KELLY_CONFIG_PATH)
         self.live_bankroll_usdc = float(LIVE_INITIAL_BANKROLL_USDC)
         self.price_rng = np.random.default_rng(int(self.kelly_runtime["seed"]))
+        self.price_sim_scenario = self._sample_price_sim_scenario()
 
         feature_parts = split_feature_subset(self.feature_columns)
         if feature_parts["streak_intervals"]:
@@ -1984,6 +1985,7 @@ class PseudoLiveAuditPredictor(LivePredictor):
             / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}_modeling_end"
         )
         self.volume_profile_state_source_path = None
+        self.volume_profile_save_pool = None
 
         self.indicator_specs = load_indicator_specs(self.feature_columns)
         requirements_indicator_specs = self.indicator_specs
