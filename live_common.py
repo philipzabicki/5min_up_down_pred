@@ -42,8 +42,8 @@ LIVE_PREDICTION_EXPORT_COLUMNS = (
     "trade_is_win",
     "payout_usdc",
     "pnl_usdc",
-    "win_rate_resolved",
-    "win_rate_traded",
+    "win_rate_kelly_resolved",
+    "win_rate_closed_trade",
 )
 
 LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
@@ -115,31 +115,35 @@ def build_live_trade_records_path(
 
 
 def compute_running_win_rates(records, *, is_resolved, is_traded):
-    resolved_rates = []
-    traded_rates = []
-    resolved_count = 0
-    resolved_wins = 0
-    traded_count = 0
-    traded_wins = 0
+    kelly_resolved_rates = []
+    closed_trade_rates = []
+    kelly_resolved_count = 0
+    kelly_resolved_wins = 0
+    closed_trade_count = 0
+    closed_trade_wins = 0
 
     for record in records:
         if not is_resolved(record):
-            resolved_rates.append(np.nan)
-            traded_rates.append(np.nan)
+            kelly_resolved_rates.append(np.nan)
+            closed_trade_rates.append(np.nan)
             continue
 
-        resolved_count += 1
-        resolved_wins += int(record.get("is_correct") or 0)
+        kelly_resolved_count += 1
+        kelly_resolved_wins += int(record.get("is_correct") or 0)
         if is_traded(record):
-            traded_count += 1
-            traded_wins += int(record.get("trade_is_win") or 0)
+            closed_trade_count += 1
+            closed_trade_wins += int(record.get("trade_is_win") or 0)
 
-        resolved_rates.append(float(resolved_wins / resolved_count))
-        traded_rates.append(
-            float(traded_wins / traded_count) if traded_count else np.nan
+        kelly_resolved_rates.append(
+            float(kelly_resolved_wins / kelly_resolved_count)
+        )
+        closed_trade_rates.append(
+            float(closed_trade_wins / closed_trade_count)
+            if closed_trade_count
+            else np.nan
         )
 
-    return resolved_rates, traded_rates
+    return kelly_resolved_rates, closed_trade_rates
 
 
 def serialize_timestamp_columns(frame, columns):
@@ -163,13 +167,13 @@ def records_to_export_frame(
     if out.empty:
         return pd.DataFrame(columns=list(export_columns))
 
-    resolved_rates, traded_rates = compute_running_win_rates(
+    kelly_resolved_rates, closed_trade_rates = compute_running_win_rates(
         records,
         is_resolved=is_resolved,
         is_traded=is_traded,
     )
-    out["win_rate_resolved"] = resolved_rates
-    out["win_rate_traded"] = traded_rates
+    out["win_rate_kelly_resolved"] = kelly_resolved_rates
+    out["win_rate_closed_trade"] = closed_trade_rates
 
     for col in export_columns:
         if col not in out.columns:

@@ -55,6 +55,7 @@ from live_predict_binance import (
     LivePredictor,
     MAX_WS_RECONNECT_DELAY_SEC,
     PRICE_SOURCE,
+    resolve_record_accuracy_from_side,
     SYMBOL,
     VOLUME_SOURCE,
     WS_PING_INTERVAL_SEC,
@@ -358,6 +359,13 @@ def _backfill_record_analysis_fields(record):
     if not np.isfinite(_safe_float(record.get("bankroll_after_entry_orig"))):
         record["bankroll_after_entry_orig"] = (
             float(current_bankroll_after) if np.isfinite(current_bankroll_after) else np.nan
+        )
+
+    actual_up = record.get("actual_up")
+    if actual_up is not None and pd.notna(actual_up):
+        record["is_correct"] = resolve_record_accuracy_from_side(
+            record,
+            actual_up=int(actual_up),
         )
 
     record.setdefault("pm_order_response", "")
@@ -2583,18 +2591,24 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _stats(self):
         records = self._records_snapshot()
-        resolved = sum(1 for rec in records if self._has_binary_flag(rec["actual_up"]))
-        resolved_wins = sum(
+        kelly_resolved = sum(1 for rec in records if self._record_is_resolved(rec))
+        kelly_resolved_wins = sum(
             int(rec["is_correct"]) for rec in records if self._record_is_resolved(rec)
         )
-        traded = sum(1 for rec in records if self._record_is_traded(rec))
-        traded_wins = sum(
+        closed_trades = sum(1 for rec in records if self._record_is_traded(rec))
+        closed_trade_wins = sum(
             int(rec["trade_is_win"]) for rec in records if self._record_is_traded(rec)
         )
-        resolved_win_rate = (
-            float(resolved_wins / resolved) if resolved else float("nan")
+        win_rate_kelly_resolved = (
+            float(kelly_resolved_wins / kelly_resolved)
+            if kelly_resolved
+            else float("nan")
         )
-        traded_win_rate = float(traded_wins / traded) if traded else float("nan")
+        win_rate_closed_trade = (
+            float(closed_trade_wins / closed_trades)
+            if closed_trades
+            else float("nan")
+        )
         total_pnl = float(
             sum(
                 float(rec.get("pnl_usdc", 0.0) or 0.0)
@@ -2603,14 +2617,14 @@ class PolymarketLiveTrader(LivePredictor):
             )
         )
         return {
-            "resolved": resolved,
-            "resolved_wins": resolved_wins,
-            "resolved_losses": resolved - resolved_wins,
-            "resolved_win_rate": resolved_win_rate,
-            "traded": traded,
-            "traded_wins": traded_wins,
-            "traded_losses": traded - traded_wins,
-            "traded_win_rate": traded_win_rate,
+            "kelly_resolved": kelly_resolved,
+            "kelly_resolved_wins": kelly_resolved_wins,
+            "kelly_resolved_losses": kelly_resolved - kelly_resolved_wins,
+            "win_rate_kelly_resolved": win_rate_kelly_resolved,
+            "closed_trades": closed_trades,
+            "closed_trade_wins": closed_trade_wins,
+            "closed_trade_losses": closed_trades - closed_trade_wins,
+            "win_rate_closed_trade": win_rate_closed_trade,
             "total_pnl": total_pnl,
         }
 
@@ -2635,8 +2649,12 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _log(self, tag, pred=None):
         stats = self._stats()
-        resolved_win_rate_txt = self._format_rate(stats["resolved_win_rate"])
-        traded_win_rate_txt = self._format_rate(stats["traded_win_rate"])
+        kelly_resolved_win_rate_txt = self._format_rate(
+            stats["win_rate_kelly_resolved"]
+        )
+        closed_trade_win_rate_txt = self._format_rate(
+            stats["win_rate_closed_trade"]
+        )
         ts = (
             str(pred["decision_local"])
             if pred is not None
@@ -2649,14 +2667,14 @@ class PolymarketLiveTrader(LivePredictor):
         msg = [
             ts,
             f"[{tag}]",
-            f"resolved={stats['resolved']}",
-            f"resolved_wins={stats['resolved_wins']}",
-            f"resolved_losses={stats['resolved_losses']}",
-            f"win_rate_resolved={resolved_win_rate_txt}",
-            f"traded={stats['traded']}",
-            f"traded_wins={stats['traded_wins']}",
-            f"traded_losses={stats['traded_losses']}",
-            f"win_rate_traded={traded_win_rate_txt}",
+            f"kelly_resolved={stats['kelly_resolved']}",
+            f"kelly_resolved_wins={stats['kelly_resolved_wins']}",
+            f"kelly_resolved_losses={stats['kelly_resolved_losses']}",
+            f"win_rate_kelly_resolved={kelly_resolved_win_rate_txt}",
+            f"closed_trades={stats['closed_trades']}",
+            f"closed_trade_wins={stats['closed_trade_wins']}",
+            f"closed_trade_losses={stats['closed_trade_losses']}",
+            f"win_rate_closed_trade={closed_trade_win_rate_txt}",
             f"total_pnl={stats['total_pnl']:.2f}",
             f"bankroll={self.live_bankroll_usdc:.2f}",
         ]
