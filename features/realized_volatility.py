@@ -10,13 +10,34 @@ _WINDOWS_ARRAY = np.asarray(REALIZED_VOL_WINDOWS_MINUTES, dtype=np.int64)
 _MAX_WINDOW = int(REALIZED_VOL_WINDOWS_MINUTES[-1])
 _CE_WINDOW_PAIRS = ((1, 5), (5, 15), (15, 60), (60, 240))
 
-RV_FEATURE_COLUMNS = tuple(f"rv_{label}" for label in _WINDOW_LABELS)
-RV_UP_FEATURE_COLUMNS = tuple(f"rv_up_{label}" for label in _WINDOW_LABELS)
-RV_DOWN_FEATURE_COLUMNS = tuple(f"rv_down_{label}" for label in _WINDOW_LABELS)
+
+def _rv_feature_col(label):
+    return f"realized_volatility_{label}"
+
+
+def _rv_up_feature_col(label):
+    return f"realized_volatility_up_{label}"
+
+
+def _rv_down_feature_col(label):
+    return f"realized_volatility_down_{label}"
+
+
+def _rv_ce_feature_col(short_label, long_label):
+    return f"realized_volatility_compression_expansion_{short_label}_{long_label}"
+
+
+RV_FEATURE_COLUMNS = tuple(_rv_feature_col(label) for label in _WINDOW_LABELS)
+RV_UP_FEATURE_COLUMNS = tuple(_rv_up_feature_col(label) for label in _WINDOW_LABELS)
+RV_DOWN_FEATURE_COLUMNS = tuple(
+    _rv_down_feature_col(label) for label in _WINDOW_LABELS
+)
 VOV_FEATURE_COLUMNS = tuple(f"vov_{label}" for label in _WINDOW_LABELS)
 RV_CE_FEATURE_COLUMNS = tuple(
-    f"rv_ce_{_WINDOW_LABELS[REALIZED_VOL_WINDOWS_MINUTES.index(short_w)]}_"
-    f"{_WINDOW_LABELS[REALIZED_VOL_WINDOWS_MINUTES.index(long_w)]}"
+    _rv_ce_feature_col(
+        _WINDOW_LABELS[REALIZED_VOL_WINDOWS_MINUTES.index(short_w)],
+        _WINDOW_LABELS[REALIZED_VOL_WINDOWS_MINUTES.index(long_w)],
+    )
     for short_w, long_w in _CE_WINDOW_PAIRS
 )
 REALIZED_VOLATILITY_FEATURE_COLUMNS = (
@@ -174,23 +195,23 @@ def compute_realized_volatility_feature_arrays(close):
 
     feature_arrays = {}
     for window_idx, label in enumerate(_WINDOW_LABELS):
-        feature_arrays[f"rv_{label}"] = rv[:, window_idx]
-        feature_arrays[f"rv_up_{label}"] = rv_up[:, window_idx]
-        feature_arrays[f"rv_down_{label}"] = rv_down[:, window_idx]
+        feature_arrays[_rv_feature_col(label)] = rv[:, window_idx]
+        feature_arrays[_rv_up_feature_col(label)] = rv_up[:, window_idx]
+        feature_arrays[_rv_down_feature_col(label)] = rv_down[:, window_idx]
         feature_arrays[f"vov_{label}"] = vov[:, window_idx]
 
     for short_window, long_window in _CE_WINDOW_PAIRS:
         short_label = _WINDOW_LABELS[REALIZED_VOL_WINDOWS_MINUTES.index(short_window)]
         long_label = _WINDOW_LABELS[REALIZED_VOL_WINDOWS_MINUTES.index(long_window)]
-        short_values = feature_arrays[f"rv_{short_label}"]
-        long_values = feature_arrays[f"rv_{long_label}"]
+        short_values = feature_arrays[_rv_feature_col(short_label)]
+        long_values = feature_arrays[_rv_feature_col(long_label)]
         ce_values = np.full(rows, np.nan, dtype=np.float64)
         valid_mask = np.isfinite(short_values) & np.isfinite(long_values)
         ce_values[valid_mask] = np.log(
             (short_values[valid_mask] + REALIZED_VOL_EPS)
             / (long_values[valid_mask] + REALIZED_VOL_EPS)
         )
-        feature_arrays[f"rv_ce_{short_label}_{long_label}"] = ce_values
+        feature_arrays[_rv_ce_feature_col(short_label, long_label)] = ce_values
 
     return feature_arrays
 
@@ -286,25 +307,25 @@ class RealizedVolatilityRuntimeState:
 
         values = {}
         for window_idx, label in enumerate(_WINDOW_LABELS):
-            values[f"rv_{label}"] = float(rv_values[window_idx])
-            values[f"rv_up_{label}"] = float(rv_up_values[window_idx])
-            values[f"rv_down_{label}"] = float(rv_down_values[window_idx])
+            values[_rv_feature_col(label)] = float(rv_values[window_idx])
+            values[_rv_up_feature_col(label)] = float(rv_up_values[window_idx])
+            values[_rv_down_feature_col(label)] = float(rv_down_values[window_idx])
             values[f"vov_{label}"] = float(vov_values[window_idx])
 
         for short_window, long_window in _CE_WINDOW_PAIRS:
             short_label = _WINDOW_LABELS[REALIZED_VOL_WINDOWS_MINUTES.index(short_window)]
             long_label = _WINDOW_LABELS[REALIZED_VOL_WINDOWS_MINUTES.index(long_window)]
-            short_value = values[f"rv_{short_label}"]
-            long_value = values[f"rv_{long_label}"]
+            short_value = values[_rv_feature_col(short_label)]
+            long_value = values[_rv_feature_col(long_label)]
             if np.isfinite(short_value) and np.isfinite(long_value):
-                values[f"rv_ce_{short_label}_{long_label}"] = float(
+                values[_rv_ce_feature_col(short_label, long_label)] = float(
                     np.log(
                         (short_value + REALIZED_VOL_EPS)
                         / (long_value + REALIZED_VOL_EPS)
                     )
                 )
             else:
-                values[f"rv_ce_{short_label}_{long_label}"] = float("nan")
+                values[_rv_ce_feature_col(short_label, long_label)] = float("nan")
 
         self.latest_values = values
         return dict(values)

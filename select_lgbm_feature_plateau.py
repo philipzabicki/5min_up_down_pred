@@ -19,7 +19,9 @@ from target_weights import (
     compute_target_weights_from_opened,
     summarize_target_weights,
 )
-from modeling_dataset_utils import resolve_modeling_dataset_parquet_path
+from modeling_dataset_utils import (
+    resolve_modeling_dataset_parquet_path,
+)
 
 DATA_PATH = resolve_modeling_dataset_parquet_path()
 OUTPUT_ROOT = Path("data/analysis/feature_selector")
@@ -82,7 +84,7 @@ MAX_SWEEP_EVALUATIONS = None
 MIN_REFINEMENT_INTERVAL = 1
 
 TOLERANCE_MODE = "abs"
-ABS_TOL = 0.0000025
+ABS_TOL = 0.000001
 REL_TOL = 0.0001
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 1

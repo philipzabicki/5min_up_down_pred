@@ -1,6 +1,6 @@
 {
   "artifacts": {
-    "model_meta_path": "data/models/20260330_021942/lgbm_meta_20260330_021942.json",
+    "model_meta_path": "data/models/20260330_060904/lgbm_meta_20260330_060904.json",
     "kelly_runtime_config_path": "configs/runtime/kelly_runtime.json",
     "indicator_history_requirements_path": "configs/runtime/indicator_history_requirements.json"
   }

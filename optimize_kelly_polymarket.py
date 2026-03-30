@@ -111,7 +111,7 @@ TRIAL_PARAM_BOUNDS = {
 
 # CV / holdout settings
 RANDOM_SEED = 37
-N_TRIALS = 1_000
+N_TRIALS = 2_000
 OPTUNA_TPE_STARTUP_TRIALS = int(N_TRIALS * 0.2)
 HOLDOUT_FRACTION = 0.05
 EXECUTION_SCENARIO_SEEDS = [101, 202, 303, 404, 505]
@@ -125,10 +125,10 @@ FULL_HOLDOUT_SCENARIO_SEED = 20_001
 
 # Scenario scoring
 SCENARIO_SCORE_WEIGHTS = {
-    "mean": 0.65,
-    "q10": 0.20,
-    "min": 0.10,
-    "q90_drawdown_penalty": 0.05,
+    "mean": 0.6,
+    "q10": 0.2,
+    "min": 0.1,
+    "q90_drawdown_penalty": 0.1,
 }
 
 # Manual live-vs-modeling probability error fit used only inside Kelly optimization.

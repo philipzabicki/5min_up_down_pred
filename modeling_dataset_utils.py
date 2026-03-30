@@ -14,7 +14,9 @@ from features.session_open_features import (
     SUPPORTED_SESSION_COUNTER_COLS,
     is_session_counter_feature,
 )
-from features.realized_volatility import is_realized_volatility_feature
+from features.realized_volatility import (
+    is_realized_volatility_feature,
+)
 from features.volume_profile_fixed_range import is_volume_profile_feature
 from project_config import (
     ACTIVE_CONFIG_PATH,
@@ -345,6 +347,7 @@ def split_feature_subset(feature_names):
     session_feature_set = set(SUPPORTED_SESSION_COUNTER_COLS)
 
     for feature_name in feature_names:
+        feature_name = str(feature_name).strip()
         if feature_name in raw_ohlcv_set:
             raw_ohlcv_cols.append(feature_name)
             continue

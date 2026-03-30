@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from features.realized_volatility import (
     REALIZED_VOLATILITY_FEATURE_COLUMNS,
     RealizedVolatilityRuntimeState,
     add_realized_volatility_features,
+    resolve_realized_volatility_feature_cols,
 )
 
 
@@ -28,12 +30,12 @@ def test_add_realized_volatility_features_manual_values_and_non_mutating_input()
 
     result = add_realized_volatility_features(base_df)
 
-    assert "rv_1m" not in base_df.columns
+    assert "realized_volatility_1m" not in base_df.columns
     pd.testing.assert_index_equal(result.index, base_df.index)
 
     expected_rv_1m = np.asarray([np.nan, 0.1, 0.2, 0.3, 0.4, 0.5], dtype=np.float64)
     np.testing.assert_allclose(
-        result["rv_1m"].to_numpy(dtype=np.float64),
+        result["realized_volatility_1m"].to_numpy(dtype=np.float64),
         expected_rv_1m,
         rtol=1e-12,
         atol=1e-12,
@@ -41,9 +43,9 @@ def test_add_realized_volatility_features_manual_values_and_non_mutating_input()
     )
 
     expected_rv_5m = np.sqrt(np.mean(np.square(returns, dtype=np.float64)))
-    assert np.isnan(result["rv_5m"].iloc[4])
+    assert np.isnan(result["realized_volatility_5m"].iloc[4])
     np.testing.assert_allclose(
-        result["rv_5m"].iloc[5],
+        result["realized_volatility_5m"].iloc[5],
         expected_rv_5m,
         rtol=1e-12,
         atol=1e-12,
@@ -54,19 +56,19 @@ def test_realized_volatility_warmup_boundaries_are_exact():
     close = _close_from_log_returns(np.full(240, 0.01, dtype=np.float64))
     result = add_realized_volatility_features(pd.DataFrame({"Close": close}))
 
-    assert np.isnan(result["rv_1m"].iloc[0])
-    assert np.isfinite(result["rv_1m"].iloc[1])
-    assert np.isnan(result["rv_5m"].iloc[4])
-    assert np.isfinite(result["rv_5m"].iloc[5])
-    assert np.isnan(result["rv_15m"].iloc[14])
-    assert np.isfinite(result["rv_15m"].iloc[15])
-    assert np.isnan(result["rv_1h"].iloc[59])
-    assert np.isfinite(result["rv_1h"].iloc[60])
-    assert np.isnan(result["rv_4h"].iloc[239])
-    assert np.isfinite(result["rv_4h"].iloc[240])
-    assert np.isnan(result["rv_ce_1h_4h"].iloc[239])
+    assert np.isnan(result["realized_volatility_1m"].iloc[0])
+    assert np.isfinite(result["realized_volatility_1m"].iloc[1])
+    assert np.isnan(result["realized_volatility_5m"].iloc[4])
+    assert np.isfinite(result["realized_volatility_5m"].iloc[5])
+    assert np.isnan(result["realized_volatility_15m"].iloc[14])
+    assert np.isfinite(result["realized_volatility_15m"].iloc[15])
+    assert np.isnan(result["realized_volatility_1h"].iloc[59])
+    assert np.isfinite(result["realized_volatility_1h"].iloc[60])
+    assert np.isnan(result["realized_volatility_4h"].iloc[239])
+    assert np.isfinite(result["realized_volatility_4h"].iloc[240])
+    assert np.isnan(result["realized_volatility_compression_expansion_1h_4h"].iloc[239])
     np.testing.assert_allclose(
-        result["rv_ce_1h_4h"].iloc[240],
+        result["realized_volatility_compression_expansion_1h_4h"].iloc[240],
         0.0,
         rtol=1e-12,
         atol=1e-12,
@@ -172,7 +174,7 @@ def test_realized_volatility_depends_only_on_recent_window_tail():
     )
 
 
-def test_realized_volatility_rv_1m_matches_zero_last_return_after_long_history():
+def test_realized_volatility_1m_matches_zero_last_return_after_long_history():
     rng = np.random.default_rng(123)
     returns = np.concatenate(
         (
@@ -184,6 +186,19 @@ def test_realized_volatility_rv_1m_matches_zero_last_return_after_long_history()
 
     result = add_realized_volatility_features(pd.DataFrame({"Close": close}))
 
-    np.testing.assert_allclose(result["rv_1m"].iloc[-1], 0.0, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(result["rv_up_1m"].iloc[-1], 0.0, rtol=0.0, atol=0.0)
-    np.testing.assert_allclose(result["rv_down_1m"].iloc[-1], 0.0, rtol=0.0, atol=0.0)
+    np.testing.assert_allclose(
+        result["realized_volatility_1m"].iloc[-1], 0.0, rtol=0.0, atol=0.0
+    )
+    np.testing.assert_allclose(
+        result["realized_volatility_up_1m"].iloc[-1], 0.0, rtol=0.0, atol=0.0
+    )
+    np.testing.assert_allclose(
+        result["realized_volatility_down_1m"].iloc[-1], 0.0, rtol=0.0, atol=0.0
+    )
+
+
+def test_realized_volatility_rejects_legacy_aliases():
+    with pytest.raises(ValueError, match="Unsupported realized volatility feature columns"):
+        resolve_realized_volatility_feature_cols(
+            ["rv_1m", "rv_up_5m", "rv_down_15m", "rv_ce_1h_4h", "vov_1m"]
+        )

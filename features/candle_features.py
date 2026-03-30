@@ -7,11 +7,11 @@ from pandas.tseries.frequencies import to_offset
 
 RAW_OHLCV_COLS = ("Open", "High", "Low", "Close", "Volume")
 MULTI_INTERVAL_CANDLE_DERIVED_COLS = (
-    "signed_vol",
-    "up_down_vol_ratio",
-    "wick_asym",
-    "close_location_value",
-    "body_pressure",
+    "candle_signed_vol",
+    "candle_up_down_vol_ratio",
+    "candle_wick_asym",
+    "candle_close_location_value",
+    "candle_body_pressure",
 )
 ALL_CANDLE_DERIVED_COLS = (
     "candle_ret_co",
@@ -22,6 +22,7 @@ ALL_CANDLE_DERIVED_COLS = (
     *MULTI_INTERVAL_CANDLE_DERIVED_COLS,
 )
 BASE_CANDLE_DERIVED_LAGS = tuple(range(1, 8))
+BASE_CANDLE_INTERVAL_LABEL = "1m"
 INTERVAL_DERIVED_LAGS = {
     "5m": tuple(range(1, 6)),
     "15m": tuple(range(1, 6)),
@@ -36,8 +37,12 @@ INTERVAL_DERIVED_BASE_COLS = {
 }
 
 
+def _derived_feature_col(base_col):
+    return f"{base_col}_{BASE_CANDLE_INTERVAL_LABEL}"
+
+
 def _derived_lag_feature_col(base_col, lag):
-    return f"{base_col}_lag{int(lag)}"
+    return f"{base_col}_{BASE_CANDLE_INTERVAL_LABEL}_lag{int(lag)}"
 
 
 def _interval_derived_lag_feature_col(base_col, interval_label, lag):
@@ -52,6 +57,9 @@ def _iter_interval_derived_specs():
                 yield interval_label, base_col, lag
 
 
+DIRECT_CANDLE_DERIVED_COLS = tuple(
+    _derived_feature_col(base_col) for base_col in ALL_CANDLE_DERIVED_COLS
+)
 LAGGED_CANDLE_DERIVED_COLS = tuple(
     _derived_lag_feature_col(base_col, lag)
     for base_col in ALL_CANDLE_DERIVED_COLS
@@ -62,7 +70,9 @@ INTERVAL_CANDLE_DERIVED_COLS = tuple(
     for interval_label, base_col, lag in _iter_interval_derived_specs()
 )
 CANDLE_DERIVED_COLS = (
-    ALL_CANDLE_DERIVED_COLS + LAGGED_CANDLE_DERIVED_COLS + INTERVAL_CANDLE_DERIVED_COLS
+    DIRECT_CANDLE_DERIVED_COLS
+    + LAGGED_CANDLE_DERIVED_COLS
+    + INTERVAL_CANDLE_DERIVED_COLS
 )
 CANDLE_PATTERN_COLS = tuple(talib.get_function_groups().get("Pattern Recognition", ()))
 OPENED_COL = "Opened"
@@ -112,7 +122,10 @@ _EPS = 1e-12
 _DERIVED_BASE_COL_TO_INDEX = {
     col: idx for idx, col in enumerate(ALL_CANDLE_DERIVED_COLS)
 }
-_DERIVED_FEATURE_SPEC_BY_COL = {col: (col, None, 0) for col in ALL_CANDLE_DERIVED_COLS}
+_DERIVED_FEATURE_SPEC_BY_COL = {
+    _derived_feature_col(base_col): (base_col, None, 0)
+    for base_col in ALL_CANDLE_DERIVED_COLS
+}
 _DERIVED_FEATURE_SPEC_BY_COL.update(
     {
         _derived_lag_feature_col(base_col, lag): (base_col, None, lag)
@@ -366,11 +379,11 @@ def build_candle_derived_features_from_series(
         "candle_log_volume": np.log(np.clip(volume_arr, _EPS, None)),
         "candle_body_abs_open": _safe_divide(np.abs(body), open_arr),
         "candle_body_to_range": _safe_divide(body, range_hl),
-        "signed_vol": volume_arr * np.sign(body),
-        "up_down_vol_ratio": up_volume_arr / (down_volume_arr + _EPS),
-        "wick_asym": (upper_wick - lower_wick) / range_eps,
-        "close_location_value": (close_arr - low_arr) / range_eps,
-        "body_pressure": body / range_eps,
+        "candle_signed_vol": volume_arr * np.sign(body),
+        "candle_up_down_vol_ratio": up_volume_arr / (down_volume_arr + _EPS),
+        "candle_wick_asym": (upper_wick - lower_wick) / range_eps,
+        "candle_close_location_value": (close_arr - low_arr) / range_eps,
+        "candle_body_pressure": body / range_eps,
     }
     return out
 
@@ -592,7 +605,7 @@ def _compute_interval_derived_features(
         return pd.DataFrame(index=base_df.index)
 
     needs_underlying_volume_split = any(
-        _DERIVED_FEATURE_SPEC_BY_COL[feature_col][0] == "up_down_vol_ratio"
+        _DERIVED_FEATURE_SPEC_BY_COL[feature_col][0] == "candle_up_down_vol_ratio"
         for feature_col in feature_cols
     )
     interval_base = base_df[
