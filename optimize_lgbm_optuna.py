@@ -44,23 +44,23 @@ LGBM_VERBOSITY = -1
 GPU_MAX_BIN_LIMIT = 63
 
 LGBM_OPTUNA_SEARCH_SPACE = {
-    "learning_rate": {"type": "float", "low": 0.001, "high": 0.5, "log": True},
-    "num_leaves": {"type": "int", "low": 16, "high": 256},
-    "min_data_in_leaf": {"type": "int", "low": 2, "high": 4096, "log": True},
-    "max_depth": {"type": "int", "low": 2, "high": 196},
-    "feature_fraction": {"type": "float", "low": 0.1, "high": 1.0},
-    "bagging_fraction": {"type": "float", "low": 0.1, "high": 1.0},
+    "learning_rate": {"type": "float", "low": 0.0005, "high": 0.5, "log": True},
+    "num_leaves": {"type": "int", "low": 16, "high": 384},
+    "min_data_in_leaf": {"type": "int", "low": 2, "high": 8192, "log": True},
+    "max_depth": {"type": "int", "low": 2, "high": 256},
+    "feature_fraction": {"type": "float", "low": 0.01, "high": 1.0},
+    "bagging_fraction": {"type": "float", "low": 0.01, "high": 1.0},
     "bagging_freq": {"type": "int", "low": 0, "high": 25},
     "lambda_l2": {"type": "float", "low": 0.0, "high": 100.0},
     "lambda_l1": {"type": "float", "low": 0.0, "high": 100.0},
     "min_sum_hessian_in_leaf": {
         "type": "float",
-        "low": 1e-4,
+        "low": 1e-5,
         "high": 100.0,
         "log": True,
     },
     "min_gain_to_split": {"type": "float", "low": 0.0, "high": 10.0},
-    "feature_fraction_bynode": {"type": "float", "low": 0.1, "high": 1.0},
+    "feature_fraction_bynode": {"type": "float", "low": 0.01, "high": 1.0},
     "path_smooth": {"type": "float", "low": 0.0, "high": 100.0},
     "extra_trees": {"type": "categorical", "choices": [True, False]},
 }
@@ -165,14 +165,14 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     },
 ]
 
-N_TRIALS = 10
+N_TRIALS = 100
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "de_besta_2215_29032026"
+STUDY_NAME = "de_besta_0815_30032026"
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
 BEST_RESULT_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_best_mean_std.json")
