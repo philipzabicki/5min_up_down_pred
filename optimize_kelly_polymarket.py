@@ -125,8 +125,8 @@ FULL_HOLDOUT_SCENARIO_SEED = 20_001
 
 # Scenario scoring
 SCENARIO_SCORE_WEIGHTS = {
-    "mean": 0.60,
-    "q10": 0.25,
+    "mean": 0.65,
+    "q10": 0.20,
     "min": 0.10,
     "q90_drawdown_penalty": 0.05,
 }

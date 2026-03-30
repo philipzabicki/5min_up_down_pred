@@ -33,7 +33,7 @@ DROP_RAW_OHLCV = True
 USE_SAMPLE_WEIGHTS = True
 SAMPLE_WEIGHT_COL = TARGET_WEIGHT_COL
 FALLBACK_TO_UNIT_WEIGHTS = False
-MIN_SAMPLE_WEIGHT = 0.75
+MIN_SAMPLE_WEIGHT = 0.80
 
 RANKING_N_SPLITS = 20
 TOPK_N_SPLITS = 10
@@ -86,15 +86,15 @@ ABS_TOL = 0.0000025
 REL_TOL = 0.0001
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 1
-MAX_MISSING_RATIO = 0.15
+MAX_MISSING_RATIO = 0.05
 NEAR_CONSTANT_THRESHOLD = 0.9999
 DROP_DUPLICATE_COLUMNS = True
 MAX_ABS_CORRELATION = 0.999
 ENABLE_CORRELATION_FILTER = True
 CORRELATION_FILTER_MODE = "screened_exact"  # modes: "screened_exact" or "full_matrix"
-CORRELATION_SCREEN_SAMPLE_ROWS = 50_000  # rows used for the initial correlation screening
+CORRELATION_SCREEN_SAMPLE_ROWS = 100_000  # rows used for the initial correlation screening
 CORRELATION_SCREEN_MARGIN = 0.05  # lowers the screening threshold below the final drop threshold
-CORRELATION_SCREEN_MIN_ROWS = 100_000  # minimum row count required to use screened_exact
+CORRELATION_SCREEN_MIN_ROWS = 250_000  # minimum row count required to use screened_exact
 CORRELATION_SCREEN_MIN_COLS = 64  # minimum feature count required to use screened_exact
 CORRELATION_SCREEN_MIN_THRESHOLD = 0.98  # minimum MAX_ABS_CORRELATION required to use screened_exact
 

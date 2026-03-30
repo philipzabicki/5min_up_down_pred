@@ -55,6 +55,10 @@ from features.live_indicator_runtime import (
     IndicatorWindowScratch,
 )
 from features.MACD import get_macd_values
+from features.realized_volatility import (
+    REALIZED_VOLATILITY_FEATURE_COLUMNS,
+    RealizedVolatilityRuntimeState,
+)
 from features.session_open_features import (
     SUPPORTED_SESSION_COUNTER_COLS,
     build_latest_session_counter_feature_dict_fast,
@@ -166,6 +170,7 @@ BASE_FEATURE_COLS = (
     set(OHLCV_COLS)
     | set(SUPPORTED_CANDLE_FEATURE_COLS)
     | set(SUPPORTED_SESSION_COUNTER_COLS)
+    | set(REALIZED_VOLATILITY_FEATURE_COLUMNS)
 )
 VALUE_BUILDERS = {
     "ADX": get_adx_values,
@@ -1123,6 +1128,9 @@ class LivePredictor:
         else:
             self.streak_interval_to_rule = {}
         self.session_feature_columns = tuple(feature_parts["session_feature_cols"])
+        self.realized_volatility_feature_columns = tuple(
+            feature_parts["realized_volatility_feature_cols"]
+        )
         self.volume_profile_feature_columns = tuple(
             feature_parts["volume_profile_feature_cols"]
         )
@@ -1214,6 +1222,9 @@ class LivePredictor:
 
         self.predictions_path = PREDICTIONS_OUTPUT_PATH
         self.predictions_path.parent.mkdir(parents=True, exist_ok=True)
+        self.realized_volatility_state = None
+        self.latest_realized_volatility_values = {}
+        self._initialize_realized_volatility_state()
         self.volume_profile_state = None
         if self.volume_profile_enabled:
             self._initialize_volume_profile_state(bootstrap_df)
@@ -1244,6 +1255,18 @@ class LivePredictor:
             window_scratch_by_len[window_len] = window_scratch
         return float(spec.latest_builder(spec.params, window_scratch))
 
+    def _initialize_realized_volatility_state(self):
+        if not self.realized_volatility_feature_columns:
+            self.realized_volatility_state = None
+            self.latest_realized_volatility_values = {}
+            return
+
+        self.realized_volatility_state = RealizedVolatilityRuntimeState()
+        latest_values = {}
+        for close_value in self.ohlcv_np[:, 3]:
+            latest_values = self.realized_volatility_state.update(float(close_value))
+        self.latest_realized_volatility_values = latest_values
+
     def _append_new_candle(self, opened, ohlcv):
         ohlcv_row = np.asarray(ohlcv, dtype=np.float64).reshape(1, len(OHLCV_COLS))
         opened_ns_row = np.asarray([pd.Timestamp(opened).value], dtype=np.int64)
@@ -1259,6 +1282,10 @@ class LivePredictor:
             float(ohlcv_row[0, 0]),
             float(ohlcv_row[0, 3]),
         )
+        if self.realized_volatility_state is not None:
+            self.latest_realized_volatility_values = self.realized_volatility_state.update(
+                float(ohlcv_row[0, 3])
+            )
 
         if len(self.opened_candles) > self.max_keep:
             dropped_opened = self.opened_candles.popleft()
@@ -1748,6 +1775,8 @@ class LivePredictor:
                     feature_cols=self.session_feature_columns,
                 )
             )
+        if self.realized_volatility_state is not None:
+            values.update(self.latest_realized_volatility_values)
 
         if volume_profile_values:
             values.update(volume_profile_values)

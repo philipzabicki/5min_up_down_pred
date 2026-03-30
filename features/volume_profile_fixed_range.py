@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from numba import njit
 
-FEATURE_VERSION = "vp_fixed_range_v1"
+FEATURE_VERSION = "vp_fixed_range_v2"
 VP_FEATURE_PREFIX = "vp_"
 STATE_DIR = Path("data/features/state/volume_profile")
 RUNTIME_STATE_DIR = STATE_DIR / "runtime"
@@ -204,7 +204,7 @@ def create_empty_state(cfg=None):
         "horizon_names": tuple(normalized["horizon_names"]),
         "half_lives": tuple(normalized["half_lives"]),
         "decays": np.asarray(normalized["decays"], dtype=np.float64),
-        "raw_profiles": np.zeros((horizon_count, bins), dtype=np.float32),
+        "raw_profiles": np.zeros((horizon_count, bins), dtype=np.float64),
         "global_scales": np.ones(horizon_count, dtype=np.float64),
         "feature_columns": tuple(normalized["feature_columns"]),
         "config_signature": normalized["config_signature"],
@@ -307,7 +307,7 @@ def load_state(path):
     }
     state = create_empty_state(cfg)
     with np.load(npz_path) as data:
-        raw_profiles = np.asarray(data["raw_profiles"], dtype=np.float32)
+        raw_profiles = np.asarray(data["raw_profiles"], dtype=np.float64)
         global_scales = np.asarray(data["global_scales"], dtype=np.float64)
         decays = np.asarray(data["decays"], dtype=np.float64)
 
@@ -402,7 +402,7 @@ def _extract_feature_row_array_numba(
             elif neighbor_idx >= bins:
                 neighbor_idx = bins - 1
             neigh = float(raw_profiles[horizon_idx, neighbor_idx]) * scale
-            out_row[cursor] = np.float32(math.log((neigh + eps) / (curr + eps)))
+            out_row[cursor] = math.log((neigh + eps) / (curr + eps))
             cursor += 1
 
         for shift in range(1, neighbor_bins + 1):
@@ -412,7 +412,7 @@ def _extract_feature_row_array_numba(
             elif neighbor_idx >= bins:
                 neighbor_idx = bins - 1
             neigh = float(raw_profiles[horizon_idx, neighbor_idx]) * scale
-            out_row[cursor] = np.float32(math.log((neigh + eps) / (curr + eps)))
+            out_row[cursor] = math.log((neigh + eps) / (curr + eps))
             cursor += 1
 
         left = bin_idx - local_window
@@ -436,11 +436,11 @@ def _extract_feature_row_array_numba(
             elif local_idx > bin_idx:
                 above += value
 
-        out_row[cursor] = np.float32(math.log((above + eps) / (below + eps)))
+        out_row[cursor] = math.log((above + eps) / (below + eps))
         cursor += 1
-        out_row[cursor] = np.float32(curr / (local_sum + eps))
+        out_row[cursor] = curr / (local_sum + eps)
         cursor += 1
-        out_row[cursor] = np.float32(curr / (local_max + eps))
+        out_row[cursor] = curr / (local_max + eps)
         cursor += 1
 
 
@@ -517,7 +517,7 @@ def _update_state_with_candle_numba(
             scale = global_scales[horizon_idx]
             if scale < renormalize_scale_min:
                 for bin_idx in range(bins):
-                    raw_profiles[horizon_idx, bin_idx] = np.float32(
+                    raw_profiles[horizon_idx, bin_idx] = (
                         raw_profiles[horizon_idx, bin_idx] * scale
                     )
                 global_scales[horizon_idx] = 1.0
@@ -527,7 +527,7 @@ def _update_state_with_candle_numba(
 
         inv_scale = base_increment / scale
         for offset in range(length):
-            raw_profiles[horizon_idx, start_idx + offset] += np.float32(
+            raw_profiles[horizon_idx, start_idx + offset] += (
                 weight_buffer[offset] * inv_scale
             )
 
@@ -552,9 +552,9 @@ def _build_volume_profile_feature_matrix_numba(
     renormalize_scale_min,
 ):
     horizon_count = decays.shape[0]
-    raw_profiles = np.zeros((horizon_count, bins), dtype=np.float32)
+    raw_profiles = np.zeros((horizon_count, bins), dtype=np.float64)
     global_scales = np.ones(horizon_count, dtype=np.float64)
-    feature_matrix = np.empty((out_rows, feature_count), dtype=np.float32)
+    feature_matrix = np.empty((out_rows, feature_count), dtype=np.float64)
     weight_buffer = np.empty(bins, dtype=np.float64)
 
     out_idx = 0
@@ -620,7 +620,7 @@ def build_volume_profile_feature_matrix_from_arrays(
     state = create_empty_state(normalized)
     row_count = len(high)
     if not state["enabled"]:
-        return np.empty((0, 0), dtype=np.float32), state
+        return np.empty((0, 0), dtype=np.float64), state
 
     high_np = np.ascontiguousarray(np.asarray(high, dtype=np.float64))
     low_np = np.ascontiguousarray(np.asarray(low, dtype=np.float64))
@@ -668,14 +668,14 @@ def _build_candle_contribution_slice(
     min_sigma,
 ):
     if not np.isfinite(high) or not np.isfinite(low) or not np.isfinite(volume):
-        return None, np.empty(0, dtype=np.float32)
+        return None, np.empty(0, dtype=np.float64)
     if volume == 0.0:
-        return None, np.empty(0, dtype=np.float32)
+        return None, np.empty(0, dtype=np.float64)
 
     hl2 = 0.5 * (high + low)
     if high <= low or abs(high - low) <= 1e-12:
         bin_idx = _price_to_bin_index(hl2, price_min, step, bins)
-        return bin_idx, np.asarray([float(volume)], dtype=np.float32)
+        return bin_idx, np.asarray([float(volume)], dtype=np.float64)
 
     start_idx = _price_to_bin_index(low, price_min, step, bins)
     end_idx = _price_to_bin_index(high, price_min, step, bins)
@@ -699,9 +699,9 @@ def _build_candle_contribution_slice(
 
     if total_weight <= 0.0 or not np.isfinite(total_weight):
         bin_idx = _price_to_bin_index(hl2, price_min, step, bins)
-        return bin_idx, np.asarray([float(volume)], dtype=np.float32)
+        return bin_idx, np.asarray([float(volume)], dtype=np.float64)
 
-    deltas = np.asarray((float(volume) * (weights / total_weight)), dtype=np.float32)
+    deltas = np.asarray((float(volume) * (weights / total_weight)), dtype=np.float64)
     return start_idx, deltas
 
 
@@ -711,7 +711,7 @@ def _extract_feature_row_array(
     low,
 ):
     if not state["enabled"]:
-        return np.empty(0, dtype=np.float32)
+        return np.empty(0, dtype=np.float64)
 
     neighbor_bins = int(state["neighbor_bins"])
     local_window = int(state["local_window"])
@@ -722,7 +722,7 @@ def _extract_feature_row_array(
         price_ref, float(state["price_min"]), float(state["step"]), bins
     )
 
-    out = np.empty(len(state["feature_columns"]), dtype=np.float32)
+    out = np.empty(len(state["feature_columns"]), dtype=np.float64)
     cursor = 0
 
     for horizon_idx in range(len(state["horizon_names"])):
@@ -734,12 +734,12 @@ def _extract_feature_row_array(
         for shift in range(-neighbor_bins, 0):
             neighbor_idx = min(max(bin_idx + shift, 0), bins - 1)
             neigh = float(raw_profile[neighbor_idx]) * scale
-            out[cursor] = np.float32(math.log((neigh + eps) / (curr + eps)))
+            out[cursor] = math.log((neigh + eps) / (curr + eps))
             cursor += 1
         for shift in range(1, neighbor_bins + 1):
             neighbor_idx = min(max(bin_idx + shift, 0), bins - 1)
             neigh = float(raw_profile[neighbor_idx]) * scale
-            out[cursor] = np.float32(math.log((neigh + eps) / (curr + eps)))
+            out[cursor] = math.log((neigh + eps) / (curr + eps))
             cursor += 1
 
         left = max(0, bin_idx - local_window)
@@ -752,11 +752,11 @@ def _extract_feature_row_array(
         local_sum = float(local_slice.sum(dtype=np.float64)) * scale
         local_max = float(local_slice.max()) * scale
 
-        out[cursor] = np.float32(math.log((above + eps) / (below + eps)))
+        out[cursor] = math.log((above + eps) / (below + eps))
         cursor += 1
-        out[cursor] = np.float32(curr / (local_sum + eps))
+        out[cursor] = curr / (local_sum + eps)
         cursor += 1
-        out[cursor] = np.float32(curr / (local_max + eps))
+        out[cursor] = curr / (local_max + eps)
         cursor += 1
 
     return out
@@ -805,10 +805,10 @@ def update_state_with_candle(
             state["global_scales"][horizon_idx] *= decay
             scale = float(state["global_scales"][horizon_idx])
             if scale < _RENORMALIZE_SCALE_MIN:
-                state["raw_profiles"][horizon_idx] *= np.float32(scale)
+                state["raw_profiles"][horizon_idx] *= scale
                 state["global_scales"][horizon_idx] = 1.0
         scale = float(state["global_scales"][horizon_idx])
-        increment = np.asarray(scaled_deltas / scale, dtype=np.float32)
+        increment = np.asarray(scaled_deltas / scale, dtype=np.float64)
         state["raw_profiles"][horizon_idx, start_idx:stop_idx] += increment
 
     return state
@@ -895,7 +895,7 @@ def check_batch_live_consistency(
     low = df["Low"].to_numpy(dtype=np.float64, copy=False)
     volume = df["Volume"].to_numpy(dtype=np.float64, copy=False)
 
-    live_matrix = np.empty_like(batch_df.to_numpy(dtype=np.float32, copy=True))
+    live_matrix = np.empty_like(batch_df.to_numpy(dtype=np.float64, copy=True))
     for row_idx in range(len(df)):
         update_state_with_candle(
             live_state,

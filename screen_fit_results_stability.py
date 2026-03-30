@@ -33,6 +33,12 @@ MAX_ALLOWED_STABLE_WINDOW = 20000
 LIMIT_FEATURES = 0
 MOVE_UNSTABLE = True
 PROGRESS_EVERY = 25
+REFERENCE_BUILD_FAILED_REASON = "reference_build_failed"
+NEVER_STABLE_REASON = f"never_stable_within_{int(MAX_WINDOW)}"
+REQUIRES_MORE_HISTORY_REASON = (
+    f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}"
+)
+STABLE_LABEL = "stable"
 
 
 def load_full_reference_ohlcv(reference_path):
@@ -243,7 +249,8 @@ def main():
     )
 
     screen_rows = []
-    unstable_cfgs = []
+    never_stable_cfgs = []
+    reference_failure_cfgs = []
     flagged_cfgs = []
     unstable_feature_rows = []
     unstable_window_rows = []
@@ -268,7 +275,6 @@ def main():
                 "formula_is_stable": False,
                 "formula_max_abs_error": np.nan,
             }
-            is_stable = False
         else:
             result = audit.evaluate_feature_stability(
                 spec=spec,
@@ -280,25 +286,34 @@ def main():
                 max_window=int(MAX_WINDOW),
                 scan_back=int(audit.SCAN_BACK),
             )
-            is_stable = result["stable_min_window"] is not None
+
+        stability_evaluated = ref_error is None
+        is_stable = stability_evaluated and result["stable_min_window"] is not None
 
         stable_min_window = (
             int(result["stable_min_window"])
             if result["stable_min_window"] is not None
             else None
         )
+        reference_build_failed = not stability_evaluated
+        never_stable_within_max_window = stability_evaluated and not is_stable
         requires_more_history_than_allowed = (
-            stable_min_window is not None
+            is_stable
+            and stable_min_window is not None
             and stable_min_window > int(MAX_ALLOWED_STABLE_WINDOW)
         )
 
+        stability_label = STABLE_LABEL
         move_reason = ""
-        if not is_stable:
-            move_reason = f"never_stable_within_{int(MAX_WINDOW)}"
+        if reference_build_failed:
+            stability_label = REFERENCE_BUILD_FAILED_REASON
+            move_reason = REFERENCE_BUILD_FAILED_REASON
+        elif never_stable_within_max_window:
+            stability_label = NEVER_STABLE_REASON
+            move_reason = NEVER_STABLE_REASON
         elif requires_more_history_than_allowed:
-            move_reason = (
-                f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}"
-            )
+            stability_label = REQUIRES_MORE_HISTORY_REASON
+            move_reason = REQUIRES_MORE_HISTORY_REASON
 
         screen_rows.append(
             {
@@ -320,7 +335,13 @@ def main():
                 ),
                 "stable_used_anchors": int(result["stable_used_anchors"]),
                 "stable_max_abs_error": float(result["stable_max_abs_error"]),
+                "stability_evaluated": bool(stability_evaluated),
+                "stability_label": stability_label,
                 "is_stable": bool(is_stable),
+                "is_reference_build_failed": bool(reference_build_failed),
+                "is_never_stable_within_max_window": bool(
+                    never_stable_within_max_window
+                ),
                 "requires_more_history_than_allowed": bool(
                     requires_more_history_than_allowed
                 ),
@@ -345,8 +366,12 @@ def main():
             )
             flagged_cfgs.append(flagged_cfg)
 
+        if reference_build_failed:
+            reference_failure_cfgs.append(cfg)
+        elif never_stable_within_max_window:
+            never_stable_cfgs.append(cfg)
+
         if not is_stable:
-            unstable_cfgs.append(cfg)
             if ref_error is None and reference_values is not None:
                 reference_anchor_df = pd.DataFrame(
                     {
@@ -417,7 +442,8 @@ def main():
             print(
                 f"[progress] {idx}/{len(fit_cfgs)} "
                 f"stable={sum(1 for row in screen_rows if row['is_stable'])} "
-                f"unstable={len(unstable_cfgs)} "
+                f"never_stable={len(never_stable_cfgs)} "
+                f"ref_failed={len(reference_failure_cfgs)} "
                 f"move={len(flagged_cfgs)}"
             )
 
@@ -447,6 +473,9 @@ def main():
     variable_counts_df = count_problematic_variables(flagged_cfgs)
 
     stable_mask = screen_df["is_stable"].astype(bool)
+    evaluated_mask = screen_df["stability_evaluated"].astype(bool)
+    reference_failure_mask = screen_df["is_reference_build_failed"].astype(bool)
+    never_stable_mask = screen_df["is_never_stable_within_max_window"].astype(bool)
     stable_values = screen_df.loc[stable_mask, "stable_min_window"].to_numpy(
         dtype=np.float64
     )
@@ -454,14 +483,15 @@ def main():
     requires_more_history_df = screen_df.loc[
         screen_df["requires_more_history_than_allowed"].astype(bool)
     ].copy()
-    never_stable_df = screen_df.loc[~stable_mask].copy()
+    never_stable_df = screen_df.loc[never_stable_mask].copy()
+    reference_failure_df = screen_df.loc[reference_failure_mask].copy()
     move_candidates_df = screen_df.loc[screen_df["should_move"].astype(bool)].copy()
     indicator_summary_df = (
-        screen_df.groupby(["indicator", "is_stable"], dropna=False)
+        screen_df.groupby(["indicator", "stability_label"], dropna=False)
         .size()
         .rename("count")
         .reset_index()
-        .sort_values(by=["indicator", "is_stable"], ascending=[True, False])
+        .sort_values(by=["indicator", "stability_label"], ascending=[True, True])
     )
 
     export_df = screen_df.copy()
@@ -495,11 +525,14 @@ def main():
         "indicator",
         "json_path",
         "status",
+        "stability_evaluated",
+        "stability_label",
         "required_candles_estimate",
         "stable_min_window",
         "stable_minus_estimate",
         "is_stable",
         "move_reason",
+        "reference_error_text",
         "audit_status",
         "best_window_tested",
         "max_window_tested",
@@ -529,13 +562,9 @@ def main():
     never_stable_path = (
         OUTPUT_DIR / f"configs_never_stable_within_{int(MAX_WINDOW)}.csv"
     )
-    move_candidates_path = (
-        OUTPUT_DIR / f"configs_unstable_above_{int(MAX_ALLOWED_STABLE_WINDOW)}.csv"
-    )
-    move_candidates_summary_path = (
-        OUTPUT_DIR
-        / f"configs_unstable_above_{int(MAX_ALLOWED_STABLE_WINDOW)}_summary.csv"
-    )
+    reference_failure_path = OUTPUT_DIR / "configs_reference_build_failed.csv"
+    move_candidates_path = OUTPUT_DIR / "configs_to_move.csv"
+    move_candidates_summary_path = OUTPUT_DIR / "configs_to_move_summary.csv"
     move_manifest_path = OUTPUT_DIR / "unstable_move_manifest.csv"
     summary_path = OUTPUT_DIR / "summary.json"
 
@@ -546,28 +575,34 @@ def main():
     variable_counts_df.to_csv(variable_counts_path, index=False)
     indicator_summary_df.to_csv(indicator_summary_path, index=False)
     export_df.loc[
-        export_df["move_reason"]
-        == f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}"
+        export_df["move_reason"] == REQUIRES_MORE_HISTORY_REASON
     ].to_csv(requires_more_history_path, index=False)
+    export_df.loc[export_df["move_reason"] == NEVER_STABLE_REASON].to_csv(
+        never_stable_path, index=False
+    )
     export_df.loc[
-        export_df["move_reason"] == f"never_stable_within_{int(MAX_WINDOW)}"
-    ].to_csv(never_stable_path, index=False)
+        export_df["move_reason"] == REFERENCE_BUILD_FAILED_REASON
+    ].to_csv(reference_failure_path, index=False)
     export_df.loc[export_df["move_reason"] != ""].to_csv(
         move_candidates_path, index=False
     )
     pd.DataFrame(
         [
             {
-                "bucket": f"all_above_{int(MAX_ALLOWED_STABLE_WINDOW)}_or_never_stable",
+                "bucket": "all_move_candidates",
                 "count": len(move_candidates_df),
             },
             {
-                "bucket": f"never_stable_within_{int(MAX_WINDOW)}",
+                "bucket": NEVER_STABLE_REASON,
                 "count": len(never_stable_df),
             },
             {
-                "bucket": f"stable_but_requires_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}",
+                "bucket": REQUIRES_MORE_HISTORY_REASON,
                 "count": len(requires_more_history_df),
+            },
+            {
+                "bucket": REFERENCE_BUILD_FAILED_REASON,
+                "count": len(reference_failure_df),
             },
         ]
     ).to_csv(move_candidates_summary_path, index=False)
@@ -624,8 +659,19 @@ def main():
         else {}
     )
     unstable_indicator_counts = (
-        screen_df.loc[~stable_mask, "indicator"].value_counts().sort_index().to_dict()
-        if (~stable_mask).any()
+        screen_df.loc[never_stable_mask, "indicator"]
+        .value_counts()
+        .sort_index()
+        .to_dict()
+        if never_stable_mask.any()
+        else {}
+    )
+    reference_failure_indicator_counts = (
+        screen_df.loc[reference_failure_mask, "indicator"]
+        .value_counts()
+        .sort_index()
+        .to_dict()
+        if reference_failure_mask.any()
         else {}
     )
 
@@ -635,9 +681,10 @@ def main():
         "unstable_dir": str(UNSTABLE_DIR),
         "reference_path": str(REFERENCE_PATH),
         "total_fit_configs": len(screen_df),
+        "stability_evaluated_count": int(evaluated_mask.sum()),
         "stable_count": int(stable_mask.sum()),
-        "unstable_count": int((~stable_mask).sum()),
-        "unstable_ratio": float((~stable_mask).mean()),
+        "unstable_count": int(never_stable_mask.sum()),
+        "unstable_ratio": float(never_stable_mask.mean()),
         "anchors_used": int(ANCHORS),
         "max_window": int(MAX_WINDOW),
         "abs_tol": float(ABS_TOL),
@@ -649,8 +696,10 @@ def main():
         "status_counts": status_counts,
         "indicator_counts": indicator_summary_df.to_dict(orient="records"),
         "unstable_indicator_counts": unstable_indicator_counts,
+        "reference_failure_indicator_counts": reference_failure_indicator_counts,
         "requires_more_than_allowed_history_count": len(requires_more_history_df),
         "never_stable_within_max_window_count": len(never_stable_df),
+        "reference_build_failed_count": len(reference_failure_df),
         "move_reason_counts": (
             screen_df.loc[screen_df["should_move"].astype(bool), "move_reason"]
             .value_counts()
@@ -673,6 +722,7 @@ def main():
             "indicator_summary_csv": str(indicator_summary_path),
             "configs_require_more_than_allowed_csv": str(requires_more_history_path),
             "configs_never_stable_within_max_window_csv": str(never_stable_path),
+            "configs_reference_build_failed_csv": str(reference_failure_path),
             "configs_to_move_csv": str(move_candidates_path),
             "configs_to_move_summary_csv": str(move_candidates_summary_path),
             "unstable_move_manifest_csv": str(move_manifest_path),

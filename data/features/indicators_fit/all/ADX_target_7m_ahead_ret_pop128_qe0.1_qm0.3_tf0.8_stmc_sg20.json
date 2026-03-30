@@ -1,0 +1,37 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 1283,
+      "posDM_period": 1443,
+      "negDM_period": 422,
+      "adx_period": 945,
+      "ma_type_atr": "NWMA_BIW",
+      "ma_type_posDM": "HMA",
+      "ma_type_negDM": "TRIMA",
+      "ma_type_adx": "EHMA"
+    },
+    "score": 1.9290414345243954,
+    "abs_corr": 1.9290414345243954
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 186
+  },
+  "proxy_target": {
+    "horizon_minutes": 7,
+    "price_col": "Close"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 20,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 1000,
+    "min_valid_segments": 19,
+    "q_ext": 0.1,
+    "q_mid": 0.3
+  },
+  "fit_config_hash": "5b054f5109228584"
+}

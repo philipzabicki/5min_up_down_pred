@@ -6,16 +6,33 @@ from numba import njit
 from pandas.tseries.frequencies import to_offset
 
 RAW_OHLCV_COLS = ("Open", "High", "Low", "Close", "Volume")
+MULTI_INTERVAL_CANDLE_DERIVED_COLS = (
+    "signed_vol",
+    "up_down_vol_ratio",
+    "wick_asym",
+    "close_location_value",
+    "body_pressure",
+)
 ALL_CANDLE_DERIVED_COLS = (
     "candle_ret_co",
     "candle_range_ho",
     "candle_log_volume",
     "candle_body_abs_open",
     "candle_body_to_range",
+    *MULTI_INTERVAL_CANDLE_DERIVED_COLS,
 )
 BASE_CANDLE_DERIVED_LAGS = tuple(range(1, 8))
 INTERVAL_DERIVED_LAGS = {
     "5m": tuple(range(1, 6)),
+    "15m": tuple(range(1, 6)),
+    "1h": tuple(range(1, 6)),
+    "4h": tuple(range(1, 6)),
+}
+INTERVAL_DERIVED_BASE_COLS = {
+    "5m": ALL_CANDLE_DERIVED_COLS,
+    "15m": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
+    "1h": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
+    "4h": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
 }
 
 
@@ -27,6 +44,14 @@ def _interval_derived_lag_feature_col(base_col, interval_label, lag):
     return f"{base_col}_{interval_label}_lag{int(lag)}"
 
 
+def _iter_interval_derived_specs():
+    for interval_label, lags in INTERVAL_DERIVED_LAGS.items():
+        base_cols = INTERVAL_DERIVED_BASE_COLS[interval_label]
+        for base_col in base_cols:
+            for lag in lags:
+                yield interval_label, base_col, lag
+
+
 LAGGED_CANDLE_DERIVED_COLS = tuple(
     _derived_lag_feature_col(base_col, lag)
     for base_col in ALL_CANDLE_DERIVED_COLS
@@ -34,9 +59,7 @@ LAGGED_CANDLE_DERIVED_COLS = tuple(
 )
 INTERVAL_CANDLE_DERIVED_COLS = tuple(
     _interval_derived_lag_feature_col(base_col, interval_label, lag)
-    for interval_label, lags in INTERVAL_DERIVED_LAGS.items()
-    for base_col in ALL_CANDLE_DERIVED_COLS
-    for lag in lags
+    for interval_label, base_col, lag in _iter_interval_derived_specs()
 )
 CANDLE_DERIVED_COLS = (
     ALL_CANDLE_DERIVED_COLS + LAGGED_CANDLE_DERIVED_COLS + INTERVAL_CANDLE_DERIVED_COLS
@@ -104,9 +127,7 @@ _DERIVED_FEATURE_SPEC_BY_COL.update(
             interval_label,
             lag,
         )
-        for interval_label, lags in INTERVAL_DERIVED_LAGS.items()
-        for base_col in ALL_CANDLE_DERIVED_COLS
-        for lag in lags
+        for interval_label, base_col, lag in _iter_interval_derived_specs()
     }
 )
 _PATTERN_FUNC_BY_COL = {col: getattr(talib, col) for col in CANDLE_PATTERN_COLS}
@@ -234,6 +255,14 @@ def _safe_divide(num, den):
     return np.asarray(num, dtype=np.float64) / safe_den
 
 
+def _compute_up_down_volume_arrays(open_, close, volume):
+    body = np.asarray(close, dtype=np.float64) - np.asarray(open_, dtype=np.float64)
+    volume_arr = np.asarray(volume, dtype=np.float64)
+    up_volume = np.where(body > 0.0, volume_arr, 0.0)
+    down_volume = np.where(body < 0.0, volume_arr, 0.0)
+    return up_volume, down_volume
+
+
 @njit(cache=True)
 def _compute_derived_feature_matrix(open_arr, high_arr, low_arr, close_arr, volume_arr):
     n = len(open_arr)
@@ -246,28 +275,102 @@ def _compute_derived_feature_matrix(open_arr, high_arr, low_arr, close_arr, volu
         volume_value = float(volume_arr[i])
         body = close_value - open_value
         range_hl = high_value - low_value
+        upper_wick = high_value - max(open_value, close_value)
+        lower_wick = min(open_value, close_value) - low_value
+        up_volume = volume_value if body > 0.0 else 0.0
+        down_volume = volume_value if body < 0.0 else 0.0
         safe_open = open_value if abs(open_value) > _EPS else np.nan
         safe_range = range_hl if abs(range_hl) > _EPS else np.nan
+        range_eps = range_hl + _EPS
 
         out[i, 0] = body / safe_open
         out[i, 1] = range_hl / safe_open
         out[i, 2] = np.log(volume_value if volume_value > _EPS else _EPS)
         out[i, 3] = abs(body) / safe_open
         out[i, 4] = body / safe_range
+        out[i, 5] = volume_value * np.sign(body)
+        out[i, 6] = up_volume / (down_volume + _EPS)
+        out[i, 7] = (upper_wick - lower_wick) / range_eps
+        out[i, 8] = (close_value - low_value) / range_eps
+        out[i, 9] = body / range_eps
     return out
 
 
-def build_candle_derived_features_from_series(open_, high, low, close, volume):
-    body = np.asarray(close, dtype=np.float64) - np.asarray(open_, dtype=np.float64)
-    range_hl = np.asarray(high, dtype=np.float64) - np.asarray(low, dtype=np.float64)
+@njit(cache=True)
+def _compute_derived_feature_matrix_with_volume_split(
+    open_arr,
+    high_arr,
+    low_arr,
+    close_arr,
+    volume_arr,
+    up_volume_arr,
+    down_volume_arr,
+):
+    n = len(open_arr)
+    out = np.empty((n, len(ALL_CANDLE_DERIVED_COLS)), dtype=np.float64)
+    for i in range(n):
+        open_value = float(open_arr[i])
+        high_value = float(high_arr[i])
+        low_value = float(low_arr[i])
+        close_value = float(close_arr[i])
+        volume_value = float(volume_arr[i])
+        up_volume_value = float(up_volume_arr[i])
+        down_volume_value = float(down_volume_arr[i])
+        body = close_value - open_value
+        range_hl = high_value - low_value
+        upper_wick = high_value - max(open_value, close_value)
+        lower_wick = min(open_value, close_value) - low_value
+        safe_open = open_value if abs(open_value) > _EPS else np.nan
+        safe_range = range_hl if abs(range_hl) > _EPS else np.nan
+        range_eps = range_hl + _EPS
+
+        out[i, 0] = body / safe_open
+        out[i, 1] = range_hl / safe_open
+        out[i, 2] = np.log(volume_value if volume_value > _EPS else _EPS)
+        out[i, 3] = abs(body) / safe_open
+        out[i, 4] = body / safe_range
+        out[i, 5] = volume_value * np.sign(body)
+        out[i, 6] = up_volume_value / (down_volume_value + _EPS)
+        out[i, 7] = (upper_wick - lower_wick) / range_eps
+        out[i, 8] = (close_value - low_value) / range_eps
+        out[i, 9] = body / range_eps
+    return out
+
+
+def build_candle_derived_features_from_series(
+    open_, high, low, close, volume, *, up_volume=None, down_volume=None
+):
+    open_arr = np.asarray(open_, dtype=np.float64)
+    high_arr = np.asarray(high, dtype=np.float64)
+    low_arr = np.asarray(low, dtype=np.float64)
+    close_arr = np.asarray(close, dtype=np.float64)
+    body = close_arr - open_arr
+    range_hl = high_arr - low_arr
     volume_arr = np.asarray(volume, dtype=np.float64)
+    upper_wick = high_arr - np.maximum(open_arr, close_arr)
+    lower_wick = np.minimum(open_arr, close_arr) - low_arr
+    if up_volume is None or down_volume is None:
+        up_volume_arr, down_volume_arr = _compute_up_down_volume_arrays(
+            open_arr,
+            close_arr,
+            volume_arr,
+        )
+    else:
+        up_volume_arr = np.asarray(up_volume, dtype=np.float64)
+        down_volume_arr = np.asarray(down_volume, dtype=np.float64)
+    range_eps = range_hl + _EPS
 
     out = {
-        "candle_ret_co": _safe_divide(body, open_),
-        "candle_range_ho": _safe_divide(range_hl, open_),
+        "candle_ret_co": _safe_divide(body, open_arr),
+        "candle_range_ho": _safe_divide(range_hl, open_arr),
         "candle_log_volume": np.log(np.clip(volume_arr, _EPS, None)),
-        "candle_body_abs_open": _safe_divide(np.abs(body), open_),
+        "candle_body_abs_open": _safe_divide(np.abs(body), open_arr),
         "candle_body_to_range": _safe_divide(body, range_hl),
+        "signed_vol": volume_arr * np.sign(body),
+        "up_down_vol_ratio": up_volume_arr / (down_volume_arr + _EPS),
+        "wick_asym": (upper_wick - lower_wick) / range_eps,
+        "close_location_value": (close_arr - low_arr) / range_eps,
+        "body_pressure": body / range_eps,
     }
     return out
 
@@ -488,24 +591,52 @@ def _compute_interval_derived_features(
     if not feature_cols:
         return pd.DataFrame(index=base_df.index)
 
-    agg = _resample_complete_interval_frame(
-        base_df=base_df,
-        rule=rule,
-        required_cols=[
+    needs_underlying_volume_split = any(
+        _DERIVED_FEATURE_SPEC_BY_COL[feature_col][0] == "up_down_vol_ratio"
+        for feature_col in feature_cols
+    )
+    interval_base = base_df[
+        [
             opened_col,
             open_col,
             high_col,
             low_col,
             close_col,
             volume_col,
-        ],
-        agg_spec={
-            open_col: "first",
-            high_col: "max",
-            low_col: "min",
-            close_col: "last",
-            volume_col: "sum",
-        },
+        ]
+    ].copy()
+    required_cols = [
+        opened_col,
+        open_col,
+        high_col,
+        low_col,
+        close_col,
+        volume_col,
+    ]
+    agg_spec = {
+        open_col: "first",
+        high_col: "max",
+        low_col: "min",
+        close_col: "last",
+        volume_col: "sum",
+    }
+    if needs_underlying_volume_split:
+        up_volume_arr, down_volume_arr = _compute_up_down_volume_arrays(
+            interval_base[open_col].to_numpy(dtype=np.float64, copy=False),
+            interval_base[close_col].to_numpy(dtype=np.float64, copy=False),
+            interval_base[volume_col].to_numpy(dtype=np.float64, copy=False),
+        )
+        interval_base["__up_volume"] = up_volume_arr
+        interval_base["__down_volume"] = down_volume_arr
+        required_cols.extend(["__up_volume", "__down_volume"])
+        agg_spec["__up_volume"] = "sum"
+        agg_spec["__down_volume"] = "sum"
+
+    agg = _resample_complete_interval_frame(
+        base_df=interval_base,
+        rule=rule,
+        required_cols=required_cols,
+        agg_spec=agg_spec,
         dropna_cols=[open_col, high_col, low_col, close_col, volume_col],
         count_col=open_col,
         opened_col=opened_col,
@@ -514,12 +645,20 @@ def _compute_interval_derived_features(
     if agg.empty:
         return _empty_interval_derived_frame(base_df.index, feature_cols)
 
+    derived_kwargs = {}
+    if needs_underlying_volume_split:
+        derived_kwargs = {
+            "up_volume": agg["__up_volume"].to_numpy(dtype=np.float64, copy=False),
+            "down_volume": agg["__down_volume"].to_numpy(dtype=np.float64, copy=False),
+        }
+
     derived = build_candle_derived_features_from_series(
         open_=agg[open_col].to_numpy(dtype=np.float64, copy=False),
         high=agg[high_col].to_numpy(dtype=np.float64, copy=False),
         low=agg[low_col].to_numpy(dtype=np.float64, copy=False),
         close=agg[close_col].to_numpy(dtype=np.float64, copy=False),
         volume=agg[volume_col].to_numpy(dtype=np.float64, copy=False),
+        **derived_kwargs,
     )
     derived_df = pd.DataFrame(derived, index=agg.index)
 
@@ -753,25 +892,40 @@ def _compute_latest_complete_interval_derived_matrix_fast(
     agg_low = []
     agg_close = []
     agg_volume = []
+    agg_up_volume = []
+    agg_down_volume = []
     for start, end in zip(segment_starts, segment_ends):
         if int(end - start) != int(expected_count):
             continue
+        up_volume = 0.0
+        down_volume = 0.0
+        for pos in range(start, end):
+            candle_body = float(close_values[pos]) - float(open_values[pos])
+            candle_volume = float(volume_values[pos])
+            if candle_body > 0.0:
+                up_volume += candle_volume
+            elif candle_body < 0.0:
+                down_volume += candle_volume
         agg_open.append(float(open_values[start]))
         agg_high.append(float(np.max(high_values[start:end])))
         agg_low.append(float(np.min(low_values[start:end])))
         agg_close.append(float(close_values[end - 1]))
         agg_volume.append(float(np.sum(volume_values[start:end])))
+        agg_up_volume.append(up_volume)
+        agg_down_volume.append(down_volume)
 
     if len(agg_open) < needed_complete:
         return np.empty((0, len(ALL_CANDLE_DERIVED_COLS)), dtype=np.float64)
 
     take_slice = slice(len(agg_open) - needed_complete, len(agg_open))
-    return _compute_derived_feature_matrix(
+    return _compute_derived_feature_matrix_with_volume_split(
         np.asarray(agg_open[take_slice], dtype=np.float64),
         np.asarray(agg_high[take_slice], dtype=np.float64),
         np.asarray(agg_low[take_slice], dtype=np.float64),
         np.asarray(agg_close[take_slice], dtype=np.float64),
         np.asarray(agg_volume[take_slice], dtype=np.float64),
+        np.asarray(agg_up_volume[take_slice], dtype=np.float64),
+        np.asarray(agg_down_volume[take_slice], dtype=np.float64),
     )
 
 

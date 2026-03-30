@@ -1,0 +1,35 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "TEMA",
+      "ma_source": "hlcc4",
+      "std_ma_type": "LWMA",
+      "std_source": "open",
+      "ma_period": 1987,
+      "std_ma_period": 732
+    },
+    "score": 2.63737092885372,
+    "abs_corr": 2.63737092885372
+  },
+  "population": {
+    "base_pop_size": 128,
+    "adjusted_pop_size": 111
+  },
+  "proxy_target": {
+    "horizon_minutes": 720,
+    "price_col": "Close"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 20,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 1000,
+    "min_valid_segments": 19,
+    "q_ext": 0.1,
+    "q_mid": 0.3
+  },
+  "fit_config_hash": "5b054f5109228584"
+}

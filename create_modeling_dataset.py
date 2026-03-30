@@ -35,6 +35,10 @@ from features.candle_features import (
 )
 from features.KeltnerChannel import get_keltner_channel_values
 from features.MACD import get_macd_values
+from features.realized_volatility import (
+    REALIZED_VOLATILITY_FEATURE_COLUMNS,
+    add_realized_volatility_features,
+)
 from features.session_open_features import add_session_counter_features
 from features.StochOsc import get_stochastic_oscillator_values
 from features.volume_profile_fixed_range import (
@@ -503,6 +507,11 @@ def build_dataset_from_settings(settings):
     selected_session_feature_cols = (
         feature_subset_parts["session_feature_cols"] if feature_subset_parts else None
     )
+    selected_realized_volatility_feature_cols = (
+        feature_subset_parts["realized_volatility_feature_cols"]
+        if feature_subset_parts
+        else None
+    )
     if selected_session_feature_cols is None or selected_session_feature_cols:
         print("adding global session counter features")
         df = add_session_counter_features(
@@ -511,6 +520,23 @@ def build_dataset_from_settings(settings):
         )
     else:
         print("skipping global session counter features (none requested)")
+    should_add_realized_volatility = (
+        selected_realized_volatility_feature_cols is None
+        or bool(selected_realized_volatility_feature_cols)
+    )
+    if should_add_realized_volatility:
+        kept_realized_volatility_cols = [
+            col
+            for col in REALIZED_VOLATILITY_FEATURE_COLUMNS
+            if col not in excluded_feature_set
+        ]
+        if kept_realized_volatility_cols or feature_subset_parts is not None:
+            print("adding realized volatility features")
+            df = add_realized_volatility_features(df)
+        else:
+            print("skipping realized volatility features (all excluded)")
+    else:
+        print("skipping realized volatility features (none requested)")
     if vp_enabled:
         expected_vp_cols = get_volume_profile_feature_columns(vp_normalized_cfg)
         print(

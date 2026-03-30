@@ -28,6 +28,7 @@ from features.session_open_features import (
     add_session_counter_features,
     build_latest_session_counter_feature_dict_fast,
 )
+from features.realized_volatility import add_realized_volatility_features
 from features.volume_profile_fixed_range import (
     FEATURE_VERSION as VP_FEATURE_VERSION,
     AUDIT_ANCHOR_STATE_DIR as VP_AUDIT_ANCHOR_STATE_DIR,
@@ -155,6 +156,8 @@ def _feature_group_map(feature_columns):
         group_by_feature[feature] = "streak"
     for feature in parts["session_feature_cols"]:
         group_by_feature[feature] = "session"
+    for feature in parts["realized_volatility_feature_cols"]:
+        group_by_feature[feature] = "realized_volatility"
     for feature in parts["indicator_feature_cols"]:
         group_by_feature[feature] = "indicator"
     for feature in parts["volume_profile_feature_cols"]:
@@ -302,6 +305,17 @@ def _feature_builder_frame(feature_columns):
                     "builder_family": "session",
                     "builder_name": "add_session_counter_features",
                     "builder_source": None,
+                }
+            )
+            continue
+
+        if feature in feature_parts["realized_volatility_feature_cols"]:
+            records.append(
+                {
+                    "feature": feature,
+                    "builder_family": "realized_volatility",
+                    "builder_name": "add_realized_volatility_features",
+                    "builder_source": "realized_volatility",
                 }
             )
             continue
@@ -921,6 +935,9 @@ def build_current_recomputed_feature_history(
             feature_frame,
             feature_cols=feature_parts["session_feature_cols"],
         )
+
+    if feature_parts["realized_volatility_feature_cols"]:
+        feature_frame = add_realized_volatility_features(feature_frame)
 
     vp_cfg = normalize_volume_profile_config(
         MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
@@ -1967,6 +1984,9 @@ class PseudoLiveAuditPredictor(LivePredictor):
         else:
             self.streak_interval_to_rule = {}
         self.session_feature_columns = tuple(feature_parts["session_feature_cols"])
+        self.realized_volatility_feature_columns = tuple(
+            feature_parts["realized_volatility_feature_cols"]
+        )
         self.volume_profile_feature_columns = tuple(
             feature_parts["volume_profile_feature_cols"]
         )
@@ -2069,6 +2089,9 @@ class PseudoLiveAuditPredictor(LivePredictor):
             self.opened_candles[-1] if self.opened_candles else None
         )
         self.predictions_path = None
+        self.realized_volatility_state = None
+        self.latest_realized_volatility_values = {}
+        self._initialize_realized_volatility_state()
 
         self.volume_profile_state = None
         if self.volume_profile_enabled:
@@ -2994,11 +3017,21 @@ def _build_feature_drop_candidates_df(
     export_df["flag_max_rel_diff"] = export_df["max_rel_diff"].gt(
         FEATURE_DROP_MAX_REL_DIFF_TOL
     )
+    export_df["flag_prediction_impact"] = (
+        export_df["max_abs_proba_shift_if_fixed"].gt(PREDICTION_DIFF_TOL)
+        | export_df["rows_signal_mismatch_resolved_if_fixed"].gt(0)
+        | export_df["rows_proba_diff_gt_tol_resolved_if_fixed"].gt(0)
+    )
+    export_df["flag_abs_diff_material"] = (
+        export_df["flag_max_abs_diff"] | export_df["flag_mean_abs_diff"]
+    )
     export_df["drop_candidate"] = (
         export_df["flag_finite_status_mismatch"]
-        | export_df["flag_max_abs_diff"]
-        | export_df["flag_mean_abs_diff"]
         | export_df["flag_max_rel_diff"]
+        | (
+            export_df["flag_abs_diff_material"]
+            & export_df["flag_prediction_impact"]
+        )
     )
 
     reason_cols = [

@@ -14,6 +14,7 @@ from features.session_open_features import (
     SUPPORTED_SESSION_COUNTER_COLS,
     is_session_counter_feature,
 )
+from features.realized_volatility import is_realized_volatility_feature
 from features.volume_profile_fixed_range import is_volume_profile_feature
 from project_config import (
     ACTIVE_CONFIG_PATH,
@@ -334,6 +335,7 @@ def split_feature_subset(feature_names):
     streak_feature_cols = []
     streak_intervals = []
     session_feature_cols = []
+    realized_volatility_feature_cols = []
     indicator_feature_cols = []
     volume_profile_feature_cols = []
     unclassified_feature_cols = []
@@ -358,6 +360,9 @@ def split_feature_subset(feature_names):
         ):
             session_feature_cols.append(feature_name)
             continue
+        if is_realized_volatility_feature(feature_name):
+            realized_volatility_feature_cols.append(feature_name)
+            continue
         if is_volume_profile_feature(feature_name):
             volume_profile_feature_cols.append(feature_name)
             continue
@@ -372,6 +377,7 @@ def split_feature_subset(feature_names):
         "streak_feature_cols": tuple(streak_feature_cols),
         "streak_intervals": tuple(_dedupe_ordered(streak_intervals)),
         "session_feature_cols": tuple(session_feature_cols),
+        "realized_volatility_feature_cols": tuple(realized_volatility_feature_cols),
         "indicator_feature_cols": tuple(indicator_feature_cols),
         "volume_profile_feature_cols": tuple(volume_profile_feature_cols),
         "unclassified_feature_cols": tuple(unclassified_feature_cols),
