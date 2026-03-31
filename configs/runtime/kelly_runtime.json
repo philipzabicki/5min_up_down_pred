@@ -1,32 +1,12 @@
 {
-  "fractional_kelly": 0.9705365311605678,
-  "cap": 0.4965561117700117,
-  "min_edge": 0.005909736499393911,
-  "prob_shrink": 0.967031183664506,
+  "fractional_kelly": 0.6535822584694498,
+  "cap": 0.9062424857331196,
+  "min_edge": 0.007583451546763589,
   "min_stake_usdc": 1.0,
   "fee_model": {
     "feeRate": 0.25,
     "exponent": 2.0,
     "fee_round_decimals": 4,
     "min_fee": 0.0001
-  },
-  "price_sim": {
-    "model": "neutral_conservative_fixed",
-    "ask_price": 0.5,
-    "order_price_cap": 0.5,
-    "order_min_size": 1.0,
-    "policy": "market-neutral symmetric ask; both sides always execute at the same pessimistic fixed price"
-  },
-  "model_proba_error_sim": {
-    "enabled": false,
-    "abs_diff_mean": 0.003136730568813267,
-    "abs_diff_max": 0.026809411202558198,
-    "abs_diff_std": 0.008936470400852733,
-    "policy": "disabled",
-    "prob_min_clip": 1e-06
-  },
-  "cv_meta": {
-    "seed": 37,
-    "scoring_formula": "fold_score = log(final_bankroll / start_bankroll), scenario_score = 0.45 * mean(fold_scores) + 0.30 * q10(fold_scores) + 0.15 * min(fold_scores) - 0.10 * q90(fold_max_drawdowns), trial_score = 0.45 * mean(scenario_scores) + 0.30 * q10(scenario_scores) + 0.15 * min(scenario_scores), if total scenario trades == 0: scenario_score = -1e9"
   }
 }

@@ -1,0 +1,104 @@
+{
+  "optuna": {
+    "random_seed": 37,
+    "n_trials": 2000,
+    "tpe_startup_trials": 400
+  },
+  "trial_param_bounds": {
+    "fractional_kelly": [
+      0.01,
+      1.0
+    ],
+    "cap": [
+      0.001,
+      1.0
+    ],
+    "min_edge": [
+      0.0,
+      0.15
+    ]
+  },
+  "data_split": {
+    "holdout_fraction": 0.05
+  },
+  "cv": {
+    "target_fold_days": 35,
+    "market_sim_seeds": [
+      101,
+      202,
+      303,
+      404,
+      505,
+      606,
+      707,
+      808,
+      909,
+      1001,
+      1102,
+      1203,
+      1304,
+      1405,
+      1506,
+      1607
+    ]
+  },
+  "holdout": {
+    "window_days": 7,
+    "window_runs": 50,
+    "market_sim_seeds": [
+      10001,
+      10002,
+      10003,
+      10004,
+      10005,
+      10006,
+      10007,
+      10008,
+      10009,
+      10010,
+      10011,
+      10012,
+      10013,
+      10014,
+      10015,
+      10016
+    ],
+    "full_market_sim_seeds": [
+      20001,
+      20002,
+      20003,
+      20004,
+      20005,
+      20006,
+      20007,
+      20008,
+      20009,
+      20010,
+      20011,
+      20012,
+      20013,
+      20014,
+      20015,
+      20016
+    ]
+  },
+  "market_price_sim": {
+    "model": "oracle_direction_normal_magnitude",
+    "market_direction_accuracy": 0.6,
+    "mu_delta": 0.0015,
+    "sigma_delta": 0.0025,
+    "delta_max": 0.01,
+    "ask_overround": 0.00125,
+    "eps": 1e-06,
+    "order_min_size": 1.0,
+    "policy": "optimizer-only oracle-direction market simulator; direction is correct with probability market_direction_accuracy, delta magnitude comes from clipped normal draw, and both asks include constant overround; live runtime still uses real Polymarket orderbook quotes"
+  },
+  "model_proba_error_sim": {
+    "enabled": false,
+    "abs_diff_mean": 0.003136730568813267,
+    "abs_diff_max": 0.026809411202558198,
+    "abs_diff_std": 0.008936470400852733,
+    "policy": "signed_error = random_sign * clip(normal(abs_diff_mean, abs_diff_std), 0.0, abs_diff_max); p_simulated = clip(p_raw + signed_error)",
+    "prob_min_clip": 1e-06
+  }
+}

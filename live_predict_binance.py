@@ -744,105 +744,24 @@ def load_kelly_runtime_config(config_path):
         return float(container[key])
 
     fee_model = payload.get("fee_model")
-    price_sim = payload.get("price_sim")
-    cv_meta = payload.get("cv_meta", {})
-    if not isinstance(cv_meta, dict):
-        cv_meta = {}
     if not isinstance(fee_model, dict):
         raise ValueError(f"Malformed Kelly config, missing fee_model: {config_path}")
-    if not isinstance(price_sim, dict):
-        raise ValueError(f"Malformed Kelly config, missing price_sim: {config_path}")
 
     cfg = {
         "fractional_kelly": _read_float(payload, "fractional_kelly"),
         "cap": _read_float(payload, "cap"),
         "min_edge": _read_float(payload, "min_edge"),
-        "prob_shrink": _read_float(payload, "prob_shrink"),
         "min_stake_usdc": _read_float(payload, "min_stake_usdc"),
         "fee_rate": _read_float(fee_model, "feeRate"),
         "fee_exponent": _read_float(fee_model, "exponent"),
         "fee_round_decimals": int(fee_model.get("fee_round_decimals", 4)),
         "min_fee": _read_float(fee_model, "min_fee"),
-        "price_sim_model": str(price_sim.get("model", "legacy_symmetric_clip")),
-        "seed": int(cv_meta.get("seed", 37)),
+        "price_sim_model": "live_orderbook",
+        "seed": 37,
+        "order_price_cap": float("inf"),
+        "order_min_size": 0.0,
+        "runtime_price_policy": "external live orderbook quotes required",
     }
-    if cfg["price_sim_model"] == "neutral_conservative_fixed":
-        cfg.update(
-            {
-                "ask_price": _read_float(price_sim, "ask_price"),
-                "order_price_cap": float(
-                    price_sim.get("order_price_cap", 0.55) or 0.55
-                ),
-                "order_min_size": float(
-                    price_sim.get("order_min_size", 5.0) or 5.0
-                ),
-                "price_policy": str(price_sim.get("policy", "")),
-            }
-        )
-    elif cfg["price_sim_model"] == "parametric_market_mid_overround":
-        overround_ticks_values = price_sim.get("overround_ticks_values", [])
-        overround_ticks_probs = price_sim.get("overround_ticks_probs", [])
-        if len(overround_ticks_values) != len(overround_ticks_probs):
-            raise ValueError(
-                "Kelly config invalid: overround_ticks_values/probs length mismatch."
-            )
-        if not overround_ticks_values:
-            raise ValueError(
-                "Kelly config invalid: missing overround_ticks_values for parametric price sim."
-            )
-        cfg.update(
-            {
-                "tick_size": _read_float(price_sim, "tick_size"),
-                "half_tick": _read_float(price_sim, "half_tick"),
-                "mid_intercept_mean": _read_float(price_sim, "mid_intercept_mean"),
-                "mid_intercept_std": _read_float(price_sim, "mid_intercept_std"),
-                "mid_intercept_min": _read_float(price_sim, "mid_intercept_min"),
-                "mid_intercept_max": _read_float(price_sim, "mid_intercept_max"),
-                "mid_slope_mean": _read_float(price_sim, "mid_slope_mean"),
-                "mid_slope_std": _read_float(price_sim, "mid_slope_std"),
-                "mid_slope_min": _read_float(price_sim, "mid_slope_min"),
-                "mid_slope_max": _read_float(price_sim, "mid_slope_max"),
-                "mid_residual_std": _read_float(price_sim, "mid_residual_std"),
-                "mid_residual_abs_q99": _read_float(
-                    price_sim,
-                    "mid_residual_abs_q99",
-                ),
-                "overround_ticks_values": [
-                    int(value) for value in overround_ticks_values
-                ],
-                "overround_ticks_probs": [
-                    float(value) for value in overround_ticks_probs
-                ],
-                "order_price_cap": float(
-                    price_sim.get("order_price_cap", 0.55) or 0.55
-                ),
-                "order_min_size": float(
-                    price_sim.get("order_min_size", 5.0) or 5.0
-                ),
-            }
-        )
-        total_prob = float(sum(cfg["overround_ticks_probs"]))
-        if not np.isfinite(total_prob) or total_prob <= 0.0:
-            raise ValueError(
-                "Kelly config invalid: overround_ticks_probs must sum to a positive value."
-            )
-        cfg["overround_ticks_probs"] = [
-            float(value / total_prob) for value in cfg["overround_ticks_probs"]
-        ]
-    else:
-        cfg.update(
-            {
-                "sigma": _read_float(payload, "sigma"),
-                "spread_half": _read_float(payload, "spread_half"),
-                "base_price": _read_float(price_sim, "base_price"),
-                "price_clip_lo": _read_float(price_sim, "price_clip_lo"),
-                "price_clip_hi": _read_float(price_sim, "price_clip_hi"),
-            }
-        )
-        if cfg["price_clip_lo"] >= cfg["price_clip_hi"]:
-            raise ValueError(
-                "Kelly config invalid: price_clip_lo must be < price_clip_hi"
-            )
     if cfg["cap"] <= 0.0 or cfg["cap"] > 1.0:
         raise ValueError("Kelly config invalid: cap must be in (0, 1].")
     if cfg["fractional_kelly"] <= 0.0:
@@ -1931,10 +1850,18 @@ class LivePredictor:
         p = float(
             adjust_probability_for_kelly(
                 float(prob_up_raw),
-                prob_shrink=float(self.kelly_runtime["prob_shrink"]),
                 min_clip=MIN_PROBA_CLIP,
             )
         )
+
+        if self.kelly_runtime.get("price_sim_model") == "live_orderbook":
+            return {
+                "reason": "live_quotes_required",
+                "prob_win_raw": float(prob_up_raw),
+                "prob_win_adj": float(p),
+                "up_price": float("nan"),
+                "down_price": float("nan"),
+            }
 
         quotes = self._simulate_execution_quotes(prob_up_raw=prob_up_raw)
         fee_rate = float(self.kelly_runtime["fee_rate"])
@@ -2663,7 +2590,6 @@ class LivePredictor:
             f"fractional_kelly={self.kelly_runtime['fractional_kelly']:.6f} "
             f"cap={self.kelly_runtime['cap']:.6f} "
             f"min_edge={self.kelly_runtime['min_edge']:.6f} "
-            f"prob_shrink={self.kelly_runtime['prob_shrink']:.6f} "
             f"min_stake_usdc={self.kelly_runtime['min_stake_usdc']:.2f}"
         )
         print(
@@ -2678,6 +2604,12 @@ class LivePredictor:
                 f"ask_price={self.kelly_runtime['ask_price']:.6f} "
                 f"order_price_cap={self.kelly_runtime['order_price_cap']:.3f} "
                 f"order_min_size={self.kelly_runtime['order_min_size']:.2f}"
+            )
+        elif self.kelly_runtime.get("price_sim_model") == "live_orderbook":
+            print(
+                "Price runtime | "
+                f"model={self.kelly_runtime['price_sim_model']} "
+                f"policy={self.kelly_runtime.get('runtime_price_policy', '')}"
             )
         elif self.kelly_runtime.get("price_sim_model") == "parametric_market_mid_overround":
             print(

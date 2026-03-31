@@ -8,6 +8,7 @@ import pandas as pd
 
 from numba import njit
 
+from common_config_utils import load_json_object
 from kelly_utils import adjust_probability_for_kelly
 from modeling_dataset_utils import (
     load_modeling_dataset_settings,
@@ -19,6 +20,7 @@ optuna.logging.set_verbosity(optuna.logging.INFO)
 
 RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
+OPTIMIZER_CONFIG_PATH = Path("configs/kelly_optimizer_config.json")
 
 
 def resolve_kelly_input_path():
@@ -70,6 +72,52 @@ def resolve_kelly_input_path():
     )
 
 
+def _require_optimizer_object(payload, key):
+    value = payload.get(key)
+    if not isinstance(value, dict):
+        raise ValueError(
+            f"Optimizer config '{OPTIMIZER_CONFIG_PATH}' must define '{key}' as an object."
+        )
+    return value
+
+
+def _require_optimizer_bounds(payload, key):
+    raw_bounds = _require_optimizer_object(payload, key)
+    bounds = {}
+    for name, value in raw_bounds.items():
+        if not isinstance(value, list) or len(value) != 2:
+            raise ValueError(
+                f"Optimizer config '{OPTIMIZER_CONFIG_PATH}' key '{key}.{name}' "
+                "must be a 2-item array."
+            )
+        bounds[str(name)] = (float(value[0]), float(value[1]))
+    return bounds
+
+
+OPTIMIZER_CONFIG = load_json_object(OPTIMIZER_CONFIG_PATH)
+OPTUNA_CONFIG = _require_optimizer_object(OPTIMIZER_CONFIG, "optuna")
+TRIAL_PARAM_BOUNDS = _require_optimizer_bounds(OPTIMIZER_CONFIG, "trial_param_bounds")
+DATA_SPLIT_CONFIG = _require_optimizer_object(OPTIMIZER_CONFIG, "data_split")
+CV_CONFIG = _require_optimizer_object(OPTIMIZER_CONFIG, "cv")
+HOLDOUT_CONFIG = _require_optimizer_object(OPTIMIZER_CONFIG, "holdout")
+MARKET_PRICE_SIM_CONFIG = _require_optimizer_object(
+    OPTIMIZER_CONFIG,
+    "market_price_sim",
+)
+MODEL_PROBA_ERROR_SIM_CONFIG = _require_optimizer_object(
+    OPTIMIZER_CONFIG,
+    "model_proba_error_sim",
+)
+
+EXPECTED_TRIAL_PARAMS = {"fractional_kelly", "cap", "min_edge"}
+if set(TRIAL_PARAM_BOUNDS.keys()) != EXPECTED_TRIAL_PARAMS:
+    raise ValueError(
+        "Optimizer config trial_param_bounds must define exactly "
+        f"{sorted(EXPECTED_TRIAL_PARAMS)}. "
+        f"Found {sorted(TRIAL_PARAM_BOUNDS.keys())}."
+    )
+
+
 # Artifact paths
 INPUT_PATH = resolve_kelly_input_path()
 RUNTIME_CONFIG_PATH = Path(RUNTIME_ARTIFACT_PATHS["kelly_runtime_config_path"])
@@ -98,69 +146,102 @@ FEE_EXPONENT = 2
 FEE_ROUND_DECIMALS = 4
 MIN_FEE = 0.0001
 MIN_STAKE_USDC = 1.0
-PROBABILITY_MIN_CLIP = 1e-6
+PROBABILITY_MIN_CLIP = float(
+    MODEL_PROBA_ERROR_SIM_CONFIG.get("prob_min_clip", 1e-6)
+)
 SIMULATION_START_BANKROLL_USDC = 1000.0
 
-# Optuna search space
-TRIAL_PARAM_BOUNDS = {
-    "fractional_kelly": (0.01, 1.0),
-    "cap": (0.001, 1.0),
-    "min_edge": (0.0, 0.15),
-    "prob_shrink": (0.0, 1.0),
-}
-
 # CV / holdout settings
-RANDOM_SEED = 37
-N_TRIALS = 2_000
-OPTUNA_TPE_STARTUP_TRIALS = int(N_TRIALS * 0.2)
-HOLDOUT_FRACTION = 0.05
-EXECUTION_SCENARIO_SEEDS = [101, 202, 303, 404, 505]
-CV_TARGET_FOLD_DAYS = 35
-HOLDOUT_WINDOW_DAYS = 7
-HOLDOUT_WINDOW_RUNS = 50
-HOLDOUT_WINDOW_SCENARIO_SEEDS = [
-    10_000 + idx for idx in range(1, HOLDOUT_WINDOW_RUNS + 1)
+RANDOM_SEED = int(OPTUNA_CONFIG["random_seed"])
+N_TRIALS = int(OPTUNA_CONFIG["n_trials"])
+OPTUNA_TPE_STARTUP_TRIALS = int(
+    OPTUNA_CONFIG.get("tpe_startup_trials", int(N_TRIALS * 0.2))
+)
+HOLDOUT_FRACTION = float(DATA_SPLIT_CONFIG["holdout_fraction"])
+CV_TARGET_FOLD_DAYS = int(CV_CONFIG["target_fold_days"])
+CV_MARKET_SIM_SEEDS = [int(seed) for seed in CV_CONFIG["market_sim_seeds"]]
+HOLDOUT_WINDOW_DAYS = int(HOLDOUT_CONFIG["window_days"])
+HOLDOUT_WINDOW_RUNS = int(HOLDOUT_CONFIG["window_runs"])
+HOLDOUT_MARKET_SIM_SEEDS = [
+    int(seed) for seed in HOLDOUT_CONFIG["market_sim_seeds"]
 ]
-FULL_HOLDOUT_SCENARIO_SEED = 20_001
+FULL_HOLDOUT_MARKET_SIM_SEEDS = [
+    int(seed) for seed in HOLDOUT_CONFIG["full_market_sim_seeds"]
+]
 
 # Scenario scoring
-SCENARIO_SCORE_WEIGHTS = {
+SEED_SCORE_WEIGHTS = {
     "mean": 0.6,
-    "q10": 0.2,
+    "q10": 0.20,
     "min": 0.1,
     "q90_drawdown_penalty": 0.1,
+}
+AGGREGATE_SCORE_WEIGHTS = {
+    "mean": 0.45,
+    "q10": 0.30,
+    "min": 0.15,
 }
 
 # Manual live-vs-modeling probability error fit used only inside Kelly optimization.
 # Update these by hand from the accepted parity audit snapshot.
-MODEL_PROBA_ERROR_SIM_ENABLED = False
-MODEL_PROBA_ERROR_ABS_DIFF_MEAN = 0.003136730568813267
-MODEL_PROBA_ERROR_ABS_DIFF_MAX = 0.026809411202558198
-MODEL_PROBA_ERROR_ABS_DIFF_STD = MODEL_PROBA_ERROR_ABS_DIFF_MAX / 3.0
-MODEL_PROBA_ERROR_POLICY = (
-    "signed_error = random_sign * max(normal(mean_abs_diff, max_abs_diff/3), 0.0); "
-    "p_simulated = clip(p_raw + signed_error); prob_shrink applied after simulated model error"
+MODEL_PROBA_ERROR_SIM_ENABLED = bool(MODEL_PROBA_ERROR_SIM_CONFIG["enabled"])
+MODEL_PROBA_ERROR_ABS_DIFF_MEAN = float(
+    MODEL_PROBA_ERROR_SIM_CONFIG["abs_diff_mean"]
 )
+MODEL_PROBA_ERROR_ABS_DIFF_MAX = float(MODEL_PROBA_ERROR_SIM_CONFIG["abs_diff_max"])
+MODEL_PROBA_ERROR_ABS_DIFF_STD = float(
+    MODEL_PROBA_ERROR_SIM_CONFIG.get(
+        "abs_diff_std",
+        MODEL_PROBA_ERROR_ABS_DIFF_MAX / 3.0,
+    )
+)
+MODEL_PROBA_ERROR_POLICY = str(MODEL_PROBA_ERROR_SIM_CONFIG["policy"])
+MODEL_PROBA_ERROR_SEED_OFFSET = 1_000_000
 
 SCORING_FORMULA = (
     "fold_score = log(final_bankroll / start_bankroll), "
-    "scenario_score = "
+    "seed_score = "
     "0.45 * mean(fold_scores) + 0.30 * q10(fold_scores) + 0.15 * min(fold_scores) "
     "- 0.10 * q90(fold_max_drawdowns), "
     "trial_score = "
-    "0.45 * mean(scenario_scores) + 0.30 * q10(scenario_scores) + 0.15 * min(scenario_scores), "
-    "if total scenario trades == 0: scenario_score = -1e9"
+    "0.45 * mean(seed_scores) + 0.30 * q10(seed_scores) + 0.15 * min(seed_scores), "
+    "if total seed trades == 0: seed_score = -1e9"
 )
 
-# Neutral execution model
-NEUTRAL_PRICE_SIM_MODEL = "neutral_conservative_fixed"
-NEUTRAL_ORDER_PRICE_CAP = 0.5
-NEUTRAL_ORDER_MIN_SIZE = 1.0
-NEUTRAL_FIXED_ASK_PRICE = NEUTRAL_ORDER_PRICE_CAP
-NEUTRAL_PRICE_POLICY = (
-    "market-neutral symmetric ask; both sides always execute at the same "
-    "pessimistic fixed price"
+# Optimizer-only oracle market simulator. Live runtime still uses real orderbook
+# quotes from Polymarket and must not inherit these offline execution assumptions.
+PRICE_SIM_MODEL = str(MARKET_PRICE_SIM_CONFIG["model"])
+if PRICE_SIM_MODEL != "oracle_direction_normal_magnitude":
+    raise ValueError(
+        "Optimizer config market_price_sim.model must be "
+        "'oracle_direction_normal_magnitude'. "
+        f"Found '{PRICE_SIM_MODEL}'."
+    )
+PRICE_SIM_MARKET_DIRECTION_ACCURACY = float(
+    MARKET_PRICE_SIM_CONFIG["market_direction_accuracy"]
 )
+if not 0.0 <= PRICE_SIM_MARKET_DIRECTION_ACCURACY <= 1.0:
+    raise ValueError(
+        "Optimizer config market_price_sim.market_direction_accuracy must be in [0,1]. "
+        f"Found {PRICE_SIM_MARKET_DIRECTION_ACCURACY:.6f}."
+    )
+PRICE_SIM_MU_DELTA = float(MARKET_PRICE_SIM_CONFIG["mu_delta"])
+PRICE_SIM_SIGMA_DELTA = float(MARKET_PRICE_SIM_CONFIG["sigma_delta"])
+PRICE_SIM_DELTA_MAX = float(MARKET_PRICE_SIM_CONFIG["delta_max"])
+PRICE_SIM_ASK_OVERROUND = float(MARKET_PRICE_SIM_CONFIG["ask_overround"])
+PRICE_SIM_EPS = float(MARKET_PRICE_SIM_CONFIG["eps"])
+PRICE_SIM_ORDER_MIN_SIZE = float(MARKET_PRICE_SIM_CONFIG["order_min_size"])
+PRICE_SIM_POLICY = str(MARKET_PRICE_SIM_CONFIG["policy"])
+PRICE_SIM_PARAMS = {
+    "market_direction_accuracy": float(PRICE_SIM_MARKET_DIRECTION_ACCURACY),
+    "mu_delta": float(PRICE_SIM_MU_DELTA),
+    "sigma_delta": float(PRICE_SIM_SIGMA_DELTA),
+    "delta_max": float(PRICE_SIM_DELTA_MAX),
+    "ask_overround": float(PRICE_SIM_ASK_OVERROUND),
+    "eps": float(PRICE_SIM_EPS),
+    "order_min_size": float(PRICE_SIM_ORDER_MIN_SIZE),
+    "policy": str(PRICE_SIM_POLICY),
+}
 
 STEP_LOG_COLUMNS = [
     "Opened",
@@ -353,45 +434,53 @@ def infer_n_folds_for_target_days(
     return n_folds, float(approx_fold_days)
 
 
-def build_neutral_price_simulation_model():
-    ask_price = float(NEUTRAL_FIXED_ASK_PRICE)
-    if ask_price <= 0.0 or ask_price >= 1.0:
-        raise ValueError(
-            "Neutral execution ask price must stay in (0,1). "
-            f"Received {ask_price:.6f}."
-        )
-    return {
-        "model": NEUTRAL_PRICE_SIM_MODEL,
-        "ask_price": float(ask_price),
-        "order_price_cap": float(NEUTRAL_ORDER_PRICE_CAP),
-        "order_min_size": float(NEUTRAL_ORDER_MIN_SIZE),
-        "policy": str(NEUTRAL_PRICE_POLICY),
-    }
-
-
-def sample_neutral_orderbook_arrays(
-    p_raw,
-    price_sim_model,
+def sample_oracle_direction_orderbook_arrays(
+    target,
+    scenario_seed,
+    price_sim_config,
 ):
-    p_raw = np.asarray(p_raw, dtype=np.float64)
-    n_rows = len(p_raw)
-    ask_price = float(price_sim_model["ask_price"])
-    up_ask = np.full(n_rows, ask_price, dtype=np.float64)
-    down_ask = np.full(n_rows, ask_price, dtype=np.float64)
+    target = np.asarray(target, dtype=np.int8)
+    if target.ndim != 1:
+        raise ValueError("target must be a 1D array.")
+    if len(target) == 0:
+        raise ValueError("target must be non-empty.")
+    if not np.isin(np.unique(target), [0, 1]).all():
+        raise ValueError("target must contain only 0/1 values.")
+
+    rng = np.random.default_rng(int(scenario_seed))
+    mu_delta = float(price_sim_config["mu_delta"])
+    sigma_delta = float(price_sim_config["sigma_delta"])
+    delta_max = float(price_sim_config["delta_max"])
+    ask_overround = float(price_sim_config["ask_overround"])
+    eps = float(price_sim_config["eps"])
+    order_min_size = float(price_sim_config["order_min_size"])
+    market_direction_accuracy = float(price_sim_config["market_direction_accuracy"])
+
+    z = rng.standard_normal(len(target)).astype(np.float64, copy=False)
+    delta_mag = np.maximum(mu_delta + sigma_delta * z, 0.0)
+    delta_mag = np.minimum(delta_mag, delta_max)
+    direction_is_correct = (
+        rng.random(len(target)).astype(np.float64, copy=False)
+        < market_direction_accuracy
+    )
+    direction_sign = np.where(direction_is_correct, 1.0, -1.0)
+    signed_delta = delta_mag * direction_sign
+
+    up_mid = np.where(target == 1, 0.5 + signed_delta, 0.5 - signed_delta)
+    down_mid = np.where(target == 1, 0.5 - signed_delta, 0.5 + signed_delta)
+
+    half_overround = ask_overround / 2.0
+    up_ask = np.clip(up_mid + half_overround, eps, 1.0 - eps)
+    down_ask = np.clip(down_mid + half_overround, eps, 1.0 - eps)
 
     return {
+        "up_mid": up_mid,
+        "down_mid": down_mid,
         "up_ask": up_ask,
         "down_ask": down_ask,
-        "order_price_cap": np.full(
-            n_rows,
-            float(price_sim_model["order_price_cap"]),
-            dtype=np.float64,
-        ),
-        "order_min_size": np.full(
-            n_rows,
-            float(price_sim_model["order_min_size"]),
-            dtype=np.float64,
-        ),
+        "delta_mag": delta_mag,
+        "direction_is_correct": direction_is_correct,
+        "order_min_size": np.full(len(target), order_min_size, dtype=np.float64),
     }
 
 
@@ -399,9 +488,7 @@ def sample_model_proba_error_components(
     rng,
     n_rows,
 ):
-
     if not MODEL_PROBA_ERROR_SIM_ENABLED:
-
         return (
             np.zeros(n_rows, dtype=np.float64),
             np.zeros(n_rows, dtype=np.int8),
@@ -420,69 +507,84 @@ def sample_model_proba_error_components(
 
 
 def build_trial_static_arrays(
-    p_raw,
-    price_sim_model,
-    model_error_abs_z,
-    model_error_sign_bits,
+    target,
+    market_sim_seed,
+    price_sim_config,
 ):
-    sampled_orderbook = sample_neutral_orderbook_arrays(
-        p_raw=p_raw,
-        price_sim_model=price_sim_model,
+    sampled_orderbook = sample_oracle_direction_orderbook_arrays(
+        target=target,
+        scenario_seed=market_sim_seed,
+        price_sim_config=price_sim_config,
     )
 
-    up_price = sampled_orderbook["up_ask"]
-
-    down_price = sampled_orderbook["down_ask"]
-
-    order_price_cap = sampled_orderbook["order_price_cap"]
-
+    up_ask = sampled_orderbook["up_ask"]
+    down_ask = sampled_orderbook["down_ask"]
     order_min_size = sampled_orderbook["order_min_size"]
 
-    up_fee_coef = FEE_RATE * np.power(up_price * (1.0 - up_price), FEE_EXPONENT)
+    up_fee_coef = FEE_RATE * np.power(up_ask * (1.0 - up_ask), FEE_EXPONENT)
+    down_fee_coef = FEE_RATE * np.power(down_ask * (1.0 - down_ask), FEE_EXPONENT)
 
-    down_fee_coef = FEE_RATE * np.power(
-        down_price * (1.0 - down_price),
-        FEE_EXPONENT,
+    up_valid = (
+        np.isfinite(up_ask)
+        & (up_ask > 0.0)
+        & (up_ask < 1.0)
+        & np.isfinite(up_fee_coef)
+        & (up_fee_coef < 0.99)
+    )
+    down_valid = (
+        np.isfinite(down_ask)
+        & (down_ask > 0.0)
+        & (down_ask < 1.0)
+        & np.isfinite(down_fee_coef)
+        & (down_fee_coef < 0.99)
     )
 
-    up_valid = up_fee_coef < 0.99
+    up_c_eff = np.full(len(up_ask), np.nan, dtype=np.float64)
+    down_c_eff = np.full(len(down_ask), np.nan, dtype=np.float64)
+    up_c_eff[up_valid] = up_ask[up_valid] / (1.0 - up_fee_coef[up_valid])
+    down_c_eff[down_valid] = down_ask[down_valid] / (1.0 - down_fee_coef[down_valid])
 
-    down_valid = down_fee_coef < 0.99
-
-    up_c_eff = np.empty_like(up_price, dtype=np.float64)
-
-    down_c_eff = np.empty_like(down_price, dtype=np.float64)
-
-    up_c_eff[up_valid] = up_price[up_valid] / (1.0 - up_fee_coef[up_valid])
-
-    up_c_eff[~up_valid] = np.nan
-
-    down_c_eff[down_valid] = down_price[down_valid] / (
-        1.0 - down_fee_coef[down_valid]
-    )
-
-    down_c_eff[~down_valid] = np.nan
-
+    model_error_seed = None
     if MODEL_PROBA_ERROR_SIM_ENABLED:
-
+        model_error_seed = int(market_sim_seed) + MODEL_PROBA_ERROR_SEED_OFFSET
+        model_error_rng = np.random.default_rng(model_error_seed)
+        model_error_abs_z, model_error_sign_bits = sample_model_proba_error_components(
+            model_error_rng,
+            len(target),
+        )
         model_error_abs = np.maximum(
             MODEL_PROBA_ERROR_ABS_DIFF_MEAN
             + MODEL_PROBA_ERROR_ABS_DIFF_STD * model_error_abs_z,
             0.0,
         )
-
+        model_error_abs = np.minimum(model_error_abs, MODEL_PROBA_ERROR_ABS_DIFF_MAX)
         model_error_sign = np.where(model_error_sign_bits == 0, -1.0, 1.0)
-
         model_proba_error = model_error_sign * model_error_abs
-
     else:
+        model_proba_error = np.zeros(len(target), dtype=np.float64)
 
-        model_proba_error = np.zeros_like(p_raw, dtype=np.float64)
+    market_diagnostics = {
+        "direction_correct_rate": float(
+            np.mean(sampled_orderbook["direction_is_correct"].astype(np.float64))
+        ),
+        "direction_wrong_rate": float(
+            1.0
+            - np.mean(sampled_orderbook["direction_is_correct"].astype(np.float64))
+        ),
+        "mean_delta_mag": float(np.mean(sampled_orderbook["delta_mag"])),
+        "q90_delta_mag": float(np.quantile(sampled_orderbook["delta_mag"], 0.90)),
+        "max_delta_mag": float(np.max(sampled_orderbook["delta_mag"])),
+        "mean_up_ask": float(np.mean(up_ask)),
+        "mean_down_ask": float(np.mean(down_ask)),
+        "min_up_ask": float(np.min(up_ask)),
+        "max_up_ask": float(np.max(up_ask)),
+        "min_down_ask": float(np.min(down_ask)),
+        "max_down_ask": float(np.max(down_ask)),
+    }
 
     return {
-        "up_price": up_price,
-        "down_price": down_price,
-        "order_price_cap": order_price_cap,
+        "up_ask": up_ask,
+        "down_ask": down_ask,
         "order_min_size": order_min_size,
         "up_fee_coef": up_fee_coef,
         "down_fee_coef": down_fee_coef,
@@ -491,44 +593,50 @@ def build_trial_static_arrays(
         "up_c_eff": up_c_eff,
         "down_c_eff": down_c_eff,
         "model_proba_error": model_proba_error,
+        "market_sim_seed": int(market_sim_seed),
+        "model_error_seed": model_error_seed,
+        "market_diagnostics": market_diagnostics,
     }
 
 
-def build_execution_scenario_static_arrays(
-    p_raw_tune,
-    p_raw_holdout,
-    scenario_seeds,
-    price_sim_model,
-):
+def slice_static_arrays(static_arrays, start_idx, end_idx):
+    sliced = {}
+    for key, value in static_arrays.items():
+        if isinstance(value, np.ndarray):
+            sliced[key] = value[start_idx:end_idx]
+        elif isinstance(value, dict):
+            sliced[key] = dict(value)
+        else:
+            sliced[key] = value
+    return sliced
 
+
+def build_market_sim_scenarios(
+    target,
+    split_idx,
+    market_sim_seeds,
+    price_sim_config,
+):
     scenarios = []
 
-    for scenario_seed in scenario_seeds:
-
-        rng = np.random.default_rng(int(scenario_seed))
-
-        model_error_abs_z_tune, model_error_sign_bits_tune = (
-            sample_model_proba_error_components(rng, len(p_raw_tune))
+    for market_sim_seed in market_sim_seeds:
+        full_static_arrays = build_trial_static_arrays(
+            target=target,
+            market_sim_seed=market_sim_seed,
+            price_sim_config=price_sim_config,
         )
-
-        model_error_abs_z_holdout, model_error_sign_bits_holdout = (
-            sample_model_proba_error_components(rng, len(p_raw_holdout))
-        )
-
         scenarios.append(
             {
-                "seed": int(scenario_seed),
-                "tune_static_arrays": build_trial_static_arrays(
-                    p_raw_tune,
-                    price_sim_model,
-                    model_error_abs_z_tune,
-                    model_error_sign_bits_tune,
+                "market_sim_seed": int(market_sim_seed),
+                "tune_static_arrays": slice_static_arrays(
+                    full_static_arrays,
+                    0,
+                    split_idx,
                 ),
-                "holdout_static_arrays": build_trial_static_arrays(
-                    p_raw_holdout,
-                    price_sim_model,
-                    model_error_abs_z_holdout,
-                    model_error_sign_bits_holdout,
+                "holdout_static_arrays": slice_static_arrays(
+                    full_static_arrays,
+                    split_idx,
+                    len(target),
                 ),
             }
         )
@@ -536,25 +644,19 @@ def build_execution_scenario_static_arrays(
     return scenarios
 
 
-def build_single_execution_static_arrays(
-    p_raw,
-    scenario_seed,
-    price_sim_model,
+def build_holdout_static_arrays_by_seed(
+    target_holdout,
+    market_sim_seeds,
+    price_sim_config,
 ):
-
-    rng = np.random.default_rng(int(scenario_seed))
-
-    model_error_abs_z, model_error_sign_bits = sample_model_proba_error_components(
-        rng,
-        len(p_raw),
-    )
-
-    return build_trial_static_arrays(
-        p_raw,
-        price_sim_model,
-        model_error_abs_z,
-        model_error_sign_bits,
-    )
+    return {
+        int(market_sim_seed): build_trial_static_arrays(
+            target=target_holdout,
+            market_sim_seed=market_sim_seed,
+            price_sim_config=price_sim_config,
+        )
+        for market_sim_seed in market_sim_seeds
+    }
 
 
 def build_trial_arrays(
@@ -563,9 +665,7 @@ def build_trial_arrays(
     fractional_kelly,
     cap,
     min_edge,
-    prob_shrink,
 ):
-
     p_simulated = np.clip(
         p_raw + static_arrays["model_proba_error"],
         PROBABILITY_MIN_CLIP,
@@ -574,13 +674,12 @@ def build_trial_arrays(
 
     p = adjust_probability_for_kelly(
         p_simulated,
-        prob_shrink=prob_shrink,
         min_clip=PROBABILITY_MIN_CLIP,
     )
 
-    up_price = static_arrays["up_price"]
+    up_ask = static_arrays["up_ask"]
 
-    down_price = static_arrays["down_price"]
+    down_ask = static_arrays["down_ask"]
 
     up_fee_coef = static_arrays["up_fee_coef"]
 
@@ -604,7 +703,7 @@ def build_trial_arrays(
 
     selected_valid = np.where(choose_up, up_valid, down_valid)
 
-    selected_price = np.where(choose_up, up_price, down_price)
+    selected_price = np.where(choose_up, up_ask, down_ask)
 
     selected_fee_coef = np.where(choose_up, up_fee_coef, down_fee_coef)
 
@@ -612,16 +711,17 @@ def build_trial_arrays(
 
     selected_order_min_size = static_arrays["order_min_size"]
 
-    selected_order_price_cap = static_arrays["order_price_cap"]
-
     can_trade = (
         selected_valid
         & (selected_edge >= min_edge)
         & np.isfinite(selected_price)
-        & np.isfinite(selected_order_price_cap)
         & (selected_price > 0.0)
         & (selected_price < 1.0)
-        & (selected_price <= selected_order_price_cap)
+        & np.isfinite(selected_c_eff)
+        & (selected_c_eff > 0.0)
+        & (selected_c_eff < 1.0)
+        & np.isfinite(selected_order_min_size)
+        & (selected_order_min_size > 0.0)
     )
 
     p_side = np.where(choose_up, p, 1.0 - p)
@@ -644,8 +744,10 @@ def build_trial_arrays(
         "choose_up": choose_up,
         "edge": selected_edge,
         "f": f,
-        "up_price": up_price,
-        "down_price": down_price,
+        "up_ask": up_ask,
+        "down_ask": down_ask,
+        "p_simulated": p_simulated,
+        "p_kelly": p,
     }
 
 
@@ -796,7 +898,7 @@ def simulate_segment_trace(
     end_idx,
     min_stake_usdc,
     opened,
-    scenario_seed,
+    market_sim_seed,
     start_bankroll=SIMULATION_START_BANKROLL_USDC,
 ):
 
@@ -1031,44 +1133,32 @@ def simulate_segment_trace(
         "avg_stake": float(avg_stake),
         "avg_fraction": float(avg_fraction),
         "max_drawdown": float(max_drawdown),
-        "scenario_seed": int(scenario_seed),
+        "market_sim_seed": int(market_sim_seed),
         "step_log": step_log,
     }
 
     return result
 
 
-def evaluate_cv_folds_for_scenario(
+def evaluate_cv_folds_for_market_seed(
     target,
     trial_arrays,
     folds,
     min_stake_usdc,
 ):
-
     fold_scores = []
-
     fold_trades = []
-
     fold_log_growth = []
-
     fold_max_drawdown = []
-
     fold_avg_fraction = []
-
     price = trial_arrays["price"]
-
     fee_coef = trial_arrays["fee_coef"]
-
     order_min_size_arr = trial_arrays["order_min_size"]
-
     can_trade = trial_arrays["can_trade"]
-
     choose_up = trial_arrays["choose_up"]
-
     f_arr = trial_arrays["f"]
 
     for start_idx, end_idx in folds:
-
         segment_result = simulate_segment_fast(
             target=target,
             price=price,
@@ -1082,125 +1172,152 @@ def evaluate_cv_folds_for_scenario(
             min_stake_usdc=min_stake_usdc,
             start_bankroll=SIMULATION_START_BANKROLL_USDC,
         )
-
-        mean_g = float(segment_result["sum_g"]) / int(segment_result["n_steps"])
-
-        fold_score = float(segment_result["sum_g"])
-
-        fold_scores.append(fold_score)
-
+        fold_scores.append(float(segment_result["sum_g"]))
         fold_trades.append(int(segment_result["n_trades"]))
-
-        fold_log_growth.append(mean_g)
-
+        fold_log_growth.append(
+            float(segment_result["sum_g"]) / int(segment_result["n_steps"])
+        )
         fold_max_drawdown.append(float(segment_result["max_drawdown"]))
-
         fold_avg_fraction.append(float(segment_result["avg_fraction"]))
 
     fold_scores_arr = np.asarray(fold_scores, dtype=np.float64)
-
+    fold_trades_arr = np.asarray(fold_trades, dtype=np.float64)
+    fold_log_growth_arr = np.asarray(fold_log_growth, dtype=np.float64)
+    fold_max_drawdown_arr = np.asarray(fold_max_drawdown, dtype=np.float64)
     fold_avg_fraction_arr = np.asarray(fold_avg_fraction, dtype=np.float64)
 
-    scenario_score = float(
-        SCENARIO_SCORE_WEIGHTS["mean"] * np.mean(fold_scores_arr)
-        + SCENARIO_SCORE_WEIGHTS["q10"] * np.quantile(fold_scores_arr, 0.10)
-        + SCENARIO_SCORE_WEIGHTS["min"] * np.min(fold_scores_arr)
-        - SCENARIO_SCORE_WEIGHTS["q90_drawdown_penalty"]
-        * np.quantile(np.asarray(fold_max_drawdown, dtype=np.float64), 0.90)
+    seed_score = float(
+        SEED_SCORE_WEIGHTS["mean"] * np.mean(fold_scores_arr)
+        + SEED_SCORE_WEIGHTS["q10"] * np.quantile(fold_scores_arr, 0.10)
+        + SEED_SCORE_WEIGHTS["min"] * np.min(fold_scores_arr)
+        - SEED_SCORE_WEIGHTS["q90_drawdown_penalty"]
+        * np.quantile(fold_max_drawdown_arr, 0.90)
     )
 
-    if sum(fold_trades) == 0:
-
-        scenario_score = -1e9
+    if int(np.sum(fold_trades_arr)) == 0:
+        seed_score = -1e9
 
     return {
-        "score": scenario_score,
+        "score": float(seed_score),
         "fold_scores": fold_scores,
         "fold_trades": fold_trades,
         "fold_log_growth": fold_log_growth,
         "fold_max_drawdown": fold_max_drawdown,
         "fold_avg_fraction": fold_avg_fraction,
+        "mean_fold_score": float(np.mean(fold_scores_arr)),
+        "q10_fold_score": float(np.quantile(fold_scores_arr, 0.10)),
+        "min_fold_score": float(np.min(fold_scores_arr)),
+        "mean_fold_trades": float(np.mean(fold_trades_arr)),
+        "mean_fold_log_growth": float(np.mean(fold_log_growth_arr)),
+        "mean_fold_max_drawdown": float(np.mean(fold_max_drawdown_arr)),
+        "q90_fold_max_drawdown": float(np.quantile(fold_max_drawdown_arr, 0.90)),
         "mean_fold_avg_fraction": float(np.mean(fold_avg_fraction_arr)),
         "q90_fold_avg_fraction": float(np.quantile(fold_avg_fraction_arr, 0.90)),
     }
 
 
-def evaluate_trial_across_execution_scenarios(
+def summarize_weighted_score(values, weights):
+    values_arr = np.asarray(values, dtype=np.float64)
+    if values_arr.ndim != 1 or len(values_arr) == 0:
+        raise ValueError("Score summary expects a non-empty 1D array.")
+
+    return {
+        "score": float(
+            weights["mean"] * np.mean(values_arr)
+            + weights["q10"] * np.quantile(values_arr, 0.10)
+            + weights["min"] * np.min(values_arr)
+        ),
+        "mean": float(np.mean(values_arr)),
+        "q10": float(np.quantile(values_arr, 0.10)),
+        "min": float(np.min(values_arr)),
+    }
+
+
+def evaluate_trial_across_market_sim_scenarios(
     target,
     p_raw,
-    scenario_static_arrays,
+    market_sim_scenarios,
     folds,
     fractional_kelly,
     cap,
     min_edge,
-    prob_shrink,
     min_stake_usdc,
 ):
-
-    scenario_scores = []
-
+    seed_results = []
     fold_scores = []
-
     fold_trades = []
-
     fold_log_growth = []
-
     fold_max_drawdown = []
-
     fold_avg_fraction = []
 
-    for scenario in scenario_static_arrays:
-
+    for market_sim_scenario in market_sim_scenarios:
+        static_arrays = market_sim_scenario["tune_static_arrays"]
         trial_arrays = build_trial_arrays(
             p_raw=p_raw,
-            static_arrays=scenario["tune_static_arrays"],
+            static_arrays=static_arrays,
             fractional_kelly=fractional_kelly,
             cap=cap,
             min_edge=min_edge,
-            prob_shrink=prob_shrink,
         )
 
-        scenario_result = evaluate_cv_folds_for_scenario(
+        seed_result = evaluate_cv_folds_for_market_seed(
             target=target,
             trial_arrays=trial_arrays,
             folds=folds,
             min_stake_usdc=min_stake_usdc,
         )
 
-        scenario_scores.append(float(scenario_result["score"]))
+        diagnostics = static_arrays["market_diagnostics"]
+        seed_output = {
+            "market_sim_seed": int(market_sim_scenario["market_sim_seed"]),
+            "model_error_seed": static_arrays["model_error_seed"],
+            "score": float(seed_result["score"]),
+            "mean_fold_score": float(seed_result["mean_fold_score"]),
+            "q10_fold_score": float(seed_result["q10_fold_score"]),
+            "min_fold_score": float(seed_result["min_fold_score"]),
+            "mean_fold_trades": float(seed_result["mean_fold_trades"]),
+            "mean_fold_log_growth": float(seed_result["mean_fold_log_growth"]),
+            "mean_fold_max_drawdown": float(seed_result["mean_fold_max_drawdown"]),
+            "q90_fold_max_drawdown": float(seed_result["q90_fold_max_drawdown"]),
+            "mean_fold_avg_fraction": float(seed_result["mean_fold_avg_fraction"]),
+            "q90_fold_avg_fraction": float(seed_result["q90_fold_avg_fraction"]),
+            "direction_correct_rate": float(diagnostics["direction_correct_rate"]),
+            "direction_wrong_rate": float(diagnostics["direction_wrong_rate"]),
+            "mean_delta_mag": float(diagnostics["mean_delta_mag"]),
+            "q90_delta_mag": float(diagnostics["q90_delta_mag"]),
+            "max_delta_mag": float(diagnostics["max_delta_mag"]),
+            "mean_up_ask": float(diagnostics["mean_up_ask"]),
+            "mean_down_ask": float(diagnostics["mean_down_ask"]),
+            "fold_scores": list(seed_result["fold_scores"]),
+            "fold_trades": list(seed_result["fold_trades"]),
+            "fold_log_growth": list(seed_result["fold_log_growth"]),
+            "fold_max_drawdown": list(seed_result["fold_max_drawdown"]),
+            "fold_avg_fraction": list(seed_result["fold_avg_fraction"]),
+        }
+        seed_results.append(seed_output)
 
-        fold_scores.extend(scenario_result["fold_scores"])
+        fold_scores.extend(seed_output["fold_scores"])
+        fold_trades.extend(seed_output["fold_trades"])
+        fold_log_growth.extend(seed_output["fold_log_growth"])
+        fold_max_drawdown.extend(seed_output["fold_max_drawdown"])
+        fold_avg_fraction.extend(seed_output["fold_avg_fraction"])
 
-        fold_trades.extend(scenario_result["fold_trades"])
-
-        fold_log_growth.extend(scenario_result["fold_log_growth"])
-
-        fold_max_drawdown.extend(scenario_result["fold_max_drawdown"])
-
-        fold_avg_fraction.extend(scenario_result["fold_avg_fraction"])
-
-    scenario_scores_arr = np.asarray(scenario_scores, dtype=np.float64)
+    seed_score_summary = summarize_weighted_score(
+        [float(item["score"]) for item in seed_results],
+        AGGREGATE_SCORE_WEIGHTS,
+    )
 
     fold_scores_arr = np.asarray(fold_scores, dtype=np.float64)
-
     fold_trades_arr = np.asarray(fold_trades, dtype=np.float64)
-
     fold_log_growth_arr = np.asarray(fold_log_growth, dtype=np.float64)
-
     fold_max_drawdown_arr = np.asarray(fold_max_drawdown, dtype=np.float64)
-
     fold_avg_fraction_arr = np.asarray(fold_avg_fraction, dtype=np.float64)
 
     return {
-        "score": float(
-            SCENARIO_SCORE_WEIGHTS["mean"] * np.mean(scenario_scores_arr)
-            + SCENARIO_SCORE_WEIGHTS["q10"]
-            * np.quantile(scenario_scores_arr, 0.10)
-            + SCENARIO_SCORE_WEIGHTS["min"] * np.min(scenario_scores_arr)
-        ),
-        "mean_scenario_score": float(np.mean(scenario_scores_arr)),
-        "q10_scenario_score": float(np.quantile(scenario_scores_arr, 0.10)),
-        "min_scenario_score": float(np.min(scenario_scores_arr)),
+        "score": float(seed_score_summary["score"]),
+        "mean_seed_score": float(seed_score_summary["mean"]),
+        "q10_seed_score": float(seed_score_summary["q10"]),
+        "min_seed_score": float(seed_score_summary["min"]),
         "mean_fold_score": float(np.mean(fold_scores_arr)),
         "q10_fold_score": float(np.quantile(fold_scores_arr, 0.10)),
         "min_fold_score": float(np.min(fold_scores_arr)),
@@ -1211,6 +1328,7 @@ def evaluate_trial_across_execution_scenarios(
         "q90_fold_max_drawdown": float(np.quantile(fold_max_drawdown_arr, 0.90)),
         "mean_fold_avg_fraction": float(np.mean(fold_avg_fraction_arr)),
         "q90_fold_avg_fraction": float(np.quantile(fold_avg_fraction_arr, 0.90)),
+        "seed_results": seed_results,
     }
 
 
@@ -1225,44 +1343,17 @@ def build_runtime_config(
     fractional_kelly,
     cap,
     min_edge,
-    prob_shrink,
-    price_sim_model,
 ):
-
     return {
         "fractional_kelly": float(fractional_kelly),
         "cap": float(cap),
         "min_edge": float(min_edge),
-        "prob_shrink": float(prob_shrink),
         "min_stake_usdc": float(MIN_STAKE_USDC),
         "fee_model": {
             "feeRate": float(FEE_RATE),
             "exponent": float(FEE_EXPONENT),
             "fee_round_decimals": int(FEE_ROUND_DECIMALS),
             "min_fee": float(MIN_FEE),
-        },
-        "price_sim": {
-            "model": str(price_sim_model["model"]),
-            "ask_price": float(price_sim_model["ask_price"]),
-            "order_price_cap": float(price_sim_model["order_price_cap"]),
-            "order_min_size": float(price_sim_model["order_min_size"]),
-            "policy": str(price_sim_model["policy"]),
-        },
-        "model_proba_error_sim": {
-            "enabled": bool(MODEL_PROBA_ERROR_SIM_ENABLED),
-            "abs_diff_mean": float(MODEL_PROBA_ERROR_ABS_DIFF_MEAN),
-            "abs_diff_max": float(MODEL_PROBA_ERROR_ABS_DIFF_MAX),
-            "abs_diff_std": float(MODEL_PROBA_ERROR_ABS_DIFF_STD),
-            "policy": (
-                MODEL_PROBA_ERROR_POLICY
-                if MODEL_PROBA_ERROR_SIM_ENABLED
-                else "disabled"
-            ),
-            "prob_min_clip": float(PROBABILITY_MIN_CLIP),
-        },
-        "cv_meta": {
-            "seed": int(RANDOM_SEED),
-            "scoring_formula": SCORING_FORMULA,
         },
     }
 
@@ -1280,29 +1371,17 @@ def build_holdout_window_specs(
     opened_holdout,
     window_days,
     n_runs,
-    scenario_seeds,
 ):
-
-    if len(scenario_seeds) != n_runs:
-
-        raise ValueError(
-            "Holdout window scenario seeds count must match holdout window run count."
-        )
-
     if opened_holdout.ndim != 1 or len(opened_holdout) == 0:
-
         raise ValueError("Holdout opened array must be a non-empty 1D array.")
 
     window_delta = np.timedelta64(int(window_days), "D")
-
     latest_start_time = opened_holdout[-1] - window_delta
-
     max_start_idx = int(
         np.searchsorted(opened_holdout, latest_start_time, side="right") - 1
     )
 
     if max_start_idx < 0:
-
         raise ValueError(
             f"Holdout too short for {window_days} day windows. "
             f"holdout_start={pd.Timestamp(opened_holdout[0]).isoformat()} "
@@ -1310,54 +1389,41 @@ def build_holdout_window_specs(
         )
 
     if max_start_idx + 1 < n_runs:
-
         raise ValueError(
             f"Not enough distinct holdout starts for {n_runs} windows of {window_days} days. "
             f"available_starts={max_start_idx + 1}"
         )
 
     raw_start_positions = np.linspace(0, max_start_idx, num=n_runs)
-
     start_indices = []
-
     next_min_idx = 0
 
     for run_idx, raw_position in enumerate(raw_start_positions):
-
         remaining_runs = n_runs - run_idx - 1
-
         max_allowed_idx = max_start_idx - remaining_runs
-
         start_idx = int(round(float(raw_position)))
-
         start_idx = max(start_idx, next_min_idx)
-
         start_idx = min(start_idx, max_allowed_idx)
-
         start_indices.append(start_idx)
-
         next_min_idx = start_idx + 1
 
     specs = []
 
     for run_idx, start_idx in enumerate(start_indices, start=1):
-
         start_time = opened_holdout[start_idx]
-
         end_idx = int(
             np.searchsorted(opened_holdout, start_time + window_delta, side="left")
         )
 
         if end_idx <= start_idx:
-
             raise ValueError(
-                f"Invalid holdout window for run={run_idx}: start_idx={start_idx}, end_idx={end_idx}"
+                f"Invalid holdout window for run={run_idx}: "
+                f"start_idx={start_idx}, end_idx={end_idx}"
             )
 
         specs.append(
             {
                 "window_id": int(run_idx),
-                "scenario_seed": int(scenario_seeds[run_idx - 1]),
                 "start_idx": int(start_idx),
                 "end_idx": int(end_idx),
                 "start_opened": pd.Timestamp(opened_holdout[start_idx]).isoformat(),
@@ -1368,61 +1434,200 @@ def build_holdout_window_specs(
     return specs
 
 
-def summarize_holdout_results(results):
+def summarize_seed_run_results(results):
+    if not results:
+        raise ValueError("At least one seed result is required.")
 
     scores = np.asarray(
-        [float(result["fold_score"]) for result in results], dtype=np.float64
+        [float(result.get("score", result.get("fold_score"))) for result in results],
+        dtype=np.float64,
     )
-
     final_bankrolls = np.asarray(
         [float(result["final_bankroll"]) for result in results],
         dtype=np.float64,
     )
-
-    trades = np.asarray([int(result["trades"]) for result in results], dtype=np.int64)
-
+    trades = np.asarray(
+        [int(result.get("n_trades", result.get("trades", 0))) for result in results],
+        dtype=np.int64,
+    )
     hit_rates = np.asarray(
-        [float(result["hit_rate"]) for result in results], dtype=np.float64
+        [float(result.get("hit_rate", 0.0)) for result in results],
+        dtype=np.float64,
     )
-
     avg_edges = np.asarray(
-        [float(result["avg_edge"]) for result in results], dtype=np.float64
+        [float(result.get("avg_edge", 0.0)) for result in results],
+        dtype=np.float64,
     )
-
     avg_stakes = np.asarray(
-        [float(result["avg_stake"]) for result in results], dtype=np.float64
+        [float(result.get("avg_stake", 0.0)) for result in results],
+        dtype=np.float64,
     )
-
     avg_fractions = np.asarray(
-        [float(result["avg_fraction"]) for result in results], dtype=np.float64
+        [float(result.get("avg_fraction", 0.0)) for result in results],
+        dtype=np.float64,
     )
-
     mean_g = np.asarray(
-        [float(result["mean_g"]) for result in results], dtype=np.float64
+        [
+            float(result.get("mean_log_growth", result.get("mean_g", 0.0)))
+            for result in results
+        ],
+        dtype=np.float64,
     )
-
     max_drawdowns = np.asarray(
         [float(result["max_drawdown"]) for result in results],
         dtype=np.float64,
     )
+    seed_scores = summarize_weighted_score(scores, AGGREGATE_SCORE_WEIGHTS)
+    unique_market_sim_seeds = sorted(
+        {
+            int(result["market_sim_seed"])
+            for result in results
+            if result.get("market_sim_seed") is not None
+        }
+    )
 
     return {
-        "score": float(0.75 * np.mean(scores) + 0.25 * np.min(scores)),
-        "mean_final_bankroll": float(np.mean(final_bankrolls)),
-        "worst_final_bankroll": float(np.min(final_bankrolls)),
-        "total_pnl": float(
+        "score": float(seed_scores["score"]),
+        "score_mean": float(seed_scores["mean"]),
+        "score_q10": float(seed_scores["q10"]),
+        "score_min": float(seed_scores["min"]),
+        "final_bankroll_mean": float(np.mean(final_bankrolls)),
+        "final_bankroll_worst": float(np.min(final_bankrolls)),
+        "total_pnl_mean": float(
             np.mean(final_bankrolls) - SIMULATION_START_BANKROLL_USDC
         ),
-        "mean_n_trades": float(np.mean(trades)),
-        "min_n_trades": int(np.min(trades)),
-        "mean_hit_rate": float(np.mean(hit_rates)),
-        "mean_avg_edge": float(np.mean(avg_edges)),
-        "mean_avg_stake": float(np.mean(avg_stakes)),
-        "mean_avg_fraction": float(np.mean(avg_fractions)),
-        "mean_log_growth": float(np.mean(mean_g)),
-        "worst_log_growth": float(np.min(mean_g)),
-        "mean_max_drawdown": float(np.mean(max_drawdowns)),
-        "worst_max_drawdown": float(np.max(max_drawdowns)),
+        "n_trades_mean": float(np.mean(trades)),
+        "n_trades_worst": int(np.min(trades)),
+        "hit_rate_mean": float(np.mean(hit_rates)),
+        "avg_edge_mean": float(np.mean(avg_edges)),
+        "avg_stake_mean": float(np.mean(avg_stakes)),
+        "avg_fraction_mean": float(np.mean(avg_fractions)),
+        "mean_log_growth_mean": float(np.mean(mean_g)),
+        "mean_log_growth_worst": float(np.min(mean_g)),
+        "max_drawdown_mean": float(np.mean(max_drawdowns)),
+        "max_drawdown_worst": float(np.max(max_drawdowns)),
+        "run_count": int(len(results)),
+        "market_sim_seed_count": int(len(unique_market_sim_seeds)),
+        "market_sim_seeds": unique_market_sim_seeds,
+    }
+
+
+def summarize_static_price_range(static_arrays_collection):
+    min_ask = float("inf")
+    max_ask = float("-inf")
+
+    for static_arrays in static_arrays_collection:
+        min_ask = min(
+            min_ask,
+            float(np.min(static_arrays["up_ask"])),
+            float(np.min(static_arrays["down_ask"])),
+        )
+        max_ask = max(
+            max_ask,
+            float(np.max(static_arrays["up_ask"])),
+            float(np.max(static_arrays["down_ask"])),
+        )
+
+    if not np.isfinite(min_ask) or not np.isfinite(max_ask):
+        raise ValueError("Price sanity failed: non-finite sampled asks.")
+    if min_ask <= 0.0 or max_ask >= 1.0:
+        raise ValueError(
+            "Invalid price construction: sampled ask prices must stay in (0,1). "
+            f"Observed min_ask={min_ask:.6f}, max_ask={max_ask:.6f}."
+        )
+
+    return {
+        "min_ask": float(min_ask),
+        "max_ask": float(max_ask),
+    }
+
+
+def evaluate_holdout_for_seeds(
+    target_holdout,
+    p_raw_holdout,
+    opened_holdout,
+    holdout_static_arrays_by_seed,
+    market_sim_seeds,
+    fractional_kelly,
+    cap,
+    min_edge,
+    min_stake_usdc,
+    start_idx,
+    end_idx,
+    trace_dir,
+    trace_name_prefix,
+):
+    seed_results = []
+    trace_paths = {}
+
+    for market_sim_seed in market_sim_seeds:
+        static_arrays = holdout_static_arrays_by_seed[int(market_sim_seed)]
+        trial_arrays = build_trial_arrays(
+            p_raw=p_raw_holdout,
+            static_arrays=static_arrays,
+            fractional_kelly=fractional_kelly,
+            cap=cap,
+            min_edge=min_edge,
+        )
+
+        holdout_result = simulate_segment_trace(
+            target=target_holdout,
+            trial_arrays=trial_arrays,
+            start_idx=int(start_idx),
+            end_idx=int(end_idx),
+            min_stake_usdc=min_stake_usdc,
+            opened=opened_holdout,
+            market_sim_seed=int(market_sim_seed),
+            start_bankroll=SIMULATION_START_BANKROLL_USDC,
+        )
+
+        trace_path = trace_dir / (
+            f"{trace_name_prefix}_market_seed_{int(market_sim_seed)}.csv"
+        )
+        pd.DataFrame(holdout_result["step_log"]).to_csv(
+            trace_path,
+            index=False,
+            columns=STEP_LOG_COLUMNS,
+        )
+
+        diagnostics = static_arrays["market_diagnostics"]
+        seed_results.append(
+            {
+                "market_sim_seed": int(market_sim_seed),
+                "model_error_seed": static_arrays["model_error_seed"],
+                "start_idx": int(start_idx),
+                "end_idx": int(end_idx),
+                "start_opened": pd.Timestamp(opened_holdout[start_idx]).isoformat(),
+                "end_opened": pd.Timestamp(opened_holdout[end_idx - 1]).isoformat(),
+                "score": float(holdout_result["fold_score"]),
+                "final_bankroll": float(holdout_result["final_bankroll"]),
+                "total_pnl": float(
+                    holdout_result["final_bankroll"] - SIMULATION_START_BANKROLL_USDC
+                ),
+                "n_steps": int(holdout_result["n_steps"]),
+                "n_trades": int(holdout_result["trades"]),
+                "mean_log_growth": float(holdout_result["mean_g"]),
+                "max_drawdown": float(holdout_result["max_drawdown"]),
+                "hit_rate": float(holdout_result["hit_rate"]),
+                "avg_edge": float(holdout_result["avg_edge"]),
+                "avg_stake": float(holdout_result["avg_stake"]),
+                "avg_fraction": float(holdout_result["avg_fraction"]),
+                "direction_correct_rate": float(diagnostics["direction_correct_rate"]),
+                "direction_wrong_rate": float(diagnostics["direction_wrong_rate"]),
+                "mean_delta_mag": float(diagnostics["mean_delta_mag"]),
+                "q90_delta_mag": float(diagnostics["q90_delta_mag"]),
+                "max_delta_mag": float(diagnostics["max_delta_mag"]),
+                "mean_up_ask": float(diagnostics["mean_up_ask"]),
+                "mean_down_ask": float(diagnostics["mean_down_ask"]),
+                "holdout_trace_csv": str(trace_path),
+            }
+        )
+        trace_paths[str(int(market_sim_seed))] = str(trace_path)
+
+    return {
+        "summary": summarize_seed_run_results(seed_results),
+        "seed_results": seed_results,
+        "trace_paths": trace_paths,
     }
 
 
@@ -1456,23 +1661,24 @@ def main():
     )
 
     print(
+        "market sim | "
+        f"model={PRICE_SIM_MODEL} "
+        f"market_direction_accuracy={PRICE_SIM_MARKET_DIRECTION_ACCURACY:.3f} "
+        f"mu_delta={PRICE_SIM_MU_DELTA:.6f} "
+        f"sigma_delta={PRICE_SIM_SIGMA_DELTA:.6f} "
+        f"delta_max={PRICE_SIM_DELTA_MAX:.6f} "
+        f"ask_overround={PRICE_SIM_ASK_OVERROUND:.6f} "
+        f"eps={PRICE_SIM_EPS:.8f} "
+        f"order_min_size={PRICE_SIM_ORDER_MIN_SIZE:.4f}"
+    )
+
+    print(
         "model error sim | "
         f"enabled={MODEL_PROBA_ERROR_SIM_ENABLED} "
         f"abs_mean={MODEL_PROBA_ERROR_ABS_DIFF_MEAN:.6f} "
         f"abs_max={MODEL_PROBA_ERROR_ABS_DIFF_MAX:.6f} "
         f"abs_std={MODEL_PROBA_ERROR_ABS_DIFF_STD:.6f} "
         f"policy={MODEL_PROBA_ERROR_POLICY if MODEL_PROBA_ERROR_SIM_ENABLED else 'disabled'}"
-    )
-
-    price_sim_model = build_neutral_price_simulation_model()
-
-    print(
-        "price sim | "
-        f"model={price_sim_model['model']} "
-        f"ask_price={price_sim_model['ask_price']:.6f} "
-        f"order_price_cap={price_sim_model['order_price_cap']:.3f} "
-        f"order_min_size={price_sim_model['order_min_size']:.4f} "
-        f"policy={price_sim_model['policy']}"
     )
 
     n_decision_rows = len(df5)
@@ -1507,11 +1713,11 @@ def main():
 
     opened_holdout = opened_trade[split_idx:]
 
-    execution_scenarios = build_execution_scenario_static_arrays(
-        p_raw_tune=p_raw_tune,
-        p_raw_holdout=p_raw_holdout,
-        scenario_seeds=EXECUTION_SCENARIO_SEEDS,
-        price_sim_model=price_sim_model,
+    market_sim_scenarios = build_market_sim_scenarios(
+        target=target,
+        split_idx=split_idx,
+        market_sim_seeds=CV_MARKET_SIM_SEEDS,
+        price_sim_config=PRICE_SIM_PARAMS,
     )
 
     n_folds, approx_fold_days = infer_n_folds_for_target_days(
@@ -1520,11 +1726,15 @@ def main():
     )
 
     folds = make_walk_forward_folds(n_obs=len(target_tune), n_folds=n_folds)
+    cv_price_sanity = summarize_static_price_range(
+        [scenario["tune_static_arrays"] for scenario in market_sim_scenarios]
+        + [scenario["holdout_static_arrays"] for scenario in market_sim_scenarios]
+    )
 
     print(
         f"cv setup | n_folds={n_folds} approx_fold_days={approx_fold_days:.2f} "
         f"target_fold_days={CV_TARGET_FOLD_DAYS} n_trials={N_TRIALS} "
-        f"n_execution_scenarios={len(execution_scenarios)} "
+        f"n_market_sim_seeds={len(CV_MARKET_SIM_SEEDS)} "
         f"n_trades_tune={len(target_tune)} "
         f"first_fold=[{folds[0][0]}:{folds[0][1]}]"
     )
@@ -1536,20 +1746,29 @@ def main():
         f"holdout_end_opened={pd.Timestamp(opened_holdout[-1]).isoformat()}"
     )
 
-    print(f"execution scenarios | seeds={EXECUTION_SCENARIO_SEEDS}")
+    print(
+        "market sim seeds | "
+        f"cv={CV_MARKET_SIM_SEEDS} "
+        f"holdout={HOLDOUT_MARKET_SIM_SEEDS} "
+        f"full_holdout={FULL_HOLDOUT_MARKET_SIM_SEEDS}"
+    )
+    print(
+        "price sanity | "
+        f"cv_min_ask={cv_price_sanity['min_ask']:.6f} "
+        f"cv_max_ask={cv_price_sanity['max_ask']:.6f}"
+    )
 
     def objective(trial):
         trial_params = suggest_trial_params(trial)
 
-        cv_result = evaluate_trial_across_execution_scenarios(
+        cv_result = evaluate_trial_across_market_sim_scenarios(
             target=target_tune,
             p_raw=p_raw_tune,
-            scenario_static_arrays=execution_scenarios,
+            market_sim_scenarios=market_sim_scenarios,
             folds=folds,
             fractional_kelly=trial_params["fractional_kelly"],
             cap=trial_params["cap"],
             min_edge=trial_params["min_edge"],
-            prob_shrink=trial_params["prob_shrink"],
             min_stake_usdc=MIN_STAKE_USDC,
         )
 
@@ -1565,7 +1784,7 @@ def main():
     print(
         "optuna setup | "
         f"n_trials={N_TRIALS} folds={len(folds)} "
-        f"n_execution_scenarios={len(execution_scenarios)} "
+        f"n_market_sim_seeds={len(CV_MARKET_SIM_SEEDS)} "
         f"study={study_name} storage={OPTUNA_STORAGE}"
     )
 
@@ -1599,17 +1818,14 @@ def main():
 
     best_min_edge = float(best_params["min_edge"])
 
-    best_prob_shrink = float(best_params["prob_shrink"])
-
-    best_cv_result = evaluate_trial_across_execution_scenarios(
+    best_cv_result = evaluate_trial_across_market_sim_scenarios(
         target=target_tune,
         p_raw=p_raw_tune,
-        scenario_static_arrays=execution_scenarios,
+        market_sim_scenarios=market_sim_scenarios,
         folds=folds,
         fractional_kelly=best_fractional_kelly,
         cap=best_cap,
         min_edge=best_min_edge,
-        prob_shrink=best_prob_shrink,
         min_stake_usdc=MIN_STAKE_USDC,
     )
 
@@ -1617,188 +1833,107 @@ def main():
         opened_holdout=opened_holdout,
         window_days=HOLDOUT_WINDOW_DAYS,
         n_runs=HOLDOUT_WINDOW_RUNS,
-        scenario_seeds=HOLDOUT_WINDOW_SCENARIO_SEEDS,
+    )
+    holdout_seed_union = sorted(
+        set(HOLDOUT_MARKET_SIM_SEEDS).union(FULL_HOLDOUT_MARKET_SIM_SEEDS)
+    )
+    holdout_static_arrays_by_seed = build_holdout_static_arrays_by_seed(
+        target_holdout=target_holdout,
+        market_sim_seeds=holdout_seed_union,
+        price_sim_config=PRICE_SIM_PARAMS,
+    )
+    holdout_price_sanity = summarize_static_price_range(
+        list(holdout_static_arrays_by_seed.values())
     )
 
     print(
         "holdout setup | "
         f"window_days={HOLDOUT_WINDOW_DAYS} "
         f"window_runs={HOLDOUT_WINDOW_RUNS} "
-        f"full_run_seed={FULL_HOLDOUT_SCENARIO_SEED}"
+        f"holdout_market_sim_seed_count={len(HOLDOUT_MARKET_SIM_SEEDS)} "
+        f"full_holdout_market_sim_seed_count={len(FULL_HOLDOUT_MARKET_SIM_SEEDS)}"
+    )
+    print(
+        "price sanity | "
+        f"holdout_min_ask={holdout_price_sanity['min_ask']:.6f} "
+        f"holdout_max_ask={holdout_price_sanity['max_ask']:.6f}"
     )
 
-    min_price = float("inf")
-
-    max_price = float("-inf")
-
-    holdout_window_results = []
-
-    holdout_window_runs_output = []
-
     holdout_trace_dir.mkdir(parents=True, exist_ok=True)
-
-    holdout_static_arrays_by_seed = {}
-
-    for scenario_seed in [*HOLDOUT_WINDOW_SCENARIO_SEEDS, FULL_HOLDOUT_SCENARIO_SEED]:
-
-        static_arrays = build_single_execution_static_arrays(
-            p_raw=p_raw_holdout,
-            scenario_seed=int(scenario_seed),
-            price_sim_model=price_sim_model,
-        )
-
-        holdout_static_arrays_by_seed[int(scenario_seed)] = static_arrays
-
-        min_price = min(
-            min_price,
-            float(np.min(static_arrays["up_price"])),
-            float(np.min(static_arrays["down_price"])),
-        )
-
-        max_price = max(
-            max_price,
-            float(np.max(static_arrays["up_price"])),
-            float(np.max(static_arrays["down_price"])),
-        )
-
     holdout_trace_csv_by_window_id = {}
+    holdout_window_runs_output = []
+    all_window_seed_results = []
 
     for window_spec in holdout_window_specs:
-
-        scenario_seed = int(window_spec["scenario_seed"])
-
-        best_arrays_holdout = build_trial_arrays(
-            p_raw=p_raw_holdout,
-            static_arrays=holdout_static_arrays_by_seed[scenario_seed],
+        window_eval = evaluate_holdout_for_seeds(
+            target_holdout=target_holdout,
+            p_raw_holdout=p_raw_holdout,
+            opened_holdout=opened_holdout,
+            holdout_static_arrays_by_seed=holdout_static_arrays_by_seed,
+            market_sim_seeds=HOLDOUT_MARKET_SIM_SEEDS,
             fractional_kelly=best_fractional_kelly,
             cap=best_cap,
             min_edge=best_min_edge,
-            prob_shrink=best_prob_shrink,
-        )
-
-        holdout_result = simulate_segment_trace(
-            target=target_holdout,
-            trial_arrays=best_arrays_holdout,
+            min_stake_usdc=MIN_STAKE_USDC,
             start_idx=int(window_spec["start_idx"]),
             end_idx=int(window_spec["end_idx"]),
-            min_stake_usdc=MIN_STAKE_USDC,
-            opened=opened_holdout,
-            scenario_seed=scenario_seed,
-            start_bankroll=SIMULATION_START_BANKROLL_USDC,
+            trace_dir=holdout_trace_dir,
+            trace_name_prefix=f"window_{int(window_spec['window_id']):02d}",
         )
-
-        holdout_trace_path = holdout_trace_dir / (
-            f"window_{int(window_spec['window_id']):02d}_seed_{scenario_seed}.csv"
+        holdout_trace_csv_by_window_id[str(int(window_spec["window_id"]))] = (
+            window_eval["trace_paths"]
         )
-
-        pd.DataFrame(holdout_result["step_log"]).to_csv(
-            holdout_trace_path,
-            index=False,
-            columns=STEP_LOG_COLUMNS,
-        )
-
-        holdout_trace_csv_by_window_id[str(int(window_spec["window_id"]))] = str(
-            holdout_trace_path
-        )
-
-        holdout_window_results.append(holdout_result)
-
+        all_window_seed_results.extend(window_eval["seed_results"])
         holdout_window_runs_output.append(
             {
                 "window_id": int(window_spec["window_id"]),
                 "window_days": int(HOLDOUT_WINDOW_DAYS),
-                "scenario_seed": scenario_seed,
                 "start_idx": int(window_spec["start_idx"]),
                 "end_idx": int(window_spec["end_idx"]),
                 "start_opened": str(window_spec["start_opened"]),
                 "end_opened": str(window_spec["end_opened"]),
-                "score": float(holdout_result["fold_score"]),
-                "final_bankroll": float(holdout_result["final_bankroll"]),
-                "n_steps": int(holdout_result["n_steps"]),
-                "n_trades": int(holdout_result["trades"]),
-                "mean_log_growth": float(holdout_result["mean_g"]),
-                "max_drawdown": float(holdout_result["max_drawdown"]),
-                "hit_rate": float(holdout_result["hit_rate"]),
-                "avg_edge": float(holdout_result["avg_edge"]),
-                "avg_stake": float(holdout_result["avg_stake"]),
-                "avg_fraction": float(holdout_result["avg_fraction"]),
-                "holdout_trace_csv": str(holdout_trace_path),
+                **window_eval["summary"],
+                "seed_results": window_eval["seed_results"],
             }
         )
 
-    full_holdout_arrays = build_trial_arrays(
-        p_raw=p_raw_holdout,
-        static_arrays=holdout_static_arrays_by_seed[FULL_HOLDOUT_SCENARIO_SEED],
+    holdout_window_summary = summarize_seed_run_results(all_window_seed_results)
+    holdout_window_summary.update(
+        {
+            "window_days": int(HOLDOUT_WINDOW_DAYS),
+            "window_run_count": int(HOLDOUT_WINDOW_RUNS),
+            "total_seed_runs": int(len(all_window_seed_results)),
+        }
+    )
+
+    full_holdout_eval = evaluate_holdout_for_seeds(
+        target_holdout=target_holdout,
+        p_raw_holdout=p_raw_holdout,
+        opened_holdout=opened_holdout,
+        holdout_static_arrays_by_seed=holdout_static_arrays_by_seed,
+        market_sim_seeds=FULL_HOLDOUT_MARKET_SIM_SEEDS,
         fractional_kelly=best_fractional_kelly,
         cap=best_cap,
         min_edge=best_min_edge,
-        prob_shrink=best_prob_shrink,
-    )
-
-    full_holdout_result = simulate_segment_trace(
-        target=target_holdout,
-        trial_arrays=full_holdout_arrays,
+        min_stake_usdc=MIN_STAKE_USDC,
         start_idx=0,
         end_idx=len(target_holdout),
-        min_stake_usdc=MIN_STAKE_USDC,
-        opened=opened_holdout,
-        scenario_seed=FULL_HOLDOUT_SCENARIO_SEED,
-        start_bankroll=SIMULATION_START_BANKROLL_USDC,
+        trace_dir=holdout_trace_dir,
+        trace_name_prefix="full_holdout",
     )
-
-    full_holdout_trace_path = (
-        holdout_trace_dir / f"full_holdout_seed_{FULL_HOLDOUT_SCENARIO_SEED}.csv"
-    )
-
-    pd.DataFrame(full_holdout_result["step_log"]).to_csv(
-        full_holdout_trace_path,
-        index=False,
-        columns=STEP_LOG_COLUMNS,
-    )
-
-    print(
-        "price sanity | "
-        f"min_price={min_price:.6f} "
-        f"max_price={max_price:.6f} "
-        f"price_sim_model={price_sim_model['model']}"
-    )
-
-    if min_price <= 0.0 or max_price >= 1.0:
-
-        raise ValueError(
-            "Invalid price construction: empirical sampled ask prices must stay in (0,1)."
-        )
-
-    holdout_window_summary = summarize_holdout_results(holdout_window_results)
-
     full_holdout_output = {
-        "scenario_seed": int(FULL_HOLDOUT_SCENARIO_SEED),
         "start_idx": 0,
         "end_idx": len(target_holdout),
         "start_opened": pd.Timestamp(opened_holdout[0]).isoformat(),
         "end_opened": pd.Timestamp(opened_holdout[-1]).isoformat(),
-        "score": float(full_holdout_result["fold_score"]),
-        "final_bankroll": float(full_holdout_result["final_bankroll"]),
-        "total_pnl": float(
-            full_holdout_result["final_bankroll"] - SIMULATION_START_BANKROLL_USDC
-        ),
-        "n_steps": int(full_holdout_result["n_steps"]),
-        "n_trades": int(full_holdout_result["trades"]),
-        "mean_log_growth": float(full_holdout_result["mean_g"]),
-        "max_drawdown": float(full_holdout_result["max_drawdown"]),
-        "hit_rate": float(full_holdout_result["hit_rate"]),
-        "avg_edge": float(full_holdout_result["avg_edge"]),
-        "avg_stake": float(full_holdout_result["avg_stake"]),
-        "avg_fraction": float(full_holdout_result["avg_fraction"]),
-        "holdout_trace_csv": str(full_holdout_trace_path),
+        **full_holdout_eval["summary"],
+        "seed_results": full_holdout_eval["seed_results"],
     }
 
     runtime_config = build_runtime_config(
         fractional_kelly=best_fractional_kelly,
         cap=best_cap,
         min_edge=best_min_edge,
-        prob_shrink=best_prob_shrink,
-        price_sim_model=price_sim_model,
     )
 
     study.trials_dataframe().to_csv(trials_csv_path, index=False)
@@ -1806,19 +1941,27 @@ def main():
     run_output = {
         "generated_at_utc": run_started_at_utc.isoformat(),
         "input_path": str(INPUT_PATH),
+        "optimizer_config_path": str(OPTIMIZER_CONFIG_PATH),
+        "optimizer_config": OPTIMIZER_CONFIG,
         "study_name": study_name,
         "storage": OPTUNA_STORAGE,
         "runtime_config": runtime_config,
-        "cv_meta": {
-            "model_proba_error_enabled": bool(MODEL_PROBA_ERROR_SIM_ENABLED),
-            "model_proba_abs_diff_mean": float(MODEL_PROBA_ERROR_ABS_DIFF_MEAN),
-            "model_proba_abs_diff_max": float(MODEL_PROBA_ERROR_ABS_DIFF_MAX),
-            "model_proba_abs_diff_std": float(MODEL_PROBA_ERROR_ABS_DIFF_STD),
-            "model_proba_error_policy": (
-                MODEL_PROBA_ERROR_POLICY
-                if MODEL_PROBA_ERROR_SIM_ENABLED
-                else "disabled"
+        "price_sim_model": PRICE_SIM_MODEL,
+        "price_sim_params": PRICE_SIM_PARAMS,
+        "cv_market_sim_seeds": CV_MARKET_SIM_SEEDS,
+        "holdout_market_sim_seeds": HOLDOUT_MARKET_SIM_SEEDS,
+        "full_holdout_market_sim_seeds": FULL_HOLDOUT_MARKET_SIM_SEEDS,
+        "model_proba_error_sim": {
+            "enabled": bool(MODEL_PROBA_ERROR_SIM_ENABLED),
+            "abs_diff_mean": float(MODEL_PROBA_ERROR_ABS_DIFF_MEAN),
+            "abs_diff_max": float(MODEL_PROBA_ERROR_ABS_DIFF_MAX),
+            "abs_diff_std": float(MODEL_PROBA_ERROR_ABS_DIFF_STD),
+            "prob_min_clip": float(PROBABILITY_MIN_CLIP),
+            "policy": (
+                MODEL_PROBA_ERROR_POLICY if MODEL_PROBA_ERROR_SIM_ENABLED else "disabled"
             ),
+        },
+        "cv_meta": {
             "n_folds": int(n_folds),
             "target_fold_days": int(CV_TARGET_FOLD_DAYS),
             "approx_fold_days": float(approx_fold_days),
@@ -1828,18 +1971,12 @@ def main():
                 name: [float(bounds[0]), float(bounds[1])]
                 for name, bounds in TRIAL_PARAM_BOUNDS.items()
             },
-            "execution_scenario_seeds": EXECUTION_SCENARIO_SEEDS,
-            "price_sim_model": str(price_sim_model["model"]),
-            "price_sim_ask_price": float(price_sim_model["ask_price"]),
-            "price_sim_order_price_cap": float(price_sim_model["order_price_cap"]),
-            "price_sim_order_min_size": float(price_sim_model["order_min_size"]),
-            "price_sim_policy": str(price_sim_model["policy"]),
             "scoring_formula": SCORING_FORMULA,
             "best_trial_number": int(best_trial.number),
             "best_trial_score": float(best_trial.value),
-            "mean_scenario_score": float(best_cv_result["mean_scenario_score"]),
-            "q10_scenario_score": float(best_cv_result["q10_scenario_score"]),
-            "min_scenario_score": float(best_cv_result["min_scenario_score"]),
+            "mean_seed_score": float(best_cv_result["mean_seed_score"]),
+            "q10_seed_score": float(best_cv_result["q10_seed_score"]),
+            "min_seed_score": float(best_cv_result["min_seed_score"]),
             "mean_fold_score": float(best_cv_result["mean_fold_score"]),
             "q10_fold_score": float(best_cv_result["q10_fold_score"]),
             "min_fold_score": float(best_cv_result["min_fold_score"]),
@@ -1851,26 +1988,57 @@ def main():
             "mean_fold_avg_fraction": float(best_cv_result["mean_fold_avg_fraction"]),
             "q90_fold_avg_fraction": float(best_cv_result["q90_fold_avg_fraction"]),
         },
+        "best_trial_seed_results": best_cv_result["seed_results"],
         "summary": {
+            "best_trial_number": int(best_trial.number),
+            "best_trial_score": float(best_trial.value),
+            "best_fractional_kelly": float(best_fractional_kelly),
+            "best_cap": float(best_cap),
+            "best_min_edge": float(best_min_edge),
+            "cv_score": float(best_cv_result["score"]),
+            "cv_mean_seed_score": float(best_cv_result["mean_seed_score"]),
+            "cv_q10_seed_score": float(best_cv_result["q10_seed_score"]),
+            "cv_min_seed_score": float(best_cv_result["min_seed_score"]),
             "holdout_window_score": float(holdout_window_summary["score"]),
-            "holdout_window_mean_final_bankroll": float(
-                holdout_window_summary["mean_final_bankroll"]
+            "holdout_window_score_mean": float(holdout_window_summary["score_mean"]),
+            "holdout_window_score_q10": float(holdout_window_summary["score_q10"]),
+            "holdout_window_score_min": float(holdout_window_summary["score_min"]),
+            "holdout_window_final_bankroll_mean": float(
+                holdout_window_summary["final_bankroll_mean"]
             ),
-            "holdout_window_worst_final_bankroll": float(
-                holdout_window_summary["worst_final_bankroll"]
+            "holdout_window_final_bankroll_worst": float(
+                holdout_window_summary["final_bankroll_worst"]
             ),
-            "holdout_window_mean_n_trades": float(
-                holdout_window_summary["mean_n_trades"]
+            "holdout_window_n_trades_mean": float(
+                holdout_window_summary["n_trades_mean"]
             ),
-            "holdout_window_min_n_trades": int(holdout_window_summary["min_n_trades"]),
-            "holdout_window_mean_avg_fraction": float(
-                holdout_window_summary["mean_avg_fraction"]
+            "holdout_window_n_trades_worst": int(
+                holdout_window_summary["n_trades_worst"]
+            ),
+            "holdout_window_max_drawdown_mean": float(
+                holdout_window_summary["max_drawdown_mean"]
+            ),
+            "holdout_window_max_drawdown_worst": float(
+                holdout_window_summary["max_drawdown_worst"]
             ),
             "full_holdout_score": float(full_holdout_output["score"]),
-            "full_holdout_final_bankroll": float(full_holdout_output["final_bankroll"]),
-            "full_holdout_n_trades": int(full_holdout_output["n_trades"]),
-            "full_holdout_max_drawdown": float(full_holdout_output["max_drawdown"]),
-            "full_holdout_avg_fraction": float(full_holdout_output["avg_fraction"]),
+            "full_holdout_score_mean": float(full_holdout_output["score_mean"]),
+            "full_holdout_score_q10": float(full_holdout_output["score_q10"]),
+            "full_holdout_score_min": float(full_holdout_output["score_min"]),
+            "full_holdout_final_bankroll_mean": float(
+                full_holdout_output["final_bankroll_mean"]
+            ),
+            "full_holdout_final_bankroll_worst": float(
+                full_holdout_output["final_bankroll_worst"]
+            ),
+            "full_holdout_n_trades_mean": float(full_holdout_output["n_trades_mean"]),
+            "full_holdout_n_trades_worst": int(full_holdout_output["n_trades_worst"]),
+            "full_holdout_max_drawdown_mean": float(
+                full_holdout_output["max_drawdown_mean"]
+            ),
+            "full_holdout_max_drawdown_worst": float(
+                full_holdout_output["max_drawdown_worst"]
+            ),
         },
         "holdout": {
             "window_days": int(HOLDOUT_WINDOW_DAYS),
@@ -1891,12 +2059,16 @@ def main():
             "trials_csv": str(trials_csv_path),
             "holdout_trace_dir": str(holdout_trace_dir),
             "holdout_trace_csv_by_window_id": holdout_trace_csv_by_window_id,
-            "full_holdout_trace_csv": str(full_holdout_trace_path),
+            "full_holdout_trace_csv_by_market_seed": full_holdout_eval["trace_paths"],
         },
         "sanity": {
             "target_match_ratio": float(match_ratio),
             "decision_rows": int(n_decision_rows),
             "trade_rows": int(n_trades),
+            "cv_min_ask": float(cv_price_sanity["min_ask"]),
+            "cv_max_ask": float(cv_price_sanity["max_ask"]),
+            "holdout_min_ask": float(holdout_price_sanity["min_ask"]),
+            "holdout_max_ask": float(holdout_price_sanity["max_ask"]),
         },
     }
 
@@ -1912,15 +2084,15 @@ def main():
 
     print(
         f"saved holdout traces | dir={holdout_trace_dir} "
-        f"n_files={len(holdout_window_runs_output) + 1}"
+        f"n_files={len(all_window_seed_results) + len(FULL_HOLDOUT_MARKET_SIM_SEEDS)}"
     )
 
     print(
         "summary | "
         f"window_score={float(holdout_window_summary['score']):.6f} "
-        f"window_mean_final_bankroll={float(holdout_window_summary['mean_final_bankroll']):.4f} "
+        f"window_final_bankroll_mean={float(holdout_window_summary['final_bankroll_mean']):.4f} "
         f"full_holdout_score={float(full_holdout_output['score']):.6f} "
-        f"full_holdout_final_bankroll={float(full_holdout_output['final_bankroll']):.4f}"
+        f"full_holdout_final_bankroll_mean={float(full_holdout_output['final_bankroll_mean']):.4f}"
     )
 
 

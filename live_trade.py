@@ -43,6 +43,10 @@ from live_common import (
     write_records_csv,
     write_records_state,
 )
+from live_execution_snapshot_logger import (
+    append_execution_snapshot,
+    build_execution_snapshots_path,
+)
 from project_env import load_repo_env
 
 load_repo_env()
@@ -211,6 +215,24 @@ def _best_price(levels, side):
     return float(min(prices) if side == "ask" else max(prices))
 
 
+def _best_size(levels, side):
+    best_price = _best_price(levels, side=side)
+    if not np.isfinite(best_price):
+        return float("nan")
+    size_sum = 0.0
+    found = False
+    for level in levels or []:
+        level_price = _safe_float(level.get("price"))
+        if not np.isfinite(level_price) or abs(level_price - best_price) > 1e-12:
+            continue
+        level_size = _safe_float(level.get("size"))
+        if not np.isfinite(level_size):
+            continue
+        size_sum += float(level_size)
+        found = True
+    return float(size_sum) if found else float("nan")
+
+
 def _json_compact(payload):
     try:
         return json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
@@ -301,6 +323,17 @@ def _extract_buy_fill_metrics_from_response(order_response):
         _safe_float(payload.get("takingAmount")),
         _safe_float(payload.get("makingAmount")),
     )
+
+
+def _filled_price_from_order_response(order_response):
+    shares_net, stake_usdc = _extract_buy_fill_metrics_from_response(order_response)
+    if not np.isfinite(shares_net) or not np.isfinite(stake_usdc) or shares_net <= 0.0:
+        return float("nan")
+    return float(stake_usdc / shares_net)
+
+
+def _submission_attempted(status):
+    return str(status) in {"submitted_fok", "submission_rejected", "submission_error"}
 
 
 def _backfill_record_analysis_fields(record):
@@ -548,7 +581,6 @@ class PolymarketLiveTrader(LivePredictor):
             "fractional_kelly": float(self.kelly_runtime["fractional_kelly"]),
             "cap": float(self.kelly_runtime["cap"]),
             "min_edge": float(self.kelly_runtime["min_edge"]),
-            "prob_shrink": float(self.kelly_runtime["prob_shrink"]),
             "min_stake_usdc": float(self.kelly_runtime["min_stake_usdc"]),
         }
         if self.pm_cfg.execution_mode not in {"fok"}:
@@ -569,6 +601,9 @@ class PolymarketLiveTrader(LivePredictor):
         self.predictions_path = self.pm_cfg.records_path
         self.predictions_path.parent.mkdir(parents=True, exist_ok=True)
         self.records_state_path = self.predictions_path.with_suffix(".state.json")
+        self.execution_snapshots_path = build_execution_snapshots_path(
+            self.run_started_at_utc
+        )
 
         self.pm_session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=4)
@@ -1856,7 +1891,9 @@ class PolymarketLiveTrader(LivePredictor):
         payload = self._get_json(self.pm_cfg.clob_host, "/book", {"token_id": token_id})
         return {
             "best_bid": _best_price(payload.get("bids", []), side="bid"),
+            "best_bid_size": _best_size(payload.get("bids", []), side="bid"),
             "best_ask": _best_price(payload.get("asks", []), side="ask"),
+            "best_ask_size": _best_size(payload.get("asks", []), side="ask"),
             "last_trade_price": _safe_float(payload.get("last_trade_price")),
             "min_order_size": _safe_float(payload.get("min_order_size")),
             "tick_size": _safe_float(payload.get("tick_size")),
@@ -1930,10 +1967,14 @@ class PolymarketLiveTrader(LivePredictor):
             up_token_id=up_token_id,
             down_token_id=down_token_id,
             up_best_bid=_safe_float(up_book.get("best_bid")),
+            up_best_bid_size=_safe_float(up_book.get("best_bid_size")),
             up_best_ask=_safe_float(up_book.get("best_ask")),
+            up_best_ask_size=_safe_float(up_book.get("best_ask_size")),
             up_last_trade_price=_safe_float(up_book.get("last_trade_price")),
             down_best_bid=_safe_float(down_book.get("best_bid")),
+            down_best_bid_size=_safe_float(down_book.get("best_bid_size")),
             down_best_ask=_safe_float(down_book.get("best_ask")),
+            down_best_ask_size=_safe_float(down_book.get("best_ask_size")),
             down_last_trade_price=_safe_float(down_book.get("last_trade_price")),
         )
 
@@ -2035,7 +2076,6 @@ class PolymarketLiveTrader(LivePredictor):
         p = float(
             adjust_probability_for_kelly(
                 float(prob_up_raw),
-                prob_shrink=float(self.live_kelly_sizing["prob_shrink"]),
                 min_clip=1e-6,
             )
         )
@@ -2308,6 +2348,97 @@ class PolymarketLiveTrader(LivePredictor):
             "execution_ms": _elapsed_ms(execution_started_perf),
         }
 
+    def _build_execution_snapshot_row(
+        self,
+        *,
+        decision_opened,
+        bucket_start,
+        bucket_end,
+        proba_up_raw,
+        market,
+        intent,
+        submit_result,
+    ):
+        submit_status = str(submit_result.get("status", "") or "")
+        submission_attempted = _submission_attempted(submit_status)
+        filled_price = _filled_price_from_order_response(
+            submit_result.get("response_text", "")
+        )
+        if not np.isfinite(filled_price):
+            filled_price = np.nan
+
+        return {
+            "logged_at_utc": _utc_now(),
+            "run_started_at_utc": self.run_started_at_utc,
+            "decision_opened": decision_opened,
+            "bucket_start": bucket_start,
+            "bucket_end": bucket_end,
+            "series_slug": self.pm_cfg.series_slug,
+            "market_slug": "" if market is None else str(market.market_slug),
+            "up_token_id": "" if market is None else str(market.up_token_id),
+            "down_token_id": "" if market is None else str(market.down_token_id),
+            "proba_up_raw": float(proba_up_raw),
+            "proba_up_kelly_input": float(
+                adjust_probability_for_kelly(
+                    float(proba_up_raw),
+                    min_clip=1e-6,
+                )
+            ),
+            "up_ask_price": np.nan if market is None else float(market.up_best_ask),
+            "up_ask_size": (
+                np.nan if market is None else float(market.up_best_ask_size)
+            ),
+            "down_ask_price": np.nan if market is None else float(market.down_best_ask),
+            "down_ask_size": (
+                np.nan if market is None else float(market.down_best_ask_size)
+            ),
+            "order_price_cap": float(
+                intent.get("order_price_cap", self.pm_cfg.order_price_cap)
+            ),
+            "selected_side": str(intent.get("side", "")),
+            "selected_edge": float(intent.get("edge", np.nan)),
+            "selected_fraction": float(intent.get("fraction", np.nan)),
+            "stake_usdc_intended": float(intent.get("bet_usdc", np.nan)),
+            "trade_allowed": bool(intent.get("reason") == "ok"),
+            "submission_attempted": bool(submission_attempted),
+            "submission_success": bool(submit_status == "submitted_fok"),
+            "submitted_price": (
+                float(intent.get("order_price_cap", self.pm_cfg.order_price_cap))
+                if submission_attempted
+                else np.nan
+            ),
+            "filled_price": float(filled_price),
+            "execution_mode": (
+                f"{'paper' if self.pm_cfg.paper_mode else 'live'}_"
+                f"{self.pm_cfg.execution_mode}"
+            ),
+        }
+
+    def _append_execution_snapshot(
+        self,
+        *,
+        decision_opened,
+        bucket_start,
+        bucket_end,
+        proba_up_raw,
+        market,
+        intent,
+        submit_result,
+    ):
+        snapshot_row = self._build_execution_snapshot_row(
+            decision_opened=decision_opened,
+            bucket_start=bucket_start,
+            bucket_end=bucket_end,
+            proba_up_raw=proba_up_raw,
+            market=market,
+            intent=intent,
+            submit_result=submit_result,
+        )
+        try:
+            append_execution_snapshot(self.execution_snapshots_path, snapshot_row)
+        except Exception as exc:
+            print(f"[pm] execution snapshot write failed: {exc}")
+
     def _build_prediction_record(
         self,
         *,
@@ -2525,6 +2656,15 @@ class PolymarketLiveTrader(LivePredictor):
         decision_delay_ms = _delay_ms_since(bucket_start)
         intent = execution["intent"]
         submit_result = execution["submit_result"]
+        self._append_execution_snapshot(
+            decision_opened=minute_open,
+            bucket_start=bucket_start,
+            bucket_end=bucket_end,
+            proba_up_raw=proba_up,
+            market=execution["market"],
+            intent=intent,
+            submit_result=submit_result,
+        )
         stake_usdc = (
             float(intent.get("bet_usdc", 0.0) or 0.0)
             if bool(submit_result["commit_bankroll"])
@@ -2647,6 +2787,31 @@ class PolymarketLiveTrader(LivePredictor):
             )
             write_records_state(records, self.records_state_path)
 
+    @staticmethod
+    def _print_log_fields(section, fields):
+        rendered = []
+        for key, value in fields:
+            if value is None:
+                continue
+            value_txt = str(value).replace("\n", " ").strip()
+            if not value_txt:
+                continue
+            rendered.append(f"{key}={value_txt}")
+        if rendered:
+            print(f"  {section:<10}| " + " | ".join(rendered))
+
+    def _print_indicator_nan_status(self):
+        if not self.last_indicator_nan_cols:
+            return
+        cols = ", ".join(self.last_indicator_nan_cols)
+        self._print_log_fields(
+            "indicators",
+            [
+                ("latest_nan_count", len(self.last_indicator_nan_cols)),
+                ("cols", cols),
+            ],
+        )
+
     def _log(self, tag, pred=None):
         stats = self._stats()
         kelly_resolved_win_rate_txt = self._format_rate(
@@ -2661,49 +2826,68 @@ class PolymarketLiveTrader(LivePredictor):
             else pd.Timestamp.now(tz="UTC").tz_convert(self.local_tz).isoformat()
         )
 
+        print(f"[{tag}] {ts}")
+        self._print_log_fields(
+            "resolved",
+            [
+                ("kelly_resolved", stats["kelly_resolved"]),
+                ("wins", stats["kelly_resolved_wins"]),
+                ("losses", stats["kelly_resolved_losses"]),
+                ("win_rate", kelly_resolved_win_rate_txt),
+            ],
+        )
+        self._print_log_fields(
+            "trades",
+            [
+                ("closed", stats["closed_trades"]),
+                ("wins", stats["closed_trade_wins"]),
+                ("losses", stats["closed_trade_losses"]),
+                ("win_rate", closed_trade_win_rate_txt),
+                ("total_pnl", f"{stats['total_pnl']:.2f}"),
+                ("bankroll", f"{self.live_bankroll_usdc:.2f}"),
+            ],
+        )
         if pred is not None:
-            self._print_recent_candle_buffer(count=5)
-
-        msg = [
-            ts,
-            f"[{tag}]",
-            f"kelly_resolved={stats['kelly_resolved']}",
-            f"kelly_resolved_wins={stats['kelly_resolved_wins']}",
-            f"kelly_resolved_losses={stats['kelly_resolved_losses']}",
-            f"win_rate_kelly_resolved={kelly_resolved_win_rate_txt}",
-            f"closed_trades={stats['closed_trades']}",
-            f"closed_trade_wins={stats['closed_trade_wins']}",
-            f"closed_trade_losses={stats['closed_trade_losses']}",
-            f"win_rate_closed_trade={closed_trade_win_rate_txt}",
-            f"total_pnl={stats['total_pnl']:.2f}",
-            f"bankroll={self.live_bankroll_usdc:.2f}",
-        ]
-        if pred is not None:
-            msg.extend(
+            self._print_log_fields(
+                "decision",
                 [
-                    f"proba_up={pred['proba_up']:.6f}",
-                    f"signal_up={pred['signal_up']}",
-                    f"kelly_side={pred['kelly_side']}",
-                    f"kelly_edge={pred['kelly_edge']:.6f}",
-                    f"kelly_reason={pred['kelly_reason']}",
-                    f"stake_usdc={pred['stake_usdc']:.2f}",
-                    f"pm_order_status={pred['pm_order_status']}",
-                    f"decision_delay_ms={pred['decision_delay_ms']:.0f}",
-                ]
+                    ("proba_up", f"{pred['proba_up']:.6f}"),
+                    ("signal_up", pred["signal_up"]),
+                    ("kelly_side", pred["kelly_side"]),
+                    ("kelly_edge", f"{pred['kelly_edge']:.6f}"),
+                    ("stake_usdc", f"{pred['stake_usdc']:.2f}"),
+                ],
             )
+            execution_fields = [
+                ("pm_order_status", pred["pm_order_status"]),
+                ("kelly_reason", pred["kelly_reason"]),
+                ("decision_delay_ms", f"{pred['decision_delay_ms']:.0f}"),
+            ]
             if np.isfinite(_safe_float(pred.get("market_lookup_ms", np.nan))):
-                msg.append(f"market_lookup_ms={pred['market_lookup_ms']:.0f}")
+                execution_fields.append(
+                    ("market_lookup_ms", f"{pred['market_lookup_ms']:.0f}")
+                )
             if np.isfinite(_safe_float(pred.get("submit_order_ms", np.nan))):
-                msg.append(f"submit_order_ms={pred['submit_order_ms']:.0f}")
+                execution_fields.append(
+                    ("submit_order_ms", f"{pred['submit_order_ms']:.0f}")
+                )
+            self._print_log_fields("execution", execution_fields)
             if pred.get("pm_order_error"):
-                msg.append(f"pm_order_error={pred['pm_order_error']}")
+                self._print_log_fields(
+                    "error",
+                    [("pm_order_error", pred["pm_order_error"])],
+                )
+        account_fields = []
         if np.isfinite(self.pm_cash_balance_usdc):
-            msg.append(f"cash_balance={self.pm_cash_balance_usdc:.2f}")
+            account_fields.append(("cash_balance", f"{self.pm_cash_balance_usdc:.2f}"))
         if np.isfinite(self.pm_positions_value_usdc):
-            msg.append(f"positions_value={self.pm_positions_value_usdc:.2f}")
-        print(" ".join(msg))
+            account_fields.append(
+                ("positions_value", f"{self.pm_positions_value_usdc:.2f}")
+            )
+        self._print_log_fields("account", account_fields)
         if pred is not None:
             self._print_indicator_nan_status()
+        print()
 
     def _maybe_sync_missing_candles(self, opened_from_ws):
         if not self.opened_candles:
@@ -2814,7 +2998,6 @@ class PolymarketLiveTrader(LivePredictor):
             f"fractional_kelly={self.live_kelly_sizing['fractional_kelly']:.6f} "
             f"cap={self.live_kelly_sizing['cap']:.6f} "
             f"min_edge={self.live_kelly_sizing['min_edge']:.6f} "
-            f"prob_shrink={self.live_kelly_sizing['prob_shrink']:.6f} "
             f"min_stake_usdc={self.live_kelly_sizing['min_stake_usdc']:.2f}"
         )
         print(
@@ -2826,6 +3009,7 @@ class PolymarketLiveTrader(LivePredictor):
         )
         print(f"Bankroll source: {self.bankroll_source}")
         print(f"Records file: {self.predictions_path}")
+        print(f"Execution snapshots file: {self.execution_snapshots_path}")
 
     def _on_message(self, _ws, message):
         with self.ws_message_lock:
