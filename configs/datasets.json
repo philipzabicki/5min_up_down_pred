@@ -18,9 +18,9 @@
       "raw_ohlcv_repair": {
         "enabled": true,
         "mode": "monte_carlo_histogram",
-        "histogram_bins": 5000,
+        "histogram_bins": 2500,
         "gap_min_block_len": 3,
-        "volume_range_bins": 10000,
+        "volume_range_bins": 5000,
         "random_seed": 37,
         "bridge_weight_power": 2.0,
         "save_gap_charts": true,

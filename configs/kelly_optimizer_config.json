@@ -2,7 +2,7 @@
   "optuna": {
     "random_seed": 37,
     "n_trials": 2000,
-    "tpe_startup_trials": 400
+    "tpe_startup_trials": 200
   },
   "trial_param_bounds": {
     "fractional_kelly": [
@@ -18,6 +18,7 @@
       0.15
     ]
   },
+  "kelly_min_stake_usdc": 1.0,
   "data_split": {
     "holdout_fraction": 0.05
   },
@@ -82,16 +83,46 @@
       20016
     ]
   },
+  "fee_model": {
+    "source": "polymarket_fee_schedule_v2",
+    "rate": 0.072,
+    "exponent": 1.0,
+    "fee_round_decimals": 5,
+    "min_fee": 0.00001,
+    "policy": "fee_usdc = shares * rate * (price * (1 - price))^exponent; for current Polymarket crypto feeSchedule this is exponent=1 and rate=0.072"
+  },
+  "simulation": {
+    "start_bankroll_usdc": 1000.0
+  },
+  "score_weights": {
+    "seed": {
+      "mean": 0.55,
+      "q10": 0.20,
+      "min": 0.15,
+      "q90_drawdown_penalty": 0.1
+    },
+    "aggregate": {
+      "mean": 0.55,
+      "q10": 0.30,
+      "min": 0.15
+    }
+  },
   "market_price_sim": {
-    "model": "oracle_direction_normal_magnitude",
-    "market_direction_accuracy": 0.6,
-    "mu_delta": 0.0015,
-    "sigma_delta": 0.0025,
-    "delta_max": 0.01,
-    "ask_overround": 0.00125,
+    "model": "latent_conviction_directional",
+    "conviction_beta_alpha": 1.5958864299877964,
+    "conviction_beta_beta": 1.5093565665183557,
+    "gap_min": 0.0,
+    "gap_max": 0.16,
+    "gap_gamma": 1.8,
+    "p_correct_min": 0.505,
+    "p_correct_max": 0.565,
+    "overround_min": 0.006,
+    "overround_max": 0.018,
+    "overround_gamma": 1.25,
+    "tick_size": 0.01,
     "eps": 1e-06,
-    "order_min_size": 1.0,
-    "policy": "optimizer-only oracle-direction market simulator; direction is correct with probability market_direction_accuracy, delta magnitude comes from clipped normal draw, and both asks include constant overround; live runtime still uses real Polymarket orderbook quotes"
+    "sim_order_min_size_shares": 1.0,
+    "policy": "optimizer-only latent-conviction market simulator; conviction ~ Beta(alpha, beta), then conviction jointly controls abs_gap, p_correct, and overround before asks are rounded to market tick size; live runtime still uses real Polymarket orderbook quotes"
   },
   "model_proba_error_sim": {
     "enabled": false,

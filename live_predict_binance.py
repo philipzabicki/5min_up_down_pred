@@ -15,11 +15,14 @@ import requests
 
 import lightgbm as lgb
 from common_config_utils import coerce_path
-from live_common import (
+from live_utils import (
     LIVE_PREDICTION_EXPORT_COLUMNS,
+    LIVE_SHARED_MARKET_DATA_COLUMNS,
     as_utc_timestamp,
+    build_live_market_data_path,
     interval_to_floor_rule,
     interval_to_timedelta,
+    upsert_records_csv,
     write_records_csv,
 )
 from websocket import WebSocketApp
@@ -81,6 +84,11 @@ from modeling_dataset_utils import (
     MODELING_DATASET_CONFIG_FILE,
     load_modeling_dataset_settings,
     split_feature_subset,
+)
+from polymarket_fee_utils import (
+    normalize_polymarket_fee_model,
+    polymarket_taker_fee_fraction_of_notional,
+    polymarket_taker_fee_usdc_from_notional,
 )
 
 
@@ -751,14 +759,13 @@ def load_kelly_runtime_config(config_path):
         "fractional_kelly": _read_float(payload, "fractional_kelly"),
         "cap": _read_float(payload, "cap"),
         "min_edge": _read_float(payload, "min_edge"),
-        "min_stake_usdc": _read_float(payload, "min_stake_usdc"),
-        "fee_rate": _read_float(fee_model, "feeRate"),
-        "fee_exponent": _read_float(fee_model, "exponent"),
-        "fee_round_decimals": int(fee_model.get("fee_round_decimals", 4)),
-        "min_fee": _read_float(fee_model, "min_fee"),
+        "min_stake_usdc": _read_float(payload, "kelly_min_stake_usdc"),
+        "fee_model": normalize_polymarket_fee_model(
+            fee_model,
+            context=f"Kelly config '{config_path}' fee_model",
+        ),
         "price_sim_model": "live_orderbook",
         "seed": 37,
-        "order_price_cap": float("inf"),
         "order_min_size": 0.0,
         "runtime_price_policy": "external live orderbook quotes required",
     }
@@ -768,8 +775,6 @@ def load_kelly_runtime_config(config_path):
         raise ValueError("Kelly config invalid: fractional_kelly must be > 0.")
     if cfg["min_stake_usdc"] <= 0.0:
         raise ValueError("Kelly config invalid: min_stake_usdc must be > 0.")
-    if cfg["fee_rate"] < 0.0:
-        raise ValueError("Kelly config invalid: feeRate must be >= 0.")
     return cfg
 
 
@@ -1141,6 +1146,8 @@ class LivePredictor:
 
         self.predictions_path = PREDICTIONS_OUTPUT_PATH
         self.predictions_path.parent.mkdir(parents=True, exist_ok=True)
+        self.market_data_path = build_live_market_data_path()
+        self.market_data_path.parent.mkdir(parents=True, exist_ok=True)
         self.realized_volatility_state = None
         self.latest_realized_volatility_values = {}
         self._initialize_realized_volatility_state()
@@ -1211,6 +1218,39 @@ class LivePredictor:
             self.candle_open_close.pop(dropped_opened, None)
             self.ohlcv_np = self.ohlcv_np[-self.max_keep :, :]
             self.opened_ns_np = self.opened_ns_np[-self.max_keep :]
+
+    def _latest_btc_snapshot(self):
+        if self.ohlcv_np.size == 0:
+            return {
+                "btc_open": np.nan,
+                "btc_high": np.nan,
+                "btc_low": np.nan,
+                "btc_close": np.nan,
+                "btc_volume": np.nan,
+            }
+
+        last_row = self.ohlcv_np[-1, :]
+        return {
+            "btc_open": float(last_row[0]),
+            "btc_high": float(last_row[1]),
+            "btc_low": float(last_row[2]),
+            "btc_close": float(last_row[3]),
+            "btc_volume": float(last_row[4]),
+        }
+
+    def _backfill_bucket_price_bounds(self, record):
+        bucket_start = pd.to_datetime(record.get("bucket_start"), errors="coerce", utc=True)
+        bucket_end = pd.to_datetime(record.get("bucket_end"), errors="coerce", utc=True)
+
+        if pd.notna(bucket_start):
+            candle = self.candle_open_close.get(bucket_start)
+            if candle is not None and pd.isna(record.get("bucket_open_price")):
+                record["bucket_open_price"] = float(candle[0])
+
+        if pd.notna(bucket_end):
+            candle = self.candle_open_close.get(bucket_end)
+            if candle is not None and pd.isna(record.get("bucket_close_price")):
+                record["bucket_close_price"] = float(candle[1])
 
     def _pending_ws_candle_opened(self, candle):
         return pd.to_datetime(int(candle["t"]), unit="ms", utc=True)
@@ -1864,14 +1904,15 @@ class LivePredictor:
             }
 
         quotes = self._simulate_execution_quotes(prob_up_raw=prob_up_raw)
-        fee_rate = float(self.kelly_runtime["fee_rate"])
-        fee_exponent = float(self.kelly_runtime["fee_exponent"])
+        fee_model = self.kelly_runtime["fee_model"]
         candidates = []
         for side, price, p_side in (
             ("up", float(quotes["up_price"]), float(p)),
             ("down", float(quotes["down_price"]), float(1.0 - p)),
         ):
-            eff_rate = fee_rate * float((price * (1.0 - price)) ** fee_exponent)
+            eff_rate = float(
+                polymarket_taker_fee_fraction_of_notional(price, fee_model)
+            )
             if eff_rate >= 0.99:
                 continue
             c_eff = price / (1.0 - eff_rate)
@@ -1905,7 +1946,6 @@ class LivePredictor:
         price = float(best["entry_price"])
         c_eff = float(best["c_eff"])
         eff_rate = float(best["eff_rate"])
-        order_price_cap = float(self.kelly_runtime.get("order_price_cap", np.inf))
         order_min_size = float(self.kelly_runtime.get("order_min_size", 0.0))
 
         if selected_edge < float(self.kelly_runtime["min_edge"]):
@@ -1916,23 +1956,6 @@ class LivePredictor:
                 "prob_win_raw": float(prob_up_raw),
                 "prob_win_adj": float(p_side),
                 "entry_price": float(price),
-                "c_eff": float(c_eff),
-                "eff_rate": float(eff_rate),
-                "up_price": float(quotes["up_price"]),
-                "down_price": float(quotes["down_price"]),
-                "eps": float(quotes.get("eps", np.nan)),
-                "slip": float(quotes.get("slip", np.nan)),
-            }
-
-        if price > order_price_cap:
-            return {
-                "reason": "price_above_cap",
-                "side": side,
-                "edge": float(selected_edge),
-                "prob_win_raw": float(prob_up_raw),
-                "prob_win_adj": float(p_side),
-                "entry_price": float(price),
-                "order_price_cap": float(order_price_cap),
                 "c_eff": float(c_eff),
                 "eff_rate": float(eff_rate),
                 "up_price": float(quotes["up_price"]),
@@ -1982,10 +2005,13 @@ class LivePredictor:
                 "slip": float(quotes.get("slip", np.nan)),
             }
 
-        fee_raw = stake * eff_rate
-        fee = round(fee_raw, int(self.kelly_runtime["fee_round_decimals"]))
-        if fee < float(self.kelly_runtime["min_fee"]):
-            fee = 0.0
+        fee_result = polymarket_taker_fee_usdc_from_notional(
+            stake,
+            price,
+            fee_model,
+        )
+        fee_raw = float(fee_result["fee_raw_usdc"])
+        fee = float(fee_result["fee_usdc"])
         if fee >= stake:
             return {
                 "reason": "fee_ge_stake",
@@ -1998,8 +2024,8 @@ class LivePredictor:
                 "entry_price": float(price),
                 "c_eff": float(c_eff),
                 "eff_rate": float(eff_rate),
-                "eps": eps,
-                "slip": slip,
+                "eps": float(quotes.get("eps", np.nan)),
+                "slip": float(quotes.get("slip", np.nan)),
             }
 
         shares_net = (stake - fee) / price
@@ -2226,9 +2252,13 @@ class LivePredictor:
             f"{self.target_bucket_minutes}min"
         ) + pd.Timedelta(minutes=self.target_bucket_minutes)
         bucket_end = bucket_start + pd.Timedelta(minutes=self.target_bucket_minutes - 1)
+        btc_snapshot = self._latest_btc_snapshot()
 
         self.records.append(
             {
+                "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
+                "pm_model_hash": self.model_hash,
+                "pm_run_started_at_utc": self.run_started_at_utc,
                 "prediction_time": pd.Timestamp.now(tz="UTC"),
                 "bucket_start": bucket_start,
                 "bucket_end": bucket_end,
@@ -2251,12 +2281,19 @@ class LivePredictor:
                 "kelly_eff_rate": float(kelly.get("eff_rate", np.nan)),
                 "price_eps": float(kelly.get("eps", np.nan)),
                 "price_slip": float(kelly.get("slip", np.nan)),
+                "up_price": float(kelly.get("up_price", np.nan)),
+                "down_price": float(kelly.get("down_price", np.nan)),
                 "bankroll_before_entry": float(bankroll_before_entry),
                 "bankroll_after_entry": float(bankroll_after_entry),
                 "bankroll_after_resolve": None,
                 "trade_is_win": None,
                 "payout_usdc": None,
                 "pnl_usdc": None,
+                "btc_open": float(btc_snapshot["btc_open"]),
+                "btc_high": float(btc_snapshot["btc_high"]),
+                "btc_low": float(btc_snapshot["btc_low"]),
+                "btc_close": float(btc_snapshot["btc_close"]),
+                "btc_volume": float(btc_snapshot["btc_volume"]),
                 "bucket_open_price": None,
                 "bucket_close_price": None,
                 "actual_up": None,
@@ -2286,6 +2323,8 @@ class LivePredictor:
     def _save_records(self):
         if not self.records:
             return
+        for rec in self.records:
+            self._backfill_bucket_price_bounds(rec)
         write_records_csv(
             self.records,
             self.predictions_path,
@@ -2294,6 +2333,16 @@ class LivePredictor:
             and rec.get("is_correct") is not None,
             is_traded=lambda rec: rec.get("actual_up") is not None
             and rec.get("trade_is_win") is not None,
+        )
+        upsert_records_csv(
+            self.records,
+            self.market_data_path,
+            export_columns=LIVE_SHARED_MARKET_DATA_COLUMNS,
+            is_resolved=lambda rec: rec.get("actual_up") is not None
+            and rec.get("is_correct") is not None,
+            is_traded=lambda rec: rec.get("actual_up") is not None
+            and rec.get("trade_is_win") is not None,
+            record_filter=lambda rec: str(rec.get("record_id", "")).startswith("bucket:"),
         )
 
     def _stats(self):
@@ -2594,15 +2643,14 @@ class LivePredictor:
         )
         print(
             "Price/Fee model | "
-            f"fee_rate={self.kelly_runtime['fee_rate']:.6f} "
-            f"fee_exp={self.kelly_runtime['fee_exponent']:.3f}"
+            f"fee_rate={self.kelly_runtime['fee_model']['rate']:.6f} "
+            f"fee_exp={self.kelly_runtime['fee_model']['exponent']:.3f}"
         )
         if self.kelly_runtime.get("price_sim_model") == "neutral_conservative_fixed":
             print(
                 "Price sim | "
                 f"model={self.kelly_runtime['price_sim_model']} "
                 f"ask_price={self.kelly_runtime['ask_price']:.6f} "
-                f"order_price_cap={self.kelly_runtime['order_price_cap']:.3f} "
                 f"order_min_size={self.kelly_runtime['order_min_size']:.2f}"
             )
         elif self.kelly_runtime.get("price_sim_model") == "live_orderbook":
@@ -2618,7 +2666,6 @@ class LivePredictor:
                 f"mid_slope_mean={self.kelly_runtime['mid_slope_mean']:.6f} "
                 f"mid_slope_std={self.kelly_runtime['mid_slope_std']:.6f} "
                 f"mid_residual_std={self.kelly_runtime['mid_residual_std']:.6f} "
-                f"order_price_cap={self.kelly_runtime['order_price_cap']:.3f} "
                 f"order_min_size={self.kelly_runtime['order_min_size']:.2f}"
             )
         else:

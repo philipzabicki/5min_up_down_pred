@@ -1,9 +1,18 @@
 import json
+import os
+import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+LIVE_ROOT_DIR = Path("data/live")
+LIVE_SHARED_MARKET_DATA_FILENAME = "polymarket_5m.csv"
+LIVE_SHARED_MARKET_DATA_KEY_COLUMNS = (
+    "pm_run_started_at_utc",
+    "pm_model_hash",
+    "record_id",
+)
 LIVE_RECORD_TIMESTAMP_COLUMNS = (
     "record_snapshot_at",
     "prediction_time",
@@ -49,6 +58,13 @@ LIVE_PREDICTION_EXPORT_COLUMNS = (
 LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
     "pm_mode",
     "pm_market_slug",
+    "pm_fees_enabled",
+    "pm_fee_rate_bps",
+    "pm_fee_source",
+    "pm_fee_rate",
+    "pm_fee_exponent",
+    "pm_fee_round_decimals",
+    "pm_min_fee_usdc",
     "pm_order_status",
     "decision_delay_ms",
     "market_lookup_ms",
@@ -70,6 +86,64 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
     "pm_account_sync_at_resolve",
     "pm_account_cash_balance_resolve_usdc",
     "pm_account_positions_value_resolve_usdc",
+)
+
+LIVE_SHARED_MARKET_DATA_COLUMNS = (
+    "record_id",
+    "pm_model_hash",
+    "pm_run_started_at_utc",
+    "prediction_time",
+    "resolved_at",
+    "bucket_start",
+    "bucket_end",
+    "proba_up",
+    "threshold",
+    "signal_up",
+    "kelly_side",
+    "kelly_reason",
+    "kelly_edge",
+    "kelly_fraction",
+    "kelly_bet_usdc",
+    "kelly_prob_win_adj",
+    "kelly_prob_win_raw",
+    "kelly_c_eff",
+    "kelly_eff_rate",
+    "price_eps",
+    "price_slip",
+    "up_price",
+    "down_price",
+    "stake_usdc",
+    "entry_price",
+    "entry_fee_usdc",
+    "shares_net",
+    "bankroll_after_entry",
+    "bankroll_after_resolve",
+    "btc_open",
+    "btc_high",
+    "btc_low",
+    "btc_close",
+    "btc_volume",
+    "bucket_open_price",
+    "bucket_close_price",
+    "pm_order_price_cap",
+    "pm_fees_enabled",
+    "pm_fee_rate_bps",
+    "pm_fee_source",
+    "pm_fee_rate",
+    "pm_fee_exponent",
+    "pm_fee_round_decimals",
+    "pm_min_fee_usdc",
+    "pm_up_best_bid",
+    "pm_up_best_ask",
+    "pm_down_best_bid",
+    "pm_down_best_ask",
+    "pm_order_status",
+    "pm_settlement_status",
+    "actual_up",
+    "is_correct",
+    "trade_is_win",
+    "payout_usdc",
+    "pnl_usdc",
 )
 
 
@@ -112,6 +186,10 @@ def build_live_trade_records_path(
         f"model_{model_hash}_kelly_{kelly_config_hash}_"
         f"modeling_{modeling_dataset_config_hash}_{run_started_at_utc}.csv"
     )
+
+
+def build_live_market_data_path(live_root_dir=LIVE_ROOT_DIR):
+    return Path(live_root_dir) / LIVE_SHARED_MARKET_DATA_FILENAME
 
 
 def compute_running_win_rates(records, *, is_resolved, is_traded):
@@ -201,6 +279,124 @@ def write_records_csv(
     )
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     frame.to_csv(path, index=False)
+
+
+def _dedupe_key_part(value):
+    if value is None:
+        return ""
+    if isinstance(value, float) and not np.isfinite(value):
+        return ""
+    if pd.isna(value):
+        return ""
+    return str(value)
+
+
+def _acquire_csv_lock(lock_path, timeout_sec=30.0, poll_sec=0.05):
+    deadline = time.monotonic() + float(timeout_sec)
+    while True:
+        try:
+            return os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_RDWR)
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Timed out waiting for CSV lock: {lock_path}")
+            time.sleep(float(poll_sec))
+
+
+def _release_csv_lock(fd, lock_path):
+    try:
+        os.close(fd)
+    finally:
+        try:
+            Path(lock_path).unlink()
+        except FileNotFoundError:
+            pass
+
+
+def upsert_records_csv(
+    records,
+    path,
+    *,
+    export_columns,
+    key_columns=LIVE_SHARED_MARKET_DATA_KEY_COLUMNS,
+    timestamp_columns=LIVE_RECORD_TIMESTAMP_COLUMNS,
+    is_resolved,
+    is_traded,
+    record_filter=None,
+):
+    filtered_records = list(records)
+    if record_filter is not None:
+        filtered_records = [record for record in filtered_records if record_filter(record)]
+    if not filtered_records:
+        return
+
+    frame = records_to_export_frame(
+        filtered_records,
+        export_columns=export_columns,
+        timestamp_columns=timestamp_columns,
+        is_resolved=is_resolved,
+        is_traded=is_traded,
+    )
+    if frame.empty:
+        return
+
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = Path(f"{path}.lock")
+    lock_fd = _acquire_csv_lock(lock_path)
+    tmp_path = path.with_name(
+        f"{path.name}.{os.getpid()}.{int(time.time() * 1_000_000)}.tmp"
+    )
+    try:
+        if path.exists() and path.stat().st_size > 0:
+            existing = pd.read_csv(path, dtype=object, keep_default_na=False)
+        else:
+            existing = pd.DataFrame(columns=list(export_columns))
+
+        for col in export_columns:
+            if col not in existing.columns:
+                existing[col] = np.nan
+
+        if existing.empty:
+            combined = frame.copy()
+        else:
+            combined = pd.concat((existing, frame), ignore_index=True, sort=False)
+        for col in export_columns:
+            if col not in combined.columns:
+                combined[col] = np.nan
+
+        combined_keys = combined.apply(
+            lambda row: tuple(_dedupe_key_part(row.get(col)) for col in key_columns),
+            axis=1,
+        )
+        combined = combined.loc[~combined_keys.duplicated(keep="last")].copy()
+
+        sort_columns = [
+            col
+            for col in (
+                "pm_run_started_at_utc",
+                "prediction_time",
+                "bucket_start",
+                "record_id",
+            )
+            if col in combined.columns
+        ]
+        if sort_columns:
+            combined = combined.sort_values(
+                by=sort_columns,
+                kind="stable",
+                na_position="last",
+            )
+
+        combined = combined.loc[:, list(export_columns)]
+        combined.to_csv(tmp_path, index=False)
+        os.replace(tmp_path, path)
+    finally:
+        try:
+            if tmp_path.exists():
+                tmp_path.unlink()
+        except FileNotFoundError:
+            pass
+        _release_csv_lock(lock_fd, lock_path)
 
 
 def _json_safe(value):

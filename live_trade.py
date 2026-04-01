@@ -36,16 +36,15 @@ from py_clob_client.clob_types import (
 from py_clob_client.http_helpers import helpers as pyclob_http_helpers
 from py_clob_client.order_builder.constants import BUY, SELL
 
-from live_common import (
+from live_utils import (
+    LIVE_SHARED_MARKET_DATA_COLUMNS,
     LIVE_TRADE_EXPORT_COLUMNS,
+    build_live_market_data_path,
     build_live_trade_records_path,
     read_records_state,
+    upsert_records_csv,
     write_records_csv,
     write_records_state,
-)
-from live_execution_snapshot_logger import (
-    append_execution_snapshot,
-    build_execution_snapshots_path,
 )
 from project_env import load_repo_env
 
@@ -67,14 +66,20 @@ from live_predict_binance import (
     _load_ws_payload,
 )
 from kelly_utils import adjust_probability_for_kelly
+from polymarket_fee_utils import (
+    DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
+    DEFAULT_POLYMARKET_MIN_FEE_USDC,
+    normalize_polymarket_fee_model,
+    polymarket_fee_model_from_market,
+    polymarket_taker_fee_fraction_of_notional,
+    polymarket_taker_fee_usdc_from_notional,
+    polymarket_taker_fee_usdc_from_shares,
+)
 
 DEFAULT_GAMMA_HOST = "https://gamma-api.polymarket.com"
 DEFAULT_CLOB_HOST = "https://clob.polymarket.com"
 DEFAULT_DATA_API_HOST = "https://data-api.polymarket.com"
 DEFAULT_RELAYER_HOST = "https://relayer-v2.polymarket.com"
-POLYMARKET_CRYPTO_FEE_EXPONENT = 2.0
-POLYMARKET_FEE_ROUND_DECIMALS = 4
-POLYMARKET_MIN_FEE_USDC = 0.0001
 POLYMARKET_COLLATERAL_DECIMALS = 6
 POLYMARKET_VALID_TICK_SIZES = {"0.1", "0.01", "0.001", "0.0001"}
 POLYMARKET_CLOSED_POSITIONS_PAGE_LIMIT = 50
@@ -325,17 +330,6 @@ def _extract_buy_fill_metrics_from_response(order_response):
     )
 
 
-def _filled_price_from_order_response(order_response):
-    shares_net, stake_usdc = _extract_buy_fill_metrics_from_response(order_response)
-    if not np.isfinite(shares_net) or not np.isfinite(stake_usdc) or shares_net <= 0.0:
-        return float("nan")
-    return float(stake_usdc / shares_net)
-
-
-def _submission_attempted(status):
-    return str(status) in {"submitted_fok", "submission_rejected", "submission_error"}
-
-
 def _backfill_record_analysis_fields(record):
     shares_from_response, stake_from_response = _extract_buy_fill_metrics_from_response(
         record.get("pm_order_response")
@@ -421,6 +415,11 @@ def _backfill_record_analysis_fields(record):
     record.setdefault("market_lookup_ms", np.nan)
     record.setdefault("submit_order_ms", np.nan)
     record.setdefault("execution_ms", np.nan)
+    record.setdefault("pm_fee_source", "")
+    record.setdefault("pm_fee_rate", np.nan)
+    record.setdefault("pm_fee_exponent", np.nan)
+    record.setdefault("pm_fee_round_decimals", np.nan)
+    record.setdefault("pm_min_fee_usdc", np.nan)
     record.setdefault("pm_exit_decision_at", None)
     record.setdefault("pm_exit_best_bid", np.nan)
     record.setdefault("pm_exit_seconds_to_close", np.nan)
@@ -429,11 +428,34 @@ def _backfill_record_analysis_fields(record):
     record.setdefault("pm_exit_redeem_pnl_usdc", np.nan)
     record.setdefault("pm_exit_min_allowed_pnl_usdc", np.nan)
 
+def _fee_model_from_record(record):
+    rate = _safe_float(record.get("pm_fee_rate"))
+    exponent = _safe_float(record.get("pm_fee_exponent"))
+    if not np.isfinite(rate) or rate < 0.0:
+        return None
+    if not np.isfinite(exponent) or exponent <= 0.0:
+        return None
 
-def _polymarket_fee_rate_from_bps(base_fee_bps):
-    # Crypto markets expose a base fee in bps, while the fee formula uses the
-    # corresponding fee-rate scalar. For Polymarket crypto this is 1000 bps -> 0.25.
-    return max(float(base_fee_bps), 0.0) / 4000.0
+    return normalize_polymarket_fee_model(
+        {
+            "rate": float(rate),
+            "exponent": float(exponent),
+            "fee_round_decimals": int(
+                _safe_float(
+                    record.get("pm_fee_round_decimals"),
+                    DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
+                )
+            ),
+            "min_fee": float(
+                _safe_float(
+                    record.get("pm_min_fee_usdc"),
+                    DEFAULT_POLYMARKET_MIN_FEE_USDC,
+                )
+            ),
+            "source": str(record.get("pm_fee_source", "trade_record") or "trade_record"),
+        },
+        context="trade record fee model",
+    )
 
 
 def _collateral_balance_to_usdc(raw_balance):
@@ -600,10 +622,9 @@ class PolymarketLiveTrader(LivePredictor):
         )
         self.predictions_path = self.pm_cfg.records_path
         self.predictions_path.parent.mkdir(parents=True, exist_ok=True)
+        self.market_data_path = build_live_market_data_path()
+        self.market_data_path.parent.mkdir(parents=True, exist_ok=True)
         self.records_state_path = self.predictions_path.with_suffix(".state.json")
-        self.execution_snapshots_path = build_execution_snapshots_path(
-            self.run_started_at_utc
-        )
 
         self.pm_session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=4)
@@ -1132,6 +1153,11 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_restricted": False,
             "pm_fees_enabled": False,
             "pm_fee_rate_bps": 0,
+            "pm_fee_source": "",
+            "pm_fee_rate": np.nan,
+            "pm_fee_exponent": np.nan,
+            "pm_fee_round_decimals": np.nan,
+            "pm_min_fee_usdc": np.nan,
             "pm_tick_size": np.nan,
             "pm_order_min_size": np.nan,
             "pm_order_price_cap": float(self.pm_cfg.order_price_cap),
@@ -1206,25 +1232,20 @@ class PolymarketLiveTrader(LivePredictor):
         with self.records_lock:
             self.records.extend(external_records)
 
-    def _estimate_sell_proceeds(self, shares, price, fee_rate_bps):
+    def _estimate_sell_proceeds(self, shares, price, fee_model):
         shares = float(shares)
         price = float(price)
-        fee_rate = _polymarket_fee_rate_from_bps(int(fee_rate_bps))
-        eff_rate = fee_rate * float(
-            (price * (1.0 - price)) ** POLYMARKET_CRYPTO_FEE_EXPONENT
-        )
-
         gross = shares * price
-        fee_raw = gross * eff_rate
-        fee = round(fee_raw, POLYMARKET_FEE_ROUND_DECIMALS)
-        if fee < POLYMARKET_MIN_FEE_USDC:
-            fee = 0.0
+        fee_result = polymarket_taker_fee_usdc_from_shares(shares, price, fee_model)
+        fee_raw = float(fee_result["fee_raw_usdc"])
+        fee = float(fee_result["fee_usdc"])
 
         return {
             "gross_usdc": float(gross),
             "fee_usdc": float(fee),
+            "fee_raw_usdc": float(fee_raw),
             "net_usdc": float(gross - fee),
-            "eff_rate": float(eff_rate),
+            "eff_rate": float(fee_result["eff_rate"]),
         }
 
     def _estimate_redeem_proceeds(self, shares):
@@ -1232,6 +1253,29 @@ class PolymarketLiveTrader(LivePredictor):
         if not np.isfinite(shares) or shares <= 0.0:
             return {"net_usdc": 0.0}
         return {"net_usdc": float(shares)}
+
+    def _resolve_record_fee_model(self, record):
+        stored_fee_model = _fee_model_from_record(record)
+        if stored_fee_model is not None:
+            return stored_fee_model
+
+        market_slug = _safe_text(record.get("pm_market_slug"))
+        if not market_slug:
+            return None
+
+        try:
+            market = self._get_json(self.pm_cfg.gamma_host, f"/markets/slug/{market_slug}")
+        except Exception:
+            return None
+
+        try:
+            return polymarket_fee_model_from_market(
+                market,
+                default_round_decimals=DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
+                default_min_fee=DEFAULT_POLYMARKET_MIN_FEE_USDC,
+            )
+        except ValueError:
+            return None
 
     def _collect_exit_candidates(self, open_positions):
         records_by_asset = {
@@ -1282,11 +1326,15 @@ class PolymarketLiveTrader(LivePredictor):
             if not np.isfinite(stake_usdc) or stake_usdc <= 0.0:
                 continue
 
+            fee_model = self._resolve_record_fee_model(rec)
+            if fee_model is None:
+                continue
+
             fee_rate_bps = int(rec.get("pm_fee_rate_bps", 0) or 0)
             proceeds = self._estimate_sell_proceeds(
                 shares=shares,
                 price=best_bid,
-                fee_rate_bps=fee_rate_bps,
+                fee_model=fee_model,
             )
             redeem = self._estimate_redeem_proceeds(shares=shares)
             redeem_pnl_usdc = float(redeem["net_usdc"] - stake_usdc)
@@ -1323,6 +1371,7 @@ class PolymarketLiveTrader(LivePredictor):
                     "shares": float(shares),
                     "price": float(best_bid),
                     "fee_rate_bps": fee_rate_bps,
+                    "fee_model": fee_model,
                     "tick_size": rec.get("pm_tick_size"),
                     "neg_risk": False,
                     "stake_usdc": float(stake_usdc),
@@ -1940,6 +1989,11 @@ class PolymarketLiveTrader(LivePredictor):
         up_book = up_book_future.result()
         down_book = down_book_future.result()
         fee_rate_bps = fee_rate_future.result()
+        fee_model = polymarket_fee_model_from_market(
+            market,
+            default_round_decimals=DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
+            default_min_fee=DEFAULT_POLYMARKET_MIN_FEE_USDC,
+        )
 
         return PolymarketMarketSnapshot(
             market_slug=market_slug,
@@ -1964,6 +2018,7 @@ class PolymarketLiveTrader(LivePredictor):
             or bool(up_book.get("neg_risk"))
             or bool(down_book.get("neg_risk")),
             fee_rate_bps=fee_rate_bps,
+            fee_model=fee_model,
             up_token_id=up_token_id,
             down_token_id=down_token_id,
             up_best_bid=_safe_float(up_book.get("best_bid")),
@@ -2012,12 +2067,11 @@ class PolymarketLiveTrader(LivePredictor):
         prob_win_raw,
         prob_win_adj,
         price,
+        fee_model,
         fee_rate_bps,
         order_min_size,
     ):
-        fee_rate = _polymarket_fee_rate_from_bps(int(fee_rate_bps))
-        fee_exponent = POLYMARKET_CRYPTO_FEE_EXPONENT
-        eff_rate = fee_rate * float((price * (1.0 - price)) ** fee_exponent)
+        eff_rate = float(polymarket_taker_fee_fraction_of_notional(price, fee_model))
         if eff_rate >= 0.99:
             return {"reason": "eff_rate_too_high", "side": side, "token_id": token_id}
 
@@ -2031,10 +2085,9 @@ class PolymarketLiveTrader(LivePredictor):
         stake = float(self.live_bankroll_usdc) * fraction
         if np.isfinite(self.pm_cfg.max_exposure_usdc):
             stake = min(stake, float(self.pm_cfg.max_exposure_usdc))
-        fee_raw = stake * eff_rate
-        fee = round(fee_raw, POLYMARKET_FEE_ROUND_DECIMALS)
-        if fee < POLYMARKET_MIN_FEE_USDC:
-            fee = 0.0
+        fee_result = polymarket_taker_fee_usdc_from_notional(stake, price, fee_model)
+        fee_raw = float(fee_result["fee_raw_usdc"])
+        fee = float(fee_result["fee_usdc"])
 
         shares_net = (stake - fee) / price if price > 0.0 else 0.0
         return {
@@ -2054,6 +2107,7 @@ class PolymarketLiveTrader(LivePredictor):
             "eff_rate": float(eff_rate),
             "order_min_size": float(order_min_size),
             "fee_rate_bps": int(fee_rate_bps),
+            "fee_model": fee_model,
         }
 
     def _recommend_polymarket_bet(self, prob_up_raw, market):
@@ -2089,6 +2143,7 @@ class PolymarketLiveTrader(LivePredictor):
                     prob_win_raw=float(prob_up_raw),
                     prob_win_adj=float(p),
                     price=float(market.up_best_ask),
+                    fee_model=market.fee_model,
                     fee_rate_bps=int(market.fee_rate_bps),
                     order_min_size=float(market.order_min_size),
                 )
@@ -2101,6 +2156,7 @@ class PolymarketLiveTrader(LivePredictor):
                     prob_win_raw=float(prob_up_raw),
                     prob_win_adj=float(1.0 - p),
                     price=float(market.down_best_ask),
+                    fee_model=market.fee_model,
                     fee_rate_bps=int(market.fee_rate_bps),
                     order_min_size=float(market.order_min_size),
                 )
@@ -2126,10 +2182,6 @@ class PolymarketLiveTrader(LivePredictor):
         if float(best["bet_usdc"]) < float(self.live_kelly_sizing["min_stake_usdc"]):
             best["reason"] = "stake_below_min"
             return best
-        if float(best["entry_price"]) > float(self.pm_cfg.order_price_cap):
-            best["reason"] = "price_above_order_cap"
-            best["order_price_cap"] = float(self.pm_cfg.order_price_cap)
-            return best
         if float(best["fee_usdc"]) >= float(best["bet_usdc"]):
             best["reason"] = "fee_ge_stake"
             return best
@@ -2140,6 +2192,7 @@ class PolymarketLiveTrader(LivePredictor):
         best["tick_size"] = float(market.tick_size)
         best["neg_risk"] = bool(market.neg_risk)
         best["order_price_cap"] = float(self.pm_cfg.order_price_cap)
+        best["submitted_price"] = float(best["entry_price"])
         return best
 
     def _submit_result(
@@ -2218,7 +2271,12 @@ class PolymarketLiveTrader(LivePredictor):
                     token_id=str(intent["token_id"]),
                     amount=float(intent["bet_usdc"]),
                     side=BUY,
-                    price=float(intent.get("order_price_cap", self.pm_cfg.order_price_cap)),
+                    price=float(
+                        intent.get(
+                            "submitted_price",
+                            intent.get("entry_price", self.pm_cfg.order_price_cap),
+                        )
+                    ),
                     fee_rate_bps=int(intent.get("fee_rate_bps", 0) or 0),
                     order_type=OrderType.FOK,
                 )
@@ -2348,97 +2406,6 @@ class PolymarketLiveTrader(LivePredictor):
             "execution_ms": _elapsed_ms(execution_started_perf),
         }
 
-    def _build_execution_snapshot_row(
-        self,
-        *,
-        decision_opened,
-        bucket_start,
-        bucket_end,
-        proba_up_raw,
-        market,
-        intent,
-        submit_result,
-    ):
-        submit_status = str(submit_result.get("status", "") or "")
-        submission_attempted = _submission_attempted(submit_status)
-        filled_price = _filled_price_from_order_response(
-            submit_result.get("response_text", "")
-        )
-        if not np.isfinite(filled_price):
-            filled_price = np.nan
-
-        return {
-            "logged_at_utc": _utc_now(),
-            "run_started_at_utc": self.run_started_at_utc,
-            "decision_opened": decision_opened,
-            "bucket_start": bucket_start,
-            "bucket_end": bucket_end,
-            "series_slug": self.pm_cfg.series_slug,
-            "market_slug": "" if market is None else str(market.market_slug),
-            "up_token_id": "" if market is None else str(market.up_token_id),
-            "down_token_id": "" if market is None else str(market.down_token_id),
-            "proba_up_raw": float(proba_up_raw),
-            "proba_up_kelly_input": float(
-                adjust_probability_for_kelly(
-                    float(proba_up_raw),
-                    min_clip=1e-6,
-                )
-            ),
-            "up_ask_price": np.nan if market is None else float(market.up_best_ask),
-            "up_ask_size": (
-                np.nan if market is None else float(market.up_best_ask_size)
-            ),
-            "down_ask_price": np.nan if market is None else float(market.down_best_ask),
-            "down_ask_size": (
-                np.nan if market is None else float(market.down_best_ask_size)
-            ),
-            "order_price_cap": float(
-                intent.get("order_price_cap", self.pm_cfg.order_price_cap)
-            ),
-            "selected_side": str(intent.get("side", "")),
-            "selected_edge": float(intent.get("edge", np.nan)),
-            "selected_fraction": float(intent.get("fraction", np.nan)),
-            "stake_usdc_intended": float(intent.get("bet_usdc", np.nan)),
-            "trade_allowed": bool(intent.get("reason") == "ok"),
-            "submission_attempted": bool(submission_attempted),
-            "submission_success": bool(submit_status == "submitted_fok"),
-            "submitted_price": (
-                float(intent.get("order_price_cap", self.pm_cfg.order_price_cap))
-                if submission_attempted
-                else np.nan
-            ),
-            "filled_price": float(filled_price),
-            "execution_mode": (
-                f"{'paper' if self.pm_cfg.paper_mode else 'live'}_"
-                f"{self.pm_cfg.execution_mode}"
-            ),
-        }
-
-    def _append_execution_snapshot(
-        self,
-        *,
-        decision_opened,
-        bucket_start,
-        bucket_end,
-        proba_up_raw,
-        market,
-        intent,
-        submit_result,
-    ):
-        snapshot_row = self._build_execution_snapshot_row(
-            decision_opened=decision_opened,
-            bucket_start=bucket_start,
-            bucket_end=bucket_end,
-            proba_up_raw=proba_up_raw,
-            market=market,
-            intent=intent,
-            submit_result=submit_result,
-        )
-        try:
-            append_execution_snapshot(self.execution_snapshots_path, snapshot_row)
-        except Exception as exc:
-            print(f"[pm] execution snapshot write failed: {exc}")
-
     def _build_prediction_record(
         self,
         *,
@@ -2458,6 +2425,7 @@ class PolymarketLiveTrader(LivePredictor):
         execution_ms,
     ):
         order_status = str(submit_result["status"])
+        btc_snapshot = self._latest_btc_snapshot()
 
         return {
             "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
@@ -2490,6 +2458,8 @@ class PolymarketLiveTrader(LivePredictor):
             "kelly_eff_rate": float(intent.get("eff_rate", np.nan)),
             "price_eps": np.nan,
             "price_slip": np.nan,
+            "up_price": np.nan if market is None else float(market.up_best_ask),
+            "down_price": np.nan if market is None else float(market.down_best_ask),
             "bankroll_before_entry": float(bankroll_before_entry),
             "bankroll_after_entry": float(bankroll_after_entry),
             "bankroll_before_entry_orig": float(bankroll_before_entry),
@@ -2498,6 +2468,11 @@ class PolymarketLiveTrader(LivePredictor):
             "trade_is_win": None,
             "payout_usdc": None,
             "pnl_usdc": None,
+            "btc_open": float(btc_snapshot["btc_open"]),
+            "btc_high": float(btc_snapshot["btc_high"]),
+            "btc_low": float(btc_snapshot["btc_low"]),
+            "btc_close": float(btc_snapshot["btc_close"]),
+            "btc_volume": float(btc_snapshot["btc_volume"]),
             "bucket_open_price": None,
             "bucket_close_price": None,
             "actual_up": None,
@@ -2517,6 +2492,41 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_restricted": False if market is None else market.restricted,
             "pm_fees_enabled": False if market is None else market.fees_enabled,
             "pm_fee_rate_bps": 0 if market is None else market.fee_rate_bps,
+            "pm_fee_source": (
+                ""
+                if market is None
+                else str(getattr(market, "fee_model", {}).get("source", ""))
+            ),
+            "pm_fee_rate": (
+                np.nan
+                if market is None
+                else float(getattr(market, "fee_model", {}).get("rate", np.nan))
+            ),
+            "pm_fee_exponent": (
+                np.nan
+                if market is None
+                else float(getattr(market, "fee_model", {}).get("exponent", np.nan))
+            ),
+            "pm_fee_round_decimals": (
+                np.nan
+                if market is None
+                else int(
+                    getattr(market, "fee_model", {}).get(
+                        "fee_round_decimals",
+                        DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
+                    )
+                )
+            ),
+            "pm_min_fee_usdc": (
+                np.nan
+                if market is None
+                else float(
+                    getattr(market, "fee_model", {}).get(
+                        "min_fee",
+                        DEFAULT_POLYMARKET_MIN_FEE_USDC,
+                    )
+                )
+            ),
             "pm_tick_size": np.nan if market is None else float(market.tick_size),
             "pm_order_min_size": (
                 np.nan if market is None else float(market.order_min_size)
@@ -2656,15 +2666,6 @@ class PolymarketLiveTrader(LivePredictor):
         decision_delay_ms = _delay_ms_since(bucket_start)
         intent = execution["intent"]
         submit_result = execution["submit_result"]
-        self._append_execution_snapshot(
-            decision_opened=minute_open,
-            bucket_start=bucket_start,
-            bucket_end=bucket_end,
-            proba_up_raw=proba_up,
-            market=execution["market"],
-            intent=intent,
-            submit_result=submit_result,
-        )
         stake_usdc = (
             float(intent.get("bet_usdc", 0.0) or 0.0)
             if bool(submit_result["commit_bankroll"])
@@ -2777,6 +2778,7 @@ class PolymarketLiveTrader(LivePredictor):
             for rec in records:
                 rec["record_id"] = _stable_record_id(rec)
                 rec["record_snapshot_at"] = snapshot_at
+                self._backfill_bucket_price_bounds(rec)
                 _backfill_record_analysis_fields(rec)
             write_records_csv(
                 records,
@@ -2784,6 +2786,16 @@ class PolymarketLiveTrader(LivePredictor):
                 export_columns=LIVE_TRADE_EXPORT_COLUMNS,
                 is_resolved=self._record_is_resolved,
                 is_traded=self._record_is_traded,
+            )
+            upsert_records_csv(
+                records,
+                self.market_data_path,
+                export_columns=LIVE_SHARED_MARKET_DATA_COLUMNS,
+                is_resolved=self._record_is_resolved,
+                is_traded=self._record_is_traded,
+                record_filter=lambda rec: str(rec.get("record_id", "")).startswith(
+                    "bucket:"
+                ),
             )
             write_records_state(records, self.records_state_path)
 
@@ -3009,7 +3021,7 @@ class PolymarketLiveTrader(LivePredictor):
         )
         print(f"Bankroll source: {self.bankroll_source}")
         print(f"Records file: {self.predictions_path}")
-        print(f"Execution snapshots file: {self.execution_snapshots_path}")
+        print(f"Shared market data file: {self.market_data_path}")
 
     def _on_message(self, _ws, message):
         with self.ws_message_lock:
