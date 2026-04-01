@@ -424,6 +424,15 @@ def _collect_to_date(
     return data_frames
 
 
+def _resolve_daily_update_start_date(requested_start_date, data_frames, fallback_date):
+    if data_frames:
+        last_frame = data_frames[-1]
+        if not last_frame.empty:
+            last_opened = pd.to_datetime(last_frame["Opened"].iloc[-1], errors="raise")
+            return max(requested_start_date, last_opened.date())
+    return max(requested_start_date, fallback_date)
+
+
 def by_BinanceVision(
     ticker="BTCBUSD",
     interval="1m",
@@ -592,9 +601,10 @@ def by_BinanceVision(
                 delta_itv="months",
             )
             today = date.today()
-            update_start_date = max(
-                requested_start_date,
-                date(year=today.year, month=today.month, day=1),
+            update_start_date = _resolve_daily_update_start_date(
+                requested_start_date=requested_start_date,
+                data_frames=data_frames,
+                fallback_date=date(year=today.year, month=today.month, day=1),
             )
         else:
             print(f"time() - last_timestamp {time() - last_timestamp}")
@@ -622,9 +632,10 @@ def by_BinanceVision(
             delta_itv="months",
         )
         today = date.today()
-        update_start_date = max(
-            requested_start_date,
-            date(year=today.year, month=today.month, day=1),
+        update_start_date = _resolve_daily_update_start_date(
+            requested_start_date=requested_start_date,
+            data_frames=data_frames,
+            fallback_date=date(year=today.year, month=today.month, day=1),
         )
 
     daily_url_prefix = url_prefix.replace("/monthly/", "/daily/")

@@ -14,6 +14,7 @@ credentials.py
 *.csv
 *.parquet
 data/_tmp/
+data/raw_datasets/analysis/raw_ohlcv_repair/
 
 data/analysis/*
 !data/analysis/.gitkeep
@@ -46,29 +47,15 @@ data/features/indicators_fit/all/**
 !data/features/indicators_fit/all/*.json
 !data/features/indicators_fit/all/**/*.json
 
+# Track feature modeling state snapshots, but ignore runtime/audit churn.
 data/features/state/*
 !data/features/state/.gitkeep
-!data/features/state/volume_profile/
-data/features/state/volume_profile/*
-!data/features/state/volume_profile/.gitkeep
-!data/features/state/volume_profile/runtime/
-!data/features/state/volume_profile/modeling/
-!data/features/state/volume_profile/audit_anchor/
-!data/features/state/volume_profile/pseudo_live_audit/
-data/features/state/volume_profile/runtime/*
-!data/features/state/volume_profile/runtime/.gitkeep
-data/features/state/volume_profile/modeling/*
-!data/features/state/volume_profile/modeling/.gitkeep
-data/features/state/volume_profile/audit_anchor/*
-!data/features/state/volume_profile/audit_anchor/.gitkeep
-data/features/state/volume_profile/pseudo_live_audit/*
-!data/features/state/volume_profile/pseudo_live_audit/.gitkeep
-!data/features/state/volume_profile/pseudo_live_audit/runtime/
-!data/features/state/volume_profile/pseudo_live_audit/modeling/
-data/features/state/volume_profile/pseudo_live_audit/runtime/*
-!data/features/state/volume_profile/pseudo_live_audit/runtime/.gitkeep
-data/features/state/volume_profile/pseudo_live_audit/modeling/*
-!data/features/state/volume_profile/pseudo_live_audit/modeling/.gitkeep
+!data/features/state/*/
+data/features/state/*/*
+!data/features/state/*/.gitkeep
+!data/features/state/*/modeling/
+!data/features/state/*/modeling/**
+!data/features/state/*/*/.gitkeep
 
 data/live/*
 !data/live/.gitkeep
