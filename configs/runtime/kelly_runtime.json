@@ -1,7 +1,7 @@
 {
-  "fractional_kelly": 0.9999995067416456,
-  "cap": 0.6812220985668184,
-  "min_edge": 8.032934146198027e-05,
+  "fractional_kelly": 0.9999980578314172,
+  "cap": 0.6752862975518079,
+  "min_edge": 3.742711447371784e-05,
   "kelly_min_stake_usdc": 1.0,
   "fee_model": {
     "source": "polymarket_fee_schedule_v2",
