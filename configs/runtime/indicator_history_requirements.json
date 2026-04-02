@@ -1,9 +1,9 @@
 {
-  "meta_path": "data\\models\\20260401_195915\\lgbm_meta_20260401_195915.json",
+  "meta_path": "data\\models\\20260401_210247\\lgbm_meta_20260401_210247.json",
   "fit_results_dir": "data\\features\\indicators_fit\\all",
   "analysis_summary_path": "data\\analysis\\indicator_stability\\summary.json",
   "analysis_report_path": "data\\analysis\\indicator_stability\\report.csv",
-  "unstable_feature_count": 1,
+  "unstable_feature_count": 0,
   "global_required_stable_window": 17497,
   "required_stable_window_by_feature": {
     "KeltnerChannel_fit_1m_pop128_atrmatypdema_atrmul8.813425_atrper346_maper200_matypkama_souhlc3_qe0.2_qm0.2_tf0.8_stmc_sg15": 2292,

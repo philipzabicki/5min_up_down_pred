@@ -83,7 +83,8 @@
           "BollingerBands_fit_60m_pop16_maper13_masouhl2_matyptema_stdmaper2000_stdmatypkama_stdmul4.252997_stdsouclose",
           "StochOsc_fit_6m_pop16_faskper606_slodmatypmama_slodper1880_slokmatypfba_slokper1103",
           "BollingerBands_fit_2m_pop128_maper43_masouhlcc4_matypnwmaunif_stdmaper1832_stdmatypkama_stdmul12.512697_stdsouhl2_qe0.1_qm0.2_tf0.8_stmc_sg15",
-          "BollingerBands_fit_7m_pop16_maper14_masouhigh_matypvwmapta_stdmaper1500_stdmatypkama_stdmul1.357975_stdsouhigh"
+          "BollingerBands_fit_7m_pop16_maper14_masouhigh_matypvwmapta_stdmaper1500_stdmatypkama_stdmul1.357975_stdsouhigh",
+          "ADX_fit_1m_pop128_adxper2_atrper1556_matypadxhma_matypatrmama_matypnegdmmama_matypposdmrma_negdmper74_posdmper667_qe0.1_qm0.3_tf0.8_stmc_sg20"
         ]
       },
       "train_lgbm": {
