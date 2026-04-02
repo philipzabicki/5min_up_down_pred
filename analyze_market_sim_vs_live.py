@@ -36,42 +36,39 @@ def load_live_trade_frame(csv_paths):
     frames = []
     for csv_path in csv_paths:
         frame = pd.read_csv(csv_path)
-        rename_map = {}
-        if "pm_up_best_ask" in frame.columns and "up_best_ask" not in frame.columns:
-            rename_map["pm_up_best_ask"] = "up_best_ask"
-        if "pm_down_best_ask" in frame.columns and "down_best_ask" not in frame.columns:
-            rename_map["pm_down_best_ask"] = "down_best_ask"
-        if "pm_tick_size" in frame.columns and "tick_size" not in frame.columns:
-            rename_map["pm_tick_size"] = "tick_size"
-        frame = frame.rename(columns=rename_map)
-
-        required_columns = {"up_best_ask", "down_best_ask", "actual_up"}
+        required_columns = {"pm_up_best_ask", "pm_down_best_ask", "actual_up"}
         missing = sorted(required_columns.difference(frame.columns))
         if missing:
             raise ValueError(f"{csv_path} is missing columns: {missing}")
 
-        keep_columns = ["up_best_ask", "down_best_ask", "actual_up"]
-        if "tick_size" in frame.columns:
-            keep_columns.append("tick_size")
+        keep_columns = ["pm_up_best_ask", "pm_down_best_ask", "actual_up"]
+        if "pm_tick_size" in frame.columns:
+            keep_columns.append("pm_tick_size")
 
         cleaned = frame.loc[:, keep_columns].copy()
         cleaned["source_csv"] = str(csv_path)
         frames.append(cleaned)
 
     live = pd.concat(frames, ignore_index=True)
-    live = live.dropna(subset=["up_best_ask", "down_best_ask", "actual_up"]).copy()
+    live = live.dropna(
+        subset=["pm_up_best_ask", "pm_down_best_ask", "actual_up"]
+    ).copy()
     live["actual_up"] = pd.to_numeric(live["actual_up"], errors="coerce")
     live = live[live["actual_up"].isin([0.0, 1.0])].copy()
     if live.empty:
         raise ValueError("No resolved live rows with asks and actual_up.")
 
     live["actual_up"] = live["actual_up"].astype(np.int8)
-    live["up_best_ask"] = pd.to_numeric(live["up_best_ask"], errors="coerce")
-    live["down_best_ask"] = pd.to_numeric(live["down_best_ask"], errors="coerce")
-    if "tick_size" in live.columns:
-        live["tick_size"] = pd.to_numeric(live["tick_size"], errors="coerce")
+    live["pm_up_best_ask"] = pd.to_numeric(live["pm_up_best_ask"], errors="coerce")
+    live["pm_down_best_ask"] = pd.to_numeric(
+        live["pm_down_best_ask"], errors="coerce"
+    )
+    if "pm_tick_size" in live.columns:
+        live["pm_tick_size"] = pd.to_numeric(live["pm_tick_size"], errors="coerce")
 
-    live = live.dropna(subset=["up_best_ask", "down_best_ask"]).reset_index(drop=True)
+    live = live.dropna(subset=["pm_up_best_ask", "pm_down_best_ask"]).reset_index(
+        drop=True
+    )
     if live.empty:
         raise ValueError("No usable live ask rows after numeric coercion.")
 
@@ -200,11 +197,11 @@ def main():
     live = live.iloc[:n_rows].copy()
 
     target = live["actual_up"].to_numpy(dtype=np.int8, copy=False)
-    live_up_ask = live["up_best_ask"].to_numpy(dtype=np.float64, copy=False)
-    live_down_ask = live["down_best_ask"].to_numpy(dtype=np.float64, copy=False)
+    live_up_ask = live["pm_up_best_ask"].to_numpy(dtype=np.float64, copy=False)
+    live_down_ask = live["pm_down_best_ask"].to_numpy(dtype=np.float64, copy=False)
     live_tick_size = (
-        live["tick_size"].to_numpy(dtype=np.float64, copy=False)
-        if "tick_size" in live.columns
+        live["pm_tick_size"].to_numpy(dtype=np.float64, copy=False)
+        if "pm_tick_size" in live.columns
         else float(market_price_sim_config["tick_size"])
     )
 

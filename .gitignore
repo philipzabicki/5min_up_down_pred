@@ -40,12 +40,7 @@ data/analysis/profile_ma_funcs/*
 data/features/indicators_fit/*
 !data/features/indicators_fit/.gitkeep
 !data/features/indicators_fit/all/
-
-data/features/indicators_fit/all/**
-!data/features/indicators_fit/all/.gitkeep
-!data/features/indicators_fit/all/**/
-!data/features/indicators_fit/all/*.json
-!data/features/indicators_fit/all/**/*.json
+!data/features/indicators_fit/all/**
 
 # Track feature modeling state snapshots, but ignore runtime/audit churn.
 data/features/state/*

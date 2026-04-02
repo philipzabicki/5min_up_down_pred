@@ -174,10 +174,13 @@ def build_market_price_sim_params(market_price_sim_config):
         raise ValueError("market_price_sim gap bounds must satisfy 0 <= gap_min <= gap_max.")
     if params["gap_gamma"] <= 0.0:
         raise ValueError("market_price_sim gap_gamma must be > 0.")
-    if not 0.0 <= params["p_correct_min"] <= params["p_correct_max"] <= 1.0:
+    if not (
+        0.0 <= params["p_correct_min"] <= 1.0
+        and 0.0 <= params["p_correct_max"] <= 1.0
+    ):
         raise ValueError(
             "market_price_sim p_correct bounds must satisfy "
-            "0 <= p_correct_min <= p_correct_max <= 1."
+            "0 <= p_correct_min <= 1 and 0 <= p_correct_max <= 1."
         )
     if (
         params["overround_min"] < 0.0
@@ -651,6 +654,8 @@ def sample_market_orderbook_arrays(
         size=n_rows,
     ).astype(np.float64, copy=False)
     abs_gap = gap_min + np.power(conviction, gap_gamma) * (gap_max - gap_min)
+    # Allow either slope sign so directional market skill can rise or fall with
+    # conviction while gap/overround remain conviction-linked.
     p_correct = p_correct_min + conviction * (p_correct_max - p_correct_min)
     overround = overround_min + np.power(conviction, overround_gamma) * (
         overround_max - overround_min

@@ -499,36 +499,7 @@ class PolymarketMarketSnapshot:
         self.__dict__.update(kwargs)
 
 
-def _path_compare_key(path):
-    return os.path.normcase(str(Path(path).resolve()))
-
-
-def resolve_polymarket_records_path(default_records_path, model_hash):
-    override_text = _env_text("POLY_RECORDS_PATH", "")
-    if not override_text:
-        return default_records_path
-
-    candidate = Path(override_text)
-    if _path_compare_key(candidate.parent) != _path_compare_key(LIVE_TRADE_DIR):
-        print(
-            "Ignoring POLY_RECORDS_PATH outside data/live/trade: "
-            f"{candidate}. Using default: {default_records_path}"
-        )
-        return default_records_path
-
-    required_model_token = f"model_{model_hash}"
-    if required_model_token not in candidate.stem:
-        print(
-            "Ignoring POLY_RECORDS_PATH without required model hash token "
-            f"'{required_model_token}': {candidate.name}. "
-            f"Using default: {default_records_path.name}"
-        )
-        return default_records_path
-
-    return candidate
-
-
-def load_polymarket_settings(default_records_path, model_hash):
+def load_polymarket_settings(trade_records_path):
     order_price_cap = _env_required_float("POLY_ORDER_PRICE_CAP")
     if not np.isfinite(order_price_cap) or not (0.0 < order_price_cap < 1.0):
         raise ValueError(
@@ -552,7 +523,7 @@ def load_polymarket_settings(default_records_path, model_hash):
         max_bankroll_usdc=_env_float("POLY_MAX_BANKROLL_USDC", math.inf),
         no_trade_last_seconds=_env_int("POLY_NO_TRADE_LAST_SECONDS", 20),
         start_bankroll_usdc=_env_float("POLY_START_BANKROLL_USDC", 1000.0),
-        records_path=resolve_polymarket_records_path(default_records_path, model_hash),
+        trade_records_path=Path(trade_records_path),
         market_request_timeout_sec=_env_float("POLY_MARKET_REQUEST_TIMEOUT_SEC", 3.0),
         clob_http_timeout_sec=_env_float(
             "POLY_CLOB_HTTP_TIMEOUT_SEC",
@@ -570,7 +541,6 @@ def load_polymarket_settings(default_records_path, model_hash):
         order_price_cap=float(order_price_cap),
         relayer_api_key=_env_text("POLY_RELAYER_API_KEY", ""),
         relayer_api_key_address=_env_text("POLY_RELAYER_API_KEY_ADDRESS", ""),
-        resume_existing_records=_env_bool("POLY_RESUME_EXISTING_RECORDS", True),
         import_untracked_open_positions=_env_bool(
             "POLY_IMPORT_UNTRACKED_OPEN_POSITIONS", False
         ),
@@ -588,7 +558,7 @@ def load_polymarket_settings(default_records_path, model_hash):
 class PolymarketLiveTrader(LivePredictor):
     def __init__(self):
         super().__init__()
-        default_records_path = build_live_trade_records_path(
+        default_trade_records_path = build_live_trade_records_path(
             live_trade_dir=LIVE_TRADE_DIR,
             symbol=SYMBOL,
             interval=INTERVAL,
@@ -597,7 +567,7 @@ class PolymarketLiveTrader(LivePredictor):
             kelly_config_hash=self.kelly_config_hash,
             modeling_dataset_config_hash=self.modeling_dataset_config_hash,
         )
-        self.pm_cfg = load_polymarket_settings(default_records_path, self.model_hash)
+        self.pm_cfg = load_polymarket_settings(default_trade_records_path)
         _configure_clob_http_client(self.pm_cfg.clob_http_timeout_sec)
         self.live_kelly_sizing = {
             "fractional_kelly": float(self.kelly_runtime["fractional_kelly"]),
@@ -620,11 +590,13 @@ class PolymarketLiveTrader(LivePredictor):
         self.live_bankroll_usdc = self._capped_trading_bankroll_usdc(
             self.pm_cfg.start_bankroll_usdc
         )
-        self.predictions_path = self.pm_cfg.records_path
-        self.predictions_path.parent.mkdir(parents=True, exist_ok=True)
+        self.trade_records_path = self.pm_cfg.trade_records_path
+        self.trade_records_path.parent.mkdir(parents=True, exist_ok=True)
         self.market_data_path = build_live_market_data_path()
         self.market_data_path.parent.mkdir(parents=True, exist_ok=True)
-        self.records_state_path = self.predictions_path.with_suffix(".state.json")
+        self.trade_records_state_path = self.trade_records_path.with_suffix(
+            ".state.json"
+        )
 
         self.pm_session = requests.Session()
         adapter = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=4)
@@ -831,18 +803,11 @@ class PolymarketLiveTrader(LivePredictor):
         return balance_usdc
 
     def _load_existing_records(self):
-        if not self.pm_cfg.resume_existing_records:
-            return
-
-        if not self.records_state_path.exists():
-            if self.predictions_path.exists():
-                print(
-                    f"[pm] state file missing, skipping resume: {self.records_state_path}"
-                )
+        if not self.trade_records_state_path.exists():
             return
 
         try:
-            loaded_records = read_records_state(self.records_state_path)
+            loaded_records = read_records_state(self.trade_records_state_path)
         except Exception as exc:
             print(f"[pm] failed to load existing state: {exc}")
             return
@@ -2782,7 +2747,7 @@ class PolymarketLiveTrader(LivePredictor):
                 _backfill_record_analysis_fields(rec)
             write_records_csv(
                 records,
-                self.predictions_path,
+                self.trade_records_path,
                 export_columns=LIVE_TRADE_EXPORT_COLUMNS,
                 is_resolved=self._record_is_resolved,
                 is_traded=self._record_is_traded,
@@ -2797,7 +2762,7 @@ class PolymarketLiveTrader(LivePredictor):
                     "bucket:"
                 ),
             )
-            write_records_state(records, self.records_state_path)
+            write_records_state(records, self.trade_records_state_path)
 
     @staticmethod
     def _print_log_fields(section, fields):
@@ -2987,7 +2952,7 @@ class PolymarketLiveTrader(LivePredictor):
             f"settlement_source={self.settlement_source} "
             f"execution_mode={self.pm_cfg.execution_mode} "
             f"order_price_cap={self.pm_cfg.order_price_cap:.3f} "
-            f"records={self.predictions_path}"
+            f"records={self.trade_records_path}"
         )
         print(
             "Websocket targets | "
@@ -3020,7 +2985,7 @@ class PolymarketLiveTrader(LivePredictor):
             f"exit_redeem_profit_tolerance={self.pm_cfg.exit_redeem_profit_tolerance:.4f}"
         )
         print(f"Bankroll source: {self.bankroll_source}")
-        print(f"Records file: {self.predictions_path}")
+        print(f"Records file: {self.trade_records_path}")
         print(f"Shared market data file: {self.market_data_path}")
 
     def _on_message(self, _ws, message):
