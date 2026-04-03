@@ -96,33 +96,33 @@
   },
   "score_weights": {
     "seed": {
-      "mean": 0.50,
+      "mean": 0.45,
       "q10": 0.25,
-      "min": 0.15,
+      "min": 0.2,
       "q90_drawdown_penalty": 0.1
     },
     "aggregate": {
       "mean": 0.50,
-      "q10": 0.35,
-      "min": 0.15
+      "q10": 0.3,
+      "min": 0.2
     }
   },
   "market_price_sim": {
     "model": "latent_conviction_directional",
-    "conviction_beta_alpha": 1.9,
-    "conviction_beta_beta": 2.7,
-    "gap_min": 0.0,
-    "gap_max": 0.41,
-    "gap_gamma": 2.7,
-    "p_correct_min": 0.48,
-    "p_correct_max": 0.43,
-    "overround_min": 0.009,
-    "overround_max": 0.057,
-    "overround_gamma": 1.8,
+    "conviction_beta_alpha": 1.3883273681401471,
+    "conviction_beta_beta": 2.4257579556594595,
+    "gap_min": 0.004492059447683594,
+    "gap_max": 0.20660516683444427,
+    "gap_gamma": 1.0412126882838617,
+    "p_correct_min": 0.55,
+    "p_correct_max": 0.515,
+    "overround_min": 0.017528325626285625,
+    "overround_max": 0.02364985283889473,
+    "overround_gamma": 0.5059660081248498,
     "tick_size": 0.01,
     "eps": 1e-06,
     "sim_order_min_size_shares": 1.0,
-    "policy": "optimizer-only latent-conviction market simulator; conviction ~ Beta(alpha, beta), then conviction jointly controls abs_gap and overround while p_correct is linearly interpolated between the configured endpoints and may increase or decrease with conviction before asks are rounded to market tick size; live runtime still uses real Polymarket orderbook quotes"
+    "policy": "optimizer-only latent-conviction market simulator calibrated on deduped live Polymarket asks/outcomes across data/live/trade plus data/live/polymarket_5m.csv; conviction ~ Beta(alpha, beta), jointly controls abs_gap and overround, p_correct is linearly interpolated between the configured endpoints, and execution-size gating remains an explicit optimizer assumption rather than something inferred from live orderbook snapshots while live runtime still uses real Polymarket orderbook quotes"
   },
   "model_proba_error_sim": {
     "enabled": false,
