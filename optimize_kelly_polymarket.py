@@ -10,6 +10,11 @@ from numba import njit
 
 from common_config_utils import load_json_object
 from kelly_utils import adjust_probability_for_kelly
+from market_price_sim import (
+    DEFAULT_SHARED_CSV_PATH,
+    DEFAULT_TRADE_CSV_GLOB,
+    sample_market_orderbook_arrays as shared_sample_market_orderbook_arrays,
+)
 from modeling_dataset_utils import (
     load_modeling_dataset_settings,
     resolve_oof_prediction_output_paths,
@@ -119,47 +124,9 @@ def _require_optimizer_weight_map(payload, key, *, expected_keys, context=None):
 
 def build_market_price_sim_params(market_price_sim_config):
     model = str(market_price_sim_config["model"])
-    if model != "latent_conviction_directional":
-        raise ValueError(
-            "Optimizer config market_price_sim.model must be "
-            "'latent_conviction_directional'. "
-            f"Found '{model}'."
-        )
-
-    params = {
+    common_params = {
         "model": model,
-        "conviction_beta_alpha": _require_optimizer_float(
-            market_price_sim_config,
-            "conviction_beta_alpha",
-        ),
-        "conviction_beta_beta": _require_optimizer_float(
-            market_price_sim_config,
-            "conviction_beta_beta",
-        ),
-        "gap_min": _require_optimizer_float(market_price_sim_config, "gap_min"),
-        "gap_max": _require_optimizer_float(market_price_sim_config, "gap_max"),
-        "gap_gamma": _require_optimizer_float(market_price_sim_config, "gap_gamma"),
-        "p_correct_min": _require_optimizer_float(
-            market_price_sim_config,
-            "p_correct_min",
-        ),
-        "p_correct_max": _require_optimizer_float(
-            market_price_sim_config,
-            "p_correct_max",
-        ),
-        "overround_min": _require_optimizer_float(
-            market_price_sim_config,
-            "overround_min",
-        ),
-        "overround_max": _require_optimizer_float(
-            market_price_sim_config,
-            "overround_max",
-        ),
-        "overround_gamma": _require_optimizer_float(
-            market_price_sim_config,
-            "overround_gamma",
-        ),
-        "tick_size": _require_optimizer_float(market_price_sim_config, "tick_size"),
+        "tick_size": float(market_price_sim_config.get("tick_size", 0.01)),
         "eps": _require_optimizer_float(market_price_sim_config, "eps"),
         "sim_order_min_size_shares": _require_optimizer_float(
             market_price_sim_config,
@@ -168,38 +135,181 @@ def build_market_price_sim_params(market_price_sim_config):
         "policy": str(market_price_sim_config["policy"]),
     }
 
-    if params["conviction_beta_alpha"] <= 0.0 or params["conviction_beta_beta"] <= 0.0:
-        raise ValueError("market_price_sim conviction beta params must be > 0.")
-    if params["gap_min"] < 0.0 or params["gap_max"] < params["gap_min"]:
-        raise ValueError("market_price_sim gap bounds must satisfy 0 <= gap_min <= gap_max.")
-    if params["gap_gamma"] <= 0.0:
-        raise ValueError("market_price_sim gap_gamma must be > 0.")
-    if not (
-        0.0 <= params["p_correct_min"] <= 1.0
-        and 0.0 <= params["p_correct_max"] <= 1.0
-    ):
-        raise ValueError(
-            "market_price_sim p_correct bounds must satisfy "
-            "0 <= p_correct_min <= 1 and 0 <= p_correct_max <= 1."
-        )
-    if (
-        params["overround_min"] < 0.0
-        or params["overround_max"] < params["overround_min"]
-    ):
-        raise ValueError(
-            "market_price_sim overround bounds must satisfy "
-            "0 <= overround_min <= overround_max."
-        )
-    if params["overround_gamma"] <= 0.0:
-        raise ValueError("market_price_sim overround_gamma must be > 0.")
-    if params["tick_size"] <= 0.0:
+    if common_params["tick_size"] <= 0.0:
         raise ValueError("market_price_sim tick_size must be > 0.")
-    if not 0.0 < params["eps"] < 0.5:
+    if not 0.0 < common_params["eps"] < 0.5:
         raise ValueError("market_price_sim eps must be in (0, 0.5).")
-    if params["sim_order_min_size_shares"] <= 0.0:
+    if common_params["sim_order_min_size_shares"] <= 0.0:
         raise ValueError("market_price_sim sim_order_min_size_shares must be > 0.")
 
-    return params
+    if model == "latent_conviction_directional":
+        params = {
+            **common_params,
+            "conviction_beta_alpha": _require_optimizer_float(
+                market_price_sim_config,
+                "conviction_beta_alpha",
+            ),
+            "conviction_beta_beta": _require_optimizer_float(
+                market_price_sim_config,
+                "conviction_beta_beta",
+            ),
+            "gap_min": _require_optimizer_float(market_price_sim_config, "gap_min"),
+            "gap_max": _require_optimizer_float(market_price_sim_config, "gap_max"),
+            "gap_gamma": _require_optimizer_float(market_price_sim_config, "gap_gamma"),
+            "p_correct_min": _require_optimizer_float(
+                market_price_sim_config,
+                "p_correct_min",
+            ),
+            "p_correct_max": _require_optimizer_float(
+                market_price_sim_config,
+                "p_correct_max",
+            ),
+            "overround_min": _require_optimizer_float(
+                market_price_sim_config,
+                "overround_min",
+            ),
+            "overround_max": _require_optimizer_float(
+                market_price_sim_config,
+                "overround_max",
+            ),
+            "overround_gamma": _require_optimizer_float(
+                market_price_sim_config,
+                "overround_gamma",
+            ),
+        }
+
+        if (
+            params["conviction_beta_alpha"] <= 0.0
+            or params["conviction_beta_beta"] <= 0.0
+        ):
+            raise ValueError("market_price_sim conviction beta params must be > 0.")
+        if params["gap_min"] < 0.0 or params["gap_max"] < params["gap_min"]:
+            raise ValueError(
+                "market_price_sim gap bounds must satisfy 0 <= gap_min <= gap_max."
+            )
+        if params["gap_gamma"] <= 0.0:
+            raise ValueError("market_price_sim gap_gamma must be > 0.")
+        if not (
+            0.0 <= params["p_correct_min"] <= 1.0
+            and 0.0 <= params["p_correct_max"] <= 1.0
+        ):
+            raise ValueError(
+                "market_price_sim p_correct bounds must satisfy "
+                "0 <= p_correct_min <= 1 and 0 <= p_correct_max <= 1."
+            )
+        if (
+            params["overround_min"] < 0.0
+            or params["overround_max"] < params["overround_min"]
+        ):
+            raise ValueError(
+                "market_price_sim overround bounds must satisfy "
+                "0 <= overround_min <= overround_max."
+            )
+        if params["overround_gamma"] <= 0.0:
+            raise ValueError("market_price_sim overround_gamma must be > 0.")
+        return params
+
+    if model == "constructive_confidence_calibrated":
+        recent_resolved_rows = market_price_sim_config.get("recent_resolved_rows")
+        params = {
+            **common_params,
+            "trade_csv_glob": str(
+                market_price_sim_config.get("trade_csv_glob", DEFAULT_TRADE_CSV_GLOB)
+            ),
+            "shared_csv_path": str(
+                market_price_sim_config.get("shared_csv_path", DEFAULT_SHARED_CSV_PATH)
+            ),
+            "confidence_quantile_bins": int(
+                market_price_sim_config.get("confidence_quantile_bins", 10)
+            ),
+            "recent_resolved_rows": (
+                None if recent_resolved_rows is None else int(recent_resolved_rows)
+            ),
+            "min_pool_rows": int(market_price_sim_config.get("min_pool_rows", 250)),
+            "smoothing_passes": int(market_price_sim_config.get("smoothing_passes", 1)),
+            "abs_gap_std_scale": float(
+                market_price_sim_config.get("abs_gap_std_scale", 0.8)
+            ),
+            "overround_std_scale": float(
+                market_price_sim_config.get("overround_std_scale", 0.8)
+            ),
+            "tie_rate_scale": float(
+                market_price_sim_config.get("tie_rate_scale", 0.4)
+            ),
+            "min_gap_ticks": float(market_price_sim_config.get("min_gap_ticks", 1.0)),
+            "correlation_shrink": float(
+                market_price_sim_config.get("correlation_shrink", 1.0)
+            ),
+        }
+        if not params["trade_csv_glob"].strip():
+            raise ValueError("market_price_sim trade_csv_glob must be non-empty.")
+        if not params["shared_csv_path"].strip():
+            raise ValueError("market_price_sim shared_csv_path must be non-empty.")
+        if params["confidence_quantile_bins"] < 2:
+            raise ValueError("market_price_sim confidence_quantile_bins must be >= 2.")
+        if (
+            params["recent_resolved_rows"] is not None
+            and params["recent_resolved_rows"] <= 0
+        ):
+            raise ValueError("market_price_sim recent_resolved_rows must be > 0.")
+        if params["min_pool_rows"] <= 0:
+            raise ValueError("market_price_sim min_pool_rows must be > 0.")
+        if params["smoothing_passes"] < 0:
+            raise ValueError("market_price_sim smoothing_passes must be >= 0.")
+        if params["abs_gap_std_scale"] < 0.0:
+            raise ValueError("market_price_sim abs_gap_std_scale must be >= 0.")
+        if params["overround_std_scale"] < 0.0:
+            raise ValueError("market_price_sim overround_std_scale must be >= 0.")
+        if params["tie_rate_scale"] < 0.0:
+            raise ValueError("market_price_sim tie_rate_scale must be >= 0.")
+        if params["min_gap_ticks"] < 0.0:
+            raise ValueError("market_price_sim min_gap_ticks must be >= 0.")
+        if not 0.0 <= params["correlation_shrink"] <= 1.0:
+            raise ValueError(
+                "market_price_sim correlation_shrink must be in [0, 1]."
+            )
+        return params
+
+    raise ValueError(
+        "Optimizer config market_price_sim.model must be one of "
+        "['latent_conviction_directional', 'constructive_confidence_calibrated']. "
+        f"Found '{model}'."
+    )
+
+
+def build_market_price_sim_log_line(price_sim_config):
+    model = str(price_sim_config["model"])
+    common = (
+        f"model={model} "
+        f"tick_size={float(price_sim_config['tick_size']):.4f} "
+        f"eps={float(price_sim_config['eps']):.8f} "
+        f"sim_order_min_size_shares={float(price_sim_config['sim_order_min_size_shares']):.4f}"
+    )
+    if model == "latent_conviction_directional":
+        return (
+            f"{common} "
+            f"conviction_beta_alpha={float(price_sim_config['conviction_beta_alpha']):.3f} "
+            f"conviction_beta_beta={float(price_sim_config['conviction_beta_beta']):.3f} "
+            f"gap=[{float(price_sim_config['gap_min']):.6f},{float(price_sim_config['gap_max']):.6f}] "
+            f"gap_gamma={float(price_sim_config['gap_gamma']):.3f} "
+            f"p_correct=[{float(price_sim_config['p_correct_min']):.3f},{float(price_sim_config['p_correct_max']):.3f}] "
+            f"overround=[{float(price_sim_config['overround_min']):.6f},{float(price_sim_config['overround_max']):.6f}] "
+            f"overround_gamma={float(price_sim_config['overround_gamma']):.3f}"
+        )
+    return (
+        f"{common} "
+        f"trade_csv_glob={price_sim_config['trade_csv_glob']} "
+        f"shared_csv_path={price_sim_config['shared_csv_path']} "
+        f"confidence_quantile_bins={int(price_sim_config['confidence_quantile_bins'])} "
+        f"recent_resolved_rows={price_sim_config['recent_resolved_rows']} "
+        f"min_pool_rows={int(price_sim_config['min_pool_rows'])} "
+        f"smoothing_passes={int(price_sim_config['smoothing_passes'])} "
+        f"abs_gap_std_scale={float(price_sim_config['abs_gap_std_scale']):.3f} "
+        f"overround_std_scale={float(price_sim_config['overround_std_scale']):.3f} "
+        f"tie_rate_scale={float(price_sim_config['tie_rate_scale']):.3f} "
+        f"min_gap_ticks={float(price_sim_config['min_gap_ticks']):.3f} "
+        f"correlation_shrink={float(price_sim_config['correlation_shrink']):.3f}"
+    )
 
 
 EXPECTED_TRIAL_PARAMS = {"fractional_kelly", "cap", "min_edge"}
@@ -623,78 +733,19 @@ def sample_market_orderbook_arrays(
     target,
     scenario_seed,
     price_sim_config,
+    p_raw=None,
 ):
-    target = np.asarray(target, dtype=np.int8)
-    if target.ndim != 1:
-        raise ValueError("target must be a 1D array.")
-    if len(target) == 0:
-        raise ValueError("target must be non-empty.")
-    if not np.isin(np.unique(target), [0, 1]).all():
-        raise ValueError("target must contain only 0/1 values.")
-
-    rng = np.random.default_rng(int(scenario_seed))
-    n_rows = len(target)
-    conviction_beta_alpha = float(price_sim_config["conviction_beta_alpha"])
-    conviction_beta_beta = float(price_sim_config["conviction_beta_beta"])
-    gap_min = float(price_sim_config["gap_min"])
-    gap_max = float(price_sim_config["gap_max"])
-    gap_gamma = float(price_sim_config["gap_gamma"])
-    p_correct_min = float(price_sim_config["p_correct_min"])
-    p_correct_max = float(price_sim_config["p_correct_max"])
-    overround_min = float(price_sim_config["overround_min"])
-    overround_max = float(price_sim_config["overround_max"])
-    overround_gamma = float(price_sim_config["overround_gamma"])
-    tick_size = float(price_sim_config["tick_size"])
-    eps = float(price_sim_config["eps"])
-    sim_order_min_size_shares = float(price_sim_config["sim_order_min_size_shares"])
-
-    conviction = rng.beta(
-        conviction_beta_alpha,
-        conviction_beta_beta,
-        size=n_rows,
-    ).astype(np.float64, copy=False)
-    abs_gap = gap_min + np.power(conviction, gap_gamma) * (gap_max - gap_min)
-    # Allow either slope sign so directional market skill can rise or fall with
-    # conviction while gap/overround remain conviction-linked.
-    p_correct = p_correct_min + conviction * (p_correct_max - p_correct_min)
-    overround = overround_min + np.power(conviction, overround_gamma) * (
-        overround_max - overround_min
+    sampled_orderbook = shared_sample_market_orderbook_arrays(
+        target=target,
+        scenario_seed=scenario_seed,
+        price_sim_config=price_sim_config,
+        p_raw=p_raw,
     )
-    direction_is_correct = rng.random(n_rows).astype(np.float64, copy=False) < p_correct
-    direction_sign = np.where(direction_is_correct, 1.0, -1.0)
-
-    winner_ask = 0.5 + abs_gap / 2.0 + overround / 2.0
-    loser_ask = 0.5 - abs_gap / 2.0 + overround / 2.0
-    winner_is_up = (
-        ((target == 1) & (direction_sign > 0.0))
-        | ((target == 0) & (direction_sign < 0.0))
-    )
-    up_ask = np.where(winner_is_up, winner_ask, loser_ask)
-    down_ask = np.where(winner_is_up, loser_ask, winner_ask)
-    up_ask = np.clip(up_ask, eps, 1.0 - eps)
-    down_ask = np.clip(down_ask, eps, 1.0 - eps)
-    up_ask = np.round(up_ask / tick_size) * tick_size
-    down_ask = np.round(down_ask / tick_size) * tick_size
-    up_ask = np.clip(up_ask, eps, 1.0 - eps)
-    down_ask = np.clip(down_ask, eps, 1.0 - eps)
-
-    return {
-        "conviction": conviction,
-        "abs_gap": abs_gap,
-        "p_correct": p_correct,
-        "overround": overround,
-        "winner_ask": winner_ask,
-        "loser_ask": loser_ask,
-        "up_ask": up_ask,
-        "down_ask": down_ask,
-        "direction_is_correct": direction_is_correct,
-        "direction_sign": direction_sign,
-        "sim_order_min_size_shares": np.full(
-            n_rows,
-            sim_order_min_size_shares,
-            dtype=np.float64,
-        ),
-    }
+    up_ask = np.asarray(sampled_orderbook["up_ask"], dtype=np.float64)
+    down_ask = np.asarray(sampled_orderbook["down_ask"], dtype=np.float64)
+    sampled_orderbook["abs_gap"] = np.abs(up_ask - down_ask)
+    sampled_orderbook["overround"] = up_ask + down_ask - 1.0
+    return sampled_orderbook
 
 
 def sample_model_proba_error_components(
@@ -721,6 +772,7 @@ def sample_model_proba_error_components(
 
 def build_trial_static_arrays(
     target,
+    p_raw,
     market_sim_seed,
     price_sim_config,
 ):
@@ -728,6 +780,7 @@ def build_trial_static_arrays(
         target=target,
         scenario_seed=market_sim_seed,
         price_sim_config=price_sim_config,
+        p_raw=p_raw,
     )
 
     up_ask = sampled_orderbook["up_ask"]
@@ -852,6 +905,7 @@ def slice_static_arrays(static_arrays, start_idx, end_idx):
 
 def build_market_sim_scenarios(
     target,
+    p_raw,
     split_idx,
     market_sim_seeds,
     price_sim_config,
@@ -861,6 +915,7 @@ def build_market_sim_scenarios(
     for market_sim_seed in market_sim_seeds:
         full_static_arrays = build_trial_static_arrays(
             target=target,
+            p_raw=p_raw,
             market_sim_seed=market_sim_seed,
             price_sim_config=price_sim_config,
         )
@@ -885,12 +940,14 @@ def build_market_sim_scenarios(
 
 def build_holdout_static_arrays_by_seed(
     target_holdout,
+    p_raw_holdout,
     market_sim_seeds,
     price_sim_config,
 ):
     return {
         int(market_sim_seed): build_trial_static_arrays(
             target=target_holdout,
+            p_raw=p_raw_holdout,
             market_sim_seed=market_sim_seed,
             price_sim_config=price_sim_config,
         )
@@ -1956,17 +2013,7 @@ def main():
 
     print(
         "market sim | "
-        f"model={price_sim_model} "
-        f"conviction_beta_alpha={price_sim_params['conviction_beta_alpha']:.3f} "
-        f"conviction_beta_beta={price_sim_params['conviction_beta_beta']:.3f} "
-        f"gap=[{price_sim_params['gap_min']:.6f},{price_sim_params['gap_max']:.6f}] "
-        f"gap_gamma={price_sim_params['gap_gamma']:.3f} "
-        f"p_correct=[{price_sim_params['p_correct_min']:.3f},{price_sim_params['p_correct_max']:.3f}] "
-        f"overround=[{price_sim_params['overround_min']:.6f},{price_sim_params['overround_max']:.6f}] "
-        f"overround_gamma={price_sim_params['overround_gamma']:.3f} "
-        f"tick_size={price_sim_params['tick_size']:.4f} "
-        f"eps={price_sim_params['eps']:.8f} "
-        f"sim_order_min_size_shares={price_sim_params['sim_order_min_size_shares']:.4f}"
+        f"{build_market_price_sim_log_line(price_sim_params)}"
     )
 
     print(
@@ -2012,6 +2059,7 @@ def main():
 
     market_sim_scenarios = build_market_sim_scenarios(
         target=target,
+        p_raw=p_raw,
         split_idx=split_idx,
         market_sim_seeds=cv_settings["market_sim_seeds"],
         price_sim_config=price_sim_params,
@@ -2140,6 +2188,7 @@ def main():
     )
     holdout_static_arrays_by_seed = build_holdout_static_arrays_by_seed(
         target_holdout=target_holdout,
+        p_raw_holdout=p_raw_holdout,
         market_sim_seeds=holdout_seed_union,
         price_sim_config=price_sim_params,
     )

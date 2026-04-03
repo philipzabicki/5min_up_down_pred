@@ -1063,6 +1063,7 @@ class PolymarketLiveTrader(LivePredictor):
         return {
             "record_id": f"external:{asset}" if asset else "",
             "pm_model_hash": self.model_hash,
+            "pm_kelly_hash": self.kelly_config_hash,
             "pm_run_started_at_utc": self.run_started_at_utc,
             "prediction_time": pd.Timestamp.now(tz="UTC"),
             "bucket_start": None,
@@ -2395,6 +2396,7 @@ class PolymarketLiveTrader(LivePredictor):
         return {
             "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
             "pm_model_hash": self.model_hash,
+            "pm_kelly_hash": self.kelly_config_hash,
             "pm_run_started_at_utc": self.run_started_at_utc,
             "prediction_time": _utc_now(),
             "bucket_start": bucket_start,

@@ -96,33 +96,34 @@
   },
   "score_weights": {
     "seed": {
-      "mean": 0.45,
+      "mean": 0.4,
       "q10": 0.25,
       "min": 0.2,
-      "q90_drawdown_penalty": 0.1
+      "q90_drawdown_penalty": 0.15
     },
     "aggregate": {
-      "mean": 0.50,
+      "mean": 0.45,
       "q10": 0.3,
-      "min": 0.2
+      "min": 0.25
     }
   },
   "market_price_sim": {
-    "model": "latent_conviction_directional",
-    "conviction_beta_alpha": 1.3883273681401471,
-    "conviction_beta_beta": 2.4257579556594595,
-    "gap_min": 0.004492059447683594,
-    "gap_max": 0.20660516683444427,
-    "gap_gamma": 1.0412126882838617,
-    "p_correct_min": 0.55,
-    "p_correct_max": 0.515,
-    "overround_min": 0.017528325626285625,
-    "overround_max": 0.02364985283889473,
-    "overround_gamma": 0.5059660081248498,
+    "model": "constructive_confidence_calibrated",
+    "trade_csv_glob": "data/live/trade/*.csv",
+    "shared_csv_path": "data/live/polymarket_5m.csv",
+    "confidence_quantile_bins": 10,
+    "recent_resolved_rows": null,
+    "min_pool_rows": 250,
+    "smoothing_passes": 1,
+    "abs_gap_std_scale": 0.8,
+    "overround_std_scale": 0.8,
+    "tie_rate_scale": 0.4,
+    "min_gap_ticks": 1.0,
+    "correlation_shrink": 1.0,
     "tick_size": 0.01,
     "eps": 1e-06,
     "sim_order_min_size_shares": 1.0,
-    "policy": "optimizer-only latent-conviction market simulator calibrated on deduped live Polymarket asks/outcomes across data/live/trade plus data/live/polymarket_5m.csv; conviction ~ Beta(alpha, beta), jointly controls abs_gap and overround, p_correct is linearly interpolated between the configured endpoints, and execution-size gating remains an explicit optimizer assumption rather than something inferred from live orderbook snapshots while live runtime still uses real Polymarket orderbook quotes"
+    "policy": "optimizer-only constructive market simulator calibrated on deduped resolved Polymarket rows across data/live/trade plus data/live/polymarket_5m.csv; confidence-quantile curves for abs_gap, overround, tie_rate and market-direction-correctness are fitted from live data, smoothed, then used to generate synthetic asks via correlated noise and target-relative direction mapping while live runtime still uses real Polymarket orderbook quotes"
   },
   "model_proba_error_sim": {
     "enabled": false,

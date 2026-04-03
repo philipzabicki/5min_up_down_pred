@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -28,6 +29,7 @@ LIVE_PREDICTION_EXPORT_COLUMNS = (
     "record_id",
     "record_snapshot_at",
     "pm_model_hash",
+    "pm_kelly_hash",
     "pm_run_started_at_utc",
     "prediction_time",
     "resolved_at",
@@ -91,6 +93,7 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
 LIVE_SHARED_MARKET_DATA_COLUMNS = (
     "record_id",
     "pm_model_hash",
+    "pm_kelly_hash",
     "pm_run_started_at_utc",
     "prediction_time",
     "resolved_at",
@@ -146,6 +149,16 @@ LIVE_SHARED_MARKET_DATA_COLUMNS = (
     "pnl_usdc",
 )
 
+LIVE_TRADE_RECORD_PATH_RE = re.compile(
+    r"^live_trade_polymarket_"
+    r"(?P<symbol>.+?)_"
+    r"(?P<interval>\d+[mhd])_"
+    r"model_(?P<model_hash>[0-9a-f]{12})_"
+    r"kelly_(?P<kelly_config_hash>[0-9a-f]{12})_"
+    r"modeling_(?P<modeling_dataset_config_hash>[0-9a-f]{12})_"
+    r"(?P<run_started_at_utc>\d{8}_\d{6})\.csv$"
+)
+
 
 def as_utc_timestamp(value):
     ts = pd.Timestamp(value)
@@ -190,6 +203,13 @@ def build_live_trade_records_path(
 
 def build_live_market_data_path(live_root_dir=LIVE_ROOT_DIR):
     return Path(live_root_dir) / LIVE_SHARED_MARKET_DATA_FILENAME
+
+
+def parse_live_trade_records_path(path):
+    match = LIVE_TRADE_RECORD_PATH_RE.match(Path(path).name)
+    if match is None:
+        return None
+    return dict(match.groupdict())
 
 
 def compute_running_win_rates(records, *, is_resolved, is_traded):

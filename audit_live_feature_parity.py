@@ -1,5 +1,6 @@
 import copy
 import json
+import os
 import time
 from collections import deque
 from pathlib import Path
@@ -90,6 +91,35 @@ AUDIT_DRILLDOWN_FEATURE = None
 AUDIT_TOP_N = 50
 AUDIT_PROGRESS_ENABLED = True
 AUDIT_PROGRESS_EVERY_STEPS = 60
+AUDIT_MAX_MEAN_PROBA_ABS_DIFF = None
+AUDIT_MAX_MAX_PROBA_ABS_DIFF = None
+AUDIT_MAX_SIGNAL_MISMATCH_RATE = None
+AUDIT_MAX_BUSINESS_MISMATCH_RATE = None
+
+
+def _env_optional_float(name, default=None):
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    return float(raw)
+
+
+AUDIT_MAX_MEAN_PROBA_ABS_DIFF = _env_optional_float(
+    "AUDIT_MAX_MEAN_PROBA_ABS_DIFF",
+    AUDIT_MAX_MEAN_PROBA_ABS_DIFF,
+)
+AUDIT_MAX_MAX_PROBA_ABS_DIFF = _env_optional_float(
+    "AUDIT_MAX_MAX_PROBA_ABS_DIFF",
+    AUDIT_MAX_MAX_PROBA_ABS_DIFF,
+)
+AUDIT_MAX_SIGNAL_MISMATCH_RATE = _env_optional_float(
+    "AUDIT_MAX_SIGNAL_MISMATCH_RATE",
+    AUDIT_MAX_SIGNAL_MISMATCH_RATE,
+)
+AUDIT_MAX_BUSINESS_MISMATCH_RATE = _env_optional_float(
+    "AUDIT_MAX_BUSINESS_MISMATCH_RATE",
+    AUDIT_MAX_BUSINESS_MISMATCH_RATE,
+)
 
 
 def _ensure_utc_opened(series):
@@ -184,6 +214,66 @@ def _format_duration(seconds):
     if hours > 0:
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
     return f"{minutes:02d}:{secs:02d}"
+
+
+def _summary_rate(count, total):
+    total = int(total)
+    if total <= 0:
+        return float("nan")
+    return float(count) / float(total)
+
+
+def _evaluate_guardrail_violations(summary):
+    decision_row_count = int(summary.get("decision_row_count", 0) or 0)
+    signal_mismatch_rate = float(
+        summary.get(
+            "signal_mismatch_rate",
+            _summary_rate(summary.get("rows_with_signal_mismatch", 0), decision_row_count),
+        )
+    )
+    business_mismatch_rate = float(
+        summary.get(
+            "business_decision_mismatch_rate",
+            _summary_rate(
+                summary.get("rows_with_business_decision_mismatch", 0),
+                decision_row_count,
+            ),
+        )
+    )
+
+    checks = [
+        (
+            AUDIT_MAX_MEAN_PROBA_ABS_DIFF,
+            "mean_proba_up_abs_diff",
+            float(summary.get("mean_proba_up_abs_diff", np.nan)),
+        ),
+        (
+            AUDIT_MAX_MAX_PROBA_ABS_DIFF,
+            "max_proba_up_abs_diff",
+            float(summary.get("max_proba_up_abs_diff", np.nan)),
+        ),
+        (
+            AUDIT_MAX_SIGNAL_MISMATCH_RATE,
+            "signal_mismatch_rate",
+            signal_mismatch_rate,
+        ),
+        (
+            AUDIT_MAX_BUSINESS_MISMATCH_RATE,
+            "business_decision_mismatch_rate",
+            business_mismatch_rate,
+        ),
+    ]
+
+    violations = []
+    for limit, label, value in checks:
+        if limit is None or not np.isfinite(float(limit)):
+            continue
+        if np.isfinite(value) and float(value) > float(limit):
+            violations.append(
+                f"{label}={float(value):.6f} exceeds limit={float(limit):.6f}"
+            )
+
+    return violations
 
 
 def _is_live_decision_opened(opened, bucket_minutes):
@@ -1426,8 +1516,16 @@ def build_matrix_comparison_report(
             (step_summary_df["finite_status_mismatch_count"] > 0).sum()
         ),
         "rows_with_signal_mismatch": int(step_summary_df["signal_mismatch"].sum()),
+        "signal_mismatch_rate": _summary_rate(
+            int(step_summary_df["signal_mismatch"].sum()),
+            len(audit_df),
+        ),
         "rows_with_business_decision_mismatch": int(
             step_summary_df["business_decision_mismatch"].sum()
+        ),
+        "business_decision_mismatch_rate": _summary_rate(
+            int(step_summary_df["business_decision_mismatch"].sum()),
+            len(audit_df),
         ),
         "max_feature_abs_diff": float(step_summary_df["feature_max_abs_diff"].max()),
         "mean_feature_abs_diff": float(step_summary_df["feature_mean_abs_diff"].mean()),
@@ -1447,17 +1545,37 @@ def build_matrix_comparison_report(
                 "rows_with_kelly_side_mismatch": int(
                     step_summary_df["kelly_side_mismatch"].sum()
                 ),
+                "kelly_side_mismatch_rate": _summary_rate(
+                    int(step_summary_df["kelly_side_mismatch"].sum()),
+                    len(audit_df),
+                ),
                 "rows_with_kelly_reason_mismatch": int(
                     step_summary_df["kelly_reason_mismatch"].sum()
+                ),
+                "kelly_reason_mismatch_rate": _summary_rate(
+                    int(step_summary_df["kelly_reason_mismatch"].sum()),
+                    len(audit_df),
                 ),
                 "rows_with_kelly_trade_flag_mismatch": int(
                     step_summary_df["kelly_trade_flag_mismatch"].sum()
                 ),
+                "kelly_trade_flag_mismatch_rate": _summary_rate(
+                    int(step_summary_df["kelly_trade_flag_mismatch"].sum()),
+                    len(audit_df),
+                ),
                 "rows_with_stake_only_kelly_mismatch": int(
                     step_summary_df["stake_only_kelly_mismatch"].sum()
                 ),
+                "stake_only_kelly_mismatch_rate": _summary_rate(
+                    int(step_summary_df["stake_only_kelly_mismatch"].sum()),
+                    len(audit_df),
+                ),
                 "rows_with_any_kelly_mismatch": int(
                     step_summary_df["kelly_decision_mismatch"].sum()
+                ),
+                "any_kelly_mismatch_rate": _summary_rate(
+                    int(step_summary_df["kelly_decision_mismatch"].sum()),
+                    len(audit_df),
                 ),
                 "max_kelly_stake_abs_diff": float(
                     step_summary_df["kelly_stake_abs_diff"].max()
@@ -3280,13 +3398,20 @@ def main():
     business_keys = [
         "decision_row_count",
         "rows_with_signal_mismatch",
+        "signal_mismatch_rate",
         "rows_with_business_decision_mismatch",
+        "business_decision_mismatch_rate",
         "rows_with_kelly_side_mismatch",
+        "kelly_side_mismatch_rate",
         "rows_with_kelly_trade_flag_mismatch",
+        "kelly_trade_flag_mismatch_rate",
         "rows_with_kelly_reason_mismatch",
+        "kelly_reason_mismatch_rate",
         "rows_with_stake_only_kelly_mismatch",
+        "stake_only_kelly_mismatch_rate",
         "rows_with_proba_diff_gt_tol",
         "max_proba_up_abs_diff",
+        "mean_proba_up_abs_diff",
         "max_mean_abs_proba_gap_reduction_if_fixed",
         "max_mean_abs_proba_shift_if_fixed",
         "max_kelly_stake_abs_diff",
@@ -3294,6 +3419,16 @@ def main():
     available_business_keys = [key for key in business_keys if key in summary.index]
     print("Live vs stored business summary:")
     print(summary.loc[available_business_keys].to_string())
+    violations = _evaluate_guardrail_violations(summary)
+    if violations:
+        print()
+        print("Audit guardrail violations:")
+        for violation in violations:
+            print(f"- {violation}")
+        raise RuntimeError(
+            "Live-vs-stored audit exceeded configured drift guardrails. "
+            "See listed violations above."
+        )
     print()
     print("Dominant prediction-impact source:")
     dominant_keys = [

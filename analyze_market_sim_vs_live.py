@@ -5,13 +5,16 @@ import numpy as np
 import pandas as pd
 
 from common_config_utils import load_json_object
+from market_price_sim import (
+    DEFAULT_SHARED_CSV_PATH,
+    DEFAULT_TRADE_CSV_GLOB,
+    load_live_market_empirical_frame,
+    sample_market_orderbook_arrays as shared_sample_market_orderbook_arrays,
+)
 
-LIVE_CSV_LIMIT = 10
-LIVE_CSV_PATHS = sorted(
-    Path("data/live/trade").glob("*.csv"),
-    key=lambda path: path.stat().st_mtime,
-)[-LIVE_CSV_LIMIT:]
 OPTIMIZER_CONFIG_PATH = Path("configs/kelly_optimizer_config.json")
+LIVE_TRADE_CSV_GLOB = DEFAULT_TRADE_CSV_GLOB
+LIVE_SHARED_CSV_PATH = DEFAULT_SHARED_CSV_PATH
 N_ROWS_SIMULATED = None
 SEED = 37
 
@@ -21,17 +24,12 @@ def load_market_price_sim_config(config_path):
     market_price_sim = payload.get("market_price_sim")
     if not isinstance(market_price_sim, dict):
         raise ValueError(f"Missing market_price_sim in {config_path}")
-    if str(market_price_sim.get("model")) != "latent_conviction_directional":
-        raise ValueError(
-            "analyze_market_sim_vs_live.py expects "
-            "market_price_sim.model='latent_conviction_directional'."
-        )
     return market_price_sim
 
 
 def load_live_trade_frame(csv_paths):
     if not csv_paths:
-        raise ValueError("LIVE_CSV_PATHS is empty.")
+        raise ValueError("csv_paths is empty.")
 
     frames = []
     for csv_path in csv_paths:
@@ -75,52 +73,23 @@ def load_live_trade_frame(csv_paths):
     return live
 
 
-def sample_market_orderbook_arrays(target, scenario_seed, price_sim_config):
-    target = np.asarray(target, dtype=np.int8)
-    rng = np.random.default_rng(int(scenario_seed))
-    n_rows = len(target)
-
-    conviction = rng.beta(
-        float(price_sim_config["conviction_beta_alpha"]),
-        float(price_sim_config["conviction_beta_beta"]),
-        size=n_rows,
+def load_default_live_trade_frame(recent_resolved_rows=None):
+    return load_live_market_empirical_frame(
+        trade_csv_glob=LIVE_TRADE_CSV_GLOB,
+        shared_csv_path=LIVE_SHARED_CSV_PATH,
+        recent_resolved_rows=recent_resolved_rows,
     )
-    abs_gap = float(price_sim_config["gap_min"]) + np.power(
-        conviction,
-        float(price_sim_config["gap_gamma"]),
-    ) * (float(price_sim_config["gap_max"]) - float(price_sim_config["gap_min"]))
-    p_correct = float(price_sim_config["p_correct_min"]) + conviction * (
-        float(price_sim_config["p_correct_max"])
-        - float(price_sim_config["p_correct_min"])
-    )
-    overround = float(price_sim_config["overround_min"]) + np.power(
-        conviction,
-        float(price_sim_config["overround_gamma"]),
-    ) * (
-        float(price_sim_config["overround_max"])
-        - float(price_sim_config["overround_min"])
-    )
-    direction_is_correct = rng.random(n_rows) < p_correct
-    direction_sign = np.where(direction_is_correct, 1.0, -1.0)
 
-    winner_ask = 0.5 + abs_gap / 2.0 + overround / 2.0
-    loser_ask = 0.5 - abs_gap / 2.0 + overround / 2.0
-    winner_is_up = (
-        ((target == 1) & (direction_sign > 0.0))
-        | ((target == 0) & (direction_sign < 0.0))
+
+def sample_market_orderbook_arrays(target, scenario_seed, price_sim_config, p_raw=None):
+    simulated = shared_sample_market_orderbook_arrays(
+        target=target,
+        scenario_seed=scenario_seed,
+        price_sim_config=price_sim_config,
+        p_raw=p_raw,
     )
-    up_ask = np.where(winner_is_up, winner_ask, loser_ask)
-    down_ask = np.where(winner_is_up, loser_ask, winner_ask)
-
-    eps = float(price_sim_config["eps"])
-    tick_size = float(price_sim_config["tick_size"])
-    up_ask = np.clip(up_ask, eps, 1.0 - eps)
-    down_ask = np.clip(down_ask, eps, 1.0 - eps)
-    up_ask = np.round(up_ask / tick_size) * tick_size
-    down_ask = np.round(down_ask / tick_size) * tick_size
-    up_ask = np.clip(up_ask, eps, 1.0 - eps)
-    down_ask = np.clip(down_ask, eps, 1.0 - eps)
-
+    up_ask = np.asarray(simulated["up_ask"], dtype=np.float64)
+    down_ask = np.asarray(simulated["down_ask"], dtype=np.float64)
     return {
         "up_ask": up_ask,
         "down_ask": down_ask,
@@ -192,16 +161,19 @@ def build_side_metrics(label, up_ask, down_ask, target, tick_size):
 
 def main():
     market_price_sim_config = load_market_price_sim_config(OPTIMIZER_CONFIG_PATH)
-    live = load_live_trade_frame(LIVE_CSV_PATHS)
+    live = load_default_live_trade_frame(
+        recent_resolved_rows=market_price_sim_config.get("recent_resolved_rows")
+    )
     n_rows = len(live) if N_ROWS_SIMULATED is None else min(int(N_ROWS_SIMULATED), len(live))
     live = live.iloc[:n_rows].copy()
 
     target = live["actual_up"].to_numpy(dtype=np.int8, copy=False)
+    p_raw = live["proba_up"].to_numpy(dtype=np.float64, copy=False)
     live_up_ask = live["pm_up_best_ask"].to_numpy(dtype=np.float64, copy=False)
     live_down_ask = live["pm_down_best_ask"].to_numpy(dtype=np.float64, copy=False)
     live_tick_size = (
         live["pm_tick_size"].to_numpy(dtype=np.float64, copy=False)
-        if "pm_tick_size" in live.columns
+        if "pm_tick_size" in live.columns and live["pm_tick_size"].notna().any()
         else float(market_price_sim_config["tick_size"])
     )
 
@@ -209,13 +181,17 @@ def main():
         target=target,
         scenario_seed=SEED,
         price_sim_config=market_price_sim_config,
+        p_raw=p_raw,
     )
 
     summary = {
         "inputs": {
             "optimizer_config_path": str(OPTIMIZER_CONFIG_PATH),
-            "live_csv_paths": [str(path) for path in LIVE_CSV_PATHS],
+            "trade_csv_glob": LIVE_TRADE_CSV_GLOB,
+            "shared_csv_path": LIVE_SHARED_CSV_PATH,
             "n_live_rows_used": int(len(live)),
+            "n_unique_source_files": int(live["source_path"].nunique()),
+            "recent_resolved_rows": market_price_sim_config.get("recent_resolved_rows"),
             "seed": int(SEED),
             "market_sim_model": str(market_price_sim_config["model"]),
         },
@@ -238,7 +214,7 @@ def main():
     print(
         "market sim vs live | "
         f"rows={summary['inputs']['n_live_rows_used']} "
-        f"csvs={len(summary['inputs']['live_csv_paths'])} "
+        f"source_files={summary['inputs']['n_unique_source_files']} "
         f"seed={summary['inputs']['seed']} "
         f"model={summary['inputs']['market_sim_model']}"
     )
