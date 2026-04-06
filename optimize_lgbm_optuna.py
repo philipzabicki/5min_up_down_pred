@@ -163,16 +163,32 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "path_smooth": 1.124852812228145,
         "extra_trees": False,
     },
+    {
+      "learning_rate": 0.0012337081583088396,
+      "num_leaves": 349,
+      "min_data_in_leaf": 100,
+      "max_depth": 47,
+      "feature_fraction": 0.3833766287757878,
+      "bagging_fraction": 0.663416129930021,
+      "bagging_freq": 22,
+      "lambda_l2": 2.8327218447810276,
+      "lambda_l1": 3.8735734397692183,
+      "min_sum_hessian_in_leaf": 0.10260726959067056,
+      "min_gain_to_split": 0.31502751778809,
+      "feature_fraction_bynode": 0.8334135835207026,
+      "path_smooth": 20.93305716234695,
+      "extra_trees": False
+    }
 ]
 
-N_TRIALS = 300
+N_TRIALS = 10
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "de_besta_0830_03042026"
+STUDY_NAME = "quick10check_de_besta_2000_05042026"
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
 BEST_RESULT_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_best_mean_std.json")

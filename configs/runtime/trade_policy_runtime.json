@@ -1,0 +1,11 @@
+{
+  "extra_buffer": 0.005,
+  "stake_usdc": 1.0,
+  "fee_model": {
+    "rate": 0.072,
+    "exponent": 1.0,
+    "fee_round_decimals": 5,
+    "min_fee": 1e-05,
+    "source": "polymarket_fee_schedule_v2"
+  }
+}

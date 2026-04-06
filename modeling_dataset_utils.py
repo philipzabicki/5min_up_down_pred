@@ -11,8 +11,8 @@ from features.candle_features import (
     SUPPORTED_CANDLE_FEATURE_COLS,
 )
 from features.session_open_features import (
-    SUPPORTED_SESSION_COUNTER_COLS,
-    is_session_counter_feature,
+    SUPPORTED_SESSION_OPEN_FEATURE_COLS,
+    is_session_open_feature,
 )
 from features.realized_volatility import (
     is_realized_volatility_feature,
@@ -344,7 +344,7 @@ def split_feature_subset(feature_names):
 
     candle_feature_set = set(SUPPORTED_CANDLE_FEATURE_COLS)
     raw_ohlcv_set = set(RAW_OHLCV_COLS)
-    session_feature_set = set(SUPPORTED_SESSION_COUNTER_COLS)
+    session_feature_set = set(SUPPORTED_SESSION_OPEN_FEATURE_COLS)
 
     for feature_name in feature_names:
         feature_name = str(feature_name).strip()
@@ -358,7 +358,7 @@ def split_feature_subset(feature_names):
             streak_feature_cols.append(feature_name)
             streak_intervals.append(feature_name[len(STREAK_FEATURE_PREFIX) :])
             continue
-        if feature_name in session_feature_set or is_session_counter_feature(
+        if feature_name in session_feature_set or is_session_open_feature(
             feature_name
         ):
             session_feature_cols.append(feature_name)

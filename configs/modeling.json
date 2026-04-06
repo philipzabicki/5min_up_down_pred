@@ -19,21 +19,21 @@
         "enabled": true,
         "price_min": 0.0,
         "price_max": 200000.0,
-        "step": 164,
-        "neighbor_bins": 16,
-        "local_window": 16,
-        "sigma_divisor": 46.73452581065906,
-        "min_sigma": 0.6351443643421518,
+        "step": 73,
+        "neighbor_bins": 15,
+        "local_window": 19,
+        "sigma_divisor": 22.103834316321777,
+        "min_sigma": 158.51656478094498,
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "half_life_candles": 137
+            "half_life_candles": 60
           },
           "medium": {
-            "half_life_candles": 6950
+            "half_life_candles": 4017
           },
           "long": {
-            "half_life_candles": 25438
+            "half_life_candles": 22587
           },
           "all": {
             "half_life_candles": null
@@ -46,9 +46,12 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260402_122743/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/20260405_181355/recommended_features.json",
         "artifact_list_key": "final_feature_list",
-        "excluded_feature_names": []
+        "excluded_feature_names": [
+          "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",
+          "MACD_fit_1m_pop512_fasmatyphma_fasper22_fassouhl2_sigmatypnwmaepan_sigper1905_slomatypnwmacos_sloper163_slosouohlc4_qe0.15_qm0.25_tf0.8_stmd_sg15"
+        ]
       },
       "train_lgbm": {
         "train_default_model": false,

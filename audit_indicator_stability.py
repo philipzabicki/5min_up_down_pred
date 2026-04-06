@@ -25,7 +25,7 @@ from features.candle_features import (
 )
 from features.KeltnerChannel import get_keltner_channel_values
 from features.MACD import get_macd_values
-from features.session_open_features import SUPPORTED_SESSION_COUNTER_COLS
+from features.session_open_features import SUPPORTED_SESSION_OPEN_FEATURE_COLS
 from features.StochOsc import get_stochastic_oscillator_values
 
 SYMBOL = "BTCUSDT"
@@ -67,7 +67,7 @@ OHLCV_COLS = list(RAW_OHLCV_COLS)
 BASE_FEATURE_COLS = (
     set(OHLCV_COLS)
     | set(SUPPORTED_CANDLE_FEATURE_COLS)
-    | set(SUPPORTED_SESSION_COUNTER_COLS)
+    | set(SUPPORTED_SESSION_OPEN_FEATURE_COLS)
 )
 VALUE_BUILDERS = {
     "ADX": get_adx_values,

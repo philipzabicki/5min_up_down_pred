@@ -9,7 +9,6 @@ import pandas as pd
 from data_quality_filters import drop_frozen_ohlc_blocks
 
 from features.candle_features import RAW_OHLCV_COLS
-from metrics_utils import make_lightgbm_binary_brier_eval
 from features.volume_profile_fixed_range import (
     build_volume_profile_feature_matrix_from_arrays,
     normalize_config as normalize_volume_profile_config,
@@ -138,20 +137,34 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "medium_half_life_candles": 2513,
         "long_half_life_candles": 79742,
     },
+    {
+        "step": 164,
+        "neighbor_bins": 16,
+        "local_window": 16,
+        "sigma_divisor": 46.73452581065906,
+        "min_sigma": 0.6351443643421518,
+        "short_half_life_candles": 137,
+        "medium_half_life_candles": 6950,
+        "long_half_life_candles": 25438,
+    }
 ]
 
-N_TRIALS = 8
+N_TRIALS = 250
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
 
-CV_OBJECTIVE_NAME = "brier_score_mean_plus_std_penalty"
-CV_BRIER_STD_PENALTY = 1.0
-CRASH_PENALTY = 1.0
-STUDY_NAME = "volume_profile_opt_brier_mean_std_0030_26032026"
+CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
+CV_LOGLOSS_STD_PENALTY = 0.5
+CRASH_PENALTY = float("inf")
+STUDY_NAME = "volume_profile_opt_logloss_mean_std_05042026"
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
-BEST_RESULT_PATH = Path("data/optuna/volume_profile/volume_profile_best_mean_std.json")
-TRIALS_CSV_PATH = Path("data/optuna/volume_profile/volume_profile_trials_mean_std.csv")
+BEST_RESULT_PATH = Path(
+    "data/optuna/volume_profile/volume_profile_best_logloss_mean_std.json"
+)
+TRIALS_CSV_PATH = Path(
+    "data/optuna/volume_profile/volume_profile_trials_logloss_mean_std.csv"
+)
 
 
 def require_columns(df, required_columns):
@@ -625,7 +638,7 @@ def build_volume_profile_config_from_params(base_config, params):
 def make_lgbm_cv_params():
     return {
         "objective": "binary",
-        "metric": "None",
+        "metric": "binary_logloss",
         "boosting_type": "gbdt",
         "device_type": LGBM_DEVICE_TYPE,
         "verbosity": LGBM_VERBOSITY,
@@ -701,8 +714,8 @@ def run_lightgbm_cv(
         callbacks.append(
             ObjectiveAlignedLightGBMPruningCallback(
                 trial=trial,
-                metric="brier_score",
-                std_penalty=CV_BRIER_STD_PENALTY,
+                metric="binary_logloss",
+                std_penalty=CV_LOGLOSS_STD_PENALTY,
                 report_interval=PRUNE_REPORT_EVERY_N_ITER,
             )
         )
@@ -713,26 +726,45 @@ def run_lightgbm_cv(
         folds=fold_indices,
         stratified=False,
         shuffle=False,
-        feval=make_lightgbm_binary_brier_eval(),
         callbacks=callbacks,
         return_cvbooster=return_cvbooster,
         seed=SEED,
     )
 
-    mean_series = np.asarray(cv_results["valid brier_score-mean"], dtype=np.float64)
-    std_series = np.asarray(cv_results["valid brier_score-stdv"], dtype=np.float64)
-    objective_series = mean_series + (CV_BRIER_STD_PENALTY * std_series)
+    mean_series = np.asarray(cv_results["valid binary_logloss-mean"], dtype=np.float64)
+    std_series = np.asarray(cv_results["valid binary_logloss-stdv"], dtype=np.float64)
+    objective_series = mean_series + (CV_LOGLOSS_STD_PENALTY * std_series)
     best_index = int(np.argmin(objective_series))
 
     result = {
         "best_iteration": int(best_index + 1),
-        "cv_brier_score_mean": float(mean_series[best_index]),
-        "cv_brier_score_std": float(std_series[best_index]),
+        "cv_binary_logloss_mean": float(mean_series[best_index]),
+        "cv_binary_logloss_std": float(std_series[best_index]),
         "objective_value": float(objective_series[best_index]),
     }
     if return_cvbooster:
         result["cvbooster"] = cv_results["cvbooster"]
     return result
+
+
+def get_best_successful_trial(study):
+    successful_trials = []
+    for trial in study.get_trials(deepcopy=False):
+        if trial.state != optuna.trial.TrialState.COMPLETE:
+            continue
+        if trial.user_attrs.get("trial_status") != "ok":
+            continue
+        if trial.value is None or not np.isfinite(float(trial.value)):
+            continue
+        successful_trials.append(trial)
+
+    if not successful_trials:
+        raise RuntimeError(
+            "No successful Optuna trials completed. "
+            "All completed trials were pruned or ended with crash_penalty."
+        )
+
+    return min(successful_trials, key=lambda trial: float(trial.value))
 
 
 def make_objective(base_data, fold_indices, base_vp_config, search_space):
@@ -767,12 +799,12 @@ def make_objective(base_data, fold_indices, base_vp_config, search_space):
 
             trial.set_user_attr("trial_status", "ok")
             trial.set_user_attr(
-                "cv_brier_score_mean",
-                cv_result["cv_brier_score_mean"],
+                "cv_binary_logloss_mean",
+                cv_result["cv_binary_logloss_mean"],
             )
             trial.set_user_attr(
-                "cv_brier_score_std",
-                cv_result["cv_brier_score_std"],
+                "cv_binary_logloss_std",
+                cv_result["cv_binary_logloss_std"],
             )
             trial.set_user_attr("best_iteration", cv_result["best_iteration"])
             trial.set_user_attr("feature_count", int(x_np.shape[1]))
@@ -835,7 +867,7 @@ def run_optuna_optimization():
     print(
         f"start optimize | base_rows={len(base_df)} filtered_rows={filtered_rows} "
         f"folds={len(fold_indices)} trials={N_TRIALS} timeout={TIMEOUT_SECONDS} "
-        f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_BRIER_STD_PENALTY:.4f}"
+        f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f}"
     )
     print(
         "start optimize | "
@@ -881,7 +913,7 @@ def run_optuna_optimization():
         catch=(lgb.basic.LightGBMError, OSError),
     )
 
-    best_trial = study.best_trial
+    best_trial = get_best_successful_trial(study)
     best_normalized_vp_config = build_volume_profile_config_from_params(
         base_config=base_vp_config,
         params=best_trial.params,
@@ -918,9 +950,9 @@ def run_optuna_optimization():
         "prune_report_every_n_iteration": PRUNE_REPORT_EVERY_N_ITER,
         "cv_objective": {
             "name": CV_OBJECTIVE_NAME,
-            "base_metric": "brier_score",
+            "base_metric": "binary_logloss",
             "aggregation": "cv_mean + std_penalty * cv_std",
-            "std_penalty": float(CV_BRIER_STD_PENALTY),
+            "std_penalty": float(CV_LOGLOSS_STD_PENALTY),
         },
         "lgbm_params": make_lgbm_cv_params(),
         "base_volume_profile_fixed_range": normalized_base_vp_config,
@@ -928,12 +960,12 @@ def run_optuna_optimization():
         "optuna_seed_trial_params": OPTUNA_SEED_TRIAL_PARAMS,
         "best_trial": {
             "number": int(best_trial.number),
-            "objective_cv_brier_score_mean_plus_std_penalty": float(best_trial.value),
-            "cv_brier_score_mean": float(
-                best_trial.user_attrs.get("cv_brier_score_mean")
+            "objective_cv_binary_logloss_mean_plus_std_penalty": float(best_trial.value),
+            "cv_binary_logloss_mean": float(
+                best_trial.user_attrs.get("cv_binary_logloss_mean")
             ),
-            "cv_brier_score_std": float(
-                best_trial.user_attrs.get("cv_brier_score_std")
+            "cv_binary_logloss_std": float(
+                best_trial.user_attrs.get("cv_binary_logloss_std")
             ),
             "best_iteration": int(best_trial.user_attrs.get("best_iteration")),
             "feature_count": int(best_trial.user_attrs.get("feature_count")),
@@ -950,8 +982,8 @@ def run_optuna_optimization():
 
     print(
         f"best trial | number={best_trial.number} objective={best_trial.value:.8f} "
-        f"brier_mean={float(best_trial.user_attrs.get('cv_brier_score_mean')):.8f} "
-        f"brier_std={float(best_trial.user_attrs.get('cv_brier_score_std')):.8f} "
+        f"logloss_mean={float(best_trial.user_attrs.get('cv_binary_logloss_mean')):.8f} "
+        f"logloss_std={float(best_trial.user_attrs.get('cv_binary_logloss_std')):.8f} "
         f"best_iteration={int(best_trial.user_attrs.get('best_iteration'))} "
         f"feature_count={int(best_trial.user_attrs.get('feature_count'))}"
     )

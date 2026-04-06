@@ -383,11 +383,12 @@ def load_runtime_artifact_paths(runtime_manifest_path=RUNTIME_ACTIVE_PATH):
         raise ValueError(
             f"Missing or invalid 'artifacts' object in runtime manifest: {runtime_manifest_path}"
         )
+    trade_policy_runtime_config_path = coerce_path(
+        require_text(artifacts, "trade_policy_runtime_config_path")
+    )
     return {
         "model_meta_path": coerce_path(require_text(artifacts, "model_meta_path")),
-        "kelly_runtime_config_path": coerce_path(
-            require_text(artifacts, "kelly_runtime_config_path")
-        ),
+        "trade_policy_runtime_config_path": trade_policy_runtime_config_path,
         "indicator_history_requirements_path": coerce_path(
             require_text(artifacts, "indicator_history_requirements_path")
         ),

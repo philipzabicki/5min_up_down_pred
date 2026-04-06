@@ -65,15 +65,17 @@ from live_predict_binance import (
     WS_TARGETS,
     _load_ws_payload,
 )
-from kelly_utils import adjust_probability_for_kelly
 from polymarket_fee_utils import (
     DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
     DEFAULT_POLYMARKET_MIN_FEE_USDC,
     normalize_polymarket_fee_model,
     polymarket_fee_model_from_market,
-    polymarket_taker_fee_fraction_of_notional,
-    polymarket_taker_fee_usdc_from_notional,
     polymarket_taker_fee_usdc_from_shares,
+)
+from trade_policy import (
+    build_trade_intent,
+    decide_trade_from_ev,
+    resolve_fee_fractions_from_quotes,
 )
 
 DEFAULT_GAMMA_HOST = "https://gamma-api.polymarket.com"
@@ -341,13 +343,9 @@ def _backfill_record_analysis_fields(record):
     current_shares = _safe_float(record.get("shares_net"))
     current_bankroll_before = _safe_float(record.get("bankroll_before_entry"))
     current_bankroll_after = _safe_float(record.get("bankroll_after_entry"))
-    kelly_bet_usdc = _safe_float(record.get("kelly_bet_usdc"))
-
     if not np.isfinite(_safe_float(record.get("entry_stake_usdc_orig"))):
         if np.isfinite(stake_from_response):
             record["entry_stake_usdc_orig"] = float(stake_from_response)
-        elif np.isfinite(kelly_bet_usdc):
-            record["entry_stake_usdc_orig"] = float(kelly_bet_usdc)
         elif np.isfinite(current_stake):
             record["entry_stake_usdc_orig"] = float(current_stake)
         else:
@@ -564,17 +562,12 @@ class PolymarketLiveTrader(LivePredictor):
             interval=INTERVAL,
             run_started_at_utc=self.run_started_at_utc,
             model_hash=self.model_hash,
-            kelly_config_hash=self.kelly_config_hash,
+            policy_config_hash=self.trade_policy_config_hash,
             modeling_dataset_config_hash=self.modeling_dataset_config_hash,
         )
         self.pm_cfg = load_polymarket_settings(default_trade_records_path)
         _configure_clob_http_client(self.pm_cfg.clob_http_timeout_sec)
-        self.live_kelly_sizing = {
-            "fractional_kelly": float(self.kelly_runtime["fractional_kelly"]),
-            "cap": float(self.kelly_runtime["cap"]),
-            "min_edge": float(self.kelly_runtime["min_edge"]),
-            "min_stake_usdc": float(self.kelly_runtime["min_stake_usdc"]),
-        }
+        self.live_trade_policy = self.trade_policy_runtime
         if self.pm_cfg.execution_mode not in {"fok"}:
             raise NotImplementedError(
                 "Unsupported POLY_EXECUTION_MODE. Supported values: ['fok']"
@@ -1063,21 +1056,13 @@ class PolymarketLiveTrader(LivePredictor):
         return {
             "record_id": f"external:{asset}" if asset else "",
             "pm_model_hash": self.model_hash,
-            "pm_kelly_hash": self.kelly_config_hash,
+            "pm_policy_hash": self.trade_policy_config_hash,
             "pm_run_started_at_utc": self.run_started_at_utc,
             "prediction_time": pd.Timestamp.now(tz="UTC"),
             "bucket_start": None,
             "bucket_end": None,
             "proba_up": np.nan,
-            "threshold": self.prediction_threshold,
-            "signal_up": None,
-            "kelly_side": str(position.get("outcome", "")).lower(),
-            "kelly_fraction": np.nan,
-            "kelly_bet_usdc": initial_value,
-            "kelly_edge": np.nan,
-            "kelly_prob_win_adj": np.nan,
-            "kelly_prob_win_raw": np.nan,
-            "kelly_reason": "external_position",
+            "trade_side": str(position.get("outcome", "")).lower(),
             "stake_usdc": initial_value,
             "entry_price": _safe_float(position.get("avgPrice")),
             "entry_fee_usdc": np.nan,
@@ -1088,10 +1073,21 @@ class PolymarketLiveTrader(LivePredictor):
             "entry_fee_usdc_orig": np.nan,
             "entry_fee_raw_usdc_orig": np.nan,
             "entry_shares_net_orig": size,
-            "kelly_c_eff": np.nan,
-            "kelly_eff_rate": np.nan,
             "price_eps": np.nan,
             "price_slip": np.nan,
+            "ask_yes": np.nan,
+            "ask_no": np.nan,
+            "policy_proba_up": np.nan,
+            "policy_ask_yes": np.nan,
+            "policy_ask_no": np.nan,
+            "policy_fee_yes": np.nan,
+            "policy_fee_no": np.nan,
+            "policy_extra_buffer": float(self.trade_policy_runtime["extra_buffer"]),
+            "policy_ev_yes": np.nan,
+            "policy_ev_no": np.nan,
+            "policy_best_ev": np.nan,
+            "policy_decision": "no_trade",
+            "policy_reason": "external_position",
             "bankroll_before_entry": np.nan,
             "bankroll_after_entry": np.nan,
             "bankroll_before_entry_orig": np.nan,
@@ -2025,63 +2021,22 @@ class PolymarketLiveTrader(LivePredictor):
                 raise RuntimeError("market_lookup_retry_exhausted")
             time.sleep(retry_sleep_sec)
 
-    def _score_outcome(
-        self,
-        *,
-        side,
-        token_id,
-        prob_win_raw,
-        prob_win_adj,
-        price,
-        fee_model,
-        fee_rate_bps,
-        order_min_size,
-    ):
-        eff_rate = float(polymarket_taker_fee_fraction_of_notional(price, fee_model))
-        if eff_rate >= 0.99:
-            return {"reason": "eff_rate_too_high", "side": side, "token_id": token_id}
-
-        c_eff = price / (1.0 - eff_rate)
-        edge = prob_win_adj - c_eff
-        f_star = max(float((prob_win_adj - c_eff) / (1.0 - c_eff)), 0.0)
-        fraction = min(
-            float(self.live_kelly_sizing["cap"]),
-            float(self.live_kelly_sizing["fractional_kelly"]) * f_star,
-        )
-        stake = float(self.live_bankroll_usdc) * fraction
-        if np.isfinite(self.pm_cfg.max_exposure_usdc):
-            stake = min(stake, float(self.pm_cfg.max_exposure_usdc))
-        fee_result = polymarket_taker_fee_usdc_from_notional(stake, price, fee_model)
-        fee_raw = float(fee_result["fee_raw_usdc"])
-        fee = float(fee_result["fee_usdc"])
-
-        shares_net = (stake - fee) / price if price > 0.0 else 0.0
-        return {
-            "reason": "ok",
-            "side": side,
-            "token_id": token_id,
-            "edge": float(edge),
-            "fraction": float(fraction),
-            "bet_usdc": float(stake),
-            "prob_win_raw": float(prob_win_raw),
-            "prob_win_adj": float(prob_win_adj),
-            "entry_price": float(price),
-            "fee_usdc": float(fee),
-            "fee_raw_usdc": float(fee_raw),
-            "shares_net": float(shares_net),
-            "c_eff": float(c_eff),
-            "eff_rate": float(eff_rate),
-            "order_min_size": float(order_min_size),
-            "fee_rate_bps": int(fee_rate_bps),
-            "fee_model": fee_model,
-        }
-
     def _recommend_polymarket_bet(self, prob_up_raw, market):
         bankroll = float(self.live_bankroll_usdc)
         if bankroll <= 0.0:
-            return {"reason": "bankroll_non_positive"}
+            return {
+                "decision": "no_trade",
+                "trade_side": "none",
+                "final_reason": "bankroll_non_positive",
+                "policy_reason": "bankroll_non_positive",
+            }
         if not market.accepting_orders:
-            return {"reason": "market_not_accepting_orders"}
+            return {
+                "decision": "no_trade",
+                "trade_side": "none",
+                "final_reason": "market_not_accepting_orders",
+                "policy_reason": "market_not_accepting_orders",
+            }
 
         market_end = pd.Timestamp(market.market_end)
         seconds_to_close = float(
@@ -2089,77 +2044,51 @@ class PolymarketLiveTrader(LivePredictor):
         )
         if seconds_to_close <= float(self.pm_cfg.no_trade_last_seconds):
             return {
-                "reason": "too_close_to_market_end",
+                "decision": "no_trade",
+                "trade_side": "none",
+                "final_reason": "too_close_to_market_end",
+                "policy_reason": "too_close_to_market_end",
                 "seconds_to_close": float(seconds_to_close),
             }
 
-        p = float(
-            adjust_probability_for_kelly(
-                float(prob_up_raw),
-                min_clip=1e-6,
-            )
+        fee_fractions = resolve_fee_fractions_from_quotes(
+            ask_yes=float(market.up_best_ask),
+            ask_no=float(market.down_best_ask),
+            fee_model=market.fee_model,
+        )
+        policy_result = decide_trade_from_ev(
+            float(prob_up_raw),
+            float(market.up_best_ask),
+            float(market.down_best_ask),
+            float(fee_fractions["fee_yes"]),
+            float(fee_fractions["fee_no"]),
+            float(self.live_trade_policy["extra_buffer"]),
+        )
+        intent = build_trade_intent(
+            policy_result=policy_result,
+            bankroll=float(self.live_bankroll_usdc),
+            stake_usdc=float(self.live_trade_policy["stake_usdc"]),
+            fee_model=market.fee_model,
+            order_min_size=float(market.order_min_size),
+            external_stake_cap_usdc=float(self.pm_cfg.max_exposure_usdc),
         )
 
-        candidates = []
-        if np.isfinite(market.up_best_ask) and 0.0 < market.up_best_ask < 1.0:
-            candidates.append(
-                self._score_outcome(
-                    side="up",
-                    token_id=market.up_token_id,
-                    prob_win_raw=float(prob_up_raw),
-                    prob_win_adj=float(p),
-                    price=float(market.up_best_ask),
-                    fee_model=market.fee_model,
-                    fee_rate_bps=int(market.fee_rate_bps),
-                    order_min_size=float(market.order_min_size),
-                )
-            )
-        if np.isfinite(market.down_best_ask) and 0.0 < market.down_best_ask < 1.0:
-            candidates.append(
-                self._score_outcome(
-                    side="down",
-                    token_id=market.down_token_id,
-                    prob_win_raw=float(prob_up_raw),
-                    prob_win_adj=float(1.0 - p),
-                    price=float(market.down_best_ask),
-                    fee_model=market.fee_model,
-                    fee_rate_bps=int(market.fee_rate_bps),
-                    order_min_size=float(market.order_min_size),
-                )
-            )
+        side = str(intent.get("trade_side", "") or "").lower()
+        if side == "yes":
+            intent["token_id"] = str(market.up_token_id)
+        elif side == "no":
+            intent["token_id"] = str(market.down_token_id)
 
-        valid_candidates = [
-            candidate for candidate in candidates if candidate.get("reason") == "ok"
-        ]
-        if not valid_candidates:
-            return {
-                "reason": "no_valid_orderbook_quotes",
-                "up_best_ask": float(market.up_best_ask),
-                "down_best_ask": float(market.down_best_ask),
-            }
-
-        best = max(valid_candidates, key=lambda item: float(item["edge"]))
-        if float(best["edge"]) < float(self.live_kelly_sizing["min_edge"]):
-            best["reason"] = "edge_below_min"
-            return best
-        if float(best["fraction"]) <= 0.0:
-            best["reason"] = "fraction_non_positive"
-            return best
-        if float(best["bet_usdc"]) < float(self.live_kelly_sizing["min_stake_usdc"]):
-            best["reason"] = "stake_below_min"
-            return best
-        if float(best["fee_usdc"]) >= float(best["bet_usdc"]):
-            best["reason"] = "fee_ge_stake"
-            return best
-        if float(best["shares_net"]) < float(best["order_min_size"]):
-            best["reason"] = "shares_below_order_min"
-            return best
-        best["seconds_to_close"] = float(seconds_to_close)
-        best["tick_size"] = float(market.tick_size)
-        best["neg_risk"] = bool(market.neg_risk)
-        best["order_price_cap"] = float(self.pm_cfg.order_price_cap)
-        best["submitted_price"] = float(best["entry_price"])
-        return best
+        intent["seconds_to_close"] = float(seconds_to_close)
+        intent["tick_size"] = float(market.tick_size)
+        intent["neg_risk"] = bool(market.neg_risk)
+        intent["order_price_cap"] = float(self.pm_cfg.order_price_cap)
+        intent["submitted_price"] = float(intent.get("entry_price", np.nan))
+        intent["fee_rate_bps"] = int(market.fee_rate_bps)
+        intent["fee_model"] = market.fee_model
+        intent["ask_yes"] = float(market.up_best_ask)
+        intent["ask_no"] = float(market.down_best_ask)
+        return intent
 
     def _submit_result(
         self,
@@ -2211,7 +2140,7 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _maybe_submit_order(self, intent):
         try:
-            if intent.get("reason") != "ok":
+            if intent.get("final_reason") != "ok":
                 return self._submit_result(commit_bankroll=False, status="skipped")
             if self.pm_cfg.paper_mode:
                 return self._submit_result(commit_bankroll=True, status="paper_intent")
@@ -2378,7 +2307,6 @@ class PolymarketLiveTrader(LivePredictor):
         bucket_start,
         bucket_end,
         proba_up,
-        signal_up,
         bankroll_before_entry,
         bankroll_after_entry,
         stake_usdc,
@@ -2396,37 +2324,42 @@ class PolymarketLiveTrader(LivePredictor):
         return {
             "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
             "pm_model_hash": self.model_hash,
-            "pm_kelly_hash": self.kelly_config_hash,
+            "pm_policy_hash": self.trade_policy_config_hash,
             "pm_run_started_at_utc": self.run_started_at_utc,
             "prediction_time": _utc_now(),
             "bucket_start": bucket_start,
             "bucket_end": bucket_end,
             "proba_up": proba_up,
-            "threshold": self.prediction_threshold,
-            "signal_up": signal_up,
-            "kelly_side": str(intent.get("side", "none")),
-            "kelly_fraction": float(intent.get("fraction", 0.0) or 0.0),
-            "kelly_bet_usdc": float(intent.get("bet_usdc", 0.0) or 0.0),
-            "kelly_edge": float(intent.get("edge", np.nan)),
-            "kelly_prob_win_adj": float(intent.get("prob_win_adj", np.nan)),
-            "kelly_prob_win_raw": float(intent.get("prob_win_raw", np.nan)),
-            "kelly_reason": str(intent.get("reason", "")),
+            "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
             "entry_price": float(intent.get("entry_price", np.nan)),
-            "entry_fee_usdc": float(intent.get("fee_usdc", 0.0) or 0.0),
-            "entry_fee_raw_usdc": float(intent.get("fee_raw_usdc", 0.0) or 0.0),
+            "entry_fee_usdc": float(intent.get("entry_fee_usdc", 0.0) or 0.0),
+            "entry_fee_raw_usdc": float(intent.get("entry_fee_raw_usdc", 0.0) or 0.0),
             "shares_net": float(intent.get("shares_net", 0.0) or 0.0),
             "entry_stake_usdc_orig": float(stake_usdc),
             "entry_price_orig": float(intent.get("entry_price", np.nan)),
-            "entry_fee_usdc_orig": float(intent.get("fee_usdc", 0.0) or 0.0),
-            "entry_fee_raw_usdc_orig": float(intent.get("fee_raw_usdc", 0.0) or 0.0),
+            "entry_fee_usdc_orig": float(intent.get("entry_fee_usdc", 0.0) or 0.0),
+            "entry_fee_raw_usdc_orig": float(
+                intent.get("entry_fee_raw_usdc", 0.0) or 0.0
+            ),
             "entry_shares_net_orig": float(intent.get("shares_net", 0.0) or 0.0),
-            "kelly_c_eff": float(intent.get("c_eff", np.nan)),
-            "kelly_eff_rate": float(intent.get("eff_rate", np.nan)),
             "price_eps": np.nan,
             "price_slip": np.nan,
-            "up_price": np.nan if market is None else float(market.up_best_ask),
-            "down_price": np.nan if market is None else float(market.down_best_ask),
+            "ask_yes": np.nan if market is None else float(market.up_best_ask),
+            "ask_no": np.nan if market is None else float(market.down_best_ask),
+            "policy_proba_up": float(intent.get("proba_up", np.nan)),
+            "policy_ask_yes": float(intent.get("ask_yes", np.nan)),
+            "policy_ask_no": float(intent.get("ask_no", np.nan)),
+            "policy_fee_yes": float(intent.get("fee_yes", np.nan)),
+            "policy_fee_no": float(intent.get("fee_no", np.nan)),
+            "policy_extra_buffer": float(intent.get("extra_buffer", np.nan)),
+            "policy_ev_yes": float(intent.get("ev_yes", np.nan)),
+            "policy_ev_no": float(intent.get("ev_no", np.nan)),
+            "policy_best_ev": float(intent.get("best_ev", np.nan)),
+            "policy_decision": str(intent.get("decision", "no_trade")),
+            "policy_reason": str(
+                intent.get("final_reason") or intent.get("reason", "")
+            ),
             "bankroll_before_entry": float(bankroll_before_entry),
             "bankroll_after_entry": float(bankroll_after_entry),
             "bankroll_before_entry_orig": float(bankroll_before_entry),
@@ -2575,7 +2508,6 @@ class PolymarketLiveTrader(LivePredictor):
         bucket_start,
         bucket_end,
         proba_up,
-        signal_up,
         stake_usdc,
         bankroll_before_entry,
         bankroll_after_entry,
@@ -2591,15 +2523,15 @@ class PolymarketLiveTrader(LivePredictor):
             "bucket_start": bucket_start,
             "bucket_end": bucket_end,
             "proba_up": proba_up,
-            "signal_up": signal_up,
-            "kelly_side": str(intent.get("side", "none")),
-            "kelly_fraction": float(intent.get("fraction", 0.0) or 0.0),
-            "kelly_bet_usdc": float(intent.get("bet_usdc", 0.0) or 0.0),
+            "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
             "bankroll_before_entry": float(bankroll_before_entry),
             "bankroll_after_entry": float(bankroll_after_entry),
-            "kelly_reason": str(intent.get("reason", "")),
-            "kelly_edge": float(intent.get("edge", np.nan)),
+            "policy_decision": str(intent.get("decision", "no_trade")),
+            "policy_reason": str(intent.get("final_reason") or intent.get("reason", "")),
+            "policy_ev_yes": float(intent.get("ev_yes", np.nan)),
+            "policy_ev_no": float(intent.get("ev_no", np.nan)),
+            "policy_best_ev": float(intent.get("best_ev", np.nan)),
             "pm_order_status": str(submit_result["status"]),
             "pm_order_error": str(submit_result["error"]),
             "decision_delay_ms": float(decision_delay_ms),
@@ -2623,7 +2555,6 @@ class PolymarketLiveTrader(LivePredictor):
             volume_profile_values=volume_profile_values
         )
         proba_up = float(self.model.predict(feature_vector)[0])
-        signal_up = int(proba_up >= self.prediction_threshold)
         bankroll_before_entry = float(self.live_bankroll_usdc)
         execution = self._evaluate_prediction_execution(
             bucket_start=bucket_start,
@@ -2636,6 +2567,7 @@ class PolymarketLiveTrader(LivePredictor):
         stake_usdc = (
             float(intent.get("bet_usdc", 0.0) or 0.0)
             if bool(submit_result["commit_bankroll"])
+            and str(intent.get("final_reason", "")) == "ok"
             else 0.0
         )
         if self.pm_cfg.paper_mode and stake_usdc > 0.0:
@@ -2646,7 +2578,6 @@ class PolymarketLiveTrader(LivePredictor):
             bucket_start=bucket_start,
             bucket_end=bucket_end,
             proba_up=proba_up,
-            signal_up=signal_up,
             bankroll_before_entry=bankroll_before_entry,
             bankroll_after_entry=bankroll_after_entry,
             stake_usdc=stake_usdc,
@@ -2667,7 +2598,6 @@ class PolymarketLiveTrader(LivePredictor):
             bucket_start=bucket_start,
             bucket_end=bucket_end,
             proba_up=proba_up,
-            signal_up=signal_up,
             stake_usdc=stake_usdc,
             bankroll_before_entry=bankroll_before_entry,
             bankroll_after_entry=bankroll_after_entry,
@@ -2699,17 +2629,17 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _stats(self):
         records = self._records_snapshot()
-        kelly_resolved = sum(1 for rec in records if self._record_is_resolved(rec))
-        kelly_resolved_wins = sum(
+        policy_resolved = sum(1 for rec in records if self._record_is_resolved(rec))
+        policy_resolved_wins = sum(
             int(rec["is_correct"]) for rec in records if self._record_is_resolved(rec)
         )
         closed_trades = sum(1 for rec in records if self._record_is_traded(rec))
         closed_trade_wins = sum(
             int(rec["trade_is_win"]) for rec in records if self._record_is_traded(rec)
         )
-        win_rate_kelly_resolved = (
-            float(kelly_resolved_wins / kelly_resolved)
-            if kelly_resolved
+        win_rate_policy_resolved = (
+            float(policy_resolved_wins / policy_resolved)
+            if policy_resolved
             else float("nan")
         )
         win_rate_closed_trade = (
@@ -2725,10 +2655,10 @@ class PolymarketLiveTrader(LivePredictor):
             )
         )
         return {
-            "kelly_resolved": kelly_resolved,
-            "kelly_resolved_wins": kelly_resolved_wins,
-            "kelly_resolved_losses": kelly_resolved - kelly_resolved_wins,
-            "win_rate_kelly_resolved": win_rate_kelly_resolved,
+            "policy_resolved": policy_resolved,
+            "policy_resolved_wins": policy_resolved_wins,
+            "policy_resolved_losses": policy_resolved - policy_resolved_wins,
+            "win_rate_policy_resolved": win_rate_policy_resolved,
             "closed_trades": closed_trades,
             "closed_trade_wins": closed_trade_wins,
             "closed_trade_losses": closed_trades - closed_trade_wins,
@@ -2793,8 +2723,8 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _log(self, tag, pred=None):
         stats = self._stats()
-        kelly_resolved_win_rate_txt = self._format_rate(
-            stats["win_rate_kelly_resolved"]
+        policy_resolved_win_rate_txt = self._format_rate(
+            stats["win_rate_policy_resolved"]
         )
         closed_trade_win_rate_txt = self._format_rate(
             stats["win_rate_closed_trade"]
@@ -2809,10 +2739,10 @@ class PolymarketLiveTrader(LivePredictor):
         self._print_log_fields(
             "resolved",
             [
-                ("kelly_resolved", stats["kelly_resolved"]),
-                ("wins", stats["kelly_resolved_wins"]),
-                ("losses", stats["kelly_resolved_losses"]),
-                ("win_rate", kelly_resolved_win_rate_txt),
+                ("policy_resolved", stats["policy_resolved"]),
+                ("wins", stats["policy_resolved_wins"]),
+                ("losses", stats["policy_resolved_losses"]),
+                ("win_rate", policy_resolved_win_rate_txt),
             ],
         )
         self._print_log_fields(
@@ -2831,15 +2761,15 @@ class PolymarketLiveTrader(LivePredictor):
                 "decision",
                 [
                     ("proba_up", f"{pred['proba_up']:.6f}"),
-                    ("signal_up", pred["signal_up"]),
-                    ("kelly_side", pred["kelly_side"]),
-                    ("kelly_edge", f"{pred['kelly_edge']:.6f}"),
+                    ("policy_decision", pred["policy_decision"]),
+                    ("trade_side", pred["trade_side"]),
+                    ("policy_best_ev", f"{pred['policy_best_ev']:.6f}"),
                     ("stake_usdc", f"{pred['stake_usdc']:.2f}"),
                 ],
             )
             execution_fields = [
                 ("pm_order_status", pred["pm_order_status"]),
-                ("kelly_reason", pred["kelly_reason"]),
+                ("policy_reason", pred["policy_reason"]),
                 ("decision_delay_ms", f"{pred['decision_delay_ms']:.0f}"),
             ]
             if np.isfinite(_safe_float(pred.get("market_lookup_ms", np.nan))):
@@ -2972,12 +2902,10 @@ class PolymarketLiveTrader(LivePredictor):
             self._print_live_runtime_configuration()
 
         print(
-            "Kelly sizing | "
+            "Trade policy | "
             f"bankroll={self.live_bankroll_usdc:.2f} "
-            f"fractional_kelly={self.live_kelly_sizing['fractional_kelly']:.6f} "
-            f"cap={self.live_kelly_sizing['cap']:.6f} "
-            f"min_edge={self.live_kelly_sizing['min_edge']:.6f} "
-            f"min_stake_usdc={self.live_kelly_sizing['min_stake_usdc']:.2f}"
+            f"stake_usdc={self.live_trade_policy['stake_usdc']:.2f} "
+            f"extra_buffer={self.live_trade_policy['extra_buffer']:.6f}"
         )
         print(
             "Exit policy | "
@@ -2986,6 +2914,7 @@ class PolymarketLiveTrader(LivePredictor):
             f"exit_min_roi={self.pm_cfg.exit_min_roi:.4f} "
             f"exit_redeem_profit_tolerance={self.pm_cfg.exit_redeem_profit_tolerance:.4f}"
         )
+        print(f"Trade policy hash: {self.trade_policy_config_hash}")
         print(f"Bankroll source: {self.bankroll_source}")
         print(f"Records file: {self.trade_records_path}")
         print(f"Shared market data file: {self.market_data_path}")

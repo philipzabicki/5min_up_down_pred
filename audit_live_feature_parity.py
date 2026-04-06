@@ -1,4 +1,4 @@
-import copy
+﻿import copy
 import json
 import os
 import time
@@ -26,8 +26,8 @@ from features.candle_features import (
     resolve_streak_interval_to_rule,
 )
 from features.session_open_features import (
-    add_session_counter_features,
-    build_latest_session_counter_feature_dict_fast,
+    add_session_open_features,
+    build_latest_session_open_feature_dict_fast,
 )
 from features.realized_volatility import add_realized_volatility_features
 from features.volume_profile_fixed_range import (
@@ -46,7 +46,7 @@ from features.volume_profile_fixed_range import (
 from live_predict_binance import (
     INDICATOR_HISTORY_REQUIREMENTS_PATH,
     INTERVAL,
-    KELLY_CONFIG_PATH,
+    TRADE_POLICY_CONFIG_PATH,
     LIVE_INITIAL_BANKROLL_USDC,
     MODELING_DATASET_SETTINGS,
     MODEL_META_PATH,
@@ -55,7 +55,7 @@ from live_predict_binance import (
     LivePredictor,
     interval_to_timedelta,
     load_indicator_history_requirements,
-    load_kelly_runtime_config,
+    load_trade_policy_runtime_config,
     load_indicator_specs,
     load_model_and_meta,
     load_required_stable_window,
@@ -393,7 +393,7 @@ def _feature_builder_frame(feature_columns):
                 {
                     "feature": feature,
                     "builder_family": "session",
-                    "builder_name": "add_session_counter_features",
+                    "builder_name": "add_session_open_features",
                     "builder_source": None,
                 }
             )
@@ -1021,7 +1021,7 @@ def build_current_recomputed_feature_history(
         )
 
     if feature_parts["session_feature_cols"]:
-        feature_frame = add_session_counter_features(
+        feature_frame = add_session_open_features(
             feature_frame,
             feature_cols=feature_parts["session_feature_cols"],
         )
@@ -1101,11 +1101,7 @@ def align_feature_frame_to_audit_rows(
     return aligned
 
 
-def _advance_kelly_rng_once(predictor):
-    predictor.price_rng.standard_normal()
-
-
-def _compare_kelly_decisions(
+def _compare_policy_decisions(
     *,
     predictor,
     candidate_proba,
@@ -1118,42 +1114,48 @@ def _compare_kelly_decisions(
     for candidate_prob, reference_prob in zip(
         candidate_proba, reference_proba, strict=True
     ):
-        rng_state = copy.deepcopy(predictor.price_rng.bit_generator.state)
-        candidate_decision = predictor.evaluate_kelly_recommendation(
+        candidate_decision = predictor.evaluate_policy_decision(
             float(candidate_prob),
             bankroll=bankroll,
-            rng_state=rng_state,
         )
-        reference_decision = predictor.evaluate_kelly_recommendation(
+        reference_decision = predictor.evaluate_policy_decision(
             float(reference_prob),
             bankroll=bankroll,
-            rng_state=rng_state,
         )
-        _advance_kelly_rng_once(predictor)
 
         candidate_stake = float(candidate_decision.get("bet_usdc", 0.0) or 0.0)
         reference_stake = float(reference_decision.get("bet_usdc", 0.0) or 0.0)
         candidate_trade = int(candidate_stake > 0.0)
         reference_trade = int(reference_stake > 0.0)
-        candidate_side = str(candidate_decision.get("side", "none"))
-        reference_side = str(reference_decision.get("side", "none"))
-        candidate_reason = str(candidate_decision.get("reason", ""))
-        reference_reason = str(reference_decision.get("reason", ""))
+        candidate_side = str(candidate_decision.get("trade_side", "none"))
+        reference_side = str(reference_decision.get("trade_side", "none"))
+        candidate_reason = str(
+            candidate_decision.get(
+                "final_reason",
+                candidate_decision.get("reason", ""),
+            )
+        )
+        reference_reason = str(
+            reference_decision.get(
+                "final_reason",
+                reference_decision.get("reason", ""),
+            )
+        )
         rows.append(
             {
-                f"{candidate_label}_kelly_side": candidate_side,
-                f"{reference_label}_kelly_side": reference_side,
-                f"{candidate_label}_kelly_reason": candidate_reason,
-                f"{reference_label}_kelly_reason": reference_reason,
+                f"{candidate_label}_policy_side": candidate_side,
+                f"{reference_label}_policy_side": reference_side,
+                f"{candidate_label}_policy_reason": candidate_reason,
+                f"{reference_label}_policy_reason": reference_reason,
                 f"{candidate_label}_stake_usdc": candidate_stake,
                 f"{reference_label}_stake_usdc": reference_stake,
                 f"{candidate_label}_trade_flag": candidate_trade,
                 f"{reference_label}_trade_flag": reference_trade,
-                "kelly_side_mismatch": int(candidate_side != reference_side),
-                "kelly_reason_mismatch": int(candidate_reason != reference_reason),
-                "kelly_trade_flag_mismatch": int(candidate_trade != reference_trade),
-                "kelly_stake_abs_diff": abs(candidate_stake - reference_stake),
-                "kelly_decision_mismatch": int(
+                "policy_side_mismatch": int(candidate_side != reference_side),
+                "policy_reason_mismatch": int(candidate_reason != reference_reason),
+                "policy_trade_flag_mismatch": int(candidate_trade != reference_trade),
+                "policy_stake_abs_diff": abs(candidate_stake - reference_stake),
+                "policy_decision_mismatch": int(
                     candidate_side != reference_side
                     or candidate_reason != reference_reason
                     or candidate_trade != reference_trade
@@ -1176,7 +1178,7 @@ def build_matrix_comparison_report(
     feature_builder_frame,
     model,
     feature_importance_df=None,
-    kelly_predictor=None,
+    policy_predictor=None,
 ):
     feature_names = np.asarray(feature_columns, dtype=object)
     builder_meta = (
@@ -1281,34 +1283,34 @@ def build_matrix_comparison_report(
         copy=False,
     )
 
-    if kelly_predictor is not None:
-        kelly_df = _compare_kelly_decisions(
-            predictor=kelly_predictor,
+    if policy_predictor is not None:
+        policy_df = _compare_policy_decisions(
+            predictor=policy_predictor,
             candidate_proba=candidate_pred,
             reference_proba=reference_pred,
             candidate_label=candidate_label,
             reference_label=reference_label,
         )
         step_summary_df = pd.concat(
-            [step_summary_df.reset_index(drop=True), kelly_df.reset_index(drop=True)],
+            [step_summary_df.reset_index(drop=True), policy_df.reset_index(drop=True)],
             axis=1,
             copy=False,
         )
         step_summary_df["business_decision_mismatch"] = (
             (step_summary_df["signal_mismatch"] > 0)
-            | (step_summary_df["kelly_side_mismatch"] > 0)
-            | (step_summary_df["kelly_reason_mismatch"] > 0)
-            | (step_summary_df["kelly_trade_flag_mismatch"] > 0)
+            | (step_summary_df["policy_side_mismatch"] > 0)
+            | (step_summary_df["policy_reason_mismatch"] > 0)
+            | (step_summary_df["policy_trade_flag_mismatch"] > 0)
         ).astype(np.int8)
-        step_summary_df["stake_only_kelly_mismatch"] = (
-            (step_summary_df["kelly_decision_mismatch"] > 0)
+        step_summary_df["stake_only_policy_mismatch"] = (
+            (step_summary_df["policy_decision_mismatch"] > 0)
             & (step_summary_df["business_decision_mismatch"] == 0)
         ).astype(np.int8)
     else:
         step_summary_df["business_decision_mismatch"] = step_summary_df[
             "signal_mismatch"
         ].astype(np.int8)
-        step_summary_df["stake_only_kelly_mismatch"] = np.zeros(
+        step_summary_df["stake_only_policy_mismatch"] = np.zeros(
             len(step_summary_df), dtype=np.int8
         )
 
@@ -1538,50 +1540,50 @@ def build_matrix_comparison_report(
         ),
     }
     summary_payload.update(prediction_impact_report["summary"].to_dict())
-    if "kelly_decision_mismatch" in step_summary_df.columns:
+    if "policy_decision_mismatch" in step_summary_df.columns:
         summary_payload.update(
             {
-                "kelly_audit_bankroll_usdc": float(LIVE_INITIAL_BANKROLL_USDC),
-                "rows_with_kelly_side_mismatch": int(
-                    step_summary_df["kelly_side_mismatch"].sum()
+                "policy_audit_bankroll_usdc": float(LIVE_INITIAL_BANKROLL_USDC),
+                "rows_with_policy_side_mismatch": int(
+                    step_summary_df["policy_side_mismatch"].sum()
                 ),
-                "kelly_side_mismatch_rate": _summary_rate(
-                    int(step_summary_df["kelly_side_mismatch"].sum()),
+                "policy_side_mismatch_rate": _summary_rate(
+                    int(step_summary_df["policy_side_mismatch"].sum()),
                     len(audit_df),
                 ),
-                "rows_with_kelly_reason_mismatch": int(
-                    step_summary_df["kelly_reason_mismatch"].sum()
+                "rows_with_policy_reason_mismatch": int(
+                    step_summary_df["policy_reason_mismatch"].sum()
                 ),
-                "kelly_reason_mismatch_rate": _summary_rate(
-                    int(step_summary_df["kelly_reason_mismatch"].sum()),
+                "policy_reason_mismatch_rate": _summary_rate(
+                    int(step_summary_df["policy_reason_mismatch"].sum()),
                     len(audit_df),
                 ),
-                "rows_with_kelly_trade_flag_mismatch": int(
-                    step_summary_df["kelly_trade_flag_mismatch"].sum()
+                "rows_with_policy_trade_flag_mismatch": int(
+                    step_summary_df["policy_trade_flag_mismatch"].sum()
                 ),
-                "kelly_trade_flag_mismatch_rate": _summary_rate(
-                    int(step_summary_df["kelly_trade_flag_mismatch"].sum()),
+                "policy_trade_flag_mismatch_rate": _summary_rate(
+                    int(step_summary_df["policy_trade_flag_mismatch"].sum()),
                     len(audit_df),
                 ),
-                "rows_with_stake_only_kelly_mismatch": int(
-                    step_summary_df["stake_only_kelly_mismatch"].sum()
+                "rows_with_stake_only_policy_mismatch": int(
+                    step_summary_df["stake_only_policy_mismatch"].sum()
                 ),
-                "stake_only_kelly_mismatch_rate": _summary_rate(
-                    int(step_summary_df["stake_only_kelly_mismatch"].sum()),
+                "stake_only_policy_mismatch_rate": _summary_rate(
+                    int(step_summary_df["stake_only_policy_mismatch"].sum()),
                     len(audit_df),
                 ),
-                "rows_with_any_kelly_mismatch": int(
-                    step_summary_df["kelly_decision_mismatch"].sum()
+                "rows_with_any_policy_mismatch": int(
+                    step_summary_df["policy_decision_mismatch"].sum()
                 ),
-                "any_kelly_mismatch_rate": _summary_rate(
-                    int(step_summary_df["kelly_decision_mismatch"].sum()),
+                "any_policy_mismatch_rate": _summary_rate(
+                    int(step_summary_df["policy_decision_mismatch"].sum()),
                     len(audit_df),
                 ),
-                "max_kelly_stake_abs_diff": float(
-                    step_summary_df["kelly_stake_abs_diff"].max()
+                "max_policy_stake_abs_diff": float(
+                    step_summary_df["policy_stake_abs_diff"].max()
                 ),
-                "mean_kelly_stake_abs_diff": float(
-                    step_summary_df["kelly_stake_abs_diff"].mean()
+                "mean_policy_stake_abs_diff": float(
+                    step_summary_df["policy_stake_abs_diff"].mean()
                 ),
             }
         )
@@ -1662,21 +1664,21 @@ def build_live_drift_reason_report(
         if "business_decision_mismatch" in step_summary_df.columns
         else step_summary_df["signal_mismatch"] > 0
     )
-    kelly_mask = (
-        step_summary_df["kelly_decision_mismatch"] > 0
-        if "kelly_decision_mismatch" in step_summary_df.columns
+    policy_mask = (
+        step_summary_df["policy_decision_mismatch"] > 0
+        if "policy_decision_mismatch" in step_summary_df.columns
         else pd.Series(False, index=step_summary_df.index)
     )
     stake_only_mask = (
-        step_summary_df["stake_only_kelly_mismatch"] > 0
-        if "stake_only_kelly_mismatch" in step_summary_df.columns
+        step_summary_df["stake_only_policy_mismatch"] > 0
+        if "stake_only_policy_mismatch" in step_summary_df.columns
         else pd.Series(False, index=step_summary_df.index)
     )
     explain_mask = business_mask
     explanation_basis = "business_decision_mismatch"
     if not bool(explain_mask.any()) and bool(stake_only_mask.any()):
         explain_mask = stake_only_mask
-        explanation_basis = "stake_only_kelly_mismatch"
+        explanation_basis = "stake_only_policy_mismatch"
     if not bool(explain_mask.any()) and bool(drift_mask.any()):
         explain_mask = drift_mask
         explanation_basis = "proba_diff_gt_tol"
@@ -1730,8 +1732,8 @@ def build_live_drift_reason_report(
                 "rows_selected_for_explanation": 0,
                 "rows_with_proba_diff_gt_tol": int(drift_mask.sum()),
                 "rows_with_business_decision_mismatch": int(business_mask.sum()),
-                "rows_with_stake_only_kelly_mismatch": int(stake_only_mask.sum()),
-                "rows_with_any_kelly_mismatch": int(kelly_mask.sum()),
+                "rows_with_stake_only_policy_mismatch": int(stake_only_mask.sum()),
+                "rows_with_any_policy_mismatch": int(policy_mask.sum()),
                 "explanation_basis": explanation_basis,
                 "rows_with_history_shortfall": int(history_shortfall.gt(0).sum()),
                 "prediction_drift_rows_with_history_shortfall": 0,
@@ -2003,8 +2005,8 @@ def build_live_drift_reason_report(
             "rows_selected_for_explanation": int(explain_mask.sum()),
             "rows_with_proba_diff_gt_tol": int(drift_mask.sum()),
             "rows_with_business_decision_mismatch": int(business_mask.sum()),
-            "rows_with_stake_only_kelly_mismatch": int(stake_only_mask.sum()),
-            "rows_with_any_kelly_mismatch": int(kelly_mask.sum()),
+            "rows_with_stake_only_policy_mismatch": int(stake_only_mask.sum()),
+            "rows_with_any_policy_mismatch": int(policy_mask.sum()),
             "explanation_basis": explanation_basis,
             "rows_with_history_shortfall": int(history_shortfall.gt(0).sum()),
             "prediction_drift_rows_with_history_shortfall": int(
@@ -2086,13 +2088,12 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.candle_pattern_feature_columns = tuple(
             resolve_candle_pattern_feature_cols(self.candle_feature_columns)
         )
-        self.prediction_threshold = 0.5
         self.target_col = str(meta.get("target_col", "target_5m_candle_up"))
         self.target_bucket_minutes = parse_target_bucket_minutes(self.target_col)
-        self.kelly_runtime = load_kelly_runtime_config(KELLY_CONFIG_PATH)
+        self.trade_policy_runtime = load_trade_policy_runtime_config(
+            TRADE_POLICY_CONFIG_PATH
+        )
         self.live_bankroll_usdc = float(LIVE_INITIAL_BANKROLL_USDC)
-        self.price_rng = np.random.default_rng(int(self.kelly_runtime["seed"]))
-        self.price_sim_scenario = self._sample_price_sim_scenario()
 
         feature_parts = split_feature_subset(self.feature_columns)
         if feature_parts["streak_intervals"]:
@@ -2224,24 +2225,19 @@ class PseudoLiveAuditPredictor(LivePredictor):
     def _save_runtime_volume_profile_state(self, log=False, context="state"):
         return None
 
-    def evaluate_kelly_recommendation(
+    def evaluate_policy_decision(
         self,
         prob_up_raw,
         *,
         bankroll=None,
-        rng_state=None,
     ):
         prev_bankroll = float(self.live_bankroll_usdc)
-        prev_rng_state = copy.deepcopy(self.price_rng.bit_generator.state)
         try:
             if bankroll is not None:
                 self.live_bankroll_usdc = float(bankroll)
-            if rng_state is not None:
-                self.price_rng.bit_generator.state = copy.deepcopy(rng_state)
-            return dict(self._recommend_kelly_bet(prob_up_raw=float(prob_up_raw)))
+            return dict(self._build_policy_intent(proba_up=float(prob_up_raw)))
         finally:
             self.live_bankroll_usdc = prev_bankroll
-            self.price_rng.bit_generator.state = prev_rng_state
 
     def build_feature_snapshot(self, volume_profile_values=None):
         vector = self._build_feature_vector(volume_profile_values=volume_profile_values)
@@ -2449,7 +2445,7 @@ def run_stored_modeling_vs_current_recompute_audit(
 
     feature_group_by_name = _feature_group_map(feature_columns)
     feature_builder_frame = _feature_builder_frame(feature_columns)
-    kelly_predictor = PseudoLiveAuditPredictor(
+    policy_predictor = PseudoLiveAuditPredictor(
         raw_history_df.tail(
             max(1, min(len(raw_history_df), DEFAULT_BOOTSTRAP_CANDLES))
         ).copy(),
@@ -2474,7 +2470,7 @@ def run_stored_modeling_vs_current_recompute_audit(
         feature_builder_frame=feature_builder_frame,
         model=model,
         feature_importance_df=feature_importance_df,
-        kelly_predictor=kelly_predictor,
+        policy_predictor=policy_predictor,
     )
     report["summary"] = pd.concat(
         [
@@ -2739,7 +2735,7 @@ def run_live_modeling_feature_audit(
         feature_builder_frame=feature_builder_frame,
         model=model,
         feature_importance_df=feature_importance_df,
-        kelly_predictor=predictor,
+        policy_predictor=predictor,
     )
     live_report["step_summary_df"]["indicator_nan_count"] = indicator_nan_count
     live_report["step_summary_df"]["history_rows_used"] = history_rows_used
@@ -3401,20 +3397,20 @@ def main():
         "signal_mismatch_rate",
         "rows_with_business_decision_mismatch",
         "business_decision_mismatch_rate",
-        "rows_with_kelly_side_mismatch",
-        "kelly_side_mismatch_rate",
-        "rows_with_kelly_trade_flag_mismatch",
-        "kelly_trade_flag_mismatch_rate",
-        "rows_with_kelly_reason_mismatch",
-        "kelly_reason_mismatch_rate",
-        "rows_with_stake_only_kelly_mismatch",
-        "stake_only_kelly_mismatch_rate",
+        "rows_with_policy_side_mismatch",
+        "policy_side_mismatch_rate",
+        "rows_with_policy_trade_flag_mismatch",
+        "policy_trade_flag_mismatch_rate",
+        "rows_with_policy_reason_mismatch",
+        "policy_reason_mismatch_rate",
+        "rows_with_stake_only_policy_mismatch",
+        "stake_only_policy_mismatch_rate",
         "rows_with_proba_diff_gt_tol",
         "max_proba_up_abs_diff",
         "mean_proba_up_abs_diff",
         "max_mean_abs_proba_gap_reduction_if_fixed",
         "max_mean_abs_proba_shift_if_fixed",
-        "max_kelly_stake_abs_diff",
+        "max_policy_stake_abs_diff",
     ]
     available_business_keys = [key for key in business_keys if key in summary.index]
     print("Live vs stored business summary:")
@@ -3504,3 +3500,4 @@ __all__ = [
 
 if __name__ == "__main__":
     main()
+

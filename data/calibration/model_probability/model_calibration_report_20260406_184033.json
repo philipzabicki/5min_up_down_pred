@@ -1,0 +1,94 @@
+{
+  "source": {
+    "oof_predictions_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet",
+    "event_time_col": "Opened",
+    "target_col": "target_5m_candle_up",
+    "pred_col": "oof_pred_proba_up",
+    "weight_col": "target_5m_weight"
+  },
+  "split": {
+    "eval_fraction": 0.2,
+    "fit_rows": 1960432,
+    "eval_rows": 490108,
+    "fit_start": "2021-08-08T20:08:00",
+    "fit_end": "2025-05-01T05:59:00",
+    "eval_start": "2025-05-01T06:00:00",
+    "eval_end": "2026-04-06T14:27:00"
+  },
+  "fit_summary": {
+    "fit_event_rate_unweighted": 0.501912843699756,
+    "fit_event_rate_weighted": 0.5016249588579688,
+    "fit_raw_mean_pred": 0.5029275389085482
+  },
+  "eval_summary": {
+    "eval_event_rate_unweighted": 0.49852889567197434,
+    "eval_event_rate_weighted": 0.49926878025813787,
+    "eval_raw_mean_pred": 0.5005052277520093
+  },
+  "methods": {
+    "raw": {
+      "unweighted": {
+        "brier_score": 0.24959687571674413,
+        "log_loss": 0.6923401187428735,
+        "mean_pred": 0.5005052277520093,
+        "event_rate": 0.49852889567197434,
+        "ece": 0.001976332080035248,
+        "mce": 0.01888030999114998
+      },
+      "weighted": {
+        "brier_score": 0.24953947772993693,
+        "log_loss": 0.6922251190873936,
+        "mean_pred": 0.5006209340334686,
+        "event_rate": 0.49926878025813787,
+        "ece": 0.0013813085824878057,
+        "mce": 0.0156573169809196
+      }
+    },
+    "isotonic": {
+      "unweighted": {
+        "brier_score": 0.249597776212217,
+        "log_loss": 0.6923418955652981,
+        "mean_pred": 0.4989868274449249,
+        "event_rate": 0.49852889567197434,
+        "ece": 0.001109712638233949,
+        "mce": 0.011029412729079091
+      },
+      "weighted": {
+        "brier_score": 0.24953094959835478,
+        "log_loss": 0.6922080187675097,
+        "mean_pred": 0.4991154458227177,
+        "event_rate": 0.49926878025813787,
+        "ece": 0.0008489118723409837,
+        "mce": 0.003888452634705275
+      }
+    },
+    "logistic": {
+      "unweighted": {
+        "brier_score": 0.24959620280745054,
+        "log_loss": 0.6923387539593148,
+        "mean_pred": 0.4991968549442337,
+        "event_rate": 0.49852889567197434,
+        "ece": 0.0014157870332465444,
+        "mce": 0.006038065639725088
+      },
+      "weighted": {
+        "brier_score": 0.2495386283028286,
+        "log_loss": 0.6922234092971377,
+        "mean_pred": 0.4993175676677586,
+        "event_rate": 0.49926878025813787,
+        "ece": 0.0009933583648766172,
+        "mce": 0.0028135745468983453
+      }
+    }
+  },
+  "best_method": {
+    "unweighted_brier": "logistic",
+    "unweighted_log_loss": "logistic",
+    "weighted_brier": "isotonic",
+    "weighted_log_loss": "isotonic"
+  },
+  "artifacts": {
+    "report_path": "data\\calibration\\model_probability\\model_calibration_report_20260406_184033.json",
+    "reliability_csv_path": "data\\calibration\\model_probability\\model_calibration_reliability_20260406_184033.csv"
+  }
+}

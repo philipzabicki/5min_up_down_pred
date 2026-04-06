@@ -10,7 +10,7 @@ from features.candle_features import (
     RAW_OHLCV_COLS,
 )
 from metrics_utils import weighted_brier_score
-from features.session_open_features import add_session_counter_features
+from features.session_open_features import add_session_open_features
 from modeling_dataset_utils import (
     load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
@@ -56,7 +56,22 @@ PRIMARY_REPORTING_METRIC = "brier_score"
 
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
-LGBM_OPTUNA_BEST_PARAMS = {'learning_rate': 0.0047168930397256115, 'num_leaves': 203, 'min_data_in_leaf': 6, 'max_depth': 41, 'feature_fraction': 0.3535849279738236, 'bagging_fraction': 0.8060837855401768, 'bagging_freq': 10, 'lambda_l2': 6.467328293921802, 'lambda_l1': 4.930249967778666, 'min_sum_hessian_in_leaf': 0.014887735545909926, 'min_gain_to_split': 1.031237481486823, 'feature_fraction_bynode': 0.8821060783972539, 'path_smooth': 3.743686767424939, 'extra_trees': False}
+LGBM_OPTUNA_BEST_PARAMS = {
+      "learning_rate": 0.0047168930397256115,
+      "num_leaves": 203,
+      "min_data_in_leaf": 6,
+      "max_depth": 41,
+      "feature_fraction": 0.3535849279738236,
+      "bagging_fraction": 0.8060837855401768,
+      "bagging_freq": 10,
+      "lambda_l2": 6.467328293921802,
+      "lambda_l1": 4.930249967778666,
+      "min_sum_hessian_in_leaf": 0.014887735545909926,
+      "min_gain_to_split": 1.031237481486823,
+      "feature_fraction_bynode": 0.8821060783972539,
+      "path_smooth": 3.743686767424939,
+      "extra_trees": False
+    }
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
     "num_leaves": 31,
@@ -279,12 +294,12 @@ def load_walk_forward_training_frame(
             col for col in subset_parts["session_feature_cols"] if col not in df.columns
         ]
         if missing_subset_session_features:
-            df = add_session_counter_features(
+            df = add_session_open_features(
                 df,
                 feature_cols=missing_subset_session_features,
             )
     else:
-        df = add_session_counter_features(df)
+        df = add_session_open_features(df)
 
     sample_weight, sample_weight_source, sample_weight_summary = (
         resolve_sample_weight_series(df)

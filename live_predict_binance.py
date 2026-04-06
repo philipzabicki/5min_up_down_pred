@@ -63,14 +63,13 @@ from features.realized_volatility import (
     RealizedVolatilityRuntimeState,
 )
 from features.session_open_features import (
-    SUPPORTED_SESSION_COUNTER_COLS,
-    build_latest_session_counter_feature_dict_fast,
+    SUPPORTED_SESSION_OPEN_FEATURE_COLS,
+    build_latest_session_open_feature_dict_fast,
 )
 from features.StochOsc import get_stochastic_oscillator_values
 from features.volume_profile_fixed_range import (
     FEATURE_VERSION as VP_FEATURE_VERSION,
     RUNTIME_STATE_DIR as VP_RUNTIME_STATE_DIR,
-    bootstrap_state_from_history,
     extract_features_from_state,
     is_volume_profile_feature,
     load_state as load_volume_profile_state,
@@ -79,16 +78,15 @@ from features.volume_profile_fixed_range import (
     state_matches_config as volume_profile_state_matches_config,
     update_state_with_candle as update_volume_profile_state_with_candle,
 )
-from kelly_utils import adjust_probability_for_kelly
 from modeling_dataset_utils import (
     MODELING_DATASET_CONFIG_FILE,
     load_modeling_dataset_settings,
     split_feature_subset,
 )
-from polymarket_fee_utils import (
-    normalize_polymarket_fee_model,
-    polymarket_taker_fee_fraction_of_notional,
-    polymarket_taker_fee_usdc_from_notional,
+from trade_policy import (
+    build_trade_intent,
+    decide_trade_from_ev,
+    load_trade_policy_runtime_config,
 )
 
 
@@ -115,7 +113,9 @@ INDEX_PRICE_SYNTHETIC_VOLUME_DEFAULT = float(
     LIVE_PROFILE["index_price_synthetic_volume_default"]
 )
 MODEL_META_PATH = Path(RUNTIME_ARTIFACT_PATHS["model_meta_path"])
-KELLY_CONFIG_PATH = Path(RUNTIME_ARTIFACT_PATHS["kelly_runtime_config_path"])
+TRADE_POLICY_CONFIG_PATH = Path(
+    RUNTIME_ARTIFACT_PATHS["trade_policy_runtime_config_path"]
+)
 INDICATOR_HISTORY_REQUIREMENTS_PATH = Path(
     RUNTIME_ARTIFACT_PATHS["indicator_history_requirements_path"]
 )
@@ -171,13 +171,12 @@ WS_PING_INTERVAL_SEC = int(LIVE_PROFILE["ws_ping_interval_sec"])
 WS_PING_TIMEOUT_SEC = int(LIVE_PROFILE["ws_ping_timeout_sec"])
 
 LIVE_INITIAL_BANKROLL_USDC = float(LIVE_PROFILE["live_initial_bankroll_usdc"])
-MIN_PROBA_CLIP = float(LIVE_PROFILE["min_proba_clip"])
 
 OHLCV_COLS = list(RAW_OHLCV_COLS)
 BASE_FEATURE_COLS = (
     set(OHLCV_COLS)
     | set(SUPPORTED_CANDLE_FEATURE_COLS)
-    | set(SUPPORTED_SESSION_COUNTER_COLS)
+    | set(SUPPORTED_SESSION_OPEN_FEATURE_COLS)
     | set(REALIZED_VOLATILITY_FEATURE_COLUMNS)
 )
 VALUE_BUILDERS = {
@@ -340,10 +339,10 @@ def resolve_record_accuracy_from_side(record, actual_up=None):
     if actual_up is None or pd.isna(actual_up):
         return None
 
-    side = str(record.get("kelly_side", "") or "").strip().lower()
-    if side == "up":
+    side = str(record.get("trade_side", "") or "").strip().lower()
+    if side == "yes":
         return int(int(actual_up) == 1)
-    if side == "down":
+    if side == "no":
         return int(int(actual_up) == 0)
     return None
 
@@ -739,45 +738,6 @@ def load_required_stable_window(
     return int(requirements["global_required_runtime_window"])
 
 
-def load_kelly_runtime_config(config_path):
-    config_path = coerce_path(config_path)
-    if not config_path.exists():
-        raise FileNotFoundError(f"Kelly config not found: {config_path}")
-
-    payload = json.loads(config_path.read_text(encoding="utf-8"))
-
-    def _read_float(container, key):
-        if key not in container:
-            raise KeyError(f"Missing '{key}' in Kelly config: {config_path}")
-        return float(container[key])
-
-    fee_model = payload.get("fee_model")
-    if not isinstance(fee_model, dict):
-        raise ValueError(f"Malformed Kelly config, missing fee_model: {config_path}")
-
-    cfg = {
-        "fractional_kelly": _read_float(payload, "fractional_kelly"),
-        "cap": _read_float(payload, "cap"),
-        "min_edge": _read_float(payload, "min_edge"),
-        "min_stake_usdc": _read_float(payload, "kelly_min_stake_usdc"),
-        "fee_model": normalize_polymarket_fee_model(
-            fee_model,
-            context=f"Kelly config '{config_path}' fee_model",
-        ),
-        "price_sim_model": "live_orderbook",
-        "seed": 37,
-        "order_min_size": 0.0,
-        "runtime_price_policy": "external live orderbook quotes required",
-    }
-    if cfg["cap"] <= 0.0 or cfg["cap"] > 1.0:
-        raise ValueError("Kelly config invalid: cap must be in (0, 1].")
-    if cfg["fractional_kelly"] <= 0.0:
-        raise ValueError("Kelly config invalid: fractional_kelly must be > 0.")
-    if cfg["min_stake_usdc"] <= 0.0:
-        raise ValueError("Kelly config invalid: min_stake_usdc must be > 0.")
-    return cfg
-
-
 def load_indicator_specs(feature_columns):
     fit_configs = parse_fit_results(FIT_RESULTS_DIR)
     fit_by_feature_col = {cfg["feature_col"]: cfg for cfg in fit_configs}
@@ -1017,7 +977,7 @@ class LivePredictor:
         meta, self.model_file_path = resolve_model_meta_and_path(MODEL_META_PATH)
         self.model = lgb.Booster(model_file=str(self.model_file_path))
         self.model_hash = _hash_path_contents(self.model_file_path)
-        self.kelly_config_hash = _hash_path_contents(KELLY_CONFIG_PATH)
+        self.trade_policy_config_hash = _hash_path_contents(TRADE_POLICY_CONFIG_PATH)
         self.modeling_dataset_config_hash = _hash_path_contents(
             MODELING_DATASET_CONFIG_FILE
         )
@@ -1035,14 +995,13 @@ class LivePredictor:
             resolve_candle_pattern_feature_cols(self.candle_feature_columns)
         )
 
-        self.prediction_threshold = 0.5
         self.target_col = str(meta.get("target_col", "target_5m_candle_up"))
         self.target_bucket_minutes = parse_target_bucket_minutes(self.target_col)
 
-        self.kelly_runtime = load_kelly_runtime_config(KELLY_CONFIG_PATH)
+        self.trade_policy_runtime = load_trade_policy_runtime_config(
+            TRADE_POLICY_CONFIG_PATH
+        )
         self.live_bankroll_usdc = LIVE_INITIAL_BANKROLL_USDC
-        self.price_rng = np.random.default_rng(int(self.kelly_runtime["seed"]))
-        self.price_sim_scenario = self._sample_price_sim_scenario()
 
         feature_parts = split_feature_subset(self.feature_columns)
         if feature_parts["streak_intervals"]:
@@ -1073,7 +1032,6 @@ class LivePredictor:
         )
         self.volume_profile_state_path = VOLUME_PROFILE_RUNTIME_STATE_PATH
         self.volume_profile_modeling_state_path = VOLUME_PROFILE_MODELING_STATE_PATH
-        self.volume_profile_state_source_path = None
         self.volume_profile_save_pool = (
             ThreadPoolExecutor(max_workers=1) if self.volume_profile_enabled else None
         )
@@ -1461,41 +1419,34 @@ class LivePredictor:
             future.add_done_callback(_log_saved)
         return future
 
-    def _load_volume_profile_state_candidates(self, bootstrap_df):
+    def _load_required_modeling_volume_profile_state(self, bootstrap_df):
         history_last_opened = pd.Timestamp(bootstrap_df["Opened"].iloc[-1])
-        candidates = []
-        for label, path in (
-            ("runtime", self.volume_profile_state_path),
-            ("modeling_end", self.volume_profile_modeling_state_path),
-        ):
-            try:
-                state = load_volume_profile_state(path)
-                if not volume_profile_state_matches_config(
-                    state, self.volume_profile_cfg
-                ):
-                    raise ValueError("config mismatch")
-                last_candle_ts = self._volume_profile_state_last_candle_timestamp(state)
-                if last_candle_ts is not None and last_candle_ts > history_last_opened:
-                    raise ValueError(
-                        "state is ahead of bootstrap history "
-                        f"({last_candle_ts.isoformat()} > {history_last_opened.isoformat()})"
-                    )
-                candidates.append((last_candle_ts, label, path, state))
-            except FileNotFoundError:
-                continue
-            except Exception as exc:
-                print(f"[vp] {label} state reload skipped: {exc}")
+        try:
+            state = load_volume_profile_state(self.volume_profile_modeling_state_path)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "volume profile live state initialization failed: missing modeling-end "
+                f"state {self.volume_profile_modeling_state_path.with_suffix('.npz')}"
+            ) from exc
 
-        if not candidates:
-            return None
+        if not volume_profile_state_matches_config(state, self.volume_profile_cfg):
+            raise RuntimeError(
+                "volume profile live state initialization failed: modeling-end state "
+                "config does not match active volume_profile_fixed_range config."
+            )
 
-        def _sort_key(item):
-            last_candle_ts, label, _path, _state = item
-            ts_value = last_candle_ts.value if last_candle_ts is not None else -1
-            label_priority = 1 if label == "runtime" else 0
-            return (ts_value, label_priority)
-
-        return max(candidates, key=_sort_key)
+        last_candle_ts = self._volume_profile_state_last_candle_timestamp(state)
+        if last_candle_ts is None:
+            raise RuntimeError(
+                "volume profile live state initialization failed: modeling-end state "
+                "is missing last_candle_time."
+            )
+        if last_candle_ts > history_last_opened:
+            raise RuntimeError(
+                "volume profile modeling-end state is ahead of bootstrap history "
+                f"({last_candle_ts.isoformat()} > {history_last_opened.isoformat()})"
+            )
+        return state
 
     def _sync_volume_profile_state_with_history(self, history_df):
         if not self.volume_profile_enabled or history_df.empty:
@@ -1505,45 +1456,46 @@ class LivePredictor:
         last_candle_ts = self._volume_profile_state_last_candle_timestamp(
             self.volume_profile_state
         )
-        if last_candle_ts is not None:
-            first_history_opened = pd.Timestamp(sync_df["Opened"].iloc[0])
-            gap_start = last_candle_ts + INTERVAL_DELTA
-            gap_end = first_history_opened - INTERVAL_DELTA
-            if gap_start <= gap_end:
-                gap_df = fetch_closed_ohlcv_range(
-                    self.session,
-                    start_opened=gap_start,
-                    end_opened=gap_end,
+        if last_candle_ts is None:
+            raise RuntimeError(
+                "volume profile state is missing last_candle_time. "
+                "Live VP requires a saved modeling-end state plus incremental catch-up."
+            )
+        first_history_opened = pd.Timestamp(sync_df["Opened"].iloc[0])
+        gap_start = last_candle_ts + INTERVAL_DELTA
+        gap_end = first_history_opened - INTERVAL_DELTA
+        if gap_start <= gap_end:
+            gap_df = fetch_closed_ohlcv_range(
+                self.session,
+                start_opened=gap_start,
+                end_opened=gap_end,
+            )
+            if gap_df.empty:
+                raise RuntimeError(
+                    "volume profile catch-up gap is missing candles "
+                    f"from {gap_start.isoformat()} to {gap_end.isoformat()}"
                 )
-                if gap_df.empty:
-                    raise RuntimeError(
-                        "volume profile catch-up gap is missing candles "
-                        f"from {gap_start.isoformat()} to {gap_end.isoformat()}"
-                    )
-                gap_opened = gap_df["Opened"]
-                if (
-                    pd.Timestamp(gap_opened.iloc[0]) != gap_start
-                    or pd.Timestamp(gap_opened.iloc[-1]) != gap_end
-                    or not gap_opened.diff().iloc[1:].eq(INTERVAL_DELTA).all()
-                ):
-                    raise RuntimeError(
-                        "volume profile catch-up gap is not contiguous "
-                        f"for range {gap_start.isoformat()} -> {gap_end.isoformat()}"
-                    )
-                sync_df = pd.concat(
-                    [
-                        gap_df.loc[:, ["Opened", "High", "Low", "Volume"]],
-                        sync_df,
-                    ],
-                    ignore_index=True,
+            gap_opened = gap_df["Opened"]
+            if (
+                pd.Timestamp(gap_opened.iloc[0]) != gap_start
+                or pd.Timestamp(gap_opened.iloc[-1]) != gap_end
+                or not gap_opened.diff().iloc[1:].eq(INTERVAL_DELTA).all()
+            ):
+                raise RuntimeError(
+                    "volume profile catch-up gap is not contiguous "
+                    f"for range {gap_start.isoformat()} -> {gap_end.isoformat()}"
                 )
-            sync_df = sync_df.loc[sync_df["Opened"] > last_candle_ts]
+            sync_df = pd.concat(
+                [
+                    gap_df.loc[:, ["Opened", "High", "Low", "Volume"]],
+                    sync_df,
+                ],
+                ignore_index=True,
+            )
+        sync_df = sync_df.loc[sync_df["Opened"] > last_candle_ts]
 
         if sync_df.empty:
-            if (
-                self.volume_profile_state_source_path != self.volume_profile_state_path
-                or not self.volume_profile_state_path.with_suffix(".npz").exists()
-            ):
+            if not self.volume_profile_state_path.with_suffix(".npz").exists():
                 self._save_runtime_volume_profile_state(
                     log=True, context="runtime state"
                 )
@@ -1568,21 +1520,14 @@ class LivePredictor:
         self._save_runtime_volume_profile_state(log=True, context="runtime state")
 
     def _initialize_volume_profile_state(self, bootstrap_df):
-        candidate = self._load_volume_profile_state_candidates(bootstrap_df)
-        if candidate is not None:
-            _last_candle_ts, label, path, state = candidate
-            self.volume_profile_state = state
-            self.volume_profile_state_source_path = path
-            print(f"[vp] loaded {label} state -> {path.with_suffix('.npz')}")
-            self._sync_volume_profile_state_with_history(bootstrap_df)
-            return
-
-        print("[vp] bootstrap state from historical candles")
-        self.volume_profile_state = bootstrap_state_from_history(
-            bootstrap_df.loc[:, ["Opened", "High", "Low", "Volume"]],
-            self.volume_profile_cfg,
+        self.volume_profile_state = self._load_required_modeling_volume_profile_state(
+            bootstrap_df
         )
-        self._save_runtime_volume_profile_state(log=True, context="runtime state")
+        print(
+            "[vp] loaded modeling-end state -> "
+            f"{self.volume_profile_modeling_state_path.with_suffix('.npz')}"
+        )
+        self._sync_volume_profile_state_with_history(bootstrap_df)
 
     def _extract_volume_profile_features_for_latest_candle(self):
         if not self.volume_profile_enabled:
@@ -1729,7 +1674,7 @@ class LivePredictor:
             )
         if self.session_feature_columns:
             values.update(
-                build_latest_session_counter_feature_dict_fast(
+                build_latest_session_open_feature_dict_fast(
                     latest_opened=opened_values[-1],
                     feature_cols=self.session_feature_columns,
                 )
@@ -1763,312 +1708,33 @@ class LivePredictor:
             vector[0, i] = float(values.get(col, np.nan))
         return vector
 
-    def _sample_price_sim_scenario(self):
-        if self.kelly_runtime.get("price_sim_model") != "parametric_market_mid_overround":
-            return None
-
-        intercept = float(self.kelly_runtime["mid_intercept_mean"])
-        intercept_std = float(self.kelly_runtime["mid_intercept_std"])
-        if intercept_std > 0.0:
-            intercept += intercept_std * float(self.price_rng.standard_normal())
-        intercept = float(
-            np.clip(
-                intercept,
-                float(self.kelly_runtime["mid_intercept_min"]),
-                float(self.kelly_runtime["mid_intercept_max"]),
-            )
-        )
-
-        slope = float(self.kelly_runtime["mid_slope_mean"])
-        slope_std = float(self.kelly_runtime["mid_slope_std"])
-        if slope_std > 0.0:
-            slope += slope_std * float(self.price_rng.standard_normal())
-        slope = float(
-            np.clip(
-                slope,
-                float(self.kelly_runtime["mid_slope_min"]),
-                float(self.kelly_runtime["mid_slope_max"]),
-            )
-        )
-
-        return {
-            "mid_intercept": float(intercept),
-            "mid_slope": float(slope),
-        }
-
-    def _simulate_execution_quotes(self, prob_up_raw):
-        if self.kelly_runtime.get("price_sim_model") == "neutral_conservative_fixed":
-            ask_price = float(self.kelly_runtime["ask_price"])
-            return {
-                "up_price": float(ask_price),
-                "down_price": float(ask_price),
-                "market_mid_up": 0.5,
-                "price_policy": str(self.kelly_runtime.get("price_policy", "")),
-            }
-
-        if self.kelly_runtime.get("price_sim_model") == "parametric_market_mid_overround":
-            tick_size = float(self.kelly_runtime["tick_size"])
-            half_tick = float(self.kelly_runtime["half_tick"])
-            scenario = self.price_sim_scenario or self._sample_price_sim_scenario()
-
-            residual = float(self.kelly_runtime["mid_residual_std"]) * float(
-                self.price_rng.standard_normal()
-            )
-            residual = float(
-                np.clip(
-                    residual,
-                    -float(self.kelly_runtime["mid_residual_abs_q99"]),
-                    float(self.kelly_runtime["mid_residual_abs_q99"]),
-                )
-            )
-
-            ask_mid_up = (
-                0.5
-                + float(scenario["mid_intercept"])
-                + float(scenario["mid_slope"]) * (float(prob_up_raw) - 0.5)
-                + residual
-            )
-
-            overround_ticks = int(
-                self.price_rng.choice(
-                    np.asarray(
-                        self.kelly_runtime["overround_ticks_values"],
-                        dtype=np.int64,
-                    ),
-                    p=np.asarray(
-                        self.kelly_runtime["overround_ticks_probs"],
-                        dtype=np.float64,
-                    ),
-                )
-            )
-
-            mid_half_ticks_float = ask_mid_up / half_tick
-            mid_half_ticks = int(round(mid_half_ticks_float))
-            lower_mid_half_ticks = int(overround_ticks + 2)
-            upper_mid_half_ticks = int(198 - overround_ticks)
-            mid_half_ticks = int(
-                np.clip(mid_half_ticks, lower_mid_half_ticks, upper_mid_half_ticks)
-            )
-            if (mid_half_ticks + overround_ticks) % 2 != 0:
-                mid_half_ticks += 1 if mid_half_ticks_float >= mid_half_ticks else -1
-
-            up_ticks = int((mid_half_ticks + overround_ticks) // 2)
-            down_ticks = int((overround_ticks - mid_half_ticks + 200) // 2)
-            up_price = float(tick_size * up_ticks)
-            down_price = float(tick_size * down_ticks)
-
-            return {
-                "up_price": up_price,
-                "down_price": down_price,
-                "market_mid_up": float(ask_mid_up),
-                "overround_ticks": int(overround_ticks),
-                "mid_intercept": float(scenario["mid_intercept"]),
-                "mid_slope": float(scenario["mid_slope"]),
-                "mid_residual": float(residual),
-            }
-
-        sigma = float(self.kelly_runtime["sigma"])
-        spread_half = float(self.kelly_runtime["spread_half"])
-        base_price = float(self.kelly_runtime["base_price"])
-        clip_lo = float(self.kelly_runtime["price_clip_lo"])
-        clip_hi = float(self.kelly_runtime["price_clip_hi"])
-        eps = float(self.price_rng.standard_normal())
-        slip = abs(sigma * eps)
-        price = float(np.clip(base_price + spread_half + slip, clip_lo, clip_hi))
-        return {
-            "up_price": float(price),
-            "down_price": float(price),
-            "eps": float(eps),
-            "slip": float(slip),
-        }
-
-    def _recommend_kelly_bet(self, prob_up_raw):
+    def _build_policy_intent(self, proba_up):
         bankroll = float(self.live_bankroll_usdc)
         if bankroll <= 0.0:
-            return {"reason": "bankroll_non_positive"}
+            return {
+                "decision": "no_trade",
+                "trade_side": "none",
+                "final_reason": "bankroll_non_positive",
+                "policy_reason": "bankroll_non_positive",
+            }
 
-        p = float(
-            adjust_probability_for_kelly(
-                float(prob_up_raw),
-                min_clip=MIN_PROBA_CLIP,
-            )
+        policy_result = decide_trade_from_ev(
+            float(proba_up),
+            None,
+            None,
+            None,
+            None,
+            float(self.trade_policy_runtime["extra_buffer"]),
         )
-
-        if self.kelly_runtime.get("price_sim_model") == "live_orderbook":
-            return {
-                "reason": "live_quotes_required",
-                "prob_win_raw": float(prob_up_raw),
-                "prob_win_adj": float(p),
-                "up_price": float("nan"),
-                "down_price": float("nan"),
-            }
-
-        quotes = self._simulate_execution_quotes(prob_up_raw=prob_up_raw)
-        fee_model = self.kelly_runtime["fee_model"]
-        candidates = []
-        for side, price, p_side in (
-            ("up", float(quotes["up_price"]), float(p)),
-            ("down", float(quotes["down_price"]), float(1.0 - p)),
-        ):
-            eff_rate = float(
-                polymarket_taker_fee_fraction_of_notional(price, fee_model)
-            )
-            if eff_rate >= 0.99:
-                continue
-            c_eff = price / (1.0 - eff_rate)
-            edge = p_side - c_eff
-            candidates.append(
-                {
-                    "side": side,
-                    "entry_price": float(price),
-                    "prob_win_adj": float(p_side),
-                    "edge": float(edge),
-                    "c_eff": float(c_eff),
-                    "eff_rate": float(eff_rate),
-                }
-            )
-
-        if not candidates:
-            return {
-                "reason": "eff_rate_too_high",
-                "prob_win_raw": float(prob_up_raw),
-                "prob_win_adj": p,
-                "up_price": float(quotes["up_price"]),
-                "down_price": float(quotes["down_price"]),
-                "eps": float(quotes.get("eps", np.nan)),
-                "slip": float(quotes.get("slip", np.nan)),
-            }
-
-        best = max(candidates, key=lambda item: float(item["edge"]))
-        side = str(best["side"])
-        selected_edge = float(best["edge"])
-        p_side = float(best["prob_win_adj"])
-        price = float(best["entry_price"])
-        c_eff = float(best["c_eff"])
-        eff_rate = float(best["eff_rate"])
-        order_min_size = float(self.kelly_runtime.get("order_min_size", 0.0))
-
-        if selected_edge < float(self.kelly_runtime["min_edge"]):
-            return {
-                "reason": "edge_below_min",
-                "side": side,
-                "edge": float(selected_edge),
-                "prob_win_raw": float(prob_up_raw),
-                "prob_win_adj": float(p_side),
-                "entry_price": float(price),
-                "c_eff": float(c_eff),
-                "eff_rate": float(eff_rate),
-                "up_price": float(quotes["up_price"]),
-                "down_price": float(quotes["down_price"]),
-                "eps": float(quotes.get("eps", np.nan)),
-                "slip": float(quotes.get("slip", np.nan)),
-            }
-
-        f_star = (p_side - c_eff) / (1.0 - c_eff)
-        f_star = max(float(f_star), 0.0)
-        f = min(
-            float(self.kelly_runtime["cap"]),
-            float(self.kelly_runtime["fractional_kelly"]) * f_star,
+        intent = build_trade_intent(
+            policy_result=policy_result,
+            bankroll=float(bankroll),
+            stake_usdc=float(self.trade_policy_runtime["stake_usdc"]),
+            fee_model=self.trade_policy_runtime["fee_model"],
         )
-        if f <= 0.0:
-            return {
-                "reason": "fraction_non_positive",
-                "side": side,
-                "edge": float(selected_edge),
-                "prob_win_raw": float(prob_up_raw),
-                "prob_win_adj": float(p_side),
-                "entry_price": float(price),
-                "c_eff": float(c_eff),
-                "eff_rate": float(eff_rate),
-                "up_price": float(quotes["up_price"]),
-                "down_price": float(quotes["down_price"]),
-                "eps": float(quotes.get("eps", np.nan)),
-                "slip": float(quotes.get("slip", np.nan)),
-            }
-
-        stake = bankroll * f
-        if stake < float(self.kelly_runtime["min_stake_usdc"]):
-            return {
-                "reason": "stake_below_min",
-                "side": side,
-                "edge": float(selected_edge),
-                "fraction": float(f),
-                "bet_usdc": float(stake),
-                "prob_win_raw": float(prob_up_raw),
-                "prob_win_adj": float(p_side),
-                "entry_price": float(price),
-                "c_eff": float(c_eff),
-                "eff_rate": float(eff_rate),
-                "up_price": float(quotes["up_price"]),
-                "down_price": float(quotes["down_price"]),
-                "eps": float(quotes.get("eps", np.nan)),
-                "slip": float(quotes.get("slip", np.nan)),
-            }
-
-        fee_result = polymarket_taker_fee_usdc_from_notional(
-            stake,
-            price,
-            fee_model,
-        )
-        fee_raw = float(fee_result["fee_raw_usdc"])
-        fee = float(fee_result["fee_usdc"])
-        if fee >= stake:
-            return {
-                "reason": "fee_ge_stake",
-                "side": side,
-                "edge": float(selected_edge),
-                "fraction": float(f),
-                "bet_usdc": float(stake),
-                "prob_win_raw": float(prob_up_raw),
-                "prob_win_adj": float(p_side),
-                "entry_price": float(price),
-                "c_eff": float(c_eff),
-                "eff_rate": float(eff_rate),
-                "eps": float(quotes.get("eps", np.nan)),
-                "slip": float(quotes.get("slip", np.nan)),
-            }
-
-        shares_net = (stake - fee) / price
-        if shares_net < order_min_size:
-            return {
-                "reason": "shares_below_order_min",
-                "side": side,
-                "edge": float(selected_edge),
-                "fraction": float(f),
-                "bet_usdc": float(stake),
-                "prob_win_raw": float(prob_up_raw),
-                "prob_win_adj": float(p_side),
-                "entry_price": float(price),
-                "fee_usdc": float(fee),
-                "fee_raw_usdc": float(fee_raw),
-                "shares_net": float(shares_net),
-                "order_min_size": float(order_min_size),
-                "c_eff": float(c_eff),
-                "eff_rate": float(eff_rate),
-                "up_price": float(quotes["up_price"]),
-                "down_price": float(quotes["down_price"]),
-                "eps": float(quotes.get("eps", np.nan)),
-                "slip": float(quotes.get("slip", np.nan)),
-            }
-        return {
-            "reason": "ok",
-            "side": side,
-            "edge": float(selected_edge),
-            "fraction": float(f),
-            "bet_usdc": float(stake),
-            "prob_win_raw": float(prob_up_raw),
-            "prob_win_adj": float(p_side),
-            "entry_price": float(price),
-            "fee_usdc": float(fee),
-            "fee_raw_usdc": float(fee_raw),
-            "shares_net": float(shares_net),
-            "c_eff": float(c_eff),
-            "eff_rate": float(eff_rate),
-            "up_price": float(quotes["up_price"]),
-            "down_price": float(quotes["down_price"]),
-            "eps": float(quotes.get("eps", np.nan)),
-            "slip": float(quotes.get("slip", np.nan)),
-        }
+        intent["price_eps"] = float("nan")
+        intent["price_slip"] = float("nan")
+        return intent
 
     def _upsert_closed_candle(self, kline):
         opened = pd.to_datetime(int(kline["t"]), unit="ms", utc=True)
@@ -2202,12 +1868,12 @@ class LivePredictor:
                 continue
 
             stake_usdc = float(rec.get("stake_usdc", 0.0) or 0.0)
-            side = str(rec.get("kelly_side", "none"))
+            side = str(rec.get("trade_side", "none"))
             actual_up = int(rec["actual_up"])
-            if stake_usdc > 0.0 and side in {"up", "down"}:
+            if stake_usdc > 0.0 and side in {"yes", "no"}:
                 is_trade_win = int(
-                    (side == "up" and actual_up == 1)
-                    or (side == "down" and actual_up == 0)
+                    (side == "yes" and actual_up == 1)
+                    or (side == "no" and actual_up == 0)
                 )
                 shares_net = float(rec.get("shares_net", 0.0) or 0.0)
                 payout = float(shares_net) if is_trade_win else 0.0
@@ -2238,10 +1904,13 @@ class LivePredictor:
                 self._build_feature_vector(volume_profile_values=volume_profile_values)
             )[0]
         )
-        signal_up = int(proba_up >= self.prediction_threshold)
-        kelly = self._recommend_kelly_bet(prob_up_raw=proba_up)
+        intent = self._build_policy_intent(proba_up=proba_up)
         bankroll_before_entry = float(self.live_bankroll_usdc)
-        stake_usdc = float(kelly.get("bet_usdc", 0.0) or 0.0)
+        stake_usdc = (
+            float(intent.get("bet_usdc", 0.0) or 0.0)
+            if str(intent.get("final_reason", "")) == "ok"
+            else 0.0
+        )
         if stake_usdc > 0.0:
             self.live_bankroll_usdc -= stake_usdc
         bankroll_after_entry = float(self.live_bankroll_usdc)
@@ -2258,32 +1927,35 @@ class LivePredictor:
             {
                 "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
                 "pm_model_hash": self.model_hash,
-                "pm_kelly_hash": self.kelly_config_hash,
+                "pm_policy_hash": self.trade_policy_config_hash,
                 "pm_run_started_at_utc": self.run_started_at_utc,
                 "prediction_time": pd.Timestamp.now(tz="UTC"),
                 "bucket_start": bucket_start,
                 "bucket_end": bucket_end,
                 "proba_up": proba_up,
-                "threshold": self.prediction_threshold,
-                "signal_up": signal_up,
-                "kelly_side": str(kelly.get("side", "none")),
-                "kelly_fraction": float(kelly.get("fraction", 0.0)),
-                "kelly_bet_usdc": float(kelly.get("bet_usdc", 0.0)),
-                "kelly_edge": float(kelly.get("edge", np.nan)),
-                "kelly_prob_win_adj": float(kelly.get("prob_win_adj", np.nan)),
-                "kelly_prob_win_raw": float(kelly.get("prob_win_raw", np.nan)),
-                "kelly_reason": str(kelly.get("reason", "")),
+                "trade_side": str(intent.get("trade_side", "none")),
                 "stake_usdc": float(stake_usdc),
-                "entry_price": float(kelly.get("entry_price", np.nan)),
-                "entry_fee_usdc": float(kelly.get("fee_usdc", 0.0)),
-                "entry_fee_raw_usdc": float(kelly.get("fee_raw_usdc", 0.0)),
-                "shares_net": float(kelly.get("shares_net", 0.0)),
-                "kelly_c_eff": float(kelly.get("c_eff", np.nan)),
-                "kelly_eff_rate": float(kelly.get("eff_rate", np.nan)),
-                "price_eps": float(kelly.get("eps", np.nan)),
-                "price_slip": float(kelly.get("slip", np.nan)),
-                "up_price": float(kelly.get("up_price", np.nan)),
-                "down_price": float(kelly.get("down_price", np.nan)),
+                "entry_price": float(intent.get("entry_price", np.nan)),
+                "entry_fee_usdc": float(intent.get("entry_fee_usdc", 0.0)),
+                "entry_fee_raw_usdc": float(intent.get("entry_fee_raw_usdc", 0.0)),
+                "shares_net": float(intent.get("shares_net", 0.0)),
+                "price_eps": float(intent.get("price_eps", np.nan)),
+                "price_slip": float(intent.get("price_slip", np.nan)),
+                "ask_yes": float(intent.get("ask_yes", np.nan)),
+                "ask_no": float(intent.get("ask_no", np.nan)),
+                "policy_proba_up": float(intent.get("proba_up", np.nan)),
+                "policy_ask_yes": float(intent.get("ask_yes", np.nan)),
+                "policy_ask_no": float(intent.get("ask_no", np.nan)),
+                "policy_fee_yes": float(intent.get("fee_yes", np.nan)),
+                "policy_fee_no": float(intent.get("fee_no", np.nan)),
+                "policy_extra_buffer": float(intent.get("extra_buffer", np.nan)),
+                "policy_ev_yes": float(intent.get("ev_yes", np.nan)),
+                "policy_ev_no": float(intent.get("ev_no", np.nan)),
+                "policy_best_ev": float(intent.get("best_ev", np.nan)),
+                "policy_decision": str(intent.get("decision", "no_trade")),
+                "policy_reason": str(
+                    intent.get("final_reason") or intent.get("reason", "")
+                ),
                 "bankroll_before_entry": float(bankroll_before_entry),
                 "bankroll_after_entry": float(bankroll_after_entry),
                 "bankroll_after_resolve": None,
@@ -2310,15 +1982,15 @@ class LivePredictor:
             "bucket_start": bucket_start,
             "bucket_end": bucket_end,
             "proba_up": proba_up,
-            "signal_up": signal_up,
-            "kelly_side": str(kelly.get("side", "none")),
-            "kelly_fraction": float(kelly.get("fraction", 0.0)),
-            "kelly_bet_usdc": float(kelly.get("bet_usdc", 0.0)),
+            "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
             "bankroll_before_entry": float(bankroll_before_entry),
             "bankroll_after_entry": float(bankroll_after_entry),
-            "kelly_reason": str(kelly.get("reason", "")),
-            "kelly_edge": float(kelly.get("edge", np.nan)),
+            "policy_decision": str(intent.get("decision", "no_trade")),
+            "policy_reason": str(intent.get("final_reason") or intent.get("reason", "")),
+            "policy_ev_yes": float(intent.get("ev_yes", np.nan)),
+            "policy_ev_no": float(intent.get("ev_no", np.nan)),
+            "policy_best_ev": float(intent.get("best_ev", np.nan)),
         }
 
     def _save_records(self):
@@ -2347,12 +2019,12 @@ class LivePredictor:
         )
 
     def _stats(self):
-        kelly_resolved = sum(
+        policy_resolved = sum(
             1
             for rec in self.records
             if rec["actual_up"] is not None and rec["is_correct"] is not None
         )
-        kelly_resolved_wins = sum(
+        policy_resolved_wins = sum(
             int(rec["is_correct"])
             for rec in self.records
             if rec["actual_up"] is not None and rec["is_correct"] is not None
@@ -2367,9 +2039,9 @@ class LivePredictor:
             for rec in self.records
             if rec["actual_up"] is not None and rec["trade_is_win"] is not None
         )
-        win_rate_kelly_resolved = (
-            float(kelly_resolved_wins / kelly_resolved)
-            if kelly_resolved
+        win_rate_policy_resolved = (
+            float(policy_resolved_wins / policy_resolved)
+            if policy_resolved
             else float("nan")
         )
         win_rate_closed_trade = (
@@ -2385,10 +2057,10 @@ class LivePredictor:
             )
         )
         return {
-            "kelly_resolved": kelly_resolved,
-            "kelly_resolved_wins": kelly_resolved_wins,
-            "kelly_resolved_losses": kelly_resolved - kelly_resolved_wins,
-            "win_rate_kelly_resolved": win_rate_kelly_resolved,
+            "policy_resolved": policy_resolved,
+            "policy_resolved_wins": policy_resolved_wins,
+            "policy_resolved_losses": policy_resolved - policy_resolved_wins,
+            "win_rate_policy_resolved": win_rate_policy_resolved,
             "closed_trades": closed_trades,
             "closed_trade_wins": closed_trade_wins,
             "closed_trade_losses": closed_trades - closed_trade_wins,
@@ -2424,10 +2096,10 @@ class LivePredictor:
 
     def _log(self, tag, pred=None):
         stats = self._stats()
-        kelly_resolved_win_rate_txt = (
+        policy_resolved_win_rate_txt = (
             "n/a"
-            if not np.isfinite(stats["win_rate_kelly_resolved"])
-            else f"{stats['win_rate_kelly_resolved'] * 100:.2f}%"
+            if not np.isfinite(stats["win_rate_policy_resolved"])
+            else f"{stats['win_rate_policy_resolved'] * 100:.2f}%"
         )
         closed_trade_win_rate_txt = (
             "n/a"
@@ -2446,10 +2118,10 @@ class LivePredictor:
         msg = [
             ts,
             f"[{tag}]",
-            f"kelly_resolved={stats['kelly_resolved']}",
-            f"kelly_resolved_wins={stats['kelly_resolved_wins']}",
-            f"kelly_resolved_losses={stats['kelly_resolved_losses']}",
-            f"win_rate_kelly_resolved={kelly_resolved_win_rate_txt}",
+            f"policy_resolved={stats['policy_resolved']}",
+            f"policy_resolved_wins={stats['policy_resolved_wins']}",
+            f"policy_resolved_losses={stats['policy_resolved_losses']}",
+            f"win_rate_policy_resolved={policy_resolved_win_rate_txt}",
             f"closed_trades={stats['closed_trades']}",
             f"closed_trade_wins={stats['closed_trade_wins']}",
             f"closed_trade_losses={stats['closed_trade_losses']}",
@@ -2461,10 +2133,10 @@ class LivePredictor:
             msg.extend(
                 [
                     f"proba_up={pred['proba_up']:.6f}",
-                    f"signal_up={pred['signal_up']}",
-                    f"kelly_side={pred['kelly_side']}",
-                    f"kelly_edge={pred['kelly_edge']:.6f}",
-                    f"kelly_reason={pred['kelly_reason']}",
+                    f"policy_decision={pred['policy_decision']}",
+                    f"trade_side={pred['trade_side']}",
+                    f"policy_best_ev={pred['policy_best_ev']:.6f}",
+                    f"policy_reason={pred['policy_reason']}",
                     f"stake_usdc={pred['stake_usdc']:.2f}",
                 ]
             )
@@ -2635,54 +2307,22 @@ class LivePredictor:
             )
         )
         print(
-            "Kelly sizing | "
+            "Trade policy | "
             f"bankroll={self.live_bankroll_usdc:.2f} "
-            f"fractional_kelly={self.kelly_runtime['fractional_kelly']:.6f} "
-            f"cap={self.kelly_runtime['cap']:.6f} "
-            f"min_edge={self.kelly_runtime['min_edge']:.6f} "
-            f"min_stake_usdc={self.kelly_runtime['min_stake_usdc']:.2f}"
+            f"stake_usdc={self.trade_policy_runtime['stake_usdc']:.2f} "
+            f"extra_buffer={self.trade_policy_runtime['extra_buffer']:.6f}"
         )
         print(
             "Price/Fee model | "
-            f"fee_rate={self.kelly_runtime['fee_model']['rate']:.6f} "
-            f"fee_exp={self.kelly_runtime['fee_model']['exponent']:.3f}"
+            f"fee_rate={self.trade_policy_runtime['fee_model']['rate']:.6f} "
+            f"fee_exp={self.trade_policy_runtime['fee_model']['exponent']:.3f}"
         )
-        if self.kelly_runtime.get("price_sim_model") == "neutral_conservative_fixed":
-            print(
-                "Price sim | "
-                f"model={self.kelly_runtime['price_sim_model']} "
-                f"ask_price={self.kelly_runtime['ask_price']:.6f} "
-                f"order_min_size={self.kelly_runtime['order_min_size']:.2f}"
-            )
-        elif self.kelly_runtime.get("price_sim_model") == "live_orderbook":
-            print(
-                "Price runtime | "
-                f"model={self.kelly_runtime['price_sim_model']} "
-                f"policy={self.kelly_runtime.get('runtime_price_policy', '')}"
-            )
-        elif self.kelly_runtime.get("price_sim_model") == "parametric_market_mid_overround":
-            print(
-                "Price sim | "
-                f"model={self.kelly_runtime['price_sim_model']} "
-                f"mid_slope_mean={self.kelly_runtime['mid_slope_mean']:.6f} "
-                f"mid_slope_std={self.kelly_runtime['mid_slope_std']:.6f} "
-                f"mid_residual_std={self.kelly_runtime['mid_residual_std']:.6f} "
-                f"order_min_size={self.kelly_runtime['order_min_size']:.2f}"
-            )
-        else:
-            print(
-                "Price sim | "
-                f"model={self.kelly_runtime['price_sim_model']} "
-                f"base_price={self.kelly_runtime['base_price']:.6f} "
-                f"sigma={self.kelly_runtime['sigma']:.6f} "
-                f"spread_half={self.kelly_runtime['spread_half']:.6f} "
-                f"clip=[{self.kelly_runtime['price_clip_lo']:.3f},{self.kelly_runtime['price_clip_hi']:.3f}]"
-            )
-        print(f"Kelly config: {KELLY_CONFIG_PATH}")
+        print("Policy inputs | live ask_yes/ask_no and side-specific fees required")
+        print(f"Trade policy config: {TRADE_POLICY_CONFIG_PATH}")
         print(
             "Runtime hashes | "
             f"model={self.model_hash} "
-            f"kelly={self.kelly_config_hash} "
+            f"policy={self.trade_policy_config_hash} "
             f"modeling={self.modeling_dataset_config_hash}"
         )
         print(f"Predictions file: {self.predictions_path}")
@@ -2693,11 +2333,6 @@ class LivePredictor:
             print(
                 f"VP runtime state path: {self.volume_profile_state_path.with_suffix('.npz')}"
             )
-            if self.volume_profile_state_source_path is not None:
-                print(
-                    "VP source state: "
-                    f"{self.volume_profile_state_source_path.with_suffix('.npz')}"
-                )
         self._run_all_websocket_targets_forever()
 
 

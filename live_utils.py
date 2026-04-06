@@ -25,22 +25,32 @@ LIVE_RECORD_TIMESTAMP_COLUMNS = (
     "pm_account_sync_at_resolve",
 )
 
+POLICY_DIAGNOSTIC_COLUMNS = (
+    "policy_proba_up",
+    "policy_ask_yes",
+    "policy_ask_no",
+    "policy_fee_yes",
+    "policy_fee_no",
+    "policy_extra_buffer",
+    "policy_ev_yes",
+    "policy_ev_no",
+    "policy_best_ev",
+    "policy_decision",
+    "policy_reason",
+)
+
 LIVE_PREDICTION_EXPORT_COLUMNS = (
     "record_id",
     "record_snapshot_at",
     "pm_model_hash",
-    "pm_kelly_hash",
+    "pm_policy_hash",
     "pm_run_started_at_utc",
     "prediction_time",
     "resolved_at",
     "bucket_start",
     "bucket_end",
     "proba_up",
-    "signal_up",
-    "kelly_side",
-    "kelly_reason",
-    "kelly_edge",
-    "kelly_fraction",
+    "trade_side",
     "stake_usdc",
     "entry_price",
     "entry_fee_usdc",
@@ -53,11 +63,13 @@ LIVE_PREDICTION_EXPORT_COLUMNS = (
     "trade_is_win",
     "payout_usdc",
     "pnl_usdc",
-    "win_rate_kelly_resolved",
+    "win_rate_policy_resolved",
     "win_rate_closed_trade",
-)
+) + POLICY_DIAGNOSTIC_COLUMNS
 
 LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
+    "entry_fee_raw_usdc",
+    "shares_net",
     "pm_mode",
     "pm_market_slug",
     "pm_fees_enabled",
@@ -74,7 +86,6 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
     "execution_ms",
     "pm_order_error",
     "pm_settlement_status",
-    "shares_net",
     "pm_up_best_bid",
     "pm_up_best_ask",
     "pm_down_best_bid",
@@ -93,31 +104,22 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
 LIVE_SHARED_MARKET_DATA_COLUMNS = (
     "record_id",
     "pm_model_hash",
-    "pm_kelly_hash",
+    "pm_policy_hash",
     "pm_run_started_at_utc",
     "prediction_time",
     "resolved_at",
     "bucket_start",
     "bucket_end",
     "proba_up",
-    "threshold",
-    "signal_up",
-    "kelly_side",
-    "kelly_reason",
-    "kelly_edge",
-    "kelly_fraction",
-    "kelly_bet_usdc",
-    "kelly_prob_win_adj",
-    "kelly_prob_win_raw",
-    "kelly_c_eff",
-    "kelly_eff_rate",
+    "trade_side",
     "price_eps",
     "price_slip",
-    "up_price",
-    "down_price",
+    "ask_yes",
+    "ask_no",
     "stake_usdc",
     "entry_price",
     "entry_fee_usdc",
+    "entry_fee_raw_usdc",
     "shares_net",
     "bankroll_after_entry",
     "bankroll_after_resolve",
@@ -147,14 +149,14 @@ LIVE_SHARED_MARKET_DATA_COLUMNS = (
     "trade_is_win",
     "payout_usdc",
     "pnl_usdc",
-)
+) + POLICY_DIAGNOSTIC_COLUMNS
 
 LIVE_TRADE_RECORD_PATH_RE = re.compile(
     r"^live_trade_polymarket_"
     r"(?P<symbol>.+?)_"
     r"(?P<interval>\d+[mhd])_"
     r"model_(?P<model_hash>[0-9a-f]{12})_"
-    r"kelly_(?P<kelly_config_hash>[0-9a-f]{12})_"
+    r"policy_(?P<policy_config_hash>[0-9a-f]{12})_"
     r"modeling_(?P<modeling_dataset_config_hash>[0-9a-f]{12})_"
     r"(?P<run_started_at_utc>\d{8}_\d{6})\.csv$"
 )
@@ -191,12 +193,12 @@ def build_live_trade_records_path(
     interval,
     run_started_at_utc,
     model_hash,
-    kelly_config_hash,
+    policy_config_hash,
     modeling_dataset_config_hash,
 ):
     return Path(live_trade_dir) / (
         f"live_trade_polymarket_{symbol}_{interval}_"
-        f"model_{model_hash}_kelly_{kelly_config_hash}_"
+        f"model_{model_hash}_policy_{policy_config_hash}_"
         f"modeling_{modeling_dataset_config_hash}_{run_started_at_utc}.csv"
     )
 
@@ -213,27 +215,27 @@ def parse_live_trade_records_path(path):
 
 
 def compute_running_win_rates(records, *, is_resolved, is_traded):
-    kelly_resolved_rates = []
+    policy_resolved_rates = []
     closed_trade_rates = []
-    kelly_resolved_count = 0
-    kelly_resolved_wins = 0
+    policy_resolved_count = 0
+    policy_resolved_wins = 0
     closed_trade_count = 0
     closed_trade_wins = 0
 
     for record in records:
         if not is_resolved(record):
-            kelly_resolved_rates.append(np.nan)
+            policy_resolved_rates.append(np.nan)
             closed_trade_rates.append(np.nan)
             continue
 
-        kelly_resolved_count += 1
-        kelly_resolved_wins += int(record.get("is_correct") or 0)
+        policy_resolved_count += 1
+        policy_resolved_wins += int(record.get("is_correct") or 0)
         if is_traded(record):
             closed_trade_count += 1
             closed_trade_wins += int(record.get("trade_is_win") or 0)
 
-        kelly_resolved_rates.append(
-            float(kelly_resolved_wins / kelly_resolved_count)
+        policy_resolved_rates.append(
+            float(policy_resolved_wins / policy_resolved_count)
         )
         closed_trade_rates.append(
             float(closed_trade_wins / closed_trade_count)
@@ -241,7 +243,7 @@ def compute_running_win_rates(records, *, is_resolved, is_traded):
             else np.nan
         )
 
-    return kelly_resolved_rates, closed_trade_rates
+    return policy_resolved_rates, closed_trade_rates
 
 
 def serialize_timestamp_columns(frame, columns):
@@ -265,12 +267,12 @@ def records_to_export_frame(
     if out.empty:
         return pd.DataFrame(columns=list(export_columns))
 
-    kelly_resolved_rates, closed_trade_rates = compute_running_win_rates(
+    policy_resolved_rates, closed_trade_rates = compute_running_win_rates(
         records,
         is_resolved=is_resolved,
         is_traded=is_traded,
     )
-    out["win_rate_kelly_resolved"] = kelly_resolved_rates
+    out["win_rate_policy_resolved"] = policy_resolved_rates
     out["win_rate_closed_trade"] = closed_trade_rates
 
     for col in export_columns:

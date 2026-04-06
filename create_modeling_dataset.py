@@ -39,7 +39,7 @@ from features.realized_volatility import (
     REALIZED_VOLATILITY_FEATURE_COLUMNS,
     add_realized_volatility_features,
 )
-from features.session_open_features import add_session_counter_features
+from features.session_open_features import add_session_open_features
 from features.StochOsc import get_stochastic_oscillator_values
 from features.volume_profile_fixed_range import (
     FEATURE_VERSION as VP_FEATURE_VERSION,
@@ -513,13 +513,13 @@ def build_dataset_from_settings(settings):
         else None
     )
     if selected_session_feature_cols is None or selected_session_feature_cols:
-        print("adding global session counter features")
-        df = add_session_counter_features(
+        print("adding global session open features")
+        df = add_session_open_features(
             df,
             feature_cols=selected_session_feature_cols,
         )
     else:
-        print("skipping global session counter features (none requested)")
+        print("skipping global session open features (none requested)")
     should_add_realized_volatility = (
         selected_realized_volatility_feature_cols is None
         or bool(selected_realized_volatility_feature_cols)

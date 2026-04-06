@@ -12,7 +12,7 @@ from market_price_sim import (
     sample_market_orderbook_arrays as shared_sample_market_orderbook_arrays,
 )
 
-OPTIMIZER_CONFIG_PATH = Path("configs/kelly_optimizer_config.json")
+OPTIMIZER_CONFIG_PATH = Path("configs/trade_policy_optimizer_config.json")
 LIVE_TRADE_CSV_GLOB = DEFAULT_TRADE_CSV_GLOB
 LIVE_SHARED_CSV_PATH = DEFAULT_SHARED_CSV_PATH
 N_ROWS_SIMULATED = None
@@ -81,12 +81,17 @@ def load_default_live_trade_frame(recent_resolved_rows=None):
     )
 
 
-def sample_market_orderbook_arrays(target, scenario_seed, price_sim_config, p_raw=None):
+def sample_market_orderbook_arrays(
+    target,
+    scenario_seed,
+    price_sim_config,
+    market_elapsed_ms,
+):
     simulated = shared_sample_market_orderbook_arrays(
         target=target,
         scenario_seed=scenario_seed,
         price_sim_config=price_sim_config,
-        p_raw=p_raw,
+        market_elapsed_ms=market_elapsed_ms,
     )
     up_ask = np.asarray(simulated["up_ask"], dtype=np.float64)
     down_ask = np.asarray(simulated["down_ask"], dtype=np.float64)
@@ -159,6 +164,49 @@ def build_side_metrics(label, up_ask, down_ask, target, tick_size):
     }
 
 
+def build_reconstruction_metrics(live_up_ask, live_down_ask, sim_up_ask, sim_down_ask):
+    live_up_ask = np.asarray(live_up_ask, dtype=np.float64)
+    live_down_ask = np.asarray(live_down_ask, dtype=np.float64)
+    sim_up_ask = np.asarray(sim_up_ask, dtype=np.float64)
+    sim_down_ask = np.asarray(sim_down_ask, dtype=np.float64)
+    return {
+        "up_ask_mae": float(np.mean(np.abs(sim_up_ask - live_up_ask))),
+        "down_ask_mae": float(np.mean(np.abs(sim_down_ask - live_down_ask))),
+        "winner_ask_mae": float(
+            np.mean(
+                np.abs(
+                    np.maximum(sim_up_ask, sim_down_ask)
+                    - np.maximum(live_up_ask, live_down_ask)
+                )
+            )
+        ),
+        "loser_ask_mae": float(
+            np.mean(
+                np.abs(
+                    np.minimum(sim_up_ask, sim_down_ask)
+                    - np.minimum(live_up_ask, live_down_ask)
+                )
+            )
+        ),
+        "abs_gap_mae": float(
+            np.mean(
+                np.abs(
+                    np.abs(sim_up_ask - sim_down_ask)
+                    - np.abs(live_up_ask - live_down_ask)
+                )
+            )
+        ),
+        "overround_mae": float(
+            np.mean(
+                np.abs(
+                    (sim_up_ask + sim_down_ask)
+                    - (live_up_ask + live_down_ask)
+                )
+            )
+        ),
+    }
+
+
 def main():
     market_price_sim_config = load_market_price_sim_config(OPTIMIZER_CONFIG_PATH)
     live = load_default_live_trade_frame(
@@ -168,7 +216,7 @@ def main():
     live = live.iloc[:n_rows].copy()
 
     target = live["actual_up"].to_numpy(dtype=np.int8, copy=False)
-    p_raw = live["proba_up"].to_numpy(dtype=np.float64, copy=False)
+    market_elapsed_ms = live["market_elapsed_ms"].to_numpy(dtype=np.float64, copy=False)
     live_up_ask = live["pm_up_best_ask"].to_numpy(dtype=np.float64, copy=False)
     live_down_ask = live["pm_down_best_ask"].to_numpy(dtype=np.float64, copy=False)
     live_tick_size = (
@@ -181,7 +229,7 @@ def main():
         target=target,
         scenario_seed=SEED,
         price_sim_config=market_price_sim_config,
-        p_raw=p_raw,
+        market_elapsed_ms=market_elapsed_ms,
     )
 
     summary = {
@@ -209,6 +257,12 @@ def main():
             target=target,
             tick_size=float(market_price_sim_config["tick_size"]),
         ),
+        "reconstruction": build_reconstruction_metrics(
+            live_up_ask,
+            live_down_ask,
+            simulated["up_ask"],
+            simulated["down_ask"],
+        ),
     }
 
     print(
@@ -227,6 +281,13 @@ def main():
         "tick grid hit rate | "
         f"live={summary['live']['tick_size_hit_rate']:.4f} "
         f"sim={summary['simulated']['tick_size_hit_rate']:.4f}"
+    )
+    print(
+        "reconstruction mae | "
+        f"up={summary['reconstruction']['up_ask_mae']:.4f} "
+        f"down={summary['reconstruction']['down_ask_mae']:.4f} "
+        f"gap={summary['reconstruction']['abs_gap_mae']:.4f} "
+        f"overround={summary['reconstruction']['overround_mae']:.4f}"
     )
     print(json.dumps(summary, indent=2))
 
