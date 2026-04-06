@@ -14,6 +14,10 @@ from features.volume_profile_fixed_range import (
     normalize_config as normalize_volume_profile_config,
 )
 from modeling_dataset_utils import load_modeling_dataset_settings
+from optuna_run_utils import (
+    make_timestamped_artifact_path,
+    resolve_run_study_name,
+)
 from target_weights import (
     TARGET_WEIGHT_COL,
     TARGET_WEIGHT_DECISION_VALUE,
@@ -157,14 +161,13 @@ TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 CRASH_PENALTY = float("inf")
-STUDY_NAME = "volume_profile_opt_logloss_mean_std_05042026"
+DEFAULT_STUDY_NAME_PREFIX = "volume_profile_logloss_mean_std"
+# Leave empty for a fresh timestamped study. Set only to continue an existing one.
+STUDY_NAME = None
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
-BEST_RESULT_PATH = Path(
-    "data/optuna/volume_profile/volume_profile_best_logloss_mean_std.json"
-)
-TRIALS_CSV_PATH = Path(
-    "data/optuna/volume_profile/volume_profile_trials_logloss_mean_std.csv"
-)
+ARTIFACT_OUTPUT_DIR = Path("data/optuna/volume_profile")
+BEST_RESULT_STEM = "volume_profile_best_logloss_mean_std"
+TRIALS_CSV_STEM = "volume_profile_trials_logloss_mean_std"
 
 
 def require_columns(df, required_columns):
@@ -831,6 +834,25 @@ def make_objective(base_data, fold_indices, base_vp_config, search_space):
 
 def run_optuna_optimization():
     optuna.logging.set_verbosity(optuna.logging.INFO)
+    run_info = resolve_run_study_name(
+        STUDY_NAME,
+        default_prefix=DEFAULT_STUDY_NAME_PREFIX,
+    )
+    study_name = run_info["study_name"]
+    study_name_source = run_info["study_name_source"]
+    run_timestamp = run_info["run_timestamp"]
+    best_result_path = make_timestamped_artifact_path(
+        ARTIFACT_OUTPUT_DIR,
+        stem=BEST_RESULT_STEM,
+        suffix=".json",
+        timestamp=run_timestamp,
+    )
+    trials_csv_path = make_timestamped_artifact_path(
+        ARTIFACT_OUTPUT_DIR,
+        stem=TRIALS_CSV_STEM,
+        suffix=".csv",
+        timestamp=run_timestamp,
+    )
 
     dataset_settings = load_modeling_dataset_settings()
     base_vp_config = dataset_settings.get("volume_profile_fixed_range") or {}
@@ -867,7 +889,9 @@ def run_optuna_optimization():
     print(
         f"start optimize | base_rows={len(base_df)} filtered_rows={filtered_rows} "
         f"folds={len(fold_indices)} trials={N_TRIALS} timeout={TIMEOUT_SECONDS} "
-        f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f}"
+        f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f} "
+        f"study_name={study_name} study_name_source={study_name_source} "
+        f"load_if_exists={LOAD_IF_EXISTS}"
     )
     print(
         "start optimize | "
@@ -884,7 +908,7 @@ def run_optuna_optimization():
     )
 
     study = optuna.create_study(
-        study_name=STUDY_NAME,
+        study_name=study_name,
         storage=STORAGE,
         direction="minimize",
         sampler=sampler,
@@ -939,8 +963,10 @@ def run_optuna_optimization():
             "base_feature_count": len(normalized_base_vp_config["feature_columns"]),
             "best_feature_count": len(best_normalized_vp_config["feature_columns"]),
         },
-        "study_name": STUDY_NAME,
+        "study_name": study_name,
+        "study_name_source": study_name_source,
         "storage": STORAGE,
+        "run_timestamp_utc": run_timestamp,
         "n_trials_requested": int(N_TRIALS),
         "timeout_seconds": TIMEOUT_SECONDS,
         "cv_folds": CV_FOLDS,
@@ -972,13 +998,17 @@ def run_optuna_optimization():
             "params": best_trial.params,
             "volume_profile_fixed_range": best_normalized_vp_config,
         },
+        "artifacts": {
+            "best_result_path": str(best_result_path),
+            "trials_csv_path": str(trials_csv_path),
+        },
     }
 
-    BEST_RESULT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    BEST_RESULT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    best_result_path.parent.mkdir(parents=True, exist_ok=True)
+    best_result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    TRIALS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
-    study.trials_dataframe().to_csv(TRIALS_CSV_PATH, index=False)
+    trials_csv_path.parent.mkdir(parents=True, exist_ok=True)
+    study.trials_dataframe().to_csv(trials_csv_path, index=False)
 
     print(
         f"best trial | number={best_trial.number} objective={best_trial.value:.8f} "
@@ -987,8 +1017,8 @@ def run_optuna_optimization():
         f"best_iteration={int(best_trial.user_attrs.get('best_iteration'))} "
         f"feature_count={int(best_trial.user_attrs.get('feature_count'))}"
     )
-    print(f"saved best payload -> {BEST_RESULT_PATH}")
-    print(f"saved trials csv -> {TRIALS_CSV_PATH}")
+    print(f"saved best payload -> {best_result_path}")
+    print(f"saved trials csv -> {trials_csv_path}")
 
 
 def main():

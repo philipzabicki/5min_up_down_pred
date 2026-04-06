@@ -57,6 +57,8 @@ from live_predict_binance import (
     LivePredictor,
     PRICE_SOURCE,
     PRICE_MARKET,
+    resolve_model_accuracy_from_proba,
+    resolve_model_side_from_proba,
     resolve_record_accuracy_from_side,
     SYMBOL,
     VOLUME_MARKET,
@@ -2071,6 +2073,7 @@ class PolymarketLiveTrader(LivePredictor):
             fee_model=market.fee_model,
             order_min_size=float(market.order_min_size),
             external_stake_cap_usdc=float(self.pm_cfg.max_exposure_usdc),
+            raise_to_order_min=True,
         )
 
         side = str(intent.get("trade_side", "") or "").lower()
@@ -2330,8 +2333,17 @@ class PolymarketLiveTrader(LivePredictor):
             "bucket_start": bucket_start,
             "bucket_end": bucket_end,
             "proba_up": proba_up,
+            "model_side": resolve_model_side_from_proba(
+                proba_up,
+                threshold=self.prediction_threshold,
+            ),
             "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
+            "base_stake_usdc": float(intent.get("base_stake_usdc", np.nan)),
+            "required_stake_usdc": float(intent.get("required_stake_usdc", np.nan)),
+            "effective_stake_usdc": float(
+                intent.get("effective_stake_usdc", np.nan)
+            ),
             "entry_price": float(intent.get("entry_price", np.nan)),
             "entry_fee_usdc": float(intent.get("entry_fee_usdc", 0.0) or 0.0),
             "entry_fee_raw_usdc": float(intent.get("entry_fee_raw_usdc", 0.0) or 0.0),
@@ -2523,8 +2535,17 @@ class PolymarketLiveTrader(LivePredictor):
             "bucket_start": bucket_start,
             "bucket_end": bucket_end,
             "proba_up": proba_up,
+            "model_side": resolve_model_side_from_proba(
+                proba_up,
+                threshold=self.prediction_threshold,
+            ),
             "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
+            "base_stake_usdc": float(intent.get("base_stake_usdc", np.nan)),
+            "required_stake_usdc": float(intent.get("required_stake_usdc", np.nan)),
+            "effective_stake_usdc": float(
+                intent.get("effective_stake_usdc", np.nan)
+            ),
             "bankroll_before_entry": float(bankroll_before_entry),
             "bankroll_after_entry": float(bankroll_after_entry),
             "policy_decision": str(intent.get("decision", "no_trade")),
@@ -2629,6 +2650,17 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _stats(self):
         records = self._records_snapshot()
+        model_resolved = 0
+        model_wins = 0
+        for rec in records:
+            model_accuracy = resolve_model_accuracy_from_proba(
+                rec,
+                threshold=self.prediction_threshold,
+            )
+            if model_accuracy is None:
+                continue
+            model_resolved += 1
+            model_wins += int(model_accuracy)
         policy_resolved = sum(1 for rec in records if self._record_is_resolved(rec))
         policy_resolved_wins = sum(
             int(rec["is_correct"]) for rec in records if self._record_is_resolved(rec)
@@ -2641,6 +2673,9 @@ class PolymarketLiveTrader(LivePredictor):
             float(policy_resolved_wins / policy_resolved)
             if policy_resolved
             else float("nan")
+        )
+        win_rate_model = (
+            float(model_wins / model_resolved) if model_resolved else float("nan")
         )
         win_rate_closed_trade = (
             float(closed_trade_wins / closed_trades)
@@ -2655,6 +2690,10 @@ class PolymarketLiveTrader(LivePredictor):
             )
         )
         return {
+            "model_resolved": model_resolved,
+            "model_wins": model_wins,
+            "model_losses": model_resolved - model_wins,
+            "win_rate_model": win_rate_model,
             "policy_resolved": policy_resolved,
             "policy_resolved_wins": policy_resolved_wins,
             "policy_resolved_losses": policy_resolved - policy_resolved_wins,
@@ -2723,6 +2762,7 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _log(self, tag, pred=None):
         stats = self._stats()
+        model_win_rate_txt = self._format_rate(stats["win_rate_model"])
         policy_resolved_win_rate_txt = self._format_rate(
             stats["win_rate_policy_resolved"]
         )
@@ -2736,6 +2776,15 @@ class PolymarketLiveTrader(LivePredictor):
         )
 
         print(f"[{tag}] {ts}")
+        self._print_log_fields(
+            "model",
+            [
+                ("resolved", stats["model_resolved"]),
+                ("wins", stats["model_wins"]),
+                ("losses", stats["model_losses"]),
+                ("win_rate", model_win_rate_txt),
+            ],
+        )
         self._print_log_fields(
             "resolved",
             [
@@ -2752,8 +2801,6 @@ class PolymarketLiveTrader(LivePredictor):
                 ("wins", stats["closed_trade_wins"]),
                 ("losses", stats["closed_trade_losses"]),
                 ("win_rate", closed_trade_win_rate_txt),
-                ("total_pnl", f"{stats['total_pnl']:.2f}"),
-                ("bankroll", f"{self.live_bankroll_usdc:.2f}"),
             ],
         )
         if pred is not None:
@@ -2761,10 +2808,23 @@ class PolymarketLiveTrader(LivePredictor):
                 "decision",
                 [
                     ("proba_up", f"{pred['proba_up']:.6f}"),
+                    ("model_side", pred.get("model_side", "none")),
                     ("policy_decision", pred["policy_decision"]),
                     ("trade_side", pred["trade_side"]),
                     ("policy_best_ev", f"{pred['policy_best_ev']:.6f}"),
                     ("stake_usdc", f"{pred['stake_usdc']:.2f}"),
+                    ("base_stake_usdc", f"{pred['base_stake_usdc']:.2f}"),
+                    (
+                        "required_stake_usdc",
+                        (
+                            f"{pred['required_stake_usdc']:.2f}"
+                            if np.isfinite(
+                                _safe_float(pred.get("required_stake_usdc", np.nan))
+                            )
+                            else None
+                        ),
+                    ),
+                    ("effective_stake_usdc", f"{pred['effective_stake_usdc']:.2f}"),
                 ],
             )
             execution_fields = [
@@ -2787,6 +2847,8 @@ class PolymarketLiveTrader(LivePredictor):
                     [("pm_order_error", pred["pm_order_error"])],
                 )
         account_fields = []
+        account_fields.append(("total_pnl", f"{stats['total_pnl']:.2f}"))
+        account_fields.append(("bankroll", f"{self.live_bankroll_usdc:.2f}"))
         if np.isfinite(self.pm_cash_balance_usdc):
             account_fields.append(("cash_balance", f"{self.pm_cash_balance_usdc:.2f}"))
         if np.isfinite(self.pm_positions_value_usdc):

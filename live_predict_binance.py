@@ -89,6 +89,8 @@ from trade_policy import (
     load_trade_policy_runtime_config,
 )
 
+DEFAULT_MODEL_PREDICTION_THRESHOLD = 0.5
+
 
 def normalize_live_market_type(value, field_name):
     normalized = str(value).strip().lower()
@@ -343,6 +345,38 @@ def resolve_record_accuracy_from_side(record, actual_up=None):
     if side == "yes":
         return int(int(actual_up) == 1)
     if side == "no":
+        return int(int(actual_up) == 0)
+    return None
+
+
+def resolve_model_side_from_proba(proba_up, threshold=DEFAULT_MODEL_PREDICTION_THRESHOLD):
+    try:
+        proba_value = float(proba_up)
+    except (TypeError, ValueError):
+        return "none"
+    if not np.isfinite(proba_value):
+        return "none"
+    return "up" if proba_value >= float(threshold) else "down"
+
+
+def resolve_model_accuracy_from_proba(
+    record,
+    *,
+    actual_up=None,
+    threshold=DEFAULT_MODEL_PREDICTION_THRESHOLD,
+):
+    if actual_up is None:
+        actual_up = record.get("actual_up")
+    if actual_up is None or pd.isna(actual_up):
+        return None
+
+    model_side = resolve_model_side_from_proba(
+        record.get("proba_up"),
+        threshold=threshold,
+    )
+    if model_side == "up":
+        return int(int(actual_up) == 1)
+    if model_side == "down":
         return int(int(actual_up) == 0)
     return None
 
@@ -997,6 +1031,9 @@ class LivePredictor:
 
         self.target_col = str(meta.get("target_col", "target_5m_candle_up"))
         self.target_bucket_minutes = parse_target_bucket_minutes(self.target_col)
+        self.prediction_threshold = float(
+            meta.get("prediction_threshold", DEFAULT_MODEL_PREDICTION_THRESHOLD)
+        )
 
         self.trade_policy_runtime = load_trade_policy_runtime_config(
             TRADE_POLICY_CONFIG_PATH
@@ -1935,6 +1972,13 @@ class LivePredictor:
                 "proba_up": proba_up,
                 "trade_side": str(intent.get("trade_side", "none")),
                 "stake_usdc": float(stake_usdc),
+                "base_stake_usdc": float(intent.get("base_stake_usdc", np.nan)),
+                "required_stake_usdc": float(
+                    intent.get("required_stake_usdc", np.nan)
+                ),
+                "effective_stake_usdc": float(
+                    intent.get("effective_stake_usdc", np.nan)
+                ),
                 "entry_price": float(intent.get("entry_price", np.nan)),
                 "entry_fee_usdc": float(intent.get("entry_fee_usdc", 0.0)),
                 "entry_fee_raw_usdc": float(intent.get("entry_fee_raw_usdc", 0.0)),
@@ -1982,8 +2026,17 @@ class LivePredictor:
             "bucket_start": bucket_start,
             "bucket_end": bucket_end,
             "proba_up": proba_up,
+            "model_side": resolve_model_side_from_proba(
+                proba_up,
+                threshold=self.prediction_threshold,
+            ),
             "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
+            "base_stake_usdc": float(intent.get("base_stake_usdc", np.nan)),
+            "required_stake_usdc": float(intent.get("required_stake_usdc", np.nan)),
+            "effective_stake_usdc": float(
+                intent.get("effective_stake_usdc", np.nan)
+            ),
             "bankroll_before_entry": float(bankroll_before_entry),
             "bankroll_after_entry": float(bankroll_after_entry),
             "policy_decision": str(intent.get("decision", "no_trade")),
@@ -2019,6 +2072,17 @@ class LivePredictor:
         )
 
     def _stats(self):
+        model_resolved = 0
+        model_wins = 0
+        for rec in self.records:
+            model_accuracy = resolve_model_accuracy_from_proba(
+                rec,
+                threshold=self.prediction_threshold,
+            )
+            if model_accuracy is None:
+                continue
+            model_resolved += 1
+            model_wins += int(model_accuracy)
         policy_resolved = sum(
             1
             for rec in self.records
@@ -2044,6 +2108,9 @@ class LivePredictor:
             if policy_resolved
             else float("nan")
         )
+        win_rate_model = (
+            float(model_wins / model_resolved) if model_resolved else float("nan")
+        )
         win_rate_closed_trade = (
             float(closed_trade_wins / closed_trades)
             if closed_trades
@@ -2057,6 +2124,10 @@ class LivePredictor:
             )
         )
         return {
+            "model_resolved": model_resolved,
+            "model_wins": model_wins,
+            "model_losses": model_resolved - model_wins,
+            "win_rate_model": win_rate_model,
             "policy_resolved": policy_resolved,
             "policy_resolved_wins": policy_resolved_wins,
             "policy_resolved_losses": policy_resolved - policy_resolved_wins,
@@ -2089,22 +2160,39 @@ class LivePredictor:
         if not self.last_indicator_nan_cols:
             return
         cols = ", ".join(self.last_indicator_nan_cols)
-        print(
-            f"[indicators] latest_nan_count={len(self.last_indicator_nan_cols)} "
-            f"cols={cols}"
+        self._print_log_fields(
+            "indicators",
+            [
+                ("latest_nan_count", len(self.last_indicator_nan_cols)),
+                ("cols", cols),
+            ],
         )
+
+    @staticmethod
+    def _print_log_fields(section, fields):
+        rendered = []
+        for key, value in fields:
+            if value is None:
+                continue
+            value_txt = str(value).replace("\n", " ").strip()
+            if not value_txt:
+                continue
+            rendered.append(f"{key}={value_txt}")
+        if rendered:
+            print(f"  {section:<10}| " + " | ".join(rendered))
+
+    @staticmethod
+    def _format_rate(value):
+        return "n/a" if not np.isfinite(value) else f"{value * 100:.2f}%"
 
     def _log(self, tag, pred=None):
         stats = self._stats()
-        policy_resolved_win_rate_txt = (
-            "n/a"
-            if not np.isfinite(stats["win_rate_policy_resolved"])
-            else f"{stats['win_rate_policy_resolved'] * 100:.2f}%"
+        model_win_rate_txt = self._format_rate(stats["win_rate_model"])
+        policy_resolved_win_rate_txt = self._format_rate(
+            stats["win_rate_policy_resolved"]
         )
-        closed_trade_win_rate_txt = (
-            "n/a"
-            if not np.isfinite(stats["win_rate_closed_trade"])
-            else f"{stats['win_rate_closed_trade'] * 100:.2f}%"
+        closed_trade_win_rate_txt = self._format_rate(
+            stats["win_rate_closed_trade"]
         )
         ts = (
             str(pred["decision_local"])
@@ -2115,32 +2203,67 @@ class LivePredictor:
         if pred is not None:
             self._print_recent_candle_buffer(count=5)
 
-        msg = [
-            ts,
-            f"[{tag}]",
-            f"policy_resolved={stats['policy_resolved']}",
-            f"policy_resolved_wins={stats['policy_resolved_wins']}",
-            f"policy_resolved_losses={stats['policy_resolved_losses']}",
-            f"win_rate_policy_resolved={policy_resolved_win_rate_txt}",
-            f"closed_trades={stats['closed_trades']}",
-            f"closed_trade_wins={stats['closed_trade_wins']}",
-            f"closed_trade_losses={stats['closed_trade_losses']}",
-            f"win_rate_closed_trade={closed_trade_win_rate_txt}",
-            f"total_pnl={stats['total_pnl']:.2f}",
-            f"bankroll={self.live_bankroll_usdc:.2f}",
-        ]
+        print(f"[{tag}] {ts}")
+        self._print_log_fields(
+            "model",
+            [
+                ("resolved", stats["model_resolved"]),
+                ("wins", stats["model_wins"]),
+                ("losses", stats["model_losses"]),
+                ("win_rate", model_win_rate_txt),
+            ],
+        )
+        self._print_log_fields(
+            "resolved",
+            [
+                ("policy_resolved", stats["policy_resolved"]),
+                ("wins", stats["policy_resolved_wins"]),
+                ("losses", stats["policy_resolved_losses"]),
+                ("win_rate", policy_resolved_win_rate_txt),
+            ],
+        )
+        self._print_log_fields(
+            "trades",
+            [
+                ("closed", stats["closed_trades"]),
+                ("wins", stats["closed_trade_wins"]),
+                ("losses", stats["closed_trade_losses"]),
+                ("win_rate", closed_trade_win_rate_txt),
+            ],
+        )
         if pred is not None:
-            msg.extend(
+            self._print_log_fields(
+                "decision",
                 [
-                    f"proba_up={pred['proba_up']:.6f}",
-                    f"policy_decision={pred['policy_decision']}",
-                    f"trade_side={pred['trade_side']}",
-                    f"policy_best_ev={pred['policy_best_ev']:.6f}",
-                    f"policy_reason={pred['policy_reason']}",
-                    f"stake_usdc={pred['stake_usdc']:.2f}",
-                ]
+                    ("proba_up", f"{pred['proba_up']:.6f}"),
+                    ("model_side", pred.get("model_side", "none")),
+                    ("policy_decision", pred["policy_decision"]),
+                    ("trade_side", pred["trade_side"]),
+                    ("policy_best_ev", f"{pred['policy_best_ev']:.6f}"),
+                    ("stake_usdc", f"{pred['stake_usdc']:.2f}"),
+                    ("base_stake_usdc", f"{pred['base_stake_usdc']:.2f}"),
+                    (
+                        "required_stake_usdc",
+                        (
+                            f"{pred['required_stake_usdc']:.2f}"
+                            if np.isfinite(float(pred.get("required_stake_usdc", np.nan)))
+                            else None
+                        ),
+                    ),
+                    (
+                        "effective_stake_usdc",
+                        f"{pred['effective_stake_usdc']:.2f}",
+                    ),
+                    ("policy_reason", pred["policy_reason"]),
+                ],
             )
-        print(" ".join(msg))
+        self._print_log_fields(
+            "account",
+            [
+                ("total_pnl", f"{stats['total_pnl']:.2f}"),
+                ("bankroll", f"{self.live_bankroll_usdc:.2f}"),
+            ],
+        )
         if pred is not None:
             self._print_indicator_nan_status()
 

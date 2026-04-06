@@ -4,7 +4,11 @@ import math
 import pytest
 
 from project_config import load_runtime_artifact_paths
-from trade_policy import decide_trade_from_ev, load_trade_policy_runtime_config
+from trade_policy import (
+    build_trade_intent,
+    decide_trade_from_ev,
+    load_trade_policy_runtime_config,
+)
 
 
 FEE_MODEL = {
@@ -134,6 +138,60 @@ def test_decide_trade_from_ev_returns_no_trade_for_missing_input():
     assert math.isnan(result["ev_no"])
     assert math.isnan(result["best_ev"])
     assert result["reason"] == "missing_policy_input:ask_no"
+
+
+def test_build_trade_intent_can_raise_stake_to_market_minimum():
+    policy_result = decide_trade_from_ev(
+        proba_up=0.496552,
+        ask_yes=0.54,
+        ask_no=0.45,
+        fee_yes=0.04416,
+        fee_no=0.0396,
+        extra_buffer=0.005,
+    )
+
+    result = build_trade_intent(
+        policy_result=policy_result,
+        bankroll=100.0,
+        stake_usdc=1.0,
+        fee_model=FEE_MODEL,
+        order_min_size=5.0,
+        raise_to_order_min=True,
+    )
+
+    assert result["decision"] == "buy_no"
+    assert result["final_reason"] == "ok"
+    assert result["base_stake_usdc"] == pytest.approx(1.0)
+    assert result["required_stake_usdc"] == pytest.approx(2.35)
+    assert result["effective_stake_usdc"] == pytest.approx(2.35)
+    assert result["bet_usdc"] == pytest.approx(2.35)
+    assert result["shares_net"] >= 5.0
+
+
+def test_build_trade_intent_can_still_skip_when_required_stake_exceeds_external_cap():
+    policy_result = decide_trade_from_ev(
+        proba_up=0.496552,
+        ask_yes=0.54,
+        ask_no=0.45,
+        fee_yes=0.04416,
+        fee_no=0.0396,
+        extra_buffer=0.005,
+    )
+
+    result = build_trade_intent(
+        policy_result=policy_result,
+        bankroll=100.0,
+        stake_usdc=1.0,
+        fee_model=FEE_MODEL,
+        order_min_size=5.0,
+        external_stake_cap_usdc=2.30,
+        raise_to_order_min=True,
+    )
+
+    assert result["decision"] == "no_trade"
+    assert result["trade_side"] == "none"
+    assert result["final_reason"] == "stake_above_external_cap"
+    assert result["required_stake_usdc"] == pytest.approx(2.35)
 
 
 def test_load_runtime_artifact_paths_requires_trade_policy_key_without_legacy_alias(

@@ -50,7 +50,10 @@
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",
-          "MACD_fit_1m_pop512_fasmatyphma_fasper22_fassouhl2_sigmatypnwmaepan_sigper1905_slomatypnwmacos_sloper163_slosouohlc4_qe0.15_qm0.25_tf0.8_stmd_sg15"
+          "MACD_fit_1m_pop512_fasmatyphma_fasper22_fassouhl2_sigmatypnwmaepan_sigper1905_slomatypnwmacos_sloper163_slosouohlc4_qe0.15_qm0.25_tf0.8_stmd_sg15",
+          "KeltnerChannel_fit_240m_pop128_atrmatypsma_atrmul8.559371_atrper826_maper701_matypkama_souhlcc4",
+          "KeltnerChannel_fit_2m_pop128_atrmatypwma_atrmul7.380495_atrper39_maper458_matypkama_souclose_qe0.2_qm0.2_tf0.8_stmc_sg15",
+          "BollingerBands_fit_720m_pop128_maper210_masouhlc3_matypkama_stdmaper473_stdmatypnwmagauss_stdmul0.431361_stdsouopen"
         ]
       },
       "train_lgbm": {

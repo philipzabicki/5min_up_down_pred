@@ -91,6 +91,9 @@ AUDIT_DRILLDOWN_FEATURE = None
 AUDIT_TOP_N = 50
 AUDIT_PROGRESS_ENABLED = True
 AUDIT_PROGRESS_EVERY_STEPS = 60
+AUDIT_PROGRESS_MAX_UPDATES = 12
+AUDIT_CONSOLE_TOP_N = 5
+AUDIT_CONSOLE_LABEL_MAX_LEN = 100
 AUDIT_MAX_MEAN_PROBA_ABS_DIFF = None
 AUDIT_MAX_MAX_PROBA_ABS_DIFF = None
 AUDIT_MAX_SIGNAL_MISMATCH_RATE = None
@@ -272,6 +275,159 @@ def _evaluate_guardrail_violations(summary):
             violations.append(
                 f"{label}={float(value):.6f} exceeds limit={float(limit):.6f}"
             )
+
+    return violations
+
+
+def _truncate_console_label(value, *, max_len=AUDIT_CONSOLE_LABEL_MAX_LEN):
+    text = str(value or "").strip()
+    if not text:
+        return "n/a"
+    if len(text) <= max_len:
+        return text
+    return f"{text[: max_len - 3]}..."
+
+
+def _format_console_value(value):
+    if value is None:
+        return "n/a"
+    if isinstance(value, str):
+        text = value.strip()
+        return text or "n/a"
+    if isinstance(value, (bool, np.bool_)):
+        return "true" if value else "false"
+    if isinstance(value, (int, np.integer)):
+        return f"{int(value)}"
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if not np.isfinite(numeric_value):
+        return "n/a"
+    abs_value = abs(numeric_value)
+    if abs_value >= 1000.0 or (0.0 < abs_value < 1e-4):
+        return f"{numeric_value:.3e}"
+    return f"{numeric_value:.6f}".rstrip("0").rstrip(".")
+
+
+def _format_console_rate(value):
+    if value is None:
+        return "n/a"
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if not np.isfinite(numeric_value):
+        return "n/a"
+    return f"{numeric_value * 100.0:.3f}%"
+
+
+def _print_console_ranked_rows(
+    title,
+    frame,
+    *,
+    label_col,
+    metric_specs,
+    limit=AUDIT_CONSOLE_TOP_N,
+):
+    if frame is None or frame.empty:
+        return
+
+    print()
+    print(f"{title}:")
+    display_df = frame.head(int(limit)).reset_index(drop=True)
+    for row_idx, row in display_df.iterrows():
+        parts = [f"{row_idx + 1}. {_truncate_console_label(row.get(label_col))}"]
+        for column_name, display_label, formatter in metric_specs:
+            if column_name not in display_df.columns:
+                continue
+            parts.append(f"{display_label}={formatter(row.get(column_name))}")
+        print(f"  {' | '.join(parts)}")
+
+
+def _print_audit_console_summary(results, written_paths):
+    summary = results["live_vs_stored_report"]["summary"]
+    reason_summary = results["drift_reason_report"]["summary"]
+    violations = _evaluate_guardrail_violations(summary)
+
+    print("Audit summary:")
+    print(
+        "  window: "
+        f"{summary.get('audit_start', 'n/a')} -> {summary.get('audit_end', 'n/a')} | "
+        f"bootstrap_rows={_format_console_value(summary.get('bootstrap_rows'))} | "
+        "audit_rows_total_1m="
+        f"{_format_console_value(summary.get('audit_rows_total_1m'))} | "
+        f"decision_rows={_format_console_value(summary.get('decision_row_count'))}"
+    )
+    print(
+        "  prediction drift: "
+        f"mean_abs_proba={_format_console_value(summary.get('mean_proba_up_abs_diff'))} | "
+        f"max_abs_proba={_format_console_value(summary.get('max_proba_up_abs_diff'))} | "
+        "rows_gt_tol="
+        f"{_format_console_value(summary.get('rows_with_proba_diff_gt_tol'))}"
+    )
+    print(
+        "  business drift: "
+        f"signal={_format_console_value(summary.get('rows_with_signal_mismatch'))} "
+        f"({_format_console_rate(summary.get('signal_mismatch_rate'))}) | "
+        "decision="
+        f"{_format_console_value(summary.get('rows_with_business_decision_mismatch'))} "
+        f"({_format_console_rate(summary.get('business_decision_mismatch_rate'))}) | "
+        "policy_any="
+        f"{_format_console_value(summary.get('rows_with_any_policy_mismatch'))} "
+        f"({_format_console_rate(summary.get('any_policy_mismatch_rate'))})"
+    )
+    print(
+        "  dominant source: "
+        f"basis={_format_console_value(reason_summary.get('explanation_basis'))} | "
+        f"group={_format_console_value(reason_summary.get('dominant_prediction_impact_group'))} | "
+        f"builder={_format_console_value(reason_summary.get('dominant_prediction_impact_builder_name'))} | "
+        "feature="
+        f"{_truncate_console_label(reason_summary.get('dominant_prediction_impact_feature'))}"
+    )
+    if violations:
+        print("  guardrails: VIOLATED")
+        for violation in violations:
+            print(f"    - {violation}")
+    else:
+        print("  guardrails: OK")
+
+    _print_console_ranked_rows(
+        "Top prediction-impact features",
+        _build_feature_prediction_impact_export_df(
+            results["live_vs_stored_report"]["feature_summary_df"],
+            top_k=min(int(AUDIT_CONSOLE_TOP_N), int(AUDIT_TOP_N)),
+            only_impactful=True,
+        ),
+        label_col="feature",
+        metric_specs=[
+            ("builder", "builder", _format_console_value),
+            ("proba_drift_rows_resolved", "drift_rows", _format_console_value),
+            ("rows_helped", "rows_helped", _format_console_value),
+            ("net_pred_gap_reduction", "net_gap_reduction", _format_console_value),
+            ("max_pred_shift", "max_pred_shift", _format_console_value),
+        ],
+    )
+    _print_console_ranked_rows(
+        "Top feature drop candidates",
+        _build_feature_drop_candidates_df(
+            results["live_vs_stored_report"]["feature_summary_df"],
+            top_k=min(int(AUDIT_CONSOLE_TOP_N), int(AUDIT_TOP_N)),
+        ),
+        label_col="feature",
+        metric_specs=[
+            ("builder", "builder", _format_console_value),
+            ("drop_candidate_reason", "reason", _truncate_console_label),
+            ("max_abs_diff", "max_abs_diff", _format_console_value),
+            ("mean_abs_diff", "mean_abs_diff", _format_console_value),
+            ("proba_drift_rows_resolved", "drift_rows", _format_console_value),
+        ],
+    )
+
+    print()
+    print("Artifacts:")
+    for label, path in written_paths.items():
+        print(f"  {label}: {path}")
 
     return violations
 
@@ -2652,6 +2808,12 @@ def run_live_modeling_feature_audit(
     loop_started_at = time.perf_counter()
     total_steps = len(opened_values)
     decision_steps = 0
+    progress_interval = max(1, int(progress_every))
+    if total_steps > 0:
+        progress_interval = max(
+            progress_interval,
+            int(np.ceil(total_steps / float(AUDIT_PROGRESS_MAX_UPDATES))),
+        )
 
     for row_idx, opened in enumerate(opened_values):
         predictor._append_new_candle(
@@ -2685,7 +2847,7 @@ def run_live_modeling_feature_audit(
         if progress_enabled and (
             completed_steps == 1
             or completed_steps == total_steps
-            or completed_steps % progress_every == 0
+            or completed_steps % progress_interval == 0
         ):
             elapsed_sec = time.perf_counter() - loop_started_at
             steps_per_sec = (
@@ -3389,96 +3551,12 @@ def main():
             f"elapsed={_format_duration(time.perf_counter() - started_at)}"
         )
 
-    summary = results["live_vs_stored_report"]["summary"]
-    reason_summary = results["drift_reason_report"]["summary"]
-    business_keys = [
-        "decision_row_count",
-        "rows_with_signal_mismatch",
-        "signal_mismatch_rate",
-        "rows_with_business_decision_mismatch",
-        "business_decision_mismatch_rate",
-        "rows_with_policy_side_mismatch",
-        "policy_side_mismatch_rate",
-        "rows_with_policy_trade_flag_mismatch",
-        "policy_trade_flag_mismatch_rate",
-        "rows_with_policy_reason_mismatch",
-        "policy_reason_mismatch_rate",
-        "rows_with_stake_only_policy_mismatch",
-        "stake_only_policy_mismatch_rate",
-        "rows_with_proba_diff_gt_tol",
-        "max_proba_up_abs_diff",
-        "mean_proba_up_abs_diff",
-        "max_mean_abs_proba_gap_reduction_if_fixed",
-        "max_mean_abs_proba_shift_if_fixed",
-        "max_policy_stake_abs_diff",
-    ]
-    available_business_keys = [key for key in business_keys if key in summary.index]
-    print("Live vs stored business summary:")
-    print(summary.loc[available_business_keys].to_string())
-    violations = _evaluate_guardrail_violations(summary)
+    violations = _print_audit_console_summary(results, written_paths)
     if violations:
-        print()
-        print("Audit guardrail violations:")
-        for violation in violations:
-            print(f"- {violation}")
         raise RuntimeError(
             "Live-vs-stored audit exceeded configured drift guardrails. "
-            "See listed violations above."
+            "See console summary above."
         )
-    print()
-    print("Dominant prediction-impact source:")
-    dominant_keys = [
-        "explanation_basis",
-        "dominant_prediction_impact_group",
-        "dominant_prediction_impact_builder_family",
-        "dominant_prediction_impact_builder_name",
-        "dominant_prediction_impact_feature",
-    ]
-    available_dominant_keys = [
-        key for key in dominant_keys if key in reason_summary.index
-    ]
-    print(reason_summary.loc[available_dominant_keys].to_string())
-    print()
-    print("Top drift rows:")
-    print(results["drift_reason_report"]["row_summary_df"].to_string(index=False))
-    print()
-    print("Feature drop candidates:")
-    print(
-        _build_feature_drop_candidates_df(
-            results["live_vs_stored_report"]["feature_summary_df"],
-            top_k=min(25, AUDIT_TOP_N),
-        ).to_string(index=False)
-    )
-    print()
-    print("Top prediction-impact features:")
-    print(
-        _build_feature_prediction_impact_export_df(
-            results["live_vs_stored_report"]["feature_summary_df"],
-            top_k=min(25, AUDIT_TOP_N),
-            only_impactful=True,
-        ).to_string(index=False)
-    )
-    print()
-    print("Top prediction-impact builders:")
-    print(results["drift_reason_report"]["builder_summary_df"].to_string(index=False))
-    print()
-    print("Top prediction-impact groups:")
-    print(results["drift_reason_report"]["group_summary_df"].to_string(index=False))
-    if AUDIT_DRILLDOWN_FEATURE:
-        print()
-        print(f"Live vs stored drilldown [{AUDIT_DRILLDOWN_FEATURE}]:")
-        print(
-            feature_drilldown(
-                results,
-                AUDIT_DRILLDOWN_FEATURE,
-                report_key="live_vs_stored_report",
-                top_n=AUDIT_TOP_N,
-            ).to_string(index=False)
-        )
-    print()
-    print("Wrote:")
-    for label, path in written_paths.items():
-        print(f"  {label}: {path}")
 
 
 __all__ = [

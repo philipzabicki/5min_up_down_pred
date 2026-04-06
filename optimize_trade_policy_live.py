@@ -570,6 +570,7 @@ def replay_policy(
             stake_usdc=float(runtime_config["stake_usdc"]),
             fee_model=fee_model,
             order_min_size=order_min_size,
+            raise_to_order_min=True,
         )
         if decision.get("final_reason") != "ok":
             peak = max(peak, bankroll)

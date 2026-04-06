@@ -9,6 +9,8 @@ from polymarket_fee_utils import (
 )
 
 EV_DECISION_EPS = 1e-12
+POLYMARKET_MARKET_BUY_AMOUNT_DECIMALS = 2
+MIN_ORDER_STAKE_ADJUST_MAX_STEPS = 8
 
 
 def _as_float(value):
@@ -23,6 +25,66 @@ def _as_float(value):
 def _is_missing_number(value):
     number = _as_float(value)
     return number is None or not math.isfinite(number)
+
+
+def _round_up_to_decimals(value, decimals):
+    factor = 10**int(decimals)
+    return math.ceil(float(value) * factor - 1e-12) / factor
+
+
+def _minimum_executable_stake_usdc(
+    *,
+    entry_price,
+    fee_model,
+    order_min_size,
+    amount_round_decimals=POLYMARKET_MARKET_BUY_AMOUNT_DECIMALS,
+    max_adjust_steps=MIN_ORDER_STAKE_ADJUST_MAX_STEPS,
+):
+    entry_price_value = _as_float(entry_price)
+    order_min_size_value = _as_float(order_min_size)
+    if (
+        entry_price_value is None
+        or not math.isfinite(entry_price_value)
+        or entry_price_value <= 0.0
+        or entry_price_value >= 1.0
+    ):
+        return float("nan")
+    if (
+        order_min_size_value is None
+        or not math.isfinite(order_min_size_value)
+        or order_min_size_value <= 0.0
+    ):
+        return 0.0
+
+    fee_fraction = polymarket_taker_fee_fraction_of_notional(entry_price_value, fee_model)
+    if fee_fraction is None or not math.isfinite(fee_fraction) or fee_fraction >= 1.0:
+        return float("inf")
+
+    target_notional = float(order_min_size_value) * float(entry_price_value)
+    gross_stake = float(target_notional / max(1.0 - float(fee_fraction), EV_DECISION_EPS))
+    candidate_stake = _round_up_to_decimals(gross_stake, amount_round_decimals)
+    increment = 10 ** (-int(amount_round_decimals))
+
+    for _ in range(max(int(max_adjust_steps), 1)):
+        fee_result = polymarket_taker_fee_usdc_from_notional(
+            candidate_stake,
+            entry_price_value,
+            fee_model,
+        )
+        fee_usdc = float(fee_result["fee_usdc"])
+        shares_net = (
+            float((candidate_stake - fee_usdc) / entry_price_value)
+            if entry_price_value > 0.0
+            else 0.0
+        )
+        if shares_net + EV_DECISION_EPS >= float(order_min_size_value):
+            return float(candidate_stake)
+        candidate_stake = _round_up_to_decimals(
+            candidate_stake + increment,
+            amount_round_decimals,
+        )
+
+    return float(candidate_stake)
 
 
 def _missing_policy_inputs(
@@ -194,6 +256,7 @@ def build_trade_intent(
     fee_model,
     order_min_size=0.0,
     external_stake_cap_usdc=math.inf,
+    raise_to_order_min=False,
 ):
     bankroll_value = _as_float(bankroll)
     stake_value = _as_float(stake_usdc)
@@ -208,6 +271,17 @@ def build_trade_intent(
     intent["entry_fee_raw_usdc"] = 0.0
     intent["shares_net"] = 0.0
     intent["selected_fee_fraction"] = float("nan")
+    intent["base_stake_usdc"] = (
+        float(stake_value)
+        if stake_value is not None and math.isfinite(stake_value)
+        else float("nan")
+    )
+    intent["required_stake_usdc"] = float("nan")
+    intent["effective_stake_usdc"] = (
+        float(stake_value)
+        if stake_value is not None and math.isfinite(stake_value)
+        else float("nan")
+    )
 
     if str(intent.get("decision", "")).lower() == "no_trade":
         intent["final_reason"] = str(intent.get("reason", "no_trade"))
@@ -222,16 +296,6 @@ def build_trade_intent(
         intent["trade_side"] = "none"
         intent["final_reason"] = "stake_usdc_non_positive"
         return intent
-    if stake_value > bankroll_value:
-        intent["decision"] = "no_trade"
-        intent["trade_side"] = "none"
-        intent["final_reason"] = "stake_above_bankroll"
-        return intent
-    if math.isfinite(external_cap_value) and stake_value > external_cap_value:
-        intent["decision"] = "no_trade"
-        intent["trade_side"] = "none"
-        intent["final_reason"] = "stake_above_external_cap"
-        return intent
 
     if intent["trade_side"] == "yes":
         entry_price = float(intent["ask_yes"])
@@ -242,16 +306,45 @@ def build_trade_intent(
         intent["final_reason"] = "invalid_trade_side"
         return intent
 
+    effective_stake_value = float(stake_value)
+    if bool(raise_to_order_min) and order_min_size_value > 0.0:
+        required_stake_value = _minimum_executable_stake_usdc(
+            entry_price=entry_price,
+            fee_model=fee_model,
+            order_min_size=order_min_size_value,
+        )
+        if math.isfinite(required_stake_value) and required_stake_value > 0.0:
+            intent["required_stake_usdc"] = float(required_stake_value)
+            if required_stake_value > effective_stake_value:
+                effective_stake_value = float(required_stake_value)
+
+    intent["effective_stake_usdc"] = float(effective_stake_value)
+
+    if effective_stake_value > bankroll_value:
+        intent["decision"] = "no_trade"
+        intent["trade_side"] = "none"
+        intent["final_reason"] = "stake_above_bankroll"
+        return intent
+    if math.isfinite(external_cap_value) and effective_stake_value > external_cap_value:
+        intent["decision"] = "no_trade"
+        intent["trade_side"] = "none"
+        intent["final_reason"] = "stake_above_external_cap"
+        return intent
+
     fee_result = polymarket_taker_fee_usdc_from_notional(
-        stake_value,
+        effective_stake_value,
         entry_price,
         fee_model,
     )
     fee_usdc = float(fee_result["fee_usdc"])
     fee_raw_usdc = float(fee_result["fee_raw_usdc"])
-    shares_net = float((stake_value - fee_usdc) / entry_price) if entry_price > 0.0 else 0.0
+    shares_net = (
+        float((effective_stake_value - fee_usdc) / entry_price)
+        if entry_price > 0.0
+        else 0.0
+    )
 
-    intent["bet_usdc"] = float(stake_value)
+    intent["bet_usdc"] = float(effective_stake_value)
     intent["entry_price"] = float(entry_price)
     intent["entry_fee_usdc"] = float(fee_usdc)
     intent["entry_fee_raw_usdc"] = float(fee_raw_usdc)
@@ -260,7 +353,7 @@ def build_trade_intent(
         polymarket_taker_fee_fraction_of_notional(entry_price, fee_model)
     )
 
-    if fee_usdc >= stake_value:
+    if fee_usdc >= effective_stake_value:
         intent["decision"] = "no_trade"
         intent["trade_side"] = "none"
         intent["final_reason"] = "fee_ge_stake"

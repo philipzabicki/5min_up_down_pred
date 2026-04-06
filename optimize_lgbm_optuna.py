@@ -15,6 +15,11 @@ from modeling_dataset_utils import (
     resolve_modeling_dataset_output_paths,
     summarize_feature_subset,
 )
+from optuna_run_utils import (
+    make_timestamped_artifact_path,
+    resolve_existing_study_name,
+    resolve_run_study_name,
+)
 from target_weights import (
     TARGET_WEIGHT_COL,
     summarize_target_weights,
@@ -188,13 +193,17 @@ CV_LOGLOSS_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
 RECHECK_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-STUDY_NAME = "quick10check_de_besta_2000_05042026"
+DEFAULT_STUDY_NAME_PREFIX = "lgbm_generic_logloss_mean_std"
+# Leave empty for a fresh timestamped study. Set only to continue an existing one.
+STUDY_NAME = None
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
 LOAD_IF_EXISTS = True
-BEST_RESULT_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_best_mean_std.json")
-TRIALS_CSV_PATH = Path("data/optuna/lgbm/lgbm_generic_optuna_trials_mean_std.csv")
+ARTIFACT_OUTPUT_DIR = Path("data/optuna/lgbm")
+BEST_RESULT_STEM = "lgbm_generic_optuna_best_mean_std"
+TRIALS_CSV_STEM = "lgbm_generic_optuna_trials_mean_std"
 RUN_MODE = "optimize"  # "optimize" or "recheck-topn"
-RECHECK_STUDY_NAME = STUDY_NAME
+# Set only when running "recheck-topn". Falls back to STUDY_NAME when provided.
+RECHECK_STUDY_NAME = None
 RECHECK_STORAGE = STORAGE
 TOP_TRIALS_RECHECK_N = 5
 TOP_TRIALS_RECHECK_OUTPUT_DIR = Path("data/optuna/lgbm/recheck")
@@ -1040,6 +1049,25 @@ def run_top_trials_recheck(
 
 def run_optuna_optimization():
     optuna.logging.set_verbosity(optuna.logging.INFO)
+    run_info = resolve_run_study_name(
+        STUDY_NAME,
+        default_prefix=DEFAULT_STUDY_NAME_PREFIX,
+    )
+    study_name = run_info["study_name"]
+    study_name_source = run_info["study_name_source"]
+    run_timestamp = run_info["run_timestamp"]
+    best_result_path = make_timestamped_artifact_path(
+        ARTIFACT_OUTPUT_DIR,
+        stem=BEST_RESULT_STEM,
+        suffix=".json",
+        timestamp=run_timestamp,
+    )
+    trials_csv_path = make_timestamped_artifact_path(
+        ARTIFACT_OUTPUT_DIR,
+        stem=TRIALS_CSV_STEM,
+        suffix=".csv",
+        timestamp=run_timestamp,
+    )
     dataset_settings = load_modeling_dataset_settings()
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
     feature_subset = load_feature_subset_from_settings(dataset_settings)
@@ -1093,7 +1121,9 @@ def run_optuna_optimization():
         f"trials={N_TRIALS} timeout={TIMEOUT_SECONDS} prune_every={PRUNE_REPORT_EVERY_N_ITER} "
         f"pruner_bootstrap_count={PRUNER_BOOTSTRAP_COUNT} "
         f"sample_weight_source={sample_weight_source} "
-        f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f}"
+        f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f} "
+        f"study_name={study_name} study_name_source={study_name_source} "
+        f"load_if_exists={LOAD_IF_EXISTS}"
     )
     print(
         "start optimize | "
@@ -1107,7 +1137,7 @@ def run_optuna_optimization():
         )
 
     study = optuna.create_study(
-        study_name=STUDY_NAME,
+        study_name=study_name,
         storage=STORAGE,
         direction="minimize",
         sampler=sampler,
@@ -1156,8 +1186,10 @@ def run_optuna_optimization():
         "decision_row_filter": {
             "enabled": False,
         },
-        "study_name": STUDY_NAME,
+        "study_name": study_name,
+        "study_name_source": study_name_source,
         "storage": STORAGE,
+        "run_timestamp_utc": run_timestamp,
         "lgbm_optuna_search_space": LGBM_OPTUNA_SEARCH_SPACE,
         "optuna_seed_trial_params": OPTUNA_SEED_TRIAL_PARAMS,
         "cv_objective": {
@@ -1195,14 +1227,18 @@ def run_optuna_optimization():
             "best_iteration": best.user_attrs.get("best_iteration"),
             "params": best.params,
         },
+        "artifacts": {
+            "best_result_path": str(best_result_path),
+            "trials_csv_path": str(trials_csv_path),
+        },
     }
 
-    BEST_RESULT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    BEST_RESULT_PATH.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    best_result_path.parent.mkdir(parents=True, exist_ok=True)
+    best_result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
 
-    TRIALS_CSV_PATH.parent.mkdir(parents=True, exist_ok=True)
+    trials_csv_path.parent.mkdir(parents=True, exist_ok=True)
     trials_df = study.trials_dataframe()
-    trials_df.to_csv(TRIALS_CSV_PATH, index=False)
+    trials_df.to_csv(trials_csv_path, index=False)
 
     print(
         f"Best trial: #{best.number} "
@@ -1217,14 +1253,18 @@ def run_optuna_optimization():
         f"objective={RECHECK_OBJECTIVE_NAME} "
         f"std_penalty={RECHECK_STD_PENALTY:.4f}"
     )
-    print(f"Saved best payload: {BEST_RESULT_PATH}")
-    print(f"Saved trials csv: {TRIALS_CSV_PATH}")
+    print(f"Saved best payload: {best_result_path}")
+    print(f"Saved trials csv: {trials_csv_path}")
 
 
 def main():
     if RUN_MODE == "recheck-topn":
         run_top_trials_recheck(
-            study_name=RECHECK_STUDY_NAME,
+            study_name=resolve_existing_study_name(
+                RECHECK_STUDY_NAME,
+                STUDY_NAME,
+                setting_name="RECHECK_STUDY_NAME",
+            ),
             storage=RECHECK_STORAGE,
             top_n=TOP_TRIALS_RECHECK_N,
             output_json=TOP_TRIALS_RECHECK_OUTPUT_JSON_PATH,

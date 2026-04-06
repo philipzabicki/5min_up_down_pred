@@ -39,6 +39,12 @@ POLICY_DIAGNOSTIC_COLUMNS = (
     "policy_reason",
 )
 
+STAKE_DIAGNOSTIC_COLUMNS = (
+    "base_stake_usdc",
+    "required_stake_usdc",
+    "effective_stake_usdc",
+)
+
 LIVE_PREDICTION_EXPORT_COLUMNS = (
     "record_id",
     "record_snapshot_at",
@@ -52,6 +58,9 @@ LIVE_PREDICTION_EXPORT_COLUMNS = (
     "proba_up",
     "trade_side",
     "stake_usdc",
+    "base_stake_usdc",
+    "required_stake_usdc",
+    "effective_stake_usdc",
     "entry_price",
     "entry_fee_usdc",
     "bankroll_after_entry",
