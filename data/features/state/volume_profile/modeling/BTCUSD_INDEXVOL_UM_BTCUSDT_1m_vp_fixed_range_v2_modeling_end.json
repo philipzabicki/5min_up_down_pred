@@ -150,21 +150,21 @@
     },
     "long": {
       "decay": 0.9999693125893186,
-      "global_scale": 0.01497481035290962,
+      "global_scale": 0.014476414607613378,
       "half_life_candles": 22587
     },
     "medium": {
       "decay": 0.9998274614434819,
-      "global_scale": 0.028234876008228528,
+      "global_scale": 0.023341467599959153,
       "half_life_candles": 4017
     },
     "short": {
       "decay": 0.9885140203528962,
-      "global_scale": 0.07432544468767033,
+      "global_scale": 0.21763764082403156,
       "half_life_candles": 60
     }
   },
-  "last_candle_time": "2026-04-06T14:33:00",
+  "last_candle_time": "2026-04-07T08:56:00",
   "local_window": 19,
   "min_sigma": 158.51656478094498,
   "neighbor_bins": 15,

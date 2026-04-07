@@ -46,14 +46,25 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260405_181355/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/20260407_190205/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",
           "MACD_fit_1m_pop512_fasmatyphma_fasper22_fassouhl2_sigmatypnwmaepan_sigper1905_slomatypnwmacos_sloper163_slosouohlc4_qe0.15_qm0.25_tf0.8_stmd_sg15",
           "KeltnerChannel_fit_240m_pop128_atrmatypsma_atrmul8.559371_atrper826_maper701_matypkama_souhlcc4",
           "KeltnerChannel_fit_2m_pop128_atrmatypwma_atrmul7.380495_atrper39_maper458_matypkama_souclose_qe0.2_qm0.2_tf0.8_stmc_sg15",
-          "BollingerBands_fit_720m_pop128_maper210_masouhlc3_matypkama_stdmaper473_stdmatypnwmagauss_stdmul0.431361_stdsouopen"
+          "BollingerBands_fit_720m_pop128_maper210_masouhlc3_matypkama_stdmaper473_stdmatypnwmagauss_stdmul0.431361_stdsouopen",
+          "ChaikinOsc_fit_2m_pop128_fasmatypdema_fasper7_slomatypkama_sloper7_qe0.2_qm0.2_tf0.8_stmc_sg15",
+          "KeltnerChannel_fit_7m_pop16_atrmatypmama_atrmul9.830724_atrper1564_maper26_matypkama_souclose",
+          "ADX_fit_15m_pop128_adxper553_atrper1222_matypadxrma_matypatrtrima_matypnegdmtema_matypposdmlinreg_negdmper4_posdmper897_qe0.1_qm0.1_tf0.8_stmc_sg15",
+          "BollingerBands_fit_1440m_pop64_maper1969_masouhigh_matypema_stdmaper35_stdmatypdema_stdmul1.132474_stdsouhlc3",
+          "ChaikinOsc_fit_1440m_pop64_fasmatyplinreg_fasper658_slomatypshmma_sloper1444",
+          "ChaikinOsc_fit_60m_pop128_fasmatyplma_fasper557_slomatyplma_sloper291_qe0.1_qm0.3_tf0.8_stmc_sg20",
+          "StochOsc_fit_2m_pop128_faskper920_slodmatypkama_slodper1276_slokmatypnwmabiw_slokper113_qe0.2_qm0.2_tf0.8_stmc_sg15",
+          "StochOsc_fit_60m_pop16_faskper966_slodmatypkama_slodper1340_slokmatypsma_slokper939",
+          "MACD_fit_2m_pop512_fasmatypfba_fasper581_fassouohlc4_sigmatypkama_sigper242_slomatypnwmacos_sloper1730_slosouhlc3_qe0.2_qm0.25_tf0.8_stmd_sg20",
+          "MACD_fit_1440m_pop64_fasmatypehma_fasper181_fassouopen_sigmatypkama_sigper1032_slomatypgma_sloper1074_slosoulow",
+          "ChaikinOsc_fit_6m_pop16_fasmatypdema_fasper4_slomatypgma_sloper2"
         ]
       },
       "train_lgbm": {

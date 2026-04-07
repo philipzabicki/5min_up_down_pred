@@ -48,11 +48,11 @@ MODEL_PARAMS = {
     "learning_rate": 0.05,
     "num_leaves": 63,
     "max_depth": 6,
-    "min_data_in_leaf": 64,
+    "min_data_in_leaf": 128,
     "feature_fraction": 1.0,
     "bagging_fraction": 1.0,
     "bagging_freq": 0,
-    "lambda_l2": 1.0,
+    "lambda_l2": 5.0,
     "lambda_l1": 0.0,
     "min_sum_hessian_in_leaf": 0.001,
     "min_gain_to_split": 0.0,
@@ -84,10 +84,13 @@ MAX_SWEEP_EVALUATIONS = None
 MIN_REFINEMENT_INTERVAL = 1
 
 TOLERANCE_MODE = "abs"
-ABS_TOL = 0.000001
+ABS_TOL = 0.000005
 REL_TOL = 0.0001
 
-MIN_NONZERO_IMPORTANCE_FOLDS = 1
+MIN_NONZERO_IMPORTANCE_FOLDS = 7
+PERMUTATION_TOP_N = 384
+PERMUTATION_N_REPEATS = 1
+PERMUTATION_BASE_SEED = 37
 MAX_MISSING_RATIO = 0.05
 NEAR_CONSTANT_THRESHOLD = 0.9999
 DROP_DUPLICATE_COLUMNS = True
@@ -826,6 +829,17 @@ def score_predictions(
     )
 
 
+def binary_logloss_from_positive_class_proba(y_true, y_pred_proba_pos, sample_weight):
+    return float(
+        log_loss(
+            y_true,
+            y_pred_proba_pos,
+            sample_weight=sample_weight,
+            labels=[0, 1],
+        )
+    )
+
+
 def importance_series(model, feature_order, importance_type):
     booster = model.booster_
     return pd.Series(
@@ -859,19 +873,64 @@ def topk_selection_formula():
     raise ValueError(f"Unsupported TOPK_SELECTION_MODE: {TOPK_SELECTION_MODE}")
 
 
-def sort_feature_table(df):
+def sort_feature_table_prescreen(df):
     return df.sort_values(
         by=[
             "eligible_for_selection",
-            "mean_gain",
-            "median_gain",
+            "used_folds",
             "used_ratio",
+            "median_gain",
+            "mean_gain",
+            "median_split",
             "mean_split",
             "feature",
         ],
-        ascending=[False, False, False, False, False, True],
+        ascending=[False, False, False, False, False, False, False, True],
         kind="stable",
     ).reset_index(drop=True)
+
+
+def sort_feature_table_permutation(df):
+    if df.empty:
+        return df.reset_index(drop=True)
+
+    return df.sort_values(
+        by=[
+            "permutation_mean_delta_logloss",
+            "permutation_median_delta_logloss",
+            "permutation_std_delta_logloss",
+            "used_folds",
+            "used_ratio",
+            "median_gain",
+            "mean_gain",
+            "feature",
+        ],
+        ascending=[False, False, True, False, False, False, False, True],
+        kind="stable",
+    ).reset_index(drop=True)
+
+
+def sort_feature_table_final(df):
+    permutation_df = sort_feature_table_permutation(
+        df[df["ranking_stage"] == "permutation"].copy()
+    )
+    tail_df = (
+        df[df["ranking_stage"] == "prescreen_tail"]
+        .copy()
+        .sort_values(by=["prescreen_rank"], ascending=[True], kind="stable")
+        .reset_index(drop=True)
+    )
+    return pd.concat([permutation_df, tail_df], ignore_index=True)
+
+
+def make_permutation_seed(fold_id, feature_idx, repeat_idx):
+    seed = (
+        int(PERMUTATION_BASE_SEED)
+        + (int(fold_id) + 1) * 1_000_003
+        + (int(feature_idx) + 1) * 10_007
+        + (int(repeat_idx) + 1) * 101
+    )
+    return int(seed % (2**32 - 1))
 
 
 def build_fold_ranking(fold_gain_series, fold_used_series):
@@ -890,7 +949,7 @@ def build_fold_ranking(fold_gain_series, fold_used_series):
     return fold_df["feature"].tolist()
 
 
-def run_feature_ranking(x, y, sample_weight, folds):
+def run_feature_prescreen(x, y, sample_weight, folds):
     feature_order = list(x.columns)
     fold_gain_table = pd.DataFrame(index=feature_order)
     fold_split_table = pd.DataFrame(index=feature_order)
@@ -899,7 +958,7 @@ def run_feature_ranking(x, y, sample_weight, folds):
     fold_metadata = []
 
     print(
-        f"ranking | start features={len(feature_order)} "
+        f"ranking | prescreen start features={len(feature_order)} "
         f"folds={len(folds)} seeds={len(RANDOM_SEEDS)}"
     )
 
@@ -908,7 +967,7 @@ def run_feature_ranking(x, y, sample_weight, folds):
         train_idx = fold["train_idx"]
         valid_idx = fold["valid_idx"]
         print(
-            f"ranking | fold={fold_pos}/{len(folds)} "
+            f"ranking | prescreen fold={fold_pos}/{len(folds)} "
             f"id={fold_id} train={len(train_idx)} valid={len(valid_idx)}"
         )
 
@@ -962,7 +1021,7 @@ def run_feature_ranking(x, y, sample_weight, folds):
             }
         )
         print(
-            f"ranking | fold={fold_pos}/{len(folds)} done "
+            f"ranking | prescreen fold={fold_pos}/{len(folds)} done "
             f"mean_best_iteration={int(np.round(np.mean(best_iterations)))} "
             f"used_features={int(fold_used.sum())} "
             f"dropped_all_nan={len(dropped_all_nan)}"
@@ -1002,17 +1061,192 @@ def run_feature_ranking(x, y, sample_weight, folds):
     ranking_df["eligible_for_selection"] = ranking_df["used_folds"] >= int(
         MIN_NONZERO_IMPORTANCE_FOLDS
     )
-    ranking_df = sort_feature_table(ranking_df)
-    ranking_df.insert(0, "rank", np.arange(1, len(ranking_df) + 1, dtype=np.int32))
+    ranking_df = sort_feature_table_prescreen(ranking_df)
+    ranking_df["prescreen_rank"] = np.arange(
+        1, len(ranking_df) + 1, dtype=np.int32
+    )
+    permutation_candidates = (
+        ranking_df.loc[ranking_df["eligible_for_selection"], "feature"]
+        .head(int(PERMUTATION_TOP_N))
+        .tolist()
+    )
+    ranking_df["prescreen_candidate"] = ranking_df["feature"].isin(
+        permutation_candidates
+    )
+    ranking_df["ranking_stage"] = np.where(
+        ranking_df["prescreen_candidate"],
+        "permutation",
+        "prescreen_tail",
+    )
     print(
-        f"ranking | done eligible={int(ranking_df['eligible_for_selection'].sum())}\n"
+        f"ranking | prescreen done eligible={int(ranking_df['eligible_for_selection'].sum())} "
+        f"candidates={len(permutation_candidates)}\n"
         + format_feature_preview_for_cli(
-            label="top_features",
+            label="prescreen_top_features",
             features=ranking_df["feature"].tolist(),
             limit=CONSOLE_PREVIEW_FEATURES,
         )
     )
 
+    return ranking_df, fold_rankings, fold_metadata
+
+
+def run_permutation_reranking(x, y, sample_weight, folds, ranking_df):
+    if int(PERMUTATION_N_REPEATS) <= 0:
+        raise ValueError("PERMUTATION_N_REPEATS must be > 0.")
+
+    ranking_df = ranking_df.copy()
+    ranking_df["permutation_mean_delta_logloss"] = np.nan
+    ranking_df["permutation_median_delta_logloss"] = np.nan
+    ranking_df["permutation_std_delta_logloss"] = np.nan
+    ranking_df["permutation_fold_deltas_json"] = pd.Series(
+        [np.nan] * len(ranking_df), index=ranking_df.index, dtype=object
+    )
+
+    candidate_features = ranking_df.loc[
+        ranking_df["prescreen_candidate"], "feature"
+    ].tolist()
+    print(f"ranking | permutation candidates={len(candidate_features)}")
+    if not candidate_features:
+        return ranking_df
+
+    feature_to_idx = {feature: idx for idx, feature in enumerate(x.columns)}
+    fold_deltas_by_feature = {feature: [] for feature in candidate_features}
+    candidate_feature_set = set(candidate_features)
+
+    for fold_pos, fold in enumerate(folds, start=1):
+        fold_id = int(fold["fold_id"])
+        train_idx = fold["train_idx"]
+        valid_idx = fold["valid_idx"]
+
+        x_train_raw = x.iloc[train_idx]
+        x_valid_raw = x.iloc[valid_idx]
+        y_train = y.iloc[train_idx]
+        y_valid = y.iloc[valid_idx]
+        y_valid_np = y_valid.to_numpy(copy=False)
+        w_train = sample_weight.iloc[train_idx].to_numpy(dtype=np.float32, copy=False)
+        w_valid = sample_weight.iloc[valid_idx].to_numpy(dtype=np.float32, copy=False)
+
+        x_train, x_valid, dropped_all_nan = prepare_fold_features(
+            x_train_raw,
+            x_valid_raw,
+        )
+
+        candidate_positions = {
+            feature: idx
+            for idx, feature in enumerate(x_valid.columns)
+            if feature in candidate_feature_set
+        }
+        seed_baseline_loglosses = []
+        seed_feature_deltas = {feature: [] for feature in candidate_features}
+
+        for seed in RANDOM_SEEDS:
+            model = make_estimator(seed)
+            fit_model(
+                model=model,
+                x_train=x_train,
+                y_train=y_train,
+                w_train=w_train,
+                x_valid=x_valid,
+                y_valid=y_valid,
+                w_valid=w_valid,
+            )
+            best_iteration = get_best_iteration(model)
+            baseline_proba = model.predict_proba(x_valid, num_iteration=best_iteration)
+            baseline_logloss = binary_logloss_from_positive_class_proba(
+                y_true=y_valid_np,
+                y_pred_proba_pos=baseline_proba[:, 1],
+                sample_weight=w_valid,
+            )
+            seed_baseline_loglosses.append(float(baseline_logloss))
+
+            x_valid_work = x_valid.copy()
+            for feature in candidate_features:
+                feature_pos = candidate_positions.get(feature)
+                if feature_pos is None:
+                    seed_feature_deltas[feature].append(0.0)
+                    continue
+
+                original_values = x_valid_work.iloc[:, feature_pos].to_numpy(copy=True)
+                repeat_deltas = []
+                for repeat_idx in range(int(PERMUTATION_N_REPEATS)):
+                    permuted_values = original_values.copy()
+                    rng = np.random.default_rng(
+                        make_permutation_seed(
+                            fold_id=fold_id,
+                            feature_idx=feature_to_idx[feature],
+                            repeat_idx=repeat_idx,
+                        )
+                    )
+                    rng.shuffle(permuted_values)
+                    x_valid_work.iloc[:, feature_pos] = permuted_values
+                    permuted_proba = model.predict_proba(
+                        x_valid_work, num_iteration=best_iteration
+                    )
+                    permuted_logloss = binary_logloss_from_positive_class_proba(
+                        y_true=y_valid_np,
+                        y_pred_proba_pos=permuted_proba[:, 1],
+                        sample_weight=w_valid,
+                    )
+                    repeat_deltas.append(
+                        float(permuted_logloss) - float(baseline_logloss)
+                    )
+
+                x_valid_work.iloc[:, feature_pos] = original_values
+                seed_feature_deltas[feature].append(float(np.mean(repeat_deltas)))
+
+        print(
+            f"ranking | permutation fold={fold_pos}/{len(folds)} "
+            f"id={fold_id} baseline_logloss={format_score_for_cli(np.mean(seed_baseline_loglosses))}"
+        )
+        for feature in candidate_features:
+            fold_deltas_by_feature[feature].append(
+                float(np.mean(seed_feature_deltas[feature]))
+            )
+
+    for feature, fold_deltas in fold_deltas_by_feature.items():
+        fold_deltas_arr = np.asarray(fold_deltas, dtype=np.float64)
+        feature_mask = ranking_df["feature"] == feature
+        ranking_df.loc[feature_mask, "permutation_mean_delta_logloss"] = float(
+            np.mean(fold_deltas_arr)
+        )
+        ranking_df.loc[feature_mask, "permutation_median_delta_logloss"] = float(
+            np.median(fold_deltas_arr)
+        )
+        ranking_df.loc[feature_mask, "permutation_std_delta_logloss"] = float(
+            np.std(fold_deltas_arr)
+        )
+        ranking_df.loc[feature_mask, "permutation_fold_deltas_json"] = json.dumps(
+            [float(v) for v in fold_deltas]
+        )
+
+    return ranking_df
+
+
+def run_feature_ranking(x, y, sample_weight, folds):
+    ranking_df, fold_rankings, fold_metadata = run_feature_prescreen(
+        x=x,
+        y=y,
+        sample_weight=sample_weight,
+        folds=folds,
+    )
+    ranking_df = run_permutation_reranking(
+        x=x,
+        y=y,
+        sample_weight=sample_weight,
+        folds=folds,
+        ranking_df=ranking_df,
+    )
+    ranking_df = sort_feature_table_final(ranking_df)
+    ranking_df.insert(0, "rank", np.arange(1, len(ranking_df) + 1, dtype=np.int32))
+    print(
+        f"ranking | permutation done ranked_features={int(ranking_df['ranking_stage'].eq('permutation').sum())}\n"
+        + format_feature_preview_for_cli(
+            label="permutation_top_features",
+            features=ranking_df["feature"].tolist(),
+            limit=CONSOLE_PREVIEW_FEATURES,
+        )
+    )
     return ranking_df, fold_rankings, fold_metadata
 
 
@@ -1517,9 +1751,16 @@ def main():
         "data_path": str(DATA_PATH),
         "target_col": TARGET_COL,
         "scorer": SCORER["name"],
+        "ranking_method": "prescreen_used_folds_median_gain_then_permutation_delta_logloss",
         "input_feature_count": len(raw_input_feature_cols),
         "prefilter_feature_count": int(x_prefilter.shape[1]),
         "eligible_feature_count": int(ranking_df["eligible_for_selection"].sum()),
+        "permutation_top_n": int(PERMUTATION_TOP_N),
+        "permutation_n_repeats": int(PERMUTATION_N_REPEATS),
+        "permutation_candidate_count": int(ranking_df["prescreen_candidate"].sum()),
+        "permutation_ranked_feature_count": int(
+            ranking_df["permutation_mean_delta_logloss"].notna().sum()
+        ),
         "dropped_non_numeric_features": dropped_non_numeric,
         "duplicate_column_map": duplicate_map,
         "high_corr_drop_map": high_corr_drop_map,
