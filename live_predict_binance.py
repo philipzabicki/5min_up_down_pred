@@ -1755,6 +1755,25 @@ class LivePredictor:
                 "policy_reason": "bankroll_non_positive",
             }
 
+        if str(self.trade_policy_runtime.get("mode", "ev")).lower() == "model_direction_min_stake":
+            return {
+                "proba_up": float(proba_up),
+                "decision": "no_trade",
+                "trade_side": "none",
+                "bet_usdc": 0.0,
+                "base_stake_usdc": float(self.trade_policy_runtime["stake_usdc"]),
+                "required_stake_usdc": float("nan"),
+                "effective_stake_usdc": float(self.trade_policy_runtime["stake_usdc"]),
+                "entry_price": float("nan"),
+                "entry_fee_usdc": 0.0,
+                "entry_fee_raw_usdc": 0.0,
+                "shares_net": 0.0,
+                "final_reason": "market_quotes_required_for_min_stake",
+                "policy_reason": "market_quotes_required_for_min_stake",
+                "price_eps": float("nan"),
+                "price_slip": float("nan"),
+            }
+
         policy_result = decide_trade_from_ev(
             float(proba_up),
             None,
@@ -2432,8 +2451,10 @@ class LivePredictor:
         print(
             "Trade policy | "
             f"bankroll={self.live_bankroll_usdc:.2f} "
+            f"mode={self.trade_policy_runtime.get('mode', 'ev')} "
             f"stake_usdc={self.trade_policy_runtime['stake_usdc']:.2f} "
-            f"extra_buffer={self.trade_policy_runtime['extra_buffer']:.6f}"
+            f"extra_buffer={self.trade_policy_runtime['extra_buffer']:.6f} "
+            f"submitted_price_mode={self.trade_policy_runtime.get('submitted_price_mode', 'entry_price')}"
         )
         print(
             "Price/Fee model | "

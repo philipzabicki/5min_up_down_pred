@@ -11,6 +11,8 @@ from polymarket_fee_utils import (
 EV_DECISION_EPS = 1e-12
 POLYMARKET_MARKET_BUY_AMOUNT_DECIMALS = 2
 MIN_ORDER_STAKE_ADJUST_MAX_STEPS = 8
+SUPPORTED_TRADE_POLICY_MODES = frozenset({"ev", "model_direction_min_stake"})
+SUPPORTED_SUBMITTED_PRICE_MODES = frozenset({"entry_price", "order_price_cap"})
 
 
 def _as_float(value):
@@ -136,6 +138,30 @@ def _missing_policy_inputs(
     return missing
 
 
+def normalize_trade_policy_mode(mode):
+    normalized = str(mode or "ev").strip().lower()
+    if not normalized:
+        normalized = "ev"
+    if normalized not in SUPPORTED_TRADE_POLICY_MODES:
+        raise ValueError(
+            "Trade policy config invalid: unsupported mode "
+            f"{mode!r}. Supported values: {sorted(SUPPORTED_TRADE_POLICY_MODES)}"
+        )
+    return normalized
+
+
+def normalize_submitted_price_mode(mode):
+    normalized = str(mode or "entry_price").strip().lower()
+    if not normalized:
+        normalized = "entry_price"
+    if normalized not in SUPPORTED_SUBMITTED_PRICE_MODES:
+        raise ValueError(
+            "Trade policy config invalid: unsupported submitted_price_mode "
+            f"{mode!r}. Supported values: {sorted(SUPPORTED_SUBMITTED_PRICE_MODES)}"
+        )
+    return normalized
+
+
 def load_trade_policy_runtime_config(config_path):
     config_path = coerce_path(config_path)
     if not config_path.exists():
@@ -150,6 +176,10 @@ def load_trade_policy_runtime_config(config_path):
         raise ValueError(f"Trade policy config missing fee_model: {config_path}")
 
     cfg = {
+        "mode": normalize_trade_policy_mode(payload.get("mode", "ev")),
+        "submitted_price_mode": normalize_submitted_price_mode(
+            payload.get("submitted_price_mode", "entry_price")
+        ),
         "extra_buffer": float(payload.get("extra_buffer", 0.0)),
         "stake_usdc": float(payload.get("stake_usdc", 1.0)),
         "fee_model": normalize_polymarket_fee_model(
@@ -163,6 +193,86 @@ def load_trade_policy_runtime_config(config_path):
     if not math.isfinite(cfg["stake_usdc"]) or cfg["stake_usdc"] <= 0.0:
         raise ValueError("Trade policy config invalid: stake_usdc must be finite and > 0.")
     return cfg
+
+
+def decide_trade_from_model_direction(
+    *,
+    proba_up,
+    threshold,
+    ask_yes=None,
+    ask_no=None,
+    fee_yes=None,
+    fee_no=None,
+    extra_buffer=0.0,
+):
+    try:
+        threshold_value = float(threshold)
+    except (TypeError, ValueError):
+        threshold_value = float("nan")
+
+    base_result = {
+        "proba_up": _as_float(proba_up),
+        "ask_yes": _as_float(ask_yes),
+        "ask_no": _as_float(ask_no),
+        "fee_yes": _as_float(fee_yes),
+        "fee_no": _as_float(fee_no),
+        "extra_buffer": _as_float(extra_buffer),
+        "decision": "no_trade",
+        "ev_yes": float("nan"),
+        "ev_no": float("nan"),
+        "best_ev": float("nan"),
+        "reason": "",
+    }
+
+    proba_value = _as_float(proba_up)
+    if proba_value is None or not math.isfinite(proba_value):
+        base_result["reason"] = "missing_policy_input:proba_up"
+        return base_result
+    if proba_value < 0.0 or proba_value > 1.0:
+        base_result["reason"] = "missing_policy_input:proba_up_out_of_range"
+        return base_result
+    if not math.isfinite(threshold_value) or threshold_value < 0.0 or threshold_value > 1.0:
+        base_result["reason"] = "invalid_model_threshold"
+        return base_result
+
+    ask_yes_value = _as_float(ask_yes)
+    ask_no_value = _as_float(ask_no)
+    fee_yes_value = _as_float(fee_yes)
+    fee_no_value = _as_float(fee_no)
+    extra_buffer_value = _as_float(extra_buffer)
+
+    if (
+        ask_yes_value is not None
+        and ask_no_value is not None
+        and fee_yes_value is not None
+        and fee_no_value is not None
+        and extra_buffer_value is not None
+        and all(
+            math.isfinite(value)
+            for value in (
+                ask_yes_value,
+                ask_no_value,
+                fee_yes_value,
+                fee_no_value,
+                extra_buffer_value,
+            )
+        )
+    ):
+        ev_yes = proba_value - ask_yes_value - fee_yes_value - extra_buffer_value
+        ev_no = (
+            (1.0 - proba_value) - ask_no_value - fee_no_value - extra_buffer_value
+        )
+        if abs(ev_yes) <= EV_DECISION_EPS:
+            ev_yes = 0.0
+        if abs(ev_no) <= EV_DECISION_EPS:
+            ev_no = 0.0
+        base_result["ev_yes"] = float(ev_yes)
+        base_result["ev_no"] = float(ev_no)
+        base_result["best_ev"] = float(max(ev_yes, ev_no))
+
+    base_result["decision"] = "buy_yes" if proba_value >= threshold_value else "buy_no"
+    base_result["reason"] = "model_direction_threshold"
+    return base_result
 
 
 def decide_trade_from_ev(

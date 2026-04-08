@@ -6,6 +6,7 @@ import pytest
 from project_config import load_runtime_artifact_paths
 from trade_policy import (
     build_trade_intent,
+    decide_trade_from_model_direction,
     decide_trade_from_ev,
     load_trade_policy_runtime_config,
 )
@@ -35,10 +36,40 @@ def test_load_trade_policy_runtime_config_accepts_minimal_ev_policy_config(tmp_p
 
     cfg = load_trade_policy_runtime_config(config_path)
 
+    assert cfg["mode"] == "ev"
+    assert cfg["submitted_price_mode"] == "entry_price"
     assert cfg["extra_buffer"] == pytest.approx(0.01)
     assert cfg["stake_usdc"] == pytest.approx(2.0)
     assert cfg["fee_model"]["source"] == "polymarket_fee_schedule_v2"
-    assert set(cfg) == {"extra_buffer", "stake_usdc", "fee_model"}
+    assert set(cfg) == {
+        "mode",
+        "submitted_price_mode",
+        "extra_buffer",
+        "stake_usdc",
+        "fee_model",
+    }
+
+
+def test_load_trade_policy_runtime_config_accepts_model_direction_mode(tmp_path):
+    config_path = tmp_path / "trade_policy_runtime.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "mode": "model_direction_min_stake",
+                "submitted_price_mode": "order_price_cap",
+                "extra_buffer": 0.0,
+                "stake_usdc": 0.01,
+                "fee_model": FEE_MODEL,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cfg = load_trade_policy_runtime_config(config_path)
+
+    assert cfg["mode"] == "model_direction_min_stake"
+    assert cfg["submitted_price_mode"] == "order_price_cap"
+    assert cfg["stake_usdc"] == pytest.approx(0.01)
 
 
 def test_decide_trade_from_ev_returns_no_trade_when_both_edges_are_non_positive():
@@ -138,6 +169,23 @@ def test_decide_trade_from_ev_returns_no_trade_for_missing_input():
     assert math.isnan(result["ev_no"])
     assert math.isnan(result["best_ev"])
     assert result["reason"] == "missing_policy_input:ask_no"
+
+
+def test_decide_trade_from_model_direction_follows_threshold_even_when_ev_is_negative():
+    result = decide_trade_from_model_direction(
+        proba_up=0.52,
+        threshold=0.5,
+        ask_yes=0.60,
+        ask_no=0.43,
+        fee_yes=0.0288,
+        fee_no=0.04104,
+        extra_buffer=0.0,
+    )
+
+    assert result["decision"] == "buy_yes"
+    assert result["reason"] == "model_direction_threshold"
+    assert result["ev_yes"] == pytest.approx(-0.1088)
+    assert result["best_ev"] == pytest.approx(0.00896)
 
 
 def test_build_trade_intent_can_raise_stake_to_market_minimum():
