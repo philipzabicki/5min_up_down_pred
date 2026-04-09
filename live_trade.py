@@ -2204,6 +2204,15 @@ class PolymarketLiveTrader(LivePredictor):
                 fee_yes=float(fee_fractions["fee_yes"]),
                 fee_no=float(fee_fractions["fee_no"]),
                 extra_buffer=float(self.live_trade_policy["extra_buffer"]),
+                min_decision_margin=float(
+                    self.live_trade_policy.get("min_decision_margin", 0.0)
+                ),
+                min_decision_margin_up=self.live_trade_policy.get(
+                    "min_decision_margin_up"
+                ),
+                min_decision_margin_down=self.live_trade_policy.get(
+                    "min_decision_margin_down"
+                ),
             )
         else:
             policy_result = decide_trade_from_ev(

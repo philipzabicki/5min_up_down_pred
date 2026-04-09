@@ -57,6 +57,8 @@ def test_load_trade_policy_runtime_config_accepts_model_direction_mode(tmp_path)
             {
                 "mode": "model_direction_min_stake",
                 "submitted_price_mode": "order_price_cap",
+                "min_decision_margin_up": 0.035,
+                "min_decision_margin_down": 0.01,
                 "extra_buffer": 0.0,
                 "stake_usdc": 0.01,
                 "fee_model": FEE_MODEL,
@@ -69,7 +71,30 @@ def test_load_trade_policy_runtime_config_accepts_model_direction_mode(tmp_path)
 
     assert cfg["mode"] == "model_direction_min_stake"
     assert cfg["submitted_price_mode"] == "order_price_cap"
+    assert cfg["min_decision_margin_up"] == pytest.approx(0.035)
+    assert cfg["min_decision_margin_down"] == pytest.approx(0.01)
     assert cfg["stake_usdc"] == pytest.approx(0.01)
+
+
+def test_load_trade_policy_runtime_config_keeps_legacy_single_margin(tmp_path):
+    config_path = tmp_path / "trade_policy_runtime.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "mode": "model_direction_min_stake",
+                "submitted_price_mode": "order_price_cap",
+                "min_decision_margin": 0.0125,
+                "extra_buffer": 0.0,
+                "stake_usdc": 0.01,
+                "fee_model": FEE_MODEL,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    cfg = load_trade_policy_runtime_config(config_path)
+
+    assert cfg["min_decision_margin"] == pytest.approx(0.0125)
 
 
 def test_decide_trade_from_ev_returns_no_trade_when_both_edges_are_non_positive():
@@ -186,6 +211,54 @@ def test_decide_trade_from_model_direction_follows_threshold_even_when_ev_is_neg
     assert result["reason"] == "model_direction_threshold"
     assert result["ev_yes"] == pytest.approx(-0.1088)
     assert result["best_ev"] == pytest.approx(0.00896)
+
+
+def test_decide_trade_from_model_direction_can_skip_low_margin_signal():
+    result = decide_trade_from_model_direction(
+        proba_up=0.507,
+        threshold=0.5,
+        ask_yes=0.52,
+        ask_no=0.48,
+        fee_yes=0.03456,
+        fee_no=0.03744,
+        extra_buffer=0.01,
+        min_decision_margin=0.01,
+    )
+
+    assert result["decision"] == "no_trade"
+    assert result["reason"] == "below_min_decision_margin"
+    assert result["ev_yes"] == pytest.approx(-0.05756)
+    assert result["ev_no"] == pytest.approx(-0.03444)
+
+
+def test_decide_trade_from_model_direction_supports_asymmetric_margins():
+    buy_yes_result = decide_trade_from_model_direction(
+        proba_up=0.52,
+        threshold=0.5,
+        ask_yes=0.52,
+        ask_no=0.48,
+        fee_yes=0.03456,
+        fee_no=0.03744,
+        extra_buffer=0.01,
+        min_decision_margin_up=0.03,
+        min_decision_margin_down=0.01,
+    )
+    buy_no_result = decide_trade_from_model_direction(
+        proba_up=0.48,
+        threshold=0.5,
+        ask_yes=0.52,
+        ask_no=0.48,
+        fee_yes=0.03456,
+        fee_no=0.03744,
+        extra_buffer=0.01,
+        min_decision_margin_up=0.03,
+        min_decision_margin_down=0.01,
+    )
+
+    assert buy_yes_result["decision"] == "no_trade"
+    assert buy_yes_result["reason"] == "below_min_decision_margin"
+    assert buy_no_result["decision"] == "buy_no"
+    assert buy_no_result["reason"] == "model_direction_threshold"
 
 
 def test_build_trade_intent_can_raise_stake_to_market_minimum():

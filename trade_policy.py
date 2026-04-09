@@ -187,11 +187,28 @@ def load_trade_policy_runtime_config(config_path):
             context=f"Trade policy config '{config_path}' fee_model",
         ),
     }
+    if "min_decision_margin" in payload:
+        cfg["min_decision_margin"] = float(payload["min_decision_margin"])
+    if "min_decision_margin_up" in payload:
+        cfg["min_decision_margin_up"] = float(payload["min_decision_margin_up"])
+    if "min_decision_margin_down" in payload:
+        cfg["min_decision_margin_down"] = float(payload["min_decision_margin_down"])
 
     if not math.isfinite(cfg["extra_buffer"]) or cfg["extra_buffer"] < 0.0:
         raise ValueError("Trade policy config invalid: extra_buffer must be finite and >= 0.")
     if not math.isfinite(cfg["stake_usdc"]) or cfg["stake_usdc"] <= 0.0:
         raise ValueError("Trade policy config invalid: stake_usdc must be finite and > 0.")
+    if "min_decision_margin" in cfg and (
+        not math.isfinite(cfg["min_decision_margin"]) or cfg["min_decision_margin"] < 0.0
+    ):
+        raise ValueError(
+            "Trade policy config invalid: min_decision_margin must be finite and >= 0."
+        )
+    for key in ("min_decision_margin_up", "min_decision_margin_down"):
+        if key in cfg and (not math.isfinite(cfg[key]) or cfg[key] < 0.0):
+            raise ValueError(
+                f"Trade policy config invalid: {key} must be finite and >= 0."
+            )
     return cfg
 
 
@@ -204,6 +221,9 @@ def decide_trade_from_model_direction(
     fee_yes=None,
     fee_no=None,
     extra_buffer=0.0,
+    min_decision_margin=0.0,
+    min_decision_margin_up=None,
+    min_decision_margin_down=None,
 ):
     try:
         threshold_value = float(threshold)
@@ -240,6 +260,9 @@ def decide_trade_from_model_direction(
     fee_yes_value = _as_float(fee_yes)
     fee_no_value = _as_float(fee_no)
     extra_buffer_value = _as_float(extra_buffer)
+    min_decision_margin_value = _as_float(min_decision_margin)
+    min_decision_margin_up_value = _as_float(min_decision_margin_up)
+    min_decision_margin_down_value = _as_float(min_decision_margin_down)
 
     if (
         ask_yes_value is not None
@@ -270,7 +293,28 @@ def decide_trade_from_model_direction(
         base_result["ev_no"] = float(ev_no)
         base_result["best_ev"] = float(max(ev_yes, ev_no))
 
-    base_result["decision"] = "buy_yes" if proba_value >= threshold_value else "buy_no"
+    if proba_value >= threshold_value:
+        decision = "buy_yes"
+        actual_margin = proba_value - threshold_value
+        required_margin = min_decision_margin_up_value
+    else:
+        decision = "buy_no"
+        actual_margin = threshold_value - proba_value
+        required_margin = min_decision_margin_down_value
+
+    if required_margin is None or not math.isfinite(required_margin):
+        required_margin = min_decision_margin_value
+    if required_margin is None or not math.isfinite(required_margin):
+        required_margin = 0.0
+
+    if required_margin < 0.0:
+        base_result["reason"] = "invalid_min_decision_margin"
+        return base_result
+    if required_margin > 0.0 and actual_margin < required_margin:
+        base_result["reason"] = "below_min_decision_margin"
+        return base_result
+
+    base_result["decision"] = decision
     base_result["reason"] = "model_direction_threshold"
     return base_result
 
