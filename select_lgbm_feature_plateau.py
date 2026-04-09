@@ -40,6 +40,10 @@ MIN_SAMPLE_WEIGHT = 0.80
 RANKING_N_SPLITS = 20
 TOPK_N_SPLITS = 10
 WF_TEST_TO_TRAIN_RATIO = 0.2
+ENABLE_FOLD_RECENCY_WEIGHTING = True
+FOLD_RECENCY_WEIGHTING_MODE = "linear"
+FOLD_RECENCY_WEIGHT_MIN = 1.0
+FOLD_RECENCY_WEIGHT_MAX = 1.2
 
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_MAX_BIN = 63
@@ -86,6 +90,7 @@ MIN_REFINEMENT_INTERVAL = 1
 TOLERANCE_MODE = "abs"
 ABS_TOL = 0.000005
 REL_TOL = 0.0001
+MIN_PLATEAU_FEATURE_SAVINGS = 20
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 7
 PERMUTATION_TOP_N = 384
@@ -689,6 +694,110 @@ def make_walk_forward_folds(n_rows, n_splits, test_to_train_ratio):
     return folds
 
 
+def is_nontrivial_fold_recency_weighting_enabled():
+    return bool(ENABLE_FOLD_RECENCY_WEIGHTING) and not np.isclose(
+        float(FOLD_RECENCY_WEIGHT_MIN),
+        float(FOLD_RECENCY_WEIGHT_MAX),
+    )
+
+
+def build_fold_recency_weights(folds):
+    if not folds:
+        raise ValueError("Fold recency weights require at least one fold.")
+
+    fold_ids = [int(fold["fold_id"]) for fold in folds]
+    if len(set(fold_ids)) != len(fold_ids):
+        raise ValueError("Fold ids must be unique to build recency weights.")
+
+    min_weight = float(FOLD_RECENCY_WEIGHT_MIN)
+    max_weight = float(FOLD_RECENCY_WEIGHT_MAX)
+    if min_weight <= 0.0 or max_weight <= 0.0:
+        raise ValueError("Fold recency weights must be strictly positive.")
+    if max_weight < min_weight:
+        raise ValueError(
+            "FOLD_RECENCY_WEIGHT_MAX must be >= FOLD_RECENCY_WEIGHT_MIN."
+        )
+
+    if len(folds) == 1 or not bool(ENABLE_FOLD_RECENCY_WEIGHTING):
+        weights = np.ones(len(fold_ids), dtype=np.float64)
+    else:
+        mode = str(FOLD_RECENCY_WEIGHTING_MODE).strip().lower()
+        if mode == "linear":
+            weights = np.linspace(
+                min_weight,
+                max_weight,
+                num=len(fold_ids),
+                dtype=np.float64,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported FOLD_RECENCY_WEIGHTING_MODE: {FOLD_RECENCY_WEIGHTING_MODE}"
+            )
+
+    return pd.Series(weights, index=fold_ids, name="fold_weight", dtype=np.float64)
+
+
+def resolve_fold_weight_array(folds, fold_weight_by_id):
+    if fold_weight_by_id is None:
+        raise ValueError("fold_weight_by_id is required.")
+
+    fold_ids = [int(fold["fold_id"]) for fold in folds]
+    resolved = pd.Series(fold_weight_by_id, dtype=np.float64).reindex(fold_ids)
+    if resolved.isna().any():
+        missing_fold_ids = resolved.index[resolved.isna()].tolist()
+        raise ValueError(f"Missing fold weights for fold ids: {missing_fold_ids}")
+
+    weights = resolved.to_numpy(dtype=np.float64, copy=False)
+    if not np.isfinite(weights).all():
+        raise ValueError("Fold weights contain non-finite values.")
+    if np.any(weights <= 0.0):
+        raise ValueError("Fold weights must be strictly positive.")
+    return weights
+
+
+def weighted_mean_vector(values, weights):
+    values_arr = np.asarray(values, dtype=np.float64)
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    if values_arr.ndim != 1:
+        raise ValueError("weighted_mean_vector expects a 1D array.")
+    if values_arr.shape[0] != weights_arr.shape[0]:
+        raise ValueError(
+            "weighted_mean_vector length mismatch: "
+            f"{values_arr.shape[0]} != {weights_arr.shape[0]}"
+        )
+    return float(np.average(values_arr, weights=weights_arr))
+
+
+def weighted_mean_rows(table, weights):
+    table_arr = np.asarray(table, dtype=np.float64)
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    if table_arr.ndim != 2:
+        raise ValueError("weighted_mean_rows expects a 2D array.")
+    if table_arr.shape[1] != weights_arr.shape[0]:
+        raise ValueError(
+            "weighted_mean_rows weight mismatch: "
+            f"{table_arr.shape[1]} != {weights_arr.shape[0]}"
+        )
+    return np.average(table_arr, axis=1, weights=weights_arr)
+
+
+def fold_weight_items_for_summary(folds, fold_weight_by_id):
+    weights = resolve_fold_weight_array(folds, fold_weight_by_id)
+    return [
+        {
+            "fold_id": int(fold["fold_id"]),
+            "weight": float(weight),
+        }
+        for fold, weight in zip(folds, weights)
+    ]
+
+
+def topk_selection_base_score_label():
+    if is_nontrivial_fold_recency_weighting_enabled():
+        return "weighted_mean_score"
+    return "mean_score"
+
+
 def prepare_fold_features(x_train_raw, x_valid_raw):
     drop_cols = x_train_raw.columns[x_train_raw.isna().all()].tolist()
 
@@ -865,11 +974,15 @@ def topk_selection_score(mean_score, std_score):
 
 def topk_selection_formula():
     mode = str(TOPK_SELECTION_MODE).strip().lower()
+    base_score_label = topk_selection_base_score_label()
     if mode == "mean_only":
-        return "mean_score"
+        return base_score_label
     if mode == "mean_plus_std":
         sign = "-" if SCORER["greater_is_better"] else "+"
-        return f"mean_score {sign} {float(TOPK_SELECTION_STD_COEF):.4f} * std_score"
+        return (
+            f"{base_score_label} {sign} "
+            f"{float(TOPK_SELECTION_STD_COEF):.4f} * unweighted_std_score"
+        )
     raise ValueError(f"Unsupported TOPK_SELECTION_MODE: {TOPK_SELECTION_MODE}")
 
 
@@ -878,14 +991,29 @@ def sort_feature_table_prescreen(df):
         by=[
             "eligible_for_selection",
             "used_folds",
+            "weighted_used_ratio",
             "used_ratio",
             "median_gain",
+            "weighted_mean_gain",
             "mean_gain",
             "median_split",
+            "weighted_mean_split",
             "mean_split",
             "feature",
         ],
-        ascending=[False, False, False, False, False, False, False, True],
+        ascending=[
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            True,
+        ],
         kind="stable",
     ).reset_index(drop=True)
 
@@ -896,16 +1024,31 @@ def sort_feature_table_permutation(df):
 
     return df.sort_values(
         by=[
+            "permutation_weighted_mean_delta_logloss",
             "permutation_mean_delta_logloss",
             "permutation_median_delta_logloss",
             "permutation_std_delta_logloss",
             "used_folds",
+            "weighted_used_ratio",
             "used_ratio",
             "median_gain",
+            "weighted_mean_gain",
             "mean_gain",
             "feature",
         ],
-        ascending=[False, False, True, False, False, False, False, True],
+        ascending=[
+            False,
+            False,
+            False,
+            True,
+            False,
+            False,
+            False,
+            False,
+            False,
+            False,
+            True,
+        ],
         kind="stable",
     ).reset_index(drop=True)
 
@@ -949,13 +1092,14 @@ def build_fold_ranking(fold_gain_series, fold_used_series):
     return fold_df["feature"].tolist()
 
 
-def run_feature_prescreen(x, y, sample_weight, folds):
+def run_feature_prescreen(x, y, sample_weight, folds, fold_weight_by_id):
     feature_order = list(x.columns)
     fold_gain_table = pd.DataFrame(index=feature_order)
     fold_split_table = pd.DataFrame(index=feature_order)
     fold_used_table = pd.DataFrame(index=feature_order)
     fold_rankings = {}
     fold_metadata = []
+    fold_weight_array = resolve_fold_weight_array(folds, fold_weight_by_id)
 
     print(
         f"ranking | prescreen start features={len(feature_order)} "
@@ -966,9 +1110,11 @@ def run_feature_prescreen(x, y, sample_weight, folds):
         fold_id = int(fold["fold_id"])
         train_idx = fold["train_idx"]
         valid_idx = fold["valid_idx"]
+        fold_weight = float(fold_weight_by_id.loc[fold_id])
         print(
             f"ranking | prescreen fold={fold_pos}/{len(folds)} "
-            f"id={fold_id} train={len(train_idx)} valid={len(valid_idx)}"
+            f"id={fold_id} train={len(train_idx)} valid={len(valid_idx)} "
+            f"weight={fold_weight:.4f}"
         )
 
         x_train_raw = x.iloc[train_idx]
@@ -1016,6 +1162,7 @@ def run_feature_prescreen(x, y, sample_weight, folds):
                 "fold_id": fold_id,
                 "train_size": len(train_idx),
                 "valid_size": len(valid_idx),
+                "fold_weight": fold_weight,
                 "dropped_all_nan_train_features_count": len(dropped_all_nan),
                 "mean_best_iteration": float(np.mean(best_iterations)),
             }
@@ -1030,11 +1177,19 @@ def run_feature_prescreen(x, y, sample_weight, folds):
     ranking_df = pd.DataFrame(
         {
             "feature": feature_order,
+            "weighted_mean_gain": weighted_mean_rows(
+                fold_gain_table.to_numpy(dtype=np.float64, copy=False),
+                fold_weight_array,
+            ),
             "mean_gain": fold_gain_table.mean(axis=1).to_numpy(
                 dtype=np.float64, copy=False
             ),
             "median_gain": fold_gain_table.median(axis=1).to_numpy(
                 dtype=np.float64, copy=False
+            ),
+            "weighted_mean_split": weighted_mean_rows(
+                fold_split_table.to_numpy(dtype=np.float64, copy=False),
+                fold_weight_array,
             ),
             "mean_split": fold_split_table.mean(axis=1).to_numpy(
                 dtype=np.float64, copy=False
@@ -1044,6 +1199,10 @@ def run_feature_prescreen(x, y, sample_weight, folds):
             ),
             "used_folds": fold_used_table.sum(axis=1).to_numpy(
                 dtype=np.int32, copy=False
+            ),
+            "weighted_used_ratio": weighted_mean_rows(
+                fold_used_table.to_numpy(dtype=np.float64, copy=False),
+                fold_weight_array,
             ),
             "used_ratio": fold_used_table.mean(axis=1).to_numpy(
                 dtype=np.float64, copy=False
@@ -1091,17 +1250,26 @@ def run_feature_prescreen(x, y, sample_weight, folds):
     return ranking_df, fold_rankings, fold_metadata
 
 
-def run_permutation_reranking(x, y, sample_weight, folds, ranking_df):
+def run_permutation_reranking(
+    x,
+    y,
+    sample_weight,
+    folds,
+    fold_weight_by_id,
+    ranking_df,
+):
     if int(PERMUTATION_N_REPEATS) <= 0:
         raise ValueError("PERMUTATION_N_REPEATS must be > 0.")
 
     ranking_df = ranking_df.copy()
+    ranking_df["permutation_weighted_mean_delta_logloss"] = np.nan
     ranking_df["permutation_mean_delta_logloss"] = np.nan
     ranking_df["permutation_median_delta_logloss"] = np.nan
     ranking_df["permutation_std_delta_logloss"] = np.nan
     ranking_df["permutation_fold_deltas_json"] = pd.Series(
         [np.nan] * len(ranking_df), index=ranking_df.index, dtype=object
     )
+    fold_weight_array = resolve_fold_weight_array(folds, fold_weight_by_id)
 
     candidate_features = ranking_df.loc[
         ranking_df["prescreen_candidate"], "feature"
@@ -1207,6 +1375,9 @@ def run_permutation_reranking(x, y, sample_weight, folds, ranking_df):
     for feature, fold_deltas in fold_deltas_by_feature.items():
         fold_deltas_arr = np.asarray(fold_deltas, dtype=np.float64)
         feature_mask = ranking_df["feature"] == feature
+        ranking_df.loc[
+            feature_mask, "permutation_weighted_mean_delta_logloss"
+        ] = weighted_mean_vector(fold_deltas_arr, fold_weight_array)
         ranking_df.loc[feature_mask, "permutation_mean_delta_logloss"] = float(
             np.mean(fold_deltas_arr)
         )
@@ -1223,18 +1394,20 @@ def run_permutation_reranking(x, y, sample_weight, folds, ranking_df):
     return ranking_df
 
 
-def run_feature_ranking(x, y, sample_weight, folds):
+def run_feature_ranking(x, y, sample_weight, folds, fold_weight_by_id):
     ranking_df, fold_rankings, fold_metadata = run_feature_prescreen(
         x=x,
         y=y,
         sample_weight=sample_weight,
         folds=folds,
+        fold_weight_by_id=fold_weight_by_id,
     )
     ranking_df = run_permutation_reranking(
         x=x,
         y=y,
         sample_weight=sample_weight,
         folds=folds,
+        fold_weight_by_id=fold_weight_by_id,
         ranking_df=ranking_df,
     )
     ranking_df = sort_feature_table_final(ranking_df)
@@ -1304,6 +1477,7 @@ def score_topk_subset(
     y,
     sample_weight,
     folds,
+    fold_weight_by_id,
     global_feature_order,
     k,
     phase,
@@ -1367,13 +1541,24 @@ def score_topk_subset(
         fold_seed_scores[str(fold_id)] = seed_scores
 
     mean_score = float(np.mean(fold_scores))
+    weighted_mean_score = weighted_mean_vector(
+        fold_scores,
+        resolve_fold_weight_array(folds, fold_weight_by_id),
+    )
     std_score = float(np.std(fold_scores))
-    selection_score = float(topk_selection_score(mean_score, std_score))
+    selection_base_score = (
+        weighted_mean_score
+        if is_nontrivial_fold_recency_weighting_enabled()
+        else mean_score
+    )
+    selection_score = float(topk_selection_score(selection_base_score, std_score))
 
     return {
         "k": k,
         "feature_count": k,
         "mean_score": mean_score,
+        "weighted_mean_score": weighted_mean_score,
+        "selection_base_score": selection_base_score,
         "std_score": std_score,
         "selection_score": selection_score,
         "fold_scores_json": json.dumps([float(v) for v in fold_scores]),
@@ -1387,11 +1572,18 @@ def score_topk_subset(
 def pick_best_row(results_df):
     if results_df.empty:
         raise ValueError("No top-K results available.")
-    sort_by = ["selection_score", "mean_score", "std_score", "k"]
+    sort_by = [
+        "selection_score",
+        "selection_base_score",
+        "weighted_mean_score",
+        "mean_score",
+        "std_score",
+        "k",
+    ]
     if SCORER["greater_is_better"]:
-        ascending = [False, False, True, True]
+        ascending = [False, False, False, False, True, True]
     else:
-        ascending = [True, True, True, True]
+        ascending = [True, True, True, True, True, True]
     return (
         results_df.sort_values(sort_by, ascending=ascending, kind="stable")
         .reset_index(drop=True)
@@ -1462,6 +1654,7 @@ def run_topk_sweep(
     y,
     sample_weight,
     folds,
+    fold_weight_by_id,
     global_feature_order,
 ):
     pool_size = len(global_feature_order)
@@ -1487,6 +1680,7 @@ def run_topk_sweep(
             y=y,
             sample_weight=sample_weight,
             folds=folds,
+            fold_weight_by_id=fold_weight_by_id,
             global_feature_order=global_feature_order,
             k=k,
             phase="coarse",
@@ -1494,7 +1688,8 @@ def run_topk_sweep(
         rows.append(row)
         print(
             f"topk | phase=coarse k={int(row['k'])} "
-            f"score={format_score_for_cli(row['mean_score'])} "
+            f"score={format_score_for_cli(row['selection_base_score'])} "
+            f"raw={format_score_for_cli(row['mean_score'])} "
             f"std={format_score_for_cli(row['std_score'])} "
             f"select={format_score_for_cli(row['selection_score'])}"
         )
@@ -1526,6 +1721,7 @@ def run_topk_sweep(
                 y=y,
                 sample_weight=sample_weight,
                 folds=folds,
+                fold_weight_by_id=fold_weight_by_id,
                 global_feature_order=global_feature_order,
                 k=k,
                 phase=f"refine_round_{round_idx}",
@@ -1535,7 +1731,8 @@ def run_topk_sweep(
             seen.add(int(k))
             print(
                 f"topk | phase=refine_round_{round_idx} k={int(row['k'])} "
-                f"score={format_score_for_cli(row['mean_score'])} "
+                f"score={format_score_for_cli(row['selection_base_score'])} "
+                f"raw={format_score_for_cli(row['mean_score'])} "
                 f"std={format_score_for_cli(row['std_score'])} "
                 f"select={format_score_for_cli(row['selection_score'])}"
             )
@@ -1589,15 +1786,34 @@ def choose_recommended_row(results_df):
             axis=1,
         )
     ].copy()
-    acceptable = acceptable.sort_values("k", ascending=True, kind="stable")
-    recommended_row = acceptable.iloc[0]
+    acceptable = acceptable.sort_values("k", ascending=True, kind="stable").reset_index(
+        drop=True
+    )
+    best_k = int(best_row["k"])
+    min_feature_savings = max(0, int(MIN_PLATEAU_FEATURE_SAVINGS))
+    if min_feature_savings > 0:
+        acceptable_with_savings = acceptable[
+            (best_k - acceptable["k"].astype(int)) >= min_feature_savings
+        ].reset_index(drop=True)
+    else:
+        acceptable_with_savings = acceptable
+
+    if acceptable_with_savings.empty:
+        recommended_row = best_row
+    else:
+        recommended_row = acceptable_with_savings.iloc[0]
     print(
         f"plateau | acceptable_candidates={len(acceptable)} "
-        f"best_k={int(best_row['k'])} best_score={format_score_for_cli(best_row['mean_score'])} "
+        f"acceptable_with_min_savings={len(acceptable_with_savings)} "
+        f"best_k={int(best_row['k'])} "
+        f"best_score={format_score_for_cli(best_row['selection_base_score'])} "
+        f"best_raw={format_score_for_cli(best_row['mean_score'])} "
         f"best_select={format_score_for_cli(best_row['selection_score'])} "
         f"recommended_k={int(recommended_row['k'])} "
-        f"recommended_score={format_score_for_cli(recommended_row['mean_score'])} "
+        f"recommended_score={format_score_for_cli(recommended_row['selection_base_score'])} "
+        f"recommended_raw={format_score_for_cli(recommended_row['mean_score'])} "
         f"recommended_select={format_score_for_cli(recommended_row['selection_score'])} "
+        f"min_feature_savings={min_feature_savings} "
         f"tolerance={format_score_for_cli(tolerance_value(best_row['selection_score'], best_row['std_score']))}"
     )
     return best_row, recommended_row
@@ -1640,14 +1856,20 @@ def write_outputs(
         f"ranking_n_splits={summary_payload['ranking_n_splits']}",
         f"topk_n_splits={summary_payload['topk_n_splits']}",
         f"topk_selection_mode={summary_payload['topk_selection_mode']}",
+        f"topk_selection_base_score={summary_payload['topk_selection_base_score']}",
         f"topk_selection_formula={summary_payload['topk_selection_formula']}",
         f"best_k={summary_payload['best_k']}",
         f"best_score={summary_payload['best_score']}",
+        f"best_unweighted_score={summary_payload['best_unweighted_score']}",
+        f"best_weighted_score={summary_payload['best_weighted_score']}",
         f"best_selection_score={summary_payload['best_selection_score']}",
         f"recommended_k={summary_payload['recommended_k']}",
         f"recommended_score={summary_payload['recommended_score']}",
+        f"recommended_unweighted_score={summary_payload['recommended_unweighted_score']}",
+        f"recommended_weighted_score={summary_payload['recommended_weighted_score']}",
         f"recommended_selection_score={summary_payload['recommended_selection_score']}",
         f"tolerance_mode={summary_payload['tolerance_mode']}",
+        f"min_plateau_feature_savings={summary_payload['min_plateau_feature_savings']}",
         f"selection_statement={summary_payload['selection_statement']}",
         "",
         *recommended_features,
@@ -1700,6 +1922,8 @@ def main():
         n_splits=TOPK_N_SPLITS,
         test_to_train_ratio=WF_TEST_TO_TRAIN_RATIO,
     )
+    ranking_fold_weights = build_fold_recency_weights(ranking_folds)
+    topk_fold_weights = build_fold_recency_weights(topk_folds)
 
     print(
         f"load data | rows={len(df)} input_features={len(raw_input_feature_cols)} "
@@ -1713,12 +1937,21 @@ def main():
         f"test_to_train_ratio={WF_TEST_TO_TRAIN_RATIO} "
         f"scorer={SCORER['name']} greater_is_better={SCORER['greater_is_better']}"
     )
+    print(
+        f"fold weighting | enabled={bool(ENABLE_FOLD_RECENCY_WEIGHTING)} "
+        f"active={is_nontrivial_fold_recency_weighting_enabled()} "
+        f"mode={FOLD_RECENCY_WEIGHTING_MODE} "
+        f"min={float(FOLD_RECENCY_WEIGHT_MIN):.4f} "
+        f"max={float(FOLD_RECENCY_WEIGHT_MAX):.4f} "
+        f"topk_std=unweighted"
+    )
 
     ranking_df, _, fold_metadata = run_feature_ranking(
         x=x_prefilter,
         y=y,
         sample_weight=sample_weight,
         folds=ranking_folds,
+        fold_weight_by_id=ranking_fold_weights,
     )
     global_feature_order = ranking_df["feature"].tolist()
 
@@ -1727,6 +1960,7 @@ def main():
         y=y,
         sample_weight=sample_weight,
         folds=topk_folds,
+        fold_weight_by_id=topk_fold_weights,
         global_feature_order=global_feature_order,
     )
     topk_sweep_metadata = dict(topk_df.attrs.get("sweep_metadata", {}))
@@ -1734,12 +1968,28 @@ def main():
     recommended_k = int(recommended_row["k"])
     recommended_features = global_feature_order[:recommended_k]
     best_k = int(best_row["k"])
-    best_score = float(best_row["mean_score"])
+    best_score = float(best_row["selection_base_score"])
     best_selection_score = float(best_row["selection_score"])
-    recommended_score = float(recommended_row["mean_score"])
+    recommended_score = float(recommended_row["selection_base_score"])
     recommended_selection_score = float(recommended_row["selection_score"])
     score_loss = loss_vs_best(best_score, recommended_score)
+    best_unweighted_score = float(best_row["mean_score"])
+    recommended_unweighted_score = float(recommended_row["mean_score"])
+    best_weighted_score = float(best_row["weighted_mean_score"])
+    recommended_weighted_score = float(recommended_row["weighted_mean_score"])
+    unweighted_score_loss = loss_vs_best(
+        best_unweighted_score,
+        recommended_unweighted_score,
+    )
     feature_reduction_ratio = 1.0 - (recommended_k / max(1, len(global_feature_order)))
+    if recommended_k == best_k:
+        selection_statement = (
+            "to jest najlepszy zbior; mniejsze plateau nie dalo wymaganej redukcji cech"
+        )
+    else:
+        selection_statement = (
+            "to jest najmniejszy sensowny zbior cech spelniajacy minimalna redukcje"
+        )
     print(f"topk | best_k={best_k} recommended_k={recommended_k}")
 
     run_timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -1751,7 +2001,10 @@ def main():
         "data_path": str(DATA_PATH),
         "target_col": TARGET_COL,
         "scorer": SCORER["name"],
-        "ranking_method": "prescreen_used_folds_median_gain_then_permutation_delta_logloss",
+        "ranking_method": (
+            "prescreen_used_folds_recency_weighted_mean_gain_"
+            "then_permutation_recency_weighted_delta_logloss"
+        ),
         "input_feature_count": len(raw_input_feature_cols),
         "prefilter_feature_count": int(x_prefilter.shape[1]),
         "eligible_feature_count": int(ranking_df["eligible_for_selection"].sum()),
@@ -1774,9 +2027,26 @@ def main():
         "topk_n_splits": len(topk_folds),
         "walk_forward_test_to_train_ratio": float(WF_TEST_TO_TRAIN_RATIO),
         "random_seeds": [int(seed) for seed in RANDOM_SEEDS],
+        "fold_recency_weighting": {
+            "enabled": bool(ENABLE_FOLD_RECENCY_WEIGHTING),
+            "active": bool(is_nontrivial_fold_recency_weighting_enabled()),
+            "mode": str(FOLD_RECENCY_WEIGHTING_MODE),
+            "min_weight": float(FOLD_RECENCY_WEIGHT_MIN),
+            "max_weight": float(FOLD_RECENCY_WEIGHT_MAX),
+            "topk_std_score_aggregation": "unweighted",
+            "ranking_fold_weights": fold_weight_items_for_summary(
+                ranking_folds,
+                ranking_fold_weights,
+            ),
+            "topk_fold_weights": fold_weight_items_for_summary(
+                topk_folds,
+                topk_fold_weights,
+            ),
+        },
         "topk_selection_mode": TOPK_SELECTION_MODE,
         "topk_selection_std_coef": float(TOPK_SELECTION_STD_COEF),
         "topk_selection_formula": topk_selection_formula(),
+        "topk_selection_base_score": topk_selection_base_score_label(),
         "k_search_strategy": topk_sweep_metadata["k_search_strategy"],
         "coarse_grid_base": int(topk_sweep_metadata["coarse_grid_base"]),
         "min_coarse_k": int(topk_sweep_metadata["min_coarse_k"]),
@@ -1793,19 +2063,29 @@ def main():
         "best_k": best_k,
         "recommended_k": recommended_k,
         "best_score": best_score,
+        "best_unweighted_score": best_unweighted_score,
+        "best_weighted_score": best_weighted_score,
         "best_selection_score": best_selection_score,
         "recommended_score": recommended_score,
+        "recommended_unweighted_score": recommended_unweighted_score,
+        "recommended_weighted_score": recommended_weighted_score,
         "recommended_selection_score": recommended_selection_score,
         "score_loss_vs_best": score_loss,
         "score_loss_pct_vs_best": pct_loss_vs_best(best_score, recommended_score),
+        "unweighted_score_loss_vs_best": unweighted_score_loss,
+        "unweighted_score_loss_pct_vs_best": pct_loss_vs_best(
+            best_unweighted_score,
+            recommended_unweighted_score,
+        ),
         "feature_reduction_ratio_vs_prefilter": feature_reduction_ratio,
         "tolerance_mode": TOLERANCE_MODE,
         "abs_tol": float(ABS_TOL),
         "rel_tol": float(REL_TOL),
+        "min_plateau_feature_savings": int(MIN_PLATEAU_FEATURE_SAVINGS),
         "tolerance_value": tolerance_value(
             best_selection_score, float(best_row["std_score"])
         ),
-        "selection_statement": "to jest najmniejszy sensowny zbior cech",
+        "selection_statement": selection_statement,
         "final_feature_list": recommended_features,
         "class_mapping": class_mapping,
         "fold_ranking_metadata": fold_metadata,
@@ -1825,15 +2105,18 @@ def main():
     print(f"features after prefilter: {x_prefilter.shape[1]}")
     print(
         f"best K by selection metric: {best_k} | "
-        f"score={best_score:.8f} select={best_selection_score:.8f}"
+        f"score={best_score:.8f} raw={best_unweighted_score:.8f} "
+        f"weighted={best_weighted_score:.8f} select={best_selection_score:.8f}"
     )
     print(
         f"recommended K and score: {recommended_k} | "
-        f"score={recommended_score:.8f} select={recommended_selection_score:.8f}"
+        f"score={recommended_score:.8f} raw={recommended_unweighted_score:.8f} "
+        f"weighted={recommended_weighted_score:.8f} "
+        f"select={recommended_selection_score:.8f}"
     )
     print(f"delta vs best: {score_loss:.8f}")
     print(f"feature reduction vs prefilter: {feature_reduction_ratio:.2%}")
-    print("decision: to jest najmniejszy sensowny zbior cech")
+    print(f"decision: {selection_statement}")
     print(
         format_feature_preview_for_cli(
             label=f"first {CONSOLE_PREVIEW_FEATURES} recommended features",
