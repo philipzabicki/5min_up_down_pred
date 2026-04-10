@@ -1,6 +1,6 @@
 {
   "dataset_profile": "btc_1m_main",
   "modeling_profile": "default",
-  "indicator_fit_profile": "default",
+  "indicator_fit_profile": "main_task_candle_up_5m",
   "live_profile": "paper_polymarket"
 }

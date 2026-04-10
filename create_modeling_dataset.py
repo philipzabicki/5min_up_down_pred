@@ -54,12 +54,14 @@ TARGET_TIME_COL = "Opened"
 TARGET_PRICE_COL = "Close"
 TARGET_COL = "target_5m_candle_up"
 TARGET_HORIZON_MINUTES = 5
-PSEUDO_TARGET_RE = re.compile(r"^target_\d+m_ahead_ret$")
+DEFAULT_FIT_TARGET_MODE = "ahead_ret"
+PSEUDO_TARGET_RE = re.compile(r"^target_\d+m_(?:ahead_ret|candle_up)$")
 PARAM_NAME_PART_RE = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+")
 
 FIT_RESULT_BASE_RE = re.compile(
     r"^(?P<indicator>ADX|BollingerBands|ChaikinOsc|KeltnerChannel|MACD|StochOsc)"
-    r"_target_(?P<horizon>\d+m)_ahead_ret_pop(?P<pop>\d+)(?:_.*)?$"
+    r"_target_(?P<horizon>\d+m)_(?P<target_mode>ahead_ret|candle_up)"
+    r"_pop(?P<pop>\d+)(?:_.*)?$"
 )
 BASE_DATA_FILE_SYMBOL_INTERVAL_RE = re.compile(
     r"^(?P<symbol>[A-Za-z0-9_]+?)(?P<interval>\d+[mhdwM])$"
@@ -222,10 +224,11 @@ def _metric_suffix_for_feature(payload, json_path):
     )
 
 
-def _build_feature_col(indicator, horizon, pop, params, metric_suffix):
-    base = (
-        f"{indicator}_fit_{horizon}_pop{int(pop)}_{_param_suffix_for_feature(params)}"
-    )
+def _build_feature_col(indicator, horizon, pop, params, metric_suffix, target_mode):
+    base = f"{indicator}_fit_{horizon}"
+    if str(target_mode) != DEFAULT_FIT_TARGET_MODE:
+        base = f"{base}_{target_mode}"
+    base = f"{base}_pop{int(pop)}_{_param_suffix_for_feature(params)}"
     if not metric_suffix:
         return base
     return f"{base}_{metric_suffix}"
@@ -262,6 +265,19 @@ def parse_fit_results(fit_dir):
         params_signature = _params_signature(params)
 
         horizon = match.group("horizon")
+        target_mode = str(
+            match.group("target_mode")
+            or (
+                payload.get("proxy_target", {}).get("mode")
+                if isinstance(payload.get("proxy_target"), dict)
+                else DEFAULT_FIT_TARGET_MODE
+            )
+            or DEFAULT_FIT_TARGET_MODE
+        ).strip().lower()
+        if target_mode not in {"ahead_ret", "candle_up"}:
+            raise ValueError(
+                f"Unsupported target_mode '{target_mode}' in fit result {json_path.name}"
+            )
         pop_size = int(match.group("pop"))
         feature_col = _build_feature_col(
             indicator=indicator,
@@ -269,6 +285,7 @@ def parse_fit_results(fit_dir):
             pop=pop_size,
             params=params,
             metric_suffix=metric_suffix,
+            target_mode=target_mode,
         )
         if feature_col in seen_feature_cols:
             if seen_feature_cols[feature_col] == params_signature:
@@ -282,6 +299,7 @@ def parse_fit_results(fit_dir):
             {
                 "horizon": horizon,
                 "horizon_minutes": int(horizon[:-1]),
+                "target_mode": target_mode,
                 "indicator": indicator,
                 "pop_size": pop_size,
                 "feature_col": feature_col,
@@ -307,6 +325,7 @@ def parse_fit_results(fit_dir):
         configs,
         key=lambda item: (
             int(item["horizon_minutes"]),
+            str(item["target_mode"]),
             str(item["indicator"]),
             str(item["feature_col"]),
             str(item["json_path"]),

@@ -7,6 +7,7 @@ import numpy as np
 import optuna
 import pandas as pd
 from data_quality_filters import drop_frozen_ohlc_blocks
+from sklearn.metrics import log_loss
 
 from features.candle_features import RAW_OHLCV_COLS
 from features.volume_profile_fixed_range import (
@@ -37,15 +38,19 @@ BASE_DATA_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
 )
 SEED = 37
 
-CV_FOLDS = 10
+CV_FOLDS = 20
 WF_TEST_TO_TRAIN_RATIO = 0.2
+ENABLE_FOLD_RECENCY_WEIGHTING = True
+FOLD_RECENCY_WEIGHTING_MODE = "linear"
+FOLD_RECENCY_WEIGHT_MIN = 1.0
+FOLD_RECENCY_WEIGHT_MAX = 1.2
 MIN_SAMPLE_WEIGHT = float(TARGET_WEIGHT_DECISION_VALUE)
 
 MAX_N_ESTIMATORS = 300
 EARLY_STOPPING_ROUNDS = 40
 PRUNE_REPORT_EVERY_N_ITER = 10
 
-LGBM_NUM_THREADS = 16
+LGBM_NUM_THREADS = 14
 OPTUNA_OPTIMIZE_N_JOBS = 1
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
@@ -55,12 +60,12 @@ LGBM_GPU_USE_DP = True
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.05,
     "num_leaves": 63,
-    "min_data_in_leaf": 64,
+    "min_data_in_leaf": 128,
     "max_depth": 6,
     "feature_fraction": 1.0,
     "bagging_fraction": 1.0,
     "bagging_freq": 0,
-    "lambda_l2": 1.0,
+    "lambda_l2": 5.0,
     "lambda_l1": 0.0,
     "min_sum_hessian_in_leaf": 0.001,
     "min_gain_to_split": 0.0,
@@ -75,10 +80,10 @@ LGBM_DEFAULT_PARAMS = {
 # truncated edges without going back to the original fully loose space.
 VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
     "step": {"type": "int", "low": 1, "high": 200, "log": True},
-    "neighbor_bins": {"type": "int", "low": 1, "high": 32},
-    "local_window": {"type": "int", "low": 1, "high": 256, "log": True},
-    "sigma_divisor": {"type": "float", "low": 0.05, "high": 50.0, "log": True},
-    "min_sigma": {"type": "float", "low": 0.05, "high": 256.0, "log": True},
+    "neighbor_bins": {"type": "int", "low": 1, "high": 48},
+    "local_window": {"type": "int", "low": 1, "high": 384, "log": True},
+    "sigma_divisor": {"type": "float", "low": 0.01, "high": 75.0, "log": True},
+    "min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
     "short_half_life_candles": {
         "type": "int",
         "low": 10,
@@ -153,12 +158,11 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     }
 ]
 
-N_TRIALS = 250
+N_TRIALS = 300
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
 
-CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
 CRASH_PENALTY = float("inf")
 DEFAULT_STUDY_NAME_PREFIX = "volume_profile_logloss_mean_std"
@@ -357,6 +361,180 @@ def build_fold_indices(folds):
         )
         for fold in folds
     ]
+
+
+def is_nontrivial_fold_recency_weighting_enabled():
+    return bool(ENABLE_FOLD_RECENCY_WEIGHTING) and not np.isclose(
+        float(FOLD_RECENCY_WEIGHT_MIN),
+        float(FOLD_RECENCY_WEIGHT_MAX),
+    )
+
+
+def build_fold_recency_weights(folds):
+    if not folds:
+        raise ValueError("Fold recency weights require at least one fold.")
+
+    fold_ids = [int(fold["fold_id"]) for fold in folds]
+    if len(set(fold_ids)) != len(fold_ids):
+        raise ValueError("Fold ids must be unique to build recency weights.")
+
+    min_weight = float(FOLD_RECENCY_WEIGHT_MIN)
+    max_weight = float(FOLD_RECENCY_WEIGHT_MAX)
+    if min_weight <= 0.0 or max_weight <= 0.0:
+        raise ValueError("Fold recency weights must be strictly positive.")
+    if max_weight < min_weight:
+        raise ValueError(
+            "FOLD_RECENCY_WEIGHT_MAX must be >= FOLD_RECENCY_WEIGHT_MIN."
+        )
+
+    if len(folds) == 1 or not bool(ENABLE_FOLD_RECENCY_WEIGHTING):
+        weights = np.ones(len(fold_ids), dtype=np.float64)
+    else:
+        mode = str(FOLD_RECENCY_WEIGHTING_MODE).strip().lower()
+        if mode == "linear":
+            weights = np.linspace(
+                min_weight,
+                max_weight,
+                num=len(fold_ids),
+                dtype=np.float64,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported FOLD_RECENCY_WEIGHTING_MODE: {FOLD_RECENCY_WEIGHTING_MODE}"
+            )
+
+    return pd.Series(weights, index=fold_ids, name="fold_weight", dtype=np.float64)
+
+
+def resolve_fold_weight_array(folds, fold_weight_by_id):
+    if fold_weight_by_id is None:
+        raise ValueError("fold_weight_by_id is required.")
+
+    fold_ids = [int(fold["fold_id"]) for fold in folds]
+    resolved = pd.Series(fold_weight_by_id, dtype=np.float64).reindex(fold_ids)
+    if resolved.isna().any():
+        missing_fold_ids = resolved.index[resolved.isna()].tolist()
+        raise ValueError(f"Missing fold weights for fold ids: {missing_fold_ids}")
+
+    weights = resolved.to_numpy(dtype=np.float64, copy=False)
+    if not np.isfinite(weights).all():
+        raise ValueError("Fold weights contain non-finite values.")
+    if np.any(weights <= 0.0):
+        raise ValueError("Fold weights must be strictly positive.")
+    return weights
+
+
+def weighted_mean_vector(values, weights):
+    values_arr = np.asarray(values, dtype=np.float64)
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    if values_arr.ndim != 1:
+        raise ValueError("weighted_mean_vector expects a 1D array.")
+    if values_arr.shape[0] != weights_arr.shape[0]:
+        raise ValueError(
+            "weighted_mean_vector length mismatch: "
+            f"{values_arr.shape[0]} != {weights_arr.shape[0]}"
+        )
+    return float(np.average(values_arr, weights=weights_arr))
+
+
+def fold_weight_items_for_summary(folds, fold_weight_by_id):
+    weights = resolve_fold_weight_array(folds, fold_weight_by_id)
+    return [
+        {
+            "fold_id": int(fold["fold_id"]),
+            "weight": float(weight),
+        }
+        for fold, weight in zip(folds, weights)
+    ]
+
+
+def cv_objective_base_score_label():
+    if is_nontrivial_fold_recency_weighting_enabled():
+        return "cv_binary_logloss_weighted_mean"
+    return "cv_binary_logloss_mean"
+
+
+def resolve_cv_objective_name():
+    return f"{cv_objective_base_score_label()}_plus_std_penalty"
+
+
+def summarize_cv_fold_scores(fold_scores, folds, fold_weight_by_id, std_penalty):
+    fold_scores_arr = np.asarray(fold_scores, dtype=np.float64)
+    if fold_scores_arr.ndim != 1:
+        raise ValueError("fold_scores must be a 1D array.")
+    if fold_scores_arr.shape[0] != len(folds):
+        raise ValueError(
+            "fold_scores length mismatch: "
+            f"{fold_scores_arr.shape[0]} != {len(folds)}"
+        )
+
+    mean_score = float(np.mean(fold_scores_arr))
+    weighted_mean_score = weighted_mean_vector(
+        fold_scores_arr,
+        resolve_fold_weight_array(folds, fold_weight_by_id),
+    )
+    std_score = float(np.std(fold_scores_arr))
+    objective_base_value = (
+        weighted_mean_score
+        if is_nontrivial_fold_recency_weighting_enabled()
+        else mean_score
+    )
+    return {
+        "cv_binary_logloss_mean": mean_score,
+        "cv_binary_logloss_weighted_mean": weighted_mean_score,
+        "cv_binary_logloss_std": std_score,
+        "objective_base_value": float(objective_base_value),
+        "objective_value": float(objective_base_value + (float(std_penalty) * std_score)),
+    }
+
+
+def score_binary_logloss(y_true, y_pred_proba, sample_weight):
+    y_true_arr = np.asarray(y_true, dtype=np.float64)
+    y_pred_arr = np.clip(np.asarray(y_pred_proba, dtype=np.float64), 1e-15, 1.0 - 1e-15)
+    sample_weight_arr = np.asarray(sample_weight, dtype=np.float64)
+    return float(
+        log_loss(
+            y_true_arr,
+            y_pred_arr,
+            labels=[0, 1],
+            sample_weight=sample_weight_arr,
+        )
+    )
+
+
+def compute_cv_fold_scores_at_iteration(
+    cvbooster,
+    x_np,
+    y_np,
+    sample_weight_np,
+    folds,
+    best_iteration,
+):
+    boosters = getattr(cvbooster, "boosters", None)
+    if boosters is None:
+        raise ValueError("cvbooster is missing boosters.")
+    if len(boosters) != len(folds):
+        raise ValueError(
+            f"cvbooster fold count mismatch: {len(boosters)} != {len(folds)}"
+        )
+
+    fold_scores = []
+    for booster, fold in zip(boosters, folds):
+        valid_start = int(fold["test_start"])
+        valid_end = int(fold["test_end"])
+        y_pred_proba = booster.predict(
+            x_np[valid_start:valid_end],
+            num_iteration=int(best_iteration),
+        )
+        fold_scores.append(
+            score_binary_logloss(
+                y_true=y_np[valid_start:valid_end],
+                y_pred_proba=y_pred_proba,
+                sample_weight=sample_weight_np[valid_start:valid_end],
+            )
+        )
+
+    return np.asarray(fold_scores, dtype=np.float64)
 
 
 class ObjectiveAlignedLightGBMPruningCallback:
@@ -697,7 +875,9 @@ def run_lightgbm_cv(
     x_np,
     y_np,
     sample_weight_np,
+    folds,
     fold_indices,
+    fold_weight_by_id,
     feature_names,
     trial=None,
     return_cvbooster=False,
@@ -723,6 +903,7 @@ def run_lightgbm_cv(
             )
         )
 
+    need_cvbooster = bool(return_cvbooster) or is_nontrivial_fold_recency_weighting_enabled()
     cv_results = lgb.cv(
         params=make_lgbm_cv_params(),
         train_set=train_set,
@@ -730,7 +911,7 @@ def run_lightgbm_cv(
         stratified=False,
         shuffle=False,
         callbacks=callbacks,
-        return_cvbooster=return_cvbooster,
+        return_cvbooster=need_cvbooster,
         seed=SEED,
     )
 
@@ -738,15 +919,41 @@ def run_lightgbm_cv(
     std_series = np.asarray(cv_results["valid binary_logloss-stdv"], dtype=np.float64)
     objective_series = mean_series + (CV_LOGLOSS_STD_PENALTY * std_series)
     best_index = int(np.argmin(objective_series))
+    best_iteration = int(best_index + 1)
 
-    result = {
-        "best_iteration": int(best_index + 1),
-        "cv_binary_logloss_mean": float(mean_series[best_index]),
-        "cv_binary_logloss_std": float(std_series[best_index]),
-        "objective_value": float(objective_series[best_index]),
-    }
-    if return_cvbooster:
-        result["cvbooster"] = cv_results["cvbooster"]
+    result = {"best_iteration": best_iteration}
+    if need_cvbooster:
+        # LightGBM CV exposes only aggregated per-iteration metrics, so recency
+        # weighting is applied by rescoring each fold at the chosen iteration.
+        cvbooster = cv_results["cvbooster"]
+        fold_scores = compute_cv_fold_scores_at_iteration(
+            cvbooster=cvbooster,
+            x_np=x_np,
+            y_np=y_np,
+            sample_weight_np=sample_weight_np,
+            folds=folds,
+            best_iteration=best_iteration,
+        )
+        result.update(
+            summarize_cv_fold_scores(
+                fold_scores=fold_scores,
+                folds=folds,
+                fold_weight_by_id=fold_weight_by_id,
+                std_penalty=CV_LOGLOSS_STD_PENALTY,
+            )
+        )
+        if return_cvbooster:
+            result["cvbooster"] = cvbooster
+    else:
+        result.update(
+            {
+                "cv_binary_logloss_mean": float(mean_series[best_index]),
+                "cv_binary_logloss_weighted_mean": float(mean_series[best_index]),
+                "cv_binary_logloss_std": float(std_series[best_index]),
+                "objective_base_value": float(mean_series[best_index]),
+                "objective_value": float(objective_series[best_index]),
+            }
+        )
     return result
 
 
@@ -770,7 +977,14 @@ def get_best_successful_trial(study):
     return min(successful_trials, key=lambda trial: float(trial.value))
 
 
-def make_objective(base_data, fold_indices, base_vp_config, search_space):
+def make_objective(
+    base_data,
+    folds,
+    fold_indices,
+    fold_weight_by_id,
+    base_vp_config,
+    search_space,
+):
     def objective(trial):
         normalized_vp_config = None
         x_np = None
@@ -794,7 +1008,9 @@ def make_objective(base_data, fold_indices, base_vp_config, search_space):
                 x_np=x_np,
                 y_np=y_np,
                 sample_weight_np=sample_weight_np,
+                folds=folds,
                 fold_indices=fold_indices,
+                fold_weight_by_id=fold_weight_by_id,
                 feature_names=normalized_vp_config["feature_columns"],
                 trial=trial,
                 return_cvbooster=False,
@@ -806,8 +1022,16 @@ def make_objective(base_data, fold_indices, base_vp_config, search_space):
                 cv_result["cv_binary_logloss_mean"],
             )
             trial.set_user_attr(
+                "cv_binary_logloss_weighted_mean",
+                cv_result["cv_binary_logloss_weighted_mean"],
+            )
+            trial.set_user_attr(
                 "cv_binary_logloss_std",
                 cv_result["cv_binary_logloss_std"],
+            )
+            trial.set_user_attr(
+                "objective_base_value",
+                cv_result["objective_base_value"],
             )
             trial.set_user_attr("best_iteration", cv_result["best_iteration"])
             trial.set_user_attr("feature_count", int(x_np.shape[1]))
@@ -867,6 +1091,7 @@ def run_optuna_optimization():
         test_to_train_ratio=WF_TEST_TO_TRAIN_RATIO,
     )
     fold_indices = build_fold_indices(folds)
+    fold_weight_by_id = build_fold_recency_weights(folds)
 
     if STORAGE.startswith("sqlite:///"):
         Path(STORAGE.replace("sqlite:///", "", 1)).parent.mkdir(
@@ -889,7 +1114,7 @@ def run_optuna_optimization():
     print(
         f"start optimize | base_rows={len(base_df)} filtered_rows={filtered_rows} "
         f"folds={len(fold_indices)} trials={N_TRIALS} timeout={TIMEOUT_SECONDS} "
-        f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f} "
+        f"objective={resolve_cv_objective_name()} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f} "
         f"study_name={study_name} study_name_source={study_name_source} "
         f"load_if_exists={LOAD_IF_EXISTS}"
     )
@@ -905,6 +1130,14 @@ def run_optuna_optimization():
         "start optimize | "
         f"search_params={sorted(VOLUME_PROFILE_OPTUNA_SEARCH_SPACE)} "
         f"seed_trials_configured={len(OPTUNA_SEED_TRIAL_PARAMS)}"
+    )
+    print(
+        f"fold weighting | enabled={bool(ENABLE_FOLD_RECENCY_WEIGHTING)} "
+        f"active={is_nontrivial_fold_recency_weighting_enabled()} "
+        f"mode={FOLD_RECENCY_WEIGHTING_MODE} "
+        f"min={float(FOLD_RECENCY_WEIGHT_MIN):.4f} "
+        f"max={float(FOLD_RECENCY_WEIGHT_MAX):.4f} "
+        f"std=unweighted"
     )
 
     study = optuna.create_study(
@@ -925,7 +1158,9 @@ def run_optuna_optimization():
     study.optimize(
         make_objective(
             base_data=base_data,
+            folds=folds,
             fold_indices=fold_indices,
+            fold_weight_by_id=fold_weight_by_id,
             base_vp_config=base_vp_config,
             search_space=VOLUME_PROFILE_OPTUNA_SEARCH_SPACE,
         ),
@@ -971,13 +1206,23 @@ def run_optuna_optimization():
         "timeout_seconds": TIMEOUT_SECONDS,
         "cv_folds": CV_FOLDS,
         "walk_forward_test_to_train_ratio": WF_TEST_TO_TRAIN_RATIO,
+        "fold_recency_weighting": {
+            "enabled": bool(ENABLE_FOLD_RECENCY_WEIGHTING),
+            "active": bool(is_nontrivial_fold_recency_weighting_enabled()),
+            "mode": str(FOLD_RECENCY_WEIGHTING_MODE),
+            "min_weight": float(FOLD_RECENCY_WEIGHT_MIN),
+            "max_weight": float(FOLD_RECENCY_WEIGHT_MAX),
+            "std_score_aggregation": "unweighted",
+            "fold_weights": fold_weight_items_for_summary(folds, fold_weight_by_id),
+        },
         "max_n_estimators": MAX_N_ESTIMATORS,
         "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
         "prune_report_every_n_iteration": PRUNE_REPORT_EVERY_N_ITER,
         "cv_objective": {
-            "name": CV_OBJECTIVE_NAME,
+            "name": resolve_cv_objective_name(),
             "base_metric": "binary_logloss",
-            "aggregation": "cv_mean + std_penalty * cv_std",
+            "base_score": cv_objective_base_score_label(),
+            "aggregation": f"{cv_objective_base_score_label()} + std_penalty * cv_std",
             "std_penalty": float(CV_LOGLOSS_STD_PENALTY),
         },
         "lgbm_params": make_lgbm_cv_params(),
@@ -989,6 +1234,9 @@ def run_optuna_optimization():
             "objective_cv_binary_logloss_mean_plus_std_penalty": float(best_trial.value),
             "cv_binary_logloss_mean": float(
                 best_trial.user_attrs.get("cv_binary_logloss_mean")
+            ),
+            "cv_binary_logloss_weighted_mean": float(
+                best_trial.user_attrs.get("cv_binary_logloss_weighted_mean")
             ),
             "cv_binary_logloss_std": float(
                 best_trial.user_attrs.get("cv_binary_logloss_std")
@@ -1013,6 +1261,7 @@ def run_optuna_optimization():
     print(
         f"best trial | number={best_trial.number} objective={best_trial.value:.8f} "
         f"logloss_mean={float(best_trial.user_attrs.get('cv_binary_logloss_mean')):.8f} "
+        f"logloss_weighted_mean={float(best_trial.user_attrs.get('cv_binary_logloss_weighted_mean')):.8f} "
         f"logloss_std={float(best_trial.user_attrs.get('cv_binary_logloss_std')):.8f} "
         f"best_iteration={int(best_trial.user_attrs.get('best_iteration'))} "
         f"feature_count={int(best_trial.user_attrs.get('feature_count'))}"

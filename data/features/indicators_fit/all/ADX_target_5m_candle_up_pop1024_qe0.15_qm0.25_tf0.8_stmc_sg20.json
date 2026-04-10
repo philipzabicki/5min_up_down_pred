@@ -1,0 +1,39 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 61,
+      "posDM_period": 36,
+      "negDM_period": 207,
+      "adx_period": 347,
+      "ma_type_atr": "HMA",
+      "ma_type_posDM": "MAMA",
+      "ma_type_negDM": "GMA",
+      "ma_type_adx": "LINREG"
+    },
+    "score": 2.48895310420402,
+    "abs_corr": 2.48895310420402
+  },
+  "population": {
+    "base_pop_size": 1024,
+    "adjusted_pop_size": 1490
+  },
+  "proxy_target": {
+    "mode": "candle_up",
+    "horizon_minutes": 5,
+    "price_col": "Close",
+    "time_col": "Opened"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 20,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 1000,
+    "min_valid_segments": 19,
+    "q_ext": 0.15,
+    "q_mid": 0.25
+  },
+  "fit_config_hash": "167a18a119745a4d"
+}

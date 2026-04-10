@@ -1,9 +1,8 @@
 {
-  "bins": 2740,
-  "config_signature": "{\"bins\":2740,\"enabled\":true,\"eps\":1e-06,\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null},\"long\":{\"decay\":0.9999693125893186,\"half_life_candles\":22587},\"medium\":{\"decay\":0.9998274614434819,\"half_life_candles\":4017},\"short\":{\"decay\":0.9885140203528962,\"half_life_candles\":60}},\"local_window\":19,\"min_sigma\":158.51656478094498,\"neighbor_bins\":15,\"price_max\":200000.0,\"price_min\":0.0,\"sigma_divisor\":22.103834316321777,\"step\":73.0,\"version\":\"vp_fixed_range_v2\"}",
+  "bins": 3774,
+  "config_signature": "{\"bins\":3774,\"enabled\":true,\"eps\":1e-06,\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null},\"long\":{\"decay\":0.9999887135951252,\"half_life_candles\":61414},\"medium\":{\"decay\":0.9999054414176622,\"half_life_candles\":7330},\"short\":{\"decay\":0.9867586942598652,\"half_life_candles\":52}},\"local_window\":347,\"min_sigma\":2.995124349104348,\"neighbor_bins\":14,\"price_max\":200000.0,\"price_min\":0.0,\"sigma_divisor\":4.06544317411936,\"step\":53.0,\"version\":\"vp_fixed_range_v2\"}",
   "eps": 1e-06,
   "feature_columns": [
-    "vp_short_lr_m15",
     "vp_short_lr_m14",
     "vp_short_lr_m13",
     "vp_short_lr_m12",
@@ -32,11 +31,9 @@
     "vp_short_lr_p12",
     "vp_short_lr_p13",
     "vp_short_lr_p14",
-    "vp_short_lr_p15",
     "vp_short_imbalance",
     "vp_short_curr_share",
     "vp_short_peak_ratio",
-    "vp_medium_lr_m15",
     "vp_medium_lr_m14",
     "vp_medium_lr_m13",
     "vp_medium_lr_m12",
@@ -65,11 +62,9 @@
     "vp_medium_lr_p12",
     "vp_medium_lr_p13",
     "vp_medium_lr_p14",
-    "vp_medium_lr_p15",
     "vp_medium_imbalance",
     "vp_medium_curr_share",
     "vp_medium_peak_ratio",
-    "vp_long_lr_m15",
     "vp_long_lr_m14",
     "vp_long_lr_m13",
     "vp_long_lr_m12",
@@ -98,11 +93,9 @@
     "vp_long_lr_p12",
     "vp_long_lr_p13",
     "vp_long_lr_p14",
-    "vp_long_lr_p15",
     "vp_long_imbalance",
     "vp_long_curr_share",
     "vp_long_peak_ratio",
-    "vp_all_lr_m15",
     "vp_all_lr_m14",
     "vp_all_lr_m13",
     "vp_all_lr_m12",
@@ -131,7 +124,6 @@
     "vp_all_lr_p12",
     "vp_all_lr_p13",
     "vp_all_lr_p14",
-    "vp_all_lr_p15",
     "vp_all_imbalance",
     "vp_all_curr_share",
     "vp_all_peak_ratio"
@@ -149,28 +141,28 @@
       "half_life_candles": null
     },
     "long": {
-      "decay": 0.9999693125893186,
-      "global_scale": 0.01311393073220684,
-      "half_life_candles": 22587
+      "decay": 0.9999887135951252,
+      "global_scale": 0.9059120684847413,
+      "half_life_candles": 61414
     },
     "medium": {
-      "decay": 0.9998274614434819,
-      "global_scale": 0.01338904538632032,
-      "half_life_candles": 4017
+      "decay": 0.9999054414176622,
+      "global_scale": 0.9227669250345889,
+      "half_life_candles": 7330
     },
     "short": {
-      "decay": 0.9885140203528962,
-      "global_scale": 0.015092755139450792,
-      "half_life_candles": 60
+      "decay": 0.9867586942598652,
+      "global_scale": 0.2533547476746746,
+      "half_life_candles": 52
     }
   },
-  "last_candle_time": "2026-04-09T14:37:00",
-  "local_window": 19,
-  "min_sigma": 158.51656478094498,
-  "neighbor_bins": 15,
+  "last_candle_time": "2026-04-10T14:42:00",
+  "local_window": 347,
+  "min_sigma": 2.995124349104348,
+  "neighbor_bins": 14,
   "price_max": 200000.0,
   "price_min": 0.0,
-  "sigma_divisor": 22.103834316321777,
-  "step": 73.0,
+  "sigma_divisor": 4.06544317411936,
+  "step": 53.0,
   "version": "vp_fixed_range_v2"
 }

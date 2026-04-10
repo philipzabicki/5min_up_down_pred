@@ -19,21 +19,21 @@
         "enabled": true,
         "price_min": 0.0,
         "price_max": 200000.0,
-        "step": 73,
-        "neighbor_bins": 15,
-        "local_window": 19,
-        "sigma_divisor": 22.103834316321777,
-        "min_sigma": 158.51656478094498,
+        "step": 53,
+        "neighbor_bins": 14,
+        "local_window": 347,
+        "sigma_divisor": 4.06544317411936,
+        "min_sigma": 2.995124349104348,
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "half_life_candles": 60
+            "half_life_candles": 52
           },
           "medium": {
-            "half_life_candles": 4017
+            "half_life_candles": 7330
           },
           "long": {
-            "half_life_candles": 22587
+            "half_life_candles": 61414
           },
           "all": {
             "half_life_candles": null
@@ -46,7 +46,7 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260409_153927/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/20260410_165802/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",
@@ -64,7 +64,9 @@
           "StochOsc_fit_60m_pop16_faskper966_slodmatypkama_slodper1340_slokmatypsma_slokper939",
           "MACD_fit_2m_pop512_fasmatypfba_fasper581_fassouohlc4_sigmatypkama_sigper242_slomatypnwmacos_sloper1730_slosouhlc3_qe0.2_qm0.25_tf0.8_stmd_sg20",
           "MACD_fit_1440m_pop64_fasmatypehma_fasper181_fassouopen_sigmatypkama_sigper1032_slomatypgma_sloper1074_slosoulow",
-          "ChaikinOsc_fit_6m_pop16_fasmatypdema_fasper4_slomatypgma_sloper2"
+          "ChaikinOsc_fit_6m_pop16_fasmatypdema_fasper4_slomatypgma_sloper2",
+          "ADX_fit_1m_pop128_adxper2_atrper1556_matypadxhma_matypatrmama_matypnegdmmama_matypposdmrma_negdmper74_posdmper667_qe0.1_qm0.3_tf0.8_stmc_sg20",
+          "BollingerBands_fit_3m_pop16_maper22_masoulow_matypvwmapta_stdmaper132_stdmatypmama_stdmul3.131831_stdsouopen"
         ]
       },
       "train_lgbm": {

@@ -1,6 +1,6 @@
 {
   "artifacts": {
-    "model_meta_path": "data/models/20260409_194922/lgbm_meta_20260409_194922.json",
+    "model_meta_path": "data/models/20260410_231635/lgbm_meta_20260410_231635.json",
     "trade_policy_runtime_config_path": "configs/runtime/trade_policy_simple.json",
     "indicator_history_requirements_path": "configs/runtime/indicator_history_requirements.json"
   }

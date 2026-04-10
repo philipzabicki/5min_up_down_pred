@@ -2243,6 +2243,15 @@ class PolymarketLiveTrader(LivePredictor):
         intent["tick_size"] = float(market.tick_size)
         intent["neg_risk"] = bool(market.neg_risk)
         intent["order_price_cap"] = float(self.pm_cfg.order_price_cap)
+        intent["fee_rate_bps"] = int(market.fee_rate_bps)
+        intent["fee_model"] = market.fee_model
+        intent["ask_yes"] = float(market.up_best_ask)
+        intent["ask_no"] = float(market.down_best_ask)
+        if str(intent.get("decision", "")).lower() == "no_trade":
+            intent["submitted_price"] = float("nan")
+            intent["submitted_price_error"] = ""
+            return intent
+
         submitted_price, submitted_price_error = _resolve_submitted_buy_price(
             entry_price=intent.get("entry_price", np.nan),
             order_price_cap=self.pm_cfg.order_price_cap,
@@ -2258,18 +2267,10 @@ class PolymarketLiveTrader(LivePredictor):
             intent["final_reason"] = submitted_price_error
             intent["submitted_price"] = float("nan")
             intent["submitted_price_error"] = str(submitted_price_error)
-            intent["fee_rate_bps"] = int(market.fee_rate_bps)
-            intent["fee_model"] = market.fee_model
-            intent["ask_yes"] = float(market.up_best_ask)
-            intent["ask_no"] = float(market.down_best_ask)
             return intent
 
         intent["submitted_price"] = float(submitted_price)
         intent["submitted_price_error"] = ""
-        intent["fee_rate_bps"] = int(market.fee_rate_bps)
-        intent["fee_model"] = market.fee_model
-        intent["ask_yes"] = float(market.up_best_ask)
-        intent["ask_no"] = float(market.down_best_ask)
         return intent
 
     def _submit_result(

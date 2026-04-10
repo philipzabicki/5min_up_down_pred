@@ -244,6 +244,23 @@ def load_indicator_fit_profile(
         raise ValueError(
             f"Indicator-fit profile '{profile_name}' contains no valid indicators."
         )
+    profile["proxy_target_mode"] = str(
+        profile.get("proxy_target_mode", "ahead_ret")
+    ).strip().lower()
+    if profile["proxy_target_mode"] not in {"ahead_ret", "candle_up"}:
+        raise ValueError(
+            f"Indicator-fit profile '{profile_name}' has unsupported "
+            f"proxy_target_mode={profile['proxy_target_mode']!r}. "
+            "Expected 'ahead_ret' or 'candle_up'."
+        )
+    profile["proxy_target_time_col"] = str(
+        profile.get("proxy_target_time_col", "Opened")
+    ).strip()
+    if not profile["proxy_target_time_col"]:
+        raise ValueError(
+            f"Indicator-fit profile '{profile_name}' must define non-empty "
+            "'proxy_target_time_col'."
+        )
     return profile
 
 
@@ -352,6 +369,8 @@ def build_indicator_fit_legacy_config(*, active_config_path=ACTIVE_CONFIG_PATH):
             active["indicator_fit_profile"]: {
                 "proxy_target_horizonts": list(fit["proxy_target_horizonts"]),
                 "proxy_target_price_col": str(fit["proxy_target_price_col"]),
+                "proxy_target_mode": str(fit["proxy_target_mode"]),
+                "proxy_target_time_col": str(fit["proxy_target_time_col"]),
                 "metric_name": str(metric["name"]),
                 "metric_segments_count": int(metric["segments_count"]),
                 "metric_train_frac": float(metric["train_frac"]),

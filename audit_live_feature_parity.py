@@ -41,6 +41,7 @@ from features.volume_profile_fixed_range import (
     load_state as load_volume_profile_state,
     normalize_config as normalize_volume_profile_config,
     save_state as save_volume_profile_state,
+    state_matches_config as volume_profile_state_matches_config,
     update_state_with_candle as update_volume_profile_state_with_candle,
 )
 from live_predict_binance import (
@@ -2519,12 +2520,28 @@ def build_or_load_anchor_volume_profile_state(
     overwrite=False,
 ):
     state_path = resolve_anchor_volume_profile_state_path(anchor_candle_opened)
+    vp_cfg = normalize_volume_profile_config(
+        MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
+    )
     if (
         not overwrite
         and state_path.with_suffix(".npz").exists()
         and state_path.with_suffix(".json").exists()
     ):
-        return load_volume_profile_state(state_path), state_path
+        try:
+            state = load_volume_profile_state(state_path)
+        except (FileNotFoundError, ValueError, KeyError) as exc:
+            print(
+                "[audit] existing anchor vp state is unreadable; rebuilding "
+                f"path={state_path.with_suffix('.npz')} error={exc}"
+            )
+        else:
+            if volume_profile_state_matches_config(state, vp_cfg):
+                return state, state_path
+            print(
+                "[audit] existing anchor vp state config mismatch; rebuilding "
+                f"path={state_path.with_suffix('.npz')}"
+            )
 
     history_df = load_anchor_volume_profile_history(
         parquet_path=parquet_path,
@@ -2532,9 +2549,7 @@ def build_or_load_anchor_volume_profile_state(
     )
     state = bootstrap_state_from_history(
         history_df.loc[:, ["Opened", "High", "Low", "Volume"]],
-        normalize_volume_profile_config(
-            MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
-        ),
+        vp_cfg,
     )
     save_volume_profile_state(state, state_path)
     return load_volume_profile_state(state_path), state_path

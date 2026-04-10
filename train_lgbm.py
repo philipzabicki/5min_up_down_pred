@@ -15,6 +15,7 @@ from modeling_dataset_utils import (
     load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
     load_modeling_dataset_settings,
+    resolve_modeling_float_dtype,
     resolve_modeling_float_dtype_name,
     resolve_modeling_dataset_output_paths,
     resolve_oof_prediction_output_paths,
@@ -57,19 +58,19 @@ PRIMARY_REPORTING_METRIC = "brier_score"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0021574582075051204,
-      "num_leaves": 196,
-      "min_data_in_leaf": 21,
-      "max_depth": 58,
-      "feature_fraction": 0.8187932858940383,
-      "bagging_fraction": 0.8714798148611362,
-      "bagging_freq": 4,
-      "lambda_l2": 15.442114704888553,
-      "lambda_l1": 2.212521909423135,
-      "min_sum_hessian_in_leaf": 0.13475540327517857,
-      "min_gain_to_split": 1.5679522702774737,
-      "feature_fraction_bynode": 0.6443195011832288,
-      "path_smooth": 18.354650904317488,
+      "learning_rate": 0.001167802751436131,
+      "num_leaves": 350,
+      "min_data_in_leaf": 191,
+      "max_depth": 135,
+      "feature_fraction": 0.37148617859321925,
+      "bagging_fraction": 0.760243546764648,
+      "bagging_freq": 20,
+      "lambda_l2": 8.778887749922983,
+      "lambda_l1": 4.281319780719967,
+      "min_sum_hessian_in_leaf": 0.13798698100688064,
+      "min_gain_to_split": 1.3424896470444496,
+      "feature_fraction_bynode": 0.9795199096827308,
+      "path_smooth": 40.23143951108452,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {
@@ -198,7 +199,7 @@ def classification_metrics(
     }
 
 
-def resolve_sample_weight_series(df):
+def resolve_sample_weight_series(df, float_dtype=np.float64):
     if TARGET_WEIGHT_COL in df.columns:
         sample_weight = pd.to_numeric(df[TARGET_WEIGHT_COL], errors="raise")
         source = "dataset_column"
@@ -214,8 +215,8 @@ def resolve_sample_weight_series(df):
         )
         source = "derived_from_opened"
 
-    sample_weight = sample_weight.astype(np.float64, copy=False)
-    sample_weight_np = sample_weight.to_numpy(dtype=np.float64, copy=False)
+    sample_weight = sample_weight.astype(float_dtype, copy=False)
+    sample_weight_np = sample_weight.to_numpy(dtype=float_dtype, copy=False)
     if sample_weight_np.shape[0] != len(df):
         raise ValueError("Sample weights length mismatch.")
     if not np.isfinite(sample_weight_np).all():
@@ -233,21 +234,23 @@ def resolve_sample_weight_series(df):
 def clean_and_impute_fold(
     x_train_raw,
     x_test_raw,
+    float_dtype=np.float64,
 ):
     all_nan_train_features = x_train_raw.columns[x_train_raw.isna().all()].tolist()
     if all_nan_train_features:
         x_train_raw = x_train_raw.drop(columns=all_nan_train_features)
         x_test_raw = x_test_raw.drop(columns=all_nan_train_features)
 
-    x_train = x_train_raw.astype(np.float64, copy=False)
-    x_test = x_test_raw.astype(np.float64, copy=False)
-    return x_train, x_test, pd.Series(dtype=np.float64), all_nan_train_features, 0
+    x_train = x_train_raw.astype(float_dtype, copy=False)
+    x_test = x_test_raw.astype(float_dtype, copy=False)
+    return x_train, x_test, pd.Series(dtype=float_dtype), all_nan_train_features, 0
 
 
 def load_walk_forward_training_frame(
     data_path,
     feature_subset=None,
     excluded_features=None,
+    float_dtype=np.float64,
 ):
     excluded_feature_names = (
         tuple(excluded_features["features"]) if excluded_features else tuple()
@@ -302,7 +305,7 @@ def load_walk_forward_training_frame(
         df = add_session_open_features(df)
 
     sample_weight, sample_weight_source, sample_weight_summary = (
-        resolve_sample_weight_series(df)
+        resolve_sample_weight_series(df, float_dtype=float_dtype)
     )
     df[TARGET_WEIGHT_COL] = sample_weight
 
@@ -351,7 +354,7 @@ def load_walk_forward_training_frame(
             f"missing_requested={len(excluded_missing_features)}"
         )
 
-    x = x.astype(np.float64, copy=False)
+    x = x.astype(float_dtype, copy=False)
 
     return {
         "df": df,
@@ -377,11 +380,12 @@ def evaluate_walk_forward_variant(
     collect_oof_predictions=True,
     collect_feature_importance=True,
     early_stopping_verbose=True,
+    float_dtype=np.float64,
 ):
     fold_results = []
     best_iterations = []
     oof_pred_proba = (
-        np.full(shape=len(x), fill_value=np.nan, dtype=np.float64)
+        np.full(shape=len(x), fill_value=np.nan, dtype=float_dtype)
         if collect_oof_predictions
         else None
     )
@@ -397,13 +401,17 @@ def evaluate_walk_forward_variant(
 
         x_train_raw = x.iloc[tr_s:tr_e]
         y_train = y.iloc[tr_s:tr_e]
-        w_train = sample_weight.iloc[tr_s:tr_e].to_numpy(dtype=np.float64, copy=False)
+        w_train = sample_weight.iloc[tr_s:tr_e].to_numpy(
+            dtype=float_dtype, copy=False
+        )
         x_test_raw = x.iloc[te_s:te_e]
         y_test = y.iloc[te_s:te_e]
-        w_test = sample_weight.iloc[te_s:te_e].to_numpy(dtype=np.float64, copy=False)
+        w_test = sample_weight.iloc[te_s:te_e].to_numpy(
+            dtype=float_dtype, copy=False
+        )
 
         x_train, x_test, _, dropped_nan_features, _ = clean_and_impute_fold(
-            x_train_raw, x_test_raw
+            x_train_raw, x_test_raw, float_dtype=float_dtype
         )
 
         model = build_lgbm_model(
@@ -524,7 +532,8 @@ def evaluate_walk_forward_variant(
 
 def main():
     dataset_settings = load_modeling_dataset_settings()
-    parquet_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
+    modeling_float_dtype = resolve_modeling_float_dtype(dataset_settings)
+    modeling_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
     oof_output_paths = resolve_oof_prediction_output_paths(
         dataset_settings,
@@ -540,6 +549,7 @@ def main():
         data_path=data_path,
         feature_subset=feature_subset,
         excluded_features=excluded_features,
+        float_dtype=modeling_float_dtype,
     )
     df = training_data["df"]
     x = training_data["x"]
@@ -567,8 +577,9 @@ def main():
     )
     print(
         "Numeric precision | "
-        f"parquet_float_columns={parquet_float_dtype_name} "
-        "train_feature_matrix=float64 sample_weight=float64"
+        f"configured_float_precision={modeling_float_dtype_name} "
+        f"train_feature_matrix={modeling_float_dtype_name} "
+        f"sample_weight={modeling_float_dtype_name}"
     )
     print(
         "Train switches | "
@@ -595,6 +606,7 @@ def main():
                 param_overrides=param_overrides,
                 model_variant=model_variant,
                 collect_oof_predictions=collect_oof_predictions,
+                float_dtype=modeling_float_dtype,
             )
         )
         cv_results[model_variant] = cv_result
@@ -633,7 +645,11 @@ def main():
             )
         oof_mask = np.isfinite(oof_pred_proba)
         oof_export = df.loc[oof_mask, OOF_EXPORT_BASE_COLS].assign(
-            **{OOF_PRED_COL: oof_pred_proba[oof_mask].astype(np.float64, copy=False)}
+            **{
+                OOF_PRED_COL: oof_pred_proba[oof_mask].astype(
+                    modeling_float_dtype, copy=False
+                )
+            }
         )
         oof_output_path.parent.mkdir(parents=True, exist_ok=True)
         oof_export.to_parquet(oof_output_path, index=False)
@@ -644,7 +660,9 @@ def main():
 
     best_iteration = max(10, int(cv_result["mean_best_iteration"]))
 
-    x_full, _, _, all_nan_train_features, _ = clean_and_impute_fold(x, x)
+    x_full, _, _, all_nan_train_features, _ = clean_and_impute_fold(
+        x, x, float_dtype=modeling_float_dtype
+    )
 
     model = build_lgbm_model(
         n_estimators=best_iteration,
@@ -653,14 +671,18 @@ def main():
     model.fit(
         x_full,
         y,
-        sample_weight=sample_weight.to_numpy(dtype=np.float64, copy=False),
+        sample_weight=sample_weight.to_numpy(
+            dtype=modeling_float_dtype, copy=False
+        ),
     )
 
     y_full_pred_proba = model.predict_proba(x_full)[:, 1]
     full_fit_metrics = classification_metrics(
         y.to_numpy(),
         y_full_pred_proba,
-        sample_weight=sample_weight.to_numpy(dtype=np.float64, copy=False),
+        sample_weight=sample_weight.to_numpy(
+            dtype=modeling_float_dtype, copy=False
+        ),
     )
 
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -756,10 +778,11 @@ def main():
             excluded_features=excluded_features,
         ),
         "numeric_precision": {
-            "parquet_float_columns": parquet_float_dtype_name,
-            "train_feature_matrix": "float64",
-            "sample_weight": "float64",
-            "oof_prediction": "float64",
+            "configured_float_precision": modeling_float_dtype_name,
+            "parquet_float_columns": modeling_float_dtype_name,
+            "train_feature_matrix": modeling_float_dtype_name,
+            "sample_weight": modeling_float_dtype_name,
+            "oof_prediction": modeling_float_dtype_name,
         },
         "feature_columns": list(x_full.columns),
         "model_hyperparameters": {

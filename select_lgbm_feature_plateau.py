@@ -63,7 +63,7 @@ MODEL_PARAMS = {
     "feature_fraction_bynode": 1.0,
     "path_smooth": 0.0,
     "extra_trees": False,
-    "n_jobs": 16,
+    "n_jobs": 14,
     "verbosity": -1,
     "device_type": LGBM_DEVICE_TYPE,
     "max_bin": LGBM_MAX_BIN,
@@ -93,7 +93,7 @@ REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 7
-PERMUTATION_TOP_N = 384
+PERMUTATION_TOP_N = 512
 PERMUTATION_N_REPEATS = 1
 PERMUTATION_BASE_SEED = 37
 MAX_MISSING_RATIO = 0.05

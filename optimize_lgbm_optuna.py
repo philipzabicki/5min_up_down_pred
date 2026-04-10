@@ -12,6 +12,8 @@ from modeling_dataset_utils import (
     load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
     load_modeling_dataset_settings,
+    resolve_modeling_float_dtype,
+    resolve_modeling_float_dtype_name,
     resolve_modeling_dataset_output_paths,
     summarize_feature_subset,
 )
@@ -266,7 +268,12 @@ def make_walk_forward_folds(
     return folds
 
 
-def load_generic_training_data(data_path, feature_subset=None, excluded_features=None):
+def load_generic_training_data(
+    data_path,
+    feature_subset=None,
+    excluded_features=None,
+    float_dtype=np.float32,
+):
     excluded_feature_names = (
         tuple(excluded_features["features"]) if excluded_features else tuple()
     )
@@ -305,7 +312,7 @@ def load_generic_training_data(data_path, feature_subset=None, excluded_features
             "Rebuild it with create_modeling_dataset.py."
         )
     sample_weight_full = pd.to_numeric(df[TARGET_WEIGHT_COL], errors="raise").to_numpy(
-        dtype=np.float32,
+        dtype=float_dtype,
         copy=False,
     )
     sample_weight_source = "dataset_column"
@@ -361,7 +368,7 @@ def load_generic_training_data(data_path, feature_subset=None, excluded_features
     target_horizon_match = TARGET_HORIZON_RE.search(TARGET_COL)
     target_horizon = int(target_horizon_match.group(1)) if target_horizon_match else 0
 
-    x_np_full = x.to_numpy(dtype=np.float32, copy=False)
+    x_np_full = x.to_numpy(dtype=float_dtype, copy=False)
     invalid_full = ~np.isfinite(x_np_full)
     n_rows, n_features = x_np_full.shape
     n_invalid_full = int(invalid_full.sum())
@@ -396,7 +403,7 @@ def load_generic_training_data(data_path, feature_subset=None, excluded_features
             f"rows={n_rows} head_trim={head_trim} tail_trim={tail_trim}"
         )
 
-    x_np = np.asarray(x_np_full[head_trim:end_idx], dtype=np.float32)
+    x_np = np.asarray(x_np_full[head_trim:end_idx], dtype=float_dtype)
     finite_by_col = np.isfinite(x_np).any(axis=0)
     dropped_all_invalid_feature_names = []
     if not finite_by_col.all():
@@ -411,13 +418,13 @@ def load_generic_training_data(data_path, feature_subset=None, excluded_features
 
     invalid = ~np.isfinite(x_np)
     invalid_after_trim = int(invalid.sum())
-    x_np = np.where(np.isinf(x_np), np.nan, x_np).astype(np.float32, copy=False)
+    x_np = np.where(np.isinf(x_np), np.nan, x_np).astype(float_dtype, copy=False)
     nan_after_trim = int(np.isnan(x_np).sum())
 
-    y_np_full = df[TARGET_COL].to_numpy(dtype=np.float32, copy=False)
-    y_np = np.asarray(y_np_full[head_trim:end_idx], dtype=np.float32)
+    y_np_full = df[TARGET_COL].to_numpy(dtype=float_dtype, copy=False)
+    y_np = np.asarray(y_np_full[head_trim:end_idx], dtype=float_dtype)
     sample_weight_np = np.asarray(
-        sample_weight_full[head_trim:end_idx], dtype=np.float32
+        sample_weight_full[head_trim:end_idx], dtype=float_dtype
     )
 
     print(
@@ -867,6 +874,8 @@ def run_top_trials_recheck(
         raise ValueError("top_n must be >= 1.")
 
     dataset_settings = load_modeling_dataset_settings()
+    modeling_float_dtype = resolve_modeling_float_dtype(dataset_settings)
+    modeling_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
     feature_subset = load_feature_subset_from_settings(dataset_settings)
     excluded_features = load_excluded_feature_names_from_settings(dataset_settings)
@@ -874,6 +883,7 @@ def run_top_trials_recheck(
         data_path=data_path,
         feature_subset=feature_subset,
         excluded_features=excluded_features,
+        float_dtype=modeling_float_dtype,
     )
     x = training_data["x"]
     y = training_data["y"]
@@ -907,7 +917,8 @@ def run_top_trials_recheck(
         f"start recheck | study_name={study_name} storage={storage} "
         f"completed_trials={len(completed_trials)} selected_trials={len(selected_trials)} "
         f"rows={len(x)} features={x.shape[1]} folds={len(folds)} "
-        f"test/train={FINAL_WF_TEST_TO_TRAIN_RATIO:.3f}"
+        f"test/train={FINAL_WF_TEST_TO_TRAIN_RATIO:.3f} "
+        f"float_precision={modeling_float_dtype_name}"
     )
     if feature_subset:
         print(
@@ -931,6 +942,7 @@ def run_top_trials_recheck(
             collect_oof_predictions=False,
             collect_feature_importance=False,
             early_stopping_verbose=False,
+            float_dtype=modeling_float_dtype,
         )
         recheck_metric_mean = float(
             cv_result["cv_mean_metrics"][RECHECK_OBJECTIVE_BASE_METRIC]
@@ -1069,6 +1081,8 @@ def run_optuna_optimization():
         timestamp=run_timestamp,
     )
     dataset_settings = load_modeling_dataset_settings()
+    modeling_float_dtype = resolve_modeling_float_dtype(dataset_settings)
+    modeling_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
     feature_subset = load_feature_subset_from_settings(dataset_settings)
     excluded_features = load_excluded_feature_names_from_settings(dataset_settings)
@@ -1084,6 +1098,7 @@ def run_optuna_optimization():
         data_path=data_path,
         feature_subset=feature_subset,
         excluded_features=excluded_features,
+        float_dtype=modeling_float_dtype,
     )
     folds = make_walk_forward_folds(
         n_rows=len(x_np),
@@ -1120,6 +1135,7 @@ def run_optuna_optimization():
         f"start optimize | rows={len(x_np)} features={x_np.shape[1]} folds={len(fold_indices)} "
         f"trials={N_TRIALS} timeout={TIMEOUT_SECONDS} prune_every={PRUNE_REPORT_EVERY_N_ITER} "
         f"pruner_bootstrap_count={PRUNER_BOOTSTRAP_COUNT} "
+        f"float_precision={modeling_float_dtype_name} "
         f"sample_weight_source={sample_weight_source} "
         f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f} "
         f"study_name={study_name} study_name_source={study_name_source} "

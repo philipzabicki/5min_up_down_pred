@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from common_config_utils import coerce_path
 from data_quality_filters import drop_frozen_ohlc_blocks
+from target_weights import compute_binary_close_target_from_opened
 
 from pymoo.core.mixed import MixedVariableGA
 from pymoo.core.mixed import (
@@ -60,6 +61,9 @@ DEFAULT_METRIC_STAT = "mean_clip"
 DEFAULT_METRIC_CLIP_Q = 0.01
 DEFAULT_METRIC_MIN_BUCKET_SIZE = 50
 DEFAULT_METRIC_MIN_VALID_SEGMENTS = 2
+DEFAULT_PROXY_TARGET_MODE = "ahead_ret"
+DEFAULT_PROXY_TARGET_TIME_COL = "Opened"
+SUPPORTED_PROXY_TARGET_MODES = frozenset({"ahead_ret", "candle_up"})
 
 SELECTION_METRIC_NAME = DEFAULT_METRIC_NAME
 
@@ -142,7 +146,30 @@ def _resolve_proxy_target_price_col(interval_cfg, pair_cfg):
     )
 
 
-def _resolve_existing_column_name(df, requested_col):
+def _resolve_proxy_target_mode(interval_cfg, pair_cfg):
+    raw_mode = interval_cfg.get(
+        "proxy_target_mode",
+        pair_cfg.get("proxy_target_mode", DEFAULT_PROXY_TARGET_MODE),
+    )
+    mode = str(raw_mode).strip().lower()
+    if mode not in SUPPORTED_PROXY_TARGET_MODES:
+        raise ValueError(
+            "proxy_target_mode must be one of "
+            f"{sorted(SUPPORTED_PROXY_TARGET_MODES)}, got: {raw_mode!r}"
+        )
+    return mode
+
+
+def _resolve_proxy_target_time_col(interval_cfg, pair_cfg):
+    return str(
+        interval_cfg.get(
+            "proxy_target_time_col",
+            pair_cfg.get("proxy_target_time_col", DEFAULT_PROXY_TARGET_TIME_COL),
+        )
+    )
+
+
+def _resolve_existing_column_name(df, requested_col, *, field_name="column"):
     requested = str(requested_col)
     if requested in df.columns:
         return requested
@@ -152,11 +179,20 @@ def _resolve_existing_column_name(df, requested_col):
         if str(col).lower() == requested_l:
             return str(col)
     raise ValueError(
-        f"proxy_target_price_col='{requested_col}' not found in dataframe."
+        f"{field_name}='{requested_col}' not found in dataframe."
     )
 
 
-def _build_proxy_target_np(price_np, horizon_minutes):
+def _build_proxy_target_col_name(horizon_minutes, target_mode):
+    horizon = int(horizon_minutes)
+    if target_mode == "ahead_ret":
+        return f"target_{horizon}m_ahead_ret"
+    if target_mode == "candle_up":
+        return f"target_{horizon}m_candle_up"
+    raise ValueError(f"Unsupported proxy_target_mode: {target_mode}")
+
+
+def _build_proxy_target_np_ahead_ret(price_np, horizon_minutes):
     horizon = int(horizon_minutes)
     if horizon <= 0:
         raise ValueError(f"horizon_minutes must be > 0, got: {horizon_minutes}")
@@ -170,6 +206,14 @@ def _build_proxy_target_np(price_np, horizon_minutes):
     future = np.roll(safe_base, -horizon)
     future[-horizon:] = np.nan
     return (future / safe_base) - 1.0
+
+
+def _build_proxy_target_np_candle_up(opened_values, close_values, horizon_minutes):
+    return compute_binary_close_target_from_opened(
+        opened_values=opened_values,
+        close_values=close_values,
+        horizon_minutes=int(horizon_minutes),
+    )
 
 
 def _format_float_token(value):
@@ -434,6 +478,10 @@ def main():
             proxy_target_price_col_raw = _resolve_proxy_target_price_col(
                 interval_cfg, pair_cfg
             )
+            proxy_target_mode = _resolve_proxy_target_mode(interval_cfg, pair_cfg)
+            proxy_target_time_col_raw = _resolve_proxy_target_time_col(
+                interval_cfg, pair_cfg
+            )
             metric_configs = _resolve_metric_configs(interval_cfg, pair_cfg)
             indicators_cfg = interval_cfg["indicators"]
             indicator_names = normalize_indicators(indicators_cfg)
@@ -459,17 +507,27 @@ def main():
             proxy_target_price_col = _resolve_existing_column_name(
                 df,
                 proxy_target_price_col_raw,
+                field_name="proxy_target_price_col",
             )
             proxy_price_np = pd.to_numeric(
                 df[proxy_target_price_col],
                 errors="coerce",
             ).to_numpy(dtype=np.float64, copy=False)
+            proxy_target_time_col = None
+            if proxy_target_mode == "candle_up":
+                proxy_target_time_col = _resolve_existing_column_name(
+                    df,
+                    proxy_target_time_col_raw,
+                    field_name="proxy_target_time_col",
+                )
 
             print(
                 f"{pair} | {interval} df ~{df_size_mib(df):.2f} MiB | "
                 f"ohlcv cols: {ohlcv_cols} | "
                 f"proxy_target_horizonts: {proxy_target_horizonts} | "
+                f"proxy_target_mode: {proxy_target_mode} | "
                 f"proxy_target_price_col: {proxy_target_price_col} | "
+                f"proxy_target_time_col: {proxy_target_time_col or '-'} | "
                 f"metric_variants={len(metric_configs)} | "
                 f"base_pop_size: {base_pop_size}"
             )
@@ -491,11 +549,21 @@ def main():
             print(f"{pair} | {interval} computed pop sizes -> {pop_sizes_text}")
 
             for horizon_minutes in proxy_target_horizonts:
-                target_col = f"target_{int(horizon_minutes)}m_ahead_ret"
-                target_np = _build_proxy_target_np(
-                    price_np=proxy_price_np,
+                target_col = _build_proxy_target_col_name(
                     horizon_minutes=int(horizon_minutes),
+                    target_mode=proxy_target_mode,
                 )
+                if proxy_target_mode == "ahead_ret":
+                    target_np = _build_proxy_target_np_ahead_ret(
+                        price_np=proxy_price_np,
+                        horizon_minutes=int(horizon_minutes),
+                    )
+                else:
+                    target_np = _build_proxy_target_np_candle_up(
+                        opened_values=df[proxy_target_time_col],
+                        close_values=df[proxy_target_price_col],
+                        horizon_minutes=int(horizon_minutes),
+                    )
                 finite_target_count = int(np.isfinite(target_np).sum())
                 if finite_target_count < 3:
                     raise ValueError(
@@ -542,8 +610,10 @@ def main():
                                 "adjusted_pop_size": pop_size,
                             },
                             "proxy_target": {
+                                "mode": proxy_target_mode,
                                 "horizon_minutes": int(horizon_minutes),
                                 "price_col": proxy_target_price_col,
+                                "time_col": proxy_target_time_col,
                             },
                             "metric": dict(metric_config),
                             "fit_config_hash": config_hash,

@@ -1,4 +1,6 @@
 import pytest
+import pandas as pd
+from types import SimpleNamespace
 
 import live_trade
 
@@ -88,3 +90,50 @@ def test_resolve_buy_record_fields_falls_back_to_requested_values_for_full_fill(
     assert fields["shares_net"] == pytest.approx(5.94)
     assert fields["entry_stake_usdc_orig"] == pytest.approx(3.0)
     assert fields["entry_shares_net_orig"] == pytest.approx(5.94)
+
+
+def test_recommend_polymarket_bet_keeps_policy_no_trade_reason():
+    trader = live_trade.PolymarketLiveTrader.__new__(live_trade.PolymarketLiveTrader)
+    trader.live_bankroll_usdc = 100.0
+    trader.prediction_threshold = 0.5
+    trader.live_trade_policy = {
+        "mode": "model_direction_min_stake",
+        "submitted_price_mode": "order_price_cap",
+        "extra_buffer": 0.01,
+        "stake_usdc": 1.0,
+        "min_decision_margin_up": 0.03,
+    }
+    trader.pm_cfg = SimpleNamespace(
+        no_trade_last_seconds=20,
+        max_exposure_usdc=100.0,
+        order_price_cap=0.56,
+    )
+    market = SimpleNamespace(
+        accepting_orders=True,
+        market_end=(pd.Timestamp.now(tz="UTC") + pd.Timedelta(minutes=2)).isoformat(),
+        up_best_ask=0.52,
+        down_best_ask=0.48,
+        fee_model={
+            "rate": 0.072,
+            "exponent": 1.0,
+            "fee_round_decimals": 5,
+            "min_fee": 1e-05,
+            "source": "test",
+        },
+        order_min_size=5.0,
+        tick_size=0.01,
+        neg_risk=False,
+        fee_rate_bps=72,
+        up_token_id="up-token",
+        down_token_id="down-token",
+    )
+
+    result = trader._recommend_polymarket_bet(prob_up_raw=0.52, market=market)
+
+    assert result["decision"] == "no_trade"
+    assert result["trade_side"] == "none"
+    assert result["final_reason"] == "below_min_decision_margin"
+    assert result["submitted_price"] != result["submitted_price"]
+    assert result["submitted_price_error"] == ""
+    assert result["ask_yes"] == pytest.approx(0.52)
+    assert result["ask_no"] == pytest.approx(0.48)
