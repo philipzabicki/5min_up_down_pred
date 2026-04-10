@@ -1,8 +1,8 @@
 {
   "mode": "model_direction_min_stake",
   "submitted_price_mode": "order_price_cap",
-  "min_decision_margin_up": 0.0495,
-  "min_decision_margin_down": 0.0295,
+  "min_decision_margin_up": 0.03975,
+  "min_decision_margin_down": 0.03975,
   "extra_buffer": 0.028470546959607386,
   "stake_usdc": 1.0,
   "fee_model": {
