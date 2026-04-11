@@ -1,6 +1,5 @@
 import json
 import hashlib
-import os
 import re
 import threading
 import time
@@ -35,7 +34,6 @@ from project_config import (
     load_live_profile,
     load_runtime_artifact_paths,
 )
-from project_env import load_repo_env
 from features.candle_features import (
     RAW_OHLCV_COLS,
     STREAK_FEATURE_PREFIX,
@@ -98,7 +96,14 @@ def normalize_live_market_type(value, field_name):
         raise ValueError(f"{field_name} must be one of {{'spot', 'um', 'cm'}}")
     return normalized
 
-load_repo_env()
+
+def _delay_ms_between(start, end):
+    if start is None or end is None:
+        return float("nan")
+    start_ts = pd.Timestamp(start)
+    end_ts = pd.Timestamp(end)
+    return float(max((end_ts - start_ts).total_seconds() * 1000.0, 0.0))
+
 LIVE_PROFILE = load_live_profile()
 DATASET_PROFILE = load_dataset_profile()
 RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
@@ -123,36 +128,21 @@ INDICATOR_HISTORY_REQUIREMENTS_PATH = Path(
 )
 # Polymarket 5m up/down markets resolve from the market itself.
 SETTLEMENT_SOURCE = "polymarket"
-POLYMARKET_GAMMA_HOST = (
-    os.getenv(
-        "POLY_GAMMA_HOST",
-        str(LIVE_PROFILE["polymarket_gamma_host"]),
-    )
-    .strip()
-    .rstrip("/")
-)
-POLYMARKET_SERIES_SLUG = os.getenv(
-    "POLY_SERIES_SLUG",
-    str(LIVE_PROFILE["polymarket_series_slug"]),
+POLYMARKET_GAMMA_HOST = str(LIVE_PROFILE["polymarket_gamma_host"]).strip().rstrip("/")
+POLYMARKET_SERIES_SLUG = str(LIVE_PROFILE["polymarket_series_slug"]).strip()
+POLYMARKET_MARKET_SLUG_PREFIX = str(
+    LIVE_PROFILE["polymarket_market_slug_prefix"]
 ).strip()
-POLYMARKET_MARKET_SLUG_PREFIX = os.getenv(
-    "POLY_MARKET_SLUG_PREFIX",
-    str(LIVE_PROFILE["polymarket_market_slug_prefix"]),
-).strip()
-POLYMARKET_MARKET_SLUG_OVERRIDE = os.getenv(
-    "POLY_MARKET_SLUG_OVERRIDE",
-    str(LIVE_PROFILE.get("polymarket_market_slug_override", "")),
+POLYMARKET_MARKET_SLUG_OVERRIDE = str(
+    LIVE_PROFILE.get("polymarket_market_slug_override", "")
 ).strip()
 POLYMARKET_MARKET_REQUEST_TIMEOUT_SEC = float(
-    os.getenv(
-        "POLY_MARKET_REQUEST_TIMEOUT_SEC",
-        str(LIVE_PROFILE["polymarket_market_request_timeout_sec"]),
-    ).strip()
+    LIVE_PROFILE["polymarket_market_request_timeout_sec"]
 )
 LIVE_ROOT_DIR = Path("data/live")
 LIVE_PREDICTIONS_DIR = LIVE_ROOT_DIR / "predictions"
 LIVE_TRADE_DIR = LIVE_ROOT_DIR / "trade"
-RUN_STARTED_AT_UTC = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+RUN_STARTED_AT_UTC = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
 PREDICTIONS_OUTPUT_PATH = Path(
     LIVE_PREDICTIONS_DIR
     / f"live_predictions_{SYMBOL}_{INTERVAL}_{RUN_STARTED_AT_UTC}.csv"
@@ -491,19 +481,9 @@ WS_TARGETS = build_ws_targets(
 )
 INTERVAL_DELTA = interval_to_timedelta(INTERVAL)
 INTERVAL_FLOOR_RULE = interval_to_floor_rule(INTERVAL)
-INDICATOR_HISTORY_MARGIN_RATIO = float(
-    os.getenv(
-        "LIVE_INDICATOR_HISTORY_MARGIN_RATIO",
-        str(DEFAULT_INDICATOR_HISTORY_MARGIN_RATIO),
-    ).strip()
-    or str(DEFAULT_INDICATOR_HISTORY_MARGIN_RATIO)
-)
+INDICATOR_HISTORY_MARGIN_RATIO = float(DEFAULT_INDICATOR_HISTORY_MARGIN_RATIO)
 INDICATOR_HISTORY_MIN_EXTRA_CANDLES = int(
-    os.getenv(
-        "LIVE_INDICATOR_HISTORY_MIN_EXTRA_CANDLES",
-        str(DEFAULT_INDICATOR_HISTORY_MIN_EXTRA_CANDLES),
-    ).strip()
-    or str(DEFAULT_INDICATOR_HISTORY_MIN_EXTRA_CANDLES)
+    DEFAULT_INDICATOR_HISTORY_MIN_EXTRA_CANDLES
 )
 
 if (
@@ -511,10 +491,10 @@ if (
     or INDICATOR_HISTORY_MARGIN_RATIO < 0.0
 ):
     raise ValueError(
-        "LIVE_INDICATOR_HISTORY_MARGIN_RATIO must be a finite number >= 0."
+        "live.indicator_history_margin_ratio must be a finite number >= 0."
     )
 if INDICATOR_HISTORY_MIN_EXTRA_CANDLES < 0:
-    raise ValueError("LIVE_INDICATOR_HISTORY_MIN_EXTRA_CANDLES must be >= 0.")
+    raise ValueError("live.indicator_history_min_extra_candles must be >= 0.")
 
 
 def parse_target_bucket_minutes(target_col):
@@ -1263,36 +1243,159 @@ class LivePredictor:
             if opened >= cutoff
         }
 
-    def _store_pending_ws_price_candle(self, price_candle):
+    def _build_ws_closed_candle_timing(
+        self,
+        *,
+        opened,
+        live_minute_opened,
+        price_meta=None,
+        volume_meta=None,
+        completed_at=None,
+    ):
+        completed_at = (
+            pd.Timestamp.now(tz="UTC") if completed_at is None else pd.Timestamp(completed_at)
+        )
+        price_event_at = None if price_meta is None else price_meta.get("event_at")
+        volume_event_at = None if volume_meta is None else volume_meta.get("event_at")
+        price_received_at = (
+            None if price_meta is None else price_meta.get("received_at")
+        )
+        volume_received_at = (
+            None if volume_meta is None else volume_meta.get("received_at")
+        )
+        component_received = [
+            pd.Timestamp(ts)
+            for ts in (price_received_at, volume_received_at)
+            if ts is not None
+        ]
+        component_event = [
+            pd.Timestamp(ts)
+            for ts in (price_event_at, volume_event_at)
+            if ts is not None
+        ]
+        last_component_event_at = max(component_event) if component_event else None
+
+        return {
+            "ws_price_event_delay_ms": _delay_ms_between(
+                live_minute_opened,
+                price_event_at,
+            ),
+            "ws_volume_event_delay_ms": _delay_ms_between(
+                live_minute_opened,
+                volume_event_at,
+            ),
+            "ws_price_receive_delay_ms": _delay_ms_between(
+                live_minute_opened,
+                price_received_at,
+            ),
+            "ws_volume_receive_delay_ms": _delay_ms_between(
+                live_minute_opened,
+                volume_received_at,
+            ),
+            "ws_event_delay_ms": _delay_ms_between(
+                live_minute_opened,
+                last_component_event_at,
+            ),
+            "ws_receive_delay_ms": _delay_ms_between(
+                live_minute_opened,
+                completed_at,
+            ),
+            "ws_component_sync_ms": (
+                0.0
+                if len(component_received) <= 1
+                else _delay_ms_between(
+                    min(component_received),
+                    max(component_received),
+                )
+            ),
+            "ws_ready_at": completed_at,
+            "ws_candle_opened": pd.Timestamp(opened),
+            "ws_bucket_start": pd.Timestamp(live_minute_opened),
+        }
+
+    def _store_pending_ws_price_candle(
+        self,
+        price_candle,
+        *,
+        event_at=None,
+        received_at=None,
+    ):
         opened = self._pending_ws_candle_opened(price_candle)
         if self.opened_candles and opened <= self.opened_candles[-1]:
-            return None
+            return None, None
+        price_meta = {
+            "candle": dict(price_candle),
+            "event_at": event_at,
+            "received_at": received_at,
+        }
+        live_minute_opened = opened + INTERVAL_DELTA
         if VOLUME_SOURCE == PRICE_SOURCE:
-            return price_candle
+            return price_candle, self._build_ws_closed_candle_timing(
+                opened=opened,
+                live_minute_opened=live_minute_opened,
+                price_meta=price_meta,
+                completed_at=received_at,
+            )
 
-        volume = self.pending_ws_volume_by_opened.pop(opened, None)
-        if volume is None:
-            self.pending_ws_price_candles[opened] = price_candle
+        volume_meta = self.pending_ws_volume_by_opened.pop(opened, None)
+        if volume_meta is None:
+            self.pending_ws_price_candles[opened] = price_meta
             self._cleanup_pending_ws_state(opened)
-            return None
+            return None, None
 
-        price_candle["v"] = float(volume)
+        price_candle["v"] = float(volume_meta["volume"])
         self.pending_ws_price_candles.pop(opened, None)
-        return price_candle
+        completed_at = max(
+            pd.Timestamp(ts)
+            for ts in (received_at, volume_meta.get("received_at"))
+            if ts is not None
+        )
+        return price_candle, self._build_ws_closed_candle_timing(
+            opened=opened,
+            live_minute_opened=live_minute_opened,
+            price_meta=price_meta,
+            volume_meta=volume_meta,
+            completed_at=completed_at,
+        )
 
-    def _store_pending_ws_volume(self, opened, volume):
+    def _store_pending_ws_volume(
+        self,
+        opened,
+        volume,
+        *,
+        event_at=None,
+        received_at=None,
+    ):
         opened = pd.Timestamp(opened)
         if self.opened_candles and opened <= self.opened_candles[-1]:
-            return None
+            return None, None
 
-        price_candle = self.pending_ws_price_candles.pop(opened, None)
-        if price_candle is None:
-            self.pending_ws_volume_by_opened[opened] = float(volume)
+        volume_meta = {
+            "volume": float(volume),
+            "event_at": event_at,
+            "received_at": received_at,
+        }
+        price_meta = self.pending_ws_price_candles.pop(opened, None)
+        if price_meta is None:
+            self.pending_ws_volume_by_opened[opened] = volume_meta
             self._cleanup_pending_ws_state(opened)
-            return None
+            return None, None
 
+        price_candle = dict(price_meta["candle"])
         price_candle["v"] = float(volume)
-        return price_candle
+        live_minute_opened = opened + INTERVAL_DELTA
+        completed_at = max(
+            pd.Timestamp(ts)
+            for ts in (received_at, price_meta.get("received_at"))
+            if ts is not None
+        )
+        return price_candle, self._build_ws_closed_candle_timing(
+            opened=opened,
+            live_minute_opened=live_minute_opened,
+            price_meta=price_meta,
+            volume_meta=volume_meta,
+            completed_at=completed_at,
+        )
 
     def _unwrap_ws_payload(self, payload):
         if isinstance(payload, dict) and "stream" in payload and "data" in payload:
@@ -1342,9 +1445,10 @@ class LivePredictor:
     def _consume_ws_payload(self, payload):
         stream_name, data = self._unwrap_ws_payload(payload)
         if not isinstance(data, dict):
-            return None, None, None
+            return None, None, None, None
 
         event_at = None
+        received_at = pd.Timestamp.now(tz="UTC")
         raw_event_ms = data.get("E")
         if raw_event_ms not in (None, ""):
             try:
@@ -1355,11 +1459,11 @@ class LivePredictor:
         if stream_name == PRICE_STREAM_NAME and PRICE_SOURCE == "trade":
             kline = data.get("k", {})
             if not kline or not bool(kline.get("x", False)):
-                return None, None, event_at
+                return None, None, event_at, None
 
             opened = pd.to_datetime(int(kline["t"]), unit="ms", utc=True)
             live_minute_opened = opened + INTERVAL_DELTA
-            closed_candle = self._store_pending_ws_price_candle(
+            closed_candle, timing = self._store_pending_ws_price_candle(
                 {
                     "t": int(kline["t"]),
                     "o": float(kline["o"]),
@@ -1367,33 +1471,41 @@ class LivePredictor:
                     "l": float(kline["l"]),
                     "c": float(kline["c"]),
                     "v": float(kline["v"]),
-                }
+                },
+                event_at=event_at,
+                received_at=received_at,
             )
-            return closed_candle, live_minute_opened, event_at
+            return closed_candle, live_minute_opened, event_at, timing
 
         if stream_name == VOLUME_STREAM_NAME and VOLUME_SOURCE == "trade":
             kline = data.get("k", {})
             if not kline or not bool(kline.get("x", False)):
-                return None, None, event_at
+                return None, None, event_at, None
 
             opened = pd.to_datetime(int(kline["t"]), unit="ms", utc=True)
             live_minute_opened = opened + INTERVAL_DELTA
-            closed_candle = self._store_pending_ws_volume(
+            closed_candle, timing = self._store_pending_ws_volume(
                 opened,
                 float(kline["v"]),
+                event_at=event_at,
+                received_at=received_at,
             )
-            return closed_candle, live_minute_opened, event_at
+            return closed_candle, live_minute_opened, event_at, timing
 
         if stream_name == PRICE_STREAM_NAME and PRICE_SOURCE == "index":
             price_candle, live_minute_opened = self._extract_closed_index_price_candle(
                 data
             )
             if price_candle is None:
-                return None, live_minute_opened, event_at
-            closed_candle = self._store_pending_ws_price_candle(price_candle)
-            return closed_candle, live_minute_opened, event_at
+                return None, live_minute_opened, event_at, None
+            closed_candle, timing = self._store_pending_ws_price_candle(
+                price_candle,
+                event_at=event_at,
+                received_at=received_at,
+            )
+            return closed_candle, live_minute_opened, event_at, timing
 
-        return None, None, event_at
+        return None, None, event_at, None
 
     def _volume_profile_state_last_candle_timestamp(self, state):
         raw_value = state.get("last_candle_time")
@@ -2353,8 +2465,8 @@ class LivePredictor:
         with self.ws_message_lock:
             try:
                 payload = _load_ws_payload(message)
-                closed_candle, live_minute_opened, _event_at = self._consume_ws_payload(
-                    payload
+                closed_candle, live_minute_opened, _event_at, _timing = (
+                    self._consume_ws_payload(payload)
                 )
                 if closed_candle is None:
                     return

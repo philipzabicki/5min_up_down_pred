@@ -1,0 +1,16 @@
+{
+  "description": "Trade every model direction: zero decision margin, no order-price-cap gating, submit at current entry price.",
+  "mode": "model_direction_min_stake",
+  "submitted_price_mode": "entry_price",
+  "min_decision_margin_up": 0.0,
+  "min_decision_margin_down": 0.0,
+  "extra_buffer": 0.0,
+  "stake_usdc": 1.0,
+  "fee_model": {
+    "rate": 0.072,
+    "exponent": 1.0,
+    "fee_round_decimals": 5,
+    "min_fee": 1e-05,
+    "source": "polymarket_fee_schedule_v2"
+  }
+}

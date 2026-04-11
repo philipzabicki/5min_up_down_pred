@@ -1,4 +1,5 @@
 {
+  "description": "Thresholded model-direction policy with a Polymarket order-price cap.",
   "mode": "model_direction_min_stake",
   "submitted_price_mode": "order_price_cap",
   "min_decision_margin_up": 0.03975,

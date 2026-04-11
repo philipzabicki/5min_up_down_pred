@@ -45,6 +45,23 @@ STAKE_DIAGNOSTIC_COLUMNS = (
     "effective_stake_usdc",
 )
 
+LATENCY_DIAGNOSTIC_COLUMNS = (
+    "ws_price_event_delay_ms",
+    "ws_volume_event_delay_ms",
+    "ws_price_receive_delay_ms",
+    "ws_volume_receive_delay_ms",
+    "ws_event_delay_ms",
+    "ws_receive_delay_ms",
+    "ws_component_sync_ms",
+    "feature_prep_ms",
+    "feature_vector_ms",
+    "model_predict_ms",
+    "policy_compute_ms",
+    "market_prefetch_hit",
+    "market_prefetch_age_ms",
+    "market_lookup_source",
+)
+
 LIVE_PREDICTION_EXPORT_COLUMNS = (
     "record_id",
     "record_snapshot_at",
@@ -89,6 +106,7 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
     "pm_fee_round_decimals",
     "pm_min_fee_usdc",
     "pm_order_status",
+    *LATENCY_DIAGNOSTIC_COLUMNS,
     "decision_delay_ms",
     "market_lookup_ms",
     "submit_order_ms",
@@ -158,7 +176,7 @@ LIVE_SHARED_MARKET_DATA_COLUMNS = (
     "trade_is_win",
     "payout_usdc",
     "pnl_usdc",
-) + POLICY_DIAGNOSTIC_COLUMNS
+) + POLICY_DIAGNOSTIC_COLUMNS + LATENCY_DIAGNOSTIC_COLUMNS
 
 LIVE_TRADE_RECORD_PATH_RE = re.compile(
     r"^live_trade_polymarket_"

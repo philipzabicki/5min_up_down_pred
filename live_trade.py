@@ -53,6 +53,7 @@ load_repo_env()
 from live_predict_binance import (
     INTERVAL_DELTA,
     INTERVAL,
+    LIVE_PROFILE,
     LIVE_TRADE_DIR,
     LivePredictor,
     PRICE_SOURCE,
@@ -132,28 +133,28 @@ def _env_text(name, default=""):
     return raw.strip() if raw is not None else default
 
 
-def _env_int(name, default):
-    raw = os.getenv(name)
-    return int(raw) if raw is not None and raw.strip() else int(default)
+def _profile_text(profile, key, default=""):
+    raw = profile.get(key, default)
+    return str(raw).strip() if raw is not None else str(default).strip()
 
 
-def _env_float(name, default):
-    raw = os.getenv(name)
-    return float(raw) if raw is not None and raw.strip() else float(default)
-
-
-def _env_required_float(name):
-    raw = os.getenv(name)
-    if raw is None or not raw.strip():
-        raise ValueError(f"Missing required env var: {name}")
+def _profile_float(profile, key, default):
+    raw = profile.get(key, default)
     return float(raw)
 
 
-def _env_bool(name, default):
-    raw = os.getenv(name)
-    if raw is None:
-        return bool(default)
-    return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
+def _profile_int(profile, key, default):
+    raw = profile.get(key, default)
+    return int(raw)
+
+
+def _profile_bool(profile, key, default):
+    raw = profile.get(key, default)
+    if isinstance(raw, bool):
+        return bool(raw)
+    if isinstance(raw, str):
+        return raw.strip().lower() in {"1", "true", "yes", "y", "on"}
+    return bool(raw)
 
 
 def _configure_clob_http_client(timeout_sec):
@@ -219,7 +220,7 @@ def _polymarket_order_type_for_execution_mode(execution_mode):
     order_type = POLYMARKET_EXECUTION_ORDER_TYPES.get(mode)
     if order_type is None:
         raise NotImplementedError(
-            "Unsupported POLY_EXECUTION_MODE. Supported values: "
+            "Unsupported live.polymarket_execution_mode. Supported values: "
             f"{_supported_polymarket_execution_modes()}; got {execution_mode!r}"
         )
     return order_type
@@ -229,7 +230,7 @@ def _polymarket_submitted_status_for_execution_mode(execution_mode):
     mode = _safe_text(execution_mode).lower()
     if mode not in POLYMARKET_EXECUTION_ORDER_TYPES:
         raise NotImplementedError(
-            "Unsupported POLY_EXECUTION_MODE. Supported values: "
+            "Unsupported live.polymarket_execution_mode. Supported values: "
             f"{_supported_polymarket_execution_modes()}; got {execution_mode!r}"
         )
     return f"submitted_{mode}"
@@ -331,6 +332,12 @@ def _delay_ms_since(timestamp, *, now=None):
 
 def _elapsed_ms(started_perf):
     return float(max((time.perf_counter() - float(started_perf)) * 1000.0, 0.0))
+
+
+def _delay_ms_between(start, end):
+    if start is None or end is None:
+        return float("nan")
+    return _delay_ms_since(start, now=end)
 
 
 def _is_missing_orderbook_http_error(exc):
@@ -528,6 +535,20 @@ def _backfill_record_analysis_fields(record):
     record.setdefault("pm_account_cash_balance_resolve_usdc", np.nan)
     record.setdefault("pm_account_positions_value_resolve_usdc", np.nan)
     record.setdefault("decision_delay_ms", np.nan)
+    record.setdefault("ws_price_event_delay_ms", np.nan)
+    record.setdefault("ws_volume_event_delay_ms", np.nan)
+    record.setdefault("ws_price_receive_delay_ms", np.nan)
+    record.setdefault("ws_volume_receive_delay_ms", np.nan)
+    record.setdefault("ws_event_delay_ms", np.nan)
+    record.setdefault("ws_receive_delay_ms", np.nan)
+    record.setdefault("ws_component_sync_ms", np.nan)
+    record.setdefault("feature_prep_ms", np.nan)
+    record.setdefault("feature_vector_ms", np.nan)
+    record.setdefault("model_predict_ms", np.nan)
+    record.setdefault("policy_compute_ms", np.nan)
+    record.setdefault("market_prefetch_hit", False)
+    record.setdefault("market_prefetch_age_ms", np.nan)
+    record.setdefault("market_lookup_source", "")
     record.setdefault("market_lookup_ms", np.nan)
     record.setdefault("submit_order_ms", np.nan)
     record.setdefault("execution_ms", np.nan)
@@ -616,58 +637,161 @@ class PolymarketMarketSnapshot:
 
 
 def load_polymarket_settings(trade_records_path):
-    order_price_cap = _env_required_float("POLY_ORDER_PRICE_CAP")
+    live_profile = dict(LIVE_PROFILE)
+    order_price_cap = _profile_float(
+        live_profile,
+        "polymarket_order_price_cap",
+        0.56,
+    )
     if not np.isfinite(order_price_cap) or not (0.0 < order_price_cap < 1.0):
         raise ValueError(
-            "POLY_ORDER_PRICE_CAP must be a finite float strictly between 0 and 1."
+            "live.polymarket_order_price_cap must be a finite float strictly "
+            "between 0 and 1."
         )
     return PolymarketSettings(
-        gamma_host=_env_text("POLY_GAMMA_HOST", DEFAULT_GAMMA_HOST),
-        clob_host=_env_text("POLY_CLOB_HOST", DEFAULT_CLOB_HOST),
-        data_api_host=_env_text("POLY_DATA_API_HOST", DEFAULT_DATA_API_HOST),
-        relayer_host=_env_text("POLY_RELAYER_HOST", DEFAULT_RELAYER_HOST),
-        series_slug=_env_text("POLY_SERIES_SLUG", "btc-up-or-down-5m"),
-        market_slug_prefix=_env_text("POLY_MARKET_SLUG_PREFIX", "btc-updown-5m"),
-        market_slug_override=_env_text("POLY_MARKET_SLUG_OVERRIDE", ""),
-        paper_mode=_env_bool("POLY_PAPER_MODE", True),
-        disable_order_submission=_env_bool("POLY_DISABLE_ORDER_SUBMIT", False),
-        signature_type=_env_int("POLY_SIGNATURE_TYPE", 0),
-        chain_id=_env_int("POLY_CHAIN_ID", 137),
+        gamma_host=_profile_text(
+            live_profile,
+            "polymarket_gamma_host",
+            DEFAULT_GAMMA_HOST,
+        ),
+        clob_host=_profile_text(
+            live_profile,
+            "polymarket_clob_host",
+            DEFAULT_CLOB_HOST,
+        ),
+        data_api_host=_profile_text(
+            live_profile,
+            "polymarket_data_api_host",
+            DEFAULT_DATA_API_HOST,
+        ),
+        relayer_host=_profile_text(
+            live_profile,
+            "polymarket_relayer_host",
+            DEFAULT_RELAYER_HOST,
+        ),
+        series_slug=_profile_text(
+            live_profile,
+            "polymarket_series_slug",
+            "btc-up-or-down-5m",
+        ),
+        market_slug_prefix=_profile_text(
+            live_profile,
+            "polymarket_market_slug_prefix",
+            "btc-updown-5m",
+        ),
+        market_slug_override=_profile_text(
+            live_profile,
+            "polymarket_market_slug_override",
+            "",
+        ),
+        paper_mode=_profile_bool(live_profile, "polymarket_paper_mode", True),
+        disable_order_submission=_profile_bool(
+            live_profile,
+            "polymarket_disable_order_submission",
+            False,
+        ),
+        signature_type=_profile_int(live_profile, "polymarket_signature_type", 0),
+        chain_id=_profile_int(live_profile, "polymarket_chain_id", 137),
         private_key=_env_text("POLY_PRIVATE_KEY", ""),
         funder=_env_text("POLY_FUNDER_ADDRESS", ""),
-        max_exposure_usdc=_env_float("POLY_MAX_EXPOSURE_USDC", math.inf),
-        max_bankroll_usdc=_env_float("POLY_MAX_BANKROLL_USDC", math.inf),
-        no_trade_last_seconds=_env_int("POLY_NO_TRADE_LAST_SECONDS", 20),
-        start_bankroll_usdc=_env_float("POLY_START_BANKROLL_USDC", 1000.0),
+        max_exposure_usdc=_profile_float(
+            live_profile,
+            "polymarket_max_exposure_usdc",
+            math.inf,
+        ),
+        max_bankroll_usdc=_profile_float(
+            live_profile,
+            "polymarket_max_bankroll_usdc",
+            math.inf,
+        ),
+        no_trade_last_seconds=_profile_int(
+            live_profile,
+            "polymarket_no_trade_last_seconds",
+            20,
+        ),
+        start_bankroll_usdc=_profile_float(
+            live_profile,
+            "polymarket_start_bankroll_usdc",
+            1000.0,
+        ),
         trade_records_path=Path(trade_records_path),
-        market_request_timeout_sec=_env_float("POLY_MARKET_REQUEST_TIMEOUT_SEC", 3.0),
-        clob_http_timeout_sec=_env_float(
-            "POLY_CLOB_HTTP_TIMEOUT_SEC",
-            _env_float("POLY_MARKET_REQUEST_TIMEOUT_SEC", 3.0),
+        market_request_timeout_sec=_profile_float(
+            live_profile,
+            "polymarket_market_request_timeout_sec",
+            3.0,
         ),
-        market_lookup_max_wait_ms=_env_int("POLY_MARKET_LOOKUP_MAX_WAIT_MS", 2500),
-        market_lookup_retry_ms=_env_int("POLY_MARKET_LOOKUP_RETRY_MS", 100),
-        market_lookup_prefetch_lead_ms=_env_int(
-            "POLY_MARKET_LOOKUP_PREFETCH_LEAD_MS", 1200
+        clob_http_timeout_sec=_profile_float(
+            live_profile,
+            "polymarket_clob_http_timeout_sec",
+            _profile_float(
+                live_profile,
+                "polymarket_market_request_timeout_sec",
+                3.0,
+            ),
         ),
-        market_lookup_prefetch_max_age_ms=_env_int(
-            "POLY_MARKET_LOOKUP_PREFETCH_MAX_AGE_MS", 2500
+        market_lookup_max_wait_ms=_profile_int(
+            live_profile,
+            "polymarket_market_lookup_max_wait_ms",
+            2500,
         ),
-        execution_mode=_env_text("POLY_EXECUTION_MODE", "fok").lower(),
+        market_lookup_retry_ms=_profile_int(
+            live_profile,
+            "polymarket_market_lookup_retry_ms",
+            100,
+        ),
+        market_lookup_prefetch_lead_ms=_profile_int(
+            live_profile,
+            "polymarket_market_lookup_prefetch_lead_ms",
+            1200,
+        ),
+        market_lookup_prefetch_max_age_ms=_profile_int(
+            live_profile,
+            "polymarket_market_lookup_prefetch_max_age_ms",
+            2500,
+        ),
+        execution_mode=_profile_text(
+            live_profile,
+            "polymarket_execution_mode",
+            "fok",
+        ),
         order_price_cap=float(order_price_cap),
         relayer_api_key=_env_text("POLY_RELAYER_API_KEY", ""),
         relayer_api_key_address=_env_text("POLY_RELAYER_API_KEY_ADDRESS", ""),
-        import_untracked_open_positions=_env_bool(
-            "POLY_IMPORT_UNTRACKED_OPEN_POSITIONS", False
+        import_untracked_open_positions=_profile_bool(
+            live_profile,
+            "polymarket_import_untracked_open_positions",
+            False,
         ),
-        enable_exit_orders=_env_bool("POLY_ENABLE_EXIT_ORDERS", True),
-        exit_min_profit_usdc=_env_float("POLY_EXIT_MIN_PROFIT_USDC", 0.15),
-        exit_min_roi=_env_float("POLY_EXIT_MIN_ROI", 0.01),
-        exit_min_seconds_to_close=_env_int("POLY_EXIT_MIN_SECONDS_TO_CLOSE", 45),
-        exit_redeem_profit_tolerance=_env_float(
-            "POLY_EXIT_REDEEM_PROFIT_TOLERANCE", 0.01
+        enable_exit_orders=_profile_bool(
+            live_profile,
+            "polymarket_enable_exit_orders",
+            True,
         ),
-        redeem_resolved_positions=_env_bool("POLY_REDEEM_RESOLVED_POSITIONS", True),
+        exit_min_profit_usdc=_profile_float(
+            live_profile,
+            "polymarket_exit_min_profit_usdc",
+            0.15,
+        ),
+        exit_min_roi=_profile_float(
+            live_profile,
+            "polymarket_exit_min_roi",
+            0.01,
+        ),
+        exit_min_seconds_to_close=_profile_int(
+            live_profile,
+            "polymarket_exit_min_seconds_to_close",
+            45,
+        ),
+        exit_redeem_profit_tolerance=_profile_float(
+            live_profile,
+            "polymarket_exit_redeem_profit_tolerance",
+            0.01,
+        ),
+        redeem_resolved_positions=_profile_bool(
+            live_profile,
+            "polymarket_redeem_resolved_positions",
+            True,
+        ),
     )
 
 
@@ -688,7 +812,7 @@ class PolymarketLiveTrader(LivePredictor):
         self.live_trade_policy = self.trade_policy_runtime
         if self.pm_cfg.execution_mode not in POLYMARKET_EXECUTION_ORDER_TYPES:
             raise NotImplementedError(
-                "Unsupported POLY_EXECUTION_MODE. Supported values: "
+                "Unsupported live.polymarket_execution_mode. Supported values: "
                 f"{_supported_polymarket_execution_modes()}; "
                 f"got {self.pm_cfg.execution_mode!r}"
             )
@@ -745,7 +869,7 @@ class PolymarketLiveTrader(LivePredictor):
         self.pm_relayer_warning_printed = False
         self.pm_client = None
         self.pm_allowance_info = ""
-        self.bankroll_source = self._bankroll_source_label("env_start_bankroll")
+        self.bankroll_source = self._bankroll_source_label("profile_start_bankroll")
         self._load_existing_records()
         if not self.pm_cfg.paper_mode:
             self.pm_client = self._build_live_client()
@@ -788,21 +912,25 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _build_live_client(self):
         if not self.pm_cfg.private_key:
-            raise ValueError("POLY_PRIVATE_KEY is required when POLY_PAPER_MODE=0.")
+            raise ValueError(
+                "POLY_PRIVATE_KEY is required when live.polymarket_paper_mode=false."
+            )
         if not self.pm_cfg.funder:
-            raise ValueError("POLY_FUNDER_ADDRESS is required when POLY_PAPER_MODE=0.")
+            raise ValueError(
+                "POLY_FUNDER_ADDRESS is required when live.polymarket_paper_mode=false."
+            )
         if self.pm_cfg.signature_type not in {0, 1, 2}:
             raise ValueError(
-                "POLY_SIGNATURE_TYPE must be one of {0, 1, 2} "
+                "live.polymarket_signature_type must be one of {0, 1, 2} "
                 "(0=EOA, 1=POLY_PROXY, 2=POLY_GNOSIS_SAFE)."
             )
         signer_address = Account.from_key(self.pm_cfg.private_key).address
         signer_matches_funder = signer_address.lower() == self.pm_cfg.funder.lower()
         if self.pm_cfg.signature_type in {1, 2} and signer_matches_funder:
             print(
-                "[warn] POLY_SIGNATURE_TYPE uses a proxy-wallet flow, but "
-                "POLY_FUNDER_ADDRESS matches the signer address. "
-                "For type 1/2, POLY_FUNDER_ADDRESS should usually be the proxy "
+                "[warn] live.polymarket_signature_type uses a proxy-wallet flow, "
+                "but the configured funder address matches the signer address. "
+                "For type 1/2, the configured funder should usually be the proxy "
                 "wallet address from polymarket.com/settings, not the private-key address."
             )
         signature_type_labels = {
@@ -828,14 +956,16 @@ class PolymarketLiveTrader(LivePredictor):
                 raise RuntimeError(
                     "Polymarket L1 auth failed: Invalid L1 Request headers. "
                     "Docs and py_clob_client source indicate L1 auth is signed only by "
-                    "POLY_PRIVATE_KEY + POLY_CHAIN_ID, before funder/signature_type are "
+                    "POLY_PRIVATE_KEY + live.polymarket_chain_id, before "
+                    "funder/signature_type are "
                     "used for order building. "
                     f"derived_signer={signer_address} "
                     f"funder={self.pm_cfg.funder} "
                     f"signature_type={self.pm_cfg.signature_type}"
                     f"({signature_type_labels.get(self.pm_cfg.signature_type, 'unknown')}) "
                     f"auth_clock_offset_sec={auth_clock_offset_sec:+.1f}. "
-                    "If this account is a normal EOA, use POLY_SIGNATURE_TYPE=0 and set "
+                    "If this account is a normal EOA, set "
+                    "live.polymarket_signature_type=0 and configure "
                     "POLY_FUNDER_ADDRESS to the same address as the private key. "
                     "If this is a proxy/safe setup, keep the proxy funder address from "
                     "polymarket.com/settings and make sure the private key belongs to the "
@@ -1055,12 +1185,12 @@ class PolymarketLiveTrader(LivePredictor):
             return
         if self.pm_cfg.disable_order_submission:
             self._warn_relayer_unavailable_once(
-                "live writes disabled via POLY_DISABLE_ORDER_SUBMIT=1"
+                "live writes disabled via live.polymarket_disable_order_submission=true"
             )
             return
         if not self._relayer_is_configured():
             self._warn_relayer_unavailable_once(
-                "missing POLY_RELAYER_API_KEY credentials or relayer signer config"
+                "missing relayer credentials or relayer signer config"
             )
             return
         if not self._relayer_safe_is_deployed():
@@ -1649,7 +1779,7 @@ class PolymarketLiveTrader(LivePredictor):
         if self._relayer_is_configured():
             self._poll_redeem_transactions()
         elif not self.pm_cfg.relayer_api_key:
-            self._warn_relayer_unavailable_once("POLY_RELAYER_API_KEY is missing")
+            self._warn_relayer_unavailable_once("POLY_RELAYER_API_KEY is missing from .env")
 
         cash_balance_usdc = self._refresh_live_cash_state(sync_bankroll=True)
         open_positions = self._fetch_open_positions()
@@ -2382,7 +2512,7 @@ class PolymarketLiveTrader(LivePredictor):
                 response = self.pm_client.post_order(signed_order, order_type)
             else:
                 raise NotImplementedError(
-                    "Unsupported POLY_EXECUTION_MODE: "
+                    "Unsupported live.polymarket_execution_mode: "
                     f"{self.pm_cfg.execution_mode!r}"
                 )
             response_txt = _json_compact(response)
@@ -2454,15 +2584,29 @@ class PolymarketLiveTrader(LivePredictor):
         return resolved_now
 
     def _resolve_market_snapshot(self, bucket_start, market_future):
+        metadata = {
+            "market_prefetch_hit": False,
+            "market_prefetch_age_ms": np.nan,
+            "market_lookup_source": "future_snapshot",
+        }
         try:
             result = market_future.result()
             if self._prefetched_market_payload_is_fresh(bucket_start, result):
-                return result["snapshot"]
+                fetched_at = result.get("fetched_at") if isinstance(result, dict) else None
+                metadata["market_prefetch_hit"] = True
+                metadata["market_prefetch_age_ms"] = _delay_ms_between(
+                    fetched_at,
+                    _utc_now(),
+                )
+                metadata["market_lookup_source"] = "prefetched_snapshot"
+                return result["snapshot"], metadata
             if isinstance(result, dict):
-                return self._fetch_market_snapshot_with_retry(bucket_start)
-            return result
+                metadata["market_lookup_source"] = "stale_prefetch_refetch"
+                return self._fetch_market_snapshot_with_retry(bucket_start), metadata
+            return result, metadata
         except Exception:
-            return self._fetch_market_snapshot_with_retry(bucket_start)
+            metadata["market_lookup_source"] = "future_error_refetch"
+            return self._fetch_market_snapshot_with_retry(bucket_start), metadata
 
     def _evaluate_prediction_execution(
         self,
@@ -2481,11 +2625,22 @@ class PolymarketLiveTrader(LivePredictor):
         )
         market_lookup_ms = np.nan
         submit_order_ms = np.nan
+        policy_compute_ms = np.nan
+        market_prefetch_hit = False
+        market_prefetch_age_ms = np.nan
+        market_lookup_source = ""
 
         try:
-            market = self._resolve_market_snapshot(bucket_start, market_future)
+            market, market_meta = self._resolve_market_snapshot(bucket_start, market_future)
             market_lookup_ms = _elapsed_ms(market_lookup_started_perf)
+            market_prefetch_hit = bool(market_meta.get("market_prefetch_hit", False))
+            market_prefetch_age_ms = float(
+                market_meta.get("market_prefetch_age_ms", np.nan)
+            )
+            market_lookup_source = str(market_meta.get("market_lookup_source", ""))
+            policy_started_perf = time.perf_counter()
             intent = self._recommend_polymarket_bet(prob_up_raw=proba_up, market=market)
+            policy_compute_ms = _elapsed_ms(policy_started_perf)
             submit_started_perf = time.perf_counter()
             submit_result = self._maybe_submit_order(intent)
         except Exception as exc:
@@ -2504,6 +2659,10 @@ class PolymarketLiveTrader(LivePredictor):
             "market": market,
             "intent": intent,
             "submit_result": submit_result,
+            "policy_compute_ms": float(policy_compute_ms),
+            "market_prefetch_hit": bool(market_prefetch_hit),
+            "market_prefetch_age_ms": float(market_prefetch_age_ms),
+            "market_lookup_source": str(market_lookup_source),
             "market_lookup_ms": float(market_lookup_ms),
             "submit_order_ms": float(submit_order_ms),
             "execution_ms": _elapsed_ms(execution_started_perf),
@@ -2522,15 +2681,13 @@ class PolymarketLiveTrader(LivePredictor):
         intent,
         submit_result,
         decision_delay_ms,
-        market_lookup_ms,
-        submit_order_ms,
-        execution_ms,
+        latency_metrics,
     ):
         order_status = str(submit_result["status"])
         buy_record_fields = _resolve_buy_record_fields(intent, submit_result)
         btc_snapshot = self._latest_btc_snapshot()
 
-        return {
+        record = {
             "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
             "pm_model_hash": self.model_hash,
             "pm_policy_hash": self.trade_policy_config_hash,
@@ -2701,9 +2858,6 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_seconds_to_close": float(intent.get("seconds_to_close", np.nan)),
             "pm_order_status": order_status,
             "decision_delay_ms": float(decision_delay_ms),
-            "market_lookup_ms": float(market_lookup_ms),
-            "submit_order_ms": float(submit_order_ms),
-            "execution_ms": float(execution_ms),
             "pm_order_error": str(submit_result["error"]),
             "pm_order_response": str(submit_result.get("response_text", "")),
             "pm_exit_order_status": "",
@@ -2722,6 +2876,8 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_exit_proceeds_usdc": np.nan,
             "pm_exit_order_response": "",
         }
+        record.update(latency_metrics)
+        return record
 
     def _build_prediction_summary(
         self,
@@ -2736,11 +2892,9 @@ class PolymarketLiveTrader(LivePredictor):
         intent,
         submit_result,
         decision_delay_ms,
-        market_lookup_ms,
-        submit_order_ms,
-        execution_ms,
+        latency_metrics,
     ):
-        return {
+        summary = {
             "decision_local": minute_close.tz_convert(self.local_tz).isoformat(),
             "bucket_start": bucket_start,
             "bucket_end": bucket_end,
@@ -2766,26 +2920,47 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_order_status": str(submit_result["status"]),
             "pm_order_error": str(submit_result["error"]),
             "decision_delay_ms": float(decision_delay_ms),
-            "market_lookup_ms": float(market_lookup_ms),
-            "submit_order_ms": float(submit_order_ms),
-            "execution_ms": float(execution_ms),
         }
+        summary.update(latency_metrics)
+        return summary
 
-    def _predict_next_bucket(self, volume_profile_values=None):
+    def _predict_next_bucket(self, volume_profile_values=None, delay_timing=None):
         minute_open = self.opened_candles[-1]
         minute_close = minute_open + pd.Timedelta(minutes=1)
         bucket_start = self._bucket_start_for_latest_candle()
         bucket_end = bucket_start + pd.Timedelta(minutes=self.target_bucket_minutes - 1)
         market_future = self._market_lookup_future_for_bucket(bucket_start)
+        latency_metrics = {}
+        if delay_timing is not None:
+            for key in (
+                "ws_price_event_delay_ms",
+                "ws_volume_event_delay_ms",
+                "ws_price_receive_delay_ms",
+                "ws_volume_receive_delay_ms",
+                "ws_event_delay_ms",
+                "ws_receive_delay_ms",
+                "ws_component_sync_ms",
+                "feature_prep_ms",
+            ):
+                if key in delay_timing:
+                    latency_metrics[key] = delay_timing[key]
         if volume_profile_values is None:
-            volume_profile_values = (
-                self._prepare_volume_profile_features_for_latest_candle(minute_open)
+            feature_prep_started_perf = time.perf_counter()
+            volume_profile_values = self._prepare_volume_profile_features_for_latest_candle(
+                minute_open
             )
+            latency_metrics["feature_prep_ms"] = _elapsed_ms(feature_prep_started_perf)
+        else:
+            latency_metrics.setdefault("feature_prep_ms", np.nan)
 
+        feature_vector_started_perf = time.perf_counter()
         feature_vector = self._build_feature_vector(
             volume_profile_values=volume_profile_values
         )
+        latency_metrics["feature_vector_ms"] = _elapsed_ms(feature_vector_started_perf)
+        model_predict_started_perf = time.perf_counter()
         proba_up = float(self.model.predict(feature_vector)[0])
+        latency_metrics["model_predict_ms"] = _elapsed_ms(model_predict_started_perf)
         bankroll_before_entry = float(self.live_bankroll_usdc)
         execution = self._evaluate_prediction_execution(
             bucket_start=bucket_start,
@@ -2793,6 +2968,22 @@ class PolymarketLiveTrader(LivePredictor):
             market_future=market_future,
         )
         decision_delay_ms = _delay_ms_since(bucket_start)
+        latency_metrics.setdefault("ws_price_event_delay_ms", np.nan)
+        latency_metrics.setdefault("ws_volume_event_delay_ms", np.nan)
+        latency_metrics.setdefault("ws_price_receive_delay_ms", np.nan)
+        latency_metrics.setdefault("ws_volume_receive_delay_ms", np.nan)
+        latency_metrics.setdefault("ws_event_delay_ms", np.nan)
+        latency_metrics.setdefault("ws_receive_delay_ms", np.nan)
+        latency_metrics.setdefault("ws_component_sync_ms", np.nan)
+        latency_metrics["policy_compute_ms"] = float(execution["policy_compute_ms"])
+        latency_metrics["market_prefetch_hit"] = bool(execution["market_prefetch_hit"])
+        latency_metrics["market_prefetch_age_ms"] = float(
+            execution["market_prefetch_age_ms"]
+        )
+        latency_metrics["market_lookup_source"] = str(execution["market_lookup_source"])
+        latency_metrics["market_lookup_ms"] = float(execution["market_lookup_ms"])
+        latency_metrics["submit_order_ms"] = float(execution["submit_order_ms"])
+        latency_metrics["execution_ms"] = float(execution["execution_ms"])
         intent = execution["intent"]
         submit_result = execution["submit_result"]
         filled_stake_usdc = _safe_float(submit_result.get("filled_stake_usdc"))
@@ -2820,9 +3011,7 @@ class PolymarketLiveTrader(LivePredictor):
             intent=intent,
             submit_result=submit_result,
             decision_delay_ms=decision_delay_ms,
-            market_lookup_ms=execution["market_lookup_ms"],
-            submit_order_ms=execution["submit_order_ms"],
-            execution_ms=execution["execution_ms"],
+            latency_metrics=latency_metrics,
         )
         with self.records_lock:
             self.records.append(record)
@@ -2839,9 +3028,7 @@ class PolymarketLiveTrader(LivePredictor):
             intent=intent,
             submit_result=submit_result,
             decision_delay_ms=decision_delay_ms,
-            market_lookup_ms=execution["market_lookup_ms"],
-            submit_order_ms=execution["submit_order_ms"],
-            execution_ms=execution["execution_ms"],
+            latency_metrics=latency_metrics,
         )
 
     def _has_binary_flag(self, value):
@@ -3046,6 +3233,22 @@ class PolymarketLiveTrader(LivePredictor):
                 ("policy_reason", pred["policy_reason"]),
                 ("decision_delay_ms", f"{pred['decision_delay_ms']:.0f}"),
             ]
+            if np.isfinite(_safe_float(pred.get("ws_receive_delay_ms", np.nan))):
+                execution_fields.append(
+                    ("ws_receive_delay_ms", f"{pred['ws_receive_delay_ms']:.0f}")
+                )
+            if np.isfinite(_safe_float(pred.get("ws_component_sync_ms", np.nan))):
+                execution_fields.append(
+                    ("ws_component_sync_ms", f"{pred['ws_component_sync_ms']:.0f}")
+                )
+            if np.isfinite(_safe_float(pred.get("feature_prep_ms", np.nan))):
+                execution_fields.append(
+                    ("feature_prep_ms", f"{pred['feature_prep_ms']:.0f}")
+                )
+            if np.isfinite(_safe_float(pred.get("model_predict_ms", np.nan))):
+                execution_fields.append(
+                    ("model_predict_ms", f"{pred['model_predict_ms']:.0f}")
+                )
             if np.isfinite(_safe_float(pred.get("market_lookup_ms", np.nan))):
                 execution_fields.append(
                     ("market_lookup_ms", f"{pred['market_lookup_ms']:.0f}")
@@ -3082,7 +3285,13 @@ class PolymarketLiveTrader(LivePredictor):
         if opened_from_ws > expected_next:
             self._sync_closed_candles_from_rest(stop_before_opened=opened_from_ws)
 
-    def _maybe_predict_closed_bucket(self, opened, volume_profile_values):
+    def _maybe_predict_closed_bucket(
+        self,
+        opened,
+        volume_profile_values,
+        *,
+        delay_timing=None,
+    ):
         bucket_start = opened.floor(f"{self.target_bucket_minutes}min")
         bucket_end = bucket_start + pd.Timedelta(minutes=self.target_bucket_minutes - 1)
         if opened != bucket_end:
@@ -3094,7 +3303,10 @@ class PolymarketLiveTrader(LivePredictor):
         if next_bucket_start in self.predicted_buckets:
             return None
 
-        return self._predict_next_bucket(volume_profile_values=volume_profile_values)
+        return self._predict_next_bucket(
+            volume_profile_values=volume_profile_values,
+            delay_timing=delay_timing,
+        )
 
     def _schedule_post_cycle_syncs(self, pred, resolved_now):
         if pred is not None and _is_polymarket_submitted_status(
@@ -3116,7 +3328,8 @@ class PolymarketLiveTrader(LivePredictor):
         if self.pm_cfg.disable_order_submission:
             print(
                 "Live test mode is enabled | "
-                "external writes disabled via POLY_DISABLE_ORDER_SUBMIT=1 "
+                "external writes disabled via "
+                "live.polymarket_disable_order_submission=true "
                 f"request_timeout_sec={self.pm_cfg.market_request_timeout_sec:.2f} "
                 f"clob_http_timeout_sec={self.pm_cfg.clob_http_timeout_sec:.2f} "
                 f"market_lookup_max_wait_ms={self.pm_cfg.market_lookup_max_wait_ms} "
@@ -3147,7 +3360,8 @@ class PolymarketLiveTrader(LivePredictor):
             )
         else:
             self._warn_relayer_unavailable_once(
-                "set POLY_RELAYER_API_KEY and optionally POLY_RELAYER_API_KEY_ADDRESS"
+                "set relayer secrets in .env: POLY_RELAYER_API_KEY and optionally "
+                "POLY_RELAYER_API_KEY_ADDRESS"
             )
 
     def _print_runtime_configuration(self):
@@ -3173,7 +3387,7 @@ class PolymarketLiveTrader(LivePredictor):
         if self.pm_cfg.paper_mode:
             print(
                 "Paper mode bankroll source | "
-                f"POLY_START_BANKROLL_USDC={self.pm_cfg.start_bankroll_usdc:.2f} "
+                f"live.polymarket_start_bankroll_usdc={self.pm_cfg.start_bankroll_usdc:.2f} "
                 f"bankroll_cap_usdc={self.pm_cfg.max_bankroll_usdc}"
             )
         else:
@@ -3206,8 +3420,8 @@ class PolymarketLiveTrader(LivePredictor):
                 # network work before the current predict->submit cycle finishes.
                 self._poll_background_sync(reschedule_pending=False)
                 payload = _load_ws_payload(message)
-                closed_candle, live_minute_opened, _event_at = self._consume_ws_payload(
-                    payload
+                closed_candle, live_minute_opened, _event_at, ws_timing = (
+                    self._consume_ws_payload(payload)
                 )
                 if closed_candle is None:
                     return
@@ -3228,10 +3442,17 @@ class PolymarketLiveTrader(LivePredictor):
                 if PRICE_SOURCE == "index":
                     self._maybe_sync_missing_candles(live_minute_opened)
 
-                volume_profile_values = (
-                    self._prepare_volume_profile_features_for_latest_candle(opened)
+                feature_prep_started_perf = time.perf_counter()
+                volume_profile_values = self._prepare_volume_profile_features_for_latest_candle(
+                    opened
                 )
-                pred = self._maybe_predict_closed_bucket(opened, volume_profile_values)
+                delay_timing = {} if ws_timing is None else dict(ws_timing)
+                delay_timing["feature_prep_ms"] = _elapsed_ms(feature_prep_started_perf)
+                pred = self._maybe_predict_closed_bucket(
+                    opened,
+                    volume_profile_values,
+                    delay_timing=delay_timing,
+                )
                 resolved_now = self._resolve_pending()
 
                 self.last_processed_closed_opened = opened

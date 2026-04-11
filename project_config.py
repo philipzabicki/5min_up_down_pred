@@ -301,6 +301,31 @@ def load_live_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PAT
     profile["interval"] = dataset["interval"]
     if "polymarket_market_slug_override" not in profile:
         profile["polymarket_market_slug_override"] = ""
+    profile.setdefault("polymarket_clob_host", "https://clob.polymarket.com")
+    profile.setdefault("polymarket_data_api_host", "https://data-api.polymarket.com")
+    profile.setdefault("polymarket_relayer_host", "https://relayer-v2.polymarket.com")
+    profile.setdefault("polymarket_paper_mode", True)
+    profile.setdefault("polymarket_disable_order_submission", False)
+    profile.setdefault("polymarket_signature_type", 2)
+    profile.setdefault("polymarket_chain_id", 137)
+    profile.setdefault("polymarket_max_exposure_usdc", float("inf"))
+    profile.setdefault("polymarket_max_bankroll_usdc", float("inf"))
+    profile.setdefault("polymarket_start_bankroll_usdc", 100.0)
+    profile.setdefault("polymarket_no_trade_last_seconds", 20)
+    profile.setdefault("polymarket_clob_http_timeout_sec", profile["polymarket_market_request_timeout_sec"])
+    profile.setdefault("polymarket_market_lookup_max_wait_ms", 2500)
+    profile.setdefault("polymarket_market_lookup_retry_ms", 100)
+    profile.setdefault("polymarket_market_lookup_prefetch_lead_ms", 1200)
+    profile.setdefault("polymarket_market_lookup_prefetch_max_age_ms", 2500)
+    profile.setdefault("polymarket_execution_mode", "fok")
+    profile.setdefault("polymarket_order_price_cap", 0.56)
+    profile.setdefault("polymarket_import_untracked_open_positions", False)
+    profile.setdefault("polymarket_enable_exit_orders", True)
+    profile.setdefault("polymarket_exit_min_profit_usdc", 0.15)
+    profile.setdefault("polymarket_exit_min_roi", 0.01)
+    profile.setdefault("polymarket_exit_min_seconds_to_close", 45)
+    profile.setdefault("polymarket_exit_redeem_profit_tolerance", 0.01)
+    profile.setdefault("polymarket_redeem_resolved_positions", True)
     return profile
 
 
