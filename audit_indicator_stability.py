@@ -27,6 +27,7 @@ from features.KeltnerChannel import get_keltner_channel_values
 from features.MACD import get_macd_values
 from features.session_open_features import SUPPORTED_SESSION_OPEN_FEATURE_COLS
 from features.StochOsc import get_stochastic_oscillator_values
+from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
 
 SYMBOL = "BTCUSDT"
 INTERVAL = "1m"
@@ -191,6 +192,10 @@ def estimate_required_candles(indicator, params):
 
 
 def load_indicator_specs(feature_columns, fit_results_dir):
+    validate_volume_profile_feature_columns(
+        feature_columns,
+        source_label=f"model metadata feature_columns for indicator audit ({fit_results_dir})",
+    )
     fit_configs = parse_fit_results(fit_results_dir)
     fit_by_feature_col = {cfg["feature_col"]: cfg for cfg in fit_configs}
 

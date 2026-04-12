@@ -11,7 +11,14 @@ from features.candle_features import (
 )
 from metrics_utils import weighted_brier_score
 from features.session_open_features import add_session_open_features
+from features.volume_profile_fixed_range import (
+    is_volume_profile_feature,
+    normalize_config as normalize_volume_profile_config,
+    validate_volume_profile_dataset_metadata,
+    validate_volume_profile_feature_columns,
+)
 from modeling_dataset_utils import (
+    load_modeling_dataset_artifact_metadata,
     load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
     load_modeling_dataset_settings,
@@ -58,19 +65,19 @@ PRIMARY_REPORTING_METRIC = "brier_score"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.001167802751436131,
-      "num_leaves": 350,
-      "min_data_in_leaf": 191,
-      "max_depth": 135,
-      "feature_fraction": 0.37148617859321925,
-      "bagging_fraction": 0.760243546764648,
-      "bagging_freq": 20,
-      "lambda_l2": 8.778887749922983,
-      "lambda_l1": 4.281319780719967,
-      "min_sum_hessian_in_leaf": 0.13798698100688064,
-      "min_gain_to_split": 1.3424896470444496,
-      "feature_fraction_bynode": 0.9795199096827308,
-      "path_smooth": 40.23143951108452,
+      "learning_rate": 0.0021574582075051204,
+      "num_leaves": 196,
+      "min_data_in_leaf": 21,
+      "max_depth": 58,
+      "feature_fraction": 0.8187932858940383,
+      "bagging_fraction": 0.8714798148611362,
+      "bagging_freq": 4,
+      "lambda_l2": 15.442114704888553,
+      "lambda_l1": 2.212521909423135,
+      "min_sum_hessian_in_leaf": 0.13475540327517857,
+      "min_gain_to_split": 1.5679522702774737,
+      "feature_fraction_bynode": 0.6443195011832288,
+      "path_smooth": 18.354650904317488,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {
@@ -278,7 +285,12 @@ def load_walk_forward_training_frame(
 
     df = pd.read_parquet(data_path)
     subset_parts = (
-        split_feature_subset(selected_feature_columns) if feature_subset else None
+        split_feature_subset(
+            selected_feature_columns,
+            source_label=f"feature subset {feature_subset['path']}",
+        )
+        if feature_subset
+        else None
     )
     if TARGET_COL not in df.columns:
         raise ValueError(f"Target column not found: {TARGET_COL}")
@@ -355,6 +367,23 @@ def load_walk_forward_training_frame(
         )
 
     x = x.astype(float_dtype, copy=False)
+    validate_volume_profile_feature_columns(
+        x.columns,
+        source_label=f"modeling dataset features at {data_path}",
+    )
+    volume_profile_feature_columns = tuple(
+        col for col in x.columns if is_volume_profile_feature(col)
+    )
+    if volume_profile_feature_columns:
+        dataset_metadata, metadata_path = load_modeling_dataset_artifact_metadata(
+            data_path
+        )
+        validate_volume_profile_dataset_metadata(
+            dataset_metadata,
+            feature_columns=volume_profile_feature_columns,
+            cfg=load_modeling_dataset_settings().get("volume_profile_fixed_range"),
+            source_label=f"modeling dataset metadata {metadata_path}",
+        )
 
     return {
         "df": df,
@@ -532,6 +561,9 @@ def evaluate_walk_forward_variant(
 
 def main():
     dataset_settings = load_modeling_dataset_settings()
+    normalized_volume_profile_cfg = normalize_volume_profile_config(
+        dataset_settings.get("volume_profile_fixed_range")
+    )
     modeling_float_dtype = resolve_modeling_float_dtype(dataset_settings)
     modeling_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
@@ -785,6 +817,11 @@ def main():
             "oof_prediction": modeling_float_dtype_name,
         },
         "feature_columns": list(x_full.columns),
+        "volume_profile_fixed_range": (
+            normalized_volume_profile_cfg
+            if any(is_volume_profile_feature(col) for col in x_full.columns)
+            else None
+        ),
         "model_hyperparameters": {
             "base": {
                 "objective": "binary",

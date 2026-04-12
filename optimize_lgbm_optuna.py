@@ -8,6 +8,7 @@ import numpy as np
 import optuna
 import pandas as pd
 from features.candle_features import RAW_OHLCV_COLS
+from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
 from modeling_dataset_utils import (
     load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
@@ -188,7 +189,7 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     }
 ]
 
-N_TRIALS = 12
+N_TRIALS = 8
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
 CV_LOGLOSS_STD_PENALTY = 0.5
@@ -351,6 +352,10 @@ def load_generic_training_data(
         )
     if x.shape[1] == 0:
         raise ValueError("No numeric feature columns left after preprocessing.")
+    validate_volume_profile_feature_columns(
+        x.columns,
+        source_label=f"optimization dataset features at {data_path}",
+    )
     print(
         f"load data | numeric_features={x.shape[1]} "
         f"dropped_raw_ohlcv={len(dropped_raw_ohlcv_features)}"

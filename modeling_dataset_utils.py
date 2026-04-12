@@ -18,6 +18,7 @@ from features.realized_volatility import (
     is_realized_volatility_feature,
 )
 from features.volume_profile_fixed_range import is_volume_profile_feature
+from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
 from project_config import (
     ACTIVE_CONFIG_PATH,
     MODELING_CONFIG_PATH,
@@ -59,6 +60,10 @@ def _normalize_feature_names(features, source_path):
     normalized = _dedupe_ordered(normalized)
     if not normalized:
         raise ValueError(f"Feature subset is empty: {source_path}")
+    validate_volume_profile_feature_columns(
+        normalized,
+        source_label=f"feature subset {source_path}",
+    )
     return tuple(normalized)
 
 
@@ -171,6 +176,7 @@ def resolve_modeling_dataset_output_paths(settings):
     preview_rows = int(settings["preview_rows"])
     return {
         "parquet": output_dir / f"{output_stem}.parquet",
+        "metadata_json": output_dir / f"{output_stem}_metadata.json",
         "head_csv": output_dir / f"{output_stem}_head{preview_rows}.csv",
         "tail_csv": output_dir / f"{output_stem}_tail{preview_rows}.csv",
     }
@@ -179,6 +185,29 @@ def resolve_modeling_dataset_output_paths(settings):
 def resolve_modeling_dataset_parquet_path(config_path=MODELING_DATASET_CONFIG_FILE):
     settings = load_modeling_dataset_settings(config_path=config_path)
     return resolve_modeling_dataset_output_paths(settings)["parquet"]
+
+
+def resolve_modeling_dataset_metadata_path(config_path=MODELING_DATASET_CONFIG_FILE):
+    settings = load_modeling_dataset_settings(config_path=config_path)
+    return resolve_modeling_dataset_output_paths(settings)["metadata_json"]
+
+
+def resolve_modeling_dataset_metadata_path_for_parquet(parquet_path):
+    parquet_path = Path(parquet_path)
+    return parquet_path.with_name(f"{parquet_path.stem}_metadata.json")
+
+
+def load_modeling_dataset_artifact_metadata(parquet_path):
+    metadata_path = resolve_modeling_dataset_metadata_path_for_parquet(parquet_path)
+    if not metadata_path.exists():
+        raise FileNotFoundError(f"Modeling dataset metadata not found: {metadata_path}")
+
+    payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(
+            f"Unsupported modeling dataset metadata payload type: {type(payload)!r}"
+        )
+    return payload, metadata_path
 
 
 def resolve_oof_prediction_output_paths(settings, *, preview_rows):
@@ -331,7 +360,11 @@ def load_excluded_feature_names_from_settings(settings):
     }
 
 
-def split_feature_subset(feature_names):
+def split_feature_subset(feature_names, *, source_label="feature columns"):
+    validate_volume_profile_feature_columns(
+        feature_names,
+        source_label=source_label,
+    )
     raw_ohlcv_cols = []
     candle_feature_cols = []
     streak_feature_cols = []

@@ -79,11 +79,43 @@ LGBM_DEFAULT_PARAMS = {
 # v7/v8 searches with the later conservative pass. The goal is to reopen
 # truncated edges without going back to the original fully loose space.
 VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
-    "step": {"type": "int", "low": 1, "high": 200, "log": True},
     "neighbor_bins": {"type": "int", "low": 1, "high": 48},
-    "local_window": {"type": "int", "low": 1, "high": 384, "log": True},
-    "sigma_divisor": {"type": "float", "low": 0.01, "high": 75.0, "log": True},
-    "min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
+    "short_step": {"type": "int", "low": 1, "high": 200, "log": True},
+    "medium_step": {"type": "int", "low": 1, "high": 200, "log": True},
+    "long_step": {"type": "int", "low": 1, "high": 200, "log": True},
+    "all_step": {"type": "int", "low": 1, "high": 200, "log": True},
+    "short_local_window": {"type": "int", "low": 1, "high": 384, "log": True},
+    "medium_local_window": {"type": "int", "low": 1, "high": 384, "log": True},
+    "long_local_window": {"type": "int", "low": 1, "high": 384, "log": True},
+    "all_local_window": {"type": "int", "low": 1, "high": 384, "log": True},
+    "short_sigma_divisor": {
+        "type": "float",
+        "low": 0.01,
+        "high": 75.0,
+        "log": True,
+    },
+    "medium_sigma_divisor": {
+        "type": "float",
+        "low": 0.01,
+        "high": 75.0,
+        "log": True,
+    },
+    "long_sigma_divisor": {
+        "type": "float",
+        "low": 0.01,
+        "high": 75.0,
+        "log": True,
+    },
+    "all_sigma_divisor": {
+        "type": "float",
+        "low": 0.01,
+        "high": 75.0,
+        "log": True,
+    },
+    "short_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
+    "medium_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
+    "long_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
+    "all_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
     "short_half_life_candles": {
         "type": "int",
         "low": 10,
@@ -107,51 +139,111 @@ VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
 # Seed trials are injected before optimization starts.
 OPTUNA_SEED_TRIAL_PARAMS = [
     {
-        "step": 73,
         "neighbor_bins": 15,
-        "local_window": 19,
-        "sigma_divisor": 22.103834316321777,
-        "min_sigma": 158.51656478094498,
+        "short_step": 73,
+        "medium_step": 73,
+        "long_step": 73,
+        "all_step": 73,
+        "short_local_window": 19,
+        "medium_local_window": 19,
+        "long_local_window": 19,
+        "all_local_window": 19,
+        "short_sigma_divisor": 22.103834316321777,
+        "medium_sigma_divisor": 22.103834316321777,
+        "long_sigma_divisor": 22.103834316321777,
+        "all_sigma_divisor": 22.103834316321777,
+        "short_min_sigma": 158.51656478094498,
+        "medium_min_sigma": 158.51656478094498,
+        "long_min_sigma": 158.51656478094498,
+        "all_min_sigma": 158.51656478094498,
         "short_half_life_candles": 60,
         "medium_half_life_candles": 4017,
         "long_half_life_candles": 22587,
     },
     {
-        "step": 54,
         "neighbor_bins": 15,
-        "local_window": 128,
-        "sigma_divisor": 13.808327590597779,
-        "min_sigma": 37.674893963884564,
+        "short_step": 54,
+        "medium_step": 54,
+        "long_step": 54,
+        "all_step": 54,
+        "short_local_window": 128,
+        "medium_local_window": 128,
+        "long_local_window": 128,
+        "all_local_window": 128,
+        "short_sigma_divisor": 13.808327590597779,
+        "medium_sigma_divisor": 13.808327590597779,
+        "long_sigma_divisor": 13.808327590597779,
+        "all_sigma_divisor": 13.808327590597779,
+        "short_min_sigma": 37.674893963884564,
+        "medium_min_sigma": 37.674893963884564,
+        "long_min_sigma": 37.674893963884564,
+        "all_min_sigma": 37.674893963884564,
         "short_half_life_candles": 91,
         "medium_half_life_candles": 2942,
         "long_half_life_candles": 60205,
     },
     {
-        "step": 42,
         "neighbor_bins": 9,
-        "local_window": 77,
-        "sigma_divisor": 8.250626386620294,
-        "min_sigma": 247.31082044719778,
+        "short_step": 42,
+        "medium_step": 42,
+        "long_step": 42,
+        "all_step": 42,
+        "short_local_window": 77,
+        "medium_local_window": 77,
+        "long_local_window": 77,
+        "all_local_window": 77,
+        "short_sigma_divisor": 8.250626386620294,
+        "medium_sigma_divisor": 8.250626386620294,
+        "long_sigma_divisor": 8.250626386620294,
+        "all_sigma_divisor": 8.250626386620294,
+        "short_min_sigma": 247.31082044719778,
+        "medium_min_sigma": 247.31082044719778,
+        "long_min_sigma": 247.31082044719778,
+        "all_min_sigma": 247.31082044719778,
         "short_half_life_candles": 67,
         "medium_half_life_candles": 5415,
         "long_half_life_candles": 19529,
     },
     {
-        "step": 48,
         "neighbor_bins": 16,
-        "local_window": 223,
-        "sigma_divisor": 0.5914936678621061,
-        "min_sigma": 1.0057446932628438,
+        "short_step": 48,
+        "medium_step": 48,
+        "long_step": 48,
+        "all_step": 48,
+        "short_local_window": 223,
+        "medium_local_window": 223,
+        "long_local_window": 223,
+        "all_local_window": 223,
+        "short_sigma_divisor": 0.5914936678621061,
+        "medium_sigma_divisor": 0.5914936678621061,
+        "long_sigma_divisor": 0.5914936678621061,
+        "all_sigma_divisor": 0.5914936678621061,
+        "short_min_sigma": 1.0057446932628438,
+        "medium_min_sigma": 1.0057446932628438,
+        "long_min_sigma": 1.0057446932628438,
+        "all_min_sigma": 1.0057446932628438,
         "short_half_life_candles": 34,
         "medium_half_life_candles": 2513,
         "long_half_life_candles": 79742,
     },
     {
-        "step": 164,
         "neighbor_bins": 16,
-        "local_window": 16,
-        "sigma_divisor": 46.73452581065906,
-        "min_sigma": 0.6351443643421518,
+        "short_step": 164,
+        "medium_step": 164,
+        "long_step": 164,
+        "all_step": 164,
+        "short_local_window": 16,
+        "medium_local_window": 16,
+        "long_local_window": 16,
+        "all_local_window": 16,
+        "short_sigma_divisor": 46.73452581065906,
+        "medium_sigma_divisor": 46.73452581065906,
+        "long_sigma_divisor": 46.73452581065906,
+        "all_sigma_divisor": 46.73452581065906,
+        "short_min_sigma": 0.6351443643421518,
+        "medium_min_sigma": 0.6351443643421518,
+        "long_min_sigma": 0.6351443643421518,
+        "all_min_sigma": 0.6351443643421518,
         "short_half_life_candles": 137,
         "medium_half_life_candles": 6950,
         "long_half_life_candles": 25438,
@@ -617,14 +709,16 @@ class ObjectiveAlignedLightGBMPruningCallback:
 
 
 def get_supported_volume_profile_param_names(normalized_base):
-    param_names = {
-        "step",
-        "neighbor_bins",
-        "local_window",
-        "sigma_divisor",
-        "min_sigma",
-    }
+    param_names = {"neighbor_bins"}
     for horizon_name in normalized_base["horizon_names"]:
+        param_names.update(
+            {
+                f"{horizon_name}_step",
+                f"{horizon_name}_local_window",
+                f"{horizon_name}_sigma_divisor",
+                f"{horizon_name}_min_sigma",
+            }
+        )
         if normalized_base["horizons"][horizon_name]["half_life_candles"] is not None:
             param_names.add(f"{horizon_name}_half_life_candles")
     return param_names
@@ -788,22 +882,15 @@ def build_volume_profile_config_from_params(base_config, params):
         "enabled": True,
         "price_min": float(normalized_base["price_min"]),
         "price_max": float(normalized_base["price_max"]),
-        "step": int(params.get("step", normalized_base["step"])),
         "neighbor_bins": int(
             params.get("neighbor_bins", normalized_base["neighbor_bins"])
         ),
-        "local_window": int(
-            params.get("local_window", normalized_base["local_window"])
-        ),
-        "sigma_divisor": float(
-            params.get("sigma_divisor", normalized_base["sigma_divisor"])
-        ),
-        "min_sigma": float(params.get("min_sigma", normalized_base["min_sigma"])),
         "eps": float(normalized_base["eps"]),
         "horizons": {},
     }
 
     for horizon_name in normalized_base["horizon_names"]:
+        base_horizon = normalized_base["horizons"][horizon_name]
         base_half_life = normalized_base["horizons"][horizon_name]["half_life_candles"]
         if base_half_life is None:
             half_life = None
@@ -811,7 +898,28 @@ def build_volume_profile_config_from_params(base_config, params):
             half_life = int(
                 params.get(f"{horizon_name}_half_life_candles", base_half_life)
             )
-        config["horizons"][horizon_name] = {"half_life_candles": half_life}
+        config["horizons"][horizon_name] = {
+            "step": int(params.get(f"{horizon_name}_step", base_horizon["step"])),
+            "local_window": int(
+                params.get(
+                    f"{horizon_name}_local_window",
+                    base_horizon["local_window"],
+                )
+            ),
+            "sigma_divisor": float(
+                params.get(
+                    f"{horizon_name}_sigma_divisor",
+                    base_horizon["sigma_divisor"],
+                )
+            ),
+            "min_sigma": float(
+                params.get(
+                    f"{horizon_name}_min_sigma",
+                    base_horizon["min_sigma"],
+                )
+            ),
+            "half_life_candles": half_life,
+        }
 
     return normalize_volume_profile_config(config)
 
@@ -1122,9 +1230,20 @@ def run_optuna_optimization():
         "start optimize | "
         f"base_volume_profile_feature_count={len(normalized_base_vp_config['feature_columns'])} "
         f"row_filter_min_weight={MIN_SAMPLE_WEIGHT:.2f} "
-        f"step={normalized_base_vp_config['step']} "
-        f"neighbor_bins={normalized_base_vp_config['neighbor_bins']} "
-        f"local_window={normalized_base_vp_config['local_window']}"
+        f"neighbor_bins={normalized_base_vp_config['neighbor_bins']}"
+    )
+    print(
+        "start optimize | horizon_params="
+        + "; ".join(
+            (
+                f"{horizon_name}:step={normalized_base_vp_config['horizons'][horizon_name]['step']},"
+                f"local_window={normalized_base_vp_config['horizons'][horizon_name]['local_window']},"
+                f"sigma_divisor={normalized_base_vp_config['horizons'][horizon_name]['sigma_divisor']:.6f},"
+                f"min_sigma={normalized_base_vp_config['horizons'][horizon_name]['min_sigma']:.6f},"
+                f"half_life={normalized_base_vp_config['horizons'][horizon_name]['half_life_candles']}"
+            )
+            for horizon_name in normalized_base_vp_config["horizon_names"]
+        )
     )
     print(
         "start optimize | "

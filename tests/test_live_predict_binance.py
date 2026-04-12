@@ -31,11 +31,37 @@ def _make_small_vp_cfg():
             "enabled": True,
             "price_min": 90.0,
             "price_max": 130.0,
-            "step": 1,
             "neighbor_bins": 2,
-            "local_window": 2,
-            "sigma_divisor": 4.0,
-            "min_sigma": 0.5,
+            "horizons": {
+                "short": {
+                    "step": 1,
+                    "local_window": 2,
+                    "sigma_divisor": 4.0,
+                    "min_sigma": 0.5,
+                    "half_life_candles": 10,
+                },
+                "medium": {
+                    "step": 2,
+                    "local_window": 2,
+                    "sigma_divisor": 4.0,
+                    "min_sigma": 0.5,
+                    "half_life_candles": 20,
+                },
+                "long": {
+                    "step": 3,
+                    "local_window": 2,
+                    "sigma_divisor": 4.0,
+                    "min_sigma": 0.5,
+                    "half_life_candles": 30,
+                },
+                "all": {
+                    "step": 4,
+                    "local_window": 2,
+                    "sigma_divisor": 4.0,
+                    "min_sigma": 0.5,
+                    "half_life_candles": None,
+                },
+            },
         }
     )
 

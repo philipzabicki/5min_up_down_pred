@@ -43,6 +43,8 @@ from features.volume_profile_fixed_range import (
     save_state as save_volume_profile_state,
     state_matches_config as volume_profile_state_matches_config,
     update_state_with_candle as update_volume_profile_state_with_candle,
+    validate_volume_profile_feature_columns,
+    validate_volume_profile_model_metadata,
 )
 from live_predict_binance import (
     INDICATOR_HISTORY_REQUIREMENTS_PATH,
@@ -160,6 +162,10 @@ def _load_model_feature_importance_frame(meta):
     required_cols = {"feature", "importance_gain", "importance_split"}
     if not required_cols.issubset(frame.columns):
         return None
+    validate_volume_profile_feature_columns(
+        frame["feature"].tolist(),
+        source_label=f"feature importance artifact {path}",
+    )
 
     out = frame.loc[:, ["feature", "importance_gain", "importance_split"]].copy()
     out["importance_gain"] = pd.to_numeric(
@@ -180,7 +186,7 @@ def resolve_anchor_volume_profile_state_path(anchor_candle_opened):
 
 
 def _feature_group_map(feature_columns):
-    parts = split_feature_subset(feature_columns)
+    parts = split_feature_subset(feature_columns, source_label="audit feature columns")
     group_by_feature = {}
     for feature in parts["raw_ohlcv_cols"]:
         group_by_feature[feature] = "raw_ohlcv"
@@ -515,7 +521,10 @@ def _fit_indicator_config_map(feature_columns):
 
 
 def _feature_builder_frame(feature_columns):
-    feature_parts = split_feature_subset(feature_columns)
+    feature_parts = split_feature_subset(
+        feature_columns,
+        source_label="audit feature columns",
+    )
     indicator_config_map = _fit_indicator_config_map(feature_columns)
     candle_pattern_cols = set(
         resolve_candle_pattern_feature_cols(feature_parts["candle_feature_cols"])
@@ -1146,7 +1155,10 @@ def build_current_recomputed_feature_history(
     raw_history_df,
     feature_columns,
 ):
-    feature_parts = split_feature_subset(feature_columns)
+    feature_parts = split_feature_subset(
+        feature_columns,
+        source_label="audit feature columns",
+    )
     feature_frame = raw_history_df.loc[:, ["Opened", *RAW_OHLCV_COLS]].copy()
 
     configured_rules = resolve_streak_interval_to_rule(
@@ -2235,6 +2247,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.feature_columns = list(meta.get("feature_columns", []))
         if not self.feature_columns:
             raise ValueError("Missing feature_columns in model metadata.")
+        validate_volume_profile_feature_columns(
+            self.feature_columns,
+            source_label=f"model metadata {model_meta_path}",
+        )
 
         self.candle_feature_columns = [
             col for col in self.feature_columns if col in SUPPORTED_CANDLE_FEATURE_COLS
@@ -2252,7 +2268,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
         )
         self.live_bankroll_usdc = float(LIVE_INITIAL_BANKROLL_USDC)
 
-        feature_parts = split_feature_subset(self.feature_columns)
+        feature_parts = split_feature_subset(
+            self.feature_columns,
+            source_label=f"model metadata {model_meta_path}",
+        )
         if feature_parts["streak_intervals"]:
             self.streak_interval_to_rule = resolve_streak_interval_to_rule(
                 feature_parts["streak_intervals"]
@@ -2269,6 +2288,12 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.volume_profile_cfg = normalize_volume_profile_config(
             MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
         )
+        validate_volume_profile_model_metadata(
+            meta,
+            feature_columns=self.volume_profile_feature_columns,
+            cfg=self.volume_profile_cfg,
+            source_label=f"model metadata {model_meta_path}",
+        )
         self.volume_profile_enabled = bool(
             self.volume_profile_feature_columns and self.volume_profile_cfg["enabled"]
         )
@@ -2283,7 +2308,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.volume_profile_state_source_path = None
         self.volume_profile_save_pool = None
 
-        self.indicator_specs = load_indicator_specs(self.feature_columns)
+        self.indicator_specs = load_indicator_specs(
+            self.feature_columns,
+            source_label=f"model metadata {model_meta_path}",
+        )
         requirements_indicator_specs = self.indicator_specs
         if allow_unstable_indicator_summary:
             requirements_payload = json.loads(
@@ -2573,6 +2601,18 @@ def run_stored_modeling_vs_current_recompute_audit(
     feature_columns = list(meta.get("feature_columns", []))
     if not feature_columns:
         raise ValueError("Missing feature_columns in model metadata.")
+    validate_volume_profile_feature_columns(
+        feature_columns,
+        source_label=f"model metadata {model_meta_path}",
+    )
+    validate_volume_profile_model_metadata(
+        meta,
+        feature_columns=feature_columns,
+        cfg=normalize_volume_profile_config(
+            MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
+        ),
+        source_label=f"model metadata {model_meta_path}",
+    )
 
     audit_window = resolve_audit_window(
         parquet_path=parquet_path,
@@ -2714,6 +2754,18 @@ def run_live_modeling_feature_audit(
     feature_columns = list(meta.get("feature_columns", []))
     if not feature_columns:
         raise ValueError("Missing feature_columns in model metadata.")
+    validate_volume_profile_feature_columns(
+        feature_columns,
+        source_label=f"model metadata {model_meta_path}",
+    )
+    validate_volume_profile_model_metadata(
+        meta,
+        feature_columns=feature_columns,
+        cfg=normalize_volume_profile_config(
+            MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
+        ),
+        source_label=f"model metadata {model_meta_path}",
+    )
 
     required_stable_window = load_required_stable_window(
         INDICATOR_HISTORY_REQUIREMENTS_PATH,

@@ -389,7 +389,12 @@ def build_dataset_from_settings(settings):
     )
     excluded_feature_set = set(excluded_feature_names)
     feature_subset_parts = (
-        split_feature_subset(feature_subset["features"]) if feature_subset else None
+        split_feature_subset(
+            feature_subset["features"],
+            source_label=f"feature subset {feature_subset['path']}",
+        )
+        if feature_subset
+        else None
     )
     vp_cfg = settings.get("volume_profile_fixed_range")
     vp_normalized_cfg = normalize_volume_profile_config(vp_cfg)
@@ -657,11 +662,36 @@ def build_dataset_from_settings(settings):
 
     output_paths = resolve_modeling_dataset_output_paths(settings)
     output_parquet = output_paths["parquet"]
+    output_metadata_json = output_paths["metadata_json"]
     output_head_csv = output_paths["head_csv"]
     output_tail_csv = output_paths["tail_csv"]
     preview_rows = int(settings["preview_rows"])
 
+    output_parquet.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(output_parquet, index=False)
+    output_metadata_json.write_text(
+        json.dumps(
+            {
+                "created_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+                "parquet_path": str(output_parquet),
+                "head_csv_path": str(output_head_csv),
+                "tail_csv_path": str(output_tail_csv),
+                "float_precision": float_dtype_name,
+                "volume_profile_feature_version": (
+                    VP_FEATURE_VERSION if vp_enabled else None
+                ),
+                "volume_profile_feature_columns": (
+                    list(vp_feature_cols) if vp_enabled else []
+                ),
+                "volume_profile_fixed_range": (
+                    vp_normalized_cfg if vp_enabled else None
+                ),
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
     df.head(preview_rows).to_csv(output_head_csv, index=False)
     df.tail(preview_rows).to_csv(output_tail_csv, index=False)
 
@@ -676,6 +706,7 @@ def build_dataset_from_settings(settings):
     print(f"target class counts: {class_counts}")
     print(f"target weight summary: {weight_summary}")
     print(f"saved modeling dataset (parquet) -> {output_parquet}")
+    print(f"saved modeling dataset metadata -> {output_metadata_json}")
     print(f"saved preview head({preview_rows}) -> {output_head_csv}")
     print(f"saved preview tail({preview_rows}) -> {output_tail_csv}")
     return output_parquet

@@ -19,23 +19,35 @@
         "enabled": true,
         "price_min": 0.0,
         "price_max": 200000.0,
-        "step": 53,
-        "neighbor_bins": 14,
-        "local_window": 347,
-        "sigma_divisor": 4.06544317411936,
-        "min_sigma": 2.995124349104348,
+        "neighbor_bins": 15,
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "half_life_candles": 52
+            "step": 33,
+            "local_window": 361,
+            "sigma_divisor": 0.21502716507140648,
+            "min_sigma": 193.80832730118777,
+            "half_life_candles": 62
           },
           "medium": {
-            "half_life_candles": 7330
+            "step": 134,
+            "local_window": 40,
+            "sigma_divisor": 3.976130020404582,
+            "min_sigma": 37.33667889194825,
+            "half_life_candles": 3151
           },
           "long": {
-            "half_life_candles": 61414
+            "step": 9,
+            "local_window": 1,
+            "sigma_divisor": 2.433361831940003,
+            "min_sigma": 0.8012146247630282,
+            "half_life_candles": 42617
           },
           "all": {
+            "step": 1,
+            "local_window": 249,
+            "sigma_divisor": 0.026796186458655787,
+            "min_sigma": 114.57903060799657,
             "half_life_candles": null
           }
         }
@@ -46,7 +58,7 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260410_165802/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/20260412_195231/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",

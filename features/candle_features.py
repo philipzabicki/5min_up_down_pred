@@ -21,19 +21,23 @@ ALL_CANDLE_DERIVED_COLS = (
     "candle_body_to_range",
     *MULTI_INTERVAL_CANDLE_DERIVED_COLS,
 )
-BASE_CANDLE_DERIVED_LAGS = tuple(range(1, 8))
+BASE_CANDLE_DERIVED_LAGS = tuple(range(1, 16))
 BASE_CANDLE_INTERVAL_LABEL = "1m"
 INTERVAL_DERIVED_LAGS = {
-    "5m": tuple(range(1, 6)),
-    "15m": tuple(range(1, 6)),
-    "1h": tuple(range(1, 6)),
-    "4h": tuple(range(1, 6)),
+    "5m": tuple(range(1, 16)),
+    "15m": tuple(range(1, 16)),
+    "30m": tuple(range(1, 11)),
+    "1h": tuple(range(1, 11)),
+    "4h": tuple(range(1, 11)),
+    "1d": tuple(range(1, 9)),
 }
 INTERVAL_DERIVED_BASE_COLS = {
     "5m": ALL_CANDLE_DERIVED_COLS,
     "15m": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
+    "30m": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
     "1h": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
     "4h": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
+    "1d": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
 }
 
 

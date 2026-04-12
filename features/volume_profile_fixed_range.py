@@ -1,12 +1,13 @@
 import json
 import math
+import re
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 from numba import njit
 
-FEATURE_VERSION = "vp_fixed_range_v2"
+FEATURE_VERSION = "vp_fixed_range_v3"
 VP_FEATURE_PREFIX = "vp_"
 STATE_DIR = Path("data/features/state/volume_profile")
 RUNTIME_STATE_DIR = STATE_DIR / "runtime"
@@ -16,124 +17,295 @@ PSEUDO_LIVE_AUDIT_STATE_DIR = STATE_DIR / "pseudo_live_audit"
 PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR = PSEUDO_LIVE_AUDIT_STATE_DIR / "runtime"
 PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR = PSEUDO_LIVE_AUDIT_STATE_DIR / "modeling"
 
+_DEFAULT_HORIZON_BASE = {
+    "step": 5,
+    "local_window": 2,
+    "sigma_divisor": 4.0,
+    "min_sigma": 2.5,
+}
+
 DEFAULT_CONFIG = {
     "enabled": True,
     "price_min": 1.0,
     "price_max": 200000.0,
-    "step": 5,
     "neighbor_bins": 2,
-    "local_window": 2,
-    "sigma_divisor": 4.0,
-    "min_sigma": 2.5,
     "eps": 1e-6,
     "horizons": {
-        "short": {"half_life_candles": 1440},
-        "medium": {"half_life_candles": 10080},
-        "long": {"half_life_candles": 43200},
-        "all": {"half_life_candles": None},
+        "short": {**_DEFAULT_HORIZON_BASE, "half_life_candles": 1440},
+        "medium": {**_DEFAULT_HORIZON_BASE, "half_life_candles": 10080},
+        "long": {**_DEFAULT_HORIZON_BASE, "half_life_candles": 43200},
+        "all": {**_DEFAULT_HORIZON_BASE, "half_life_candles": None},
     },
 }
-
 _HORIZON_ORDER = ("short", "medium", "long", "all")
 _REQUIRED_COLUMNS = ("High", "Low", "Volume")
 _RENORMALIZE_SCALE_MIN = 1e-3
 _SQRT_TWO = math.sqrt(2.0)
+_VP_HORIZON_PATTERN = r"(?:short|medium|long|all)"
+_VP_CANONICAL_FEATURE_RE = re.compile(
+    rf"^vp_{_VP_HORIZON_PATTERN}_("
+    r"log_density_ratio_to_current_bin_(?:minus|plus)_[1-9]\d*"
+    r"|local_above_below_volume_log_ratio"
+    r"|current_bin_volume_share_of_local_window"
+    r"|current_bin_volume_share_of_local_peak"
+    r")$"
+)
+_ALLOWED_TOP_LEVEL_CONFIG_KEYS = {
+    "enabled",
+    "price_min",
+    "price_max",
+    "neighbor_bins",
+    "eps",
+    "horizons",
+}
+_LEGACY_GLOBAL_ONLY_KEYS = {
+    "step",
+    "bins",
+    "local_window",
+    "sigma_divisor",
+    "min_sigma",
+    "half_lives",
+    "decays",
+}
+_ALLOWED_HORIZON_CONFIG_KEYS = {
+    "step",
+    "local_window",
+    "sigma_divisor",
+    "min_sigma",
+    "half_life_candles",
+}
 
 
 def is_volume_profile_feature(feature_name):
-    return str(feature_name).startswith(VP_FEATURE_PREFIX)
+    return bool(_VP_CANONICAL_FEATURE_RE.match(str(feature_name).strip()))
+
+
+def validate_volume_profile_feature_columns(feature_names, *, source_label):
+    invalid_feature_cols = []
+    for raw_feature_name in feature_names:
+        feature_name = str(raw_feature_name).strip()
+        if feature_name.startswith(VP_FEATURE_PREFIX) and not is_volume_profile_feature(
+            feature_name
+        ):
+            invalid_feature_cols.append(feature_name)
+
+    if not invalid_feature_cols:
+        return tuple(str(feature_name).strip() for feature_name in feature_names)
+
+    preview = ", ".join(invalid_feature_cols[:10])
+    raise ValueError(
+        f"Unsupported volume profile feature columns in {source_label}. "
+        "Only the canonical VP naming schema produced by "
+        "features.volume_profile_fixed_range.get_feature_columns(...) is supported. "
+        "Regenerate any dataset, state, model, feature subset, or report artifact "
+        "that still uses incompatible VP feature names. "
+        f"Invalid_count={len(invalid_feature_cols)} preview=[{preview}]"
+    )
+
+
+def _normalize_positive_int(value, *, field_name):
+    value_f = float(value)
+    if not np.isfinite(value_f) or value_f <= 0.0:
+        raise ValueError(f"volume profile config requires {field_name} > 0.")
+    if not value_f.is_integer():
+        raise ValueError(
+            f"volume profile config requires integer-valued {field_name}."
+        )
+    return int(value_f)
+
+
+def _normalize_positive_float(value, *, field_name):
+    value_f = float(value)
+    if not np.isfinite(value_f) or value_f <= 0.0:
+        raise ValueError(f"volume profile config requires {field_name} > 0.")
+    return value_f
+
+
+def _normalize_horizon_config(horizon_name, cfg, *, price_min, price_max, offset):
+    step = _normalize_positive_int(
+        cfg["step"],
+        field_name=f"horizons.{horizon_name}.step",
+    )
+    bins = int(math.ceil((price_max - price_min) / float(step)))
+    if bins <= 0:
+        raise ValueError(
+            f"volume profile horizon '{horizon_name}' produced no bins. "
+            "Check price_min, price_max, and step."
+        )
+
+    local_window = _normalize_positive_int(
+        cfg["local_window"],
+        field_name=f"horizons.{horizon_name}.local_window",
+    )
+    sigma_divisor = _normalize_positive_float(
+        cfg["sigma_divisor"],
+        field_name=f"horizons.{horizon_name}.sigma_divisor",
+    )
+    min_sigma = _normalize_positive_float(
+        cfg["min_sigma"],
+        field_name=f"horizons.{horizon_name}.min_sigma",
+    )
+
+    half_life = cfg.get("half_life_candles")
+    if half_life is None:
+        normalized_half_life = None
+        decay = 1.0
+    else:
+        normalized_half_life = _normalize_positive_int(
+            half_life,
+            field_name=f"horizons.{horizon_name}.half_life_candles",
+        )
+        decay = math.exp(math.log(0.5) / float(normalized_half_life))
+
+    return {
+        "horizon_name": horizon_name,
+        "step": int(step),
+        "bins": int(bins),
+        "offset": int(offset),
+        "local_window": int(local_window),
+        "sigma_divisor": float(sigma_divisor),
+        "min_sigma": float(min_sigma),
+        "half_life_candles": normalized_half_life,
+        "decay": float(decay),
+    }
 
 
 def normalize_config(cfg=None):
+    if isinstance(cfg, dict) and "horizon_names" in cfg and "horizons" in cfg:
+        cfg = {
+            "enabled": bool(cfg.get("enabled", True)),
+            "price_min": cfg["price_min"],
+            "price_max": cfg["price_max"],
+            "neighbor_bins": cfg["neighbor_bins"],
+            "eps": cfg["eps"],
+            "horizons": {
+                horizon_name: {
+                    "step": cfg["horizons"][horizon_name]["step"],
+                    "local_window": cfg["horizons"][horizon_name]["local_window"],
+                    "sigma_divisor": cfg["horizons"][horizon_name]["sigma_divisor"],
+                    "min_sigma": cfg["horizons"][horizon_name]["min_sigma"],
+                    "half_life_candles": cfg["horizons"][horizon_name][
+                        "half_life_candles"
+                    ],
+                }
+                for horizon_name in _HORIZON_ORDER
+            },
+        }
+
     user_cfg = dict(cfg or {})
+
+    legacy_global_keys = sorted(set(user_cfg) & _LEGACY_GLOBAL_ONLY_KEYS)
+    if legacy_global_keys:
+        raise ValueError(
+            "volume_profile_fixed_range no longer supports global-only VP parameters. "
+            "Move step/local_window/sigma_divisor/min_sigma into per-horizon config. "
+            f"Found legacy keys={legacy_global_keys}"
+        )
+
+    unknown_top_level_keys = sorted(set(user_cfg) - _ALLOWED_TOP_LEVEL_CONFIG_KEYS)
+    if unknown_top_level_keys:
+        raise ValueError(
+            "Unsupported volume_profile_fixed_range config keys: "
+            f"{unknown_top_level_keys}"
+        )
+
     user_horizons = user_cfg.pop("horizons", None)
+    if user_horizons is not None and not isinstance(user_horizons, dict):
+        raise ValueError("volume profile config field 'horizons' must be a dict.")
 
     merged = dict(DEFAULT_CONFIG)
     merged.update(user_cfg)
 
-    horizons = {}
-    user_horizons = user_horizons if isinstance(user_horizons, dict) else {}
-    for horizon_name in _HORIZON_ORDER:
-        horizon_cfg = dict(DEFAULT_CONFIG["horizons"][horizon_name])
-        user_horizon_cfg = user_horizons.get(horizon_name)
-        if isinstance(user_horizon_cfg, dict):
-            horizon_cfg.update(user_horizon_cfg)
-        horizons[horizon_name] = horizon_cfg
-
     price_min = float(merged["price_min"])
     price_max = float(merged["price_max"])
-    step_raw = float(merged["step"])
     if not np.isfinite(price_min) or not np.isfinite(price_max):
         raise ValueError(
             "volume profile config requires finite price_min and price_max."
         )
     if price_max <= price_min:
         raise ValueError("volume profile config requires price_max > price_min.")
-    if not np.isfinite(step_raw) or step_raw <= 0.0:
-        raise ValueError("volume profile config requires step > 0.")
-    if not float(step_raw).is_integer():
-        raise ValueError("volume profile config requires integer-valued step.")
-    step = int(step_raw)
 
-    bins = int(math.ceil((price_max - price_min) / step))
-    if bins <= 0:
-        raise ValueError("volume profile config produced no bins.")
+    neighbor_bins = _normalize_positive_int(
+        merged["neighbor_bins"],
+        field_name="neighbor_bins",
+    )
+    eps = _normalize_positive_float(merged["eps"], field_name="eps")
 
-    neighbor_bins = int(merged["neighbor_bins"])
-    local_window = int(merged["local_window"])
-    sigma_divisor = float(merged["sigma_divisor"])
-    min_sigma = float(merged["min_sigma"])
-    eps = float(merged["eps"])
+    horizon_overrides = user_horizons if isinstance(user_horizons, dict) else {}
+    unknown_horizon_names = sorted(set(horizon_overrides) - set(_HORIZON_ORDER))
+    if unknown_horizon_names:
+        raise ValueError(
+            "Unsupported volume profile horizon names: "
+            f"{unknown_horizon_names}. Expected one of {list(_HORIZON_ORDER)}"
+        )
 
-    if neighbor_bins <= 0:
-        raise ValueError("volume profile config requires neighbor_bins > 0.")
-    if local_window <= 0:
-        raise ValueError("volume profile config requires local_window > 0.")
-    if sigma_divisor <= 0.0:
-        raise ValueError("volume profile config requires sigma_divisor > 0.")
-    if min_sigma <= 0.0:
-        raise ValueError("volume profile config requires min_sigma > 0.")
-    if eps <= 0.0:
-        raise ValueError("volume profile config requires eps > 0.")
-
+    horizons = {}
+    horizon_names = []
+    horizon_offsets = []
+    horizon_bins = []
+    horizon_steps = []
+    horizon_local_windows = []
+    horizon_sigma_divisors = []
+    horizon_min_sigmas = []
     half_lives = []
     decays = []
-    horizon_names = []
+    total_bins = 0
+
     for horizon_name in _HORIZON_ORDER:
-        half_life = horizons[horizon_name].get("half_life_candles")
-        if half_life is None:
-            decay = 1.0
-            normalized_half_life = None
-        else:
-            normalized_half_life = int(half_life)
-            if normalized_half_life <= 0:
+        horizon_cfg = dict(DEFAULT_CONFIG["horizons"][horizon_name])
+        user_horizon_cfg = horizon_overrides.get(horizon_name)
+        if user_horizon_cfg is not None:
+            if not isinstance(user_horizon_cfg, dict):
                 raise ValueError(
-                    f"volume profile horizon '{horizon_name}' requires half_life_candles > 0 or null."
+                    f"volume profile horizon '{horizon_name}' config must be a dict."
                 )
-            decay = math.exp(math.log(0.5) / float(normalized_half_life))
-        horizons[horizon_name] = {
-            "half_life_candles": normalized_half_life,
-            "decay": float(decay),
-        }
+            unknown_horizon_keys = sorted(
+                set(user_horizon_cfg) - _ALLOWED_HORIZON_CONFIG_KEYS
+            )
+            if unknown_horizon_keys:
+                raise ValueError(
+                    f"Unsupported volume profile keys in horizons.{horizon_name}: "
+                    f"{unknown_horizon_keys}"
+                )
+            horizon_cfg.update(user_horizon_cfg)
+
+        normalized_horizon = _normalize_horizon_config(
+            horizon_name,
+            horizon_cfg,
+            price_min=price_min,
+            price_max=price_max,
+            offset=total_bins,
+        )
+        horizons[horizon_name] = normalized_horizon
         horizon_names.append(horizon_name)
-        half_lives.append(normalized_half_life)
-        decays.append(float(decay))
+        horizon_offsets.append(int(normalized_horizon["offset"]))
+        horizon_bins.append(int(normalized_horizon["bins"]))
+        horizon_steps.append(int(normalized_horizon["step"]))
+        horizon_local_windows.append(int(normalized_horizon["local_window"]))
+        horizon_sigma_divisors.append(float(normalized_horizon["sigma_divisor"]))
+        horizon_min_sigmas.append(float(normalized_horizon["min_sigma"]))
+        half_lives.append(normalized_horizon["half_life_candles"])
+        decays.append(float(normalized_horizon["decay"]))
+        total_bins += int(normalized_horizon["bins"])
 
     normalized = {
         "enabled": bool(merged.get("enabled", True)),
         "price_min": price_min,
         "price_max": price_max,
-        "step": step,
-        "bins": bins,
         "neighbor_bins": neighbor_bins,
-        "local_window": local_window,
-        "sigma_divisor": sigma_divisor,
-        "min_sigma": min_sigma,
         "eps": eps,
         "horizons": horizons,
         "horizon_names": tuple(horizon_names),
+        "horizon_offsets": tuple(horizon_offsets),
+        "horizon_bins": tuple(horizon_bins),
+        "horizon_steps": tuple(horizon_steps),
+        "horizon_local_windows": tuple(horizon_local_windows),
+        "horizon_sigma_divisors": tuple(horizon_sigma_divisors),
+        "horizon_min_sigmas": tuple(horizon_min_sigmas),
         "half_lives": tuple(half_lives),
         "decays": tuple(decays),
+        "total_bins": int(total_bins),
+        "max_bins": int(max(horizon_bins)),
         "version": FEATURE_VERSION,
     }
     normalized["feature_columns"] = get_feature_columns(normalized)
@@ -152,20 +324,25 @@ def _config_signature_from_normalized(normalized):
         "enabled": bool(normalized["enabled"]),
         "price_min": float(normalized["price_min"]),
         "price_max": float(normalized["price_max"]),
-        "step": float(normalized["step"]),
-        "bins": int(normalized["bins"]),
         "neighbor_bins": int(normalized["neighbor_bins"]),
-        "local_window": int(normalized["local_window"]),
-        "sigma_divisor": float(normalized["sigma_divisor"]),
-        "min_sigma": float(normalized["min_sigma"]),
         "eps": float(normalized["eps"]),
         "horizons": {
             name: {
-                "half_life_candles": normalized["horizons"][name]["half_life_candles"],
+                "step": int(normalized["horizons"][name]["step"]),
+                "bins": int(normalized["horizons"][name]["bins"]),
+                "local_window": int(normalized["horizons"][name]["local_window"]),
+                "sigma_divisor": float(
+                    normalized["horizons"][name]["sigma_divisor"]
+                ),
+                "min_sigma": float(normalized["horizons"][name]["min_sigma"]),
+                "half_life_candles": normalized["horizons"][name][
+                    "half_life_candles"
+                ],
                 "decay": float(normalized["horizons"][name]["decay"]),
             }
             for name in normalized["horizon_names"]
         },
+        "feature_columns": list(normalized["feature_columns"]),
     }
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
@@ -176,38 +353,60 @@ def get_feature_columns(cfg=None):
     neighbor_bins = int(normalized["neighbor_bins"])
     for horizon_name in normalized["horizon_names"]:
         for shift in range(-neighbor_bins, 0):
-            cols.append(f"vp_{horizon_name}_lr_m{abs(shift)}")
+            cols.append(
+                f"vp_{horizon_name}_log_density_ratio_to_current_bin_minus_{abs(shift)}"
+            )
         for shift in range(1, neighbor_bins + 1):
-            cols.append(f"vp_{horizon_name}_lr_p{shift}")
-        cols.append(f"vp_{horizon_name}_imbalance")
-        cols.append(f"vp_{horizon_name}_curr_share")
-        cols.append(f"vp_{horizon_name}_peak_ratio")
+            cols.append(
+                f"vp_{horizon_name}_log_density_ratio_to_current_bin_plus_{shift}"
+            )
+        cols.append(f"vp_{horizon_name}_local_above_below_volume_log_ratio")
+        cols.append(f"vp_{horizon_name}_current_bin_volume_share_of_local_window")
+        cols.append(f"vp_{horizon_name}_current_bin_volume_share_of_local_peak")
     return tuple(cols)
+
+
+def _format_horizon_summary(source):
+    return ", ".join(
+        (
+            f"{name}(step={source['horizons'][name]['step']},"
+            f"bins={source['horizons'][name]['bins']},"
+            f"hl={source['horizons'][name]['half_life_candles']})"
+        )
+        for name in source["horizon_names"]
+    )
 
 
 def create_empty_state(cfg=None):
     normalized = cfg if cfg and "horizon_names" in cfg else normalize_config(cfg)
-    horizon_count = len(normalized["horizon_names"])
-    bins = int(normalized["bins"])
+    horizons = {}
+    for horizon_name in normalized["horizon_names"]:
+        horizon_cfg = normalized["horizons"][horizon_name]
+        horizons[horizon_name] = {
+            "horizon_name": horizon_name,
+            "half_life_candles": horizon_cfg["half_life_candles"],
+            "decay": float(horizon_cfg["decay"]),
+            "step": int(horizon_cfg["step"]),
+            "bins": int(horizon_cfg["bins"]),
+            "local_window": int(horizon_cfg["local_window"]),
+            "sigma_divisor": float(horizon_cfg["sigma_divisor"]),
+            "min_sigma": float(horizon_cfg["min_sigma"]),
+            # Each horizon keeps an independent grid/profile for batch/live parity.
+            "raw_profile": np.zeros(int(horizon_cfg["bins"]), dtype=np.float64),
+            "global_scale": 1.0,
+        }
+
     return {
         "enabled": bool(normalized["enabled"]),
         "version": normalized["version"],
         "price_min": float(normalized["price_min"]),
         "price_max": float(normalized["price_max"]),
-        "step": float(normalized["step"]),
-        "bins": bins,
         "neighbor_bins": int(normalized["neighbor_bins"]),
-        "local_window": int(normalized["local_window"]),
-        "sigma_divisor": float(normalized["sigma_divisor"]),
-        "min_sigma": float(normalized["min_sigma"]),
         "eps": float(normalized["eps"]),
         "horizon_names": tuple(normalized["horizon_names"]),
-        "half_lives": tuple(normalized["half_lives"]),
-        "decays": np.asarray(normalized["decays"], dtype=np.float64),
-        "raw_profiles": np.zeros((horizon_count, bins), dtype=np.float64),
-        "global_scales": np.ones(horizon_count, dtype=np.float64),
         "feature_columns": tuple(normalized["feature_columns"]),
         "config_signature": normalized["config_signature"],
+        "horizons": horizons,
         "last_candle_time": None,
     }
 
@@ -224,31 +423,36 @@ def _state_base_path(path):
 
 
 def _state_metadata_dict(state):
-    horizon_meta = {}
-    for idx, name in enumerate(state["horizon_names"]):
-        horizon_meta[name] = {
-            "half_life_candles": state["half_lives"][idx],
-            "decay": float(state["decays"][idx]),
-            "global_scale": float(state["global_scales"][idx]),
-        }
-
     return {
         "version": str(state["version"]),
         "config_signature": str(state["config_signature"]),
+        "enabled": bool(state["enabled"]),
         "price_min": float(state["price_min"]),
         "price_max": float(state["price_max"]),
-        "step": float(state["step"]),
-        "bins": int(state["bins"]),
         "neighbor_bins": int(state["neighbor_bins"]),
-        "local_window": int(state["local_window"]),
-        "sigma_divisor": float(state["sigma_divisor"]),
-        "min_sigma": float(state["min_sigma"]),
         "eps": float(state["eps"]),
         "horizon_names": list(state["horizon_names"]),
         "feature_columns": list(state["feature_columns"]),
-        "horizons": horizon_meta,
+        "horizons": {
+            name: {
+                "horizon_name": str(state["horizons"][name]["horizon_name"]),
+                "half_life_candles": state["horizons"][name]["half_life_candles"],
+                "decay": float(state["horizons"][name]["decay"]),
+                "step": int(state["horizons"][name]["step"]),
+                "bins": int(state["horizons"][name]["bins"]),
+                "local_window": int(state["horizons"][name]["local_window"]),
+                "sigma_divisor": float(state["horizons"][name]["sigma_divisor"]),
+                "min_sigma": float(state["horizons"][name]["min_sigma"]),
+                "global_scale": float(state["horizons"][name]["global_scale"]),
+            }
+            for name in state["horizon_names"]
+        },
         "last_candle_time": state.get("last_candle_time"),
     }
+
+
+def _raw_profile_npz_key(horizon_name):
+    return f"raw_profile_{horizon_name}"
 
 
 def save_state(state, path):
@@ -260,13 +464,20 @@ def save_state(state, path):
 
     np.savez_compressed(
         npz_path,
-        raw_profiles=state["raw_profiles"],
-        global_scales=state["global_scales"],
-        decays=state["decays"],
+        **{
+            _raw_profile_npz_key(name): np.asarray(
+                state["horizons"][name]["raw_profile"],
+                dtype=np.float64,
+            )
+            for name in state["horizon_names"]
+        },
     )
     json_path.write_text(
         json.dumps(
-            _state_metadata_dict(state), indent=2, sort_keys=True, ensure_ascii=True
+            _state_metadata_dict(state),
+            indent=2,
+            sort_keys=True,
+            ensure_ascii=True,
         ),
         encoding="utf-8",
     )
@@ -288,52 +499,177 @@ def load_state(path):
             f"Unsupported volume profile state version: {meta.get('version')!r}"
         )
 
+    horizon_names = tuple(meta.get("horizon_names") or ())
+    if horizon_names != _HORIZON_ORDER:
+        raise ValueError(
+            "volume profile state horizon_names do not match the canonical order. "
+            f"Expected={list(_HORIZON_ORDER)} actual={list(horizon_names)}"
+        )
+
     cfg = {
-        "enabled": True,
+        "enabled": bool(meta.get("enabled", True)),
         "price_min": meta["price_min"],
         "price_max": meta["price_max"],
-        "step": meta["step"],
         "neighbor_bins": meta["neighbor_bins"],
-        "local_window": meta["local_window"],
-        "sigma_divisor": meta["sigma_divisor"],
-        "min_sigma": meta["min_sigma"],
         "eps": meta["eps"],
-        "horizons": {
-            name: {
-                "half_life_candles": meta["horizons"][name]["half_life_candles"],
-            }
-            for name in meta["horizon_names"]
-        },
+        "horizons": {},
     }
+    for horizon_name in horizon_names:
+        horizon_meta = meta.get("horizons", {}).get(horizon_name)
+        if not isinstance(horizon_meta, dict):
+            raise ValueError(
+                f"volume profile state metadata is missing horizons.{horizon_name}"
+            )
+        cfg["horizons"][horizon_name] = {
+            "step": horizon_meta["step"],
+            "local_window": horizon_meta["local_window"],
+            "sigma_divisor": horizon_meta["sigma_divisor"],
+            "min_sigma": horizon_meta["min_sigma"],
+            "half_life_candles": horizon_meta["half_life_candles"],
+        }
+
     state = create_empty_state(cfg)
-    with np.load(npz_path) as data:
-        raw_profiles = np.asarray(data["raw_profiles"], dtype=np.float64)
-        global_scales = np.asarray(data["global_scales"], dtype=np.float64)
-        decays = np.asarray(data["decays"], dtype=np.float64)
-
-    expected_shape = state["raw_profiles"].shape
-    if raw_profiles.shape != expected_shape:
-        raise ValueError(
-            f"volume profile raw_profiles shape mismatch: {raw_profiles.shape} != {expected_shape}"
-        )
-    if global_scales.shape != state["global_scales"].shape:
-        raise ValueError(
-            "volume profile global_scales shape mismatch: "
-            f"{global_scales.shape} != {state['global_scales'].shape}"
-        )
-    if decays.shape != state["decays"].shape:
-        raise ValueError(
-            f"volume profile decays shape mismatch: {decays.shape} != {state['decays'].shape}"
-        )
-
-    state["raw_profiles"][:] = raw_profiles
-    state["global_scales"][:] = global_scales
-    state["decays"][:] = decays
-    state["last_candle_time"] = meta.get("last_candle_time")
-    state["config_signature"] = str(
-        meta.get("config_signature", state["config_signature"])
+    meta_feature_columns = tuple(meta.get("feature_columns") or ())
+    validate_volume_profile_feature_columns(
+        meta_feature_columns,
+        source_label=f"volume profile state metadata {json_path}",
     )
+    expected_feature_columns = tuple(state["feature_columns"])
+    if meta_feature_columns != expected_feature_columns:
+        raise ValueError(
+            "volume profile state metadata feature_columns do not match the current "
+            "canonical VP schema. Regenerate the saved VP state artifact. "
+            f"path={json_path} expected_count={len(expected_feature_columns)} "
+            f"actual_count={len(meta_feature_columns)}"
+        )
+
+    actual_signature = str(meta.get("config_signature", ""))
+    expected_signature = str(state["config_signature"])
+    if actual_signature != expected_signature:
+        raise ValueError(
+            "volume profile state config_signature does not match the current VP "
+            "configuration. Regenerate the saved VP state artifact. "
+            f"path={json_path}"
+        )
+
+    with np.load(npz_path) as data:
+        for horizon_name in state["horizon_names"]:
+            array_key = _raw_profile_npz_key(horizon_name)
+            if array_key not in data:
+                raise ValueError(
+                    f"volume profile state npz is missing {array_key}: {npz_path}"
+                )
+            raw_profile = np.asarray(data[array_key], dtype=np.float64)
+            expected_shape = state["horizons"][horizon_name]["raw_profile"].shape
+            if raw_profile.shape != expected_shape:
+                raise ValueError(
+                    "volume profile raw_profile shape mismatch for "
+                    f"{horizon_name}: {raw_profile.shape} != {expected_shape}"
+                )
+            state["horizons"][horizon_name]["raw_profile"][:] = raw_profile
+
+    for horizon_name in state["horizon_names"]:
+        global_scale = float(meta["horizons"][horizon_name].get("global_scale", 1.0))
+        if not np.isfinite(global_scale) or global_scale <= 0.0:
+            raise ValueError(
+                "volume profile state requires finite positive global_scale for "
+                f"horizon={horizon_name}"
+            )
+        state["horizons"][horizon_name]["global_scale"] = global_scale
+
+    state["last_candle_time"] = meta.get("last_candle_time")
     return state
+
+
+def validate_volume_profile_model_metadata(
+    metadata_payload,
+    *,
+    feature_columns,
+    cfg=None,
+    source_label,
+):
+    feature_columns = tuple(str(feature_name).strip() for feature_name in feature_columns)
+    validate_volume_profile_feature_columns(
+        feature_columns,
+        source_label=source_label,
+    )
+    if not any(is_volume_profile_feature(col) for col in feature_columns):
+        return None
+
+    raw_vp_cfg = metadata_payload.get("volume_profile_fixed_range")
+    if not isinstance(raw_vp_cfg, dict):
+        raise ValueError(
+            f"{source_label} is missing volume_profile_fixed_range config metadata. "
+            "Regenerate the modeling dataset and retrain the model for the current "
+            f"VP architecture ({FEATURE_VERSION})."
+        )
+
+    expected_cfg = cfg if cfg and "horizon_names" in cfg else normalize_config(cfg)
+    try:
+        model_cfg = normalize_config(raw_vp_cfg)
+    except Exception as exc:
+        raise ValueError(
+            f"{source_label} contains incompatible volume_profile_fixed_range config "
+            "metadata. Regenerate the modeling dataset and retrain the model for "
+            f"the current VP architecture ({FEATURE_VERSION})."
+        ) from exc
+
+    if str(model_cfg["config_signature"]) != str(expected_cfg["config_signature"]):
+        raise ValueError(
+            f"{source_label} volume_profile_fixed_range config does not match the "
+            "active VP config. Regenerate the model or switch to the matching VP config."
+        )
+    return model_cfg
+
+
+def validate_volume_profile_dataset_metadata(
+    metadata_payload,
+    *,
+    feature_columns,
+    cfg=None,
+    source_label,
+):
+    feature_columns = tuple(str(feature_name).strip() for feature_name in feature_columns)
+    validate_volume_profile_feature_columns(
+        feature_columns,
+        source_label=source_label,
+    )
+    if not any(is_volume_profile_feature(col) for col in feature_columns):
+        return None
+
+    raw_vp_cfg = metadata_payload.get("volume_profile_fixed_range")
+    if not isinstance(raw_vp_cfg, dict):
+        raise ValueError(
+            f"{source_label} is missing volume_profile_fixed_range dataset metadata. "
+            "Regenerate the modeling dataset for the current VP architecture."
+        )
+
+    expected_cfg = cfg if cfg and "horizon_names" in cfg else normalize_config(cfg)
+    try:
+        dataset_cfg = normalize_config(raw_vp_cfg)
+    except Exception as exc:
+        raise ValueError(
+            f"{source_label} contains incompatible volume_profile_fixed_range dataset "
+            "metadata. Regenerate the modeling dataset for the current VP architecture."
+        ) from exc
+
+    if str(dataset_cfg["config_signature"]) != str(expected_cfg["config_signature"]):
+        raise ValueError(
+            f"{source_label} volume_profile_fixed_range config does not match the "
+            "active VP config. Regenerate the modeling dataset."
+        )
+
+    meta_feature_columns = tuple(
+        metadata_payload.get("volume_profile_feature_columns") or ()
+    )
+    if meta_feature_columns and meta_feature_columns != tuple(
+        expected_cfg["feature_columns"]
+    ):
+        raise ValueError(
+            f"{source_label} volume_profile_feature_columns do not match the active "
+            "VP schema. Regenerate the modeling dataset."
+        )
+    return dataset_cfg
 
 
 def _require_dataframe_columns(df, required):
@@ -374,26 +710,31 @@ def _normal_cdf_numba(x):
 
 @njit(cache=True)
 def _extract_feature_row_array_numba(
-    raw_profiles,
+    raw_profile_buffer,
     global_scales,
     high,
     low,
     price_min,
-    step,
-    bins,
     neighbor_bins,
-    local_window,
     eps,
+    horizon_offsets,
+    horizon_bins,
+    horizon_steps,
+    horizon_local_windows,
     out_row,
 ):
     price_ref = 0.5 * (high + low)
-    bin_idx = _price_to_bin_index_numba(price_ref, price_min, step, bins)
     cursor = 0
-    horizon_count = raw_profiles.shape[0]
+    horizon_count = global_scales.shape[0]
 
     for horizon_idx in range(horizon_count):
+        offset = horizon_offsets[horizon_idx]
+        bins = horizon_bins[horizon_idx]
+        step = horizon_steps[horizon_idx]
+        local_window = horizon_local_windows[horizon_idx]
+        bin_idx = _price_to_bin_index_numba(price_ref, price_min, step, bins)
         scale = global_scales[horizon_idx]
-        curr = float(raw_profiles[horizon_idx, bin_idx]) * scale
+        curr = float(raw_profile_buffer[offset + bin_idx]) * scale
 
         for shift in range(-neighbor_bins, 0):
             neighbor_idx = bin_idx + shift
@@ -401,7 +742,7 @@ def _extract_feature_row_array_numba(
                 neighbor_idx = 0
             elif neighbor_idx >= bins:
                 neighbor_idx = bins - 1
-            neigh = float(raw_profiles[horizon_idx, neighbor_idx]) * scale
+            neigh = float(raw_profile_buffer[offset + neighbor_idx]) * scale
             out_row[cursor] = math.log((neigh + eps) / (curr + eps))
             cursor += 1
 
@@ -411,7 +752,7 @@ def _extract_feature_row_array_numba(
                 neighbor_idx = 0
             elif neighbor_idx >= bins:
                 neighbor_idx = bins - 1
-            neigh = float(raw_profiles[horizon_idx, neighbor_idx]) * scale
+            neigh = float(raw_profile_buffer[offset + neighbor_idx]) * scale
             out_row[cursor] = math.log((neigh + eps) / (curr + eps))
             cursor += 1
 
@@ -427,7 +768,7 @@ def _extract_feature_row_array_numba(
         local_sum = 0.0
         local_max = 0.0
         for local_idx in range(left, right):
-            value = float(raw_profiles[horizon_idx, local_idx]) * scale
+            value = float(raw_profile_buffer[offset + local_idx]) * scale
             local_sum += value
             if value > local_max:
                 local_max = value
@@ -446,17 +787,18 @@ def _extract_feature_row_array_numba(
 
 @njit(cache=True)
 def _update_state_with_candle_numba(
-    raw_profiles,
+    raw_profile_buffer,
     global_scales,
-    decays,
+    horizon_offsets,
+    horizon_bins,
+    horizon_steps,
+    horizon_sigma_divisors,
+    horizon_min_sigmas,
+    horizon_decays,
     high,
     low,
     volume,
     price_min,
-    step,
-    bins,
-    sigma_divisor,
-    min_sigma,
     renormalize_scale_min,
     weight_buffer,
 ):
@@ -466,69 +808,75 @@ def _update_state_with_candle_numba(
         return
 
     hl2 = 0.5 * (high + low)
-    start_idx = 0
-    length = 1
-    total_weight = 1.0
-
-    if high <= low or abs(high - low) <= 1e-12:
-        start_idx = _price_to_bin_index_numba(hl2, price_min, step, bins)
-        weight_buffer[0] = 1.0
-    else:
-        start_idx = _price_to_bin_index_numba(low, price_min, step, bins)
-        end_idx = _price_to_bin_index_numba(high, price_min, step, bins)
-        length = end_idx - start_idx + 1
-        mu = hl2
-        sigma = (high - low) / sigma_divisor
-        if sigma < min_sigma:
-            sigma = min_sigma
-
-        total_weight = 0.0
-        for offset in range(length):
-            bin_idx = start_idx + offset
-            bin_left = price_min + float(bin_idx) * step
-            bin_right = bin_left + step
-            left = low if low > bin_left else bin_left
-            right = high if high < bin_right else bin_right
-            if right <= left:
-                weight_buffer[offset] = 0.0
-                continue
-            weight = _normal_cdf_numba((right - mu) / sigma) - _normal_cdf_numba(
-                (left - mu) / sigma
-            )
-            if weight <= 0.0 or not np.isfinite(weight):
-                weight_buffer[offset] = 0.0
-                continue
-            weight_buffer[offset] = weight
-            total_weight += weight
-
-        if total_weight <= 0.0 or not np.isfinite(total_weight):
-            start_idx = _price_to_bin_index_numba(hl2, price_min, step, bins)
-            length = 1
-            total_weight = 1.0
-            weight_buffer[0] = 1.0
-
-    base_increment = float(volume) / total_weight
-    horizon_count = raw_profiles.shape[0]
+    horizon_count = global_scales.shape[0]
 
     for horizon_idx in range(horizon_count):
-        decay = decays[horizon_idx]
+        offset = horizon_offsets[horizon_idx]
+        bins = horizon_bins[horizon_idx]
+        step = horizon_steps[horizon_idx]
+        sigma_divisor = horizon_sigma_divisors[horizon_idx]
+        min_sigma = horizon_min_sigmas[horizon_idx]
+
+        start_idx = 0
+        length = 1
+        total_weight = 1.0
+
+        if high <= low or abs(high - low) <= 1e-12:
+            start_idx = _price_to_bin_index_numba(hl2, price_min, step, bins)
+            weight_buffer[0] = 1.0
+        else:
+            start_idx = _price_to_bin_index_numba(low, price_min, step, bins)
+            end_idx = _price_to_bin_index_numba(high, price_min, step, bins)
+            length = end_idx - start_idx + 1
+            mu = hl2
+            sigma = (high - low) / sigma_divisor
+            if sigma < min_sigma:
+                sigma = min_sigma
+
+            total_weight = 0.0
+            for weight_idx in range(length):
+                bin_idx = start_idx + weight_idx
+                bin_left = price_min + float(bin_idx) * step
+                bin_right = bin_left + step
+                left = low if low > bin_left else bin_left
+                right = high if high < bin_right else bin_right
+                if right <= left:
+                    weight_buffer[weight_idx] = 0.0
+                    continue
+                weight = _normal_cdf_numba((right - mu) / sigma) - _normal_cdf_numba(
+                    (left - mu) / sigma
+                )
+                if weight <= 0.0 or not np.isfinite(weight):
+                    weight_buffer[weight_idx] = 0.0
+                    continue
+                weight_buffer[weight_idx] = weight
+                total_weight += weight
+
+            if total_weight <= 0.0 or not np.isfinite(total_weight):
+                start_idx = _price_to_bin_index_numba(hl2, price_min, step, bins)
+                length = 1
+                total_weight = 1.0
+                weight_buffer[0] = 1.0
+
+        decay = horizon_decays[horizon_idx]
         if decay != 1.0:
             global_scales[horizon_idx] *= decay
             scale = global_scales[horizon_idx]
             if scale < renormalize_scale_min:
                 for bin_idx in range(bins):
-                    raw_profiles[horizon_idx, bin_idx] = (
-                        raw_profiles[horizon_idx, bin_idx] * scale
+                    raw_profile_buffer[offset + bin_idx] = (
+                        raw_profile_buffer[offset + bin_idx] * scale
                     )
                 global_scales[horizon_idx] = 1.0
                 scale = 1.0
         else:
             scale = global_scales[horizon_idx]
 
+        base_increment = float(volume) / total_weight
         inv_scale = base_increment / scale
-        for offset in range(length):
-            raw_profiles[horizon_idx, start_idx + offset] += (
-                weight_buffer[offset] * inv_scale
+        for weight_idx in range(length):
+            raw_profile_buffer[offset + start_idx + weight_idx] += (
+                weight_buffer[weight_idx] * inv_scale
             )
 
 
@@ -540,22 +888,24 @@ def _build_volume_profile_feature_matrix_numba(
     keep_mask,
     out_rows,
     price_min,
-    step,
-    bins,
     neighbor_bins,
-    local_window,
-    sigma_divisor,
-    min_sigma,
     eps,
-    decays,
+    horizon_offsets,
+    horizon_bins,
+    horizon_steps,
+    horizon_local_windows,
+    horizon_sigma_divisors,
+    horizon_min_sigmas,
+    horizon_decays,
     feature_count,
+    total_bins,
+    max_bins,
     renormalize_scale_min,
 ):
-    horizon_count = decays.shape[0]
-    raw_profiles = np.zeros((horizon_count, bins), dtype=np.float64)
-    global_scales = np.ones(horizon_count, dtype=np.float64)
+    raw_profile_buffer = np.zeros(total_bins, dtype=np.float64)
+    global_scales = np.ones(horizon_bins.shape[0], dtype=np.float64)
     feature_matrix = np.empty((out_rows, feature_count), dtype=np.float64)
-    weight_buffer = np.empty(bins, dtype=np.float64)
+    weight_buffer = np.empty(max_bins, dtype=np.float64)
 
     out_idx = 0
     row_count = high.shape[0]
@@ -563,38 +913,40 @@ def _build_volume_profile_feature_matrix_numba(
         row_high = high[row_idx]
         row_low = low[row_idx]
         _update_state_with_candle_numba(
-            raw_profiles=raw_profiles,
+            raw_profile_buffer=raw_profile_buffer,
             global_scales=global_scales,
-            decays=decays,
+            horizon_offsets=horizon_offsets,
+            horizon_bins=horizon_bins,
+            horizon_steps=horizon_steps,
+            horizon_sigma_divisors=horizon_sigma_divisors,
+            horizon_min_sigmas=horizon_min_sigmas,
+            horizon_decays=horizon_decays,
             high=row_high,
             low=row_low,
             volume=volume[row_idx],
             price_min=price_min,
-            step=step,
-            bins=bins,
-            sigma_divisor=sigma_divisor,
-            min_sigma=min_sigma,
             renormalize_scale_min=renormalize_scale_min,
             weight_buffer=weight_buffer,
         )
 
         if keep_mask[row_idx]:
             _extract_feature_row_array_numba(
-                raw_profiles=raw_profiles,
+                raw_profile_buffer=raw_profile_buffer,
                 global_scales=global_scales,
                 high=row_high,
                 low=row_low,
                 price_min=price_min,
-                step=step,
-                bins=bins,
                 neighbor_bins=neighbor_bins,
-                local_window=local_window,
                 eps=eps,
+                horizon_offsets=horizon_offsets,
+                horizon_bins=horizon_bins,
+                horizon_steps=horizon_steps,
+                horizon_local_windows=horizon_local_windows,
                 out_row=feature_matrix[out_idx],
             )
             out_idx += 1
 
-    return feature_matrix, raw_profiles, global_scales
+    return feature_matrix, raw_profile_buffer, global_scales
 
 
 def _normalize_keep_mask(keep_mask, row_count):
@@ -607,6 +959,44 @@ def _normalize_keep_mask(keep_mask, row_count):
             "volume profile keep_mask must be a 1D boolean array with the same length as the inputs."
         )
     return np.ascontiguousarray(keep_mask_np)
+
+
+def _normalized_horizon_arrays(normalized):
+    return {
+        "horizon_offsets": np.ascontiguousarray(
+            np.asarray(normalized["horizon_offsets"], dtype=np.int64)
+        ),
+        "horizon_bins": np.ascontiguousarray(
+            np.asarray(normalized["horizon_bins"], dtype=np.int64)
+        ),
+        "horizon_steps": np.ascontiguousarray(
+            np.asarray(normalized["horizon_steps"], dtype=np.float64)
+        ),
+        "horizon_local_windows": np.ascontiguousarray(
+            np.asarray(normalized["horizon_local_windows"], dtype=np.int64)
+        ),
+        "horizon_sigma_divisors": np.ascontiguousarray(
+            np.asarray(normalized["horizon_sigma_divisors"], dtype=np.float64)
+        ),
+        "horizon_min_sigmas": np.ascontiguousarray(
+            np.asarray(normalized["horizon_min_sigmas"], dtype=np.float64)
+        ),
+        "horizon_decays": np.ascontiguousarray(
+            np.asarray(normalized["decays"], dtype=np.float64)
+        ),
+    }
+
+
+def _apply_flat_profiles_to_state(state, normalized, raw_profile_buffer, global_scales):
+    for horizon_idx, horizon_name in enumerate(state["horizon_names"]):
+        offset = int(normalized["horizons"][horizon_name]["offset"])
+        bins = int(normalized["horizons"][horizon_name]["bins"])
+        state["horizons"][horizon_name]["raw_profile"][:] = raw_profile_buffer[
+            offset : offset + bins
+        ]
+        state["horizons"][horizon_name]["global_scale"] = float(
+            global_scales[horizon_idx]
+        )
 
 
 def build_volume_profile_feature_matrix_from_arrays(
@@ -630,8 +1020,9 @@ def build_volume_profile_feature_matrix_from_arrays(
 
     keep_mask_np = _normalize_keep_mask(keep_mask, row_count=row_count)
     out_rows = int(keep_mask_np.sum())
+    horizon_arrays = _normalized_horizon_arrays(normalized)
 
-    feature_matrix, raw_profiles, global_scales = (
+    feature_matrix, raw_profile_buffer, global_scales = (
         _build_volume_profile_feature_matrix_numba(
             high=high_np,
             low=low_np,
@@ -639,21 +1030,28 @@ def build_volume_profile_feature_matrix_from_arrays(
             keep_mask=keep_mask_np,
             out_rows=out_rows,
             price_min=float(state["price_min"]),
-            step=float(state["step"]),
-            bins=int(state["bins"]),
             neighbor_bins=int(state["neighbor_bins"]),
-            local_window=int(state["local_window"]),
-            sigma_divisor=float(state["sigma_divisor"]),
-            min_sigma=float(state["min_sigma"]),
             eps=float(state["eps"]),
-            decays=np.ascontiguousarray(state["decays"], dtype=np.float64),
+            horizon_offsets=horizon_arrays["horizon_offsets"],
+            horizon_bins=horizon_arrays["horizon_bins"],
+            horizon_steps=horizon_arrays["horizon_steps"],
+            horizon_local_windows=horizon_arrays["horizon_local_windows"],
+            horizon_sigma_divisors=horizon_arrays["horizon_sigma_divisors"],
+            horizon_min_sigmas=horizon_arrays["horizon_min_sigmas"],
+            horizon_decays=horizon_arrays["horizon_decays"],
             feature_count=len(state["feature_columns"]),
+            total_bins=int(normalized["total_bins"]),
+            max_bins=int(normalized["max_bins"]),
             renormalize_scale_min=float(_RENORMALIZE_SCALE_MIN),
         )
     )
 
-    state["raw_profiles"][:] = raw_profiles
-    state["global_scales"][:] = global_scales
+    _apply_flat_profiles_to_state(
+        state,
+        normalized,
+        raw_profile_buffer=raw_profile_buffer,
+        global_scales=global_scales,
+    )
     return feature_matrix, state
 
 
@@ -714,22 +1112,21 @@ def _extract_feature_row_array(
         return np.empty(0, dtype=np.float64)
 
     neighbor_bins = int(state["neighbor_bins"])
-    local_window = int(state["local_window"])
     eps = float(state["eps"])
-    bins = int(state["bins"])
     price_ref = 0.5 * (float(high) + float(low))
-    bin_idx = _price_to_bin_index(
-        price_ref, float(state["price_min"]), float(state["step"]), bins
-    )
 
     out = np.empty(len(state["feature_columns"]), dtype=np.float64)
     cursor = 0
 
-    for horizon_idx in range(len(state["horizon_names"])):
-        raw_profile = state["raw_profiles"][horizon_idx]
-        scale = float(state["global_scales"][horizon_idx])
-        curr_raw = float(raw_profile[bin_idx])
-        curr = curr_raw * scale
+    for horizon_name in state["horizon_names"]:
+        horizon_state = state["horizons"][horizon_name]
+        bins = int(horizon_state["bins"])
+        step = float(horizon_state["step"])
+        local_window = int(horizon_state["local_window"])
+        raw_profile = horizon_state["raw_profile"]
+        scale = float(horizon_state["global_scale"])
+        bin_idx = _price_to_bin_index(price_ref, float(state["price_min"]), step, bins)
+        curr = float(raw_profile[bin_idx]) * scale
 
         for shift in range(-neighbor_bins, 0):
             neighbor_idx = min(max(bin_idx + shift, 0), bins - 1)
@@ -783,33 +1180,32 @@ def update_state_with_candle(
     if not state["enabled"]:
         return state
 
-    start_idx, deltas = _build_candle_contribution_slice(
-        high=float(high),
-        low=float(low),
-        volume=float(volume),
-        price_min=float(state["price_min"]),
-        step=float(state["step"]),
-        bins=int(state["bins"]),
-        sigma_divisor=float(state["sigma_divisor"]),
-        min_sigma=float(state["min_sigma"]),
-    )
-    if start_idx is None or deltas.size == 0:
-        return state
+    for horizon_name in state["horizon_names"]:
+        horizon_state = state["horizons"][horizon_name]
+        start_idx, deltas = _build_candle_contribution_slice(
+            high=float(high),
+            low=float(low),
+            volume=float(volume),
+            price_min=float(state["price_min"]),
+            step=float(horizon_state["step"]),
+            bins=int(horizon_state["bins"]),
+            sigma_divisor=float(horizon_state["sigma_divisor"]),
+            min_sigma=float(horizon_state["min_sigma"]),
+        )
+        if start_idx is None or deltas.size == 0:
+            continue
 
-    stop_idx = int(start_idx) + int(deltas.shape[0])
-    scaled_deltas = deltas.astype(np.float64, copy=False)
+        if float(horizon_state["decay"]) != 1.0:
+            horizon_state["global_scale"] *= float(horizon_state["decay"])
+            if horizon_state["global_scale"] < _RENORMALIZE_SCALE_MIN:
+                horizon_state["raw_profile"] *= horizon_state["global_scale"]
+                horizon_state["global_scale"] = 1.0
 
-    for horizon_idx in range(len(state["horizon_names"])):
-        decay = float(state["decays"][horizon_idx])
-        if decay != 1.0:
-            state["global_scales"][horizon_idx] *= decay
-            scale = float(state["global_scales"][horizon_idx])
-            if scale < _RENORMALIZE_SCALE_MIN:
-                state["raw_profiles"][horizon_idx] *= scale
-                state["global_scales"][horizon_idx] = 1.0
-        scale = float(state["global_scales"][horizon_idx])
-        increment = np.asarray(scaled_deltas / scale, dtype=np.float64)
-        state["raw_profiles"][horizon_idx, start_idx:stop_idx] += increment
+        stop_idx = int(start_idx) + int(deltas.shape[0])
+        horizon_state["raw_profile"][start_idx:stop_idx] += np.asarray(
+            deltas / float(horizon_state["global_scale"]),
+            dtype=np.float64,
+        )
 
     return state
 
@@ -826,7 +1222,7 @@ def bootstrap_state_from_history(
 
     print(
         "[vp] bootstrap state start | "
-        f"rows={len(df_hist)} bins={state['bins']} horizons={','.join(state['horizon_names'])}"
+        f"rows={len(df_hist)} horizons={_format_horizon_summary(normalized)}"
     )
     keep_mask = np.zeros(len(df_hist), dtype=np.bool_)
     _, state = build_volume_profile_feature_matrix_from_arrays(
@@ -860,7 +1256,7 @@ def build_volume_profile_features(
     if verbose:
         print(
             "[vp] build start | "
-            f"rows={row_count} bins={state['bins']} horizons={','.join(state['horizon_names'])}"
+            f"rows={row_count} horizons={_format_horizon_summary(normalized)}"
         )
 
     feature_matrix, state = build_volume_profile_feature_matrix_from_arrays(
@@ -959,4 +1355,7 @@ __all__ = [
     "save_state",
     "state_matches_config",
     "update_state_with_candle",
+    "validate_volume_profile_dataset_metadata",
+    "validate_volume_profile_feature_columns",
+    "validate_volume_profile_model_metadata",
 ]

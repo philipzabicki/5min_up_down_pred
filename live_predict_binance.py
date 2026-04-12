@@ -75,6 +75,8 @@ from features.volume_profile_fixed_range import (
     save_state as save_volume_profile_state,
     state_matches_config as volume_profile_state_matches_config,
     update_state_with_candle as update_volume_profile_state_with_candle,
+    validate_volume_profile_feature_columns,
+    validate_volume_profile_model_metadata,
 )
 from modeling_dataset_utils import (
     MODELING_DATASET_CONFIG_FILE,
@@ -752,7 +754,12 @@ def load_required_stable_window(
     return int(requirements["global_required_runtime_window"])
 
 
-def load_indicator_specs(feature_columns):
+def load_indicator_specs(feature_columns, *, source_label=None):
+    source_label = source_label or f"model metadata feature_columns at {MODEL_META_PATH}"
+    validate_volume_profile_feature_columns(
+        feature_columns,
+        source_label=source_label,
+    )
     fit_configs = parse_fit_results(FIT_RESULTS_DIR)
     fit_by_feature_col = {cfg["feature_col"]: cfg for cfg in fit_configs}
 
@@ -998,6 +1005,10 @@ class LivePredictor:
         self.feature_columns = list(meta.get("feature_columns", []))
         if not self.feature_columns:
             raise ValueError("Missing feature_columns in model metadata.")
+        validate_volume_profile_feature_columns(
+            self.feature_columns,
+            source_label=f"model metadata {self.model_meta_path}",
+        )
         print(f"using fit results dir: {FIT_RESULTS_DIR.resolve()}")
         self.candle_feature_columns = [
             col for col in self.feature_columns if col in SUPPORTED_CANDLE_FEATURE_COLS
@@ -1020,7 +1031,10 @@ class LivePredictor:
         )
         self.live_bankroll_usdc = LIVE_INITIAL_BANKROLL_USDC
 
-        feature_parts = split_feature_subset(self.feature_columns)
+        feature_parts = split_feature_subset(
+            self.feature_columns,
+            source_label=f"model metadata {self.model_meta_path}",
+        )
         if feature_parts["streak_intervals"]:
             self.streak_interval_to_rule = resolve_streak_interval_to_rule(
                 feature_parts["streak_intervals"]
@@ -1036,6 +1050,12 @@ class LivePredictor:
         )
         self.volume_profile_cfg = normalize_volume_profile_config(
             MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
+        )
+        validate_volume_profile_model_metadata(
+            meta,
+            feature_columns=self.volume_profile_feature_columns,
+            cfg=self.volume_profile_cfg,
+            source_label=f"model metadata {self.model_meta_path}",
         )
         if (
             self.volume_profile_feature_columns
@@ -1053,7 +1073,10 @@ class LivePredictor:
             ThreadPoolExecutor(max_workers=1) if self.volume_profile_enabled else None
         )
 
-        self.indicator_specs = load_indicator_specs(self.feature_columns)
+        self.indicator_specs = load_indicator_specs(
+            self.feature_columns,
+            source_label=f"model metadata {self.model_meta_path}",
+        )
         self.indicator_history_requirements = load_indicator_history_requirements(
             INDICATOR_HISTORY_REQUIREMENTS_PATH,
             indicator_specs=self.indicator_specs,
@@ -1530,17 +1553,35 @@ class LivePredictor:
         if state is None:
             raise RuntimeError("volume profile state is not initialized")
 
-        snapshot = dict(state)
-        snapshot["horizon_names"] = tuple(state["horizon_names"])
-        snapshot["half_lives"] = tuple(state["half_lives"])
-        snapshot["feature_columns"] = tuple(state["feature_columns"])
-        snapshot["decays"] = np.array(state["decays"], dtype=np.float64, copy=True)
-        snapshot["global_scales"] = np.array(
-            state["global_scales"], dtype=np.float64, copy=True
-        )
-        snapshot["raw_profiles"] = np.array(
-            state["raw_profiles"], dtype=np.float32, copy=True
-        )
+        snapshot = {
+            "enabled": bool(state["enabled"]),
+            "version": str(state["version"]),
+            "price_min": float(state["price_min"]),
+            "price_max": float(state["price_max"]),
+            "neighbor_bins": int(state["neighbor_bins"]),
+            "eps": float(state["eps"]),
+            "horizon_names": tuple(state["horizon_names"]),
+            "feature_columns": tuple(state["feature_columns"]),
+            "config_signature": str(state["config_signature"]),
+            "last_candle_time": state.get("last_candle_time"),
+            "horizons": {},
+        }
+        for horizon_name in state["horizon_names"]:
+            horizon_state = state["horizons"][horizon_name]
+            snapshot["horizons"][horizon_name] = {
+                "horizon_name": str(horizon_state["horizon_name"]),
+                "half_life_candles": horizon_state["half_life_candles"],
+                "decay": float(horizon_state["decay"]),
+                "step": int(horizon_state["step"]),
+                "bins": int(horizon_state["bins"]),
+                "local_window": int(horizon_state["local_window"]),
+                "sigma_divisor": float(horizon_state["sigma_divisor"]),
+                "min_sigma": float(horizon_state["min_sigma"]),
+                "global_scale": float(horizon_state["global_scale"]),
+                "raw_profile": np.array(
+                    horizon_state["raw_profile"], dtype=np.float64, copy=True
+                ),
+            }
         return snapshot
 
     def _save_runtime_volume_profile_state_async(self, log=False, context="state"):

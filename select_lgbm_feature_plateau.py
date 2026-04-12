@@ -13,6 +13,7 @@ from sklearn.metrics import (
 )
 
 from features.candle_features import CANDLE_PATTERN_COLS, RAW_OHLCV_COLS
+from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
 from metrics_utils import weighted_brier_score
 from target_weights import (
     TARGET_WEIGHT_COL,
@@ -268,6 +269,10 @@ def resolve_feature_columns(df):
                 "Configured FEATURE_COLS contain non-numeric columns: "
                 + ", ".join(non_numeric)
             )
+        validate_volume_profile_feature_columns(
+            feature_cols,
+            source_label=f"FEATURE_COLS for dataset {DATA_PATH}",
+        )
         return feature_cols, []
 
     excluded = set(EXCLUDE_COLS)
@@ -291,6 +296,10 @@ def resolve_feature_columns(df):
 
     if not feature_cols:
         raise ValueError("No numeric feature columns left after autodetection.")
+    validate_volume_profile_feature_columns(
+        feature_cols,
+        source_label=f"feature selector dataset {DATA_PATH}",
+    )
 
     return feature_cols, non_numeric
 
