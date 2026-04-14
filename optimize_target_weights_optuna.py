@@ -493,7 +493,7 @@ def suggest_weight_config(trial, args):
 
 
 def enqueue_seed_trials(study, args):
-    candidate_weights = [0.20, 0.50, 0.80, 0.90, 0.95, 0.98]
+    candidate_weights = [0.20, 0.25, 0.30, 0.40, 0.50, 0.6, 0.75, 0.80, 0.90, 0.95, 0.98, 0.99]
     low = float(args.decision_weight_low)
     high = float(args.decision_weight_high)
     step = None if args.decision_weight_step is None else float(args.decision_weight_step)

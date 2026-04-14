@@ -58,7 +58,7 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260413_230223/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/20260414_203410/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",
@@ -78,7 +78,8 @@
           "MACD_fit_1440m_pop64_fasmatypehma_fasper181_fassouopen_sigmatypkama_sigper1032_slomatypgma_sloper1074_slosoulow",
           "ChaikinOsc_fit_6m_pop16_fasmatypdema_fasper4_slomatypgma_sloper2",
           "ADX_fit_1m_pop128_adxper2_atrper1556_matypadxhma_matypatrmama_matypnegdmmama_matypposdmrma_negdmper74_posdmper667_qe0.1_qm0.3_tf0.8_stmc_sg20",
-          "BollingerBands_fit_3m_pop16_maper22_masoulow_matypvwmapta_stdmaper132_stdmatypmama_stdmul3.131831_stdsouopen"
+          "BollingerBands_fit_3m_pop16_maper22_masoulow_matypvwmapta_stdmaper132_stdmatypmama_stdmul3.131831_stdsouopen",
+          "ChaikinOsc_fit_240m_pop16_fasmatypmama_fasper675_slomatypnwmagauss_sloper44"
         ]
       },
       "train_lgbm": {

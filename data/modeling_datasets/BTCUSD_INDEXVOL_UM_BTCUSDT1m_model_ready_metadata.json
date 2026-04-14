@@ -1,5 +1,5 @@
 {
-  "created_utc": "2026-04-13T23:05:49.183057+00:00",
+  "created_utc": "2026-04-14T20:37:11.471958+00:00",
   "float_precision": "float64",
   "head_csv_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_head1000.csv",
   "parquet_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet",

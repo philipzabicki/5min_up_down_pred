@@ -77,6 +77,81 @@ def test_weighted_mean_helpers_respect_fold_order():
     )
 
 
+def test_score_topk_subset_uses_weighted_mean_for_selection_base_when_enabled(
+    monkeypatch,
+):
+    monkeypatch.setattr(feature_plateau, "RANDOM_SEEDS", [37])
+    monkeypatch.setattr(feature_plateau, "ENABLE_FOLD_RECENCY_WEIGHTING", True)
+    monkeypatch.setattr(feature_plateau, "FOLD_RECENCY_WEIGHT_MIN", 1.0)
+    monkeypatch.setattr(feature_plateau, "FOLD_RECENCY_WEIGHT_MAX", 1.4)
+    monkeypatch.setattr(feature_plateau, "TOPK_SELECTION_MODE", "mean_only")
+
+    x = pd.DataFrame(
+        {
+            "f1": [0.0, 1.0, 2.0, 3.0],
+            "f2": [1.0, 0.0, 1.0, 0.0],
+        }
+    )
+    y = pd.Series([0, 1, 0, 1], dtype=np.int8)
+    sample_weight = pd.Series([1.0, 1.0, 1.0, 1.0], dtype=np.float32)
+    folds = [
+        {"fold_id": 0, "train_idx": np.array([0, 1]), "valid_idx": np.array([2])},
+        {"fold_id": 1, "train_idx": np.array([0, 1, 2]), "valid_idx": np.array([3])},
+    ]
+    fold_weight_by_id = pd.Series([1.0, 2.0], index=[0, 1], dtype=np.float64)
+
+    monkeypatch.setattr(
+        feature_plateau,
+        "prepare_fold_features",
+        lambda x_train_raw, x_valid_raw: (x_train_raw, x_valid_raw, []),
+    )
+
+    class DummyModel:
+        pass
+
+    monkeypatch.setattr(feature_plateau, "make_estimator", lambda seed: DummyModel())
+    monkeypatch.setattr(
+        feature_plateau,
+        "fit_model",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(feature_plateau, "get_best_iteration", lambda model: 7)
+
+    predict_calls = iter(
+        [
+            (np.array([0], dtype=np.int8), np.array([[0.9, 0.1]], dtype=np.float64)),
+            (np.array([1], dtype=np.int8), np.array([[0.1, 0.9]], dtype=np.float64)),
+        ]
+    )
+    monkeypatch.setattr(
+        feature_plateau,
+        "predict_for_scoring",
+        lambda model, x_valid, best_iteration: next(predict_calls),
+    )
+    monkeypatch.setattr(
+        feature_plateau,
+        "score_predictions",
+        lambda scorer_cfg, y_true, y_pred, y_pred_proba, sample_weight: (
+            0.4 if int(y_true[0]) == 0 else 0.8
+        ),
+    )
+
+    result = feature_plateau.score_topk_subset(
+        x=x,
+        y=y,
+        sample_weight=sample_weight,
+        folds=folds,
+        fold_weight_by_id=fold_weight_by_id,
+        global_feature_order=["f1", "f2"],
+        k=2,
+        phase="test",
+    )
+
+    assert result["mean_score"] == pytest.approx(0.6)
+    assert result["weighted_mean_score"] == pytest.approx((0.4 * 1.0 + 0.8 * 2.0) / 3.0)
+    assert result["selection_base_score"] == pytest.approx(result["weighted_mean_score"])
+
+
 def test_choose_recommended_row_keeps_best_when_only_one_feature_is_saved(
     monkeypatch,
 ):
