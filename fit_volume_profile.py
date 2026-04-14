@@ -7,7 +7,6 @@ import numpy as np
 import optuna
 import pandas as pd
 from data_quality_filters import drop_frozen_ohlc_blocks
-from sklearn.metrics import log_loss
 
 from features.candle_features import RAW_OHLCV_COLS
 from features.volume_profile_fixed_range import (
@@ -18,6 +17,11 @@ from modeling_dataset_utils import load_modeling_dataset_settings
 from optuna_run_utils import (
     make_timestamped_artifact_path,
     resolve_run_study_name,
+)
+from metrics_utils import (
+    make_lightgbm_binary_balanced_accuracy_eval,
+    make_lightgbm_binary_brier_eval,
+    weighted_balanced_accuracy_score,
 )
 from target_weights import (
     TARGET_WEIGHT_COL,
@@ -43,7 +47,7 @@ WF_TEST_TO_TRAIN_RATIO = 0.2
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
-FOLD_RECENCY_WEIGHT_MAX = 1.2
+FOLD_RECENCY_WEIGHT_MAX = 1.4
 MIN_SAMPLE_WEIGHT = float(TARGET_WEIGHT_DECISION_VALUE)
 
 MAX_N_ESTIMATORS = 300
@@ -247,23 +251,48 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "short_half_life_candles": 137,
         "medium_half_life_candles": 6950,
         "long_half_life_candles": 25438,
+    },
+    {
+        "neighbor_bins": 15,
+        "short_step": 33,
+        "medium_step": 134,
+        "long_step": 9,
+        "all_step": 1,
+        "short_local_window": 361,
+        "medium_local_window": 40,
+        "long_local_window": 1,
+        "all_local_window": 249,
+        "short_sigma_divisor": 0.21502716507140648,
+        "medium_sigma_divisor": 3.976130020404582,
+        "long_sigma_divisor": 2.433361831940003,
+        "all_sigma_divisor": 0.026796186458655787,
+        "short_min_sigma": 193.80832730118777,
+        "medium_min_sigma": 37.674893963884564,
+        "long_min_sigma": 0.8012146247630282,
+        "all_min_sigma": 114.57903060799657,
+        "short_half_life_candles": 62,
+        "medium_half_life_candles": 3151,
+        "long_half_life_candles": 42617,
     }
 ]
 
-N_TRIALS = 300
+N_TRIALS = 200
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
 
-CV_LOGLOSS_STD_PENALTY = 0.5
+EARLY_STOPPING_METRIC = "brier_score"
+CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
+CV_OBJECTIVE_IS_HIGHER_BETTER = True
+CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
-DEFAULT_STUDY_NAME_PREFIX = "volume_profile_logloss_mean_std"
+DEFAULT_STUDY_NAME_PREFIX = "volume_profile_balanced_accuracy_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
 STUDY_NAME = None
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
 ARTIFACT_OUTPUT_DIR = Path("data/optuna/volume_profile")
-BEST_RESULT_STEM = "volume_profile_best_logloss_mean_std"
-TRIALS_CSV_STEM = "volume_profile_trials_logloss_mean_std"
+BEST_RESULT_STEM = "volume_profile_best_balanced_accuracy_mean_std"
+TRIALS_CSV_STEM = "volume_profile_trials_balanced_accuracy_mean_std"
 
 
 def require_columns(df, required_columns):
@@ -542,12 +571,18 @@ def fold_weight_items_for_summary(folds, fold_weight_by_id):
 
 def cv_objective_base_score_label():
     if is_nontrivial_fold_recency_weighting_enabled():
-        return "cv_binary_logloss_weighted_mean"
-    return "cv_binary_logloss_mean"
+        return f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean"
+    return f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean"
 
 
 def resolve_cv_objective_name():
-    return f"{cv_objective_base_score_label()}_plus_std_penalty"
+    return f"{cv_objective_base_score_label()}_minus_std_penalty"
+
+
+def combine_metric_mean_std(mean_value, std_value, *, higher_is_better, std_penalty):
+    if bool(higher_is_better):
+        return float(mean_value - (float(std_penalty) * float(std_value)))
+    return float(mean_value + (float(std_penalty) * float(std_value)))
 
 
 def summarize_cv_fold_scores(fold_scores, folds, fold_weight_by_id, std_penalty):
@@ -572,23 +607,27 @@ def summarize_cv_fold_scores(fold_scores, folds, fold_weight_by_id, std_penalty)
         else mean_score
     )
     return {
-        "cv_binary_logloss_mean": mean_score,
-        "cv_binary_logloss_weighted_mean": weighted_mean_score,
-        "cv_binary_logloss_std": std_score,
+        f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean": mean_score,
+        f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean": weighted_mean_score,
+        f"cv_{CV_OBJECTIVE_BASE_METRIC}_std": std_score,
         "objective_base_value": float(objective_base_value),
-        "objective_value": float(objective_base_value + (float(std_penalty) * std_score)),
+        "objective_value": combine_metric_mean_std(
+            objective_base_value,
+            std_score,
+            higher_is_better=CV_OBJECTIVE_IS_HIGHER_BETTER,
+            std_penalty=std_penalty,
+        ),
     }
 
 
-def score_binary_logloss(y_true, y_pred_proba, sample_weight):
+def score_cv_objective_metric(y_true, y_pred_proba, sample_weight):
     y_true_arr = np.asarray(y_true, dtype=np.float64)
-    y_pred_arr = np.clip(np.asarray(y_pred_proba, dtype=np.float64), 1e-15, 1.0 - 1e-15)
+    y_pred_arr = np.asarray(y_pred_proba, dtype=np.float64)
     sample_weight_arr = np.asarray(sample_weight, dtype=np.float64)
     return float(
-        log_loss(
-            y_true_arr,
-            y_pred_arr,
-            labels=[0, 1],
+        weighted_balanced_accuracy_score(
+            y_true=y_true_arr,
+            y_pred_proba=y_pred_arr,
             sample_weight=sample_weight_arr,
         )
     )
@@ -619,7 +658,7 @@ def compute_cv_fold_scores_at_iteration(
             num_iteration=int(best_iteration),
         )
         fold_scores.append(
-            score_binary_logloss(
+            score_cv_objective_metric(
                 y_true=y_np[valid_start:valid_end],
                 y_pred_proba=y_pred_proba,
                 sample_weight=sample_weight_np[valid_start:valid_end],
@@ -698,7 +737,12 @@ class ObjectiveAlignedLightGBMPruningCallback:
         if is_cv:
             current_mean = float(evaluation_result[2])
             current_std = float(evaluation_result[4])
-            current_objective = current_mean + (self._std_penalty * current_std)
+            current_objective = combine_metric_mean_std(
+                current_mean,
+                current_std,
+                higher_is_better=is_higher_better,
+                std_penalty=self._std_penalty,
+            )
         else:
             current_objective = float(current_score)
 
@@ -924,10 +968,243 @@ def build_volume_profile_config_from_params(base_config, params):
     return normalize_volume_profile_config(config)
 
 
+def _drop_none_fields(mapping):
+    return {key: value for key, value in mapping.items() if value is not None}
+
+
+def _first_present(mapping, *keys):
+    for key in keys:
+        if key is None:
+            continue
+        value = mapping.get(key)
+        if value is not None:
+            return value
+    return None
+
+
+def _numeric_subset(source, *, int_keys=(), float_keys=()):
+    out = {}
+    for key in int_keys:
+        value = source.get(key)
+        if value is not None:
+            out[key] = int(value)
+    for key in float_keys:
+        value = source.get(key)
+        if value is not None:
+            out[key] = float(value)
+    return out
+
+
+def build_editable_volume_profile_config(cfg):
+    normalized = normalize_volume_profile_config(cfg)
+    return {
+        "enabled": bool(normalized["enabled"]),
+        "price_min": float(normalized["price_min"]),
+        "price_max": float(normalized["price_max"]),
+        "neighbor_bins": int(normalized["neighbor_bins"]),
+        "eps": float(normalized["eps"]),
+        "horizons": {
+            horizon_name: {
+                "step": int(normalized["horizons"][horizon_name]["step"]),
+                "local_window": int(
+                    normalized["horizons"][horizon_name]["local_window"]
+                ),
+                "sigma_divisor": float(
+                    normalized["horizons"][horizon_name]["sigma_divisor"]
+                ),
+                "min_sigma": float(normalized["horizons"][horizon_name]["min_sigma"]),
+                "half_life_candles": normalized["horizons"][horizon_name][
+                    "half_life_candles"
+                ],
+            }
+            for horizon_name in normalized["horizon_names"]
+        },
+    }
+
+
+def build_volume_profile_derived_summary(cfg):
+    normalized = normalize_volume_profile_config(cfg)
+    return {
+        "version": str(normalized["version"]),
+        "feature_count": int(len(normalized["feature_columns"])),
+        "features_per_horizon": int((2 * normalized["neighbor_bins"]) + 3),
+        "horizons": {
+            horizon_name: {
+                "bins": int(normalized["horizons"][horizon_name]["bins"]),
+                "decay": float(normalized["horizons"][horizon_name]["decay"]),
+            }
+            for horizon_name in normalized["horizon_names"]
+        },
+    }
+
+
+def compact_volume_profile_artifact_payload(payload):
+    cv_objective = payload.get("cv_objective") or {}
+    base_metric = str(
+        cv_objective.get("base_metric", CV_OBJECTIVE_BASE_METRIC)
+    ).strip() or CV_OBJECTIVE_BASE_METRIC
+    mean_key = f"cv_{base_metric}_mean"
+    weighted_mean_key = f"cv_{base_metric}_weighted_mean"
+    std_key = f"cv_{base_metric}_std"
+
+    best_trial = payload.get("best_trial") or {}
+    objective_name = cv_objective.get("name")
+    objective_key = f"objective_{objective_name}" if objective_name else None
+    best_cfg = best_trial.get("volume_profile_fixed_range")
+    base_cfg = payload.get("base_volume_profile_fixed_range")
+    objective_value = _first_present(best_trial, "objective_value", objective_key)
+    if objective_value is None:
+        objective_value = next(
+            (
+                value
+                for key, value in best_trial.items()
+                if str(key).startswith("objective_") and value is not None
+            ),
+            None,
+        )
+
+    sample_weight_summary = payload.get("sample_weight")
+    compact_sample_weight = sample_weight_summary
+    if isinstance(sample_weight_summary, dict):
+        compact_sample_weight = _drop_none_fields(
+            {
+                "used": sample_weight_summary.get("used"),
+                "source": sample_weight_summary.get("source"),
+                **_numeric_subset(
+                    sample_weight_summary,
+                    float_keys=("min", "max", "mean", "sum"),
+                ),
+            }
+        )
+        distribution = sample_weight_summary.get("distribution")
+        if isinstance(distribution, dict) and 1 < len(distribution) <= 8:
+            compact_sample_weight["distribution"] = distribution
+
+    fold_recency_weighting = payload.get("fold_recency_weighting")
+    compact_fold_recency_weighting = fold_recency_weighting
+    if isinstance(fold_recency_weighting, dict):
+        fold_weights = fold_recency_weighting.get("fold_weights") or ()
+        compact_fold_recency_weighting = _drop_none_fields(
+            {
+                "enabled": fold_recency_weighting.get("enabled"),
+                "active": fold_recency_weighting.get("active"),
+                "mode": fold_recency_weighting.get("mode"),
+                "std_score_aggregation": fold_recency_weighting.get(
+                    "std_score_aggregation"
+                ),
+                **_numeric_subset(
+                    fold_recency_weighting,
+                    float_keys=("min_weight", "max_weight"),
+                ),
+                "fold_count": int(len(fold_weights)) if fold_weights else None,
+                "first_fold_weight": (
+                    float(fold_weights[0]["weight"]) if fold_weights else None
+                ),
+                "last_fold_weight": (
+                    float(fold_weights[-1]["weight"]) if fold_weights else None
+                ),
+            }
+        )
+
+    compact_best_trial = _drop_none_fields(
+        {
+            "trial_number": (
+                int(_first_present(best_trial, "trial_number", "number"))
+                if _first_present(best_trial, "trial_number", "number") is not None
+                else None
+            ),
+            "objective_name": objective_name,
+            "objective_value": (
+                float(objective_value) if objective_value is not None else None
+            ),
+            **_numeric_subset(
+                best_trial,
+                int_keys=("best_iteration", "feature_count"),
+                float_keys=(mean_key, weighted_mean_key, std_key),
+            ),
+        }
+    )
+    if "feature_count" not in compact_best_trial and best_cfg is not None:
+        compact_best_trial["feature_count"] = int(
+            len(normalize_volume_profile_config(best_cfg)["feature_columns"])
+        )
+
+    return _drop_none_fields(
+        {
+            "created_utc": payload.get("created_utc"),
+            "study_name": payload.get("study_name"),
+            "study_name_source": payload.get("study_name_source"),
+            "run_timestamp_utc": payload.get("run_timestamp_utc"),
+            "best_trial": compact_best_trial,
+            "best_params_flat": dict(best_trial.get("params") or {}),
+            "best_volume_profile_fixed_range": (
+                build_editable_volume_profile_config(best_cfg)
+                if best_cfg is not None
+                else None
+            ),
+            "best_volume_profile_derived": (
+                build_volume_profile_derived_summary(best_cfg)
+                if best_cfg is not None
+                else None
+            ),
+            "objective": cv_objective or None,
+            "dataset": _drop_none_fields(
+                {
+                    "base_data_path": payload.get("base_data_path"),
+                    "target_col": payload.get("target_col"),
+                    "sample_weight_col": payload.get("sample_weight_col"),
+                    "sample_weight": compact_sample_weight,
+                    "class_distribution": payload.get("class_distribution"),
+                    "weighted_class_distribution": payload.get(
+                        "weighted_class_distribution"
+                    ),
+                    **_numeric_subset(
+                        payload,
+                        int_keys=("rows_raw", "rows_after_target_notna"),
+                    ),
+                    "decision_row_filter": payload.get("decision_row_filter"),
+                }
+            ),
+            "feature_set": payload.get("feature_set"),
+            "optimization": _drop_none_fields(
+                {
+                    "storage": payload.get("storage"),
+                    "timeout_seconds": payload.get("timeout_seconds"),
+                    "fold_recency_weighting": compact_fold_recency_weighting,
+                    **_numeric_subset(
+                        payload,
+                        int_keys=(
+                            "n_trials_requested",
+                            "cv_folds",
+                            "max_n_estimators",
+                            "early_stopping_rounds",
+                            "prune_report_every_n_iteration",
+                        ),
+                        float_keys=("walk_forward_test_to_train_ratio",),
+                    ),
+                    "volume_profile_optuna_search_space": payload.get(
+                        "volume_profile_optuna_search_space"
+                    ),
+                    "optuna_seed_trial_count": int(
+                        len(payload.get("optuna_seed_trial_params") or ())
+                    ),
+                }
+            ),
+            "lgbm_params": payload.get("lgbm_params"),
+            "base_volume_profile_fixed_range": (
+                build_editable_volume_profile_config(base_cfg)
+                if base_cfg is not None
+                else None
+            ),
+            "artifacts": payload.get("artifacts"),
+        }
+    )
+
+
 def make_lgbm_cv_params():
     return {
         "objective": "binary",
-        "metric": "binary_logloss",
+        "metric": "None",
         "boosting_type": "gbdt",
         "device_type": LGBM_DEVICE_TYPE,
         "verbosity": LGBM_VERBOSITY,
@@ -999,14 +1276,18 @@ def run_lightgbm_cv(
     )
 
     callbacks = [
-        lgb.early_stopping(stopping_rounds=EARLY_STOPPING_ROUNDS, verbose=False)
+        lgb.early_stopping(
+            stopping_rounds=EARLY_STOPPING_ROUNDS,
+            first_metric_only=True,
+            verbose=False,
+        )
     ]
     if trial is not None:
         callbacks.append(
             ObjectiveAlignedLightGBMPruningCallback(
                 trial=trial,
-                metric="binary_logloss",
-                std_penalty=CV_LOGLOSS_STD_PENALTY,
+                metric=CV_OBJECTIVE_BASE_METRIC,
+                std_penalty=CV_STD_PENALTY,
                 report_interval=PRUNE_REPORT_EVERY_N_ITER,
             )
         )
@@ -1018,15 +1299,23 @@ def run_lightgbm_cv(
         folds=fold_indices,
         stratified=False,
         shuffle=False,
+        feval=[
+            make_lightgbm_binary_brier_eval(EARLY_STOPPING_METRIC),
+            make_lightgbm_binary_balanced_accuracy_eval(CV_OBJECTIVE_BASE_METRIC),
+        ],
         callbacks=callbacks,
         return_cvbooster=need_cvbooster,
         seed=SEED,
     )
 
-    mean_series = np.asarray(cv_results["valid binary_logloss-mean"], dtype=np.float64)
-    std_series = np.asarray(cv_results["valid binary_logloss-stdv"], dtype=np.float64)
-    objective_series = mean_series + (CV_LOGLOSS_STD_PENALTY * std_series)
-    best_index = int(np.argmin(objective_series))
+    mean_series = np.asarray(
+        cv_results[f"valid {CV_OBJECTIVE_BASE_METRIC}-mean"], dtype=np.float64
+    )
+    std_series = np.asarray(
+        cv_results[f"valid {CV_OBJECTIVE_BASE_METRIC}-stdv"], dtype=np.float64
+    )
+    objective_series = mean_series - (CV_STD_PENALTY * std_series)
+    best_index = int(np.argmax(objective_series))
     best_iteration = int(best_index + 1)
 
     result = {"best_iteration": best_iteration}
@@ -1047,7 +1336,7 @@ def run_lightgbm_cv(
                 fold_scores=fold_scores,
                 folds=folds,
                 fold_weight_by_id=fold_weight_by_id,
-                std_penalty=CV_LOGLOSS_STD_PENALTY,
+                std_penalty=CV_STD_PENALTY,
             )
         )
         if return_cvbooster:
@@ -1055,9 +1344,11 @@ def run_lightgbm_cv(
     else:
         result.update(
             {
-                "cv_binary_logloss_mean": float(mean_series[best_index]),
-                "cv_binary_logloss_weighted_mean": float(mean_series[best_index]),
-                "cv_binary_logloss_std": float(std_series[best_index]),
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean": float(mean_series[best_index]),
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean": float(
+                    mean_series[best_index]
+                ),
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_std": float(std_series[best_index]),
                 "objective_base_value": float(mean_series[best_index]),
                 "objective_value": float(objective_series[best_index]),
             }
@@ -1082,6 +1373,8 @@ def get_best_successful_trial(study):
             "All completed trials were pruned or ended with crash_penalty."
         )
 
+    if study.direction == optuna.study.StudyDirection.MAXIMIZE:
+        return max(successful_trials, key=lambda trial: float(trial.value))
     return min(successful_trials, key=lambda trial: float(trial.value))
 
 
@@ -1126,16 +1419,16 @@ def make_objective(
 
             trial.set_user_attr("trial_status", "ok")
             trial.set_user_attr(
-                "cv_binary_logloss_mean",
-                cv_result["cv_binary_logloss_mean"],
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean",
+                cv_result[f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean"],
             )
             trial.set_user_attr(
-                "cv_binary_logloss_weighted_mean",
-                cv_result["cv_binary_logloss_weighted_mean"],
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean",
+                cv_result[f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean"],
             )
             trial.set_user_attr(
-                "cv_binary_logloss_std",
-                cv_result["cv_binary_logloss_std"],
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_std",
+                cv_result[f"cv_{CV_OBJECTIVE_BASE_METRIC}_std"],
             )
             trial.set_user_attr(
                 "objective_base_value",
@@ -1222,7 +1515,7 @@ def run_optuna_optimization():
     print(
         f"start optimize | base_rows={len(base_df)} filtered_rows={filtered_rows} "
         f"folds={len(fold_indices)} trials={N_TRIALS} timeout={TIMEOUT_SECONDS} "
-        f"objective={resolve_cv_objective_name()} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f} "
+        f"objective={resolve_cv_objective_name()} std_penalty={CV_STD_PENALTY:.4f} "
         f"study_name={study_name} study_name_source={study_name_source} "
         f"load_if_exists={LOAD_IF_EXISTS}"
     )
@@ -1262,7 +1555,7 @@ def run_optuna_optimization():
     study = optuna.create_study(
         study_name=study_name,
         storage=STORAGE,
-        direction="minimize",
+        direction="maximize" if CV_OBJECTIVE_IS_HIGHER_BETTER else "minimize",
         sampler=sampler,
         pruner=pruner,
         load_if_exists=LOAD_IF_EXISTS,
@@ -1339,10 +1632,10 @@ def run_optuna_optimization():
         "prune_report_every_n_iteration": PRUNE_REPORT_EVERY_N_ITER,
         "cv_objective": {
             "name": resolve_cv_objective_name(),
-            "base_metric": "binary_logloss",
+            "base_metric": CV_OBJECTIVE_BASE_METRIC,
             "base_score": cv_objective_base_score_label(),
-            "aggregation": f"{cv_objective_base_score_label()} + std_penalty * cv_std",
-            "std_penalty": float(CV_LOGLOSS_STD_PENALTY),
+            "aggregation": f"{cv_objective_base_score_label()} - std_penalty * cv_std",
+            "std_penalty": float(CV_STD_PENALTY),
         },
         "lgbm_params": make_lgbm_cv_params(),
         "base_volume_profile_fixed_range": normalized_base_vp_config,
@@ -1350,15 +1643,15 @@ def run_optuna_optimization():
         "optuna_seed_trial_params": OPTUNA_SEED_TRIAL_PARAMS,
         "best_trial": {
             "number": int(best_trial.number),
-            "objective_cv_binary_logloss_mean_plus_std_penalty": float(best_trial.value),
-            "cv_binary_logloss_mean": float(
-                best_trial.user_attrs.get("cv_binary_logloss_mean")
+            f"objective_{resolve_cv_objective_name()}": float(best_trial.value),
+            f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean": float(
+                best_trial.user_attrs.get(f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean")
             ),
-            "cv_binary_logloss_weighted_mean": float(
-                best_trial.user_attrs.get("cv_binary_logloss_weighted_mean")
+            f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean": float(
+                best_trial.user_attrs.get(f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean")
             ),
-            "cv_binary_logloss_std": float(
-                best_trial.user_attrs.get("cv_binary_logloss_std")
+            f"cv_{CV_OBJECTIVE_BASE_METRIC}_std": float(
+                best_trial.user_attrs.get(f"cv_{CV_OBJECTIVE_BASE_METRIC}_std")
             ),
             "best_iteration": int(best_trial.user_attrs.get("best_iteration")),
             "feature_count": int(best_trial.user_attrs.get("feature_count")),
@@ -1370,6 +1663,7 @@ def run_optuna_optimization():
             "trials_csv_path": str(trials_csv_path),
         },
     }
+    payload = compact_volume_profile_artifact_payload(payload)
 
     best_result_path.parent.mkdir(parents=True, exist_ok=True)
     best_result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
@@ -1379,9 +1673,9 @@ def run_optuna_optimization():
 
     print(
         f"best trial | number={best_trial.number} objective={best_trial.value:.8f} "
-        f"logloss_mean={float(best_trial.user_attrs.get('cv_binary_logloss_mean')):.8f} "
-        f"logloss_weighted_mean={float(best_trial.user_attrs.get('cv_binary_logloss_weighted_mean')):.8f} "
-        f"logloss_std={float(best_trial.user_attrs.get('cv_binary_logloss_std')):.8f} "
+        f"{CV_OBJECTIVE_BASE_METRIC}_mean={float(best_trial.user_attrs.get(f'cv_{CV_OBJECTIVE_BASE_METRIC}_mean')):.8f} "
+        f"{CV_OBJECTIVE_BASE_METRIC}_weighted_mean={float(best_trial.user_attrs.get(f'cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean')):.8f} "
+        f"{CV_OBJECTIVE_BASE_METRIC}_std={float(best_trial.user_attrs.get(f'cv_{CV_OBJECTIVE_BASE_METRIC}_std')):.8f} "
         f"best_iteration={int(best_trial.user_attrs.get('best_iteration'))} "
         f"feature_count={int(best_trial.user_attrs.get('feature_count'))}"
     )

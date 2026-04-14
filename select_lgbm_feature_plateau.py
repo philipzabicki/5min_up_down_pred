@@ -8,13 +8,14 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
+    balanced_accuracy_score,
     f1_score,
     log_loss,
 )
 
 from features.candle_features import CANDLE_PATTERN_COLS, RAW_OHLCV_COLS
 from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
-from metrics_utils import weighted_brier_score
+from metrics_utils import make_sklearn_binary_brier_eval, weighted_brier_score
 from target_weights import (
     TARGET_WEIGHT_COL,
     compute_target_weights_from_opened,
@@ -44,7 +45,7 @@ WF_TEST_TO_TRAIN_RATIO = 0.2
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
-FOLD_RECENCY_WEIGHT_MAX = 1.2
+FOLD_RECENCY_WEIGHT_MAX = 1.4
 
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_MAX_BIN = 63
@@ -75,12 +76,12 @@ EARLY_STOPPING_ROUNDS = 40
 RANDOM_SEEDS = [37]
 
 SCORER = {
-    "name": "binary_logloss",
-    "greater_is_better": False,
+    "name": "balanced_accuracy",
+    "greater_is_better": True,
 }
 
 TOPK_SELECTION_MODE = "mean_plus_std"
-TOPK_SELECTION_STD_COEF = 1.0
+TOPK_SELECTION_STD_COEF = 0.5
 
 COARSE_GRID_BASE = 2
 MIN_COARSE_K = 1
@@ -828,7 +829,7 @@ def make_estimator(seed):
 
 
 def resolve_eval_metric():
-    return "binary_logloss"
+    return make_sklearn_binary_brier_eval("brier_score")
 
 
 def fit_model(
@@ -910,6 +911,27 @@ def score_predictions(
             )
         )
 
+    if metric_name in {"balanced_accuracy", "balanced_acc"}:
+        if y_pred is not None:
+            return float(
+                balanced_accuracy_score(
+                    y_true,
+                    y_pred,
+                    sample_weight=sample_weight,
+                )
+            )
+        if y_pred_proba is None or y_pred_proba.ndim != 2 or y_pred_proba.shape[1] != 2:
+            raise ValueError(
+                f"Metric '{metric_name}' requires binary predictions or class probabilities."
+            )
+        return float(
+            balanced_accuracy_score(
+                y_true,
+                (y_pred_proba[:, 1] >= 0.5).astype(np.int8),
+                sample_weight=sample_weight,
+            )
+        )
+
     if y_pred_proba is None or y_pred_proba.ndim != 2 or y_pred_proba.shape[1] != 2:
         raise ValueError(
             f"Metric '{metric_name}' requires binary class probabilities with 2 columns."
@@ -942,7 +964,7 @@ def score_predictions(
         )
 
     raise ValueError(
-        "Unsupported scorer. Allowed scorers: brier_score, "
+        "Unsupported scorer. Allowed scorers: balanced_accuracy, brier_score, "
         "log_loss/binary_logloss, f1_score."
     )
 

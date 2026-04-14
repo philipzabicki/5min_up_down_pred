@@ -58,7 +58,7 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260412_195231/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/20260413_230223/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",

@@ -92,7 +92,7 @@ def test_choose_recommended_row_keeps_best_when_only_one_feature_is_saved(
                 "weighted_mean_score": 0.6913572499554237,
                 "selection_base_score": 0.6913572499554237,
                 "std_score": 0.0011108386743386412,
-                "selection_score": 0.6924680886297623,
+                "selection_score": 0.6924620886297623,
             },
             {
                 "k": 280,
@@ -126,7 +126,7 @@ def test_choose_recommended_row_can_still_pick_smaller_plateau_candidate(
                 "weighted_mean_score": 0.6913605,
                 "selection_base_score": 0.6913605,
                 "std_score": 0.0011040,
-                "selection_score": 0.6924690,
+                "selection_score": 0.6924608,
             },
             {
                 "k": 279,
@@ -134,7 +134,7 @@ def test_choose_recommended_row_can_still_pick_smaller_plateau_candidate(
                 "weighted_mean_score": 0.6913615,
                 "selection_base_score": 0.6913615,
                 "std_score": 0.0011040,
-                "selection_score": 0.6924675,
+                "selection_score": 0.6924590,
             },
             {
                 "k": 280,

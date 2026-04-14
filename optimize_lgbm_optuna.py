@@ -23,6 +23,11 @@ from optuna_run_utils import (
     resolve_existing_study_name,
     resolve_run_study_name,
 )
+from metrics_utils import (
+    make_lightgbm_binary_balanced_accuracy_eval,
+    make_lightgbm_binary_brier_eval,
+    weighted_balanced_accuracy_score,
+)
 from target_weights import (
     TARGET_WEIGHT_COL,
     summarize_target_weights,
@@ -39,6 +44,10 @@ TARGET_COL = "target_5m_candle_up"
 
 CV_FOLDS = 10
 WF_TEST_TO_TRAIN_RATIO = 0.2
+ENABLE_FOLD_RECENCY_WEIGHTING = True
+FOLD_RECENCY_WEIGHTING_MODE = "linear"
+FOLD_RECENCY_WEIGHT_MIN = 1.0
+FOLD_RECENCY_WEIGHT_MAX = 1.4
 
 MAX_N_ESTIMATORS = 3000
 EARLY_STOPPING_ROUNDS = 25
@@ -191,12 +200,14 @@ OPTUNA_SEED_TRIAL_PARAMS = [
 
 N_TRIALS = 8
 TIMEOUT_SECONDS = None
-CV_OBJECTIVE_NAME = "binary_logloss_mean_plus_std_penalty"
-CV_LOGLOSS_STD_PENALTY = 0.5
-RECHECK_OBJECTIVE_BASE_METRIC = "brier_score"
-RECHECK_STD_PENALTY = 0.5
-RECHECK_OBJECTIVE_NAME = f"{RECHECK_OBJECTIVE_BASE_METRIC}_mean_plus_std_penalty"
-DEFAULT_STUDY_NAME_PREFIX = "lgbm_generic_logloss_mean_std"
+EARLY_STOPPING_METRIC = "brier_score"
+CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
+CV_OBJECTIVE_IS_HIGHER_BETTER = True
+CV_STD_PENALTY = 0.5
+RECHECK_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
+RECHECK_OBJECTIVE_IS_HIGHER_BETTER = True
+RECHECK_STD_PENALTY = 0.75
+DEFAULT_STUDY_NAME_PREFIX = "lgbm_generic_balanced_accuracy_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
 STUDY_NAME = None
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
@@ -490,6 +501,229 @@ def build_fold_indices(folds):
     ]
 
 
+def is_nontrivial_fold_recency_weighting_enabled():
+    return bool(ENABLE_FOLD_RECENCY_WEIGHTING) and not np.isclose(
+        float(FOLD_RECENCY_WEIGHT_MIN),
+        float(FOLD_RECENCY_WEIGHT_MAX),
+    )
+
+
+def build_fold_recency_weights(folds):
+    if not folds:
+        raise ValueError("Fold recency weights require at least one fold.")
+
+    fold_ids = [int(fold["fold_id"]) for fold in folds]
+    if len(set(fold_ids)) != len(fold_ids):
+        raise ValueError("Fold ids must be unique to build recency weights.")
+
+    min_weight = float(FOLD_RECENCY_WEIGHT_MIN)
+    max_weight = float(FOLD_RECENCY_WEIGHT_MAX)
+    if min_weight <= 0.0 or max_weight <= 0.0:
+        raise ValueError("Fold recency weights must be strictly positive.")
+    if max_weight < min_weight:
+        raise ValueError(
+            "FOLD_RECENCY_WEIGHT_MAX must be >= FOLD_RECENCY_WEIGHT_MIN."
+        )
+
+    if len(folds) == 1 or not bool(ENABLE_FOLD_RECENCY_WEIGHTING):
+        weights = np.ones(len(fold_ids), dtype=np.float64)
+    else:
+        mode = str(FOLD_RECENCY_WEIGHTING_MODE).strip().lower()
+        if mode == "linear":
+            weights = np.linspace(
+                min_weight,
+                max_weight,
+                num=len(fold_ids),
+                dtype=np.float64,
+            )
+        else:
+            raise ValueError(
+                f"Unsupported FOLD_RECENCY_WEIGHTING_MODE: {FOLD_RECENCY_WEIGHTING_MODE}"
+            )
+
+    return pd.Series(weights, index=fold_ids, name="fold_weight", dtype=np.float64)
+
+
+def resolve_fold_weight_array(folds, fold_weight_by_id):
+    if fold_weight_by_id is None:
+        raise ValueError("fold_weight_by_id is required.")
+
+    fold_ids = [int(fold["fold_id"]) for fold in folds]
+    resolved = pd.Series(fold_weight_by_id, dtype=np.float64).reindex(fold_ids)
+    if resolved.isna().any():
+        missing_fold_ids = resolved.index[resolved.isna()].tolist()
+        raise ValueError(f"Missing fold weights for fold ids: {missing_fold_ids}")
+
+    weights = resolved.to_numpy(dtype=np.float64, copy=False)
+    if not np.isfinite(weights).all():
+        raise ValueError("Fold weights contain non-finite values.")
+    if np.any(weights <= 0.0):
+        raise ValueError("Fold weights must be strictly positive.")
+    return weights
+
+
+def weighted_mean_vector(values, weights):
+    values_arr = np.asarray(values, dtype=np.float64)
+    weights_arr = np.asarray(weights, dtype=np.float64)
+    if values_arr.ndim != 1:
+        raise ValueError("weighted_mean_vector expects a 1D array.")
+    if values_arr.shape[0] != weights_arr.shape[0]:
+        raise ValueError(
+            "weighted_mean_vector length mismatch: "
+            f"{values_arr.shape[0]} != {weights_arr.shape[0]}"
+        )
+    return float(np.average(values_arr, weights=weights_arr))
+
+
+def fold_weight_items_for_summary(folds, fold_weight_by_id):
+    weights = resolve_fold_weight_array(folds, fold_weight_by_id)
+    return [
+        {
+            "fold_id": int(fold["fold_id"]),
+            "weight": float(weight),
+        }
+        for fold, weight in zip(folds, weights)
+    ]
+
+
+def objective_base_score_label(base_metric):
+    if is_nontrivial_fold_recency_weighting_enabled():
+        return f"{base_metric}_weighted_mean"
+    return f"{base_metric}_mean"
+
+
+def resolve_cv_objective_name():
+    return f"{objective_base_score_label(CV_OBJECTIVE_BASE_METRIC)}_minus_std_penalty"
+
+
+def resolve_recheck_objective_name():
+    return (
+        f"{objective_base_score_label(RECHECK_OBJECTIVE_BASE_METRIC)}_minus_std_penalty"
+    )
+
+
+def objective_aggregation_description(base_metric):
+    return (
+        f"cv_{objective_base_score_label(base_metric)} - std_penalty * "
+        f"cv_{base_metric}_std"
+    )
+
+
+def summarize_cv_fold_scores(
+    fold_scores,
+    folds,
+    fold_weight_by_id,
+    *,
+    base_metric,
+    higher_is_better,
+    std_penalty,
+):
+    fold_scores_arr = np.asarray(fold_scores, dtype=np.float64)
+    if fold_scores_arr.ndim != 1:
+        raise ValueError("fold_scores must be a 1D array.")
+    if fold_scores_arr.shape[0] != len(folds):
+        raise ValueError(
+            "fold_scores length mismatch: "
+            f"{fold_scores_arr.shape[0]} != {len(folds)}"
+        )
+
+    mean_score = float(np.mean(fold_scores_arr))
+    weighted_mean_score = weighted_mean_vector(
+        fold_scores_arr,
+        resolve_fold_weight_array(folds, fold_weight_by_id),
+    )
+    std_score = float(np.std(fold_scores_arr))
+    objective_base_value = (
+        weighted_mean_score
+        if is_nontrivial_fold_recency_weighting_enabled()
+        else mean_score
+    )
+    return {
+        f"cv_{base_metric}_mean": mean_score,
+        f"cv_{base_metric}_weighted_mean": weighted_mean_score,
+        f"cv_{base_metric}_std": std_score,
+        "objective_base_value": float(objective_base_value),
+        "objective_value": combine_metric_mean_std(
+            objective_base_value,
+            std_score,
+            higher_is_better=higher_is_better,
+            std_penalty=std_penalty,
+        ),
+    }
+
+
+def compute_cv_fold_scores_at_iteration(
+    cvbooster,
+    x_np,
+    y_np,
+    sample_weight_np,
+    folds,
+    best_iteration,
+):
+    boosters = getattr(cvbooster, "boosters", None)
+    if boosters is None:
+        raise ValueError("cvbooster is missing boosters.")
+    if len(boosters) != len(folds):
+        raise ValueError(
+            f"cvbooster fold count mismatch: {len(boosters)} != {len(folds)}"
+        )
+    if CV_OBJECTIVE_BASE_METRIC != "balanced_accuracy":
+        raise ValueError(
+            "Per-fold rescoring supports only CV_OBJECTIVE_BASE_METRIC='balanced_accuracy'."
+        )
+
+    fold_scores = []
+    for booster, fold in zip(boosters, folds):
+        valid_start = int(fold["test_start"])
+        valid_end = int(fold["test_end"])
+        y_pred_proba = booster.predict(
+            x_np[valid_start:valid_end],
+            num_iteration=int(best_iteration),
+        )
+        fold_scores.append(
+            weighted_balanced_accuracy_score(
+                y_true=y_np[valid_start:valid_end],
+                y_pred_proba=y_pred_proba,
+                sample_weight=sample_weight_np[valid_start:valid_end],
+            )
+        )
+
+    return np.asarray(fold_scores, dtype=np.float64)
+
+
+def summarize_cv_result_metric(
+    cv_result,
+    folds,
+    fold_weight_by_id,
+    *,
+    base_metric,
+    higher_is_better,
+    std_penalty,
+):
+    fold_scores = [
+        float(fold["metrics"][base_metric])
+        for fold in cv_result["folds"]
+    ]
+    return summarize_cv_fold_scores(
+        fold_scores=fold_scores,
+        folds=folds,
+        fold_weight_by_id=fold_weight_by_id,
+        base_metric=base_metric,
+        higher_is_better=higher_is_better,
+        std_penalty=std_penalty,
+    )
+
+
+def combine_metric_mean_std(mean_value, std_value, *, higher_is_better, std_penalty):
+    if bool(higher_is_better):
+        return float(mean_value - (float(std_penalty) * float(std_value)))
+    return float(mean_value + (float(std_penalty) * float(std_value)))
+
+
+def objective_study_direction(*, higher_is_better):
+    return "maximize" if bool(higher_is_better) else "minimize"
+
+
 class ObjectiveAlignedLightGBMPruningCallback:
     def __init__(
         self,
@@ -553,21 +787,26 @@ class ObjectiveAlignedLightGBMPruningCallback:
             if self._trial.study.direction != optuna.study.StudyDirection.MAXIMIZE:
                 raise ValueError(
                     "The intermediate values are inconsistent with the objective values "
-                    "in terms of study directions. Please specify a metric to be minimized "
-                    "for ObjectiveAlignedLightGBMPruningCallback."
+                    "in terms of study directions. Please specify a metric to be "
+                    "maximized for ObjectiveAlignedLightGBMPruningCallback."
                 )
         else:
             if self._trial.study.direction != optuna.study.StudyDirection.MINIMIZE:
                 raise ValueError(
                     "The intermediate values are inconsistent with the objective values "
                     "in terms of study directions. Please specify a metric to be "
-                    "maximized for ObjectiveAlignedLightGBMPruningCallback."
+                    "minimized for ObjectiveAlignedLightGBMPruningCallback."
                 )
 
         if is_cv:
             current_mean = float(evaluation_result[2])
             current_std = float(evaluation_result[4])
-            current_objective = current_mean + (self._std_penalty * current_std)
+            current_objective = combine_metric_mean_std(
+                current_mean,
+                current_std,
+                higher_is_better=is_higher_better,
+                std_penalty=self._std_penalty,
+            )
         else:
             current_objective = float(current_score)
 
@@ -738,13 +977,18 @@ def enqueue_seed_trials(study, seed_trial_params, search_space):
 
 def make_objective(
     train_set,
+    x_np,
+    y_np,
+    sample_weight_np,
+    folds,
     fold_indices,
+    fold_weight_by_id,
     search_space,
 ):
     def objective(trial):
         params = {
             "objective": "binary",
-            "metric": "binary_logloss",
+            "metric": "None",
             "boosting_type": "gbdt",
             "device_type": LGBM_DEVICE_TYPE,
             "verbosity": LGBM_VERBOSITY,
@@ -760,42 +1004,88 @@ def make_objective(
             **suggest_lgbm_hyperparams(trial, search_space),
         }
 
+        need_cvbooster = is_nontrivial_fold_recency_weighting_enabled()
         cv_results = lgb.cv(
             params=params,
             train_set=train_set,
             folds=fold_indices,
             stratified=False,
             shuffle=False,
+            feval=[
+                make_lightgbm_binary_brier_eval(EARLY_STOPPING_METRIC),
+                make_lightgbm_binary_balanced_accuracy_eval(
+                    CV_OBJECTIVE_BASE_METRIC
+                ),
+            ],
             callbacks=[
-                lgb.early_stopping(stopping_rounds=EARLY_STOPPING_ROUNDS, verbose=True),
+                lgb.early_stopping(
+                    stopping_rounds=EARLY_STOPPING_ROUNDS,
+                    first_metric_only=True,
+                    verbose=True,
+                ),
                 ObjectiveAlignedLightGBMPruningCallback(
                     trial=trial,
-                    metric="binary_logloss",
-                    std_penalty=CV_LOGLOSS_STD_PENALTY,
+                    metric=CV_OBJECTIVE_BASE_METRIC,
+                    std_penalty=CV_STD_PENALTY,
                     report_interval=PRUNE_REPORT_EVERY_N_ITER,
                 ),
             ],
-            return_cvbooster=False,
+            return_cvbooster=need_cvbooster,
             seed=SEED,
         )
 
         mean_series = np.asarray(
-            cv_results["valid binary_logloss-mean"], dtype=np.float64
+            cv_results[f"valid {CV_OBJECTIVE_BASE_METRIC}-mean"], dtype=np.float64
         )
         std_series = np.asarray(
-            cv_results["valid binary_logloss-stdv"], dtype=np.float64
+            cv_results[f"valid {CV_OBJECTIVE_BASE_METRIC}-stdv"], dtype=np.float64
         )
+        objective_series = mean_series - (CV_STD_PENALTY * std_series)
+        best_index = int(np.argmax(objective_series))
+        best_iteration = best_index + 1
+        if need_cvbooster:
+            fold_score_summary = summarize_cv_fold_scores(
+                fold_scores=compute_cv_fold_scores_at_iteration(
+                    cvbooster=cv_results["cvbooster"],
+                    x_np=x_np,
+                    y_np=y_np,
+                    sample_weight_np=sample_weight_np,
+                    folds=folds,
+                    best_iteration=best_iteration,
+                ),
+                folds=folds,
+                fold_weight_by_id=fold_weight_by_id,
+                base_metric=CV_OBJECTIVE_BASE_METRIC,
+                higher_is_better=CV_OBJECTIVE_IS_HIGHER_BETTER,
+                std_penalty=CV_STD_PENALTY,
+            )
+            cv_metric_mean = float(
+                fold_score_summary[f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean"]
+            )
+            cv_metric_weighted_mean = float(
+                fold_score_summary[f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean"]
+            )
+            cv_metric_std = float(
+                fold_score_summary[f"cv_{CV_OBJECTIVE_BASE_METRIC}_std"]
+            )
+            objective_base_value = float(fold_score_summary["objective_base_value"])
+            objective_value = float(fold_score_summary["objective_value"])
+        else:
+            cv_metric_mean = float(mean_series[best_index])
+            cv_metric_weighted_mean = float(cv_metric_mean)
+            cv_metric_std = float(std_series[best_index])
+            objective_base_value = float(cv_metric_mean)
+            objective_value = float(objective_series[best_index])
         del cv_results
         gc.collect()
-        objective_series = mean_series + (CV_LOGLOSS_STD_PENALTY * std_series)
-        best_index = int(np.argmin(objective_series))
-        best_iteration = best_index + 1
-        cv_logloss_mean = float(mean_series[best_index])
-        cv_logloss_std = float(std_series[best_index])
-        objective_value = float(objective_series[best_index])
         trial.set_user_attr("best_iteration", best_iteration)
-        trial.set_user_attr("cv_binary_logloss_mean", cv_logloss_mean)
-        trial.set_user_attr("cv_binary_logloss_std", cv_logloss_std)
+        trial.set_user_attr(f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean", cv_metric_mean)
+        trial.set_user_attr(
+            f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean",
+            cv_metric_weighted_mean,
+        )
+        trial.set_user_attr(f"cv_{CV_OBJECTIVE_BASE_METRIC}_std", cv_metric_std)
+        trial.set_user_attr("objective_base_value", objective_base_value)
         return objective_value
 
     return objective
@@ -825,11 +1115,19 @@ def build_top_trial_recheck_summary_row(result):
         "trial_number": int(result["trial_number"]),
         "optuna_objective": float(result["optuna_objective"]),
         "optuna_best_iteration": result["optuna_best_iteration"],
-        "optuna_cv_binary_logloss_mean": result["optuna_cv_binary_logloss_mean"],
-        "optuna_cv_binary_logloss_std": result["optuna_cv_binary_logloss_std"],
+        f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_mean": result[
+            f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_mean"
+        ],
+        f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean": result.get(
+            f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean"
+        ),
+        f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_std": result[
+            f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_std"
+        ],
         "recheck_objective": float(result["recheck_objective"]),
         "recheck_mean_best_iteration": int(result["recheck_mean_best_iteration"]),
     }
+    row.update(result["recheck_metric_summary"])
     for metric_name, metric_value in result["recheck_cv_mean_metrics"].items():
         row[f"recheck_cv_mean_{metric_name}"] = float(metric_value)
     for metric_name, metric_value in result["recheck_cv_std_metrics"].items():
@@ -841,27 +1139,45 @@ def build_top_trial_recheck_best_trial(result):
     best_metric_mean = result["recheck_cv_mean_metrics"].get(
         RECHECK_OBJECTIVE_BASE_METRIC
     )
+    best_metric_weighted_mean = result["recheck_metric_summary"].get(
+        f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_weighted_mean"
+    )
     best_metric_std = result["recheck_cv_std_metrics"].get(
         RECHECK_OBJECTIVE_BASE_METRIC
     )
-    binary_logloss_mean = result["recheck_cv_mean_metrics"].get("binary_logloss")
-    binary_logloss_std = result["recheck_cv_std_metrics"].get("binary_logloss")
+    optuna_metric_mean = result.get(f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_mean")
+    optuna_metric_weighted_mean = result.get(
+        f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean"
+    )
+    optuna_metric_std = result.get(f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_std")
     return {
         "recheck_rank": int(result["recheck_rank"]),
         "optuna_rank": int(result["optuna_rank"]),
         "number": int(result["trial_number"]),
-        f"objective_{RECHECK_OBJECTIVE_NAME}": float(result["recheck_objective"]),
+        f"objective_{resolve_recheck_objective_name()}": float(
+            result["recheck_objective"]
+        ),
         f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_mean": (
             float(best_metric_mean) if best_metric_mean is not None else None
+        ),
+        f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_weighted_mean": (
+            float(best_metric_weighted_mean)
+            if best_metric_weighted_mean is not None
+            else None
         ),
         f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_std": (
             float(best_metric_std) if best_metric_std is not None else None
         ),
-        "cv_binary_logloss_mean": (
-            float(binary_logloss_mean) if binary_logloss_mean is not None else None
+        f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_mean": (
+            float(optuna_metric_mean) if optuna_metric_mean is not None else None
         ),
-        "cv_binary_logloss_std": (
-            float(binary_logloss_std) if binary_logloss_std is not None else None
+        f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean": (
+            float(optuna_metric_weighted_mean)
+            if optuna_metric_weighted_mean is not None
+            else None
+        ),
+        f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_std": (
+            float(optuna_metric_std) if optuna_metric_std is not None else None
         ),
         "mean_best_iteration": int(result["recheck_mean_best_iteration"]),
         "params": result["params"],
@@ -898,6 +1214,7 @@ def run_top_trials_recheck(
         n_folds=FINAL_CV_FOLDS,
         test_to_train_ratio=FINAL_WF_TEST_TO_TRAIN_RATIO,
     )
+    fold_weight_by_id = build_fold_recency_weights(folds)
 
     study = optuna.load_study(
         study_name=study_name,
@@ -911,7 +1228,10 @@ def run_top_trials_recheck(
         )
         if trial.value is not None
     ]
-    completed_trials.sort(key=lambda trial: float(trial.value))
+    completed_trials.sort(
+        key=lambda trial: float(trial.value),
+        reverse=bool(CV_OBJECTIVE_IS_HIGHER_BETTER),
+    )
     selected_trials = completed_trials[:top_n]
     if not selected_trials:
         raise ValueError(
@@ -924,6 +1244,15 @@ def run_top_trials_recheck(
         f"rows={len(x)} features={x.shape[1]} folds={len(folds)} "
         f"test/train={FINAL_WF_TEST_TO_TRAIN_RATIO:.3f} "
         f"float_precision={modeling_float_dtype_name}"
+    )
+    print(
+        "start recheck | "
+        f"fold weighting | enabled={bool(ENABLE_FOLD_RECENCY_WEIGHTING)} "
+        f"active={is_nontrivial_fold_recency_weighting_enabled()} "
+        f"mode={FOLD_RECENCY_WEIGHTING_MODE} "
+        f"min={float(FOLD_RECENCY_WEIGHT_MIN):.4f} "
+        f"max={float(FOLD_RECENCY_WEIGHT_MAX):.4f} "
+        f"std=unweighted"
     )
     if feature_subset:
         print(
@@ -949,29 +1278,44 @@ def run_top_trials_recheck(
             early_stopping_verbose=False,
             float_dtype=modeling_float_dtype,
         )
+        recheck_metric_summary = summarize_cv_result_metric(
+            cv_result=cv_result,
+            folds=folds,
+            fold_weight_by_id=fold_weight_by_id,
+            base_metric=RECHECK_OBJECTIVE_BASE_METRIC,
+            higher_is_better=RECHECK_OBJECTIVE_IS_HIGHER_BETTER,
+            std_penalty=RECHECK_STD_PENALTY,
+        )
         recheck_metric_mean = float(
-            cv_result["cv_mean_metrics"][RECHECK_OBJECTIVE_BASE_METRIC]
+            recheck_metric_summary[f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_mean"]
+        )
+        recheck_metric_weighted_mean = float(
+            recheck_metric_summary[
+                f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_weighted_mean"
+            ]
         )
         recheck_metric_std = float(
-            cv_result["cv_std_metrics"][RECHECK_OBJECTIVE_BASE_METRIC]
+            recheck_metric_summary[f"cv_{RECHECK_OBJECTIVE_BASE_METRIC}_std"]
         )
-        recheck_objective = float(
-            recheck_metric_mean + (RECHECK_STD_PENALTY * recheck_metric_std)
-        )
+        recheck_objective = float(recheck_metric_summary["objective_value"])
         trial_result = {
             "optuna_rank": int(optuna_rank),
             "trial_number": int(trial.number),
             "optuna_objective": float(trial.value),
             "optuna_best_iteration": trial.user_attrs.get("best_iteration"),
-            "optuna_cv_binary_logloss_mean": trial.user_attrs.get(
-                "cv_binary_logloss_mean"
+            f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_mean": trial.user_attrs.get(
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean"
             ),
-            "optuna_cv_binary_logloss_std": trial.user_attrs.get(
-                "cv_binary_logloss_std"
+            f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean": trial.user_attrs.get(
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean"
+            ),
+            f"optuna_cv_{CV_OBJECTIVE_BASE_METRIC}_std": trial.user_attrs.get(
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_std"
             ),
             "params": trial.params,
             "recheck_objective": recheck_objective,
             "recheck_mean_best_iteration": int(cv_result["mean_best_iteration"]),
+            "recheck_metric_summary": recheck_metric_summary,
             "recheck_cv_mean_metrics": cv_result["cv_mean_metrics"],
             "recheck_cv_std_metrics": cv_result["cv_std_metrics"],
             "recheck_folds": cv_result["folds"],
@@ -980,6 +1324,10 @@ def run_top_trials_recheck(
         result_parts = [
             f"recheck result | trial_number={trial.number}",
             f"{RECHECK_OBJECTIVE_BASE_METRIC}={recheck_metric_mean:.8f}",
+            (
+                f"{RECHECK_OBJECTIVE_BASE_METRIC}_weighted_mean="
+                f"{recheck_metric_weighted_mean:.8f}"
+            ),
             f"{RECHECK_OBJECTIVE_BASE_METRIC}_std={recheck_metric_std:.8f}",
         ]
         if RECHECK_OBJECTIVE_BASE_METRIC != "binary_logloss":
@@ -1000,7 +1348,10 @@ def run_top_trials_recheck(
         )
         print(" ".join(result_parts))
 
-    recheck_results.sort(key=lambda item: float(item["recheck_objective"]))
+    recheck_results.sort(
+        key=lambda item: float(item["recheck_objective"]),
+        reverse=bool(RECHECK_OBJECTIVE_IS_HIGHER_BETTER),
+    )
     for recheck_rank, result in enumerate(recheck_results, start=1):
         result["recheck_rank"] = int(recheck_rank)
 
@@ -1035,10 +1386,21 @@ def run_top_trials_recheck(
             "cv_folds": FINAL_CV_FOLDS,
             "walk_forward_test_to_train_ratio": FINAL_WF_TEST_TO_TRAIN_RATIO,
         },
+        "fold_recency_weighting": {
+            "enabled": bool(ENABLE_FOLD_RECENCY_WEIGHTING),
+            "active": bool(is_nontrivial_fold_recency_weighting_enabled()),
+            "mode": str(FOLD_RECENCY_WEIGHTING_MODE),
+            "min_weight": float(FOLD_RECENCY_WEIGHT_MIN),
+            "max_weight": float(FOLD_RECENCY_WEIGHT_MAX),
+            "std_score_aggregation": "unweighted",
+            "fold_weights": fold_weight_items_for_summary(folds, fold_weight_by_id),
+        },
         "recheck_objective": {
-            "name": RECHECK_OBJECTIVE_NAME,
+            "name": resolve_recheck_objective_name(),
             "base_metric": RECHECK_OBJECTIVE_BASE_METRIC,
-            "aggregation": "cv_mean + std_penalty * cv_std",
+            "aggregation": objective_aggregation_description(
+                RECHECK_OBJECTIVE_BASE_METRIC
+            ),
             "std_penalty": float(RECHECK_STD_PENALTY),
         },
         "best_trial": build_top_trial_recheck_best_trial(best_result),
@@ -1057,6 +1419,8 @@ def run_top_trials_recheck(
         f"recheck_objective={best_result['recheck_objective']:.8f} "
         f"{RECHECK_OBJECTIVE_BASE_METRIC}="
         f"{best_result['recheck_cv_mean_metrics'][RECHECK_OBJECTIVE_BASE_METRIC]:.8f} "
+        f"{RECHECK_OBJECTIVE_BASE_METRIC}_weighted_mean="
+        f"{best_result['recheck_metric_summary'][f'cv_{RECHECK_OBJECTIVE_BASE_METRIC}_weighted_mean']:.8f} "
         f"{RECHECK_OBJECTIVE_BASE_METRIC}_std="
         f"{best_result['recheck_cv_std_metrics'][RECHECK_OBJECTIVE_BASE_METRIC]:.8f}"
     )
@@ -1111,6 +1475,7 @@ def run_optuna_optimization():
         test_to_train_ratio=WF_TEST_TO_TRAIN_RATIO,
     )
     fold_indices = build_fold_indices(folds)
+    fold_weight_by_id = build_fold_recency_weights(folds)
 
     train_set = lgb.Dataset(
         data=x_np,
@@ -1142,7 +1507,7 @@ def run_optuna_optimization():
         f"pruner_bootstrap_count={PRUNER_BOOTSTRAP_COUNT} "
         f"float_precision={modeling_float_dtype_name} "
         f"sample_weight_source={sample_weight_source} "
-        f"objective={CV_OBJECTIVE_NAME} std_penalty={CV_LOGLOSS_STD_PENALTY:.4f} "
+        f"objective={resolve_cv_objective_name()} std_penalty={CV_STD_PENALTY:.4f} "
         f"study_name={study_name} study_name_source={study_name_source} "
         f"load_if_exists={LOAD_IF_EXISTS}"
     )
@@ -1150,6 +1515,15 @@ def run_optuna_optimization():
         "start optimize | "
         f"search_params={sorted(LGBM_OPTUNA_SEARCH_SPACE)} "
         f"seed_trials_configured={len(OPTUNA_SEED_TRIAL_PARAMS)}"
+    )
+    print(
+        "start optimize | "
+        f"fold weighting | enabled={bool(ENABLE_FOLD_RECENCY_WEIGHTING)} "
+        f"active={is_nontrivial_fold_recency_weighting_enabled()} "
+        f"mode={FOLD_RECENCY_WEIGHTING_MODE} "
+        f"min={float(FOLD_RECENCY_WEIGHT_MIN):.4f} "
+        f"max={float(FOLD_RECENCY_WEIGHT_MAX):.4f} "
+        f"std=unweighted"
     )
     if feature_subset:
         print(
@@ -1160,7 +1534,9 @@ def run_optuna_optimization():
     study = optuna.create_study(
         study_name=study_name,
         storage=STORAGE,
-        direction="minimize",
+        direction=objective_study_direction(
+            higher_is_better=CV_OBJECTIVE_IS_HIGHER_BETTER
+        ),
         sampler=sampler,
         pruner=pruner,
         load_if_exists=LOAD_IF_EXISTS,
@@ -1173,7 +1549,12 @@ def run_optuna_optimization():
 
     objective = make_objective(
         train_set=train_set,
+        x_np=x_np,
+        y_np=y_np,
+        sample_weight_np=sample_weight_np,
+        folds=folds,
         fold_indices=fold_indices,
+        fold_weight_by_id=fold_weight_by_id,
         search_space=LGBM_OPTUNA_SEARCH_SPACE,
     )
     study.optimize(
@@ -1187,8 +1568,11 @@ def run_optuna_optimization():
     )
 
     best = study.best_trial
-    best_cv_logloss_mean = best.user_attrs.get("cv_binary_logloss_mean")
-    best_cv_logloss_std = best.user_attrs.get("cv_binary_logloss_std")
+    best_cv_metric_mean = best.user_attrs.get(f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean")
+    best_cv_metric_weighted_mean = best.user_attrs.get(
+        f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean"
+    )
+    best_cv_metric_std = best.user_attrs.get(f"cv_{CV_OBJECTIVE_BASE_METRIC}_std")
     payload = {
         "created_utc": datetime.now(timezone.utc).isoformat(),
         "data_path": str(data_path),
@@ -1214,15 +1598,19 @@ def run_optuna_optimization():
         "lgbm_optuna_search_space": LGBM_OPTUNA_SEARCH_SPACE,
         "optuna_seed_trial_params": OPTUNA_SEED_TRIAL_PARAMS,
         "cv_objective": {
-            "name": CV_OBJECTIVE_NAME,
-            "base_metric": "binary_logloss",
-            "aggregation": "cv_mean + std_penalty * cv_std",
-            "std_penalty": float(CV_LOGLOSS_STD_PENALTY),
+            "name": resolve_cv_objective_name(),
+            "base_metric": CV_OBJECTIVE_BASE_METRIC,
+            "aggregation": objective_aggregation_description(
+                CV_OBJECTIVE_BASE_METRIC
+            ),
+            "std_penalty": float(CV_STD_PENALTY),
         },
         "recommended_final_selection": {
-            "name": RECHECK_OBJECTIVE_NAME,
+            "name": resolve_recheck_objective_name(),
             "base_metric": RECHECK_OBJECTIVE_BASE_METRIC,
-            "aggregation": "cv_mean + std_penalty * cv_std",
+            "aggregation": objective_aggregation_description(
+                RECHECK_OBJECTIVE_BASE_METRIC
+            ),
             "std_penalty": float(RECHECK_STD_PENALTY),
             "workflow": "run_top_trials_recheck",
         },
@@ -1230,20 +1618,34 @@ def run_optuna_optimization():
         "timeout_seconds": TIMEOUT_SECONDS,
         "cv_folds": CV_FOLDS,
         "walk_forward_test_to_train_ratio": WF_TEST_TO_TRAIN_RATIO,
+        "fold_recency_weighting": {
+            "enabled": bool(ENABLE_FOLD_RECENCY_WEIGHTING),
+            "active": bool(is_nontrivial_fold_recency_weighting_enabled()),
+            "mode": str(FOLD_RECENCY_WEIGHTING_MODE),
+            "min_weight": float(FOLD_RECENCY_WEIGHT_MIN),
+            "max_weight": float(FOLD_RECENCY_WEIGHT_MAX),
+            "std_score_aggregation": "unweighted",
+            "fold_weights": fold_weight_items_for_summary(folds, fold_weight_by_id),
+        },
         "max_n_estimators": MAX_N_ESTIMATORS,
         "early_stopping_rounds": EARLY_STOPPING_ROUNDS,
         "prune_report_every_n_iteration": PRUNE_REPORT_EVERY_N_ITER,
         "pruner_bootstrap_count": PRUNER_BOOTSTRAP_COUNT,
         "best_trial": {
             "number": int(best.number),
-            "objective_cv_binary_logloss_mean_plus_std_penalty": float(best.value),
-            "cv_binary_logloss_mean": (
-                float(best_cv_logloss_mean)
-                if best_cv_logloss_mean is not None
+            f"objective_{resolve_cv_objective_name()}": float(best.value),
+            f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean": (
+                float(best_cv_metric_mean)
+                if best_cv_metric_mean is not None
                 else None
             ),
-            "cv_binary_logloss_std": (
-                float(best_cv_logloss_std) if best_cv_logloss_std is not None else None
+            f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean": (
+                float(best_cv_metric_weighted_mean)
+                if best_cv_metric_weighted_mean is not None
+                else None
+            ),
+            f"cv_{CV_OBJECTIVE_BASE_METRIC}_std": (
+                float(best_cv_metric_std) if best_cv_metric_std is not None else None
             ),
             "best_iteration": best.user_attrs.get("best_iteration"),
             "params": best.params,
@@ -1264,14 +1666,15 @@ def run_optuna_optimization():
     print(
         f"Best trial: #{best.number} "
         f"objective={best.value:.8f} "
-        f"logloss_mean={float(best_cv_logloss_mean):.8f} "
-        f"logloss_std={float(best_cv_logloss_std):.8f} "
+        f"{CV_OBJECTIVE_BASE_METRIC}_mean={float(best_cv_metric_mean):.8f} "
+        f"{CV_OBJECTIVE_BASE_METRIC}_weighted_mean={float(best_cv_metric_weighted_mean):.8f} "
+        f"{CV_OBJECTIVE_BASE_METRIC}_std={float(best_cv_metric_std):.8f} "
         f"iter={best.user_attrs.get('best_iteration')}"
     )
     print(
         "Recommended final selection | "
         f"workflow=run_top_trials_recheck "
-        f"objective={RECHECK_OBJECTIVE_NAME} "
+        f"objective={resolve_recheck_objective_name()} "
         f"std_penalty={RECHECK_STD_PENALTY:.4f}"
     )
     print(f"Saved best payload: {best_result_path}")
