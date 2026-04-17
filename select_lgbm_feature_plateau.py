@@ -94,11 +94,11 @@ ABS_TOL = 0.000005
 REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
-MIN_NONZERO_IMPORTANCE_FOLDS = 10
+MIN_NONZERO_IMPORTANCE_FOLDS = 15
 PERMUTATION_TOP_N = 768
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
-PERMUTATION_N_REPEATS = 4
+PERMUTATION_N_REPEATS = 3
 PERMUTATION_BASE_SEED = 37
 MAX_MISSING_RATIO = 0.05
 NEAR_CONSTANT_THRESHOLD = 0.9999
