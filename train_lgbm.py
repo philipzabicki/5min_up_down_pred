@@ -69,19 +69,19 @@ PRIMARY_REPORTING_METRIC = "balanced_accuracy"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0012337081583088396,
-      "num_leaves": 349,
-      "min_data_in_leaf": 100,
-      "max_depth": 47,
-      "feature_fraction": 0.3833766287757878,
-      "bagging_fraction": 0.663416129930021,
-      "bagging_freq": 22,
-      "lambda_l2": 2.8327218447810276,
-      "lambda_l1": 3.8735734397692183,
-      "min_sum_hessian_in_leaf": 0.10260726959067056,
-      "min_gain_to_split": 0.31502751778809,
-      "feature_fraction_bynode": 0.8334135835207026,
-      "path_smooth": 20.93305716234695,
+      "learning_rate": 0.00149752979585742,
+      "num_leaves": 128,
+      "min_data_in_leaf": 31,
+      "max_depth": 10,
+      "feature_fraction": 0.3668497153192713,
+      "bagging_fraction": 0.6842364646883217,
+      "bagging_freq": 18,
+      "lambda_l2": 16.915746933977747,
+      "lambda_l1": 2.0712451188077488,
+      "min_sum_hessian_in_leaf": 0.25380833829794036,
+      "min_gain_to_split": 0.8504082880772725,
+      "feature_fraction_bynode": 0.32836945948911733,
+      "path_smooth": 68.45674322734372,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {
@@ -270,6 +270,29 @@ def load_walk_forward_training_frame(
     selected_feature_columns = (
         list(feature_subset["features"]) if feature_subset else None
     )
+    subset_parts = (
+        split_feature_subset(
+            selected_feature_columns,
+            source_label=f"feature subset {feature_subset['path']}",
+        )
+        if feature_subset
+        else None
+    )
+    parquet_columns = None
+    if selected_feature_columns is not None:
+        session_feature_set = set(subset_parts["session_feature_cols"])
+        parquet_columns = list(
+            dict.fromkeys(
+                [
+                    *OOF_EXPORT_BASE_COLS,
+                    *(
+                        col
+                        for col in selected_feature_columns
+                        if col not in session_feature_set
+                    ),
+                ]
+            )
+        )
 
     if not data_path.exists():
         raise FileNotFoundError(f"Dataset not found: {data_path}")
@@ -287,15 +310,18 @@ def load_walk_forward_training_frame(
             f"count={excluded_features['count']} preview=[{preview}]"
         )
 
-    df = pd.read_parquet(data_path)
-    subset_parts = (
-        split_feature_subset(
-            selected_feature_columns,
-            source_label=f"feature subset {feature_subset['path']}",
-        )
-        if feature_subset
-        else None
-    )
+    try:
+        df = pd.read_parquet(data_path, columns=parquet_columns)
+    except Exception as exc:
+        if parquet_columns is None:
+            raise
+        preview = ", ".join(parquet_columns[:10])
+        raise ValueError(
+            "Dataset is missing columns required by train_lgbm.py. "
+            "Rebuild it with create_modeling_dataset.py for the active feature subset. "
+            f"Requested_count={len(parquet_columns)} preview=[{preview}]"
+        ) from exc
+    print(f"Loaded dataset: rows={len(df)} cols={len(df.columns)}")
     if TARGET_COL not in df.columns:
         raise ValueError(f"Target column not found: {TARGET_COL}")
 

@@ -87,18 +87,18 @@ COARSE_GRID_BASE = 2
 MIN_COARSE_K = 1
 MAX_REFINEMENT_ROUNDS = None
 MAX_SWEEP_EVALUATIONS = None
-MIN_REFINEMENT_INTERVAL = 1
+MIN_REFINEMENT_INTERVAL = 2
 
 TOLERANCE_MODE = "abs"
 ABS_TOL = 0.000005
 REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
-MIN_NONZERO_IMPORTANCE_FOLDS = 7
-PERMUTATION_TOP_N = 512
+MIN_NONZERO_IMPORTANCE_FOLDS = 10
+PERMUTATION_TOP_N = 768
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
-PERMUTATION_N_REPEATS = 3
+PERMUTATION_N_REPEATS = 4
 PERMUTATION_BASE_SEED = 37
 MAX_MISSING_RATIO = 0.05
 NEAR_CONSTANT_THRESHOLD = 0.9999
@@ -106,9 +106,9 @@ DROP_DUPLICATE_COLUMNS = True
 MAX_ABS_CORRELATION = 0.999
 ENABLE_CORRELATION_FILTER = True
 CORRELATION_FILTER_MODE = "screened_exact"  # modes: "screened_exact" or "full_matrix"
-CORRELATION_SCREEN_SAMPLE_ROWS = 100_000  # rows used for the initial correlation screening
+CORRELATION_SCREEN_SAMPLE_ROWS = 150_000  # rows used for the initial correlation screening
 CORRELATION_SCREEN_MARGIN = 0.05  # lowers the screening threshold below the final drop threshold
-CORRELATION_SCREEN_MIN_ROWS = 250_000  # minimum row count required to use screened_exact
+CORRELATION_SCREEN_MIN_ROWS = 300_000  # minimum row count required to use screened_exact
 CORRELATION_SCREEN_MIN_COLS = 64  # minimum feature count required to use screened_exact
 CORRELATION_SCREEN_MIN_THRESHOLD = 0.98  # minimum MAX_ABS_CORRELATION required to use screened_exact
 

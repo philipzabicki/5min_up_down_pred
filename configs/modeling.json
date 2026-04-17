@@ -12,7 +12,8 @@
         "15m",
         "30m",
         "1h",
-        "4h"
+        "4h",
+        "1d"
       ],
       "float_precision": "float64",
       "volume_profile_fixed_range": {
@@ -23,31 +24,31 @@
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "step": 33,
-            "local_window": 361,
-            "sigma_divisor": 0.21502716507140648,
-            "min_sigma": 193.80832730118777,
-            "half_life_candles": 62
+            "step": 12,
+            "local_window": 166,
+            "sigma_divisor": 0.19260733564585078,
+            "min_sigma": 243.63193405519854,
+            "half_life_candles": 95
           },
           "medium": {
-            "step": 134,
-            "local_window": 40,
-            "sigma_divisor": 3.976130020404582,
-            "min_sigma": 37.33667889194825,
-            "half_life_candles": 3151
+            "step": 95,
+            "local_window": 25,
+            "sigma_divisor": 4.772230685667068,
+            "min_sigma": 112.96761322033178,
+            "half_life_candles": 3907
           },
           "long": {
-            "step": 9,
+            "step": 7,
             "local_window": 1,
-            "sigma_divisor": 2.433361831940003,
-            "min_sigma": 0.8012146247630282,
-            "half_life_candles": 42617
+            "sigma_divisor": 0.3105015573489063,
+            "min_sigma": 0.3397865400674734,
+            "half_life_candles": 42828
           },
           "all": {
-            "step": 1,
-            "local_window": 249,
-            "sigma_divisor": 0.026796186458655787,
-            "min_sigma": 114.57903060799657,
+            "step": 3,
+            "local_window": 211,
+            "sigma_divisor": 0.028764800795105475,
+            "min_sigma": 108.98997769786818,
             "half_life_candles": null
           }
         }
@@ -58,7 +59,7 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260414_203410/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/20260416_235346/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",
@@ -79,7 +80,9 @@
           "ChaikinOsc_fit_6m_pop16_fasmatypdema_fasper4_slomatypgma_sloper2",
           "ADX_fit_1m_pop128_adxper2_atrper1556_matypadxhma_matypatrmama_matypnegdmmama_matypposdmrma_negdmper74_posdmper667_qe0.1_qm0.3_tf0.8_stmc_sg20",
           "BollingerBands_fit_3m_pop16_maper22_masoulow_matypvwmapta_stdmaper132_stdmatypmama_stdmul3.131831_stdsouopen",
-          "ChaikinOsc_fit_240m_pop16_fasmatypmama_fasper675_slomatypnwmagauss_sloper44"
+          "ChaikinOsc_fit_240m_pop16_fasmatypmama_fasper675_slomatypnwmagauss_sloper44",
+          "StochOsc_fit_3m_pop512_faskper591_slodmatypkama_slodper499_slokmatypnwmaepan_slokper43_qe0.2_qm0.25_tf0.8_stmd_sg20",
+          "KeltnerChannel_fit_1m_pop128_atrmatypdema_atrmul8.813425_atrper346_maper200_matypkama_souhlc3_qe0.2_qm0.2_tf0.8_stmc_sg15"
         ]
       },
       "train_lgbm": {
