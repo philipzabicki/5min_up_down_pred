@@ -1,14 +1,21 @@
 import numpy as np
 import pandas as pd
 import pytest
+from pathlib import Path
 
 from optimize_target_weights_optuna import (
+    build_baseline_recommendation_summary,
+    build_feature_view_candidates,
     build_fold_recency_weights,
     build_initial_weight_candidates,
+    build_param_profile_candidates,
     build_refined_weight_candidates,
     build_sample_weight_series,
     build_subset_summary_rows,
     build_weight_config,
+    enrich_aggregate_results_with_baseline_deltas,
+    enrich_context_results_with_baseline_deltas,
+    load_target_weight_search_settings,
     summarize_decision_fold_metric_scores,
 )
 
@@ -166,3 +173,253 @@ def test_build_subset_summary_rows_prefers_baseline_when_weighted_is_worse():
     assert len(summary_df) == 1
     assert summary_df.iloc[0]["recommended_strategy_name"] == "decision_rows_only_baseline"
     assert summary_df.iloc[0]["recommendation_reason"] == "subset_baseline_beats_weighted"
+
+
+def test_build_feature_view_candidates_includes_all_active_and_random():
+    x_all = pd.DataFrame(
+        np.arange(60, dtype=np.float64).reshape(10, 6),
+        columns=["f0", "f1", "f2", "f3", "f4", "f5"],
+    )
+    active_subset = {
+        "path": Path("data/analysis/feature_selector/example/recommended_features.json"),
+        "features": ("f0", "f1", "f2"),
+        "count": 3,
+        "format": "json",
+        "list_key": "final_feature_list",
+        "created_utc": None,
+        "source_data_path": None,
+        "metadata": {},
+        "source_count": 3,
+        "excluded_feature_names": tuple(),
+        "excluded_count": 0,
+        "excluded_from_subset_count": 0,
+    }
+
+    feature_views = build_feature_view_candidates(
+        x_all=x_all,
+        active_subset=active_subset,
+        include_all_features_view=True,
+        include_active_feature_subset_view=True,
+        random_feature_subsets=2,
+        random_feature_subset_size=None,
+        random_feature_subset_fraction=0.5,
+        random_feature_subset_min_features=2,
+    )
+
+    assert [view["label"] for view in feature_views][:2] == [
+        "all_features",
+        "active:example",
+    ]
+    assert len(feature_views) == 4
+    assert all(view["feature_count"] >= 2 for view in feature_views)
+    assert {view["source_kind"] for view in feature_views} == {
+        "all_features",
+        "active_subset",
+        "random_subset",
+    }
+
+
+def test_build_param_profile_candidates_uses_requested_profiles():
+    param_profiles = build_param_profile_candidates(
+        {
+            "param_profiles": ("target_weight_robust",),
+        }
+    )
+
+    assert [profile["name"] for profile in param_profiles] == ["target_weight_robust"]
+    assert all("device_type" in profile["params"] for profile in param_profiles)
+
+
+def test_load_target_weight_search_settings_defaults_to_multi_context():
+    settings = load_target_weight_search_settings(
+        {
+            "modeling_output_dir": Path("data/modeling_datasets"),
+            "output_suffix": "_model_ready",
+            "base_data_file": "BTCUSDT1m.csv",
+        }
+    )
+
+    assert settings["output_dir"] == Path("data/modeling_datasets")
+    assert settings["output_suffix"] == "_model_ready"
+    assert settings["param_profiles"] == ("target_weight_robust",)
+    assert settings["include_all_features_view"] is False
+    assert settings["include_active_feature_subset_view"] is False
+    assert settings["random_feature_subsets"] == 10
+    assert settings["random_feature_subset_size"] == 256
+    assert settings["random_feature_subset_fraction"] is None
+    assert settings["random_feature_subset_min_features"] is None
+    assert settings["lookback_days"] == 365
+    assert settings["context_std_penalty"] == pytest.approx(1.0)
+
+
+def test_load_target_weight_search_settings_uses_dataset_output_location():
+    settings = load_target_weight_search_settings(
+        {
+            "modeling_output_dir": Path("data/modeling_datasets/custom"),
+            "output_suffix": "_custom_suffix",
+            "base_data_file": "BTCUSDT1m.csv",
+        }
+    )
+
+    assert settings["output_dir"] == Path("data/modeling_datasets/custom")
+    assert settings["output_suffix"] == "_custom_suffix"
+    assert settings["param_profiles"] == ("target_weight_robust",)
+    assert settings["include_all_features_view"] is False
+    assert settings["include_active_feature_subset_view"] is False
+    assert settings["random_feature_subsets"] == 10
+    assert settings["random_feature_subset_size"] == 256
+    assert settings["random_feature_subset_fraction"] is None
+    assert settings["random_feature_subset_min_features"] is None
+    assert settings["lookback_days"] == 365
+    assert settings["context_std_penalty"] == pytest.approx(1.0)
+
+
+def test_enrich_context_results_with_baseline_deltas_compares_per_context():
+    context_results_df = pd.DataFrame(
+        [
+            {
+                "context_id": "context_00",
+                "context_label": "random:00 | robust",
+                "strategy_name": "decision_rows_only_baseline",
+                "decision_weight": np.nan,
+                "objective_value": 0.510,
+                "decision_rows_oof_balanced_accuracy": 0.520,
+            },
+            {
+                "context_id": "context_00",
+                "context_label": "random:00 | robust",
+                "strategy_name": "all_rows_weighted",
+                "decision_weight": 0.35,
+                "objective_value": 0.515,
+                "decision_rows_oof_balanced_accuracy": 0.525,
+            },
+            {
+                "context_id": "context_01",
+                "context_label": "random:01 | robust",
+                "strategy_name": "decision_rows_only_baseline",
+                "decision_weight": np.nan,
+                "objective_value": 0.530,
+                "decision_rows_oof_balanced_accuracy": 0.540,
+            },
+            {
+                "context_id": "context_01",
+                "context_label": "random:01 | robust",
+                "strategy_name": "all_rows_weighted",
+                "decision_weight": 0.35,
+                "objective_value": 0.520,
+                "decision_rows_oof_balanced_accuracy": 0.535,
+            },
+        ]
+    )
+
+    enriched = enrich_context_results_with_baseline_deltas(context_results_df)
+    weighted_row = enriched[
+        (enriched["strategy_name"] == "all_rows_weighted")
+        & (enriched["context_id"] == "context_00")
+    ].iloc[0]
+    baseline_row = enriched[
+        (enriched["strategy_name"] == "decision_rows_only_baseline")
+        & (enriched["context_id"] == "context_00")
+    ].iloc[0]
+
+    assert weighted_row["baseline_objective_value"] == pytest.approx(0.510)
+    assert weighted_row["objective_delta_vs_context_baseline"] == pytest.approx(0.005)
+    assert weighted_row["decision_bal_acc_delta_vs_context_baseline"] == pytest.approx(
+        0.005
+    )
+    assert baseline_row["objective_delta_vs_context_baseline"] == pytest.approx(0.0)
+
+
+def test_enrich_aggregate_results_with_baseline_deltas_counts_context_wins():
+    aggregate_results_df = pd.DataFrame(
+        [
+            {
+                "strategy_name": "decision_rows_only_baseline",
+                "decision_weight": np.nan,
+                "objective_value": 0.512,
+                "context_objective_mean": 0.514,
+                "context_objective_std": 0.002,
+                "decision_rows_bal_acc_mean": 0.521,
+            },
+            {
+                "strategy_name": "all_rows_weighted",
+                "decision_weight": 0.35,
+                "objective_value": 0.515,
+                "context_objective_mean": 0.516,
+                "context_objective_std": 0.001,
+                "decision_rows_bal_acc_mean": 0.522,
+            },
+        ]
+    )
+    context_results_df = pd.DataFrame(
+        [
+            {
+                "context_id": "context_00",
+                "strategy_name": "decision_rows_only_baseline",
+                "decision_weight": np.nan,
+                "objective_value": 0.510,
+                "decision_rows_oof_balanced_accuracy": 0.520,
+            },
+            {
+                "context_id": "context_01",
+                "strategy_name": "decision_rows_only_baseline",
+                "decision_weight": np.nan,
+                "objective_value": 0.514,
+                "decision_rows_oof_balanced_accuracy": 0.522,
+            },
+            {
+                "context_id": "context_00",
+                "strategy_name": "all_rows_weighted",
+                "decision_weight": 0.35,
+                "objective_value": 0.515,
+                "decision_rows_oof_balanced_accuracy": 0.525,
+            },
+            {
+                "context_id": "context_01",
+                "strategy_name": "all_rows_weighted",
+                "decision_weight": 0.35,
+                "objective_value": 0.513,
+                "decision_rows_oof_balanced_accuracy": 0.521,
+            },
+        ]
+    )
+
+    enriched = enrich_aggregate_results_with_baseline_deltas(
+        aggregate_results_df,
+        context_results_df=context_results_df,
+    )
+    weighted_row = enriched[enriched["strategy_name"] == "all_rows_weighted"].iloc[0]
+    baseline_row = enriched[
+        enriched["strategy_name"] == "decision_rows_only_baseline"
+    ].iloc[0]
+
+    assert weighted_row["objective_delta_vs_baseline"] == pytest.approx(0.003)
+    assert weighted_row["contexts_beating_baseline"] == pytest.approx(1)
+    assert weighted_row["contexts_losing_to_baseline"] == pytest.approx(1)
+    assert weighted_row["contexts_tying_baseline"] == pytest.approx(0)
+    assert baseline_row["objective_delta_vs_baseline"] == pytest.approx(0.0)
+
+
+def test_build_baseline_recommendation_summary_prefers_baseline_when_weighted_is_worse():
+    final_results_df = pd.DataFrame(
+        [
+            {
+                "strategy_name": "all_rows_weighted",
+                "decision_weight": 0.35,
+                "objective_value": 0.5135,
+                "decision_rows_bal_acc_mean": 0.5203,
+            },
+            {
+                "strategy_name": "decision_rows_only_baseline",
+                "decision_weight": np.nan,
+                "objective_value": 0.5142,
+                "decision_rows_bal_acc_mean": 0.5208,
+            },
+        ]
+    )
+
+    recommendation = build_baseline_recommendation_summary(final_results_df)
+
+    assert recommendation["recommended_strategy_name"] == "decision_rows_only_baseline"
+    assert recommendation["recommended_decision_weight"] is None
+    assert recommendation["recommendation_reason"] == "context_baseline_beats_weighted"

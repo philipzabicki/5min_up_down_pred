@@ -69,19 +69,19 @@ PRIMARY_REPORTING_METRIC = "balanced_accuracy"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0047168930397256115,
-      "num_leaves": 203,
-      "min_data_in_leaf": 6,
-      "max_depth": 41,
-      "feature_fraction": 0.3535849279738236,
-      "bagging_fraction": 0.8060837855401768,
-      "bagging_freq": 10,
-      "lambda_l2": 6.467328293921802,
-      "lambda_l1": 4.930249967778666,
-      "min_sum_hessian_in_leaf": 0.014887735545909926,
-      "min_gain_to_split": 1.031237481486823,
-      "feature_fraction_bynode": 0.8821060783972539,
-      "path_smooth": 3.743686767424939,
+      "learning_rate": 0.0012337081583088396,
+      "num_leaves": 349,
+      "min_data_in_leaf": 100,
+      "max_depth": 47,
+      "feature_fraction": 0.3833766287757878,
+      "bagging_fraction": 0.663416129930021,
+      "bagging_freq": 22,
+      "lambda_l2": 2.8327218447810276,
+      "lambda_l1": 3.8735734397692183,
+      "min_sum_hessian_in_leaf": 0.10260726959067056,
+      "min_gain_to_split": 0.31502751778809,
+      "feature_fraction_bynode": 0.8334135835207026,
+      "path_smooth": 20.93305716234695,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {
