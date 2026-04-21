@@ -147,9 +147,7 @@ def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
         "output_suffix": str(settings["output_suffix"]),
         "fit_results_dir": Path(settings["fit_results_dir"]),
         "preview_rows": int(settings["preview_rows"]),
-        "candle_streak_intervals": [
-            str(v) for v in settings["candle_streak_intervals"]
-        ],
+        "candle_streak_intervals": dict(settings["candle_streak_intervals"]),
         "feature_subset_path": settings.get("feature_subset_path"),
         "feature_subset_list_key": settings.get("feature_subset_list_key"),
         "excluded_feature_names": excluded_feature_names,

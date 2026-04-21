@@ -21,19 +21,19 @@ _RAW_SESSIONS = {
         "timezone": "America/New_York",
         "avg_turnover_gold_oz": 36027392,
     },
-    "NASDAQ": {
-        "start": time(9, 30),
-        "end": time(16, 0),
-        "timezone": "America/New_York",
-        "avg_turnover_gold_oz": 33997447,
-    },
+    # "NASDAQ": {  # 1:1 overlap with NYSE in UTC all year; keep the higher-turnover session.
+    #     "start": time(9, 30),
+    #     "end": time(16, 0),
+    #     "timezone": "America/New_York",
+    #     "avg_turnover_gold_oz": 33997447,
+    # },
     # Europe
-    "LSE": {
-        "start": time(8, 0),
-        "end": time(16, 30),
-        "timezone": "Europe/London",
-        "avg_turnover_gold_oz": 1478288,
-    },
+    # "LSE": {  # 1:1 overlap with Xetra in UTC all year; keep the higher-turnover session.
+    #     "start": time(8, 0),
+    #     "end": time(16, 30),
+    #     "timezone": "Europe/London",
+    #     "avg_turnover_gold_oz": 1478288,
+    # },
     "Xetra": {
         "start": time(9, 0),
         "end": time(17, 30),
@@ -431,7 +431,11 @@ def add_session_open_features(df, feature_cols=None, opened_col=OPENED_COL):
         {feature_col: feature_values[feature_col] for feature_col in selected_cols},
         index=df.index,
     )
-    base_df = df.drop(columns=list(feature_values.keys()), errors="ignore")
+    duplicate_cols = [col for col in feature_frame.columns if col in df.columns]
+    if duplicate_cols:
+        base_df = df.drop(columns=duplicate_cols)
+    else:
+        base_df = df
     return pd.concat([base_df, feature_frame], axis=1, copy=False)
 
 

@@ -56,7 +56,7 @@ WF_TEST_TO_TRAIN_RATIO = 0.2
 N_ESTIMATORS = 3000
 EARLY_STOPPING_ROUNDS = 25
 SEED = 37
-N_JOBS = 12
+N_JOBS = 16
 MODELS_DIR = Path("data/models")
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
@@ -69,19 +69,19 @@ PRIMARY_REPORTING_METRIC = "balanced_accuracy"
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0012337081583088396,
-      "num_leaves": 349,
-      "min_data_in_leaf": 100,
+      "learning_rate": 0.005345243845517257,
+      "num_leaves": 249,
+      "min_data_in_leaf": 1092,
       "max_depth": 47,
-      "feature_fraction": 0.3833766287757878,
-      "bagging_fraction": 0.663416129930021,
-      "bagging_freq": 22,
-      "lambda_l2": 2.8327218447810276,
-      "lambda_l1": 3.8735734397692183,
-      "min_sum_hessian_in_leaf": 0.10260726959067056,
-      "min_gain_to_split": 0.31502751778809,
-      "feature_fraction_bynode": 0.8334135835207026,
-      "path_smooth": 20.93305716234695,
+      "feature_fraction": 0.547406725512275,
+      "bagging_fraction": 0.8720848738316145,
+      "bagging_freq": 19,
+      "lambda_l2": 11.793596403657679,
+      "lambda_l1": 16.802466762568642,
+      "min_sum_hessian_in_leaf": 28.814446384235985,
+      "min_gain_to_split": 0.3523220198504663,
+      "feature_fraction_bynode": 0.5741253197885922,
+      "path_smooth": 29.535516337206555,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {

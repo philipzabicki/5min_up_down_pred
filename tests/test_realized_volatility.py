@@ -202,3 +202,15 @@ def test_realized_volatility_rejects_legacy_aliases():
         resolve_realized_volatility_feature_cols(
             ["rv_1m", "rv_up_5m", "rv_down_15m", "rv_ce_1h_4h", "vov_1m"]
         )
+
+
+def test_add_realized_volatility_features_supports_float32_output():
+    close = _close_from_log_returns(np.full(20, 0.01, dtype=np.float64))
+
+    result = add_realized_volatility_features(
+        pd.DataFrame({"Close": close}),
+        float_dtype=np.float32,
+    )
+
+    for feature_col in REALIZED_VOLATILITY_FEATURE_COLUMNS:
+        assert result[feature_col].dtype == np.float32

@@ -40,7 +40,7 @@ POLICY_DIAGNOSTIC_COLUMNS = (
 )
 
 STAKE_DIAGNOSTIC_COLUMNS = (
-    "base_stake_usdc",
+    "stake_multiplier",
     "required_stake_usdc",
     "effective_stake_usdc",
 )
@@ -75,7 +75,7 @@ LIVE_PREDICTION_EXPORT_COLUMNS = (
     "proba_up",
     "trade_side",
     "stake_usdc",
-    "base_stake_usdc",
+    "stake_multiplier",
     "required_stake_usdc",
     "effective_stake_usdc",
     "entry_price",

@@ -237,7 +237,7 @@ def test_load_optimizer_settings_inherits_replay_filters_into_market_price_sim(t
   },
   "runtime_defaults": {
     "extra_buffer": 0.0,
-    "stake_usdc": 1.0,
+    "stake_multiplier": 1.0,
     "fee_model": {
       "source": "polymarket_fee_schedule_v2",
       "rate": 0.072,

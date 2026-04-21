@@ -19,8 +19,8 @@ DEFAULT_OOF_TIME_COL = "Opened"
 DEFAULT_TARGET_COL = "target_5m_candle_up"
 DEFAULT_PRED_COL = "oof_pred_proba_up"
 DEFAULT_THRESHOLD = 0.5
-DEFAULT_MARGIN_MAX = 0.05
-DEFAULT_MARGIN_STEP = 0.0005
+DEFAULT_MARGIN_MAX = 0.10
+DEFAULT_MARGIN_STEP = 0.0001
 DEFAULT_ORDER_MIN_SIZE_SHARES = 5.0
 DEFAULT_TOP_CANDIDATES = 10
 DEFAULT_FOLDS = 10
@@ -305,7 +305,7 @@ def _resolve_order_min_size(value, *, default_order_min_size_shares):
 def precompute_trade_arrays(
     aligned_frame,
     *,
-    stake_usdc,
+    stake_multiplier,
     fee_model,
     default_order_min_size_shares,
 ):
@@ -332,10 +332,9 @@ def precompute_trade_arrays(
         yes_intent = build_trade_intent(
             policy_result={**base_policy, "decision": "buy_yes"},
             bankroll=SIM_BANKROLL_USDC,
-            stake_usdc=stake_usdc,
+            stake_multiplier=stake_multiplier,
             fee_model=fee_model,
             order_min_size=order_min_size,
-            raise_to_order_min=True,
         )
         if yes_intent.get("final_reason") == "ok":
             yes_tradable[idx] = True
@@ -345,10 +344,9 @@ def precompute_trade_arrays(
         no_intent = build_trade_intent(
             policy_result={**base_policy, "decision": "buy_no"},
             bankroll=SIM_BANKROLL_USDC,
-            stake_usdc=stake_usdc,
+            stake_multiplier=stake_multiplier,
             fee_model=fee_model,
             order_min_size=order_min_size,
-            raise_to_order_min=True,
         )
         if no_intent.get("final_reason") == "ok":
             no_tradable[idx] = True
@@ -546,7 +544,7 @@ def build_report(inputs, *, oof_frame, quote_summary, aligned_frame, alignment_s
             "oof_target_col": inputs["oof_target_col"],
             "oof_pred_col": inputs["oof_pred_col"],
             "threshold": float(inputs["threshold"]),
-            "stake_usdc": float(runtime_cfg["stake_usdc"]),
+            "stake_multiplier": float(runtime_cfg["stake_multiplier"]),
             "default_order_min_size_shares": float(inputs["default_order_min_size_shares"]),
             "folds": int(inputs["folds"]),
             "recent_aligned_rows": inputs["recent_aligned_rows"],
@@ -627,7 +625,7 @@ def main():
     )
     precomputed = precompute_trade_arrays(
         aligned_frame,
-        stake_usdc=inputs["runtime_cfg"]["stake_usdc"],
+        stake_multiplier=inputs["runtime_cfg"]["stake_multiplier"],
         fee_model=inputs["runtime_cfg"]["fee_model"],
         default_order_min_size_shares=inputs["default_order_min_size_shares"],
     )

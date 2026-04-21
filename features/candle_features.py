@@ -1,37 +1,35 @@
+from functools import lru_cache
+
 import numpy as np
 import pandas as pd
 import talib
 from talib import abstract as talib_abstract
 from numba import njit
 from pandas.tseries.frequencies import to_offset
+from project_config import load_modeling_profile
 
 RAW_OHLCV_COLS = ("Open", "High", "Low", "Close", "Volume")
+_CANONICAL_BODY_RANGE_COL = "candle_body_pressure"
 MULTI_INTERVAL_CANDLE_DERIVED_COLS = (
     "candle_signed_vol",
     "candle_up_down_vol_ratio",
     "candle_wick_asym",
     "candle_close_location_value",
-    "candle_body_pressure",
+    _CANONICAL_BODY_RANGE_COL,
 )
 ALL_CANDLE_DERIVED_COLS = (
     "candle_ret_co",
     "candle_range_ho",
     "candle_log_volume",
     "candle_body_abs_open",
-    "candle_body_to_range",
-    *MULTI_INTERVAL_CANDLE_DERIVED_COLS,
+    _CANONICAL_BODY_RANGE_COL,
+    "candle_signed_vol",
+    "candle_up_down_vol_ratio",
+    "candle_wick_asym",
+    "candle_close_location_value",
 )
-BASE_CANDLE_DERIVED_LAGS = tuple(range(1, 16))
 BASE_CANDLE_INTERVAL_LABEL = "1m"
-INTERVAL_DERIVED_LAGS = {
-    "5m": tuple(range(1, 16)),
-    "15m": tuple(range(1, 16)),
-    "30m": tuple(range(1, 11)),
-    "1h": tuple(range(1, 11)),
-    "4h": tuple(range(1, 11)),
-    "1d": tuple(range(1, 9)),
-}
-INTERVAL_DERIVED_BASE_COLS = {
+CONFIGURABLE_INTERVAL_DERIVED_BASE_COLS = {
     "5m": ALL_CANDLE_DERIVED_COLS,
     "15m": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
     "30m": MULTI_INTERVAL_CANDLE_DERIVED_COLS,
@@ -53,31 +51,63 @@ def _interval_derived_lag_feature_col(base_col, interval_label, lag):
     return f"{base_col}_{interval_label}_lag{int(lag)}"
 
 
-def _iter_interval_derived_specs():
-    for interval_label, lags in INTERVAL_DERIVED_LAGS.items():
-        base_cols = INTERVAL_DERIVED_BASE_COLS[interval_label]
+def _normalize_candle_interval_lag_config(
+    raw_config,
+    *,
+    source_label="candle_streak_intervals",
+):
+    if not isinstance(raw_config, dict) or not raw_config:
+        raise ValueError(f"{source_label} must be a non-empty JSON object.")
+
+    normalized = {}
+    for raw_interval, raw_lag_count in raw_config.items():
+        interval_label = str(raw_interval).strip()
+        if not interval_label:
+            raise ValueError(f"{source_label} cannot contain empty interval labels.")
+        if interval_label in normalized:
+            raise ValueError(
+                f"{source_label} contains duplicate interval label: {interval_label!r}."
+            )
+        if interval_label not in INTERVAL_TO_RULE:
+            supported = ", ".join(sorted(INTERVAL_TO_RULE.keys()))
+            raise ValueError(
+                f"Unsupported candle interval in {source_label}: {interval_label!r}. "
+                f"Supported: {supported}"
+            )
+        if isinstance(raw_lag_count, bool) or not isinstance(raw_lag_count, int):
+            raise ValueError(
+                f"{source_label}[{interval_label!r}] must be an integer, got "
+                f"{raw_lag_count!r}."
+            )
+        if raw_lag_count < 0:
+            raise ValueError(
+                f"{source_label}[{interval_label!r}] must be >= 0, got {raw_lag_count}."
+            )
+        normalized[interval_label] = int(raw_lag_count)
+    return normalized
+
+
+@lru_cache(maxsize=1)
+def _load_configured_candle_interval_lag_counts():
+    modeling_profile = load_modeling_profile()
+    return _normalize_candle_interval_lag_config(
+        modeling_profile.get("candle_streak_intervals"),
+        source_label="modeling.candle_streak_intervals",
+    )
+
+
+def _iter_configured_interval_derived_specs(interval_lag_counts):
+    for interval_label, lag_count in interval_lag_counts.items():
+        if interval_label == BASE_CANDLE_INTERVAL_LABEL or lag_count <= 0:
+            continue
+        base_cols = CONFIGURABLE_INTERVAL_DERIVED_BASE_COLS.get(interval_label)
+        if base_cols is None:
+            continue
         for base_col in base_cols:
-            for lag in lags:
+            for lag in range(1, int(lag_count) + 1):
                 yield interval_label, base_col, lag
 
 
-DIRECT_CANDLE_DERIVED_COLS = tuple(
-    _derived_feature_col(base_col) for base_col in ALL_CANDLE_DERIVED_COLS
-)
-LAGGED_CANDLE_DERIVED_COLS = tuple(
-    _derived_lag_feature_col(base_col, lag)
-    for base_col in ALL_CANDLE_DERIVED_COLS
-    for lag in BASE_CANDLE_DERIVED_LAGS
-)
-INTERVAL_CANDLE_DERIVED_COLS = tuple(
-    _interval_derived_lag_feature_col(base_col, interval_label, lag)
-    for interval_label, base_col, lag in _iter_interval_derived_specs()
-)
-CANDLE_DERIVED_COLS = (
-    DIRECT_CANDLE_DERIVED_COLS
-    + LAGGED_CANDLE_DERIVED_COLS
-    + INTERVAL_CANDLE_DERIVED_COLS
-)
 CANDLE_PATTERN_COLS = tuple(talib.get_function_groups().get("Pattern Recognition", ()))
 OPENED_COL = "Opened"
 OPEN_COL = "Open"
@@ -118,35 +148,73 @@ INTERVAL_CANDLE_PATTERN_COLS = tuple(
     for col in CANDLE_PATTERN_COLS
 )
 DEFAULT_CANDLE_PATTERN_COLS = INTERVAL_CANDLE_PATTERN_COLS
-CANDLE_FEATURE_COLS = CANDLE_DERIVED_COLS + DEFAULT_CANDLE_PATTERN_COLS
-SUPPORTED_CANDLE_FEATURE_COLS = (
-    CANDLE_DERIVED_COLS + CANDLE_PATTERN_COLS + INTERVAL_CANDLE_PATTERN_COLS
-)
+
+
+def _build_candle_feature_catalog():
+    interval_lag_counts = _load_configured_candle_interval_lag_counts()
+    base_lag_count = int(interval_lag_counts.get(BASE_CANDLE_INTERVAL_LABEL, 0))
+
+    direct_derived_cols = tuple(
+        _derived_feature_col(base_col) for base_col in ALL_CANDLE_DERIVED_COLS
+    )
+    lagged_derived_cols = tuple(
+        _derived_lag_feature_col(base_col, lag)
+        for base_col in ALL_CANDLE_DERIVED_COLS
+        for lag in range(1, base_lag_count + 1)
+    )
+    interval_derived_cols = tuple(
+        _interval_derived_lag_feature_col(base_col, interval_label, lag)
+        for interval_label, base_col, lag in _iter_configured_interval_derived_specs(
+            interval_lag_counts
+        )
+    )
+    candle_derived_cols = (
+        direct_derived_cols + lagged_derived_cols + interval_derived_cols
+    )
+    candle_feature_cols = candle_derived_cols + DEFAULT_CANDLE_PATTERN_COLS
+    supported_feature_cols = (
+        candle_derived_cols + CANDLE_PATTERN_COLS + INTERVAL_CANDLE_PATTERN_COLS
+    )
+
+    derived_feature_spec_by_col = {
+        _derived_feature_col(base_col): (base_col, None, 0)
+        for base_col in ALL_CANDLE_DERIVED_COLS
+    }
+    derived_feature_spec_by_col.update(
+        {
+            _derived_lag_feature_col(base_col, lag): (base_col, None, lag)
+            for base_col in ALL_CANDLE_DERIVED_COLS
+            for lag in range(1, base_lag_count + 1)
+        }
+    )
+    derived_feature_spec_by_col.update(
+        {
+            _interval_derived_lag_feature_col(base_col, interval_label, lag): (
+                base_col,
+                interval_label,
+                lag,
+            )
+            for interval_label, base_col, lag in _iter_configured_interval_derived_specs(
+                interval_lag_counts
+            )
+        }
+    )
+    return {
+        "interval_lag_counts": dict(interval_lag_counts),
+        "direct_derived_cols": direct_derived_cols,
+        "lagged_derived_cols": lagged_derived_cols,
+        "interval_derived_cols": interval_derived_cols,
+        "candle_derived_cols": candle_derived_cols,
+        "candle_feature_cols": candle_feature_cols,
+        "supported_feature_cols": supported_feature_cols,
+        "derived_feature_spec_by_col": derived_feature_spec_by_col,
+    }
+
+
 _EPS = 1e-12
 _DERIVED_BASE_COL_TO_INDEX = {
     col: idx for idx, col in enumerate(ALL_CANDLE_DERIVED_COLS)
 }
-_DERIVED_FEATURE_SPEC_BY_COL = {
-    _derived_feature_col(base_col): (base_col, None, 0)
-    for base_col in ALL_CANDLE_DERIVED_COLS
-}
-_DERIVED_FEATURE_SPEC_BY_COL.update(
-    {
-        _derived_lag_feature_col(base_col, lag): (base_col, None, lag)
-        for base_col in ALL_CANDLE_DERIVED_COLS
-        for lag in BASE_CANDLE_DERIVED_LAGS
-    }
-)
-_DERIVED_FEATURE_SPEC_BY_COL.update(
-    {
-        _interval_derived_lag_feature_col(base_col, interval_label, lag): (
-            base_col,
-            interval_label,
-            lag,
-        )
-        for interval_label, base_col, lag in _iter_interval_derived_specs()
-    }
-)
 _PATTERN_FUNC_BY_COL = {col: getattr(talib, col) for col in CANDLE_PATTERN_COLS}
 _PATTERN_LOOKBACK_BY_COL = {
     col: int(talib_abstract.Function(col).lookback) + 1 for col in CANDLE_PATTERN_COLS
@@ -160,6 +228,17 @@ _PATTERN_FEATURE_SPEC_BY_COL.update(
     }
 )
 _MINUTE_NS = pd.Timedelta(minutes=1).value
+_CANDLE_FEATURE_CATALOG = _build_candle_feature_catalog()
+CONFIGURED_CANDLE_INTERVAL_LAG_COUNTS = dict(
+    _CANDLE_FEATURE_CATALOG["interval_lag_counts"]
+)
+DIRECT_CANDLE_DERIVED_COLS = _CANDLE_FEATURE_CATALOG["direct_derived_cols"]
+LAGGED_CANDLE_DERIVED_COLS = _CANDLE_FEATURE_CATALOG["lagged_derived_cols"]
+INTERVAL_CANDLE_DERIVED_COLS = _CANDLE_FEATURE_CATALOG["interval_derived_cols"]
+CANDLE_DERIVED_COLS = _CANDLE_FEATURE_CATALOG["candle_derived_cols"]
+CANDLE_FEATURE_COLS = _CANDLE_FEATURE_CATALOG["candle_feature_cols"]
+SUPPORTED_CANDLE_FEATURE_COLS = _CANDLE_FEATURE_CATALOG["supported_feature_cols"]
+_DERIVED_FEATURE_SPEC_BY_COL = _CANDLE_FEATURE_CATALOG["derived_feature_spec_by_col"]
 
 
 def _dedupe_ordered(values):
@@ -297,19 +376,17 @@ def _compute_derived_feature_matrix(open_arr, high_arr, low_arr, close_arr, volu
         up_volume = volume_value if body > 0.0 else 0.0
         down_volume = volume_value if body < 0.0 else 0.0
         safe_open = open_value if abs(open_value) > _EPS else np.nan
-        safe_range = range_hl if abs(range_hl) > _EPS else np.nan
         range_eps = range_hl + _EPS
 
         out[i, 0] = body / safe_open
         out[i, 1] = range_hl / safe_open
         out[i, 2] = np.log(volume_value if volume_value > _EPS else _EPS)
         out[i, 3] = abs(body) / safe_open
-        out[i, 4] = body / safe_range
+        out[i, 4] = body / range_eps
         out[i, 5] = volume_value * np.sign(body)
         out[i, 6] = up_volume / (down_volume + _EPS)
         out[i, 7] = (upper_wick - lower_wick) / range_eps
         out[i, 8] = (close_value - low_value) / range_eps
-        out[i, 9] = body / range_eps
     return out
 
 
@@ -338,19 +415,17 @@ def _compute_derived_feature_matrix_with_volume_split(
         upper_wick = high_value - max(open_value, close_value)
         lower_wick = min(open_value, close_value) - low_value
         safe_open = open_value if abs(open_value) > _EPS else np.nan
-        safe_range = range_hl if abs(range_hl) > _EPS else np.nan
         range_eps = range_hl + _EPS
 
         out[i, 0] = body / safe_open
         out[i, 1] = range_hl / safe_open
         out[i, 2] = np.log(volume_value if volume_value > _EPS else _EPS)
         out[i, 3] = abs(body) / safe_open
-        out[i, 4] = body / safe_range
+        out[i, 4] = body / range_eps
         out[i, 5] = volume_value * np.sign(body)
         out[i, 6] = up_volume_value / (down_volume_value + _EPS)
         out[i, 7] = (upper_wick - lower_wick) / range_eps
         out[i, 8] = (close_value - low_value) / range_eps
-        out[i, 9] = body / range_eps
     return out
 
 
@@ -382,12 +457,11 @@ def build_candle_derived_features_from_series(
         "candle_range_ho": _safe_divide(range_hl, open_arr),
         "candle_log_volume": np.log(np.clip(volume_arr, _EPS, None)),
         "candle_body_abs_open": _safe_divide(np.abs(body), open_arr),
-        "candle_body_to_range": _safe_divide(body, range_hl),
+        "candle_body_pressure": body / range_eps,
         "candle_signed_vol": volume_arr * np.sign(body),
         "candle_up_down_vol_ratio": up_volume_arr / (down_volume_arr + _EPS),
         "candle_wick_asym": (upper_wick - lower_wick) / range_eps,
         "candle_close_location_value": (close_arr - low_arr) / range_eps,
-        "candle_body_pressure": body / range_eps,
     }
     return out
 
@@ -516,10 +590,10 @@ def _empty_interval_pattern_frame(base_index, feature_cols):
     )
 
 
-def _empty_interval_derived_frame(base_index, feature_cols):
+def _empty_interval_derived_frame(base_index, feature_cols, float_dtype=np.float64):
     return pd.DataFrame(
         {
-            feature_col: np.full(len(base_index), np.nan, dtype=np.float64)
+            feature_col: np.full(len(base_index), np.nan, dtype=float_dtype)
             for feature_col in feature_cols
         },
         index=base_index,
@@ -598,6 +672,7 @@ def _compute_interval_derived_features(
     interval_label,
     rule,
     feature_cols,
+    float_dtype=np.float64,
     opened_col=OPENED_COL,
     open_col=OPEN_COL,
     high_col=HIGH_COL,
@@ -660,7 +735,11 @@ def _compute_interval_derived_features(
         context=f"{interval_label} candle derived features",
     )
     if agg.empty:
-        return _empty_interval_derived_frame(base_df.index, feature_cols)
+        return _empty_interval_derived_frame(
+            base_df.index,
+            feature_cols,
+            float_dtype=float_dtype,
+        )
 
     derived_kwargs = {}
     if needs_underlying_volume_split:
@@ -679,25 +758,22 @@ def _compute_interval_derived_features(
     )
     derived_df = pd.DataFrame(derived, index=agg.index)
 
-    events = pd.DataFrame(
-        {
-            opened_col: pd.to_datetime(
-                agg["__close_opened"], errors="coerce"
-            ).to_numpy(),
-        }
-    )
+    event_values = {
+        opened_col: pd.to_datetime(agg["__close_opened"], errors="coerce").to_numpy(),
+    }
     for feature_col in feature_cols:
         base_col, _, lag = _DERIVED_FEATURE_SPEC_BY_COL[feature_col]
         # For HTF features lag1 means the latest fully closed HTF candle visible
         # at the current 1m row, lag2 the previous HTF candle, and so on.
-        events[feature_col] = (
+        event_values[feature_col] = (
             derived_df[base_col]
             .shift(int(lag) - 1)
             .to_numpy(
-                dtype=np.float64,
+                dtype=float_dtype,
                 copy=False,
             )
         )
+    events = pd.DataFrame(event_values)
 
     return _merge_interval_events(
         base_df=base_df,
@@ -707,7 +783,7 @@ def _compute_interval_derived_features(
     )
 
 
-def add_candle_derived_features(df, feature_cols=None):
+def add_candle_derived_features(df, feature_cols=None, float_dtype=np.float64):
     missing = [col for col in RAW_OHLCV_COLS if col not in df.columns]
     if missing:
         raise ValueError(
@@ -743,7 +819,7 @@ def add_candle_derived_features(df, feature_cols=None):
         for feature_col in direct_derived_feature_cols:
             base_col, _, _ = _DERIVED_FEATURE_SPEC_BY_COL[feature_col]
             feature_values[feature_col] = derived_df[base_col].to_numpy(
-                dtype=np.float64,
+                dtype=float_dtype,
                 copy=False,
             )
         for lag, lag_feature_cols in lag_to_derived_feature_cols.items():
@@ -753,7 +829,7 @@ def add_candle_derived_features(df, feature_cols=None):
                     derived_df[base_col]
                     .shift(int(lag))
                     .to_numpy(
-                        dtype=np.float64,
+                        dtype=float_dtype,
                         copy=False,
                     )
                 )
@@ -776,6 +852,7 @@ def add_candle_derived_features(df, feature_cols=None):
                 interval_label=interval_label,
                 rule=interval_rule,
                 feature_cols=interval_feature_cols,
+                float_dtype=float_dtype,
                 opened_col=OPENED_COL,
                 open_col=OPEN_COL,
                 high_col=HIGH_COL,
@@ -785,7 +862,7 @@ def add_candle_derived_features(df, feature_cols=None):
             )
             for col in interval_feature_cols:
                 feature_values[col] = interval_derived[col].to_numpy(
-                    dtype=np.float64,
+                    dtype=float_dtype,
                     copy=False,
                 )
 
@@ -844,10 +921,14 @@ def add_candle_derived_features(df, feature_cols=None):
                 )
 
     if not feature_values:
-        return df.copy()
+        return df.copy(deep=False)
 
     feature_frame = pd.DataFrame(feature_values, index=df.index)
-    base_df = df.drop(columns=list(feature_values.keys()), errors="ignore")
+    duplicate_cols = [col for col in feature_frame.columns if col in df.columns]
+    if duplicate_cols:
+        base_df = df.drop(columns=duplicate_cols)
+    else:
+        base_df = df
     return pd.concat([base_df, feature_frame], axis=1, copy=False)
 
 
@@ -1368,7 +1449,15 @@ def _streak_feature_col(interval_label):
 
 
 def resolve_streak_interval_to_rule(interval_labels):
-    labels = [str(x).strip() for x in interval_labels]
+    if isinstance(interval_labels, dict):
+        labels = list(
+            _normalize_candle_interval_lag_config(
+                interval_labels,
+                source_label="candle_streak_intervals",
+            ).keys()
+        )
+    else:
+        labels = [str(x).strip() for x in interval_labels]
     if not labels:
         raise ValueError("candle_streak_intervals cannot be empty.")
 

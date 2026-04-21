@@ -5,6 +5,12 @@ from types import SimpleNamespace
 import live_trade
 
 
+class _Retryable425Error(Exception):
+    def __init__(self):
+        super().__init__("PolyApiException[status_code=425, error_message=service not ready]")
+        self.status_code = 425
+
+
 def test_execution_mode_helpers_support_fak():
     assert live_trade._polymarket_order_type_for_execution_mode("fok") == (
         live_trade.OrderType.FOK
@@ -92,6 +98,47 @@ def test_resolve_buy_record_fields_falls_back_to_requested_values_for_full_fill(
     assert fields["entry_shares_net_orig"] == pytest.approx(5.94)
 
 
+def test_post_order_with_retry_retries_425_then_succeeds(monkeypatch):
+    trader = live_trade.PolymarketLiveTrader.__new__(live_trade.PolymarketLiveTrader)
+    calls = []
+    sleep_calls = []
+
+    class DummyClient:
+        def post_order(self, signed_order, order_type):
+            calls.append((signed_order, order_type))
+            if len(calls) < 3:
+                raise _Retryable425Error()
+            return {"success": True, "orderID": "ok"}
+
+    trader.pm_client = DummyClient()
+    monkeypatch.setattr(live_trade.time, "sleep", lambda sec: sleep_calls.append(sec))
+
+    response = trader._post_order_with_retry("signed-order", live_trade.OrderType.FAK)
+
+    assert response == {"success": True, "orderID": "ok"}
+    assert len(calls) == 3
+    assert sleep_calls == [1.0, 2.0]
+
+
+def test_post_order_with_retry_exhausted_425_maps_to_retryable_status(monkeypatch):
+    trader = live_trade.PolymarketLiveTrader.__new__(live_trade.PolymarketLiveTrader)
+
+    class DummyClient:
+        def post_order(self, signed_order, order_type):
+            raise _Retryable425Error()
+
+    trader.pm_client = DummyClient()
+    monkeypatch.setattr(live_trade.time, "sleep", lambda sec: None)
+
+    with pytest.raises(_Retryable425Error) as excinfo:
+        trader._post_order_with_retry("signed-order", live_trade.OrderType.FAK)
+
+    assert (
+        live_trade._submission_error_status_from_exception(excinfo.value)
+        == live_trade.POLYMARKET_RETRYABLE_SUBMISSION_STATUS
+    )
+
+
 def test_recommend_polymarket_bet_keeps_policy_no_trade_reason():
     trader = live_trade.PolymarketLiveTrader.__new__(live_trade.PolymarketLiveTrader)
     trader.live_bankroll_usdc = 100.0
@@ -100,7 +147,7 @@ def test_recommend_polymarket_bet_keeps_policy_no_trade_reason():
         "mode": "model_direction_min_stake",
         "submitted_price_mode": "order_price_cap",
         "extra_buffer": 0.01,
-        "stake_usdc": 1.0,
+        "stake_multiplier": 1.0,
         "min_decision_margin_up": 0.03,
     }
     trader.pm_cfg = SimpleNamespace(

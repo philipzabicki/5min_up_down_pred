@@ -1914,9 +1914,9 @@ class LivePredictor:
                 "decision": "no_trade",
                 "trade_side": "none",
                 "bet_usdc": 0.0,
-                "base_stake_usdc": float(self.trade_policy_runtime["stake_usdc"]),
+                "stake_multiplier": float(self.trade_policy_runtime["stake_multiplier"]),
                 "required_stake_usdc": float("nan"),
-                "effective_stake_usdc": float(self.trade_policy_runtime["stake_usdc"]),
+                "effective_stake_usdc": float("nan"),
                 "entry_price": float("nan"),
                 "entry_fee_usdc": 0.0,
                 "entry_fee_raw_usdc": 0.0,
@@ -1938,7 +1938,7 @@ class LivePredictor:
         intent = build_trade_intent(
             policy_result=policy_result,
             bankroll=float(bankroll),
-            stake_usdc=float(self.trade_policy_runtime["stake_usdc"]),
+            stake_multiplier=float(self.trade_policy_runtime["stake_multiplier"]),
             fee_model=self.trade_policy_runtime["fee_model"],
         )
         intent["price_eps"] = float("nan")
@@ -2144,7 +2144,7 @@ class LivePredictor:
                 "proba_up": proba_up,
                 "trade_side": str(intent.get("trade_side", "none")),
                 "stake_usdc": float(stake_usdc),
-                "base_stake_usdc": float(intent.get("base_stake_usdc", np.nan)),
+                "stake_multiplier": float(intent.get("stake_multiplier", np.nan)),
                 "required_stake_usdc": float(
                     intent.get("required_stake_usdc", np.nan)
                 ),
@@ -2204,7 +2204,7 @@ class LivePredictor:
             ),
             "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
-            "base_stake_usdc": float(intent.get("base_stake_usdc", np.nan)),
+            "stake_multiplier": float(intent.get("stake_multiplier", np.nan)),
             "required_stake_usdc": float(intent.get("required_stake_usdc", np.nan)),
             "effective_stake_usdc": float(
                 intent.get("effective_stake_usdc", np.nan)
@@ -2413,7 +2413,7 @@ class LivePredictor:
                     ("trade_side", pred["trade_side"]),
                     ("policy_best_ev", f"{pred['policy_best_ev']:.6f}"),
                     ("stake_usdc", f"{pred['stake_usdc']:.2f}"),
-                    ("base_stake_usdc", f"{pred['base_stake_usdc']:.2f}"),
+                    ("stake_multiplier", f"{pred['stake_multiplier']:.4f}"),
                     (
                         "required_stake_usdc",
                         (
@@ -2605,7 +2605,7 @@ class LivePredictor:
             "Trade policy | "
             f"bankroll={self.live_bankroll_usdc:.2f} "
             f"mode={self.trade_policy_runtime.get('mode', 'ev')} "
-            f"stake_usdc={self.trade_policy_runtime['stake_usdc']:.2f} "
+            f"stake_multiplier={self.trade_policy_runtime['stake_multiplier']:.4f} "
             f"extra_buffer={self.trade_policy_runtime['extra_buffer']:.6f} "
             f"submitted_price_mode={self.trade_policy_runtime.get('submitted_price_mode', 'entry_price')}"
         )

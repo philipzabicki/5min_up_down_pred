@@ -273,6 +273,28 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "short_half_life_candles": 62,
         "medium_half_life_candles": 3151,
         "long_half_life_candles": 42617,
+    },
+    {
+        "neighbor_bins": 15,
+        "short_step": 12,
+        "medium_step": 95,
+        "long_step": 7,
+        "all_step": 3,
+        "short_local_window": 166,
+        "medium_local_window": 25,
+        "long_local_window": 1,
+        "all_local_window": 211,
+        "short_sigma_divisor": 0.19260733564585078,
+        "medium_sigma_divisor": 4.772230685667068,
+        "long_sigma_divisor": 0.3105015573489063,
+        "all_sigma_divisor": 0.028764800795105475,
+        "short_min_sigma": 243.63193405519854,
+        "medium_min_sigma": 112.96761322033178,
+        "long_min_sigma": 0.3397865400674734,
+        "all_min_sigma": 108.98997769786818,
+        "short_half_life_candles": 95,
+        "medium_half_life_candles": 3907,
+        "long_half_life_candles": 42828,
     }
 ]
 

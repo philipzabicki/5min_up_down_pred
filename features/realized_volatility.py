@@ -216,15 +216,29 @@ def compute_realized_volatility_feature_arrays(close):
     return feature_arrays
 
 
-def add_realized_volatility_features(df: pd.DataFrame, close_col: str = "Close") -> pd.DataFrame:
+def add_realized_volatility_features(
+    df: pd.DataFrame,
+    close_col: str = "Close",
+    float_dtype=np.float64,
+) -> pd.DataFrame:
     if close_col not in df.columns:
         raise ValueError(f"Missing required close column: {close_col}")
 
     feature_arrays = compute_realized_volatility_feature_arrays(
         df[close_col].to_numpy(dtype=np.float64, copy=False)
     )
-    feature_frame = pd.DataFrame(feature_arrays, index=df.index)
-    base_df = df.drop(columns=list(feature_frame.columns), errors="ignore")
+    feature_frame = pd.DataFrame(
+        {
+            feature_col: np.asarray(values, dtype=float_dtype)
+            for feature_col, values in feature_arrays.items()
+        },
+        index=df.index,
+    )
+    duplicate_cols = [col for col in feature_frame.columns if col in df.columns]
+    if duplicate_cols:
+        base_df = df.drop(columns=duplicate_cols)
+    else:
+        base_df = df
     return pd.concat([base_df, feature_frame], axis=1, copy=False)
 
 

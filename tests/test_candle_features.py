@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from features.candle_features import (
+    CONFIGURED_CANDLE_INTERVAL_LAG_COUNTS,
     add_candle_derived_features,
     build_latest_candle_derived_feature_dict_fast,
     resolve_candle_feature_cols,
@@ -30,14 +31,21 @@ def _synthetic_ohlcv(rows):
 
 
 def test_extended_candle_lag_schema_and_live_batch_parity():
-    selected_cols = (
-        "candle_range_ho_1m_lag15",
-        "candle_body_to_range_5m_lag15",
-        "candle_body_pressure_15m_lag15",
-        "candle_wick_asym_30m_lag10",
-        "candle_close_location_value_4h_lag10",
-        "candle_signed_vol_1d_lag8",
+    selected_cols = [
+        f"candle_range_ho_1m_lag{CONFIGURED_CANDLE_INTERVAL_LAG_COUNTS['1m']}",
+    ]
+    candidate_specs = (
+        ("5m", "candle_body_pressure"),
+        ("15m", "candle_body_pressure"),
+        ("30m", "candle_wick_asym"),
+        ("4h", "candle_close_location_value"),
+        ("1d", "candle_signed_vol"),
     )
+    for interval_label, base_col in candidate_specs:
+        lag_count = int(CONFIGURED_CANDLE_INTERVAL_LAG_COUNTS.get(interval_label, 0))
+        if lag_count > 0:
+            selected_cols.append(f"{base_col}_{interval_label}_lag{lag_count}")
+    selected_cols = tuple(selected_cols)
     assert resolve_candle_feature_cols(selected_cols) == selected_cols
 
     base_df = _synthetic_ohlcv(rows=20 * 24 * 60)
@@ -62,3 +70,20 @@ def test_extended_candle_lag_schema_and_live_batch_parity():
 
     fast_last = np.asarray([fast_values[col] for col in selected_cols], dtype=np.float64)
     assert np.allclose(batch_last, fast_last, equal_nan=True)
+
+
+def test_add_candle_derived_features_supports_float32_output():
+    base_df = _synthetic_ohlcv(rows=3 * 24 * 60)
+    selected_cols = (
+        "candle_ret_co_1m",
+        "candle_body_pressure_5m_lag1",
+    )
+
+    result = add_candle_derived_features(
+        base_df,
+        feature_cols=selected_cols,
+        float_dtype=np.float32,
+    )
+
+    for feature_col in selected_cols:
+        assert result[feature_col].dtype == np.float32

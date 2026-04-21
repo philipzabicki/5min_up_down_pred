@@ -126,6 +126,11 @@ def load_optimizer_settings(config_path=CONFIG_PATH):
     reporting = _require_object(payload, "reporting")
     simulation = _require_object(payload, "simulation")
     runtime_defaults = _require_object(payload, "runtime_defaults")
+    if "stake_usdc" in runtime_defaults:
+        raise ValueError(
+            "trade_policy_optimizer.runtime_defaults.stake_usdc was removed; "
+            "use stake_multiplier."
+        )
     bounds = _require_object(payload, "trial_param_bounds")
     cv_settings = _optional_object(payload, "cv")
     cv_score_weights = _optional_object(cv_settings, "score_weights")
@@ -287,7 +292,7 @@ def load_optimizer_settings(config_path=CONFIG_PATH):
         },
         "runtime_defaults": {
             "extra_buffer": float(runtime_defaults.get("extra_buffer", 0.0)),
-            "stake_usdc": float(runtime_defaults.get("stake_usdc", 1.0)),
+            "stake_multiplier": float(runtime_defaults.get("stake_multiplier", 1.0)),
             "fee_model": normalize_polymarket_fee_model(
                 runtime_defaults["fee_model"],
                 context="trade_policy_optimizer.runtime_defaults.fee_model",
@@ -567,10 +572,9 @@ def replay_policy(
         decision = build_trade_intent(
             policy_result=policy_result,
             bankroll=float(bankroll),
-            stake_usdc=float(runtime_config["stake_usdc"]),
+            stake_multiplier=float(runtime_config["stake_multiplier"]),
             fee_model=fee_model,
             order_min_size=order_min_size,
-            raise_to_order_min=True,
         )
         if decision.get("final_reason") != "ok":
             peak = max(peak, bankroll)
@@ -709,7 +713,7 @@ def build_runtime_config_from_trial(trial, settings):
 
     runtime = {
         "extra_buffer": trial.suggest_float("extra_buffer", *bounds["extra_buffer"]),
-        "stake_usdc": float(defaults["stake_usdc"]),
+        "stake_multiplier": float(defaults["stake_multiplier"]),
         "fee_model": defaults["fee_model"],
     }
     return load_trade_policy_runtime_config_dict(runtime)

@@ -20,7 +20,7 @@ from target_weights import (
     TARGET_WEIGHT_COL,
     TARGET_WEIGHT_DECISION_VALUE,
     TARGET_WEIGHT_OTHER_VALUE,
-    add_target_weights,
+    compute_target_weights_from_opened,
     compute_binary_close_target_from_opened,
     summarize_target_weights,
 )
@@ -111,25 +111,54 @@ def concat_feature_frame(df, feature_frame, context):
             f"{context} length mismatch: {len(feature_frame)} != {len(df)}"
         )
 
-    feature_frame = feature_frame.copy()
-    feature_frame.index = df.index
+    if not feature_frame.index.equals(df.index):
+        feature_frame = feature_frame.copy(deep=False)
+        feature_frame.index = df.index
     return pd.concat([df, feature_frame], axis=1, copy=False)
 
 
-def build_target(df):
-    out = df.copy()
-    out[TARGET_TIME_COL] = pd.to_datetime(out[TARGET_TIME_COL], errors="raise")
-    out = out.sort_values(TARGET_TIME_COL).reset_index(drop=True)
+def build_target(df, float_dtype=np.float64):
+    require_columns(df, [TARGET_TIME_COL, TARGET_PRICE_COL])
 
-    out[TARGET_COL] = compute_binary_close_target_from_opened(
-        opened_values=out[TARGET_TIME_COL],
-        close_values=out[TARGET_PRICE_COL],
-        horizon_minutes=TARGET_HORIZON_MINUTES,
+    opened = pd.to_datetime(df[TARGET_TIME_COL], errors="raise")
+    has_default_index = (
+        isinstance(df.index, pd.RangeIndex)
+        and df.index.start == 0
+        and df.index.step == 1
+        and len(df.index) == len(df)
     )
-    out = add_target_weights(
-        out, opened_col=TARGET_TIME_COL, weight_col=TARGET_WEIGHT_COL
+    if opened.is_monotonic_increasing:
+        out = df if has_default_index else df.reset_index(drop=True)
+        opened = opened if has_default_index else opened.reset_index(drop=True)
+    else:
+        order = np.argsort(opened.to_numpy(dtype="datetime64[ns]"), kind="stable")
+        out = df.take(order).reset_index(drop=True)
+        opened = opened.iloc[order].reset_index(drop=True)
+
+    out = out.copy(deep=False)
+    out[TARGET_TIME_COL] = opened.to_numpy(copy=False)
+
+    target_frame = pd.DataFrame(
+        {
+            TARGET_COL: compute_binary_close_target_from_opened(
+                opened_values=opened,
+                close_values=out[TARGET_PRICE_COL],
+                horizon_minutes=TARGET_HORIZON_MINUTES,
+                dtype=float_dtype,
+            ),
+            TARGET_WEIGHT_COL: compute_target_weights_from_opened(
+                opened,
+                dtype=float_dtype,
+            ),
+        },
+        index=out.index,
     )
-    return out
+
+    duplicate_cols = [col for col in target_frame.columns if col in out.columns]
+    if duplicate_cols:
+        out = out.drop(columns=duplicate_cols)
+
+    return concat_feature_frame(out, target_frame, context="Target features")
 
 
 def drop_pseudo_targets(df, target_col):
@@ -381,7 +410,7 @@ def add_indicator_values(df, ohlcv_np, configs, float_dtype=np.float64):
 def build_dataset_from_settings(settings):
     fit_results_dir = Path(settings["fit_results_dir"])
     base_data_file = str(settings["base_data_file"])
-    streak_intervals = list(settings["candle_streak_intervals"])
+    streak_interval_lag_counts = dict(settings["candle_streak_intervals"])
     feature_subset = load_feature_subset_from_settings(settings)
     excluded_features = load_excluded_feature_names_from_settings(settings)
     excluded_feature_names = (
@@ -429,7 +458,7 @@ def build_dataset_from_settings(settings):
             )
 
     configured_streak_interval_to_rule = resolve_streak_interval_to_rule(
-        streak_intervals
+        streak_interval_lag_counts
     )
     if feature_subset_parts:
         requested_streak_intervals = feature_subset_parts["streak_intervals"]
@@ -525,7 +554,11 @@ def build_dataset_from_settings(settings):
     )
     if selected_candle_feature_cols is None or selected_candle_feature_cols:
         print("adding candle derived/pattern features")
-        df = add_candle_derived_features(df, feature_cols=selected_candle_feature_cols)
+        df = add_candle_derived_features(
+            df,
+            feature_cols=selected_candle_feature_cols,
+            float_dtype=float_dtype,
+        )
     else:
         print("skipping candle derived/pattern features (none requested)")
     selected_session_feature_cols = (
@@ -556,7 +589,7 @@ def build_dataset_from_settings(settings):
         ]
         if kept_realized_volatility_cols or feature_subset_parts is not None:
             print("adding realized volatility features")
-            df = add_realized_volatility_features(df)
+            df = add_realized_volatility_features(df, float_dtype=float_dtype)
         else:
             print("skipping realized volatility features (all excluded)")
     else:
@@ -591,9 +624,9 @@ def build_dataset_from_settings(settings):
     ohlcv_np = df[ohlcv_cols].to_numpy(dtype=np.float64, copy=True)
     print(f"adding {len(configs)} indicator configs from {fit_results_dir}")
     df = add_indicator_values(df, ohlcv_np, configs, float_dtype=float_dtype)
+    del ohlcv_np
 
-    require_columns(df, [TARGET_TIME_COL, TARGET_PRICE_COL])
-    df = build_target(df)
+    df = build_target(df, float_dtype=float_dtype)
     df, dropped_pseudo_targets = drop_pseudo_targets(df, TARGET_COL)
     protected_cols = {
         TARGET_TIME_COL,

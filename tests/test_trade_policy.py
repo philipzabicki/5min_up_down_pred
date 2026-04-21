@@ -27,7 +27,7 @@ def test_load_trade_policy_runtime_config_accepts_minimal_ev_policy_config(tmp_p
         json.dumps(
             {
                 "extra_buffer": 0.01,
-                "stake_usdc": 2.0,
+                "stake_multiplier": 2.0,
                 "fee_model": FEE_MODEL,
             }
         ),
@@ -39,13 +39,13 @@ def test_load_trade_policy_runtime_config_accepts_minimal_ev_policy_config(tmp_p
     assert cfg["mode"] == "ev"
     assert cfg["submitted_price_mode"] == "entry_price"
     assert cfg["extra_buffer"] == pytest.approx(0.01)
-    assert cfg["stake_usdc"] == pytest.approx(2.0)
+    assert cfg["stake_multiplier"] == pytest.approx(2.0)
     assert cfg["fee_model"]["source"] == "polymarket_fee_schedule_v2"
     assert set(cfg) == {
         "mode",
         "submitted_price_mode",
         "extra_buffer",
-        "stake_usdc",
+        "stake_multiplier",
         "fee_model",
     }
 
@@ -60,7 +60,7 @@ def test_load_trade_policy_runtime_config_accepts_model_direction_mode(tmp_path)
                 "min_decision_margin_up": 0.035,
                 "min_decision_margin_down": 0.01,
                 "extra_buffer": 0.0,
-                "stake_usdc": 0.01,
+                "stake_multiplier": 1.25,
                 "fee_model": FEE_MODEL,
             }
         ),
@@ -73,7 +73,7 @@ def test_load_trade_policy_runtime_config_accepts_model_direction_mode(tmp_path)
     assert cfg["submitted_price_mode"] == "order_price_cap"
     assert cfg["min_decision_margin_up"] == pytest.approx(0.035)
     assert cfg["min_decision_margin_down"] == pytest.approx(0.01)
-    assert cfg["stake_usdc"] == pytest.approx(0.01)
+    assert cfg["stake_multiplier"] == pytest.approx(1.25)
 
 
 def test_load_trade_policy_runtime_config_keeps_legacy_single_margin(tmp_path):
@@ -85,7 +85,7 @@ def test_load_trade_policy_runtime_config_keeps_legacy_single_margin(tmp_path):
                 "submitted_price_mode": "order_price_cap",
                 "min_decision_margin": 0.0125,
                 "extra_buffer": 0.0,
-                "stake_usdc": 0.01,
+                "stake_multiplier": 1.0,
                 "fee_model": FEE_MODEL,
             }
         ),
@@ -95,6 +95,23 @@ def test_load_trade_policy_runtime_config_keeps_legacy_single_margin(tmp_path):
     cfg = load_trade_policy_runtime_config(config_path)
 
     assert cfg["min_decision_margin"] == pytest.approx(0.0125)
+
+
+def test_load_trade_policy_runtime_config_rejects_legacy_stake_usdc(tmp_path):
+    config_path = tmp_path / "trade_policy_runtime.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "extra_buffer": 0.0,
+                "stake_usdc": 1.0,
+                "fee_model": FEE_MODEL,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="stake_usdc was removed"):
+        load_trade_policy_runtime_config(config_path)
 
 
 def test_decide_trade_from_ev_returns_no_trade_when_both_edges_are_non_positive():
@@ -274,18 +291,17 @@ def test_build_trade_intent_can_raise_stake_to_market_minimum():
     result = build_trade_intent(
         policy_result=policy_result,
         bankroll=100.0,
-        stake_usdc=1.0,
+        stake_multiplier=1.5,
         fee_model=FEE_MODEL,
         order_min_size=5.0,
-        raise_to_order_min=True,
     )
 
     assert result["decision"] == "buy_no"
     assert result["final_reason"] == "ok"
-    assert result["base_stake_usdc"] == pytest.approx(1.0)
+    assert result["stake_multiplier"] == pytest.approx(1.5)
     assert result["required_stake_usdc"] == pytest.approx(2.35)
-    assert result["effective_stake_usdc"] == pytest.approx(2.35)
-    assert result["bet_usdc"] == pytest.approx(2.35)
+    assert result["effective_stake_usdc"] == pytest.approx(3.525)
+    assert result["bet_usdc"] == pytest.approx(3.525)
     assert result["shares_net"] >= 5.0
 
 
@@ -302,11 +318,10 @@ def test_build_trade_intent_can_still_skip_when_required_stake_exceeds_external_
     result = build_trade_intent(
         policy_result=policy_result,
         bankroll=100.0,
-        stake_usdc=1.0,
+        stake_multiplier=1.0,
         fee_model=FEE_MODEL,
         order_min_size=5.0,
         external_stake_cap_usdc=2.30,
-        raise_to_order_min=True,
     )
 
     assert result["decision"] == "no_trade"

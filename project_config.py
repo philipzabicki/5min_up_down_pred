@@ -56,6 +56,45 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
     }
 
 
+def _normalize_candle_streak_intervals(raw_config, *, profile_name):
+    if not isinstance(raw_config, dict) or not raw_config:
+        raise ValueError(
+            f"Modeling profile '{profile_name}' must define non-empty "
+            "'candle_streak_intervals' as a JSON object."
+        )
+
+    normalized = {}
+    for raw_interval, raw_lag_count in raw_config.items():
+        interval = str(raw_interval).strip()
+        if not interval:
+            raise ValueError(
+                f"Modeling profile '{profile_name}' contains an empty "
+                "'candle_streak_intervals' key."
+            )
+        if interval in normalized:
+            raise ValueError(
+                f"Modeling profile '{profile_name}' defines duplicate candle interval "
+                f"after normalization: {interval!r}."
+            )
+        if isinstance(raw_lag_count, bool) or not isinstance(raw_lag_count, int):
+            raise ValueError(
+                f"Modeling profile '{profile_name}' must define integer lag counts "
+                f"for candle_streak_intervals[{interval!r}], got {raw_lag_count!r}."
+            )
+        if raw_lag_count < 0:
+            raise ValueError(
+                f"Modeling profile '{profile_name}' must define non-negative lag "
+                f"counts for candle_streak_intervals[{interval!r}], got {raw_lag_count}."
+            )
+        normalized[interval] = int(raw_lag_count)
+
+    if not normalized:
+        raise ValueError(
+            f"Modeling profile '{profile_name}' contains no valid candle intervals."
+        )
+    return normalized
+
+
 def _require_text_with_fallback(payload, key, fallback_key=None, *, source_label=None):
     if key in payload:
         return require_text(payload, key)
@@ -175,19 +214,10 @@ def load_modeling_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG
     require_text(profile, "output_suffix")
     require_text(profile, "fit_results_dir")
     require_positive_int(profile, "preview_rows")
-    candle_streak_intervals = profile.get("candle_streak_intervals")
-    if not isinstance(candle_streak_intervals, list) or not candle_streak_intervals:
-        raise ValueError(
-            f"Modeling profile '{profile_name}' must define non-empty "
-            "'candle_streak_intervals'."
-        )
-    profile["candle_streak_intervals"] = [
-        str(value).strip() for value in candle_streak_intervals if str(value).strip()
-    ]
-    if not profile["candle_streak_intervals"]:
-        raise ValueError(
-            f"Modeling profile '{profile_name}' contains no valid streak intervals."
-        )
+    profile["candle_streak_intervals"] = _normalize_candle_streak_intervals(
+        profile.get("candle_streak_intervals"),
+        profile_name=profile_name,
+    )
     profile["feature_selection"] = dict(feature_selection)
     profile["train_lgbm"] = _normalize_train_lgbm_config(
         profile.get("train_lgbm"),
@@ -355,7 +385,7 @@ def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
         "output_suffix": require_text(modeling, "output_suffix"),
         "fit_results_dir": coerce_path(require_text(modeling, "fit_results_dir")),
         "preview_rows": require_positive_int(modeling, "preview_rows"),
-        "candle_streak_intervals": list(modeling["candle_streak_intervals"]),
+        "candle_streak_intervals": dict(modeling["candle_streak_intervals"]),
         "feature_subset_path": feature_subset_path,
         "feature_subset_list_key": feature_subset_list_key,
         "excluded_feature_names": tuple(str(value) for value in excluded_feature_names),

@@ -116,6 +116,11 @@ POLYMARKET_EXECUTION_ORDER_TYPES = {
 POLYMARKET_SUBMITTED_ORDER_STATUSES = frozenset(
     f"submitted_{mode}" for mode in POLYMARKET_EXECUTION_ORDER_TYPES
 )
+POLYMARKET_RETRYABLE_SUBMISSION_STATUS = "submission_retryable_425"
+POLYMARKET_POST_ORDER_RETRYABLE_STATUS_CODES = frozenset({425})
+POLYMARKET_POST_ORDER_MAX_RETRIES = 3
+POLYMARKET_POST_ORDER_RETRY_INITIAL_DELAY_SEC = 1.0
+POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC = 4.0
 
 _PYCLOB_AUTH_TIME_OFFSET_SEC = 0.0
 
@@ -313,10 +318,22 @@ def _json_compact(payload):
 
 
 def _http_status_code(exc):
+    status_code = getattr(exc, "status_code", None)
+    try:
+        if status_code is not None:
+            return int(status_code)
+    except (TypeError, ValueError):
+        pass
     response = getattr(exc, "response", None)
     if response is None:
         return None
     return int(getattr(response, "status_code", 0) or 0)
+
+
+def _submission_error_status_from_exception(exc):
+    if _http_status_code(exc) in POLYMARKET_POST_ORDER_RETRYABLE_STATUS_CODES:
+        return POLYMARKET_RETRYABLE_SUBMISSION_STATUS
+    return "submission_error"
 
 
 def _utc_now():
@@ -1646,14 +1663,14 @@ class PolymarketLiveTrader(LivePredictor):
                 signed_order = self.pm_client.create_market_order(
                     order, options=options
                 )
-                response = self.pm_client.post_order(signed_order, order_type)
+                response = self._post_order_with_retry(signed_order, order_type)
                 response_txt = _json_compact(response)
                 if isinstance(response, dict) and bool(response.get("success", False)):
                     status = submitted_status
                 else:
                     status = "submission_rejected"
         except Exception as exc:
-            status = "submission_error"
+            status = _submission_error_status_from_exception(exc)
             error_txt = str(exc)
 
         with self.records_lock:
@@ -2356,11 +2373,10 @@ class PolymarketLiveTrader(LivePredictor):
         intent = build_trade_intent(
             policy_result=policy_result,
             bankroll=float(self.live_bankroll_usdc),
-            stake_usdc=float(self.live_trade_policy["stake_usdc"]),
+            stake_multiplier=float(self.live_trade_policy["stake_multiplier"]),
             fee_model=market.fee_model,
             order_min_size=float(market.order_min_size),
             external_stake_cap_usdc=float(self.pm_cfg.max_exposure_usdc),
-            raise_to_order_min=True,
         )
 
         side = str(intent.get("trade_side", "") or "").lower()
@@ -2465,6 +2481,35 @@ class PolymarketLiveTrader(LivePredictor):
         if neg_risk is not None and isinstance(neg_risk_cache, dict):
             neg_risk_cache[token_id] = bool(neg_risk)
 
+    def _post_order_with_retry(self, signed_order, order_type):
+        if self.pm_client is None:
+            raise RuntimeError("pm_client_not_initialized")
+
+        delay_sec = float(POLYMARKET_POST_ORDER_RETRY_INITIAL_DELAY_SEC)
+        max_attempts = max(int(POLYMARKET_POST_ORDER_MAX_RETRIES), 0) + 1
+
+        for attempt_idx in range(max_attempts):
+            try:
+                return self.pm_client.post_order(signed_order, order_type)
+            except Exception as exc:
+                status_code = _http_status_code(exc)
+                is_retryable = (
+                    status_code in POLYMARKET_POST_ORDER_RETRYABLE_STATUS_CODES
+                )
+                if not is_retryable or attempt_idx >= max_attempts - 1:
+                    raise
+                print(
+                    "[pm] post_order retry | "
+                    f"status_code={status_code} "
+                    f"delay_sec={delay_sec:.1f} "
+                    f"attempt={attempt_idx + 1}/{max_attempts - 1}"
+                )
+                time.sleep(delay_sec)
+                delay_sec = min(
+                    delay_sec * 2.0,
+                    float(POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC),
+                )
+
     def _maybe_submit_order(self, intent):
         try:
             if intent.get("final_reason") != "ok":
@@ -2509,7 +2554,7 @@ class PolymarketLiveTrader(LivePredictor):
                 signed_order = self.pm_client.create_market_order(
                     order, options=order_options
                 )
-                response = self.pm_client.post_order(signed_order, order_type)
+                response = self._post_order_with_retry(signed_order, order_type)
             else:
                 raise NotImplementedError(
                     "Unsupported live.polymarket_execution_mode: "
@@ -2543,7 +2588,7 @@ class PolymarketLiveTrader(LivePredictor):
         except Exception as exc:
             return self._submit_result(
                 commit_bankroll=False,
-                status="submission_error",
+                status=_submission_error_status_from_exception(exc),
                 error=str(exc),
             )
 
@@ -2702,7 +2747,7 @@ class PolymarketLiveTrader(LivePredictor):
             ),
             "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(buy_record_fields["stake_usdc"]),
-            "base_stake_usdc": float(intent.get("base_stake_usdc", np.nan)),
+            "stake_multiplier": float(intent.get("stake_multiplier", np.nan)),
             "required_stake_usdc": float(intent.get("required_stake_usdc", np.nan)),
             "effective_stake_usdc": float(
                 intent.get("effective_stake_usdc", np.nan)
@@ -2905,7 +2950,7 @@ class PolymarketLiveTrader(LivePredictor):
             ),
             "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
-            "base_stake_usdc": float(intent.get("base_stake_usdc", np.nan)),
+            "stake_multiplier": float(intent.get("stake_multiplier", np.nan)),
             "required_stake_usdc": float(intent.get("required_stake_usdc", np.nan)),
             "effective_stake_usdc": float(
                 intent.get("effective_stake_usdc", np.nan)
@@ -3214,7 +3259,7 @@ class PolymarketLiveTrader(LivePredictor):
                     ("trade_side", pred["trade_side"]),
                     ("policy_best_ev", f"{pred['policy_best_ev']:.6f}"),
                     ("stake_usdc", f"{pred['stake_usdc']:.2f}"),
-                    ("base_stake_usdc", f"{pred['base_stake_usdc']:.2f}"),
+                    ("stake_multiplier", f"{pred['stake_multiplier']:.4f}"),
                     (
                         "required_stake_usdc",
                         (
@@ -3397,7 +3442,7 @@ class PolymarketLiveTrader(LivePredictor):
             "Trade policy | "
             f"bankroll={self.live_bankroll_usdc:.2f} "
             f"mode={self.live_trade_policy.get('mode', 'ev')} "
-            f"stake_usdc={self.live_trade_policy['stake_usdc']:.2f} "
+            f"stake_multiplier={self.live_trade_policy['stake_multiplier']:.4f} "
             f"extra_buffer={self.live_trade_policy['extra_buffer']:.6f} "
             f"submitted_price_mode={self.live_trade_policy.get('submitted_price_mode', 'entry_price')}"
         )

@@ -174,6 +174,10 @@ def load_trade_policy_runtime_config(config_path):
     fee_model = payload.get("fee_model")
     if not isinstance(fee_model, dict):
         raise ValueError(f"Trade policy config missing fee_model: {config_path}")
+    if "stake_usdc" in payload:
+        raise ValueError(
+            "Trade policy config invalid: stake_usdc was removed; use stake_multiplier."
+        )
 
     cfg = {
         "mode": normalize_trade_policy_mode(payload.get("mode", "ev")),
@@ -181,7 +185,7 @@ def load_trade_policy_runtime_config(config_path):
             payload.get("submitted_price_mode", "entry_price")
         ),
         "extra_buffer": float(payload.get("extra_buffer", 0.0)),
-        "stake_usdc": float(payload.get("stake_usdc", 1.0)),
+        "stake_multiplier": float(payload.get("stake_multiplier", 1.0)),
         "fee_model": normalize_polymarket_fee_model(
             fee_model,
             context=f"Trade policy config '{config_path}' fee_model",
@@ -196,8 +200,10 @@ def load_trade_policy_runtime_config(config_path):
 
     if not math.isfinite(cfg["extra_buffer"]) or cfg["extra_buffer"] < 0.0:
         raise ValueError("Trade policy config invalid: extra_buffer must be finite and >= 0.")
-    if not math.isfinite(cfg["stake_usdc"]) or cfg["stake_usdc"] <= 0.0:
-        raise ValueError("Trade policy config invalid: stake_usdc must be finite and > 0.")
+    if not math.isfinite(cfg["stake_multiplier"]) or cfg["stake_multiplier"] <= 0.0:
+        raise ValueError(
+            "Trade policy config invalid: stake_multiplier must be finite and > 0."
+        )
     if "min_decision_margin" in cfg and (
         not math.isfinite(cfg["min_decision_margin"]) or cfg["min_decision_margin"] < 0.0
     ):
@@ -406,14 +412,13 @@ def build_trade_intent(
     *,
     policy_result,
     bankroll,
-    stake_usdc,
+    stake_multiplier,
     fee_model,
     order_min_size=0.0,
     external_stake_cap_usdc=math.inf,
-    raise_to_order_min=False,
 ):
     bankroll_value = _as_float(bankroll)
-    stake_value = _as_float(stake_usdc)
+    stake_multiplier_value = _as_float(stake_multiplier)
     order_min_size_value = 0.0 if order_min_size is None else float(order_min_size)
     external_cap_value = float(external_stake_cap_usdc)
 
@@ -425,17 +430,13 @@ def build_trade_intent(
     intent["entry_fee_raw_usdc"] = 0.0
     intent["shares_net"] = 0.0
     intent["selected_fee_fraction"] = float("nan")
-    intent["base_stake_usdc"] = (
-        float(stake_value)
-        if stake_value is not None and math.isfinite(stake_value)
+    intent["stake_multiplier"] = (
+        float(stake_multiplier_value)
+        if stake_multiplier_value is not None and math.isfinite(stake_multiplier_value)
         else float("nan")
     )
     intent["required_stake_usdc"] = float("nan")
-    intent["effective_stake_usdc"] = (
-        float(stake_value)
-        if stake_value is not None and math.isfinite(stake_value)
-        else float("nan")
-    )
+    intent["effective_stake_usdc"] = float("nan")
 
     if str(intent.get("decision", "")).lower() == "no_trade":
         intent["final_reason"] = str(intent.get("reason", "no_trade"))
@@ -445,10 +446,14 @@ def build_trade_intent(
         intent["trade_side"] = "none"
         intent["final_reason"] = "bankroll_non_positive"
         return intent
-    if stake_value is None or not math.isfinite(stake_value) or stake_value <= 0.0:
+    if (
+        stake_multiplier_value is None
+        or not math.isfinite(stake_multiplier_value)
+        or stake_multiplier_value <= 0.0
+    ):
         intent["decision"] = "no_trade"
         intent["trade_side"] = "none"
-        intent["final_reason"] = "stake_usdc_non_positive"
+        intent["final_reason"] = "stake_multiplier_non_positive"
         return intent
 
     if intent["trade_side"] == "yes":
@@ -460,18 +465,25 @@ def build_trade_intent(
         intent["final_reason"] = "invalid_trade_side"
         return intent
 
-    effective_stake_value = float(stake_value)
-    if bool(raise_to_order_min) and order_min_size_value > 0.0:
-        required_stake_value = _minimum_executable_stake_usdc(
-            entry_price=entry_price,
-            fee_model=fee_model,
-            order_min_size=order_min_size_value,
-        )
-        if math.isfinite(required_stake_value) and required_stake_value > 0.0:
-            intent["required_stake_usdc"] = float(required_stake_value)
-            if required_stake_value > effective_stake_value:
-                effective_stake_value = float(required_stake_value)
+    if order_min_size_value <= 0.0:
+        intent["decision"] = "no_trade"
+        intent["trade_side"] = "none"
+        intent["final_reason"] = "required_stake_unavailable"
+        return intent
 
+    required_stake_value = _minimum_executable_stake_usdc(
+        entry_price=entry_price,
+        fee_model=fee_model,
+        order_min_size=order_min_size_value,
+    )
+    if not math.isfinite(required_stake_value) or required_stake_value <= 0.0:
+        intent["decision"] = "no_trade"
+        intent["trade_side"] = "none"
+        intent["final_reason"] = "required_stake_unavailable"
+        return intent
+
+    intent["required_stake_usdc"] = float(required_stake_value)
+    effective_stake_value = float(required_stake_value * stake_multiplier_value)
     intent["effective_stake_usdc"] = float(effective_stake_value)
 
     if effective_stake_value > bankroll_value:

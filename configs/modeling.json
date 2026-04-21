@@ -5,16 +5,16 @@
       "output_suffix": "_model_ready",
       "fit_results_dir": "data/features/indicators_fit/all",
       "preview_rows": 1000,
-      "candle_streak_intervals": [
-        "1m",
-        "3m",
-        "5m",
-        "15m",
-        "30m",
-        "1h",
-        "4h",
-        "1d"
-      ],
+      "candle_streak_intervals": {
+        "1m": 42,
+        "3m": 38,
+        "5m": 34,
+        "15m": 30,
+        "30m": 26,
+        "1h": 22,
+        "4h": 18,
+        "1d": 14
+      },
       "float_precision": "float64",
       "volume_profile_fixed_range": {
         "enabled": true,
@@ -24,31 +24,31 @@
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "step": 12,
-            "local_window": 166,
-            "sigma_divisor": 0.19260733564585078,
-            "min_sigma": 243.63193405519854,
-            "half_life_candles": 95
+            "step": 80,
+            "local_window": 7,
+            "sigma_divisor": 1.9274204128159171,
+            "min_sigma": 67.67028377483737,
+            "half_life_candles": 127
           },
           "medium": {
-            "step": 95,
-            "local_window": 25,
-            "sigma_divisor": 4.772230685667068,
-            "min_sigma": 112.96761322033178,
-            "half_life_candles": 3907
+            "step": 14,
+            "local_window": 324,
+            "sigma_divisor": 0.04582735547032821,
+            "min_sigma": 0.3348083398273053,
+            "half_life_candles": 10281
           },
           "long": {
-            "step": 7,
-            "local_window": 1,
-            "sigma_divisor": 0.3105015573489063,
-            "min_sigma": 0.3397865400674734,
-            "half_life_candles": 42828
+            "step": 67,
+            "local_window": 14,
+            "sigma_divisor": 3.9141121524719518,
+            "min_sigma": 0.012993059873243501,
+            "half_life_candles": 19441
           },
           "all": {
-            "step": 3,
-            "local_window": 211,
-            "sigma_divisor": 0.028764800795105475,
-            "min_sigma": 108.98997769786818,
+            "step": 1,
+            "local_window": 5,
+            "sigma_divisor": 0.06307084803507008,
+            "min_sigma": 44.17943717215453,
             "half_life_candles": null
           }
         }
@@ -59,31 +59,9 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260420_024421/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/20260421_154209/recommended_features.json",
         "artifact_list_key": "final_feature_list",
-        "excluded_feature_names": [
-          "ADX_fit_15m_pop128_adxper1642_atrper1967_matypadxmgd_matypatrkama_matypnegdmwma_matypposdmnwmabiw_negdmper1386_posdmper165",
-          "MACD_fit_1m_pop512_fasmatyphma_fasper22_fassouhl2_sigmatypnwmaepan_sigper1905_slomatypnwmacos_sloper163_slosouohlc4_qe0.15_qm0.25_tf0.8_stmd_sg15",
-          "KeltnerChannel_fit_240m_pop128_atrmatypsma_atrmul8.559371_atrper826_maper701_matypkama_souhlcc4",
-          "KeltnerChannel_fit_2m_pop128_atrmatypwma_atrmul7.380495_atrper39_maper458_matypkama_souclose_qe0.2_qm0.2_tf0.8_stmc_sg15",
-          "BollingerBands_fit_720m_pop128_maper210_masouhlc3_matypkama_stdmaper473_stdmatypnwmagauss_stdmul0.431361_stdsouopen",
-          "ChaikinOsc_fit_2m_pop128_fasmatypdema_fasper7_slomatypkama_sloper7_qe0.2_qm0.2_tf0.8_stmc_sg15",
-          "KeltnerChannel_fit_7m_pop16_atrmatypmama_atrmul9.830724_atrper1564_maper26_matypkama_souclose",
-          "ADX_fit_15m_pop128_adxper553_atrper1222_matypadxrma_matypatrtrima_matypnegdmtema_matypposdmlinreg_negdmper4_posdmper897_qe0.1_qm0.1_tf0.8_stmc_sg15",
-          "BollingerBands_fit_1440m_pop64_maper1969_masouhigh_matypema_stdmaper35_stdmatypdema_stdmul1.132474_stdsouhlc3",
-          "ChaikinOsc_fit_1440m_pop64_fasmatyplinreg_fasper658_slomatypshmma_sloper1444",
-          "ChaikinOsc_fit_60m_pop128_fasmatyplma_fasper557_slomatyplma_sloper291_qe0.1_qm0.3_tf0.8_stmc_sg20",
-          "StochOsc_fit_2m_pop128_faskper920_slodmatypkama_slodper1276_slokmatypnwmabiw_slokper113_qe0.2_qm0.2_tf0.8_stmc_sg15",
-          "StochOsc_fit_60m_pop16_faskper966_slodmatypkama_slodper1340_slokmatypsma_slokper939",
-          "MACD_fit_2m_pop512_fasmatypfba_fasper581_fassouohlc4_sigmatypkama_sigper242_slomatypnwmacos_sloper1730_slosouhlc3_qe0.2_qm0.25_tf0.8_stmd_sg20",
-          "MACD_fit_1440m_pop64_fasmatypehma_fasper181_fassouopen_sigmatypkama_sigper1032_slomatypgma_sloper1074_slosoulow",
-          "ChaikinOsc_fit_6m_pop16_fasmatypdema_fasper4_slomatypgma_sloper2",
-          "ADX_fit_1m_pop128_adxper2_atrper1556_matypadxhma_matypatrmama_matypnegdmmama_matypposdmrma_negdmper74_posdmper667_qe0.1_qm0.3_tf0.8_stmc_sg20",
-          "BollingerBands_fit_3m_pop16_maper22_masoulow_matypvwmapta_stdmaper132_stdmatypmama_stdmul3.131831_stdsouopen",
-          "ChaikinOsc_fit_240m_pop16_fasmatypmama_fasper675_slomatypnwmagauss_sloper44",
-          "StochOsc_fit_3m_pop512_faskper591_slodmatypkama_slodper499_slokmatypnwmaepan_slokper43_qe0.2_qm0.25_tf0.8_stmd_sg20",
-          "KeltnerChannel_fit_1m_pop128_atrmatypdema_atrmul8.813425_atrper346_maper200_matypkama_souhlc3_qe0.2_qm0.2_tf0.8_stmc_sg15"
-        ]
+        "excluded_feature_names": []
       },
       "train_lgbm": {
         "train_default_model": false,

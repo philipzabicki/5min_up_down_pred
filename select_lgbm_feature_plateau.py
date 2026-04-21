@@ -40,6 +40,7 @@ FALLBACK_TO_UNIT_WEIGHTS = False
 MIN_SAMPLE_WEIGHT = 0.425
 
 RANKING_N_SPLITS = 20
+PERMUTATION_N_SPLITS = 5
 TOPK_N_SPLITS = 20
 WF_TEST_TO_TRAIN_RATIO = 0.2
 ENABLE_FOLD_RECENCY_WEIGHTING = True
@@ -94,21 +95,24 @@ ABS_TOL = 0.000005
 REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
-MIN_NONZERO_IMPORTANCE_FOLDS = 15
-PERMUTATION_TOP_N = 768
+MIN_NONZERO_IMPORTANCE_FOLDS = 10
+PERMUTATION_TOP_N = 640
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
-PERMUTATION_N_REPEATS = 3
+PERMUTATION_N_REPEATS = 5
 PERMUTATION_BASE_SEED = 37
-MAX_MISSING_RATIO = 0.05
+MAX_MISSING_RATIO = 0.01
 NEAR_CONSTANT_THRESHOLD = 0.9999
 DROP_DUPLICATE_COLUMNS = True
 MAX_ABS_CORRELATION = 0.999
 ENABLE_CORRELATION_FILTER = True
+CORRELATION_METHOD = "spearman"
+CORRELATION_ANALYSIS_MAX_ROWS = 25_000  # most recent consecutive rows used for correlation filtering
+CORRELATION_ANALYSIS_USE_PRE_WEIGHT_ROWS = True  # run correlation filtering before MIN_SAMPLE_WEIGHT row filtering
 CORRELATION_FILTER_MODE = "screened_exact"  # modes: "screened_exact" or "full_matrix"
-CORRELATION_SCREEN_SAMPLE_ROWS = 150_000  # rows used for the initial correlation screening
+CORRELATION_SCREEN_SAMPLE_ROWS = 25_000  # most recent consecutive rows used for the screening stage when analysis slice is still large
 CORRELATION_SCREEN_MARGIN = 0.05  # lowers the screening threshold below the final drop threshold
-CORRELATION_SCREEN_MIN_ROWS = 300_000  # minimum row count required to use screened_exact
+CORRELATION_SCREEN_MIN_ROWS = 500_000  # minimum row count required to use screened_exact
 CORRELATION_SCREEN_MIN_COLS = 64  # minimum feature count required to use screened_exact
 CORRELATION_SCREEN_MIN_THRESHOLD = 0.98  # minimum MAX_ABS_CORRELATION required to use screened_exact
 
@@ -388,22 +392,53 @@ def should_use_screened_correlation(df, threshold):
     )
 
 
-def build_evenly_spaced_row_index(n_rows, sample_rows):
+def slice_correlation_analysis_rows(df, source_label):
+    max_rows = CORRELATION_ANALYSIS_MAX_ROWS
+    if max_rows is None or int(max_rows) <= 0:
+        return df, {
+            "analysis_source": str(source_label),
+            "analysis_input_rows": int(len(df)),
+            "analysis_rows": int(len(df)),
+            "analysis_max_rows": None,
+            "analysis_row_selection": "all_rows",
+            "analysis_limited": False,
+        }
+
+    max_rows = int(max_rows)
+    analysis_df = df.iloc[-max_rows:]
+    return analysis_df, {
+        "analysis_source": str(source_label),
+        "analysis_input_rows": int(len(df)),
+        "analysis_rows": int(len(analysis_df)),
+        "analysis_max_rows": max_rows,
+        "analysis_row_selection": "tail_consecutive",
+        "analysis_limited": bool(len(analysis_df) < len(df)),
+    }
+
+
+def build_consecutive_row_index(n_rows, sample_rows):
     sample_rows = int(sample_rows)
     if sample_rows <= 0 or n_rows <= sample_rows:
         return np.arange(n_rows, dtype=np.int64)
 
-    sample_idx = np.linspace(0, n_rows - 1, num=sample_rows, dtype=np.int64)
-    return np.unique(sample_idx)
+    return np.arange(n_rows - sample_rows, n_rows, dtype=np.int64)
 
 
 def find_highly_correlated_columns_full(df, threshold):
     if df.shape[1] <= 1:
-        return [], {}, {"mode": "full_matrix", "exact_pair_checks": 0}
+        return [], {}, {
+            "mode": "full_matrix",
+            "correlation_method": CORRELATION_METHOD,
+            "exact_pair_checks": 0,
+        }
 
-    abs_corr = df.corr(method="pearson", min_periods=3).abs()
+    abs_corr = df.corr(method=CORRELATION_METHOD, min_periods=3).abs()
     if abs_corr.empty:
-        return [], {}, {"mode": "full_matrix", "exact_pair_checks": 0}
+        return [], {}, {
+            "mode": "full_matrix",
+            "correlation_method": CORRELATION_METHOD,
+            "exact_pair_checks": 0,
+        }
 
     col_names = abs_corr.columns.to_list()
     corr_values = abs_corr.to_numpy(copy=False)
@@ -425,18 +460,23 @@ def find_highly_correlated_columns_full(df, threshold):
         dropped_cols.append(dropped_col)
         drop_map[dropped_col] = kept_col
 
-    return dropped_cols, drop_map, {"mode": "full_matrix", "exact_pair_checks": 0}
+    return dropped_cols, drop_map, {
+        "mode": "full_matrix",
+        "correlation_method": CORRELATION_METHOD,
+        "exact_pair_checks": 0,
+    }
 
 
 def find_highly_correlated_columns_screened(df, threshold):
     threshold = float(threshold)
     screen_threshold = max(0.0, threshold - float(CORRELATION_SCREEN_MARGIN))
-    sample_idx = build_evenly_spaced_row_index(len(df), CORRELATION_SCREEN_SAMPLE_ROWS)
+    sample_idx = build_consecutive_row_index(len(df), CORRELATION_SCREEN_SAMPLE_ROWS)
     sample_df = df.iloc[sample_idx]
-    abs_corr = sample_df.corr(method="pearson", min_periods=3).abs()
+    abs_corr = sample_df.corr(method=CORRELATION_METHOD, min_periods=3).abs()
     if abs_corr.empty:
         return [], {}, {
             "mode": "screened_exact",
+            "correlation_method": CORRELATION_METHOD,
             "screen_sample_rows": int(len(sample_idx)),
             "screen_threshold": screen_threshold,
             "screen_candidate_pairs": 0,
@@ -459,6 +499,7 @@ def find_highly_correlated_columns_screened(df, threshold):
     if not screened_prior_map:
         return [], {}, {
             "mode": "screened_exact",
+            "correlation_method": CORRELATION_METHOD,
             "screen_sample_rows": int(len(sample_idx)),
             "screen_threshold": screen_threshold,
             "screen_candidate_pairs": 0,
@@ -483,7 +524,7 @@ def find_highly_correlated_columns_screened(df, threshold):
             exact_pair_checks += 1
             corr = series_by_idx[int(keeper_idx)].corr(
                 series_by_idx[col_idx],
-                method="pearson",
+                method=CORRELATION_METHOD,
                 min_periods=3,
             )
             if pd.isna(corr) or abs(float(corr)) < threshold:
@@ -498,6 +539,7 @@ def find_highly_correlated_columns_screened(df, threshold):
 
     return dropped_cols, drop_map, {
         "mode": "screened_exact",
+        "correlation_method": CORRELATION_METHOD,
         "screen_sample_rows": int(len(sample_idx)),
         "screen_threshold": screen_threshold,
         "screen_candidate_pairs": int(screen_candidate_pairs),
@@ -507,7 +549,11 @@ def find_highly_correlated_columns_screened(df, threshold):
 
 def find_highly_correlated_columns(df, threshold):
     if df.shape[1] <= 1:
-        return [], {}, {"mode": "skipped", "exact_pair_checks": 0}
+        return [], {}, {
+            "mode": "skipped",
+            "correlation_method": CORRELATION_METHOD,
+            "exact_pair_checks": 0,
+        }
 
     if should_use_screened_correlation(df, threshold):
         return find_highly_correlated_columns_screened(df, threshold)
@@ -534,8 +580,40 @@ def make_prefilter_report_row(
     }
 
 
-def prefilter_features(x):
+def prefilter_features(
+    x,
+    correlation_reference=None,
+    correlation_reference_details=None,
+):
     work = x
+    if correlation_reference is None:
+        correlation_work, correlation_details = slice_correlation_analysis_rows(
+            work,
+            source_label="after_row_filter",
+        )
+    else:
+        missing_corr_cols = [
+            col for col in work.columns if col not in correlation_reference.columns
+        ]
+        if missing_corr_cols:
+            raise ValueError(
+                "Correlation reference is missing feature columns: "
+                + ", ".join(missing_corr_cols[:10])
+            )
+        correlation_work = correlation_reference.loc[:, work.columns]
+        if correlation_reference_details is None:
+            correlation_work, correlation_details = slice_correlation_analysis_rows(
+                correlation_work,
+                source_label="external_reference",
+            )
+        else:
+            correlation_details = dict(correlation_reference_details)
+            correlation_details.setdefault("analysis_source", "external_reference")
+            correlation_details.setdefault("analysis_input_rows", int(len(correlation_work)))
+            correlation_details.setdefault("analysis_rows", int(len(correlation_work)))
+            correlation_details.setdefault("analysis_max_rows", None)
+            correlation_details.setdefault("analysis_row_selection", "provided")
+            correlation_details.setdefault("analysis_limited", False)
     report_rows = [
         {
             "step": "input",
@@ -553,6 +631,7 @@ def prefilter_features(x):
     all_missing_cols = [col for col in work.columns if work[col].isna().all()]
     if all_missing_cols:
         work = work.drop(columns=all_missing_cols)
+        correlation_work = correlation_work.drop(columns=all_missing_cols, errors="ignore")
     report_rows.append(
         make_prefilter_report_row(
             step="all_missing",
@@ -567,6 +646,7 @@ def prefilter_features(x):
     constant_cols = nunique[nunique <= 1].index.tolist()
     if constant_cols:
         work = work.drop(columns=constant_cols)
+        correlation_work = correlation_work.drop(columns=constant_cols, errors="ignore")
         nunique = nunique.drop(labels=constant_cols)
     report_rows.append(
         make_prefilter_report_row(
@@ -587,6 +667,10 @@ def prefilter_features(x):
         )
         if near_constant_cols:
             work = work.drop(columns=near_constant_cols)
+            correlation_work = correlation_work.drop(
+                columns=near_constant_cols,
+                errors="ignore",
+            )
             nunique = nunique.drop(labels=near_constant_cols)
     report_rows.append(
         make_prefilter_report_row(
@@ -606,6 +690,10 @@ def prefilter_features(x):
         ].index.tolist()
         if high_missing_cols:
             work = work.drop(columns=high_missing_cols)
+            correlation_work = correlation_work.drop(
+                columns=high_missing_cols,
+                errors="ignore",
+            )
             nunique = nunique.drop(labels=high_missing_cols, errors="ignore")
     report_rows.append(
         make_prefilter_report_row(
@@ -622,6 +710,7 @@ def prefilter_features(x):
         duplicate_cols, duplicate_map = find_duplicate_columns(work)
         if duplicate_cols:
             work = work.drop(columns=duplicate_cols)
+            correlation_work = correlation_work.drop(columns=duplicate_cols, errors="ignore")
             nunique = nunique.drop(labels=duplicate_cols, errors="ignore")
     report_rows.append(
         make_prefilter_report_row(
@@ -634,22 +723,28 @@ def prefilter_features(x):
 
     started = time.perf_counter()
     high_corr_cols = []
-    high_corr_details = {}
+    high_corr_details = dict(correlation_details)
     if (
         work.shape[1] > 1
         and ENABLE_CORRELATION_FILTER
         and MAX_ABS_CORRELATION is not None
     ):
+        corr_eval_input = correlation_work.loc[:, work.columns]
         (
             high_corr_cols,
             high_corr_drop_map,
-            high_corr_details,
+            corr_eval_details,
         ) = find_highly_correlated_columns(
-            work,
+            corr_eval_input,
             threshold=MAX_ABS_CORRELATION,
         )
+        high_corr_details.update(corr_eval_details)
         if high_corr_cols:
             work = work.drop(columns=high_corr_cols)
+            correlation_work = correlation_work.drop(columns=high_corr_cols, errors="ignore")
+    else:
+        high_corr_details.setdefault("mode", "disabled")
+        high_corr_details.setdefault("exact_pair_checks", 0)
     report_rows.append(
         make_prefilter_report_row(
             step="very_high_correlation",
@@ -1427,20 +1522,28 @@ def run_permutation_reranking(
     return ranking_df
 
 
-def run_feature_ranking(x, y, sample_weight, folds, fold_weight_by_id):
+def run_feature_ranking(
+    x,
+    y,
+    sample_weight,
+    prescreen_folds,
+    prescreen_fold_weight_by_id,
+    permutation_folds,
+    permutation_fold_weight_by_id,
+):
     ranking_df, fold_rankings, fold_metadata = run_feature_prescreen(
         x=x,
         y=y,
         sample_weight=sample_weight,
-        folds=folds,
-        fold_weight_by_id=fold_weight_by_id,
+        folds=prescreen_folds,
+        fold_weight_by_id=prescreen_fold_weight_by_id,
     )
     ranking_df = run_permutation_reranking(
         x=x,
         y=y,
         sample_weight=sample_weight,
-        folds=folds,
-        fold_weight_by_id=fold_weight_by_id,
+        folds=permutation_folds,
+        fold_weight_by_id=permutation_fold_weight_by_id,
         ranking_df=ranking_df,
     )
     ranking_df = sort_feature_table_final(ranking_df)
@@ -1887,6 +1990,7 @@ def write_outputs(
         f"input_features={summary_payload['input_feature_count']}",
         f"prefiltered_features={summary_payload['prefilter_feature_count']}",
         f"ranking_n_splits={summary_payload['ranking_n_splits']}",
+        f"permutation_n_splits={summary_payload['permutation_n_splits']}",
         f"topk_n_splits={summary_payload['topk_n_splits']}",
         f"topk_selection_mode={summary_payload['topk_selection_mode']}",
         f"topk_selection_base_score={summary_payload['topk_selection_base_score']}",
@@ -1926,6 +2030,21 @@ def main():
     if df.empty:
         raise ValueError("No rows left after TARGET_COL non-null filtering.")
 
+    raw_input_feature_cols, dropped_non_numeric = resolve_feature_columns(df)
+    correlation_reference = None
+    correlation_reference_details = None
+    if CORRELATION_ANALYSIS_USE_PRE_WEIGHT_ROWS:
+        correlation_rows_df, correlation_reference_details = (
+            slice_correlation_analysis_rows(
+                df,
+                source_label="before_row_filter",
+            )
+        )
+        correlation_reference = correlation_rows_df[raw_input_feature_cols].replace(
+            [np.inf, -np.inf],
+            np.nan,
+        )
+
     (
         df,
         sample_weight,
@@ -1934,14 +2053,17 @@ def main():
         row_filter_info,
     ) = filter_rows_by_min_sample_weight(df, context_label="load data")
 
-    raw_input_feature_cols, dropped_non_numeric = resolve_feature_columns(df)
     x_raw = df[raw_input_feature_cols].replace([np.inf, -np.inf], np.nan)
     (
         x_prefilter,
         filter_report_df,
         duplicate_map,
         high_corr_drop_map,
-    ) = prefilter_features(x_raw)
+    ) = prefilter_features(
+        x_raw,
+        correlation_reference=correlation_reference,
+        correlation_reference_details=correlation_reference_details,
+    )
     y_raw = df[TARGET_COL]
 
     y, class_mapping = prepare_binary_target(y_raw)
@@ -1950,12 +2072,18 @@ def main():
         n_splits=RANKING_N_SPLITS,
         test_to_train_ratio=WF_TEST_TO_TRAIN_RATIO,
     )
+    permutation_folds = make_walk_forward_folds(
+        n_rows=len(df),
+        n_splits=PERMUTATION_N_SPLITS,
+        test_to_train_ratio=WF_TEST_TO_TRAIN_RATIO,
+    )
     topk_folds = make_walk_forward_folds(
         n_rows=len(df),
         n_splits=TOPK_N_SPLITS,
         test_to_train_ratio=WF_TEST_TO_TRAIN_RATIO,
     )
     ranking_fold_weights = build_fold_recency_weights(ranking_folds)
+    permutation_fold_weights = build_fold_recency_weights(permutation_folds)
     topk_fold_weights = build_fold_recency_weights(topk_folds)
 
     print(
@@ -1966,6 +2094,7 @@ def main():
     print_prefilter_report_cli(filter_report_df)
     print(
         f"cv setup | ranking_folds={len(ranking_folds)} "
+        f"permutation_folds={len(permutation_folds)} "
         f"topk_folds={len(topk_folds)} "
         f"test_to_train_ratio={WF_TEST_TO_TRAIN_RATIO} "
         f"scorer={SCORER['name']} greater_is_better={SCORER['greater_is_better']}"
@@ -1983,8 +2112,10 @@ def main():
         x=x_prefilter,
         y=y,
         sample_weight=sample_weight,
-        folds=ranking_folds,
-        fold_weight_by_id=ranking_fold_weights,
+        prescreen_folds=ranking_folds,
+        prescreen_fold_weight_by_id=ranking_fold_weights,
+        permutation_folds=permutation_folds,
+        permutation_fold_weight_by_id=permutation_fold_weights,
     )
     global_feature_order = ranking_df["feature"].tolist()
 
@@ -2040,8 +2171,24 @@ def main():
         ),
         "input_feature_count": len(raw_input_feature_cols),
         "prefilter_feature_count": int(x_prefilter.shape[1]),
+        "correlation_filter": {
+            "enabled": bool(ENABLE_CORRELATION_FILTER),
+            "method": str(CORRELATION_METHOD),
+            "max_abs_correlation": float(MAX_ABS_CORRELATION),
+            "mode": str(CORRELATION_FILTER_MODE),
+            "analysis_max_rows": (
+                None
+                if CORRELATION_ANALYSIS_MAX_ROWS is None
+                else int(CORRELATION_ANALYSIS_MAX_ROWS)
+            ),
+            "analysis_row_selection": "tail_consecutive",
+            "analysis_before_row_filter": bool(
+                CORRELATION_ANALYSIS_USE_PRE_WEIGHT_ROWS
+            ),
+        },
         "eligible_feature_count": int(ranking_df["eligible_for_selection"].sum()),
         "permutation_top_n": int(PERMUTATION_TOP_N),
+        "permutation_n_splits": len(permutation_folds),
         "permutation_n_repeats": int(PERMUTATION_N_REPEATS),
         "permutation_candidate_count": int(ranking_df["prescreen_candidate"].sum()),
         "permutation_ranked_feature_count": int(
@@ -2070,6 +2217,10 @@ def main():
             "ranking_fold_weights": fold_weight_items_for_summary(
                 ranking_folds,
                 ranking_fold_weights,
+            ),
+            "permutation_fold_weights": fold_weight_items_for_summary(
+                permutation_folds,
+                permutation_fold_weights,
             ),
             "topk_fold_weights": fold_weight_items_for_summary(
                 topk_folds,

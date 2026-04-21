@@ -1162,7 +1162,7 @@ def build_current_recomputed_feature_history(
     feature_frame = raw_history_df.loc[:, ["Opened", *RAW_OHLCV_COLS]].copy()
 
     configured_rules = resolve_streak_interval_to_rule(
-        list(MODELING_DATASET_SETTINGS.get("candle_streak_intervals", []))
+        MODELING_DATASET_SETTINGS.get("candle_streak_intervals", {})
     )
     if feature_parts["streak_intervals"]:
         missing_streak_intervals = [

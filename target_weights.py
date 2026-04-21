@@ -22,20 +22,21 @@ def compute_decision_mask_from_opened(
     return (opened_minute % int(minute_modulo)) == int(minute_remainder)
 
 
-def compute_target_weights_from_opened(opened_values):
+def compute_target_weights_from_opened(opened_values, dtype=np.float64):
     decision_mask = compute_decision_mask_from_opened(opened_values)
     weights = np.where(
         decision_mask,
         TARGET_WEIGHT_DECISION_VALUE,
         TARGET_WEIGHT_OTHER_VALUE,
     )
-    return weights.astype(np.float64, copy=False)
+    return weights.astype(dtype, copy=False)
 
 
 def compute_binary_close_target_from_opened(
     opened_values,
     close_values,
     horizon_minutes,
+    dtype=np.float64,
 ):
     horizon = int(horizon_minutes)
     if horizon <= 0:
@@ -57,24 +58,32 @@ def compute_binary_close_target_from_opened(
     )
     current_close = close_series.to_numpy(dtype=np.float64, copy=False)
 
-    target = np.full(len(close_series), np.nan, dtype=np.float64)
+    target = np.full(len(close_series), np.nan, dtype=dtype)
     valid_mask = np.isfinite(current_close) & np.isfinite(future_close)
     if np.any(valid_mask):
         # Keep target semantics aligned with Polymarket settlement: ties resolve Up.
         target[valid_mask] = (
             future_close[valid_mask] >= current_close[valid_mask]
-        ).astype(np.float64, copy=False)
+        ).astype(dtype, copy=False)
     return target
 
 
-def add_target_weights(df, opened_col="Opened", weight_col=TARGET_WEIGHT_COL):
+def add_target_weights(
+    df,
+    opened_col="Opened",
+    weight_col=TARGET_WEIGHT_COL,
+    dtype=np.float64,
+):
     if opened_col not in df.columns:
         raise ValueError(
             f"Cannot build target weights without opened column '{opened_col}'."
         )
 
-    out = df.copy()
-    out[weight_col] = compute_target_weights_from_opened(out[opened_col])
+    out = df.copy(deep=False)
+    out[weight_col] = compute_target_weights_from_opened(
+        out[opened_col],
+        dtype=dtype,
+    )
     return out
 
 

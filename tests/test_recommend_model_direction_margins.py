@@ -123,7 +123,7 @@ def test_evaluate_margin_grid_and_recommendation_finds_expected_asymmetric_thres
     )
     precomputed = precompute_trade_arrays(
         aligned_frame,
-        stake_usdc=1.0,
+        stake_multiplier=1.0,
         fee_model={
             "rate": 0.072,
             "exponent": 1.0,

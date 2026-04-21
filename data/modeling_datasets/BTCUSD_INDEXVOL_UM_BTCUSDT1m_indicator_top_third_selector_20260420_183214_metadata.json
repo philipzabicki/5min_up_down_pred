@@ -1,0 +1,10 @@
+{
+  "created_utc": "2026-04-20T18:37:53.298980+00:00",
+  "float_precision": "float32",
+  "head_csv_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_indicator_top_third_selector_20260420_183214_head1000.csv",
+  "parquet_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_indicator_top_third_selector_20260420_183214.parquet",
+  "tail_csv_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_indicator_top_third_selector_20260420_183214_tail1000.csv",
+  "volume_profile_feature_columns": [],
+  "volume_profile_feature_version": null,
+  "volume_profile_fixed_range": null
+}
