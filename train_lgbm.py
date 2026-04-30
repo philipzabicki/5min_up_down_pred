@@ -3,6 +3,7 @@ from datetime import datetime
 from pathlib import Path
 import numpy as np
 import pandas as pd
+import pyarrow.parquet as pq
 import lightgbm as lgb
 from common_config_utils import path_to_portable_str
 from features.candle_features import (
@@ -31,6 +32,7 @@ from modeling_dataset_utils import (
     resolve_oof_prediction_output_paths,
     split_feature_subset,
     summarize_feature_subset,
+    validate_parquet_magic_bytes,
 )
 from target_weights import (
     TARGET_WEIGHT_COL,
@@ -51,8 +53,8 @@ OOF_EXPORT_BASE_COLS = [
     TARGET_WEIGHT_COL,
 ]
 OOF_PREVIEW_ROWS = 1000
-CV_FOLDS = 20
-WF_TEST_TO_TRAIN_RATIO = 0.2
+CV_FOLDS = 10
+WF_TEST_TO_TRAIN_RATIO = 0.1
 N_ESTIMATORS = 3000
 EARLY_STOPPING_ROUNDS = 25
 SEED = 37
@@ -68,22 +70,7 @@ PRIMARY_REPORTING_METRIC = "balanced_accuracy"
 
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
-LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.005345243845517257,
-      "num_leaves": 249,
-      "min_data_in_leaf": 1092,
-      "max_depth": 47,
-      "feature_fraction": 0.547406725512275,
-      "bagging_fraction": 0.8720848738316145,
-      "bagging_freq": 19,
-      "lambda_l2": 11.793596403657679,
-      "lambda_l1": 16.802466762568642,
-      "min_sum_hessian_in_leaf": 28.814446384235985,
-      "min_gain_to_split": 0.3523220198504663,
-      "feature_fraction_bynode": 0.5741253197885922,
-      "path_smooth": 29.535516337206555,
-      "extra_trees": False
-    }
+LGBM_OPTUNA_BEST_PARAMS = {'learning_rate': 0.0021574582075051204, 'num_leaves': 196, 'min_data_in_leaf': 21, 'max_depth': 58, 'feature_fraction': 0.8187932858940383, 'bagging_fraction': 0.8714798148611362, 'bagging_freq': 4, 'lambda_l2': 15.442114704888553, 'lambda_l1': 2.212521909423135, 'min_sum_hessian_in_leaf': 0.13475540327517857, 'min_gain_to_split': 1.5679522702774737, 'feature_fraction_bynode': 0.6443195011832288, 'path_smooth': 18.354650904317488, 'extra_trees': False}
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
     "num_leaves": 31,
@@ -153,8 +140,8 @@ def classification_metrics(
     sample_weight=None,
     threshold=PREDICTION_THRESHOLD,
 ):
-    y_true_i = y_true.astype(np.int8, copy=False)
-    y_pred_proba_f = y_pred_proba.astype(np.float64, copy=False)
+    y_true_i = np.asarray(y_true, dtype=np.int8)
+    y_pred_proba_f = np.asarray(y_pred_proba, dtype=np.float64)
     y_pred_i = (y_pred_proba_f >= threshold).astype(np.int8)
     if sample_weight is None:
         w = np.ones(shape=len(y_true_i), dtype=np.float64)
@@ -226,7 +213,7 @@ def resolve_sample_weight_series(df, float_dtype=np.float64):
         )
         source = "derived_from_opened"
 
-    sample_weight = sample_weight.astype(float_dtype, copy=False)
+    sample_weight = sample_weight.astype(float_dtype)
     sample_weight_np = sample_weight.to_numpy(dtype=float_dtype, copy=False)
     if sample_weight_np.shape[0] != len(df):
         raise ValueError("Sample weights length mismatch.")
@@ -252,8 +239,8 @@ def clean_and_impute_fold(
         x_train_raw = x_train_raw.drop(columns=all_nan_train_features)
         x_test_raw = x_test_raw.drop(columns=all_nan_train_features)
 
-    x_train = x_train_raw.astype(float_dtype, copy=False)
-    x_test = x_test_raw.astype(float_dtype, copy=False)
+    x_train = x_train_raw.astype(float_dtype)
+    x_test = x_test_raw.astype(float_dtype)
     return x_train, x_test, pd.Series(dtype=float_dtype), all_nan_train_features, 0
 
 
@@ -296,6 +283,7 @@ def load_walk_forward_training_frame(
 
     if not data_path.exists():
         raise FileNotFoundError(f"Dataset not found: {data_path}")
+    validate_parquet_magic_bytes(data_path)
 
     print(f"Loading dataset: {data_path}")
     if feature_subset:
@@ -310,16 +298,34 @@ def load_walk_forward_training_frame(
             f"count={excluded_features['count']} preview=[{preview}]"
         )
 
+    if parquet_columns is not None:
+        try:
+            parquet_column_set = set(pq.ParquetFile(data_path).schema_arrow.names)
+        except Exception as exc:
+            raise ValueError(
+                "Dataset file is not a readable parquet file. "
+                "Rebuild it with create_modeling_dataset.py. "
+                f"path={data_path}"
+            ) from exc
+
+        missing_parquet_columns = [
+            col for col in parquet_columns if col not in parquet_column_set
+        ]
+        if missing_parquet_columns:
+            preview = ", ".join(missing_parquet_columns[:10])
+            raise ValueError(
+                "Dataset is missing columns required by train_lgbm.py. "
+                "Rebuild it with create_modeling_dataset.py for the active feature subset. "
+                f"Missing_count={len(missing_parquet_columns)} preview=[{preview}]"
+            )
+
     try:
         df = pd.read_parquet(data_path, columns=parquet_columns)
     except Exception as exc:
-        if parquet_columns is None:
-            raise
-        preview = ", ".join(parquet_columns[:10])
         raise ValueError(
-            "Dataset is missing columns required by train_lgbm.py. "
-            "Rebuild it with create_modeling_dataset.py for the active feature subset. "
-            f"Requested_count={len(parquet_columns)} preview=[{preview}]"
+            "Failed to read modeling dataset parquet. "
+            "Rebuild it with create_modeling_dataset.py. "
+            f"path={data_path} root_cause={type(exc).__name__}: {exc}"
         ) from exc
     print(f"Loaded dataset: rows={len(df)} cols={len(df.columns)}")
     if TARGET_COL not in df.columns:
@@ -351,7 +357,7 @@ def load_walk_forward_training_frame(
     )
     df[TARGET_WEIGHT_COL] = sample_weight
 
-    y = df[TARGET_COL].astype(np.int8, copy=False)
+    y = df[TARGET_COL].astype(np.int8)
     class_distribution = y.value_counts().sort_index().to_dict()
     weighted_class_distribution = {
         str(int(class_id)): float(sample_weight.loc[y.index[y == class_id]].sum())
@@ -396,7 +402,7 @@ def load_walk_forward_training_frame(
             f"missing_requested={len(excluded_missing_features)}"
         )
 
-    x = x.astype(float_dtype, copy=False)
+    x = x.astype(float_dtype)
     validate_volume_profile_feature_columns(
         x.columns,
         source_label=f"modeling dataset features at {data_path}",

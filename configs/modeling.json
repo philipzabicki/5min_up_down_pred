@@ -15,40 +15,40 @@
         "4h": 18,
         "1d": 14
       },
-      "float_precision": "float64",
+      "float_precision": "float32",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
         "price_max": 200000.0,
-        "neighbor_bins": 15,
+        "neighbor_bins": 10,
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "step": 80,
-            "local_window": 7,
-            "sigma_divisor": 1.9274204128159171,
-            "min_sigma": 67.67028377483737,
-            "half_life_candles": 127
+            "step": 237,
+            "local_window": 25,
+            "sigma_divisor": 0.014876093927097048,
+            "min_sigma": 0.02916405796066006,
+            "half_life_candles": 79
           },
           "medium": {
-            "step": 14,
-            "local_window": 324,
-            "sigma_divisor": 0.04582735547032821,
-            "min_sigma": 0.3348083398273053,
-            "half_life_candles": 10281
+            "step": 18,
+            "local_window": 26,
+            "sigma_divisor": 0.09483896606781557,
+            "min_sigma": 56.79702039837823,
+            "half_life_candles": 4650
           },
           "long": {
-            "step": 67,
-            "local_window": 14,
-            "sigma_divisor": 3.9141121524719518,
-            "min_sigma": 0.012993059873243501,
-            "half_life_candles": 19441
+            "step": 1,
+            "local_window": 2,
+            "sigma_divisor": 0.4441954152605454,
+            "min_sigma": 57.418582556758615,
+            "half_life_candles": 28696
           },
           "all": {
-            "step": 1,
-            "local_window": 5,
-            "sigma_divisor": 0.06307084803507008,
-            "min_sigma": 44.17943717215453,
+            "step": 7,
+            "local_window": 58,
+            "sigma_divisor": 11.631250402780816,
+            "min_sigma": 0.26790315308836143,
             "half_life_candles": null
           }
         }
@@ -58,10 +58,10 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260421_154209/recommended_features.json",
+        "mode": "none",
+        "artifact_path": "",
         "artifact_list_key": "final_feature_list",
-        "excluded_feature_names": []
+        "excluded_feature_names": ["KeltnerChannel_fit_3m_pop128_atrmatyptema_atrmul10.570595_atrper270_maper476_matypkama_souhlcc4_qe0.1_qm0.2_tf0.8_stmc_sg15"]
       },
       "train_lgbm": {
         "train_default_model": false,

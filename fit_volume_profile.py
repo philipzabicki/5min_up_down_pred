@@ -1,4 +1,5 @@
 import json
+import warnings
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -42,19 +43,19 @@ BASE_DATA_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
 )
 SEED = 37
 
-CV_FOLDS = 20
-WF_TEST_TO_TRAIN_RATIO = 0.2
+CV_FOLDS = 10
+WF_TEST_TO_TRAIN_RATIO = 0.1
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
-FOLD_RECENCY_WEIGHT_MAX = 1.4
+FOLD_RECENCY_WEIGHT_MAX = 1.5
 MIN_SAMPLE_WEIGHT = float(TARGET_WEIGHT_DECISION_VALUE)
 
 MAX_N_ESTIMATORS = 300
 EARLY_STOPPING_ROUNDS = 40
 PRUNE_REPORT_EVERY_N_ITER = 10
 
-LGBM_NUM_THREADS = 14
+LGBM_NUM_THREADS = 16
 OPTUNA_OPTIMIZE_N_JOBS = 1
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
@@ -83,37 +84,37 @@ LGBM_DEFAULT_PARAMS = {
 # v7/v8 searches with the later conservative pass. The goal is to reopen
 # truncated edges without going back to the original fully loose space.
 VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
-    "neighbor_bins": {"type": "int", "low": 1, "high": 48},
-    "short_step": {"type": "int", "low": 1, "high": 200, "log": True},
-    "medium_step": {"type": "int", "low": 1, "high": 200, "log": True},
-    "long_step": {"type": "int", "low": 1, "high": 200, "log": True},
-    "all_step": {"type": "int", "low": 1, "high": 200, "log": True},
-    "short_local_window": {"type": "int", "low": 1, "high": 384, "log": True},
-    "medium_local_window": {"type": "int", "low": 1, "high": 384, "log": True},
-    "long_local_window": {"type": "int", "low": 1, "high": 384, "log": True},
-    "all_local_window": {"type": "int", "low": 1, "high": 384, "log": True},
+    "neighbor_bins": {"type": "int", "low": 1, "high": 64},
+    "short_step": {"type": "int", "low": 1, "high": 400, "log": True},
+    "medium_step": {"type": "int", "low": 1, "high": 400, "log": True},
+    "long_step": {"type": "int", "low": 1, "high": 400, "log": True},
+    "all_step": {"type": "int", "low": 1, "high": 400, "log": True},
+    "short_local_window": {"type": "int", "low": 1, "high": 512, "log": True},
+    "medium_local_window": {"type": "int", "low": 1, "high": 512, "log": True},
+    "long_local_window": {"type": "int", "low": 1, "high": 512, "log": True},
+    "all_local_window": {"type": "int", "low": 1, "high": 512, "log": True},
     "short_sigma_divisor": {
         "type": "float",
         "low": 0.01,
-        "high": 75.0,
+        "high": 100.0,
         "log": True,
     },
     "medium_sigma_divisor": {
         "type": "float",
         "low": 0.01,
-        "high": 75.0,
+        "high": 100.0,
         "log": True,
     },
     "long_sigma_divisor": {
         "type": "float",
         "low": 0.01,
-        "high": 75.0,
+        "high": 100.0,
         "log": True,
     },
     "all_sigma_divisor": {
         "type": "float",
         "low": 0.01,
-        "high": 75.0,
+        "high": 100.0,
         "log": True,
     },
     "short_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
@@ -295,10 +296,54 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "short_half_life_candles": 95,
         "medium_half_life_candles": 3907,
         "long_half_life_candles": 42828,
-    }
+    },
+    {
+    "neighbor_bins": 43,
+    "short_step": 70,
+    "medium_step": 5,
+    "long_step": 25,
+    "all_step": 1,
+    "short_local_window": 50,
+    "medium_local_window": 6,
+    "long_local_window": 8,
+    "all_local_window": 175,
+    "short_sigma_divisor": 1.5724930127467838,
+    "medium_sigma_divisor": 4.566486545381718,
+    "long_sigma_divisor": 0.07600807246689918,
+    "all_sigma_divisor": 5.140150287486815,
+    "short_min_sigma": 33.71189389674371,
+    "medium_min_sigma": 0.2229288197032606,
+    "long_min_sigma": 0.02368590679076692,
+    "all_min_sigma": 28.44481195851697,
+    "short_half_life_candles": 66,
+    "medium_half_life_candles": 5400,
+    "long_half_life_candles": 40807
+  },
+  {
+    "neighbor_bins": 10,
+    "short_step": 237,
+    "medium_step": 18,
+    "long_step": 1,
+    "all_step": 7,
+    "short_local_window": 25,
+    "medium_local_window": 26,
+    "long_local_window": 2,
+    "all_local_window": 58,
+    "short_sigma_divisor": 0.014876093927097048,
+    "medium_sigma_divisor": 0.09483896606781557,
+    "long_sigma_divisor": 0.4441954152605454,
+    "all_sigma_divisor": 11.631250402780816,
+    "short_min_sigma": 0.02916405796066006,
+    "medium_min_sigma": 56.79702039837823,
+    "long_min_sigma": 57.418582556758615,
+    "all_min_sigma": 0.26790315308836143,
+    "short_half_life_candles": 79,
+    "medium_half_life_candles": 4650,
+    "long_half_life_candles": 28696
+  }
 ]
 
-N_TRIALS = 200
+N_TRIALS = 250
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
@@ -310,7 +355,7 @@ CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
 DEFAULT_STUDY_NAME_PREFIX = "volume_profile_balanced_accuracy_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
-STUDY_NAME = None
+STUDY_NAME = "volume_profile_balanced_accuracy_mean_std_20260429_001259"
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
 ARTIFACT_OUTPUT_DIR = Path("data/optuna/volume_profile")
 BEST_RESULT_STEM = "volume_profile_best_balanced_accuracy_mean_std"
@@ -393,7 +438,7 @@ def load_base_ohlcv_frame(data_path):
 
     numeric_columns = df.select_dtypes(include=[np.number]).columns.tolist()
     if numeric_columns:
-        df = df.astype({col: np.float32 for col in numeric_columns}, copy=False)
+        df = df.astype({col: np.float32 for col in numeric_columns})
 
     y_full = df[TARGET_COL].to_numpy(dtype=np.float32, copy=False)
     y_filtered = y_full[keep_mask]
@@ -1522,11 +1567,17 @@ def run_optuna_optimization():
             exist_ok=True,
         )
 
-    sampler = optuna.samplers.TPESampler(
-        seed=SEED,
-        n_startup_trials=TPE_STARTUP_TRIALS,
-        multivariate=True,
-    )
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=optuna.exceptions.ExperimentalWarning,
+            message=r"Argument ``multivariate`` is an experimental feature\..*",
+        )
+        sampler = optuna.samplers.TPESampler(
+            seed=SEED,
+            n_startup_trials=TPE_STARTUP_TRIALS,
+            multivariate=True,
+        )
     pruner = optuna.pruners.HyperbandPruner(
         min_resource=100,
         max_resource=MAX_N_ESTIMATORS,

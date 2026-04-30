@@ -37,16 +37,16 @@ DROP_RAW_OHLCV = True
 USE_SAMPLE_WEIGHTS = True
 SAMPLE_WEIGHT_COL = TARGET_WEIGHT_COL
 FALLBACK_TO_UNIT_WEIGHTS = False
-MIN_SAMPLE_WEIGHT = 0.425
+MIN_SAMPLE_WEIGHT = 0.4625
 
-RANKING_N_SPLITS = 20
-PERMUTATION_N_SPLITS = 5
-TOPK_N_SPLITS = 20
-WF_TEST_TO_TRAIN_RATIO = 0.2
+RANKING_N_SPLITS = 10
+PERMUTATION_N_SPLITS = 10
+TOPK_N_SPLITS = 10
+WF_TEST_TO_TRAIN_RATIO = 0.1
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
-FOLD_RECENCY_WEIGHT_MAX = 1.4
+FOLD_RECENCY_WEIGHT_MAX = 1.5
 
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_MAX_BIN = 63
@@ -66,7 +66,7 @@ MODEL_PARAMS = {
     "feature_fraction_bynode": 1.0,
     "path_smooth": 0.0,
     "extra_trees": False,
-    "n_jobs": 14,
+    "n_jobs": 16,
     "verbosity": -1,
     "device_type": LGBM_DEVICE_TYPE,
     "max_bin": LGBM_MAX_BIN,
@@ -95,8 +95,8 @@ ABS_TOL = 0.000005
 REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
-MIN_NONZERO_IMPORTANCE_FOLDS = 10
-PERMUTATION_TOP_N = 640
+MIN_NONZERO_IMPORTANCE_FOLDS = 5
+PERMUTATION_TOP_N = 1024
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
 PERMUTATION_N_REPEATS = 5
@@ -107,7 +107,7 @@ DROP_DUPLICATE_COLUMNS = True
 MAX_ABS_CORRELATION = 0.999
 ENABLE_CORRELATION_FILTER = True
 CORRELATION_METHOD = "spearman"
-CORRELATION_ANALYSIS_MAX_ROWS = 25_000  # most recent consecutive rows used for correlation filtering
+CORRELATION_ANALYSIS_MAX_ROWS = 50_000  # most recent consecutive rows used for correlation filtering
 CORRELATION_ANALYSIS_USE_PRE_WEIGHT_ROWS = True  # run correlation filtering before MIN_SAMPLE_WEIGHT row filtering
 CORRELATION_FILTER_MODE = "screened_exact"  # modes: "screened_exact" or "full_matrix"
 CORRELATION_SCREEN_SAMPLE_ROWS = 25_000  # most recent consecutive rows used for the screening stage when analysis slice is still large
@@ -207,7 +207,7 @@ def resolve_sample_weight_series(df):
             f"Sample weight column '{SAMPLE_WEIGHT_COL}' missing and fallback disabled."
         )
 
-    sample_weight = sample_weight.astype(np.float32, copy=False)
+    sample_weight = sample_weight.astype(np.float32)
     sample_weight_np = sample_weight.to_numpy(dtype=np.float32, copy=False)
     if sample_weight_np.shape[0] != len(df):
         raise ValueError("Sample weights length mismatch.")
@@ -224,7 +224,7 @@ def filter_rows_by_min_sample_weight(df, context_label):
     min_weight = float(MIN_SAMPLE_WEIGHT)
     keep_mask = sample_weight >= min_weight
     filtered_df = df.loc[keep_mask].copy()
-    filtered_weight = sample_weight.loc[keep_mask].astype(np.float32, copy=False)
+    filtered_weight = sample_weight.loc[keep_mask].astype(np.float32)
 
     if filtered_df.empty:
         raise ValueError(

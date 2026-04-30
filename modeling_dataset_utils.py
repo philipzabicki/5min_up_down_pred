@@ -1,5 +1,6 @@
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -34,6 +35,7 @@ FEATURE_SUBSET_JSON_KEYS = (
 )
 SUPPORTED_MODELING_FLOAT_PRECISIONS = ("float32", "float64")
 _TXT_METADATA_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+PARQUET_MAGIC_BYTES = b"PAR1"
 
 
 def _dedupe_ordered(values):
@@ -193,6 +195,36 @@ def resolve_modeling_dataset_metadata_path(config_path=MODELING_DATASET_CONFIG_F
 def resolve_modeling_dataset_metadata_path_for_parquet(parquet_path):
     parquet_path = Path(parquet_path)
     return parquet_path.with_name(f"{parquet_path.stem}_metadata.json")
+
+
+def validate_parquet_magic_bytes(parquet_path):
+    parquet_path = Path(parquet_path)
+    file_stat = parquet_path.stat()
+    file_size = file_stat.st_size
+    if file_size < len(PARQUET_MAGIC_BYTES) * 2:
+        raise ValueError(
+            "Invalid Parquet dataset: file is too small to contain a Parquet "
+            f"header/footer. path={parquet_path} size_bytes={file_size}. "
+            "Rebuild it with create_modeling_dataset.py."
+        )
+
+    with parquet_path.open("rb") as fh:
+        header = fh.read(len(PARQUET_MAGIC_BYTES))
+        fh.seek(-len(PARQUET_MAGIC_BYTES), 2)
+        footer = fh.read(len(PARQUET_MAGIC_BYTES))
+
+    if header != PARQUET_MAGIC_BYTES or footer != PARQUET_MAGIC_BYTES:
+        modified_at = datetime.fromtimestamp(file_stat.st_mtime).isoformat(
+            sep=" ",
+            timespec="seconds",
+        )
+        raise ValueError(
+            "Invalid Parquet dataset: missing Parquet magic bytes at "
+            f"{'header' if header != PARQUET_MAGIC_BYTES else 'footer'}. "
+            f"path={parquet_path} size_bytes={file_size} modified_at={modified_at} "
+            f"header={header!r} footer={footer!r}. The file is probably truncated "
+            "or was not fully written. Rebuild it with create_modeling_dataset.py."
+        )
 
 
 def load_modeling_dataset_artifact_metadata(parquet_path):

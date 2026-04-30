@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from pathlib import Path
 
@@ -15,6 +16,7 @@ from modeling_dataset_utils import (
     resolve_modeling_float_dtype_name,
     resolve_modeling_dataset_output_paths,
     split_feature_subset,
+    validate_parquet_magic_bytes,
 )
 from target_weights import (
     TARGET_WEIGHT_COL,
@@ -67,6 +69,22 @@ BASE_DATA_FILE_SYMBOL_INTERVAL_RE = re.compile(
     r"^(?P<symbol>[A-Za-z0-9_]+?)(?P<interval>\d+[mhdwM])$"
 )
 
+
+def write_parquet_atomically(df, output_path):
+    temp_path = output_path.with_name(
+        f".{output_path.stem}.{os.getpid()}.tmp{output_path.suffix}"
+    )
+    if temp_path.exists():
+        temp_path.unlink()
+    try:
+        df.to_parquet(temp_path, index=False)
+        validate_parquet_magic_bytes(temp_path)
+        temp_path.replace(output_path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
+
+
 VALUE_BUILDERS = {
     "ADX": get_adx_values,
     "BollingerBands": get_bollinger_bands_values,
@@ -114,7 +132,7 @@ def concat_feature_frame(df, feature_frame, context):
     if not feature_frame.index.equals(df.index):
         feature_frame = feature_frame.copy(deep=False)
         feature_frame.index = df.index
-    return pd.concat([df, feature_frame], axis=1, copy=False)
+    return pd.concat([df, feature_frame], axis=1)
 
 
 def build_target(df, float_dtype=np.float64):
@@ -691,7 +709,7 @@ def build_dataset_from_settings(settings):
         )
     float_cols = [col for col in df.columns if pd.api.types.is_float_dtype(df[col])]
     if float_cols:
-        df = df.astype({col: float_dtype for col in float_cols}, copy=False)
+        df = df.astype({col: float_dtype for col in float_cols})
 
     output_paths = resolve_modeling_dataset_output_paths(settings)
     output_parquet = output_paths["parquet"]
@@ -701,7 +719,7 @@ def build_dataset_from_settings(settings):
     preview_rows = int(settings["preview_rows"])
 
     output_parquet.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(output_parquet, index=False)
+    write_parquet_atomically(df, output_parquet)
     output_metadata_json.write_text(
         json.dumps(
             {

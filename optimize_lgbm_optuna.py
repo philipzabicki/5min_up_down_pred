@@ -17,6 +17,7 @@ from modeling_dataset_utils import (
     resolve_modeling_float_dtype_name,
     resolve_modeling_dataset_output_paths,
     summarize_feature_subset,
+    validate_parquet_magic_bytes,
 )
 from optuna_run_utils import (
     make_timestamped_artifact_path,
@@ -43,7 +44,7 @@ from train_lgbm import (
 TARGET_COL = "target_5m_candle_up"
 
 CV_FOLDS = 10
-WF_TEST_TO_TRAIN_RATIO = 0.2
+WF_TEST_TO_TRAIN_RATIO = 0.1
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
@@ -298,6 +299,10 @@ def load_generic_training_data(
         parquet_columns = list(
             dict.fromkeys([TARGET_COL, TARGET_WEIGHT_COL, *selected_feature_columns])
         )
+
+    if not data_path.exists():
+        raise FileNotFoundError(f"Dataset not found: {data_path}")
+    validate_parquet_magic_bytes(data_path)
 
     print(f"load data | path={data_path}")
     try:

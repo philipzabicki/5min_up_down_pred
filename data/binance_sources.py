@@ -272,6 +272,25 @@ def _clean_ohlcv_df(df, itv):
     return out.reset_index(drop=True)
 
 
+def _read_cached_ohlcv_csv(path):
+    try:
+        df = pd.read_csv(path, header=0)
+        df["Opened"] = pd.to_datetime(df["Opened"], errors="raise")
+    except (
+        OSError,
+        UnicodeDecodeError,
+        ValueError,
+        pd.errors.ParserError,
+    ) as exc:
+        print(f"[cache] ignoring unreadable final CSV {path}: {exc}")
+        return None
+
+    if df.empty:
+        print(f"[cache] ignoring empty final CSV {path}")
+        return None
+    return df
+
+
 def _download_and_unzip(url, output_dir):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -583,9 +602,8 @@ def by_BinanceVision(
         f"ohlc={price_source} volume={volume_source} (data_type={data_type})"
     )
 
-    if final_csv.is_file():
-        df = pd.read_csv(final_csv)
-        df["Opened"] = pd.to_datetime(df["Opened"], errors="raise")
+    df = _read_cached_ohlcv_csv(final_csv) if final_csv.is_file() else None
+    if df is not None:
         first_opened_date = pd.Timestamp(df.iloc[0]["Opened"]).date()
         last_timestamp = int(df.iloc[-1]["Opened"].value // 10**9)
         if requested_start_date < first_opened_date:
@@ -694,9 +712,8 @@ def by_DataClient(
     price_decimals = 2 if futures else None
     volume_decimals = 3 if futures else None
     final_csv = _final_csv_path(ticker, interval, data_type="klines")
-    if final_csv.is_file():
-        df = pd.read_csv(final_csv, header=0)
-        df["Opened"] = pd.to_datetime(df["Opened"], errors="raise")
+    df = _read_cached_ohlcv_csv(final_csv) if final_csv.is_file() else None
+    if df is not None:
         last_timestamp = int(df.iloc[-1]["Opened"].value // 10**9)
         if (time() - last_timestamp) <= delay:
             df, _repair_summary = repair_raw_ohlcv_csv(

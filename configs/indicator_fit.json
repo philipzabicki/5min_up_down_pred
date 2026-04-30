@@ -60,9 +60,9 @@
         "train_frac": 0.8,
         "gap": 2000,
         "q_ext": [
-          0.15
+          0.1
         ],
-        "q_mid": 0.25,
+        "q_mid": 0.3,
         "stat": "mean_clip",
         "clip_q": 0.01,
         "min_bucket_size": 1000,

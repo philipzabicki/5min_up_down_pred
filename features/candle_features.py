@@ -1575,15 +1575,33 @@ def add_candle_streak_features(
     if missing:
         raise ValueError(f"Missing required columns for candle streaks: {missing}")
 
-    out = df.copy()
-    out[opened_col] = pd.to_datetime(out[opened_col], errors="raise")
-    out = out.sort_values(opened_col).reset_index(drop=True)
-
-    if out[opened_col].duplicated().any():
-        dup_count = int(out[opened_col].duplicated().sum())
+    opened = pd.to_datetime(df[opened_col], errors="raise")
+    if opened.duplicated().any():
+        dup_count = int(opened.duplicated().sum())
         raise ValueError(f"Duplicate {opened_col} values found: {dup_count}")
 
-    base = out[[opened_col, open_col, close_col]]
+    if opened.is_monotonic_increasing:
+        base_df = df
+        base = pd.DataFrame(
+            {
+                opened_col: opened,
+                open_col: df[open_col].to_numpy(copy=False),
+                close_col: df[close_col].to_numpy(copy=False),
+            },
+            index=df.index,
+        )
+    else:
+        order = np.argsort(opened.to_numpy())
+        base_df = df.iloc[order].reset_index(drop=True)
+        base = pd.DataFrame(
+            {
+                opened_col: opened.iloc[order].to_numpy(),
+                open_col: df[open_col].iloc[order].to_numpy(copy=False),
+                close_col: df[close_col].iloc[order].to_numpy(copy=False),
+            },
+            index=base_df.index,
+        )
+
     feature_values = {}
     for interval_label, rule in interval_to_rule.items():
         out_col = _streak_feature_col(interval_label)
@@ -1596,8 +1614,8 @@ def add_candle_streak_features(
             close_col=close_col,
         ).to_numpy(dtype=np.int32, copy=False)
 
-    feature_frame = pd.DataFrame(feature_values, index=out.index)
-    base_df = out.drop(columns=list(feature_values.keys()), errors="ignore")
+    feature_frame = pd.DataFrame(feature_values, index=base_df.index)
+    base_df = base_df.drop(columns=list(feature_values.keys()), errors="ignore")
     return pd.concat([base_df, feature_frame], axis=1, copy=False)
 
 
