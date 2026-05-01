@@ -509,7 +509,14 @@ def run_selection(
         "prefilter_removed_feature_count": len(removed_in_prefilter),
         "prefilter_removed_features": removed_in_prefilter,
         "eligible_feature_count": int(ranking_df["eligible_for_selection"].sum()),
-        "permutation_top_n": int(feature_plateau.PERMUTATION_TOP_N),
+        "permutation_feature_fraction": float(
+            feature_plateau.PERMUTATION_FEATURE_FRACTION
+        ),
+        "permutation_top_n": int(
+            feature_plateau.resolve_permutation_feature_limit(
+                ranking_df["eligible_for_selection"].sum()
+            )
+        ),
         "permutation_n_repeats": int(feature_plateau.PERMUTATION_N_REPEATS),
         "permutation_candidate_count": int(ranking_df["prescreen_candidate"].sum()),
         "permutation_ranked_feature_count": int(

@@ -40,7 +40,7 @@ FALLBACK_TO_UNIT_WEIGHTS = False
 MIN_SAMPLE_WEIGHT = 0.4625
 
 RANKING_N_SPLITS = 10
-PERMUTATION_N_SPLITS = 10
+PERMUTATION_N_SPLITS = 5
 TOPK_N_SPLITS = 10
 WF_TEST_TO_TRAIN_RATIO = 0.1
 ENABLE_FOLD_RECENCY_WEIGHTING = True
@@ -95,11 +95,11 @@ ABS_TOL = 0.000005
 REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
-MIN_NONZERO_IMPORTANCE_FOLDS = 5
-PERMUTATION_TOP_N = 1024
+MIN_NONZERO_IMPORTANCE_FOLDS = 6
+PERMUTATION_FEATURE_FRACTION = 0.6
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
-PERMUTATION_N_REPEATS = 5
+PERMUTATION_N_REPEATS = 3
 PERMUTATION_BASE_SEED = 37
 MAX_MISSING_RATIO = 0.01
 NEAR_CONSTANT_THRESHOLD = 0.9999
@@ -1194,6 +1194,16 @@ def sort_feature_table_final(df):
     return pd.concat([permutation_df, tail_df], ignore_index=True)
 
 
+def resolve_permutation_feature_limit(feature_count):
+    feature_count = int(feature_count)
+    feature_fraction = float(PERMUTATION_FEATURE_FRACTION)
+    if feature_count < 0:
+        raise ValueError("feature_count must be >= 0.")
+    if not (0.0 < feature_fraction <= 1.0):
+        raise ValueError("PERMUTATION_FEATURE_FRACTION must be in (0, 1].")
+    return int(np.floor(feature_count * feature_fraction))
+
+
 def make_permutation_seed(fold_id, feature_idx, repeat_idx):
     seed = (
         int(PERMUTATION_BASE_SEED)
@@ -1352,9 +1362,13 @@ def run_feature_prescreen(x, y, sample_weight, folds, fold_weight_by_id):
     ranking_df["prescreen_rank"] = np.arange(
         1, len(ranking_df) + 1, dtype=np.int32
     )
+    eligible_feature_count = int(ranking_df["eligible_for_selection"].sum())
+    permutation_feature_limit = resolve_permutation_feature_limit(
+        eligible_feature_count
+    )
     permutation_candidates = (
         ranking_df.loc[ranking_df["eligible_for_selection"], "feature"]
-        .head(int(PERMUTATION_TOP_N))
+        .head(permutation_feature_limit)
         .tolist()
     )
     ranking_df["prescreen_candidate"] = ranking_df["feature"].isin(
@@ -1366,7 +1380,9 @@ def run_feature_prescreen(x, y, sample_weight, folds, fold_weight_by_id):
         "prescreen_tail",
     )
     print(
-        f"ranking | prescreen done eligible={int(ranking_df['eligible_for_selection'].sum())} "
+        f"ranking | prescreen done eligible={eligible_feature_count} "
+        f"permutation_fraction={float(PERMUTATION_FEATURE_FRACTION):.4f} "
+        f"permutation_limit={permutation_feature_limit} "
         f"candidates={len(permutation_candidates)}\n"
         + format_feature_preview_for_cli(
             label="prescreen_top_features",
@@ -2187,7 +2203,12 @@ def main():
             ),
         },
         "eligible_feature_count": int(ranking_df["eligible_for_selection"].sum()),
-        "permutation_top_n": int(PERMUTATION_TOP_N),
+        "permutation_feature_fraction": float(PERMUTATION_FEATURE_FRACTION),
+        "permutation_top_n": int(
+            resolve_permutation_feature_limit(
+                ranking_df["eligible_for_selection"].sum()
+            )
+        ),
         "permutation_n_splits": len(permutation_folds),
         "permutation_n_repeats": int(PERMUTATION_N_REPEATS),
         "permutation_candidate_count": int(ranking_df["prescreen_candidate"].sum()),
