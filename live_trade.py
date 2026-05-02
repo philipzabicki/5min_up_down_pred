@@ -11,7 +11,7 @@ import httpx
 import numpy as np
 import pandas as pd
 import requests
-import py_clob_client.headers.headers as pyclob_headers
+import py_clob_client_v2.headers.headers as pyclob_headers
 from eth_abi import encode as abi_encode
 from eth_account import Account
 from eth_utils import keccak, to_checksum_address
@@ -25,16 +25,16 @@ from py_builder_relayer_client.models import (
     SafeTransactionArgs as RelayerSafeTransactionArgs,
 )
 from py_builder_relayer_client.signer import Signer as RelayerSigner
-from py_clob_client.client import ClobClient
-from py_clob_client.clob_types import (
+from py_clob_client_v2.client import ClobClient
+from py_clob_client_v2.clob_types import (
     AssetType,
     BalanceAllowanceParams,
     MarketOrderArgs,
     PartialCreateOrderOptions,
     OrderType,
 )
-from py_clob_client.http_helpers import helpers as pyclob_http_helpers
-from py_clob_client.order_builder.constants import BUY, SELL
+from py_clob_client_v2.http_helpers import helpers as pyclob_http_helpers
+from py_clob_client_v2.order_builder.constants import BUY, SELL
 
 from live_utils import (
     LIVE_SHARED_MARKET_DATA_COLUMNS,
@@ -923,7 +923,7 @@ class PolymarketLiveTrader(LivePredictor):
             print(
                 "[pm] auth clock offset detected | "
                 f"local_vs_clob={offset_sec:+.1f}s "
-                "using server-aligned timestamps for py_clob_client auth"
+                "using server-aligned timestamps for py_clob_client_v2 auth"
             )
         return offset_sec
 
@@ -972,7 +972,7 @@ class PolymarketLiveTrader(LivePredictor):
             if "Invalid L1 Request headers" in msg:
                 raise RuntimeError(
                     "Polymarket L1 auth failed: Invalid L1 Request headers. "
-                    "Docs and py_clob_client source indicate L1 auth is signed only by "
+                    "Docs and py_clob_client_v2 source indicate L1 auth is signed only by "
                     "POLY_PRIVATE_KEY + live.polymarket_chain_id, before "
                     "funder/signature_type are "
                     "used for order building. "
@@ -1657,13 +1657,11 @@ class PolymarketLiveTrader(LivePredictor):
                     amount=shares,  # SELL => shares, nie USDC
                     side=SELL,
                     price=price,  # floor = obecny best bid
-                    fee_rate_bps=int(candidate.get("fee_rate_bps", 0) or 0),
                     order_type=order_type,
                 )
-                signed_order = self.pm_client.create_market_order(
-                    order, options=options
+                response = self._create_and_post_market_order_with_retry(
+                    order, options, order_type
                 )
-                response = self._post_order_with_retry(signed_order, order_type)
                 response_txt = _json_compact(response)
                 if isinstance(response, dict) and bool(response.get("success", False)):
                     status = submitted_status
@@ -2504,7 +2502,7 @@ class PolymarketLiveTrader(LivePredictor):
         if neg_risk is not None and isinstance(neg_risk_cache, dict):
             neg_risk_cache[token_id] = bool(neg_risk)
 
-    def _post_order_with_retry(self, signed_order, order_type):
+    def _create_and_post_market_order_with_retry(self, order, options, order_type):
         if self.pm_client is None:
             raise RuntimeError("pm_client_not_initialized")
 
@@ -2513,7 +2511,11 @@ class PolymarketLiveTrader(LivePredictor):
 
         for attempt_idx in range(max_attempts):
             try:
-                return self.pm_client.post_order(signed_order, order_type)
+                return self.pm_client.create_and_post_market_order(
+                    order_args=order,
+                    options=options,
+                    order_type=order_type,
+                )
             except Exception as exc:
                 status_code = _http_status_code(exc)
                 is_retryable = (
@@ -2522,7 +2524,7 @@ class PolymarketLiveTrader(LivePredictor):
                 if not is_retryable or attempt_idx >= max_attempts - 1:
                     raise
                 print(
-                    "[pm] post_order retry | "
+                    "[pm] create_and_post_market_order retry | "
                     f"status_code={status_code} "
                     f"delay_sec={delay_sec:.1f} "
                     f"attempt={attempt_idx + 1}/{max_attempts - 1}"
@@ -2571,13 +2573,12 @@ class PolymarketLiveTrader(LivePredictor):
                             intent.get("entry_price", self.pm_cfg.order_price_cap),
                         )
                     ),
-                    fee_rate_bps=int(intent.get("fee_rate_bps", 0) or 0),
                     order_type=order_type,
+                    user_usdc_balance=float(self.cash_balance_usdc),
                 )
-                signed_order = self.pm_client.create_market_order(
-                    order, options=order_options
+                response = self._create_and_post_market_order_with_retry(
+                    order, order_options, order_type
                 )
-                response = self._post_order_with_retry(signed_order, order_type)
             else:
                 raise NotImplementedError(
                     "Unsupported live.polymarket_execution_mode: "

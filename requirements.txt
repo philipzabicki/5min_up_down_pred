@@ -11,7 +11,7 @@ binance_data
 eth-abi
 eth-account
 eth-utils
-py-clob-client
+py-clob-client-v2
 py-builder-relayer-client
 requests
 httpx
