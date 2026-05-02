@@ -3,7 +3,7 @@ import math
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime as std_datetime, timedelta as std_timedelta
 from pathlib import Path
 
@@ -2146,6 +2146,22 @@ class PolymarketLiveTrader(LivePredictor):
             self._fetch_market_snapshot_with_retry, bucket_start
         )
 
+    def _market_future_timeout_sec(self):
+        request_timeout_sec = float(self.pm_cfg.market_request_timeout_sec)
+        lookup_wait_sec = max(int(self.pm_cfg.market_lookup_max_wait_ms), 0) / 1000.0
+        return max(1.0, lookup_wait_sec + request_timeout_sec * 3.0 + 1.0)
+
+    def _future_result_with_timeout(self, future, label, timeout_sec=None):
+        timeout = (
+            self._market_future_timeout_sec()
+            if timeout_sec is None
+            else max(float(timeout_sec), 1.0)
+        )
+        try:
+            return future.result(timeout=timeout)
+        except FutureTimeoutError as exc:
+            raise TimeoutError(f"{label}_timeout_after_{timeout:.1f}s") from exc
+
     def _prefetched_market_payload_is_fresh(self, bucket_start, payload):
         if not isinstance(payload, dict):
             return False
@@ -2233,9 +2249,16 @@ class PolymarketLiveTrader(LivePredictor):
             self._fetch_order_book_summary, down_token_id
         )
         fee_rate_future = self.pm_io_pool.submit(self._fetch_fee_rate_bps, up_token_id)
-        up_book = up_book_future.result()
-        down_book = down_book_future.result()
-        fee_rate_bps = fee_rate_future.result()
+        io_timeout_sec = max(float(self.pm_cfg.market_request_timeout_sec) + 1.0, 1.0)
+        up_book = self._future_result_with_timeout(
+            up_book_future, "up_order_book", timeout_sec=io_timeout_sec
+        )
+        down_book = self._future_result_with_timeout(
+            down_book_future, "down_order_book", timeout_sec=io_timeout_sec
+        )
+        fee_rate_bps = self._future_result_with_timeout(
+            fee_rate_future, "fee_rate", timeout_sec=io_timeout_sec
+        )
         fee_model = polymarket_fee_model_from_market(
             market,
             default_round_decimals=DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
@@ -2635,7 +2658,9 @@ class PolymarketLiveTrader(LivePredictor):
             "market_lookup_source": "future_snapshot",
         }
         try:
-            result = market_future.result()
+            result = self._future_result_with_timeout(
+                market_future, "market_snapshot"
+            )
             if self._prefetched_market_payload_is_fresh(bucket_start, result):
                 fetched_at = result.get("fetched_at") if isinstance(result, dict) else None
                 metadata["market_prefetch_hit"] = True
@@ -2974,6 +2999,12 @@ class PolymarketLiveTrader(LivePredictor):
         minute_close = minute_open + pd.Timedelta(minutes=1)
         bucket_start = self._bucket_start_for_latest_candle()
         bucket_end = bucket_start + pd.Timedelta(minutes=self.target_bucket_minutes - 1)
+        print(
+            "[pred] starting | "
+            f"bucket_start={bucket_start.isoformat()} "
+            f"minute_open={minute_open.isoformat()}",
+            flush=True,
+        )
         market_future = self._market_lookup_future_for_bucket(bucket_start)
         latency_metrics = {}
         if delay_timing is not None:
