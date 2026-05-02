@@ -2574,7 +2574,7 @@ class PolymarketLiveTrader(LivePredictor):
                         )
                     ),
                     order_type=order_type,
-                    user_usdc_balance=float(self.cash_balance_usdc),
+                    user_usdc_balance=float(self.pm_cash_balance_usdc),
                 )
                 response = self._create_and_post_market_order_with_retry(
                     order, order_options, order_type
