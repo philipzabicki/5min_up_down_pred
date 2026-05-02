@@ -406,7 +406,7 @@ def resolve_ws_base_url(market_type):
     if market_type == "spot":
         return "wss://stream.binance.com:9443/ws"
     if market_type == "um":
-        return "wss://fstream.binance.com/ws"
+        return "wss://fstream.binance.com/market/ws"
     return "wss://dstream.binance.com/ws"
 
 
