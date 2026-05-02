@@ -965,7 +965,7 @@ class PolymarketLiveTrader(LivePredictor):
                 signature_type=self.pm_cfg.signature_type,
                 funder=self.pm_cfg.funder,
             )
-            client.set_api_creds(client.create_or_derive_api_creds())
+            client.set_api_creds(client.create_or_derive_api_key())
             return client
         except Exception as exc:
             msg = str(exc)
