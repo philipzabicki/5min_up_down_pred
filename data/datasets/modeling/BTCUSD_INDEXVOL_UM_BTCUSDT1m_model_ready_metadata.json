@@ -1,9 +1,9 @@
 {
-  "created_utc": "2026-05-05T18:20:32.474009+00:00",
+  "created_utc": "2026-05-06T16:01:36.210655+00:00",
   "float_precision": "float32",
-  "head_csv_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_head1000.csv",
-  "parquet_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet",
-  "tail_csv_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_tail1000.csv",
+  "head_csv_path": "data\\datasets\\modeling\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_head1000.csv",
+  "parquet_path": "data\\datasets\\modeling\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet",
+  "tail_csv_path": "data\\datasets\\modeling\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_tail1000.csv",
   "volume_profile_feature_columns": [
     "vp_short_log_density_ratio_to_current_bin_minus_10",
     "vp_short_log_density_ratio_to_current_bin_minus_9",

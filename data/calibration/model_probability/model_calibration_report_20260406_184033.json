@@ -1,6 +1,6 @@
 {
   "source": {
-    "oof_predictions_path": "data\\modeling_datasets\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet",
+    "oof_predictions_path": "data\\datasets\\modeling\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet",
     "event_time_col": "Opened",
     "target_col": "target_5m_candle_up",
     "pred_col": "oof_pred_proba_up",

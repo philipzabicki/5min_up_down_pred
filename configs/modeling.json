@@ -1,7 +1,7 @@
 {
   "profiles": {
     "default": {
-      "output_dir": "data/modeling_datasets",
+      "output_dir": "data/datasets/modeling",
       "output_suffix": "_model_ready",
       "fit_results_dir": "data/features/indicators_fit/all",
       "preview_rows": 1000,
@@ -15,7 +15,7 @@
         "4h": 18,
         "1d": 14
       },
-      "float_precision": "float32",
+      "float_precision": "float64",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -58,8 +58,8 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "none",
-        "artifact_path": "",
+        "mode": "artifact",
+        "artifact_path": "data/analysis/feature_selector/20260506_211842/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "KeltnerChannel_fit_3m_pop128_atrmatyptema_atrmul10.570595_atrper270_maper476_matypkama_souhlcc4_qe0.1_qm0.2_tf0.8_stmc_sg15",

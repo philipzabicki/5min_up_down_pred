@@ -11,7 +11,7 @@ from sklearn.linear_model import LogisticRegression
 from metrics_utils import weighted_brier_score
 
 DEFAULT_OOF_PATH = Path(
-    "data/modeling_datasets/BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet"
+    "data/datasets/modeling/BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet"
 )
 DEFAULT_OUTPUT_DIR = Path("data/calibration/model_probability")
 DEFAULT_TIME_COL = "Opened"

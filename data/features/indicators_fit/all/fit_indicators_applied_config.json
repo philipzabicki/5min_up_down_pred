@@ -36,7 +36,7 @@
       },
       "intervals": {
         "1m": {
-          "data_path": "data/raw_datasets",
+          "data_path": "data/datasets/raw",
           "data_file": "BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv",
           "indicators": [
             "ADX",

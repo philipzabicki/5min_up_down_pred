@@ -13,8 +13,8 @@ credentials.py
 # Data files
 *.csv
 *.parquet
-data/_tmp/
-data/raw_datasets/analysis/raw_ohlcv_repair/
+data/datasets/_tmp/
+data/datasets/raw/analysis/raw_ohlcv_repair/
 
 data/analysis/*
 !data/analysis/.gitkeep

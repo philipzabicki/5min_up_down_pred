@@ -101,7 +101,7 @@ REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 6
-PERMUTATION_FEATURE_FRACTION = 0.7
+PERMUTATION_FEATURE_FRACTION = 0.666
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
 PERMUTATION_N_REPEATS = 3

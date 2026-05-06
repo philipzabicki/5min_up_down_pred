@@ -10,8 +10,9 @@ from common_config_utils import (
 
 CONFIGS_DIR = Path("configs")
 DATA_DIR = Path("data")
-RAW_DATASETS_DIR = DATA_DIR / "raw_datasets"
-MODELING_DATASETS_DIR = DATA_DIR / "modeling_datasets"
+DATASETS_DIR = DATA_DIR / "datasets"
+RAW_DATASETS_DIR = DATASETS_DIR / "raw"
+MODELING_DATASETS_DIR = DATASETS_DIR / "modeling"
 DATASETS_CONFIG_PATH = CONFIGS_DIR / "datasets.json"
 MODELING_CONFIG_PATH = CONFIGS_DIR / "modeling.json"
 INDICATOR_FIT_CONFIG_PATH = CONFIGS_DIR / "indicator_fit.json"
