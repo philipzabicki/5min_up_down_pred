@@ -12,9 +12,7 @@ import numpy as np
 import pandas as pd
 import requests
 import py_clob_client_v2.headers.headers as pyclob_headers
-from eth_abi import encode as abi_encode
 from eth_account import Account
-from eth_utils import keccak, to_checksum_address
 from py_builder_relayer_client.builder.safe import build_safe_transaction_request
 from py_builder_relayer_client.config import (
     get_contract_config as get_relayer_contract_config,
@@ -75,6 +73,18 @@ from polymarket_fee_utils import (
     polymarket_fee_model_from_market,
     polymarket_taker_fee_usdc_from_shares,
 )
+from polymarket_redeem_utils import (
+    POLYMARKET_BINARY_INDEX_SETS,
+    POLYMARKET_RELAYER_PENDING_STATES,
+    POLYMARKET_RELAYER_TERMINAL_STATES,
+    build_redeem_transactions as build_redeem_transaction_specs,
+    collect_redeem_candidates as collect_redeem_candidate_specs,
+    encode_redeem_positions_call,
+    resolve_redeem_collateral_address,
+    resolve_redeem_ctf_address,
+    resolve_redeem_target_address,
+    resolve_relayer_tx_type,
+)
 from trade_policy import (
     build_trade_intent,
     decide_trade_from_model_direction,
@@ -91,24 +101,6 @@ POLYMARKET_VALID_TICK_SIZES = {"0.1", "0.01", "0.001", "0.0001"}
 POLYMARKET_CLOSED_POSITIONS_PAGE_LIMIT = 50
 POLYMARKET_BACKGROUND_SYNC_MIN_INTERVAL_SEC = 2.0
 POLYMARKET_AUTH_CLOCK_SKEW_WARN_SEC = 5.0
-POLYMARKET_USDC_E_ADDRESS = to_checksum_address(
-    "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174"
-)
-POLYMARKET_CTF_ADDRESS = to_checksum_address(
-    "0x4D97DCd97eC945f40cF65F87097ACe5EA0476045"
-)
-POLYMARKET_ZERO_BYTES32 = "0x" + ("0" * 64)
-POLYMARKET_BINARY_INDEX_SETS = (1, 2)
-POLYMARKET_RELAYER_TERMINAL_STATES = {
-    "STATE_CONFIRMED",
-    "STATE_FAILED",
-    "STATE_INVALID",
-}
-POLYMARKET_RELAYER_PENDING_STATES = {
-    "STATE_NEW",
-    "STATE_EXECUTED",
-    "STATE_MINED",
-}
 POLYMARKET_EXECUTION_ORDER_TYPES = {
     "fok": OrderType.FOK,
     "fak": OrderType.FAK,
@@ -136,6 +128,13 @@ class _OffsetDatetime:
 def _env_text(name, default=""):
     raw = os.getenv(name)
     return raw.strip() if raw is not None else default
+
+
+def _env_bool(name, default):
+    raw = os.getenv(name)
+    if raw is None:
+        return bool(default)
+    return str(raw).strip().lower() in {"1", "true", "yes", "y", "on"}
 
 
 def _profile_text(profile, key, default=""):
@@ -202,7 +201,7 @@ def _safe_text(value, default=""):
         return default
     if isinstance(value, str):
         text = value.strip()
-        if not text or text.lower() in {"nan", "none", "null"}:
+        if not text or text.lower() in {"nan", "nat", "none", "null"}:
             return default
         return text
     try:
@@ -211,7 +210,7 @@ def _safe_text(value, default=""):
     except TypeError:
         pass
     text = str(value).strip()
-    if not text or text.lower() in {"nan", "none", "null"}:
+    if not text or text.lower() in {"nan", "nat", "none", "null"}:
         return default
     return text
 
@@ -581,6 +580,22 @@ def _backfill_record_analysis_fields(record):
     record.setdefault("pm_exit_candidate_roi", np.nan)
     record.setdefault("pm_exit_redeem_pnl_usdc", np.nan)
     record.setdefault("pm_exit_min_allowed_pnl_usdc", np.nan)
+    record.setdefault("pm_redeem_condition_id", _safe_text(record.get("pm_condition_id")))
+    record.setdefault("pm_redeem_collateral_token", "")
+    record.setdefault("pm_redeem_ctf_address", "")
+    record.setdefault("pm_redeem_target_address", "")
+    record.setdefault("pm_redeem_relayer_tx_type", "")
+    record.setdefault("pm_redeem_index_sets", "")
+    record.setdefault("pm_redeem_signer_address", "")
+    record.setdefault("pm_redeem_funder_address", "")
+    record.setdefault("pm_redeem_nonce", "")
+    record.setdefault("pm_redeem_tx_id", "")
+    record.setdefault("pm_redeem_tx_hash", "")
+    record.setdefault("pm_redeem_tx_state", "")
+    record.setdefault("pm_redeem_error", "")
+    record.setdefault("pm_redeem_submitted_at", None)
+    record.setdefault("pm_redeem_confirmed_at", None)
+    record.setdefault("pm_settlement_payout_source", "")
 
 def _fee_model_from_record(record):
     rate = _safe_float(record.get("pm_fee_rate"))
@@ -665,6 +680,15 @@ def load_polymarket_settings(trade_records_path):
             "live.polymarket_order_price_cap must be a finite float strictly "
             "between 0 and 1."
         )
+    signature_type = _profile_int(live_profile, "polymarket_signature_type", 0)
+    redeem_resolved_positions = _env_bool(
+        "POLY_REDEEM_RESOLVED_POSITIONS",
+        _profile_bool(
+            live_profile,
+            "polymarket_redeem_resolved_positions",
+            True,
+        ),
+    )
     return PolymarketSettings(
         gamma_host=_profile_text(
             live_profile,
@@ -707,7 +731,7 @@ def load_polymarket_settings(trade_records_path):
             "polymarket_disable_order_submission",
             False,
         ),
-        signature_type=_profile_int(live_profile, "polymarket_signature_type", 0),
+        signature_type=signature_type,
         chain_id=_profile_int(live_profile, "polymarket_chain_id", 137),
         private_key=_env_text("POLY_PRIVATE_KEY", ""),
         funder=_env_text("POLY_FUNDER_ADDRESS", ""),
@@ -774,6 +798,19 @@ def load_polymarket_settings(trade_records_path):
         order_price_cap=float(order_price_cap),
         relayer_api_key=_env_text("POLY_RELAYER_API_KEY", ""),
         relayer_api_key_address=_env_text("POLY_RELAYER_API_KEY_ADDRESS", ""),
+        relayer_tx_type=resolve_relayer_tx_type(
+            os.environ,
+            signature_type=signature_type,
+        ),
+        redeem_collateral_token_address=resolve_redeem_collateral_address(
+            os.environ
+        ),
+        redeem_ctf_address=resolve_redeem_ctf_address(os.environ),
+        redeem_target_address=resolve_redeem_target_address(os.environ),
+        redeem_require_redeemable=_env_bool(
+            "POLY_REDEEM_REQUIRE_REDEEMABLE",
+            True,
+        ),
         import_untracked_open_positions=_profile_bool(
             live_profile,
             "polymarket_import_untracked_open_positions",
@@ -804,11 +841,7 @@ def load_polymarket_settings(trade_records_path):
             "polymarket_exit_redeem_profit_tolerance",
             0.01,
         ),
-        redeem_resolved_positions=_profile_bool(
-            live_profile,
-            "polymarket_redeem_resolved_positions",
-            True,
-        ),
+        redeem_resolved_positions=redeem_resolved_positions,
     )
 
 
@@ -865,6 +898,7 @@ class PolymarketLiveTrader(LivePredictor):
         self.pm_save_lock = threading.Lock()
         self.pm_bg_lock = threading.Lock()
         self.pm_market_prefetch_lock = threading.Lock()
+        self.pm_redeem_submit_lock = threading.Lock()
         self.pm_bg_future = None
         self.pm_bg_pending_reason = ""
         self.pm_bg_last_started = 0.0
@@ -1116,7 +1150,13 @@ class PolymarketLiveTrader(LivePredictor):
             headers=headers,
             timeout=float(self.pm_cfg.market_request_timeout_sec),
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            raise RuntimeError(
+                "relayer_get_failed "
+                f"path={path} status={response.status_code} body={response.text}"
+            ) from exc
         return response.json()
 
     def _relayer_post_json(self, path, payload):
@@ -1127,13 +1167,19 @@ class PolymarketLiveTrader(LivePredictor):
             headers=self._relayer_headers(),
             timeout=float(self.pm_cfg.market_request_timeout_sec),
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as exc:
+            raise RuntimeError(
+                "relayer_post_failed "
+                f"path={path} status={response.status_code} body={response.text}"
+            ) from exc
         return response.json()
 
     def _relayer_get_nonce(self):
         payload = self._relayer_get_json(
             "/nonce",
-            {"address": self.pm_signer_address, "type": "SAFE"},
+            {"address": self.pm_signer_address, "type": self.pm_cfg.relayer_tx_type},
             require_auth=False,
         )
         nonce = payload.get("nonce")
@@ -1158,90 +1204,180 @@ class PolymarketLiveTrader(LivePredictor):
         return payload if isinstance(payload, dict) else {}
 
     def _encode_redeem_positions_call(self, condition_id):
-        condition_hex = str(condition_id).strip()
-        if not condition_hex.startswith("0x") or len(condition_hex) != 66:
-            raise ValueError(
-                f"Invalid conditionId for redeemPositions: {condition_id!r}"
-            )
-        selector = keccak(text="redeemPositions(address,bytes32,bytes32,uint256[])")[:4]
-        encoded_args = abi_encode(
-            ["address", "bytes32", "bytes32", "uint256[]"],
-            [
-                POLYMARKET_USDC_E_ADDRESS,
-                bytes.fromhex(POLYMARKET_ZERO_BYTES32[2:]),
-                bytes.fromhex(condition_hex[2:]),
-                list(POLYMARKET_BINARY_INDEX_SETS),
-            ],
+        return encode_redeem_positions_call(
+            condition_id,
+            collateral_token_address=self.pm_cfg.redeem_collateral_token_address,
+            index_sets=POLYMARKET_BINARY_INDEX_SETS,
         )
-        return "0x" + (selector + encoded_args).hex()
 
     def _build_redeem_transactions(self, candidates):
+        specs = build_redeem_transaction_specs(
+            candidates,
+            collateral_token_address=self.pm_cfg.redeem_collateral_token_address,
+            ctf_address=self.pm_cfg.redeem_ctf_address,
+            target_address=self.pm_cfg.redeem_target_address,
+            relayer_tx_type=self.pm_cfg.relayer_tx_type,
+            index_sets=POLYMARKET_BINARY_INDEX_SETS,
+        )
         transactions = []
-        condition_ids = []
-        seen_conditions = set()
-        for item in candidates:
-            condition_id = str(item.get("conditionId", ""))
-            asset_id = str(item.get("asset", ""))
-            if not condition_id or condition_id in seen_conditions:
-                continue
-            if bool(item.get("negativeRisk", False)):
-                continue
-            tx = RelayerSafeTransaction(
-                to=POLYMARKET_CTF_ADDRESS,
-                operation=RelayerOperationType.Call,
-                data=self._encode_redeem_positions_call(condition_id),
-                value="0",
+        for spec in specs:
+            transactions.append(
+                RelayerSafeTransaction(
+                    to=spec["to"],
+                    operation=RelayerOperationType.Call,
+                    data=spec["data"],
+                    value=spec["value"],
+                )
             )
-            transactions.append(tx)
-            seen_conditions.add(condition_id)
-            condition_ids.append(condition_id)
+            print(
+                "[pm] redeem tx built | "
+                f"conditionId={spec['conditionId']} "
+                f"collateralToken={spec['collateralToken']} "
+                f"ctfAddress={spec['ctfAddress']} "
+                f"targetAddress={spec['to']} "
+                f"indexSets={spec['indexSets']} "
+                f"relayerTxType={spec['relayerTxType']} "
+                f"signer={self.pm_signer_address} "
+                f"funder={self.pm_cfg.funder}"
+            )
+        condition_ids = [spec["conditionId"] for spec in specs]
         return transactions, condition_ids
+
+    def _mark_redeem_submit_error(self, *, condition_ids, error):
+        if not condition_ids:
+            return
+        now = pd.Timestamp.now(tz="UTC")
+        target_conditions = set(str(x) for x in condition_ids if str(x))
+        with self.records_lock:
+            for rec in self.records:
+                condition_id = _safe_text(rec.get("pm_condition_id"))
+                if condition_id not in target_conditions:
+                    continue
+                rec["pm_redeem_condition_id"] = condition_id
+                rec["pm_redeem_collateral_token"] = (
+                    self.pm_cfg.redeem_collateral_token_address
+                )
+                rec["pm_redeem_ctf_address"] = self.pm_cfg.redeem_ctf_address
+                rec["pm_redeem_target_address"] = self.pm_cfg.redeem_target_address
+                rec["pm_redeem_relayer_tx_type"] = self.pm_cfg.relayer_tx_type
+                rec["pm_redeem_index_sets"] = _json_compact(
+                    list(POLYMARKET_BINARY_INDEX_SETS)
+                )
+                rec["pm_redeem_signer_address"] = self.pm_signer_address
+                rec["pm_redeem_funder_address"] = self.pm_cfg.funder
+                rec["pm_redeem_tx_state"] = "SUBMIT_FAILED"
+                rec["pm_redeem_error"] = str(error)
+                rec["pm_redeem_submitted_at"] = now
+                rec["pm_settlement_status"] = "redeem_submit_failed"
 
     def _submit_redeem_batch(self, candidates):
         if not candidates:
             return
-        if self.pm_cfg.disable_order_submission:
-            self._warn_relayer_unavailable_once(
-                "live writes disabled via live.polymarket_disable_order_submission=true"
+        if not self.pm_redeem_submit_lock.acquire(blocking=False):
+            print("[pm] redeem skip | reason=redeem_submit_already_running")
+            return
+        try:
+            candidates = self._collect_redeem_candidates(
+                [item.get("position", item) for item in candidates],
+                log_decisions=False,
             )
-            return
-        if not self._relayer_is_configured():
-            self._warn_relayer_unavailable_once(
-                "missing relayer credentials or relayer signer config"
+            if not candidates:
+                return
+            condition_ids = [str(item.get("conditionId", "")) for item in candidates]
+            if self.pm_cfg.disable_order_submission:
+                print(
+                    "[pm] redeem skip | "
+                    "reason=order_submission_disabled "
+                    f"conditionIds={condition_ids}"
+                )
+                return
+            if not self._relayer_is_configured():
+                self._warn_relayer_unavailable_once(
+                    "missing relayer credentials or relayer signer config"
+                )
+                return
+            if self.pm_cfg.relayer_tx_type != "SAFE":
+                self._mark_redeem_submit_error(
+                    condition_ids=condition_ids,
+                    error=(
+                        "unsupported_relayer_tx_type_for_redeem:"
+                        f"{self.pm_cfg.relayer_tx_type}. SAFE is supported by this "
+                        "implementation; WALLET deposit-wallet batches require the "
+                        "new relayer client flow."
+                    ),
+                )
+                return
+            if not self._relayer_safe_is_deployed():
+                self._mark_redeem_submit_error(
+                    condition_ids=condition_ids,
+                    error=f"relayer_safe_not_deployed:{self.pm_cfg.funder}",
+                )
+                return
+
+            transactions, condition_ids = self._build_redeem_transactions(candidates)
+            if not transactions:
+                return
+
+            nonce = self._relayer_get_nonce()
+            print(
+                "[pm] redeem nonce | "
+                f"relayerTxType={self.pm_cfg.relayer_tx_type} "
+                f"signer={self.pm_signer_address} "
+                f"funder={self.pm_cfg.funder} "
+                f"nonce={nonce} "
+                f"conditionIds={condition_ids}"
             )
-            return
-        if not self._relayer_safe_is_deployed():
-            raise RuntimeError(f"Relayer safe {self.pm_cfg.funder} is not deployed")
-
-        transactions, condition_ids = self._build_redeem_transactions(candidates)
-        if not transactions:
-            return
-
-        nonce = self._relayer_get_nonce()
-        tx_args = RelayerSafeTransactionArgs(
-            from_address=self.pm_signer_address,
-            nonce=nonce,
-            chain_id=self.pm_cfg.chain_id,
-            transactions=transactions,
-        )
-        request_body = build_safe_transaction_request(
-            signer=self.pm_relayer_signer,
-            args=tx_args,
-            config=self.pm_relayer_contract_config,
-            metadata=f"redeem {self.pm_cfg.market_slug_prefix}",
-        ).to_dict()
-        response = self._relayer_post_json("/submit", request_body)
-        tx_id = str(response.get("transactionID", "") or "")
-        tx_hash = str(response.get("transactionHash", "") or "")
-        if not tx_id:
-            raise RuntimeError(f"relayer_submit_missing_transaction_id:{response}")
-        self._mark_redeem_submission(
-            condition_ids=condition_ids,
-            tx_id=tx_id,
-            tx_hash=tx_hash,
-            tx_state="STATE_NEW",
-            error="",
-        )
+            tx_args = RelayerSafeTransactionArgs(
+                from_address=self.pm_signer_address,
+                nonce=nonce,
+                chain_id=self.pm_cfg.chain_id,
+                transactions=transactions,
+            )
+            request_body = build_safe_transaction_request(
+                signer=self.pm_relayer_signer,
+                args=tx_args,
+                config=self.pm_relayer_contract_config,
+                metadata=f"redeem {self.pm_cfg.market_slug_prefix}",
+            ).to_dict()
+            response = self._relayer_post_json("/submit", request_body)
+            tx_id = str(response.get("transactionID", "") or "")
+            tx_hash = str(response.get("transactionHash", "") or "")
+            tx_state = str(response.get("state", "") or "STATE_NEW")
+            print(
+                "[pm] redeem submitted | "
+                f"transactionID={tx_id} "
+                f"transactionHash={tx_hash} "
+                f"state={tx_state} "
+                f"conditionIds={condition_ids}"
+            )
+            if not tx_id:
+                raise RuntimeError(f"relayer_submit_missing_transaction_id:{response}")
+            self._mark_redeem_submission(
+                condition_ids=condition_ids,
+                tx_id=tx_id,
+                tx_hash=tx_hash,
+                tx_state=tx_state,
+                error="",
+                nonce=nonce,
+            )
+        except Exception as exc:
+            self._mark_redeem_submit_error(
+                condition_ids=[
+                    str(item.get("conditionId", ""))
+                    for item in candidates
+                    if str(item.get("conditionId", ""))
+                ],
+                error=str(exc),
+            )
+            print(
+                "[pm] redeem submit failed | "
+                f"relayerTxType={self.pm_cfg.relayer_tx_type} "
+                f"signer={self.pm_signer_address} "
+                f"funder={self.pm_cfg.funder} "
+                f"error={exc}"
+            )
+        finally:
+            self.pm_redeem_submit_lock.release()
 
     def _mark_redeem_submission(
         self,
@@ -1251,20 +1387,39 @@ class PolymarketLiveTrader(LivePredictor):
         tx_hash,
         tx_state,
         error,
+        nonce,
     ):
         target_conditions = set(str(x) for x in condition_ids if str(x))
+        submitted_at = pd.Timestamp.now(tz="UTC")
         with self.records_lock:
             for rec in self.records:
                 condition_id = _safe_text(rec.get("pm_condition_id"))
                 if condition_id not in target_conditions:
                     continue
+                rec["pm_redeem_condition_id"] = condition_id
+                rec["pm_redeem_collateral_token"] = (
+                    self.pm_cfg.redeem_collateral_token_address
+                )
+                rec["pm_redeem_ctf_address"] = self.pm_cfg.redeem_ctf_address
+                rec["pm_redeem_target_address"] = self.pm_cfg.redeem_target_address
+                rec["pm_redeem_relayer_tx_type"] = self.pm_cfg.relayer_tx_type
+                rec["pm_redeem_index_sets"] = _json_compact(
+                    list(POLYMARKET_BINARY_INDEX_SETS)
+                )
+                rec["pm_redeem_signer_address"] = self.pm_signer_address
+                rec["pm_redeem_funder_address"] = self.pm_cfg.funder
+                rec["pm_redeem_nonce"] = nonce
                 rec["pm_redeem_tx_id"] = tx_id
                 rec["pm_redeem_tx_hash"] = tx_hash
                 rec["pm_redeem_tx_state"] = tx_state
                 rec["pm_redeem_error"] = error
+                rec["pm_redeem_submitted_at"] = submitted_at
                 rec["pm_settlement_status"] = "redeem_submitted"
 
     def _update_redeem_transaction_state(self, *, tx_id, tx_hash, tx_state, error=""):
+        confirmed_at = (
+            pd.Timestamp.now(tz="UTC") if tx_state == "STATE_CONFIRMED" else None
+        )
         with self.records_lock:
             for rec in self.records:
                 if _safe_text(rec.get("pm_redeem_tx_id")) != _safe_text(tx_id):
@@ -1273,9 +1428,17 @@ class PolymarketLiveTrader(LivePredictor):
                 rec["pm_redeem_tx_state"] = tx_state
                 rec["pm_redeem_error"] = error
                 if tx_state == "STATE_CONFIRMED":
+                    rec["pm_redeem_confirmed_at"] = confirmed_at
                     rec["pm_settlement_status"] = "redeem_confirmed_waiting_close_sync"
                 elif tx_state in {"STATE_FAILED", "STATE_INVALID"}:
                     rec["pm_settlement_status"] = "redeem_failed"
+        print(
+            "[pm] redeem poll | "
+            f"transactionID={tx_id} "
+            f"transactionHash={tx_hash} "
+            f"state={tx_state} "
+            f"error={error}"
+        )
 
     def _poll_redeem_transactions(self):
         pending_ids = set()
@@ -1701,52 +1864,36 @@ class PolymarketLiveTrader(LivePredictor):
                 if status == submitted_status:
                     rec["pm_settlement_status"] = "exit_submitted"
 
-    def _collect_redeem_candidates(self, open_positions):
-        records_by_condition = {
-            _safe_text(rec.get("pm_condition_id")): rec
-            for rec in self._records_snapshot()
-            if str(rec.get("pm_mode", "")) == "live"
-            and _safe_text(rec.get("pm_condition_id"))
-        }
-
-        candidates = []
-        for pos in open_positions:
-            if not self._is_managed_position(pos):
-                continue
-            if bool(pos.get("negativeRisk", False)):
-                continue
-
-            condition_id = _safe_text(pos.get("conditionId"))
-            if not condition_id:
-                continue
-
-            rec = records_by_condition.get(condition_id)
-            if rec is None:
-                continue
-
-            # redeem dopiero po resolution
-            if rec.get("resolved_at") is None and not self._has_binary_flag(
-                rec.get("actual_up")
-            ):
-                continue
-
-            tx_state = _safe_text(rec.get("pm_redeem_tx_state"))
-            settlement_status = _safe_text(rec.get("pm_settlement_status"))
-
-            # skip tylko gdy tx naprawdę jeszcze pending albo rekord już finalnie zamknięty
-            if tx_state in POLYMARKET_RELAYER_PENDING_STATES:
-                continue
-            if settlement_status in {
-                "redeem_submitted",
-                "redeem_confirmed_waiting_close_sync",
-                "closed",
-            }:
-                continue
-
-            # NIE wymagaj pos.get("redeemable")==True
-            # chcemy też spalić losing balances jako cleanup
-            candidates.append(pos)
-
+    def _collect_redeem_candidates(self, open_positions, *, log_decisions=True):
+        candidates, diagnostics = collect_redeem_candidate_specs(
+            open_positions,
+            self._records_snapshot(),
+            market_slug_prefix=self.pm_cfg.market_slug_prefix,
+            require_redeemable=self.pm_cfg.redeem_require_redeemable,
+        )
+        if log_decisions:
+            for diag in diagnostics:
+                reason = str(diag.get("reason", ""))
+                action = str(diag.get("action", ""))
+                if action == "candidate" or reason in {
+                    "redeem_already_confirmed",
+                    "redeem_already_pending",
+                    "redeem_tx_pending",
+                    "redeem_tx_state_unknown",
+                    "negative_risk_unsupported",
+                    "invalid_condition_id",
+                    "not_redeemable",
+                }:
+                    print(
+                        "[pm] redeem decision | "
+                        f"action={action} "
+                        f"reason={reason} "
+                        f"conditionId={diag.get('conditionId', '')} "
+                        f"asset={diag.get('asset', '')} "
+                        f"redeemable={diag.get('redeemable', False)} "
+                        f"negativeRisk={diag.get('negativeRisk', False)} "
+                        f"requireRedeemable={self.pm_cfg.redeem_require_redeemable}"
+                    )
         return candidates
 
     def _poll_background_sync(self, *, reschedule_pending=True):
@@ -1923,6 +2070,7 @@ class PolymarketLiveTrader(LivePredictor):
                     rec["pm_closed_payout_usdc"] = (
                         float(payout) if np.isfinite(payout) else np.nan
                     )
+                    rec["pm_settlement_payout_source"] = "data_api_closed_positions"
                     if np.isfinite(total_bought):
                         rec["stake_usdc"] = float(total_bought)
                     if np.isfinite(avg_price):
@@ -3429,11 +3577,21 @@ class PolymarketLiveTrader(LivePredictor):
             print(f"Allowance snapshot: {self.pm_allowance_info}")
         if np.isfinite(self.pm_cash_balance_usdc):
             print(f"Polymarket cash balance: {self.pm_cash_balance_usdc:.2f}")
-        if self._relayer_is_configured():
+        if self._relayer_is_configured() and self.pm_cfg.relayer_tx_type == "SAFE":
             print(
                 "Auto-redeem background mode is enabled | "
                 f"relayer_host={self.pm_cfg.relayer_host} "
-                f"relayer_api_key_address={self.pm_relayer_api_key_address}"
+                f"relayer_api_key_address={self.pm_relayer_api_key_address} "
+                f"relayer_tx_type={self.pm_cfg.relayer_tx_type} "
+                f"collateralToken={self.pm_cfg.redeem_collateral_token_address} "
+                f"ctfAddress={self.pm_cfg.redeem_ctf_address} "
+                f"targetAddress={self.pm_cfg.redeem_target_address} "
+                f"requireRedeemable={self.pm_cfg.redeem_require_redeemable}"
+            )
+        elif self._relayer_is_configured():
+            self._warn_relayer_unavailable_once(
+                "auto-redeem submission currently supports POLY_RELAYER_TX_TYPE=SAFE; "
+                f"got {self.pm_cfg.relayer_tx_type}"
             )
         else:
             self._warn_relayer_unavailable_once(

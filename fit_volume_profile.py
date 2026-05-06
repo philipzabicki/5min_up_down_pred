@@ -31,6 +31,11 @@ from target_weights import (
     compute_binary_close_target_from_opened,
     summarize_target_weights,
 )
+from train_lgbm import (
+    format_lgbm_monotone_constraint_summary,
+    make_lgbm_monotone_constraint_params,
+    summarize_lgbm_monotone_constraints,
+)
 
 TARGET_TIME_COL = "Opened"
 TARGET_PRICE_COL = "Close"
@@ -343,7 +348,7 @@ OPTUNA_SEED_TRIAL_PARAMS = [
   }
 ]
 
-N_TRIALS = 250
+N_TRIALS = 100
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
@@ -355,7 +360,7 @@ CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
 DEFAULT_STUDY_NAME_PREFIX = "volume_profile_balanced_accuracy_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
-STUDY_NAME = "volume_profile_balanced_accuracy_mean_std_20260429_001259"
+STUDY_NAME = "volume_profile_balanced_accuracy_mean_std_20260504"
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
 ARTIFACT_OUTPUT_DIR = Path("data/optuna/volume_profile")
 BEST_RESULT_STEM = "volume_profile_best_balanced_accuracy_mean_std"
@@ -1268,7 +1273,12 @@ def compact_volume_profile_artifact_payload(payload):
     )
 
 
-def make_lgbm_cv_params():
+def make_lgbm_cv_params(feature_names=None):
+    monotone_params = (
+        make_lgbm_monotone_constraint_params(feature_names)
+        if feature_names is not None
+        else {}
+    )
     return {
         "objective": "binary",
         "metric": "None",
@@ -1285,6 +1295,7 @@ def make_lgbm_cv_params():
         "data_random_seed": SEED,
         "feature_pre_filter": True,
         **LGBM_DEFAULT_PARAMS,
+        **monotone_params,
     }
 
 
@@ -1361,7 +1372,7 @@ def run_lightgbm_cv(
 
     need_cvbooster = bool(return_cvbooster) or is_nontrivial_fold_recency_weighting_enabled()
     cv_results = lgb.cv(
-        params=make_lgbm_cv_params(),
+        params=make_lgbm_cv_params(feature_names=feature_names),
         train_set=train_set,
         folds=fold_indices,
         stratified=False,
@@ -1549,6 +1560,9 @@ def run_optuna_optimization():
     dataset_settings = load_modeling_dataset_settings()
     base_vp_config = dataset_settings.get("volume_profile_fixed_range") or {}
     normalized_base_vp_config = normalize_volume_profile_config(base_vp_config)
+    monotone_constraint_summary = summarize_lgbm_monotone_constraints(
+        normalized_base_vp_config["feature_columns"]
+    )
 
     base_data = load_base_ohlcv_frame(BASE_DATA_PATH)
     base_df = base_data["df"]
@@ -1623,6 +1637,10 @@ def run_optuna_optimization():
         f"min={float(FOLD_RECENCY_WEIGHT_MIN):.4f} "
         f"max={float(FOLD_RECENCY_WEIGHT_MAX):.4f} "
         f"std=unweighted"
+    )
+    print(
+        "monotone constraints | "
+        f"{format_lgbm_monotone_constraint_summary(monotone_constraint_summary)}"
     )
 
     study = optuna.create_study(
@@ -1710,7 +1728,10 @@ def run_optuna_optimization():
             "aggregation": f"{cv_objective_base_score_label()} - std_penalty * cv_std",
             "std_penalty": float(CV_STD_PENALTY),
         },
-        "lgbm_params": make_lgbm_cv_params(),
+        "lgbm_params": make_lgbm_cv_params(
+            feature_names=normalized_base_vp_config["feature_columns"]
+        ),
+        "monotone_constraints": monotone_constraint_summary,
         "base_volume_profile_fixed_range": normalized_base_vp_config,
         "volume_profile_optuna_search_space": VOLUME_PROFILE_OPTUNA_SEARCH_SPACE,
         "optuna_seed_trial_params": OPTUNA_SEED_TRIAL_PARAMS,

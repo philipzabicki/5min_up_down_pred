@@ -32,8 +32,10 @@ from train_lgbm import (
     build_lgbm_model,
     classification_metrics,
     clean_and_impute_fold,
+    format_lgbm_monotone_constraint_summary,
     load_walk_forward_training_frame,
     make_walk_forward_folds,
+    summarize_lgbm_monotone_constraints,
 )
 
 ROW_MODE_ALL_ROWS = "all_rows"
@@ -360,6 +362,7 @@ def evaluate_variant(
         model = build_lgbm_model(
             n_estimators=n_estimators,
             param_overrides=param_overrides,
+            feature_names=x_train.columns,
         )
         fit_kwargs = {
             "X": x_train,
@@ -531,6 +534,7 @@ def main():
         test_to_train_ratio=float(args.test_to_train_ratio),
     )
     param_overrides = build_model_param_overrides(args)
+    monotone_constraint_summary = summarize_lgbm_monotone_constraints(x.columns)
 
     print(
         f"dataset={data_path} rows={len(df)} features={x.shape[1]} "
@@ -545,6 +549,10 @@ def main():
         f"params_source={args.params_source} device_type={args.device_type} "
         f"cv_folds={args.cv_folds} test_to_train_ratio={args.test_to_train_ratio:.4f} "
         f"float_precision={modeling_float_dtype_name}"
+    )
+    print(
+        "monotone_constraints="
+        f"{format_lgbm_monotone_constraint_summary(monotone_constraint_summary)}"
     )
 
     variant_results = {}
@@ -622,6 +630,7 @@ def main():
             feature_subset,
             excluded_features=excluded_features,
         ),
+        "monotone_constraints": monotone_constraint_summary,
         "decision_row_definition": {
             "opened_minute_modulo": 5,
             "decision_remainder": 4,

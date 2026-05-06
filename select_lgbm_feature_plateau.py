@@ -24,6 +24,11 @@ from target_weights import (
 from modeling_dataset_utils import (
     resolve_modeling_dataset_parquet_path,
 )
+from train_lgbm import (
+    format_lgbm_monotone_constraint_summary,
+    make_lgbm_monotone_constraint_params,
+    summarize_lgbm_monotone_constraints,
+)
 
 DATA_PATH = resolve_modeling_dataset_parquet_path()
 OUTPUT_ROOT = Path("data/analysis/feature_selector")
@@ -96,7 +101,7 @@ REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 6
-PERMUTATION_FEATURE_FRACTION = 0.6
+PERMUTATION_FEATURE_FRACTION = 0.7
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
 PERMUTATION_N_REPEATS = 3
@@ -955,6 +960,7 @@ def fit_model(
     if callbacks:
         fit_kwargs["callbacks"] = callbacks
 
+    model.set_params(**make_lgbm_monotone_constraint_params(x_train.columns))
     model.fit(x_train, y_train, **fit_kwargs)
     return model
 
@@ -2107,6 +2113,13 @@ def main():
         f"after_prefilter={x_prefilter.shape[1]} "
         f"sample_weight_source={sample_weight_source}"
     )
+    monotone_constraint_summary = summarize_lgbm_monotone_constraints(
+        x_prefilter.columns
+    )
+    print(
+        "monotone constraints | "
+        f"{format_lgbm_monotone_constraint_summary(monotone_constraint_summary)}"
+    )
     print_prefilter_report_cli(filter_report_df)
     print(
         f"cv setup | ranking_folds={len(ranking_folds)} "
@@ -2224,6 +2237,7 @@ def main():
             **sample_weight_summary,
         },
         "row_filter": row_filter_info,
+        "monotone_constraints": monotone_constraint_summary,
         "ranking_n_splits": len(ranking_folds),
         "topk_n_splits": len(topk_folds),
         "walk_forward_test_to_train_ratio": float(WF_TEST_TO_TRAIN_RATIO),

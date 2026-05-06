@@ -1,0 +1,183 @@
+import unittest
+
+from polymarket_redeem_utils import (
+    DEFAULT_POLYMARKET_CTF_COLLATERAL_ADAPTER_ADDRESS,
+    DEFAULT_POLYMARKET_PUSD_ADDRESS,
+    build_redeem_transactions,
+    collect_redeem_candidates,
+    encode_redeem_positions_call,
+    resolve_redeem_collateral_address,
+    resolve_redeem_target_address,
+    resolve_relayer_tx_type,
+)
+
+
+CONDITION_ID = "0x" + "12" * 32
+ALT_CONDITION_ID = "0x" + "34" * 32
+MARKET_PREFIX = "btc-updown-5m"
+
+
+def _record(condition_id=CONDITION_ID, **overrides):
+    rec = {
+        "pm_mode": "live",
+        "pm_condition_id": condition_id,
+        "resolved_at": "2026-05-04T12:00:00+00:00",
+        "actual_up": 1,
+        "pm_settlement_status": "resolved_waiting_settlement",
+        "pm_redeem_tx_id": "",
+        "pm_redeem_tx_state": "",
+    }
+    rec.update(overrides)
+    return rec
+
+
+def _position(condition_id=CONDITION_ID, **overrides):
+    pos = {
+        "conditionId": condition_id,
+        "asset": "123",
+        "slug": f"{MARKET_PREFIX}-1770000000",
+        "redeemable": True,
+        "negativeRisk": False,
+    }
+    pos.update(overrides)
+    return pos
+
+
+class RedeemEncodingTests(unittest.TestCase):
+    def test_encode_redeem_positions_call(self):
+        calldata = encode_redeem_positions_call(CONDITION_ID)
+
+        self.assertTrue(calldata.startswith("0x01b7037c"))
+        self.assertIn(DEFAULT_POLYMARKET_PUSD_ADDRESS[2:].lower(), calldata)
+        self.assertIn(CONDITION_ID[2:].lower(), calldata)
+        self.assertTrue(calldata.endswith("".join([f"{1:064x}", f"{2:064x}"])))
+
+    def test_reject_invalid_condition_id(self):
+        with self.assertRaises(ValueError):
+            encode_redeem_positions_call("0x1234")
+
+    def test_collateral_address_override(self):
+        override = "0x1111111111111111111111111111111111111111"
+
+        self.assertEqual(
+            resolve_redeem_collateral_address(
+                {"POLY_REDEEM_COLLATERAL_TOKEN_ADDRESS": override}
+            ),
+            override,
+        )
+
+    def test_redeem_target_default_is_adapter(self):
+        self.assertEqual(
+            resolve_redeem_target_address({}),
+            DEFAULT_POLYMARKET_CTF_COLLATERAL_ADAPTER_ADDRESS,
+        )
+
+    def test_relayer_tx_type_selection(self):
+        self.assertEqual(resolve_relayer_tx_type({}, signature_type=2), "SAFE")
+        self.assertEqual(resolve_relayer_tx_type({}, signature_type=3), "WALLET")
+        self.assertEqual(
+            resolve_relayer_tx_type({"POLY_RELAYER_TX_TYPE": "safe"}),
+            "SAFE",
+        )
+
+
+class RedeemCandidateTests(unittest.TestCase):
+    def test_dedupe_condition_id(self):
+        positions = [
+            _position(asset="111"),
+            _position(asset="222"),
+            _position(condition_id=ALT_CONDITION_ID, asset="333"),
+        ]
+        records = [_record(), _record(condition_id=ALT_CONDITION_ID)]
+
+        candidates, diagnostics = collect_redeem_candidates(
+            positions,
+            records,
+            market_slug_prefix=MARKET_PREFIX,
+            require_redeemable=True,
+        )
+
+        self.assertEqual([c["conditionId"] for c in candidates], [CONDITION_ID, ALT_CONDITION_ID])
+        self.assertIn("duplicate_condition_id", {d["reason"] for d in diagnostics})
+
+    def test_skip_pending_and_confirmed(self):
+        positions = [_position(), _position(condition_id=ALT_CONDITION_ID)]
+        records = [
+            _record(
+                pm_redeem_tx_id="tx-pending",
+                pm_redeem_tx_state="STATE_NEW",
+                pm_settlement_status="redeem_submitted",
+            ),
+            _record(
+                condition_id=ALT_CONDITION_ID,
+                pm_redeem_tx_id="tx-confirmed",
+                pm_redeem_tx_state="STATE_CONFIRMED",
+                pm_settlement_status="redeem_confirmed_waiting_close_sync",
+            ),
+        ]
+
+        candidates, diagnostics = collect_redeem_candidates(
+            positions,
+            records,
+            market_slug_prefix=MARKET_PREFIX,
+            require_redeemable=True,
+        )
+
+        self.assertEqual(candidates, [])
+        reasons = {d["reason"] for d in diagnostics}
+        self.assertIn("redeem_already_pending", reasons)
+        self.assertIn("redeem_already_confirmed", reasons)
+
+    def test_retry_failed_and_invalid(self):
+        positions = [_position(), _position(condition_id=ALT_CONDITION_ID)]
+        records = [
+            _record(
+                pm_redeem_tx_id="tx-failed",
+                pm_redeem_tx_state="STATE_FAILED",
+                pm_settlement_status="redeem_failed",
+            ),
+            _record(
+                condition_id=ALT_CONDITION_ID,
+                pm_redeem_tx_id="tx-invalid",
+                pm_redeem_tx_state="STATE_INVALID",
+                pm_settlement_status="redeem_failed",
+            ),
+        ]
+
+        candidates, _diagnostics = collect_redeem_candidates(
+            positions,
+            records,
+            market_slug_prefix=MARKET_PREFIX,
+            require_redeemable=True,
+        )
+
+        self.assertEqual({c["conditionId"] for c in candidates}, {CONDITION_ID, ALT_CONDITION_ID})
+
+    def test_require_redeemable(self):
+        candidates, diagnostics = collect_redeem_candidates(
+            [_position(redeemable=False)],
+            [_record()],
+            market_slug_prefix=MARKET_PREFIX,
+            require_redeemable=True,
+        )
+
+        self.assertEqual(candidates, [])
+        self.assertIn("not_redeemable", {d["reason"] for d in diagnostics})
+
+    def test_build_redeem_transactions(self):
+        specs = build_redeem_transactions(
+            [{"conditionId": CONDITION_ID}],
+            collateral_token_address=DEFAULT_POLYMARKET_PUSD_ADDRESS,
+            ctf_address="0x4D97DCd97eC945f40cF65F87097ACe5EA0476045",
+            target_address=DEFAULT_POLYMARKET_CTF_COLLATERAL_ADAPTER_ADDRESS,
+            relayer_tx_type="SAFE",
+        )
+
+        self.assertEqual(len(specs), 1)
+        self.assertEqual(specs[0]["conditionId"], CONDITION_ID)
+        self.assertEqual(specs[0]["relayerTxType"], "SAFE")
+        self.assertTrue(specs[0]["data"].startswith("0x01b7037c"))
+
+
+if __name__ == "__main__":
+    unittest.main()

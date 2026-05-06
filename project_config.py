@@ -33,6 +33,36 @@ def _require_bool_or_default(payload, key, *, default, source_label):
     return value
 
 
+def _normalize_lgbm_monotone_constraints(raw_config, *, source_label):
+    if raw_config is None:
+        return {}
+    if not isinstance(raw_config, dict):
+        raise ValueError(
+            f"{source_label}.monotone_constraints must be a JSON object mapping "
+            "feature names to -1, 0, or 1."
+        )
+
+    normalized = {}
+    for raw_feature_name, raw_direction in raw_config.items():
+        feature_name = str(raw_feature_name).strip()
+        if not feature_name:
+            raise ValueError(
+                f"{source_label}.monotone_constraints contains an empty feature name."
+            )
+        if isinstance(raw_direction, bool) or not isinstance(raw_direction, int):
+            raise ValueError(
+                f"{source_label}.monotone_constraints[{feature_name!r}] must be "
+                f"-1, 0, or 1, got: {raw_direction!r}"
+            )
+        if raw_direction not in (-1, 0, 1):
+            raise ValueError(
+                f"{source_label}.monotone_constraints[{feature_name!r}] must be "
+                f"-1, 0, or 1, got: {raw_direction!r}"
+            )
+        normalized[feature_name] = int(raw_direction)
+    return normalized
+
+
 def _normalize_train_lgbm_config(raw_config, *, profile_name):
     if raw_config is None:
         raw_config = {}
@@ -40,18 +70,23 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
         raise ValueError(
             f"Modeling profile '{profile_name}' must define 'train_lgbm' as a JSON object."
         )
+    source_label = "modeling.train_lgbm"
     return {
         "train_default_model": _require_bool_or_default(
             raw_config,
             "train_default_model",
             default=True,
-            source_label="modeling.train_lgbm",
+            source_label=source_label,
         ),
         "save_oof_predictions": _require_bool_or_default(
             raw_config,
             "save_oof_predictions",
             default=True,
-            source_label="modeling.train_lgbm",
+            source_label=source_label,
+        ),
+        "monotone_constraints": _normalize_lgbm_monotone_constraints(
+            raw_config.get("monotone_constraints"),
+            source_label=source_label,
         ),
     }
 

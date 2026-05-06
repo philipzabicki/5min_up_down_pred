@@ -37,8 +37,11 @@ from train_lgbm import (
     CV_FOLDS as FINAL_CV_FOLDS,
     WF_TEST_TO_TRAIN_RATIO as FINAL_WF_TEST_TO_TRAIN_RATIO,
     evaluate_walk_forward_variant,
+    format_lgbm_monotone_constraint_summary,
     load_walk_forward_training_frame,
+    make_lgbm_monotone_constraint_params,
     make_walk_forward_folds as make_final_walk_forward_folds,
+    summarize_lgbm_monotone_constraints,
 )
 
 TARGET_COL = "target_5m_candle_up"
@@ -196,10 +199,26 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "feature_fraction_bynode": 0.8334135835207026,
       "path_smooth": 20.93305716234695,
       "extra_trees": False
+    },
+    {
+      "learning_rate": 0.0025040961164530264,
+      "num_leaves": 364,
+      "min_data_in_leaf": 421,
+      "max_depth": 78,
+      "feature_fraction": 0.6644978185263697,
+      "bagging_fraction": 0.8894375327004891,
+      "bagging_freq": 19,
+      "lambda_l2": 7.757612118728146,
+      "lambda_l1": 4.720048122636406,
+      "min_sum_hessian_in_leaf": 5.196953896324328,
+      "min_gain_to_split": 0.589737695617291,
+      "feature_fraction_bynode": 0.5953308832632442,
+      "path_smooth": 61.28073237083828,
+      "extra_trees": False
     }
 ]
 
-N_TRIALS = 150
+N_TRIALS = 10
 TIMEOUT_SECONDS = None
 EARLY_STOPPING_METRIC = "brier_score"
 CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
@@ -432,6 +451,9 @@ def load_generic_training_data(
             feature_cols[j] for j in range(n_features) if not finite_by_col[j]
         ]
         x_np = x_np[:, finite_by_col]
+        feature_cols = [
+            feature_cols[j] for j in range(n_features) if bool(finite_by_col[j])
+        ]
     if x_np.shape[1] == 0:
         raise ValueError(
             "No usable features left after dropping fully invalid columns."
@@ -493,6 +515,7 @@ def load_generic_training_data(
         rows_after_target_notna,
         sample_weight_source,
         summarize_target_weights(sample_weight_np),
+        tuple(feature_cols),
     )
 
 
@@ -982,6 +1005,7 @@ def enqueue_seed_trials(study, seed_trial_params, search_space):
 
 def make_objective(
     train_set,
+    feature_names,
     x_np,
     y_np,
     sample_weight_np,
@@ -1007,6 +1031,7 @@ def make_objective(
             "feature_pre_filter": False,
             "gpu_use_dp": False,
             **suggest_lgbm_hyperparams(trial, search_space),
+            **make_lgbm_monotone_constraint_params(feature_names),
         }
 
         need_cvbooster = is_nontrivial_fold_recency_weighting_enabled()
@@ -1214,6 +1239,7 @@ def run_top_trials_recheck(
     x = training_data["x"]
     y = training_data["y"]
     sample_weight = training_data["sample_weight"]
+    monotone_constraint_summary = summarize_lgbm_monotone_constraints(x.columns)
     folds = make_final_walk_forward_folds(
         n_rows=len(x),
         n_folds=FINAL_CV_FOLDS,
@@ -1264,6 +1290,10 @@ def run_top_trials_recheck(
             "start recheck | "
             f"feature_subset_path={feature_subset['path']} count={feature_subset['count']}"
         )
+    print(
+        "start recheck | "
+        f"monotone_constraints={format_lgbm_monotone_constraint_summary(monotone_constraint_summary)}"
+    )
 
     recheck_results = []
     for optuna_rank, trial in enumerate(selected_trials, start=1):
@@ -1381,6 +1411,7 @@ def run_top_trials_recheck(
             feature_subset,
             excluded_features=excluded_features,
         ),
+        "monotone_constraints": monotone_constraint_summary,
         "sample_weight": {
             "used": True,
             "source": training_data["sample_weight_source"],
@@ -1468,12 +1499,14 @@ def run_optuna_optimization():
         rows_after_target_notna,
         sample_weight_source,
         sample_weight_summary,
+        feature_names,
     ) = load_generic_training_data(
         data_path=data_path,
         feature_subset=feature_subset,
         excluded_features=excluded_features,
         float_dtype=modeling_float_dtype,
     )
+    monotone_constraint_summary = summarize_lgbm_monotone_constraints(feature_names)
     folds = make_walk_forward_folds(
         n_rows=len(x_np),
         n_folds=CV_FOLDS,
@@ -1486,6 +1519,7 @@ def run_optuna_optimization():
         data=x_np,
         label=y_np,
         weight=sample_weight_np,
+        feature_name=list(feature_names),
         free_raw_data=True,
     )
 
@@ -1523,6 +1557,10 @@ def run_optuna_optimization():
     )
     print(
         "start optimize | "
+        f"monotone_constraints={format_lgbm_monotone_constraint_summary(monotone_constraint_summary)}"
+    )
+    print(
+        "start optimize | "
         f"fold weighting | enabled={bool(ENABLE_FOLD_RECENCY_WEIGHTING)} "
         f"active={is_nontrivial_fold_recency_weighting_enabled()} "
         f"mode={FOLD_RECENCY_WEIGHTING_MODE} "
@@ -1554,6 +1592,7 @@ def run_optuna_optimization():
 
     objective = make_objective(
         train_set=train_set,
+        feature_names=feature_names,
         x_np=x_np,
         y_np=y_np,
         sample_weight_np=sample_weight_np,
@@ -1592,6 +1631,7 @@ def run_optuna_optimization():
             feature_subset,
             excluded_features=excluded_features,
         ),
+        "monotone_constraints": monotone_constraint_summary,
         "rows_after_target_notna": int(rows_after_target_notna),
         "decision_row_filter": {
             "enabled": False,

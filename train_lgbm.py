@@ -69,21 +69,21 @@ EARLY_STOPPING_EVAL_METRIC = make_sklearn_binary_brier_eval(EARLY_STOPPING_METRI
 PRIMARY_REPORTING_METRIC = "balanced_accuracy"
 
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
-# Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.
+# Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0025040961164530264,
-      "num_leaves": 364,
-      "min_data_in_leaf": 421,
-      "max_depth": 78,
-      "feature_fraction": 0.6644978185263697,
-      "bagging_fraction": 0.8894375327004891,
+      "learning_rate": 0.005345243845517257,
+      "num_leaves": 249,
+      "min_data_in_leaf": 1092,
+      "max_depth": 47,
+      "feature_fraction": 0.547406725512275,
+      "bagging_fraction": 0.8720848738316145,
       "bagging_freq": 19,
-      "lambda_l2": 7.757612118728146,
-      "lambda_l1": 4.720048122636406,
-      "min_sum_hessian_in_leaf": 5.196953896324328,
-      "min_gain_to_split": 0.589737695617291,
-      "feature_fraction_bynode": 0.5953308832632442,
-      "path_smooth": 61.28073237083828,
+      "lambda_l2": 11.793596403657679,
+      "lambda_l1": 16.802466762568642,
+      "min_sum_hessian_in_leaf": 28.814446384235985,
+      "min_gain_to_split": 0.3523220198504663,
+      "feature_fraction_bynode": 0.5741253197885922,
+      "path_smooth": 29.535516337206555,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {
@@ -103,8 +103,91 @@ LGBM_DEFAULT_PARAMS = {
     "extra_trees": False,
 }
 
+_ACTIVE_MONOTONE_CONSTRAINTS_BY_FEATURE = None
 
-def build_lgbm_model(n_estimators, param_overrides=None):
+
+def load_active_lgbm_monotone_constraints():
+    global _ACTIVE_MONOTONE_CONSTRAINTS_BY_FEATURE
+    if _ACTIVE_MONOTONE_CONSTRAINTS_BY_FEATURE is None:
+        settings = load_modeling_dataset_settings()
+        train_lgbm_settings = settings.get("train_lgbm") or {}
+        _ACTIVE_MONOTONE_CONSTRAINTS_BY_FEATURE = dict(
+            train_lgbm_settings.get("monotone_constraints") or {}
+        )
+    return dict(_ACTIVE_MONOTONE_CONSTRAINTS_BY_FEATURE)
+
+
+def build_lgbm_monotone_constraint_vector(
+    feature_names,
+    constraints_by_feature=None,
+):
+    if constraints_by_feature is None:
+        constraints_by_feature = load_active_lgbm_monotone_constraints()
+    constraints_by_feature = dict(constraints_by_feature or {})
+    if not constraints_by_feature:
+        return None
+    return [
+        int(constraints_by_feature.get(str(feature_name), 0))
+        for feature_name in feature_names
+    ]
+
+
+def make_lgbm_monotone_constraint_params(
+    feature_names,
+    constraints_by_feature=None,
+):
+    constraint_vector = build_lgbm_monotone_constraint_vector(
+        feature_names,
+        constraints_by_feature=constraints_by_feature,
+    )
+    if constraint_vector is None:
+        return {}
+    return {"monotone_constraints": constraint_vector}
+
+
+def summarize_lgbm_monotone_constraints(
+    feature_names,
+    constraints_by_feature=None,
+):
+    if constraints_by_feature is None:
+        constraints_by_feature = load_active_lgbm_monotone_constraints()
+    constraints_by_feature = dict(constraints_by_feature or {})
+    feature_name_list = [str(feature_name) for feature_name in feature_names]
+    feature_name_set = set(feature_name_list)
+    applied_constraints = {
+        feature_name: int(constraints_by_feature[feature_name])
+        for feature_name in feature_name_list
+        if int(constraints_by_feature.get(feature_name, 0)) != 0
+    }
+    missing_configured_features = [
+        feature_name
+        for feature_name in constraints_by_feature
+        if feature_name not in feature_name_set
+    ]
+    return {
+        "configured_feature_count": int(len(constraints_by_feature)),
+        "applied_feature_count": int(len(applied_constraints)),
+        "missing_configured_feature_count": int(len(missing_configured_features)),
+        "configured_constraints": constraints_by_feature,
+        "applied_constraints": applied_constraints,
+        "missing_configured_features": missing_configured_features,
+    }
+
+
+def format_lgbm_monotone_constraint_summary(summary):
+    return (
+        f"configured={summary['configured_feature_count']} "
+        f"applied={summary['applied_feature_count']} "
+        f"missing_configured={summary['missing_configured_feature_count']}"
+    )
+
+
+def build_lgbm_model(
+    n_estimators,
+    param_overrides=None,
+    feature_names=None,
+    monotone_constraints_by_feature=None,
+):
     params = {
         "objective": "binary",
         "n_estimators": n_estimators,
@@ -116,6 +199,13 @@ def build_lgbm_model(n_estimators, param_overrides=None):
     }
     if param_overrides:
         params.update(param_overrides)
+    if feature_names is not None:
+        params.update(
+            make_lgbm_monotone_constraint_params(
+                feature_names,
+                constraints_by_feature=monotone_constraints_by_feature,
+            )
+        )
     return lgb.LGBMClassifier(**params)
 
 
@@ -497,6 +587,7 @@ def evaluate_walk_forward_variant(
         model = build_lgbm_model(
             n_estimators=N_ESTIMATORS,
             param_overrides=param_overrides,
+            feature_names=x_train.columns,
         )
         model.fit(
             x_train,
@@ -628,6 +719,9 @@ def main():
     train_lgbm_settings = dict(dataset_settings.get("train_lgbm") or {})
     train_default_model = bool(train_lgbm_settings.get("train_default_model", True))
     save_oof_predictions = bool(train_lgbm_settings.get("save_oof_predictions", True))
+    monotone_constraints_by_feature = dict(
+        train_lgbm_settings.get("monotone_constraints") or {}
+    )
     training_data = load_walk_forward_training_frame(
         data_path=data_path,
         feature_subset=feature_subset,
@@ -668,6 +762,14 @@ def main():
         "Train switches | "
         f"default_model={train_default_model} "
         f"save_oof_predictions={save_oof_predictions}"
+    )
+    monotone_constraint_summary = summarize_lgbm_monotone_constraints(
+        x.columns,
+        constraints_by_feature=monotone_constraints_by_feature,
+    )
+    print(
+        "Monotone constraints | "
+        f"{format_lgbm_monotone_constraint_summary(monotone_constraint_summary)}"
     )
 
     cv_variants = {}
@@ -746,10 +848,16 @@ def main():
     x_full, _, _, all_nan_train_features, _ = clean_and_impute_fold(
         x, x, float_dtype=modeling_float_dtype
     )
+    final_monotone_constraint_summary = summarize_lgbm_monotone_constraints(
+        x_full.columns,
+        constraints_by_feature=monotone_constraints_by_feature,
+    )
 
     model = build_lgbm_model(
         n_estimators=best_iteration,
         param_overrides=LGBM_OPTUNA_BEST_PARAMS,
+        feature_names=x_full.columns,
+        monotone_constraints_by_feature=monotone_constraints_by_feature,
     )
     model.fit(
         x_full,
@@ -868,6 +976,7 @@ def main():
             "oof_prediction": modeling_float_dtype_name,
         },
         "feature_columns": list(x_full.columns),
+        "monotone_constraints": final_monotone_constraint_summary,
         "volume_profile_fixed_range": (
             normalized_volume_profile_cfg
             if any(is_volume_profile_feature(col) for col in x_full.columns)

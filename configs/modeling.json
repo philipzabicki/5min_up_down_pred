@@ -15,7 +15,7 @@
         "4h": 18,
         "1d": 14
       },
-      "float_precision": "float64",
+      "float_precision": "float32",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -24,31 +24,31 @@
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "step": 237,
-            "local_window": 25,
-            "sigma_divisor": 0.014876093927097048,
-            "min_sigma": 0.02916405796066006,
-            "half_life_candles": 79
+            "step": 46,
+            "local_window": 2,
+            "sigma_divisor": 1.353538674230264,
+            "min_sigma": 160.5981351830103,
+            "half_life_candles": 92
           },
           "medium": {
-            "step": 18,
-            "local_window": 26,
-            "sigma_divisor": 0.09483896606781557,
-            "min_sigma": 56.79702039837823,
-            "half_life_candles": 4650
+            "step": 89,
+            "local_window": 36,
+            "sigma_divisor": 2.784064621492806,
+            "min_sigma": 19.466875480849613,
+            "half_life_candles": 4289
           },
           "long": {
-            "step": 1,
+            "step": 139,
             "local_window": 2,
-            "sigma_divisor": 0.4441954152605454,
-            "min_sigma": 57.418582556758615,
-            "half_life_candles": 28696
+            "sigma_divisor": 0.13032322483738837,
+            "min_sigma": 37.14632588674821,
+            "half_life_candles": 58915
           },
           "all": {
-            "step": 7,
-            "local_window": 58,
-            "sigma_divisor": 11.631250402780816,
-            "min_sigma": 0.26790315308836143,
+            "step": 263,
+            "local_window": 1,
+            "sigma_divisor": 66.04271505029442,
+            "min_sigma": 59.403975094197385,
             "half_life_candles": null
           }
         }
@@ -58,14 +58,26 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260501_024911/recommended_features.json",
+        "mode": "none",
+        "artifact_path": "",
         "artifact_list_key": "final_feature_list",
-        "excluded_feature_names": ["KeltnerChannel_fit_3m_pop128_atrmatyptema_atrmul10.570595_atrper270_maper476_matypkama_souhlcc4_qe0.1_qm0.2_tf0.8_stmc_sg15"]
+        "excluded_feature_names": [
+          "KeltnerChannel_fit_3m_pop128_atrmatyptema_atrmul10.570595_atrper270_maper476_matypkama_souhlcc4_qe0.1_qm0.2_tf0.8_stmc_sg15",
+          "candle_body_pressure_1m",
+          "candle_body_pressure_1m_lag1",
+          "candle_body_pressure_5m_lag2"
+        ]
       },
       "train_lgbm": {
         "train_default_model": false,
-        "save_oof_predictions": true
+        "save_oof_predictions": true,
+        "monotone_constraints": {
+          "StochOsc_fit_4m_pop16_faskper14_slodmatypnwmagauss_slodper1381_slokmatypfba_slokper1631": -1,
+          "MACD_fit_3m_pop128_fasmatyprma_fasper741_fassoulow_sigmatypmama_sigper1931_slomatypnwmatria_sloper1884_slosouhlc3": -1,
+          "ADX_fit_1m_pop512_adxper967_atrper487_matypadxfba_matypatrnwmabiw_matypnegdmfba_matypposdmfba_negdmper250_posdmper1523_qe0.2_qm0.25_tf0.8_stmd_sg20": -1,
+          "BollingerBands_fit_1m_pop128_maper35_masoulow_matypt3_stdmaper706_stdmatypmama_stdmul9.777172_stdsouhigh_qe0.1_qm0.2_tf0.8_stmc_sg15": 1,
+          "KeltnerChannel_fit_5m_pop16_atrmatypnwmaunif_atrmul8.26628_atrper777_maper22_matyptema_soulow": 1
+        }
       }
     }
   }

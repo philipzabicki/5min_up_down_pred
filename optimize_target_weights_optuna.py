@@ -45,8 +45,10 @@ from train_lgbm import (
     build_lgbm_model,
     classification_metrics,
     clean_and_impute_fold,
+    format_lgbm_monotone_constraint_summary,
     make_walk_forward_folds,
     resolve_sample_weight_series,
+    summarize_lgbm_monotone_constraints,
 )
 
 DECISION_ROW_OBJECTIVE_METRIC = "balanced_accuracy"
@@ -710,6 +712,7 @@ def evaluate_strategy(
         model = build_lgbm_model(
             n_estimators=int(n_estimators),
             param_overrides=param_overrides,
+            feature_names=x_train.columns,
         )
         fit_kwargs = {
             "X": x_train,
@@ -3051,6 +3054,7 @@ def main():
     class_distribution = training_data["class_distribution"]
     decision_mask = compute_decision_mask_from_opened(df["Opened"])
     decision_summary = summarize_boolean_mask(decision_mask)
+    monotone_constraint_summary = summarize_lgbm_monotone_constraints(x_all.columns)
     feature_views = build_feature_view_candidates(
         x_all=x_all,
         active_subset=active_feature_subset,
@@ -3196,6 +3200,10 @@ def main():
         f"context_std_penalty={float(target_weight_search_settings['context_std_penalty']):.6f} "
         f"proxy_eval=decision_rows_only final_eval=decision_rows_only final_predict=all_rows"
     )
+    print(
+        "monotone constraints | "
+        f"{format_lgbm_monotone_constraint_summary(monotone_constraint_summary)}"
+    )
 
     proxy_search_result = run_proxy_weight_search_across_contexts(
         evaluation_contexts=evaluation_contexts,
@@ -3309,6 +3317,7 @@ def main():
         final_context_results_df=final_context_results_df,
         best_row=best_row,
     )
+    payload["monotone_constraints"] = monotone_constraint_summary
     payload["artifacts"] = {
         "best_result_json": path_to_portable_str(best_result_path),
         "proxy_candidates_csv": path_to_portable_str(search_results_csv_path),

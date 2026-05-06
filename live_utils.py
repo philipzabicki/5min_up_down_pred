@@ -23,6 +23,8 @@ LIVE_RECORD_TIMESTAMP_COLUMNS = (
     "pm_account_sync_at",
     "pm_account_sync_at_entry",
     "pm_account_sync_at_resolve",
+    "pm_redeem_submitted_at",
+    "pm_redeem_confirmed_at",
 )
 
 POLICY_DIAGNOSTIC_COLUMNS = (
@@ -126,6 +128,22 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
     "pm_account_sync_at_resolve",
     "pm_account_cash_balance_resolve_usdc",
     "pm_account_positions_value_resolve_usdc",
+    "pm_redeem_condition_id",
+    "pm_redeem_collateral_token",
+    "pm_redeem_ctf_address",
+    "pm_redeem_target_address",
+    "pm_redeem_relayer_tx_type",
+    "pm_redeem_index_sets",
+    "pm_redeem_signer_address",
+    "pm_redeem_funder_address",
+    "pm_redeem_nonce",
+    "pm_redeem_tx_id",
+    "pm_redeem_tx_hash",
+    "pm_redeem_tx_state",
+    "pm_redeem_error",
+    "pm_redeem_submitted_at",
+    "pm_redeem_confirmed_at",
+    "pm_settlement_payout_source",
 )
 
 LIVE_SHARED_MARKET_DATA_COLUMNS = (
