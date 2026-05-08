@@ -49,7 +49,7 @@ BASE_DATA_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
 SEED = 37
 
 CV_FOLDS = 10
-WF_TEST_TO_TRAIN_RATIO = 0.1
+WF_TEST_TO_TRAIN_RATIO = 0.2
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
@@ -345,22 +345,44 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     "short_half_life_candles": 79,
     "medium_half_life_candles": 4650,
     "long_half_life_candles": 28696
+  },
+  {
+    "neighbor_bins": 35,
+    "short_step": 46,
+    "medium_step": 89,
+    "long_step": 139,
+    "all_step": 263,
+    "short_local_window": 2,
+    "medium_local_window": 36,
+    "long_local_window": 2,
+    "all_local_window": 1,
+    "short_sigma_divisor": 1.353538674230264,
+    "medium_sigma_divisor": 2.784064621492806,
+    "long_sigma_divisor": 0.13032322483738837,
+    "all_sigma_divisor": 66.04271505029442,
+    "short_min_sigma": 160.5981351830103,
+    "medium_min_sigma": 19.466875480849613,
+    "long_min_sigma": 37.14632588674821,
+    "all_min_sigma": 59.403975094197385,
+    "short_half_life_candles": 92,
+    "medium_half_life_candles": 4289,
+    "long_half_life_candles": 58915
   }
 ]
 
-N_TRIALS = 100
+N_TRIALS = 300
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
 
-EARLY_STOPPING_METRIC = "brier_score"
 CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
+EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC
 CV_OBJECTIVE_IS_HIGHER_BETTER = True
 CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
 DEFAULT_STUDY_NAME_PREFIX = "volume_profile_balanced_accuracy_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
-STUDY_NAME = "volume_profile_balanced_accuracy_mean_std_20260504"
+STUDY_NAME = "volume_profile_balanced_accuracy_mean_std_20260508_2"
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
 ARTIFACT_OUTPUT_DIR = Path("data/optuna/volume_profile")
 BEST_RESULT_STEM = "volume_profile_best_balanced_accuracy_mean_std"
@@ -1378,8 +1400,8 @@ def run_lightgbm_cv(
         stratified=False,
         shuffle=False,
         feval=[
-            make_lightgbm_binary_brier_eval(EARLY_STOPPING_METRIC),
             make_lightgbm_binary_balanced_accuracy_eval(CV_OBJECTIVE_BASE_METRIC),
+            make_lightgbm_binary_brier_eval("brier_score"),
         ],
         callbacks=callbacks,
         return_cvbooster=need_cvbooster,

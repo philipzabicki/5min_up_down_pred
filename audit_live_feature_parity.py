@@ -13,6 +13,7 @@ from create_modeling_dataset import (
     concat_feature_frame,
     parse_fit_results,
 )
+from features.basis_premium_features import validate_basis_premium_feature_columns
 from features.candle_features import (
     RAW_OHLCV_COLS,
     SUPPORTED_CANDLE_FEATURE_COLS,
@@ -148,6 +149,22 @@ def _optional_path(value):
     return Path(value)
 
 
+def _basis_premium_futures_close_label():
+    cfg = dict(MODELING_DATASET_SETTINGS.get("basis_premium_features") or {})
+    return str(cfg.get("futures_close_col", "") or "").strip() or (
+        "<auto-detected futures close>"
+    )
+
+
+def _basis_premium_audit_raw_history_error():
+    futures_close_col = _basis_premium_futures_close_label()
+    return (
+        "Basis premium parity audit requires futures close column "
+        f"'{futures_close_col}' in raw history; rebuild dataset/audit input with "
+        "auxiliary source columns."
+    )
+
+
 def _load_model_feature_importance_frame(meta):
     artifacts = dict(meta.get("artifacts") or {})
     raw_path = str(artifacts.get("final_feature_importance_csv") or "").strip()
@@ -163,6 +180,10 @@ def _load_model_feature_importance_frame(meta):
     if not required_cols.issubset(frame.columns):
         return None
     validate_volume_profile_feature_columns(
+        frame["feature"].tolist(),
+        source_label=f"feature importance artifact {path}",
+    )
+    validate_basis_premium_feature_columns(
         frame["feature"].tolist(),
         source_label=f"feature importance artifact {path}",
     )
@@ -198,6 +219,8 @@ def _feature_group_map(feature_columns):
         group_by_feature[feature] = "session"
     for feature in parts["realized_volatility_feature_cols"]:
         group_by_feature[feature] = "realized_volatility"
+    for feature in parts["basis_premium_feature_cols"]:
+        group_by_feature[feature] = "basis_premium"
     for feature in parts["indicator_feature_cols"]:
         group_by_feature[feature] = "indicator"
     for feature in parts["volume_profile_feature_cols"]:
@@ -572,6 +595,17 @@ def _feature_builder_frame(feature_columns):
                     "builder_family": "realized_volatility",
                     "builder_name": "add_realized_volatility_features",
                     "builder_source": "realized_volatility",
+                }
+            )
+            continue
+
+        if feature in feature_parts["basis_premium_feature_cols"]:
+            records.append(
+                {
+                    "feature": feature,
+                    "builder_family": "basis_premium",
+                    "builder_name": "add_basis_premium_features",
+                    "builder_source": "basis_premium_features",
                 }
             )
             continue
@@ -1159,6 +1193,8 @@ def build_current_recomputed_feature_history(
         feature_columns,
         source_label="audit feature columns",
     )
+    if feature_parts["basis_premium_feature_cols"]:
+        raise ValueError(_basis_premium_audit_raw_history_error())
     feature_frame = raw_history_df.loc[:, ["Opened", *RAW_OHLCV_COLS]].copy()
 
     configured_rules = resolve_streak_interval_to_rule(
@@ -2251,6 +2287,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
             self.feature_columns,
             source_label=f"model metadata {model_meta_path}",
         )
+        validate_basis_premium_feature_columns(
+            self.feature_columns,
+            source_label=f"model metadata {model_meta_path}",
+        )
 
         self.candle_feature_columns = [
             col for col in self.feature_columns if col in SUPPORTED_CANDLE_FEATURE_COLS
@@ -2282,6 +2322,11 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.realized_volatility_feature_columns = tuple(
             feature_parts["realized_volatility_feature_cols"]
         )
+        self.basis_premium_feature_columns = tuple(
+            feature_parts["basis_premium_feature_cols"]
+        )
+        if self.basis_premium_feature_columns:
+            raise ValueError(_basis_premium_audit_raw_history_error())
         self.volume_profile_feature_columns = tuple(
             feature_parts["volume_profile_feature_cols"]
         )
@@ -2605,6 +2650,15 @@ def run_stored_modeling_vs_current_recompute_audit(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
     )
+    validate_basis_premium_feature_columns(
+        feature_columns,
+        source_label=f"model metadata {model_meta_path}",
+    )
+    if split_feature_subset(
+        feature_columns,
+        source_label=f"model metadata {model_meta_path}",
+    )["basis_premium_feature_cols"]:
+        raise ValueError(_basis_premium_audit_raw_history_error())
     validate_volume_profile_model_metadata(
         meta,
         feature_columns=feature_columns,
@@ -2758,6 +2812,15 @@ def run_live_modeling_feature_audit(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
     )
+    validate_basis_premium_feature_columns(
+        feature_columns,
+        source_label=f"model metadata {model_meta_path}",
+    )
+    if split_feature_subset(
+        feature_columns,
+        source_label=f"model metadata {model_meta_path}",
+    )["basis_premium_feature_cols"]:
+        raise ValueError(_basis_premium_audit_raw_history_error())
     validate_volume_profile_model_metadata(
         meta,
         feature_columns=feature_columns,

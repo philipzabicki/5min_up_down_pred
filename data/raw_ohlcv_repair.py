@@ -836,6 +836,7 @@ def repair_raw_ohlcv_frame(
     raw_config=None,
     price_decimals=None,
     volume_decimals=None,
+    artifact_csv_path=None,
 ):
     config = normalize_raw_ohlcv_repair_config(raw_config)
     price_decimals = _normalize_decimal_places(price_decimals, "price_decimals")
@@ -874,11 +875,15 @@ def repair_raw_ohlcv_frame(
     }
 
     repaired = prepared.loc[:, OHLCV_COLS].copy()
+    original_expanded_for_artifacts = None
     gap_records = []
     distribution_summary = {}
 
     if config["enabled"] and not prepared.empty:
         expanded, inserted_mask = _reindex_with_gap_placeholders(prepared, interval)
+        original_expanded_for_artifacts = expanded.loc[:, OHLCV_COLS].reset_index(
+            drop=True
+        )
         repaired = expanded.loc[:, OHLCV_COLS].copy()
         gap_mask, gap_blocks = _detect_gap_blocks(
             expanded,
@@ -944,6 +949,19 @@ def repair_raw_ohlcv_frame(
         or summary["invalid_volume_rows"] > 0
         or summary["rounding_applied"]
     )
+    if artifact_csv_path is not None and summary["gap_records"]:
+        if original_expanded_for_artifacts is None:
+            original_expanded_for_artifacts = prepared.loc[:, OHLCV_COLS].reset_index(
+                drop=True
+            )
+        artifact_summary = _write_gap_artifacts(
+            csv_path=Path(artifact_csv_path),
+            original_df=original_expanded_for_artifacts,
+            repaired_df=repaired,
+            gap_records=summary["gap_records"],
+            config=config,
+        )
+        summary.update(artifact_summary)
     return repaired, summary
 
 

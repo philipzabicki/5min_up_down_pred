@@ -15,13 +15,14 @@ import pyarrow.parquet as pq
 
 from common_config_utils import coerce_path, path_to_portable_str
 from optuna_run_utils import make_utc_run_timestamp, sanitize_run_name
+from project_config import load_runtime_artifact_paths
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 
-# Zmieniaj te stale przed uruchomieniem skryptu.
-MODEL_ARTIFACT_PATH = Path("data\\models\\20260505_183214\\lgbm_meta_20260505_183214.json")
+# MODEL_ARTIFACT_PATH=None uses configs/runtime/active.json artifacts.model_meta_path.
+MODEL_ARTIFACT_PATH = None
 DATA_PATH_OVERRIDE = None
 OUTPUT_ROOT = Path("data/analysis/model_one_way")
 
@@ -37,10 +38,16 @@ LIMIT_FEATURES = 0
 
 SUSPICIOUS_TOP_N = 30
 SUSPICIOUS_EDGE_FRACTION = 0.20
-SUSPICIOUS_MIN_ABS_PDP_DELTA = 0.001
-SUSPICIOUS_MIN_ABS_TARGET_DELTA = 0.005
-SUSPICIOUS_MIN_ABS_BASELINE_DELTA = 0.005
-SUSPICIOUS_FLAT_PDP_DELTA = 0.0005
+SUSPICIOUS_TRIM_BIN_COUNT = 2
+SUSPICIOUS_TRIM_FRACTION = 0.10
+SUSPICIOUS_MIN_ABS_PDP_DELTA = 0.0005
+SUSPICIOUS_MIN_ABS_BASELINE_DELTA = 0.0005
+SUSPICIOUS_MIN_ABS_TARGET_DELTA = 0.003
+SUSPICIOUS_MIN_ABS_PDP_SLOPE = 0.0005
+SUSPICIOUS_MIN_ABS_BASELINE_SLOPE = 0.0005
+SUSPICIOUS_MIN_ABS_TARGET_SLOPE = 0.003
+SUSPICIOUS_MIN_ABS_SPEARMAN = 0.15
+SUSPICIOUS_MIN_VOTES_FOR_DIRECTION = 2
 
 TIME_COL = "Opened"
 TARGET_COL_OVERRIDE = None
@@ -50,13 +57,16 @@ WEIGHT_COL_FALLBACK = "target_5m_weight"
 USE_SAMPLE_WEIGHT = True
 FLOAT_DTYPE = "float32"
 
-PLOT_X_AXIS_MODE = "central_quantile"  # modes: "central_quantile" or "full"
+PLOT_X_AXIS_MODE = "full"  # modes: "central_quantile" or "full"
 PLOT_X_VISIBLE_QUANTILES = (0.05, 0.95)
 PLOT_X_ZOOM_MAX_RANGE_FRACTION = 0.80
 PLOT_X_MIN_FINITE_ROWS = 20
 PLOT_TARGET_RATE_SECONDARY_AXIS = True
 PLOT_PRIMARY_Y_PAD = 0.015
 PLOT_TARGET_Y_PAD = 0.030
+TARGET_LOESS_FRAC = 0.45
+TARGET_LOESS_MIN_POINTS = 5
+TARGET_LOESS_CONFIDENCE_Z = 1.96
 
 PLOT_COLORS = {
     "pdp": "#0072B2",
@@ -183,9 +193,15 @@ def resolve_model_artifact(model_artifact):
     }
 
 
+def resolve_configured_model_artifact_path():
+    if MODEL_ARTIFACT_PATH is not None:
+        return Path(MODEL_ARTIFACT_PATH)
+    return load_runtime_artifact_paths()["model_meta_path"]
+
+
 def resolve_data_path(meta):
     if DATA_PATH_OVERRIDE is not None:
-        data_path = Path(DATA_PATH_OVERRIDE)
+        data_path = coerce_path(DATA_PATH_OVERRIDE)
     else:
         raw_data_path = meta.get("data_path")
         if not raw_data_path:
@@ -470,20 +486,32 @@ def weighted_mean(values, weights=None, mask=None):
     return float(np.average(values[mask], weights=weights[mask]))
 
 
+def _equal_count_group_indices(values, group_count):
+    values = np.asarray(values, dtype=np.float64)
+    if values.size == 0:
+        return []
+
+    group_count = max(1, min(int(group_count), int(values.size)))
+    order = np.argsort(values, kind="mergesort")
+    return [
+        chunk.astype(np.int64, copy=False)
+        for chunk in np.array_split(order, group_count)
+        if chunk.size > 0
+    ]
+
+
 def build_grid(feature_values, grid_points):
     finite_values = np.asarray(feature_values, dtype=np.float64)
     finite_values = finite_values[np.isfinite(finite_values)]
     if finite_values.size == 0:
         return np.array([], dtype=np.float64)
 
-    unique_values = np.unique(finite_values)
-    if unique_values.size <= int(grid_points):
-        return unique_values.astype(np.float64, copy=False)
-
-    quantiles = np.linspace(0.0, 1.0, int(grid_points), dtype=np.float64)
-    return np.unique(np.quantile(finite_values, quantiles)).astype(
-        np.float64,
-        copy=False,
+    group_values = [
+        float(np.median(finite_values[group_indices]))
+        for group_indices in _equal_count_group_indices(finite_values, grid_points)
+    ]
+    return np.unique(np.asarray(group_values, dtype=np.float64)).astype(
+        np.float64, copy=False
     )
 
 
@@ -527,52 +555,36 @@ def build_observed_bins(
         else None
     )
 
-    unique_values = np.unique(values)
-    bins = []
-    if unique_values.size <= int(bin_count):
-        for value in unique_values:
-            mask = values == value
-            bins.append((float(value), float(value), mask))
-    else:
-        edges = np.unique(
-            np.quantile(values, np.linspace(0.0, 1.0, int(bin_count) + 1))
-        )
-        if edges.size < 2:
-            mask = np.ones(values.shape[0], dtype=bool)
-            bins.append((float(values[0]), float(values[0]), mask))
-        else:
-            bin_ids = np.searchsorted(edges[1:-1], values, side="right")
-            for bin_id in range(edges.size - 1):
-                mask = bin_ids == bin_id
-                if np.any(mask):
-                    bins.append((float(edges[bin_id]), float(edges[bin_id + 1]), mask))
-
     rows = []
     total_weight = float(np.sum(bin_weights))
-    for bin_id, (left, right, mask) in enumerate(bins):
-        count = int(np.count_nonzero(mask))
-        weights_in_bin = bin_weights[mask]
+    for bin_id, group_indices in enumerate(_equal_count_group_indices(values, bin_count)):
+        group_values = values[group_indices]
+        group_preds = preds[group_indices]
+        weights_in_bin = bin_weights[group_indices]
+        count = int(group_indices.size)
         weight_sum = float(np.sum(weights_in_bin))
         target_rate = None
         target_count = 0
         if targets is not None:
-            target_mask = mask & np.isfinite(targets) & np.isin(targets, [0.0, 1.0])
+            group_targets = targets[group_indices]
+            target_mask = np.isfinite(group_targets) & np.isin(group_targets, [0.0, 1.0])
             target_count = int(np.count_nonzero(target_mask))
             if target_count > 0:
-                target_rate = weighted_mean(targets, bin_weights, target_mask)
+                target_rate = weighted_mean(group_targets, weights_in_bin, target_mask)
 
         rows.append(
             {
                 "bin_id": int(bin_id),
-                "feature_left": left,
-                "feature_right": right,
-                "feature_mean": weighted_mean(values, bin_weights, mask),
+                "feature_left": float(np.min(group_values)),
+                "feature_right": float(np.max(group_values)),
+                "feature_center": float(np.median(group_values)),
+                "feature_mean": weighted_mean(group_values, weights_in_bin),
                 "row_count": count,
                 "weight_sum": weight_sum,
                 "weight_fraction": (
                     float(weight_sum / total_weight) if total_weight > 0.0 else None
                 ),
-                "baseline_pred_mean": weighted_mean(preds, bin_weights, mask),
+                "baseline_pred_mean": weighted_mean(group_preds, weights_in_bin),
                 "target_rate": target_rate,
                 "target_count": target_count,
             }
@@ -608,15 +620,18 @@ def summarize_observed_bins(observed_bins):
     return {
         "bin_count": int(len(observed_bins)),
         "min_baseline_pred_bin": {
+            "feature_center": min_pred["feature_center"],
             "feature_mean": min_pred["feature_mean"],
             "baseline_pred_mean": min_pred["baseline_pred_mean"],
         },
         "max_baseline_pred_bin": {
+            "feature_center": max_pred["feature_center"],
             "feature_mean": max_pred["feature_mean"],
             "baseline_pred_mean": max_pred["baseline_pred_mean"],
         },
         "min_target_rate_bin": (
             {
+                "feature_center": min_target["feature_center"],
                 "feature_mean": min_target["feature_mean"],
                 "target_rate": min_target["target_rate"],
             }
@@ -625,6 +640,7 @@ def summarize_observed_bins(observed_bins):
         ),
         "max_target_rate_bin": (
             {
+                "feature_center": max_target["feature_center"],
                 "feature_mean": max_target["feature_mean"],
                 "target_rate": max_target["target_rate"],
             }
@@ -727,11 +743,9 @@ def _has_min_abs(value, threshold):
     return number is not None and abs(number) >= float(threshold)
 
 
-def _edge_mean(points, use_weights):
+def _edge_mean(points):
     if not points:
         return None
-    if not use_weights:
-        return float(sum(point[1] for point in points) / len(points))
 
     total_weight = float(sum(point[2] for point in points))
     if total_weight <= 0.0:
@@ -739,7 +753,7 @@ def _edge_mean(points, use_weights):
     return float(sum(point[1] * point[2] for point in points) / total_weight)
 
 
-def calculate_edge_delta(
+def _series_points(
     rows,
     feature_value_key,
     metric_key,
@@ -754,7 +768,7 @@ def calculate_edge_delta(
         if feature_value is None or metric_value is None:
             continue
 
-        weight = None
+        weight = 1.0
         if weight_key is not None:
             weight = _finite_number_or_none(row.get(weight_key))
             if weight is None or weight <= 0.0:
@@ -767,151 +781,512 @@ def calculate_edge_delta(
 
         points.append((feature_value, metric_value, weight))
 
-    if not points:
+    points.sort(key=lambda point: point[0])
+    return points
+
+
+def _edge_delta_from_points(points, *, edge_fraction, min_points=2):
+    if len(points) < int(min_points):
         return None
 
-    points.sort(key=lambda point: point[0])
     edge_count = max(
         1,
-        int(math.ceil(len(points) * float(SUSPICIOUS_EDGE_FRACTION))),
+        int(math.ceil(len(points) * float(edge_fraction))),
     )
     edge_count = min(edge_count, len(points))
-    low_mean = _edge_mean(points[:edge_count], weight_key is not None)
-    high_mean = _edge_mean(points[-edge_count:], weight_key is not None)
+    low_mean = _edge_mean(points[:edge_count])
+    high_mean = _edge_mean(points[-edge_count:])
     if low_mean is None or high_mean is None:
         return None
     return float(high_mean - low_mean)
+
+
+def calculate_edge_delta(
+    rows,
+    feature_value_key,
+    metric_key,
+    *,
+    weight_key=None,
+    require_positive_target_count=False,
+):
+    points = _series_points(
+        rows,
+        feature_value_key,
+        metric_key,
+        weight_key=weight_key,
+        require_positive_target_count=require_positive_target_count,
+    )
+    return _edge_delta_from_points(
+        points,
+        edge_fraction=float(SUSPICIOUS_EDGE_FRACTION),
+    )
+
+
+def _trim_for_trimmed_delta(points):
+    if len(points) < 4:
+        return []
+    trim_count = int(SUSPICIOUS_TRIM_BIN_COUNT)
+    if len(points) - (2 * trim_count) < 4:
+        trim_count = int(math.floor(len(points) * float(SUSPICIOUS_TRIM_FRACTION)))
+    if trim_count <= 0:
+        trimmed = list(points)
+    else:
+        trimmed = list(points[trim_count:-trim_count])
+    return trimmed if len(trimmed) >= 4 else []
+
+
+def _middle_80_points(points):
+    if len(points) < 4:
+        return []
+    trim_count = int(math.floor(len(points) * 0.10))
+    if trim_count <= 0:
+        middle = list(points)
+    else:
+        middle = list(points[trim_count:-trim_count])
+    return middle if len(middle) >= 4 else []
+
+
+def _weighted_slope(points):
+    if len(points) < 2:
+        return None
+    x = np.asarray([point[0] for point in points], dtype=np.float64)
+    y = np.asarray([point[1] for point in points], dtype=np.float64)
+    w = np.asarray([point[2] for point in points], dtype=np.float64)
+    valid = np.isfinite(x) & np.isfinite(y) & np.isfinite(w) & (w > 0.0)
+    if np.count_nonzero(valid) < 2:
+        return None
+    x = x[valid]
+    y = y[valid]
+    w = w[valid]
+    x_min = float(np.min(x))
+    x_max = float(np.max(x))
+    x_range = x_max - x_min
+    if not math.isfinite(x_range) or x_range <= 0.0:
+        return None
+    x_norm = (x - x_min) / x_range
+    x_mean = float(np.average(x_norm, weights=w))
+    y_mean = float(np.average(y, weights=w))
+    x_centered = x_norm - x_mean
+    denominator = float(np.sum(w * x_centered * x_centered))
+    if denominator <= 0.0 or not math.isfinite(denominator):
+        return None
+    numerator = float(np.sum(w * x_centered * (y - y_mean)))
+    slope = numerator / denominator
+    return slope if math.isfinite(slope) else None
+
+
+def _spearman(points):
+    if len(points) < 3:
+        return None
+    x = np.asarray([point[0] for point in points], dtype=np.float64)
+    y = np.asarray([point[1] for point in points], dtype=np.float64)
+    valid = np.isfinite(x) & np.isfinite(y)
+    if np.count_nonzero(valid) < 3:
+        return None
+    x_rank = pd.Series(x[valid]).rank(method="average").to_numpy(dtype=np.float64)
+    y_rank = pd.Series(y[valid]).rank(method="average").to_numpy(dtype=np.float64)
+    if float(np.max(x_rank) - np.min(x_rank)) <= 0.0:
+        return None
+    if float(np.max(y_rank) - np.min(y_rank)) <= 0.0:
+        return None
+    correlation = float(np.corrcoef(x_rank, y_rank)[0, 1])
+    return correlation if math.isfinite(correlation) else None
+
+
+def _direction_with_threshold(value, threshold):
+    number = _finite_number_or_none(value)
+    if number is None or abs(number) < float(threshold):
+        return 0
+    return 1 if number > 0.0 else -1
+
+
+def _opposes(left_direction, right_direction):
+    return (
+        int(left_direction) != 0
+        and int(right_direction) != 0
+        and int(left_direction) == -int(right_direction)
+    )
+
+
+def _series_thresholds(series_kind):
+    if series_kind == "target":
+        return {
+            "delta": float(SUSPICIOUS_MIN_ABS_TARGET_DELTA),
+            "slope": float(SUSPICIOUS_MIN_ABS_TARGET_SLOPE),
+        }
+    if series_kind == "baseline":
+        return {
+            "delta": float(SUSPICIOUS_MIN_ABS_BASELINE_DELTA),
+            "slope": float(SUSPICIOUS_MIN_ABS_BASELINE_SLOPE),
+        }
+    return {
+        "delta": float(SUSPICIOUS_MIN_ABS_PDP_DELTA),
+        "slope": float(SUSPICIOUS_MIN_ABS_PDP_SLOPE),
+    }
+
+
+def _build_direction_metrics(points, series_kind):
+    thresholds = _series_thresholds(series_kind)
+    edge_delta = _edge_delta_from_points(
+        points,
+        edge_fraction=float(SUSPICIOUS_EDGE_FRACTION),
+    )
+    trimmed_points = _trim_for_trimmed_delta(points)
+    middle_points = _middle_80_points(points)
+    trimmed_edge_delta = _edge_delta_from_points(
+        trimmed_points,
+        edge_fraction=float(SUSPICIOUS_EDGE_FRACTION),
+        min_points=4,
+    )
+    middle_80_delta = _edge_delta_from_points(
+        middle_points,
+        edge_fraction=float(SUSPICIOUS_EDGE_FRACTION),
+        min_points=4,
+    )
+    weighted_slope = _weighted_slope(points)
+    spearman = _spearman(points)
+
+    directions = {
+        "edge_delta": _direction_with_threshold(edge_delta, thresholds["delta"]),
+        "trimmed_edge_delta": _direction_with_threshold(
+            trimmed_edge_delta,
+            thresholds["delta"],
+        ),
+        "middle_80_delta": _direction_with_threshold(
+            middle_80_delta,
+            thresholds["delta"],
+        ),
+        "weighted_slope": _direction_with_threshold(
+            weighted_slope,
+            thresholds["slope"],
+        ),
+        "spearman": _direction_with_threshold(
+            spearman,
+            float(SUSPICIOUS_MIN_ABS_SPEARMAN),
+        ),
+    }
+    main_votes = [
+        directions["trimmed_edge_delta"],
+        directions["middle_80_delta"],
+        directions["weighted_slope"],
+        directions["spearman"],
+    ]
+    positive_votes = sum(1 for direction in main_votes if direction > 0)
+    negative_votes = sum(1 for direction in main_votes if direction < 0)
+    robust_direction = 0
+    if (
+        positive_votes >= int(SUSPICIOUS_MIN_VOTES_FOR_DIRECTION)
+        and positive_votes > negative_votes
+    ):
+        robust_direction = 1
+    elif (
+        negative_votes >= int(SUSPICIOUS_MIN_VOTES_FOR_DIRECTION)
+        and negative_votes > positive_votes
+    ):
+        robust_direction = -1
+
+    edge_outlier_warning = (
+        _opposes(directions["edge_delta"], robust_direction)
+        or _opposes(directions["edge_delta"], directions["trimmed_edge_delta"])
+        or _opposes(directions["edge_delta"], directions["weighted_slope"])
+    )
+
+    return {
+        "edge_delta": edge_delta,
+        "trimmed_edge_delta": trimmed_edge_delta,
+        "middle_80_delta": middle_80_delta,
+        "weighted_slope": weighted_slope,
+        "spearman": spearman,
+        "directions": directions,
+        "robust_direction": int(robust_direction),
+        "positive_votes": int(positive_votes),
+        "negative_votes": int(negative_votes),
+        "edge_outlier_warning": bool(edge_outlier_warning),
+    }
+
+
+def _core_vote_count(series_metrics, expected_direction):
+    directions = series_metrics.get("directions", {})
+    return sum(
+        1
+        for key in ("trimmed_edge_delta", "weighted_slope", "spearman")
+        if int(directions.get(key) or 0) == int(expected_direction)
+    )
+
+
+def _series_strength(series_metrics, series_kind):
+    thresholds = _series_thresholds(series_kind)
+    values = [
+        (
+            _abs_or_none(series_metrics.get("trimmed_edge_delta")),
+            thresholds["delta"],
+        ),
+        (
+            _abs_or_none(series_metrics.get("middle_80_delta")),
+            thresholds["delta"],
+        ),
+        (
+            _abs_or_none(series_metrics.get("weighted_slope")),
+            thresholds["slope"],
+        ),
+        (
+            _abs_or_none(series_metrics.get("spearman")),
+            float(SUSPICIOUS_MIN_ABS_SPEARMAN),
+        ),
+    ]
+    scaled = [
+        float(value) / float(threshold)
+        for value, threshold in values
+        if value is not None and threshold > 0.0
+    ]
+    return max(scaled) if scaled else 0.0
+
+
+def _series_abs_signal(series_metrics):
+    values = [
+        _abs_or_none(series_metrics.get("trimmed_edge_delta")),
+        _abs_or_none(series_metrics.get("middle_80_delta")),
+        _abs_or_none(series_metrics.get("weighted_slope")),
+    ]
+    finite_values = [float(value) for value in values if value is not None]
+    return max(finite_values) if finite_values else 0.0
+
+
+def _target_has_required_strength(target_metrics):
+    return _has_min_abs(
+        target_metrics.get("trimmed_edge_delta"),
+        SUSPICIOUS_MIN_ABS_TARGET_DELTA,
+    ) or _has_min_abs(
+        target_metrics.get("weighted_slope"),
+        SUSPICIOUS_MIN_ABS_TARGET_SLOPE,
+    )
+
+
+def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
+    target_dir = int(target_metrics["robust_direction"])
+    baseline_dir = int(baseline_metrics["robust_direction"])
+    pdp_dir = int(pdp_metrics["robust_direction"])
+
+    edge_outlier_warning = any(
+        (
+            pdp_metrics["edge_outlier_warning"],
+            baseline_metrics["edge_outlier_warning"],
+            target_metrics["edge_outlier_warning"],
+        )
+    )
+    target_strong = _target_has_required_strength(target_metrics)
+    baseline_against_target_votes = _core_vote_count(baseline_metrics, -target_dir)
+    pdp_against_target_votes = _core_vote_count(pdp_metrics, -target_dir)
+
+    if (
+        target_dir != 0
+        and target_strong
+        and baseline_dir == -target_dir
+        and pdp_dir == -target_dir
+        and not edge_outlier_warning
+        and baseline_against_target_votes >= 2
+        and pdp_against_target_votes >= 2
+    ):
+        return (
+            "robust_pdp_and_baseline_vs_target_conflict",
+            "exclude_candidate",
+            None,
+        )
+
+    if (
+        target_dir != 0
+        and baseline_dir == target_dir
+        and pdp_dir == -target_dir
+    ):
+        return (
+            "robust_pdp_vs_target_baseline_agrees_target",
+            "monotonic_constraint_candidate",
+            int(target_dir),
+        )
+
+    pdp_strength = _series_strength(pdp_metrics, "pdp")
+    target_strength = _series_strength(target_metrics, "target")
+    pdp_abs_signal = _series_abs_signal(pdp_metrics)
+    target_abs_signal = _series_abs_signal(target_metrics)
+    pdp_strong = pdp_dir != 0 and pdp_strength >= 1.0
+    target_weak = target_dir == 0 or not target_strong
+    pdp_much_stronger_than_target = (
+        pdp_strong
+        and pdp_abs_signal >= max(
+            float(SUSPICIOUS_MIN_ABS_PDP_DELTA) * 4.0,
+            target_abs_signal * 3.0,
+        )
+    )
+    any_robust_direction = any(direction != 0 for direction in (target_dir, baseline_dir, pdp_dir))
+    robust_zero_count = sum(1 for direction in (target_dir, baseline_dir, pdp_dir) if direction == 0)
+    pdp_target_conflict = target_dir != 0 and pdp_dir == -target_dir
+    baseline_target_conflict = target_dir != 0 and baseline_dir == -target_dir
+
+    if edge_outlier_warning and any_robust_direction:
+        return (
+            "edge_outlier_or_edge_metric_conflict",
+            "inspect_interactions_do_not_auto_exclude",
+            None,
+        )
+
+    if pdp_strong and (target_weak or pdp_much_stronger_than_target):
+        return (
+            "strong_pdp_weak_or_smaller_target_signal",
+            "monitor_calibration_or_ablation",
+            None,
+        )
+
+    if (
+        pdp_target_conflict
+        or baseline_target_conflict
+        or (robust_zero_count >= 2 and any_robust_direction)
+    ):
+        return (
+            "mixed_or_inconclusive_robust_directions",
+            "inspect_interactions_do_not_auto_exclude",
+            None,
+        )
+
+    return ("none", "none", None)
+
+
+def _feature_suspicion_score(pdp_metrics, baseline_metrics, target_metrics, suggested_action):
+    target_dir = int(target_metrics["robust_direction"])
+    baseline_dir = int(baseline_metrics["robust_direction"])
+    pdp_dir = int(pdp_metrics["robust_direction"])
+    target_strength = _series_strength(target_metrics, "target")
+    baseline_strength = _series_strength(baseline_metrics, "baseline")
+    pdp_strength = _series_strength(pdp_metrics, "pdp")
+
+    score = 0.0
+    score += min(target_strength, 10.0) * 5.0
+    score += min(pdp_strength, 10.0) * 4.0
+    score += min(baseline_strength, 10.0) * 2.0
+    if target_dir != 0 and pdp_dir == -target_dir:
+        score += 80.0 + (_core_vote_count(pdp_metrics, -target_dir) * 10.0)
+    if target_dir != 0 and baseline_dir == -target_dir:
+        score += 55.0 + (_core_vote_count(baseline_metrics, -target_dir) * 8.0)
+    if target_dir != 0 and baseline_dir == target_dir and pdp_dir == -target_dir:
+        score += 70.0
+    if suggested_action == "exclude_candidate":
+        score += 60.0
+    elif suggested_action == "monotonic_constraint_candidate":
+        score += 45.0
+    elif suggested_action == "monitor_calibration_or_ablation":
+        score += 25.0
+    elif suggested_action == "inspect_interactions_do_not_auto_exclude":
+        score += 15.0
+
+    if any(
+        (
+            pdp_metrics["edge_outlier_warning"],
+            baseline_metrics["edge_outlier_warning"],
+            target_metrics["edge_outlier_warning"],
+        )
+    ):
+        score -= 10.0
+    return max(0.0, float(score))
+
+
+def _compact_metric(value):
+    return _compact_number(value)
 
 
 def build_feature_suspicion_diagnostics(feature_summary):
     one_way = feature_summary.get("one_way", {})
     observed_bins = feature_summary.get("observed_bins", [])
 
-    delta_pdp = calculate_edge_delta(
-        one_way.get("grid", []),
-        "feature_value",
-        "mean_pred",
+    pdp_metrics = _build_direction_metrics(
+        _series_points(one_way.get("grid", []), "feature_value", "mean_pred"),
+        "pdp",
     )
-    delta_baseline = calculate_edge_delta(
-        observed_bins,
-        "feature_mean",
-        "baseline_pred_mean",
-        weight_key="weight_sum",
+    baseline_metrics = _build_direction_metrics(
+        _series_points(
+            observed_bins,
+            "feature_center",
+            "baseline_pred_mean",
+            weight_key="row_count",
+        ),
+        "baseline",
     )
-    delta_target = calculate_edge_delta(
-        observed_bins,
-        "feature_mean",
-        "target_rate",
-        weight_key="weight_sum",
-        require_positive_target_count=True,
-    )
-
-    abs_delta_pdp = _abs_or_none(delta_pdp)
-    abs_delta_baseline = _abs_or_none(delta_baseline)
-    abs_delta_target = _abs_or_none(delta_target)
-
-    pdp_direction = _direction(delta_pdp)
-    baseline_direction = _direction(delta_baseline)
-    target_direction = _direction(delta_target)
-
-    pdp_target_opposite = (
-        pdp_direction != 0
-        and target_direction != 0
-        and pdp_direction == -target_direction
-    )
-    pdp_baseline_same_target_opposite = (
-        pdp_direction != 0
-        and baseline_direction == pdp_direction
-        and target_direction == -pdp_direction
-    )
-    baseline_target_opposite = (
-        baseline_direction != 0
-        and target_direction != 0
-        and baseline_direction == -target_direction
+    target_metrics = _build_direction_metrics(
+        _series_points(
+            observed_bins,
+            "feature_center",
+            "target_rate",
+            weight_key="row_count",
+            require_positive_target_count=True,
+        ),
+        "target",
     )
 
-    pdp_has_amplitude = _has_min_abs(delta_pdp, SUSPICIOUS_MIN_ABS_PDP_DELTA)
-    baseline_has_amplitude = _has_min_abs(
-        delta_baseline,
-        SUSPICIOUS_MIN_ABS_BASELINE_DELTA,
+    category, suggested_action, monotonic_constraint = _classify_suspicious_feature(
+        pdp_metrics,
+        baseline_metrics,
+        target_metrics,
     )
-    target_has_amplitude = _has_min_abs(
-        delta_target,
-        SUSPICIOUS_MIN_ABS_TARGET_DELTA,
+    suspicion_score = _feature_suspicion_score(
+        pdp_metrics,
+        baseline_metrics,
+        target_metrics,
+        suggested_action,
     )
-    pdp_is_flat = (
-        abs_delta_pdp is not None
-        and abs_delta_pdp <= float(SUSPICIOUS_FLAT_PDP_DELTA)
+    target_dir = int(target_metrics["robust_direction"])
+    baseline_dir = int(baseline_metrics["robust_direction"])
+    pdp_dir = int(pdp_metrics["robust_direction"])
+    edge_outlier_warning = any(
+        (
+            pdp_metrics["edge_outlier_warning"],
+            baseline_metrics["edge_outlier_warning"],
+            target_metrics["edge_outlier_warning"],
+        )
+    )
+    edge_conflicts_with_robust = any(
+        _opposes(
+            metrics["directions"].get("edge_delta", 0),
+            metrics.get("robust_direction", 0),
+        )
+        for metrics in (pdp_metrics, baseline_metrics, target_metrics)
     )
 
-    if (
-        pdp_has_amplitude
-        and baseline_has_amplitude
-        and target_has_amplitude
-        and pdp_baseline_same_target_opposite
-    ):
-        category = "pdp_and_baseline_vs_target_opposite"
-    elif pdp_has_amplitude and target_has_amplitude and pdp_target_opposite:
-        category = "pdp_vs_target_opposite"
-    elif (
-        pdp_is_flat
-        and baseline_has_amplitude
-        and target_has_amplitude
-        and baseline_target_opposite
-    ):
-        category = "flat_pdp_strong_baseline_mismatch"
-    elif pdp_has_amplitude and not target_has_amplitude:
-        category = "overconfident_pdp_weak_target"
-    else:
-        category = "ok_or_unclear"
-
-    suggested_actions = {
-        "pdp_vs_target_opposite": "exclude_or_monotonic_constraint_candidate",
-        "pdp_and_baseline_vs_target_opposite": "exclude_candidate",
-        "flat_pdp_strong_baseline_mismatch": "inspect_interactions_do_not_auto_exclude",
-        "overconfident_pdp_weak_target": "monitor_calibration_or_ablation",
-        "ok_or_unclear": "none",
-    }
-
-    suspicion_score = (
-        _number_or_zero(abs_delta_pdp) * 10000.0
-        + _number_or_zero(abs_delta_target) * 5000.0
-        + _number_or_zero(abs_delta_baseline) * 2000.0
-    )
-    if pdp_is_flat and baseline_target_opposite:
-        suspicion_score += 20.0
-    else:
-        if pdp_target_opposite:
-            suspicion_score += 100.0
-        if pdp_baseline_same_target_opposite:
-            suspicion_score += 50.0
-
-    return {
+    row = {
         "feature": feature_summary.get("feature"),
         "plot": Path(feature_summary.get("plot_path") or "").name,
-        "delta_pdp": delta_pdp,
-        "delta_baseline": delta_baseline,
-        "delta_target": delta_target,
-        "abs_delta_pdp": abs_delta_pdp,
-        "abs_delta_baseline": abs_delta_baseline,
-        "abs_delta_target": abs_delta_target,
-        "pdp_direction": int(pdp_direction),
-        "baseline_direction": int(baseline_direction),
-        "target_direction": int(target_direction),
         "category": category,
-        "suspicion_score": float(suspicion_score),
-        "suggested_action": suggested_actions[category],
+        "suggested_action": suggested_action,
+        "suspicion_score": _compact_metric(suspicion_score),
+        "target_dir": target_dir,
+        "baseline_dir": baseline_dir,
+        "pdp_dir": pdp_dir,
+        "edge_delta_target": _compact_metric(target_metrics["edge_delta"]),
+        "edge_delta_baseline": _compact_metric(baseline_metrics["edge_delta"]),
+        "edge_delta_pdp": _compact_metric(pdp_metrics["edge_delta"]),
+        "trimmed_delta_target": _compact_metric(target_metrics["trimmed_edge_delta"]),
+        "trimmed_delta_baseline": _compact_metric(
+            baseline_metrics["trimmed_edge_delta"]
+        ),
+        "trimmed_delta_pdp": _compact_metric(pdp_metrics["trimmed_edge_delta"]),
+        "middle_80_delta_target": _compact_metric(target_metrics["middle_80_delta"]),
+        "middle_80_delta_baseline": _compact_metric(
+            baseline_metrics["middle_80_delta"]
+        ),
+        "middle_80_delta_pdp": _compact_metric(pdp_metrics["middle_80_delta"]),
+        "slope_target": _compact_metric(target_metrics["weighted_slope"]),
+        "slope_baseline": _compact_metric(baseline_metrics["weighted_slope"]),
+        "slope_pdp": _compact_metric(pdp_metrics["weighted_slope"]),
+        "spearman_target": _compact_metric(target_metrics["spearman"]),
+        "spearman_baseline": _compact_metric(baseline_metrics["spearman"]),
+        "spearman_pdp": _compact_metric(pdp_metrics["spearman"]),
+        "edge_outlier_warning": bool(edge_outlier_warning),
+        "baseline_target_direction_agree": (
+            target_dir != 0 and baseline_dir == target_dir
+        ),
+        "pdp_target_direction_agree": target_dir != 0 and pdp_dir == target_dir,
+        "edge_conflicts_with_robust": bool(edge_conflicts_with_robust),
     }
-
-
-def _is_very_strong_pdp_target_opposite(diagnostics):
-    return (
-        diagnostics.get("category") == "pdp_vs_target_opposite"
-        and _number_or_zero(diagnostics.get("abs_delta_pdp"))
-        >= float(SUSPICIOUS_MIN_ABS_PDP_DELTA) * 2.0
-        and _number_or_zero(diagnostics.get("abs_delta_target"))
-        >= float(SUSPICIOUS_MIN_ABS_TARGET_DELTA) * 2.0
-    )
+    if monotonic_constraint is not None:
+        row["monotonic_constraint"] = int(monotonic_constraint)
+    return row
 
 
 def build_suspicious_feature_report(feature_summaries):
@@ -920,7 +1295,7 @@ def build_suspicious_feature_report(feature_summaries):
         for feature_summary in feature_summaries
     ]
     suspicious = [
-        row for row in diagnostics if row["category"] != "ok_or_unclear"
+        row for row in diagnostics if row["suggested_action"] != "none"
     ]
     suspicious.sort(
         key=lambda row: (
@@ -928,46 +1303,50 @@ def build_suspicious_feature_report(feature_summaries):
             str(row.get("feature") or ""),
         )
     )
-    top = suspicious[: int(SUSPICIOUS_TOP_N)]
+    ranked_features = suspicious[: int(SUSPICIOUS_TOP_N)]
 
     excluded_feature_names_candidate = []
     monotonic_constraint_candidates = {}
-    for row in top:
+    for row in ranked_features:
         feature = row.get("feature")
         if not feature:
             continue
-        if (
-            row.get("suggested_action") == "exclude_candidate"
-            or _is_very_strong_pdp_target_opposite(row)
-        ):
+        if row.get("suggested_action") == "exclude_candidate":
             excluded_feature_names_candidate.append(feature)
         if (
-            row.get("category") == "pdp_vs_target_opposite"
-            and int(row.get("target_direction") or 0) != 0
+            row.get("suggested_action") == "monotonic_constraint_candidate"
+            and int(row.get("monotonic_constraint") or 0) != 0
         ):
-            monotonic_constraint_candidates[feature] = int(row["target_direction"])
+            monotonic_constraint_candidates[feature] = int(row["monotonic_constraint"])
 
     return {
         "description": (
-            "Heuristic ranking of features whose PDP edge direction may conflict with "
-            "observed baseline prediction or target_rate edge direction. Review before "
-            "excluding; this report uses existing PDP grid and observed bins only."
+            "Robust ranking of features whose PDP direction may conflict with observed "
+            "baseline prediction or target_rate direction. Edge deltas are diagnostic "
+            "only; exclude_candidate requires agreement across independent robust metrics."
         ),
+        "metrics_version": "robust_direction_v1",
         "edge_fraction": float(SUSPICIOUS_EDGE_FRACTION),
         "thresholds": {
-            "min_abs_pdp_delta": float(SUSPICIOUS_MIN_ABS_PDP_DELTA),
-            "min_abs_target_delta": float(SUSPICIOUS_MIN_ABS_TARGET_DELTA),
+            "trim_bin_count": int(SUSPICIOUS_TRIM_BIN_COUNT),
+            "trim_fraction": float(SUSPICIOUS_TRIM_FRACTION),
+            "min_abs_delta": float(SUSPICIOUS_MIN_ABS_PDP_DELTA),
             "min_abs_baseline_delta": float(SUSPICIOUS_MIN_ABS_BASELINE_DELTA),
-            "flat_pdp_delta": float(SUSPICIOUS_FLAT_PDP_DELTA),
+            "min_abs_target_delta": float(SUSPICIOUS_MIN_ABS_TARGET_DELTA),
+            "min_abs_slope": float(SUSPICIOUS_MIN_ABS_PDP_SLOPE),
+            "min_abs_baseline_slope": float(SUSPICIOUS_MIN_ABS_BASELINE_SLOPE),
+            "min_abs_target_slope": float(SUSPICIOUS_MIN_ABS_TARGET_SLOPE),
+            "min_abs_spearman": float(SUSPICIOUS_MIN_ABS_SPEARMAN),
+            "min_votes_for_direction": int(SUSPICIOUS_MIN_VOTES_FOR_DIRECTION),
         },
-        "top": top,
+        "ranked_features": ranked_features,
         "excluded_feature_names_candidate": excluded_feature_names_candidate,
         "monotonic_constraint_candidates": monotonic_constraint_candidates,
     }
 
 
 def print_suspicious_feature_preview(report):
-    top = list(report.get("top", []))[:10]
+    top = list(report.get("ranked_features", []))[:10]
     print("[one-way] suspicious feature preview top 10:")
     if not top:
         print("[one-way]   no suspicious features")
@@ -976,9 +1355,9 @@ def print_suspicious_feature_preview(report):
         print(
             "[one-way]   "
             f"{idx}. {row.get('feature')} | {row.get('category')} | "
-            f"pdp={_format_delta_pp(row.get('delta_pdp'))} "
-            f"target={_format_delta_pp(row.get('delta_target'))} "
-            f"baseline={_format_delta_pp(row.get('delta_baseline'))} | "
+            f"pdp={_format_delta_pp(row.get('trimmed_delta_pdp'))} "
+            f"target={_format_delta_pp(row.get('trimmed_delta_target'))} "
+            f"baseline={_format_delta_pp(row.get('trimmed_delta_baseline'))} | "
             f"{row.get('suggested_action')}"
         )
 
@@ -1020,11 +1399,11 @@ def build_llm_summary(feature, summary):
 
     if observed.get("max_target_rate_bin") is not None:
         parts.append(
-            "W binach obserwacyjnych najwyzszy target_rate jest przy sredniej wartosci "
-            f"{_format_feature_value(observed['max_target_rate_bin']['feature_mean'])} "
+            "W binach obserwacyjnych najwyzszy target_rate jest przy srodkowej wartosci "
+            f"{_format_feature_value(observed['max_target_rate_bin']['feature_center'])} "
             f"i wynosi {_format_probability(observed['max_target_rate_bin']['target_rate'])}; "
-            "najnizszy target_rate jest przy sredniej wartosci "
-            f"{_format_feature_value(observed['min_target_rate_bin']['feature_mean'])} "
+            "najnizszy target_rate jest przy srodkowej wartosci "
+            f"{_format_feature_value(observed['min_target_rate_bin']['feature_center'])} "
             f"i wynosi {_format_probability(observed['min_target_rate_bin']['target_rate'])}."
         )
     else:
@@ -1061,10 +1440,24 @@ def _padded_limits(min_value, max_value, *, pad_fraction):
     return (float(min_value - pad), float(max_value + pad))
 
 
-def build_plot_x_axis(feature_values, grid_values):
+def build_plot_x_axis(feature_values, grid_values, observed_bins=None, target_loess=None):
     finite_values = _finite_float_values(feature_values)
     finite_grid = _finite_float_values(grid_values)
-    if finite_values.size == 0:
+    axis_parts = [finite_grid]
+    if observed_bins:
+        axis_parts.append(
+            _finite_float_values([row.get("feature_center") for row in observed_bins])
+        )
+    if target_loess:
+        axis_parts.append(
+            _finite_float_values([row.get("feature_value") for row in target_loess])
+        )
+    finite_axis_values = (
+        np.concatenate([part for part in axis_parts if part.size > 0])
+        if any(part.size > 0 for part in axis_parts)
+        else finite_values
+    )
+    if finite_axis_values.size == 0:
         return {
             "mode": "empty",
             "zoomed": False,
@@ -1072,17 +1465,21 @@ def build_plot_x_axis(feature_values, grid_values):
             "visible_max": None,
             "full_min": None,
             "full_max": None,
+            "raw_feature_min": None,
+            "raw_feature_max": None,
             "clipped_sample_rows": 0,
             "clipped_sample_ratio": 0.0,
             "clipped_grid_points": 0,
         }
 
-    full_min = float(np.min(finite_values))
-    full_max = float(np.max(finite_values))
+    full_min = float(np.min(finite_axis_values))
+    full_max = float(np.max(finite_axis_values))
+    raw_min = float(np.min(finite_values)) if finite_values.size > 0 else None
+    raw_max = float(np.max(finite_values)) if finite_values.size > 0 else None
     full_limits = _padded_limits(full_min, full_max, pad_fraction=0.04)
     if (
         PLOT_X_AXIS_MODE == "full"
-        or finite_values.size < int(PLOT_X_MIN_FINITE_ROWS)
+        or finite_axis_values.size < int(PLOT_X_MIN_FINITE_ROWS)
         or full_limits is None
     ):
         return {
@@ -1092,6 +1489,8 @@ def build_plot_x_axis(feature_values, grid_values):
             "visible_max": full_limits[1] if full_limits else full_max,
             "full_min": full_min,
             "full_max": full_max,
+            "raw_feature_min": raw_min,
+            "raw_feature_max": raw_max,
             "clipped_sample_rows": 0,
             "clipped_sample_ratio": 0.0,
             "clipped_grid_points": 0,
@@ -1103,9 +1502,13 @@ def build_plot_x_axis(feature_values, grid_values):
     if not (0.0 <= q_low < q_high <= 1.0):
         raise ValueError("PLOT_X_VISIBLE_QUANTILES must satisfy 0 <= low < high <= 1.")
 
-    visible_min = float(np.quantile(finite_values, q_low))
-    visible_max = float(np.quantile(finite_values, q_high))
-    clipped_mask = (finite_values < visible_min) | (finite_values > visible_max)
+    visible_min = float(np.quantile(finite_axis_values, q_low))
+    visible_max = float(np.quantile(finite_axis_values, q_high))
+    clipped_mask = (
+        (finite_values < visible_min) | (finite_values > visible_max)
+        if finite_values.size > 0
+        else np.array([], dtype=bool)
+    )
     clipped_sample_rows = int(np.count_nonzero(clipped_mask))
     clipped_grid_points = int(
         np.count_nonzero((finite_grid < visible_min) | (finite_grid > visible_max))
@@ -1127,6 +1530,8 @@ def build_plot_x_axis(feature_values, grid_values):
             "visible_max": full_limits[1],
             "full_min": full_min,
             "full_max": full_max,
+            "raw_feature_min": raw_min,
+            "raw_feature_max": raw_max,
             "clipped_sample_rows": 0,
             "clipped_sample_ratio": 0.0,
             "clipped_grid_points": 0,
@@ -1146,8 +1551,14 @@ def build_plot_x_axis(feature_values, grid_values):
         "central_quantiles": [q_low, q_high],
         "full_min": full_min,
         "full_max": full_max,
+        "raw_feature_min": raw_min,
+        "raw_feature_max": raw_max,
         "clipped_sample_rows": clipped_sample_rows,
-        "clipped_sample_ratio": float(clipped_sample_rows / finite_values.size),
+        "clipped_sample_ratio": (
+            float(clipped_sample_rows / finite_values.size)
+            if finite_values.size > 0
+            else 0.0
+        ),
         "clipped_grid_points": clipped_grid_points,
     }
 
@@ -1182,6 +1593,99 @@ def _set_probability_axis_limits(ax, values, *, pad, clamp=True):
         y_max = min(1.0, y_max)
     if y_max > y_min:
         ax.set_ylim(y_min, y_max)
+
+
+def build_target_loess(observed_bins):
+    target_bins = [
+        row
+        for row in observed_bins
+        if row.get("target_rate") is not None and int(row.get("target_count") or 0) > 0
+    ]
+    if len(target_bins) < 3:
+        return []
+
+    x = np.asarray([row["feature_center"] for row in target_bins], dtype=np.float64)
+    y = np.asarray([row["target_rate"] for row in target_bins], dtype=np.float64)
+    weights = np.asarray([row["target_count"] for row in target_bins], dtype=np.float64)
+    mask = np.isfinite(x) & np.isfinite(y) & np.isfinite(weights) & (weights > 0.0)
+    if np.count_nonzero(mask) < 3:
+        return []
+
+    x = x[mask]
+    y = y[mask]
+    weights = weights[mask]
+    order = np.argsort(x, kind="mergesort")
+    x = x[order]
+    y = y[order]
+    weights = weights[order]
+    if np.unique(x).size < 2:
+        return []
+
+    n_points = int(x.size)
+    span_count = max(
+        int(math.ceil(n_points * float(TARGET_LOESS_FRAC))),
+        int(TARGET_LOESS_MIN_POINTS),
+        3,
+    )
+    span_count = min(span_count, n_points)
+    z_value = float(TARGET_LOESS_CONFIDENCE_Z)
+    rows = []
+    for x0 in x:
+        distances = np.abs(x - x0)
+        nearest = np.argsort(distances, kind="mergesort")[:span_count]
+        bandwidth = float(np.max(distances[nearest]))
+        if bandwidth > 0.0:
+            scaled = np.clip(distances[nearest] / bandwidth, 0.0, 1.0)
+            local_weights = weights[nearest] * ((1.0 - scaled**3) ** 3)
+        else:
+            local_weights = weights[nearest].copy()
+
+        local_mask = np.isfinite(local_weights) & (local_weights > 0.0)
+        local_x = x[nearest][local_mask] - float(x0)
+        local_y = y[nearest][local_mask]
+        local_weights = local_weights[local_mask]
+        if local_y.size < 2:
+            continue
+
+        design = np.column_stack([np.ones(local_x.size), local_x])
+        sqrt_weights = np.sqrt(local_weights)
+        if np.unique(local_x).size >= 2:
+            weighted_design = design * sqrt_weights[:, None]
+            weighted_y = local_y * sqrt_weights
+            beta = np.linalg.lstsq(weighted_design, weighted_y, rcond=None)[0]
+            y_hat = float(beta[0])
+            residuals = local_y - (design @ beta)
+            xtwx = design.T @ (local_weights[:, None] * design)
+            covariance_scale = float(np.linalg.pinv(xtwx)[0, 0])
+            dof_offset = 2.0
+        else:
+            y_hat = float(np.average(local_y, weights=local_weights))
+            residuals = local_y - y_hat
+            covariance_scale = 1.0 / float(np.sum(local_weights))
+            dof_offset = 1.0
+
+        weight_sum = float(np.sum(local_weights))
+        weight_square_sum = float(np.sum(local_weights * local_weights))
+        effective_n = (
+            (weight_sum * weight_sum) / weight_square_sum
+            if weight_square_sum > 0.0
+            else 1.0
+        )
+        dof = max(effective_n - dof_offset, 1.0)
+        sigma2 = float(np.sum(local_weights * residuals * residuals) / dof)
+        se = math.sqrt(max(sigma2 * covariance_scale, 0.0))
+        loess_value = float(np.clip(y_hat, 0.0, 1.0))
+        ci_low = max(0.0, min(loess_value, y_hat - (z_value * se)))
+        ci_high = min(1.0, max(loess_value, y_hat + (z_value * se)))
+        rows.append(
+            {
+                "feature_value": float(x0),
+                "target_loess": loess_value,
+                "ci_low": float(ci_low),
+                "ci_high": float(ci_high),
+            }
+        )
+    return rows
 
 
 def plot_feature_one_way(feature, feature_summary, plot_path):
@@ -1222,7 +1726,7 @@ def plot_feature_one_way(feature, feature_summary, plot_path):
     target_axis = None
     visible_target_y = []
     if observed_bins:
-        bin_x = [row["feature_mean"] for row in observed_bins]
+        bin_x = [row["feature_center"] for row in observed_bins]
         bin_pred = [row["baseline_pred_mean"] for row in observed_bins]
         visible_bin_x, visible_bin_pred_y = _filter_xy_for_xlim(
             bin_x,
@@ -1246,7 +1750,7 @@ def plot_feature_one_way(feature, feature_summary, plot_path):
         target_bins = [row for row in observed_bins if row["target_rate"] is not None]
         if target_bins:
             target_x, target_y = _filter_xy_for_xlim(
-                [row["feature_mean"] for row in target_bins],
+                [row["feature_center"] for row in target_bins],
                 [row["target_rate"] for row in target_bins],
                 x_axis,
             )
@@ -1273,6 +1777,70 @@ def plot_feature_one_way(feature, feature_summary, plot_path):
                 visible_target_y = target_y
                 lines.append(target_line)
                 labels.append(target_line.get_label())
+
+                target_loess = feature_summary.get("target_loess", [])
+                if target_loess:
+                    loess_x = np.asarray(
+                        [row["feature_value"] for row in target_loess],
+                        dtype=np.float64,
+                    )
+                    loess_y = np.asarray(
+                        [row["target_loess"] for row in target_loess],
+                        dtype=np.float64,
+                    )
+                    loess_low = np.asarray(
+                        [row["ci_low"] for row in target_loess],
+                        dtype=np.float64,
+                    )
+                    loess_high = np.asarray(
+                        [row["ci_high"] for row in target_loess],
+                        dtype=np.float64,
+                    )
+                    loess_mask = (
+                        np.isfinite(loess_x)
+                        & np.isfinite(loess_y)
+                        & np.isfinite(loess_low)
+                        & np.isfinite(loess_high)
+                    )
+                    if x_axis.get("zoomed"):
+                        loess_mask = (
+                            loess_mask
+                            & (loess_x >= float(x_axis["visible_min"]))
+                            & (loess_x <= float(x_axis["visible_max"]))
+                        )
+                    if np.any(loess_mask):
+                        loess_x = loess_x[loess_mask]
+                        loess_y = loess_y[loess_mask]
+                        loess_low = loess_low[loess_mask]
+                        loess_high = loess_high[loess_mask]
+                        ci_band = target_plot_axis.fill_between(
+                            loess_x,
+                            loess_low,
+                            loess_high,
+                            color=PLOT_COLORS["target_rate"],
+                            alpha=0.10,
+                            linewidth=0.0,
+                            label="target LOESS 95% CI",
+                        )
+                        (loess_line,) = target_plot_axis.plot(
+                            loess_x,
+                            loess_y,
+                            color=PLOT_COLORS["target_rate"],
+                            linestyle="--",
+                            linewidth=2.0,
+                            alpha=0.72,
+                            label="target LOESS",
+                        )
+                        visible_target_y = [
+                            *visible_target_y,
+                            *loess_y.tolist(),
+                            *loess_low.tolist(),
+                            *loess_high.tolist(),
+                        ]
+                        lines.append(ci_band)
+                        labels.append(ci_band.get_label())
+                        lines.append(loess_line)
+                        labels.append(loess_line.get_label())
 
     primary_y = [
         *visible_grid_y,
@@ -1371,6 +1939,7 @@ def analyze_feature(
         weights,
         bin_count=bin_count,
     )
+    target_loess = build_target_loess(observed_bins)
 
     pdp_values = np.asarray([row["mean_pred"] for row in grid_rows], dtype=np.float64)
     direction = classify_curve(grid_values, pdp_values)
@@ -1421,6 +1990,7 @@ def analyze_feature(
         },
         "one_way": {
             "method": "partial_dependence_replace_one_feature_weighted_average",
+            "grid_method": "equal_count_group_median_feature_values",
             "grid_point_count": int(len(grid_rows)),
             "baseline_pred_mean": baseline_mean,
             "min_mean_pred": min_mean_pred,
@@ -1436,8 +2006,14 @@ def analyze_feature(
         },
         "observed_bins_summary": summarize_observed_bins(observed_bins),
         "observed_bins": observed_bins,
+        "target_loess": target_loess,
         "plot_axis": {
-            "x": build_plot_x_axis(values, grid_values),
+            "x": build_plot_x_axis(
+                values,
+                grid_values,
+                observed_bins=observed_bins,
+                target_loess=target_loess,
+            ),
         },
     }
     feature_summary["llm_summary"] = build_llm_summary(feature, feature_summary)
@@ -1478,6 +2054,7 @@ def _compact_number(value):
 def build_compact_feature_summary(feature_summary):
     one_way = feature_summary["one_way"]
     observed_bins = feature_summary["observed_bins"]
+    target_loess = feature_summary.get("target_loess", [])
     x_axis = feature_summary.get("plot_axis", {}).get("x", {})
 
     return {
@@ -1503,6 +2080,7 @@ def build_compact_feature_summary(feature_summary):
             [
                 _compact_number(row["feature_left"]),
                 _compact_number(row["feature_right"]),
+                _compact_number(row["feature_center"]),
                 _compact_number(row["feature_mean"]),
                 _compact_number(row["baseline_pred_mean"]),
                 _compact_number(row["target_rate"]),
@@ -1510,6 +2088,15 @@ def build_compact_feature_summary(feature_summary):
                 int(row["target_count"]),
             ]
             for row in observed_bins
+        ],
+        "target_loess": [
+            [
+                _compact_number(row["feature_value"]),
+                _compact_number(row["target_loess"]),
+                _compact_number(row["ci_low"]),
+                _compact_number(row["ci_high"]),
+            ]
+            for row in target_loess
         ],
     }
 
@@ -1530,12 +2117,18 @@ def validate_settings():
         raise ValueError("PLOT_X_AXIS_MODE must be 'central_quantile' or 'full'.")
     if not isinstance(PLOT_TARGET_RATE_SECONDARY_AXIS, bool):
         raise ValueError("PLOT_TARGET_RATE_SECONDARY_AXIS must be a boolean.")
+    if not (0.0 < float(TARGET_LOESS_FRAC) <= 1.0):
+        raise ValueError("TARGET_LOESS_FRAC must satisfy 0 < frac <= 1.")
+    if int(TARGET_LOESS_MIN_POINTS) < 3:
+        raise ValueError("TARGET_LOESS_MIN_POINTS must be >= 3.")
+    if float(TARGET_LOESS_CONFIDENCE_Z) <= 0.0:
+        raise ValueError("TARGET_LOESS_CONFIDENCE_Z must be > 0.")
 
 
 def main():
     validate_settings()
     run_timestamp = make_utc_run_timestamp()
-    artifact = resolve_model_artifact(MODEL_ARTIFACT_PATH)
+    artifact = resolve_model_artifact(resolve_configured_model_artifact_path())
     booster = lgb.Booster(model_file=str(artifact["model_path"]))
     meta = artifact["meta"]
     data_path = resolve_data_path(meta)
@@ -1636,14 +2229,15 @@ def main():
             "plot": "png_file_under_plots_dir",
             "base": "sample_baseline_avg_model_probability",
             "x": "plot_x_axis_metadata",
-            "pdp": "PDP_avg_model_probability",
+            "pdp": "PDP_avg_model_probability_at_equal_count_group_medians",
             "bins": "baseline_pred_by_bin_and_target_rate_by_bin",
-            "delta_pdp": "top-edge PDP mean minus bottom-edge PDP mean",
-            "delta_baseline": (
+            "target_loess": "LOESS_target_rate_with_approx_95pct_confidence_interval",
+            "edge_delta_pdp": "top-edge PDP mean minus bottom-edge PDP mean",
+            "edge_delta_baseline": (
                 "top-edge observed baseline prediction minus bottom-edge observed "
                 "baseline prediction"
             ),
-            "delta_target": "top-edge target_rate minus bottom-edge target_rate",
+            "edge_delta_target": "top-edge target_rate minus bottom-edge target_rate",
         },
         "cols": {
             "x": [
@@ -1655,9 +2249,16 @@ def main():
                 "hidden_pdp_points",
             ],
             "pdp": ["feature_value", "model_probability"],
+            "target_loess": [
+                "feature_value",
+                "target_loess",
+                "ci_low",
+                "ci_high",
+            ],
             "bins": [
                 "feature_left",
                 "feature_right",
+                "feature_center",
                 "feature_mean",
                 "model_probability",
                 "target_rate",

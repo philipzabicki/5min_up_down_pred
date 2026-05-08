@@ -15,7 +15,11 @@ from sklearn.metrics import (
 
 from features.candle_features import CANDLE_PATTERN_COLS, RAW_OHLCV_COLS
 from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
-from metrics_utils import make_sklearn_binary_brier_eval, weighted_brier_score
+from metrics_utils import (
+    make_sklearn_binary_balanced_accuracy_eval,
+    make_sklearn_binary_brier_eval,
+    weighted_brier_score,
+)
 from target_weights import (
     TARGET_WEIGHT_COL,
     compute_target_weights_from_opened,
@@ -45,9 +49,9 @@ FALLBACK_TO_UNIT_WEIGHTS = False
 MIN_SAMPLE_WEIGHT = 0.4625
 
 RANKING_N_SPLITS = 10
-PERMUTATION_N_SPLITS = 5
+PERMUTATION_N_SPLITS = 10
 TOPK_N_SPLITS = 10
-WF_TEST_TO_TRAIN_RATIO = 0.1
+WF_TEST_TO_TRAIN_RATIO = 0.2
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
@@ -57,19 +61,21 @@ LGBM_DEVICE_TYPE = "gpu"
 LGBM_MAX_BIN = 63
 LGBM_GPU_USE_DP = False
 MODEL_PARAMS = {
-    "learning_rate": 0.05,
+    "objective": "binary",
+    "metric": "None",
+    "learning_rate": 0.025,
     "num_leaves": 63,
     "max_depth": 6,
-    "min_data_in_leaf": 128,
-    "feature_fraction": 1.0,
-    "bagging_fraction": 1.0,
-    "bagging_freq": 0,
-    "lambda_l2": 5.0,
-    "lambda_l1": 0.0,
-    "min_sum_hessian_in_leaf": 0.001,
-    "min_gain_to_split": 0.0,
-    "feature_fraction_bynode": 1.0,
-    "path_smooth": 0.0,
+    "min_data_in_leaf": 512,
+    "feature_fraction": 0.65,
+    "bagging_fraction": 0.85,
+    "bagging_freq": 1,
+    "lambda_l2": 15.0,
+    "lambda_l1": 2.0,
+    "min_sum_hessian_in_leaf": 0.05,
+    "min_gain_to_split": 0.03,
+    "feature_fraction_bynode": 0.75,
+    "path_smooth": 3.0,
     "extra_trees": False,
     "n_jobs": 16,
     "verbosity": -1,
@@ -77,8 +83,8 @@ MODEL_PARAMS = {
     "max_bin": LGBM_MAX_BIN,
     "gpu_use_dp": LGBM_GPU_USE_DP,
 }
-N_ESTIMATORS = 300
-EARLY_STOPPING_ROUNDS = 40
+N_ESTIMATORS = 1200
+EARLY_STOPPING_ROUNDS = 100
 RANDOM_SEEDS = [37]
 
 SCORER = {
@@ -101,7 +107,7 @@ REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 6
-PERMUTATION_FEATURE_FRACTION = 0.666
+PERMUTATION_FEATURE_FRACTION = 0.6
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
 PERMUTATION_N_REPEATS = 3
@@ -931,7 +937,12 @@ def make_estimator(seed):
 
 
 def resolve_eval_metric():
-    return make_sklearn_binary_brier_eval("brier_score")
+    metric_name = str(SCORER["name"]).strip().lower().replace("-", "_")
+    if metric_name in {"balanced_accuracy", "balanced_acc"}:
+        return make_sklearn_binary_balanced_accuracy_eval("balanced_accuracy")
+    if metric_name in {"brier_score", "brier"}:
+        return make_sklearn_binary_brier_eval("brier_score")
+    raise ValueError(f"Unsupported early stopping metric: {SCORER['name']}")
 
 
 def fit_model(
@@ -954,6 +965,7 @@ def fit_model(
         callbacks.append(
             lgb.early_stopping(
                 stopping_rounds=int(EARLY_STOPPING_ROUNDS),
+                first_metric_only=True,
                 verbose=False,
             )
         )

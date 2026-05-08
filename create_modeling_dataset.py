@@ -28,6 +28,11 @@ from target_weights import (
 )
 
 from features.ADX import get_adx_values
+from features.basis_premium_features import (
+    add_basis_premium_features,
+    basis_premium_feature_columns,
+    resolve_futures_close_col,
+)
 from features.BollingerBands import get_bollinger_bands_values
 from features.ChaikinOsc import get_chaikin_oscillator_values
 from features.candle_features import (
@@ -35,6 +40,7 @@ from features.candle_features import (
     add_candle_streak_features,
     resolve_streak_interval_to_rule,
 )
+from features.feature_intervals import FEATURE_INTERVAL_TO_RULE, resolve_feature_intervals
 from features.KeltnerChannel import get_keltner_channel_values
 from features.MACD import get_macd_values
 from features.realized_volatility import (
@@ -110,6 +116,85 @@ def require_columns(df, required):
     missing = [col for col in required if col not in df.columns]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
+
+
+_AUX_PRICE_MARKER_RE = re.compile(r"(^|[^a-z0-9])(um|index|reference)([^a-z0-9]|$)")
+_AUX_PRICE_TOKEN_RE = re.compile(r"(^|[^a-z0-9])(open|high|low|close)([^a-z0-9]|$)")
+
+
+def _basis_config(settings):
+    cfg = dict(settings.get("basis_premium_features") or {})
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "intervals": cfg.get("intervals", "feature_intervals"),
+        "index_close_col": str(cfg.get("index_close_col", "Close") or "Close").strip(),
+        "futures_close_col": str(cfg.get("futures_close_col", "") or "").strip(),
+        "eps": float(cfg.get("eps", 1e-12)),
+    }
+
+
+def _resolve_basis_intervals(cfg, feature_intervals):
+    raw_intervals = cfg.get("intervals", "feature_intervals")
+    if str(raw_intervals).strip() == "feature_intervals":
+        return tuple(feature_intervals)
+    if isinstance(raw_intervals, list):
+        selected = []
+        seen = set()
+        unsupported = []
+        for raw_interval in raw_intervals:
+            interval = str(raw_interval).strip()
+            if not interval or interval not in FEATURE_INTERVAL_TO_RULE:
+                unsupported.append(interval)
+                continue
+            if interval in seen:
+                continue
+            selected.append(interval)
+            seen.add(interval)
+        if unsupported or not selected:
+            supported = ", ".join(FEATURE_INTERVAL_TO_RULE.keys())
+            raise ValueError(
+                "Unsupported basis_premium_features.intervals values. "
+                f"Invalid={unsupported} Supported: {supported}"
+            )
+        return tuple(selected)
+    raise ValueError(
+        "basis_premium_features.intervals must be 'feature_intervals' or a list "
+        "of supported feature interval labels."
+    )
+
+
+def _has_auxiliary_price_marker(column_name):
+    lower = str(column_name).strip().lower()
+    return (
+        "futures" in lower
+        or "future" in lower
+        or "btcusdt" in lower
+        or bool(_AUX_PRICE_MARKER_RE.search(lower))
+    )
+
+
+def _is_auxiliary_price_col(column_name):
+    lower = str(column_name).strip().lower()
+    if not _has_auxiliary_price_marker(column_name):
+        return False
+    return bool(_AUX_PRICE_TOKEN_RE.search(lower)) or any(
+        lower.endswith(token) for token in ("open", "high", "low", "close")
+    )
+
+
+def _basis_auxiliary_raw_columns(df, *, index_close_col, futures_close_col):
+    canonical_raw_cols = {TARGET_TIME_COL, "Open", "High", "Low", "Close", "Volume"}
+    protected = set(canonical_raw_cols)
+    auxiliary_cols = []
+    for col in (index_close_col, futures_close_col):
+        if col and col in df.columns and col not in protected:
+            auxiliary_cols.append(col)
+    for col in df.columns:
+        if col in protected or col in auxiliary_cols:
+            continue
+        if _is_auxiliary_price_col(col):
+            auxiliary_cols.append(col)
+    return tuple(dict.fromkeys(auxiliary_cols))
 
 
 def concat_feature_frame(df, feature_frame, context):
@@ -429,6 +514,15 @@ def build_dataset_from_settings(settings):
     fit_results_dir = Path(settings["fit_results_dir"])
     base_data_file = str(settings["base_data_file"])
     streak_interval_lag_counts = dict(settings["candle_streak_intervals"])
+    feature_intervals = resolve_feature_intervals(settings)
+    feature_interval_to_rule = {
+        interval: FEATURE_INTERVAL_TO_RULE[interval] for interval in feature_intervals
+    }
+    basis_cfg = _basis_config(settings)
+    basis_intervals = _resolve_basis_intervals(basis_cfg, feature_intervals)
+    basis_interval_to_rule = {
+        interval: feature_interval_to_rule[interval] for interval in basis_intervals
+    }
     feature_subset = load_feature_subset_from_settings(settings)
     excluded_features = load_excluded_feature_names_from_settings(settings)
     excluded_feature_names = (
@@ -447,6 +541,8 @@ def build_dataset_from_settings(settings):
     vp_normalized_cfg = normalize_volume_profile_config(vp_cfg)
     vp_enabled = bool(vp_normalized_cfg["enabled"])
     vp_feature_cols = tuple(vp_normalized_cfg["feature_columns"])
+    basis_enabled = bool(basis_cfg["enabled"])
+    configured_basis_feature_cols = basis_premium_feature_columns(basis_intervals)
     float_dtype = resolve_modeling_float_dtype(settings)
     float_dtype_name = resolve_modeling_float_dtype_name(settings)
     drop_frozen_ohlc_blocks_cfg = settings.get("drop_frozen_ohlc_blocks")
@@ -474,6 +570,36 @@ def build_dataset_from_settings(settings):
                 "Feature subset references unsupported volume profile features. "
                 f"Missing_count={len(missing_vp_features)} preview=[{preview}]"
             )
+    selected_basis_feature_cols = (
+        feature_subset_parts["basis_premium_feature_cols"]
+        if feature_subset_parts
+        else None
+    )
+    if selected_basis_feature_cols:
+        if not basis_enabled:
+            raise ValueError(
+                "Feature subset references futures/index basis premium features but "
+                "basis_premium_features.enabled is false."
+            )
+        missing_basis_features = [
+            col
+            for col in selected_basis_feature_cols
+            if col not in set(configured_basis_feature_cols)
+        ]
+        if missing_basis_features:
+            preview = ", ".join(missing_basis_features[:10])
+            raise ValueError(
+                "Feature subset references unsupported basis premium features. "
+                f"Missing_count={len(missing_basis_features)} preview=[{preview}]"
+            )
+    if basis_enabled:
+        basis_feature_cols = (
+            configured_basis_feature_cols
+            if selected_basis_feature_cols is None
+            else tuple(selected_basis_feature_cols)
+        )
+    else:
+        basis_feature_cols = tuple()
 
     configured_streak_interval_to_rule = resolve_streak_interval_to_rule(
         streak_interval_lag_counts
@@ -558,6 +684,52 @@ def build_dataset_from_settings(settings):
             f"removed_blocks={drop_frozen_summary['blocks_removed']} "
             f"largest_block_len={drop_frozen_summary['largest_block_len']} "
             f"rows_after={drop_frozen_summary['rows_after']}"
+        )
+    resolved_futures_close_col = None
+    basis_auxiliary_raw_cols = tuple()
+    if basis_feature_cols:
+        resolved_futures_close_col = resolve_futures_close_col(
+            df,
+            index_close_col=basis_cfg["index_close_col"],
+            futures_close_col=basis_cfg["futures_close_col"],
+        )
+        print(
+            "basis/premium features: "
+            f"enabled={basis_enabled} "
+            f"intervals={list(basis_intervals)} "
+            f"feature_count={len(basis_feature_cols)} "
+            f"index_close_col={basis_cfg['index_close_col']} "
+            f"futures_close_col={resolved_futures_close_col}"
+        )
+        df = add_basis_premium_features(
+            df,
+            opened_col=TARGET_TIME_COL,
+            index_close_col=basis_cfg["index_close_col"],
+            futures_close_col=resolved_futures_close_col,
+            interval_to_rule=basis_interval_to_rule,
+            feature_cols=basis_feature_cols,
+            eps=basis_cfg["eps"],
+            float_dtype=float_dtype,
+        )
+        basis_auxiliary_raw_cols = _basis_auxiliary_raw_columns(
+            df,
+            index_close_col=basis_cfg["index_close_col"],
+            futures_close_col=resolved_futures_close_col,
+        )
+    else:
+        print(
+            "basis/premium features: "
+            f"enabled={basis_enabled} "
+            f"intervals={list(basis_intervals)} "
+            "feature_count=0 "
+            f"index_close_col={basis_cfg['index_close_col']} "
+            "futures_close_col="
+            f"{basis_cfg['futures_close_col'] or '(not required)'}"
+        )
+        basis_auxiliary_raw_cols = _basis_auxiliary_raw_columns(
+            df,
+            index_close_col=basis_cfg["index_close_col"],
+            futures_close_col=basis_cfg["futures_close_col"],
         )
     if streak_interval_to_rule:
         print(
@@ -652,6 +824,17 @@ def build_dataset_from_settings(settings):
         TARGET_WEIGHT_COL,
         *ohlcv_cols,
     }
+    droppable_basis_aux_cols = [
+        col
+        for col in basis_auxiliary_raw_cols
+        if col in df.columns and col not in protected_cols
+    ]
+    if droppable_basis_aux_cols:
+        df = df.drop(columns=droppable_basis_aux_cols)
+        print(
+            "dropped basis auxiliary raw columns: "
+            f"count={len(droppable_basis_aux_cols)}"
+        )
     excluded_present_cols = [col for col in excluded_feature_names if col in df.columns]
     excluded_droppable_cols = [
         col for col in excluded_present_cols if col not in protected_cols
@@ -728,6 +911,18 @@ def build_dataset_from_settings(settings):
                 "head_csv_path": str(output_head_csv),
                 "tail_csv_path": str(output_tail_csv),
                 "float_precision": float_dtype_name,
+                "feature_intervals": {"enabled": list(feature_intervals)},
+                "basis_premium_feature_columns": list(basis_feature_cols),
+                "basis_premium_features": (
+                    {
+                        **basis_cfg,
+                        "intervals": list(basis_intervals),
+                        "futures_close_col": resolved_futures_close_col
+                        or basis_cfg["futures_close_col"],
+                    }
+                    if basis_enabled
+                    else None
+                ),
                 "volume_profile_feature_version": (
                     VP_FEATURE_VERSION if vp_enabled else None
                 ),
@@ -773,6 +968,7 @@ def main():
         f"base_data_file={settings['base_data_file']} | "
         f"fit_results_dir={settings['fit_results_dir']} | "
         f"candle_streak_intervals={settings['candle_streak_intervals']} | "
+        f"feature_intervals={settings['feature_intervals']} | "
         f"drop_frozen_ohlc_blocks={settings['drop_frozen_ohlc_blocks']} | "
         f"output_suffix={settings['output_suffix']} | "
         f"preview_rows={settings['preview_rows']} | "

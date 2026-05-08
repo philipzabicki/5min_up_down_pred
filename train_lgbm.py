@@ -11,7 +11,7 @@ from features.candle_features import (
     RAW_OHLCV_COLS,
 )
 from metrics_utils import (
-    make_sklearn_binary_brier_eval,
+    make_sklearn_binary_balanced_accuracy_eval,
     weighted_brier_score,
 )
 from features.session_open_features import add_session_open_features
@@ -64,26 +64,29 @@ LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
 PREDICTION_THRESHOLD = 0.5
 LGBM_MAX_BIN = 63
-EARLY_STOPPING_METRIC = "brier_score"
-EARLY_STOPPING_EVAL_METRIC = make_sklearn_binary_brier_eval(EARLY_STOPPING_METRIC)
 PRIMARY_REPORTING_METRIC = "balanced_accuracy"
+EARLY_STOPPING_METRIC = PRIMARY_REPORTING_METRIC
+EARLY_STOPPING_EVAL_METRIC = make_sklearn_binary_balanced_accuracy_eval(
+    EARLY_STOPPING_METRIC,
+    threshold=PREDICTION_THRESHOLD,
+)
 
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.005345243845517257,
-      "num_leaves": 249,
-      "min_data_in_leaf": 1092,
-      "max_depth": 47,
-      "feature_fraction": 0.547406725512275,
-      "bagging_fraction": 0.8720848738316145,
-      "bagging_freq": 19,
-      "lambda_l2": 11.793596403657679,
-      "lambda_l1": 16.802466762568642,
-      "min_sum_hessian_in_leaf": 28.814446384235985,
-      "min_gain_to_split": 0.3523220198504663,
-      "feature_fraction_bynode": 0.5741253197885922,
-      "path_smooth": 29.535516337206555,
+      "learning_rate": 0.0047168930397256115,
+      "num_leaves": 203,
+      "min_data_in_leaf": 6,
+      "max_depth": 41,
+      "feature_fraction": 0.3535849279738236,
+      "bagging_fraction": 0.8060837855401768,
+      "bagging_freq": 10,
+      "lambda_l2": 6.467328293921802,
+      "lambda_l1": 4.930249967778666,
+      "min_sum_hessian_in_leaf": 0.014887735545909926,
+      "min_gain_to_split": 1.031237481486823,
+      "feature_fraction_bynode": 0.8821060783972539,
+      "path_smooth": 3.743686767424939,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {
@@ -190,6 +193,7 @@ def build_lgbm_model(
 ):
     params = {
         "objective": "binary",
+        "metric": "None",
         "n_estimators": n_estimators,
         "random_state": SEED,
         "n_jobs": N_JOBS,
@@ -599,6 +603,7 @@ def evaluate_walk_forward_variant(
             callbacks=[
                 lgb.early_stopping(
                     stopping_rounds=EARLY_STOPPING_ROUNDS,
+                    first_metric_only=True,
                     verbose=early_stopping_verbose,
                 )
             ],

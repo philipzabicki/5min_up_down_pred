@@ -47,7 +47,7 @@ from train_lgbm import (
 TARGET_COL = "target_5m_candle_up"
 
 CV_FOLDS = 10
-WF_TEST_TO_TRAIN_RATIO = 0.1
+WF_TEST_TO_TRAIN_RATIO = 0.2
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
@@ -218,10 +218,10 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     }
 ]
 
-N_TRIALS = 10
+N_TRIALS = 250
 TIMEOUT_SECONDS = None
-EARLY_STOPPING_METRIC = "brier_score"
 CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
+EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC
 CV_OBJECTIVE_IS_HIGHER_BETTER = True
 CV_STD_PENALTY = 0.5
 RECHECK_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
@@ -1042,10 +1042,10 @@ def make_objective(
             stratified=False,
             shuffle=False,
             feval=[
-                make_lightgbm_binary_brier_eval(EARLY_STOPPING_METRIC),
                 make_lightgbm_binary_balanced_accuracy_eval(
                     CV_OBJECTIVE_BASE_METRIC
                 ),
+                make_lightgbm_binary_brier_eval("brier_score"),
             ],
             callbacks=[
                 lgb.early_stopping(

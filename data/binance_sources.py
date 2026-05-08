@@ -9,7 +9,7 @@ import requests
 from binance_data import DataClient
 from dateutil.relativedelta import relativedelta
 
-from data.raw_ohlcv_repair import repair_raw_ohlcv_csv
+from data.raw_ohlcv_repair import repair_raw_ohlcv_csv, repair_raw_ohlcv_frame
 from project_config import DATA_DIR, DATASETS_DIR, RAW_DATASETS_DIR
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -198,21 +198,86 @@ def _uses_synthetic_volume(data_type):
     return str(data_type) in SYNTHETIC_VOLUME_DATA_TYPES
 
 
-def _merge_price_and_volume_frames(price_df, volume_df):
+def _auxiliary_ohlc_cols(market_type, ticker):
+    market = str(market_type).strip().upper()
+    symbol = str(ticker).strip().upper()
+    return {
+        "Open": f"{market}_{symbol}_Open",
+        "High": f"{market}_{symbol}_High",
+        "Low": f"{market}_{symbol}_Low",
+        "Close": f"{market}_{symbol}_Close",
+    }
+
+
+def _merge_price_and_volume_frames(price_df, volume_df, auxiliary_ohlc_cols=None):
+    auxiliary_ohlc_cols = dict(auxiliary_ohlc_cols or {})
+    volume_cols = ["Opened", "Volume"]
+    if auxiliary_ohlc_cols:
+        volume_cols.extend(auxiliary_ohlc_cols.keys())
+
+    merged = price_df.loc[:, ["Opened", "Open", "High", "Low", "Close"]].merge(
+        volume_df.loc[:, volume_cols],
+        on="Opened",
+        how="inner",
+        suffixes=("", "__volume_source"),
+    )
+    if auxiliary_ohlc_cols:
+        drop_cols = []
+        for source_col, auxiliary_col in auxiliary_ohlc_cols.items():
+            merged_col = f"{source_col}__volume_source"
+            merged[auxiliary_col] = merged[merged_col]
+            drop_cols.append(merged_col)
+        merged = merged.drop(columns=drop_cols)
+
     merged = (
-        price_df.loc[:, ["Opened", "Open", "High", "Low", "Close"]]
-        .merge(
-            volume_df.loc[:, ["Opened", "Volume"]],
-            on="Opened",
-            how="inner",
-        )
-        .drop_duplicates(subset=["Opened"], keep="last")
+        merged.drop_duplicates(subset=["Opened"], keep="last")
         .sort_values("Opened")
         .reset_index(drop=True)
     )
     if merged.empty:
         raise RuntimeError("No overlapping rows between price and volume sources.")
-    return merged.loc[:, OHLCV_COLS]
+    ordered_cols = list(OHLCV_COLS)
+    ordered_cols.extend(auxiliary_ohlc_cols.values())
+    return merged.loc[:, ordered_cols]
+
+
+def _repair_hybrid_source_frame(
+    df,
+    *,
+    interval,
+    raw_config,
+    price_decimals,
+    volume_decimals,
+    source_label,
+    artifact_csv_path=None,
+):
+    repaired_df, summary = repair_raw_ohlcv_frame(
+        df,
+        interval=interval,
+        raw_config=raw_config,
+        price_decimals=price_decimals,
+        volume_decimals=volume_decimals,
+        artifact_csv_path=artifact_csv_path,
+    )
+    print(
+        "[hybrid raw repair] "
+        f"source={source_label} "
+        f"enabled={summary['enabled']} "
+        f"missing_intervals_inserted={summary['missing_intervals_inserted']} "
+        f"gap_blocks_repaired={summary['gap_blocks_repaired']} "
+        f"gap_rows_repaired={summary['gap_rows_repaired']} "
+        f"rows_after={summary['rows_after_repair']}"
+    )
+    return repaired_df
+
+
+def _hybrid_repair_artifact_path(final_csv, source_label):
+    safe_label = "".join(
+        ch if ch.isalnum() else "_" for ch in str(source_label).strip()
+    ).strip("_")
+    safe_label = safe_label or "source"
+    final_csv = Path(final_csv)
+    return final_csv.with_name(f"{final_csv.stem}_{safe_label}{final_csv.suffix}")
 
 
 def _interval_to_timedelta(interval):
@@ -245,9 +310,14 @@ def _clean_ohlcv_df(df, itv):
         raise ValueError("Cannot clean an empty OHLCV dataframe.")
 
     out = df.copy()
-    if len(out.columns) != len(OHLCV_COLS):
+    if set(OHLCV_COLS).issubset(set(out.columns)):
+        extra_cols = [col for col in out.columns if col not in OHLCV_COLS]
+        out = out.loc[:, [*OHLCV_COLS, *extra_cols]].copy()
+    elif len(out.columns) != len(OHLCV_COLS):
         out = out.iloc[:, : len(OHLCV_COLS)].copy()
-    out.columns = OHLCV_COLS
+        out.columns = OHLCV_COLS
+    else:
+        out.columns = OHLCV_COLS
     out = out[~out.isin(OHLCV_COLS).any(axis=1)].copy()
     rows_before = len(out)
     out["Opened"] = pd.to_datetime(out["Opened"], errors="raise")
@@ -256,6 +326,9 @@ def _clean_ohlcv_df(df, itv):
 
     for col in OHLCV_COLS[1:]:
         out[col] = pd.to_numeric(out[col], errors="coerce")
+    for col in out.columns:
+        if col not in OHLCV_COLS:
+            out[col] = pd.to_numeric(out[col], errors="coerce")
     out = out.dropna(subset=["Opened", "Open", "High", "Low", "Close"]).reset_index(
         drop=True
     )
@@ -547,18 +620,58 @@ def by_BinanceVision(
             delay=delay,
             raw_ohlcv_repair_config={"enabled": False},
         )
-        merged_df = _clean_ohlcv_df(
-            _merge_price_and_volume_frames(price_df, volume_df),
-            interval,
-        )
-        merged_df.to_csv(final_csv, index=False)
-        merged_df, _repair_summary = repair_raw_ohlcv_csv(
-            final_csv,
+        price_repair_label = f"{market_type}_{ticker}_{price_source}"
+        price_df = _repair_hybrid_source_frame(
+            price_df,
             interval=interval,
             raw_config=raw_ohlcv_repair_config,
             price_decimals=price_decimals,
             volume_decimals=volume_decimals,
+            source_label=price_repair_label,
+            artifact_csv_path=_hybrid_repair_artifact_path(
+                final_csv,
+                price_repair_label,
+            ),
         )
+        volume_price_decimals = (
+            2 if effective_volume_market_type in {"um", "cm"} else None
+        )
+        volume_volume_decimals = (
+            3 if effective_volume_market_type in {"um", "cm"} else None
+        )
+        volume_repair_label = (
+            f"{effective_volume_market_type}_{effective_volume_ticker}_{volume_source}"
+        )
+        volume_df = _repair_hybrid_source_frame(
+            volume_df,
+            interval=interval,
+            raw_config=raw_ohlcv_repair_config,
+            price_decimals=volume_price_decimals,
+            volume_decimals=volume_volume_decimals,
+            source_label=volume_repair_label,
+            artifact_csv_path=_hybrid_repair_artifact_path(
+                final_csv,
+                volume_repair_label,
+            ),
+        )
+        auxiliary_ohlc_cols = (
+            _auxiliary_ohlc_cols(
+                effective_volume_market_type,
+                effective_volume_ticker,
+            )
+            if volume_source == "trade"
+            and effective_volume_market_type in {"um", "cm"}
+            else {}
+        )
+        merged_df = _clean_ohlcv_df(
+            _merge_price_and_volume_frames(
+                price_df,
+                volume_df,
+                auxiliary_ohlc_cols=auxiliary_ohlc_cols,
+            ),
+            interval,
+        )
+        merged_df.to_csv(final_csv, index=False)
         return _maybe_split_df(_filter_df(merged_df, start_date, end_date), split)
 
     data_type = _resolve_binance_data_type(

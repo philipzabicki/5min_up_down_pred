@@ -34,6 +34,10 @@ from project_config import (
     load_live_profile,
     load_runtime_artifact_paths,
 )
+from features.basis_premium_features import (
+    is_basis_premium_feature,
+    validate_basis_premium_feature_columns,
+)
 from features.candle_features import (
     RAW_OHLCV_COLS,
     STREAK_FEATURE_PREFIX,
@@ -181,6 +185,22 @@ VALUE_BUILDERS = {
     "MACD": get_macd_values,
     "StochOsc": get_stochastic_oscillator_values,
 }
+
+
+def _basis_premium_futures_close_label():
+    cfg = dict(MODELING_DATASET_SETTINGS.get("basis_premium_features") or {})
+    return str(cfg.get("futures_close_col", "") or "").strip() or (
+        "<auto-detected futures close>"
+    )
+
+
+def _basis_premium_live_error():
+    futures_close_col = _basis_premium_futures_close_label()
+    return (
+        "Basis premium live prediction requires futures close column "
+        f"'{futures_close_col}' in raw history; rebuild live input with auxiliary "
+        "source columns."
+    )
 
 
 class IndicatorSpec:
@@ -760,6 +780,10 @@ def load_indicator_specs(feature_columns, *, source_label=None):
         feature_columns,
         source_label=source_label,
     )
+    validate_basis_premium_feature_columns(
+        feature_columns,
+        source_label=source_label,
+    )
     fit_configs = parse_fit_results(FIT_RESULTS_DIR)
     fit_by_feature_col = {cfg["feature_col"]: cfg for cfg in fit_configs}
 
@@ -771,6 +795,7 @@ def load_indicator_specs(feature_columns, *, source_label=None):
             col in BASE_FEATURE_COLS
             or col.startswith(STREAK_FEATURE_PREFIX)
             or is_volume_profile_feature(col)
+            or is_basis_premium_feature(col)
         ):
             continue
 
@@ -1009,6 +1034,10 @@ class LivePredictor:
             self.feature_columns,
             source_label=f"model metadata {self.model_meta_path}",
         )
+        validate_basis_premium_feature_columns(
+            self.feature_columns,
+            source_label=f"model metadata {self.model_meta_path}",
+        )
         print(f"using fit results dir: {FIT_RESULTS_DIR.resolve()}")
         self.candle_feature_columns = [
             col for col in self.feature_columns if col in SUPPORTED_CANDLE_FEATURE_COLS
@@ -1045,6 +1074,11 @@ class LivePredictor:
         self.realized_volatility_feature_columns = tuple(
             feature_parts["realized_volatility_feature_cols"]
         )
+        self.basis_premium_feature_columns = tuple(
+            feature_parts["basis_premium_feature_cols"]
+        )
+        if self.basis_premium_feature_columns:
+            raise ValueError(_basis_premium_live_error())
         self.volume_profile_feature_columns = tuple(
             feature_parts["volume_profile_feature_cols"]
         )

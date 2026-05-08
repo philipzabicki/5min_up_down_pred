@@ -376,6 +376,7 @@ def evaluate_variant(
             fit_kwargs["callbacks"] = [
                 lgb.early_stopping(
                     stopping_rounds=int(early_stopping_rounds),
+                    first_metric_only=True,
                     verbose=False,
                 )
             ]

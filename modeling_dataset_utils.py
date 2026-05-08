@@ -6,6 +6,10 @@ from pathlib import Path
 import numpy as np
 
 from data_quality_filters import normalize_drop_frozen_ohlc_blocks_config
+from features.basis_premium_features import (
+    is_basis_premium_feature,
+    validate_basis_premium_feature_columns,
+)
 from features.candle_features import (
     RAW_OHLCV_COLS,
     STREAK_FEATURE_PREFIX,
@@ -63,6 +67,10 @@ def _normalize_feature_names(features, source_path):
     if not normalized:
         raise ValueError(f"Feature subset is empty: {source_path}")
     validate_volume_profile_feature_columns(
+        normalized,
+        source_label=f"feature subset {source_path}",
+    )
+    validate_basis_premium_feature_columns(
         normalized,
         source_label=f"feature subset {source_path}",
     )
@@ -150,6 +158,8 @@ def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
         "fit_results_dir": Path(settings["fit_results_dir"]),
         "preview_rows": int(settings["preview_rows"]),
         "candle_streak_intervals": dict(settings["candle_streak_intervals"]),
+        "feature_intervals": dict(settings.get("feature_intervals") or {}),
+        "basis_premium_features": dict(settings.get("basis_premium_features") or {}),
         "feature_subset_path": settings.get("feature_subset_path"),
         "feature_subset_list_key": settings.get("feature_subset_list_key"),
         "excluded_feature_names": excluded_feature_names,
@@ -395,12 +405,17 @@ def split_feature_subset(feature_names, *, source_label="feature columns"):
         feature_names,
         source_label=source_label,
     )
+    validate_basis_premium_feature_columns(
+        feature_names,
+        source_label=source_label,
+    )
     raw_ohlcv_cols = []
     candle_feature_cols = []
     streak_feature_cols = []
     streak_intervals = []
     session_feature_cols = []
     realized_volatility_feature_cols = []
+    basis_premium_feature_cols = []
     indicator_feature_cols = []
     volume_profile_feature_cols = []
     unclassified_feature_cols = []
@@ -432,6 +447,9 @@ def split_feature_subset(feature_names, *, source_label="feature columns"):
         if is_volume_profile_feature(feature_name):
             volume_profile_feature_cols.append(feature_name)
             continue
+        if is_basis_premium_feature(feature_name):
+            basis_premium_feature_cols.append(feature_name)
+            continue
         if "_fit_" in feature_name:
             indicator_feature_cols.append(feature_name)
             continue
@@ -444,6 +462,7 @@ def split_feature_subset(feature_names, *, source_label="feature columns"):
         "streak_intervals": tuple(_dedupe_ordered(streak_intervals)),
         "session_feature_cols": tuple(session_feature_cols),
         "realized_volatility_feature_cols": tuple(realized_volatility_feature_cols),
+        "basis_premium_feature_cols": tuple(basis_premium_feature_cols),
         "indicator_feature_cols": tuple(indicator_feature_cols),
         "volume_profile_feature_cols": tuple(volume_profile_feature_cols),
         "unclassified_feature_cols": tuple(unclassified_feature_cols),

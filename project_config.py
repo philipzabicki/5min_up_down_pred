@@ -254,6 +254,10 @@ def load_modeling_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG
         profile.get("candle_streak_intervals"),
         profile_name=profile_name,
     )
+    profile["feature_intervals"] = dict(profile.get("feature_intervals") or {})
+    profile["basis_premium_features"] = dict(
+        profile.get("basis_premium_features") or {}
+    )
     profile["feature_selection"] = dict(feature_selection)
     profile["train_lgbm"] = _normalize_train_lgbm_config(
         profile.get("train_lgbm"),
@@ -422,6 +426,10 @@ def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
         "fit_results_dir": coerce_path(require_text(modeling, "fit_results_dir")),
         "preview_rows": require_positive_int(modeling, "preview_rows"),
         "candle_streak_intervals": dict(modeling["candle_streak_intervals"]),
+        "feature_intervals": dict(modeling.get("feature_intervals") or {}),
+        "basis_premium_features": dict(
+            modeling.get("basis_premium_features") or {}
+        ),
         "feature_subset_path": feature_subset_path,
         "feature_subset_list_key": feature_subset_list_key,
         "excluded_feature_names": tuple(str(value) for value in excluded_feature_names),
