@@ -16,6 +16,7 @@ import pyarrow.parquet as pq
 from common_config_utils import coerce_path, path_to_portable_str
 from optuna_run_utils import make_utc_run_timestamp, sanitize_run_name
 from project_config import load_runtime_artifact_paths
+from target_weights import TARGET_WEIGHT_COL, TARGET_WEIGHT_DECISION_VALUE
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
@@ -29,9 +30,10 @@ OUTPUT_ROOT = Path("data/analysis/model_one_way")
 SAMPLE_MODE = "recent_uniform"
 RECENT_DAYS = 365.0
 RECENT_ROWS = 365 * 24 * 60
-MAX_SAMPLE_ROWS = 50_000
+MAX_SAMPLE_ROWS = 250_000
 GRID_POINTS = 25
 BIN_COUNT = 25
+MIN_ONE_WAY_GROUP_ROWS = 2
 BATCH_SIZE = 65_536
 RANDOM_SEED = 37
 LIMIT_FEATURES = 0
@@ -53,8 +55,10 @@ TIME_COL = "Opened"
 TARGET_COL_OVERRIDE = None
 TARGET_COL_FALLBACK = "target_5m_candle_up"
 WEIGHT_COL_OVERRIDE = None
-WEIGHT_COL_FALLBACK = "target_5m_weight"
+WEIGHT_COL_FALLBACK = TARGET_WEIGHT_COL
 USE_SAMPLE_WEIGHT = True
+DECISION_ROWS_ONLY = True
+MIN_DECISION_WEIGHT = TARGET_WEIGHT_DECISION_VALUE
 FLOAT_DTYPE = "float32"
 
 PLOT_X_AXIS_MODE = "full"  # modes: "central_quantile" or "full"
@@ -280,7 +284,15 @@ def _select_random(values, max_rows, rng):
     return chosen
 
 
-def select_sample_indices(data_path, parquet_file, available_columns):
+def select_sample_indices(
+    data_path,
+    parquet_file,
+    available_columns,
+    *,
+    decision_rows_only=False,
+    decision_weight_col=None,
+    min_decision_weight=None,
+):
     total_rows = int(parquet_file.metadata.num_rows)
     rng = np.random.default_rng(int(RANDOM_SEED))
     sample_mode = str(SAMPLE_MODE)
@@ -288,6 +300,7 @@ def select_sample_indices(data_path, parquet_file, available_columns):
     sample_source = "all_rows"
     max_time = None
     cutoff_time = None
+    decision_filter_summary = {"enabled": bool(decision_rows_only)}
 
     if use_recent:
         eligible_indices = None
@@ -314,6 +327,56 @@ def select_sample_indices(data_path, parquet_file, available_columns):
     else:
         eligible_indices = np.arange(total_rows, dtype=np.int64)
 
+    if decision_rows_only:
+        if not decision_weight_col:
+            raise ValueError("Decision row filtering requires a sample weight column.")
+        if decision_weight_col not in available_columns:
+            raise ValueError(
+                "Decision row filtering requires dataset column "
+                f"{decision_weight_col!r}."
+            )
+
+        if min_decision_weight is None:
+            min_decision_weight = TARGET_WEIGHT_DECISION_VALUE
+        threshold = float(min_decision_weight)
+        weight_frame = pd.read_parquet(data_path, columns=[decision_weight_col])
+        decision_weights = pd.to_numeric(
+            weight_frame[decision_weight_col],
+            errors="coerce",
+        ).to_numpy(dtype=np.float64, copy=False)
+        if decision_weights.shape[0] != total_rows:
+            raise ValueError(
+                "Decision weight row count mismatch: "
+                f"weights={decision_weights.shape[0]} parquet_rows={total_rows}"
+            )
+
+        decision_indices = np.flatnonzero(
+            np.isfinite(decision_weights) & (decision_weights >= threshold)
+        ).astype(np.int64)
+        eligible_rows_before_filter = int(len(eligible_indices))
+        eligible_indices = np.intersect1d(
+            eligible_indices,
+            decision_indices,
+            assume_unique=True,
+        )
+        sample_source = f"{sample_source}_decision_rows"
+        decision_filter_summary = {
+            "enabled": True,
+            "weight_col": str(decision_weight_col),
+            "min_weight": threshold,
+            "decision_rows_total": int(len(decision_indices)),
+            "eligible_rows_before_filter": eligible_rows_before_filter,
+            "eligible_rows_after_filter": int(len(eligible_indices)),
+            "eligible_rows_removed": int(
+                eligible_rows_before_filter - len(eligible_indices)
+            ),
+        }
+        if len(eligible_indices) == 0:
+            raise ValueError(
+                "Decision row filtering selected zero rows: "
+                f"{decision_weight_col}>={threshold}."
+            )
+
     if sample_mode.endswith("_random"):
         sample_indices = _select_random(
             eligible_indices,
@@ -337,6 +400,7 @@ def select_sample_indices(data_path, parquet_file, available_columns):
         "eligible_rows": int(len(eligible_indices)),
         "sample_rows": int(len(sample_indices)),
         "max_sample_rows": int(MAX_SAMPLE_ROWS),
+        "decision_row_filter": decision_filter_summary,
         "recent_days": float(RECENT_DAYS),
         "recent_rows": int(RECENT_ROWS),
         "time_col": TIME_COL if TIME_COL in available_columns else None,
@@ -500,6 +564,106 @@ def _equal_count_group_indices(values, group_count):
     ]
 
 
+def _merge_small_adjacent_groups(values, groups, min_group_rows):
+    min_group_rows = max(1, int(min_group_rows))
+    if min_group_rows <= 1 or len(groups) <= 1:
+        return groups
+
+    groups = list(groups)
+    while len(groups) > 1:
+        small_group_idx = next(
+            (idx for idx, group in enumerate(groups) if group.size < min_group_rows),
+            None,
+        )
+        if small_group_idx is None:
+            break
+
+        if small_group_idx == 0:
+            merge_into_idx = 1
+        elif small_group_idx == len(groups) - 1:
+            merge_into_idx = small_group_idx - 1
+        else:
+            group_values = values[groups[small_group_idx]]
+            previous_values = values[groups[small_group_idx - 1]]
+            next_values = values[groups[small_group_idx + 1]]
+            previous_gap = float(np.min(group_values) - np.max(previous_values))
+            next_gap = float(np.min(next_values) - np.max(group_values))
+            merge_into_idx = (
+                small_group_idx - 1
+                if previous_gap <= next_gap
+                else small_group_idx + 1
+            )
+
+        if merge_into_idx < small_group_idx:
+            groups[merge_into_idx] = np.concatenate(
+                [groups[merge_into_idx], groups[small_group_idx]]
+            )
+            del groups[small_group_idx]
+        else:
+            groups[small_group_idx] = np.concatenate(
+                [groups[small_group_idx], groups[merge_into_idx]]
+            )
+            del groups[merge_into_idx]
+
+    return groups
+
+
+def _tie_aware_equal_count_group_indices(values, group_count, *, min_group_rows=1):
+    values = np.asarray(values, dtype=np.float64)
+    if values.size == 0:
+        return []
+
+    order = np.argsort(values, kind="mergesort")
+    sorted_values = values[order]
+    run_starts = np.r_[
+        0,
+        np.flatnonzero(sorted_values[1:] != sorted_values[:-1]) + 1,
+    ].astype(np.int64)
+    run_ends = np.r_[run_starts[1:], sorted_values.size].astype(np.int64)
+    unique_count = int(run_starts.size)
+    group_count = max(1, min(int(group_count), unique_count))
+
+    if unique_count <= group_count:
+        groups = [
+            order[int(start) : int(end)].astype(np.int64, copy=False)
+            for start, end in zip(run_starts, run_ends)
+        ]
+        return _merge_small_adjacent_groups(values, groups, min_group_rows)
+
+    groups = []
+    start_run = 0
+    remaining_rows = int(values.size)
+    remaining_groups = int(group_count)
+    while remaining_groups > 0 and start_run < unique_count:
+        if remaining_groups == 1:
+            end_run = unique_count
+        else:
+            max_end_run = unique_count - (remaining_groups - 1)
+            target_rows = remaining_rows / float(remaining_groups)
+            end_run = start_run + 1
+            best_size = int(run_ends[end_run - 1] - run_starts[start_run])
+            best_error = abs(float(best_size) - target_rows)
+            for candidate_end_run in range(start_run + 2, max_end_run + 1):
+                candidate_size = int(
+                    run_ends[candidate_end_run - 1] - run_starts[start_run]
+                )
+                candidate_error = abs(float(candidate_size) - target_rows)
+                if candidate_error > best_error:
+                    break
+                end_run = candidate_end_run
+                best_size = candidate_size
+                best_error = candidate_error
+
+        group = order[int(run_starts[start_run]) : int(run_ends[end_run - 1])]
+        groups.append(group)
+        remaining_rows -= int(group.size)
+        remaining_groups -= 1
+        start_run = end_run
+
+    groups = [group.astype(np.int64, copy=False) for group in groups if group.size > 0]
+    return _merge_small_adjacent_groups(values, groups, min_group_rows)
+
+
 def build_grid(feature_values, grid_points):
     finite_values = np.asarray(feature_values, dtype=np.float64)
     finite_values = finite_values[np.isfinite(finite_values)]
@@ -508,7 +672,11 @@ def build_grid(feature_values, grid_points):
 
     group_values = [
         float(np.median(finite_values[group_indices]))
-        for group_indices in _equal_count_group_indices(finite_values, grid_points)
+        for group_indices in _tie_aware_equal_count_group_indices(
+            finite_values,
+            grid_points,
+            min_group_rows=MIN_ONE_WAY_GROUP_ROWS,
+        )
     ]
     return np.unique(np.asarray(group_values, dtype=np.float64)).astype(
         np.float64, copy=False
@@ -557,7 +725,12 @@ def build_observed_bins(
 
     rows = []
     total_weight = float(np.sum(bin_weights))
-    for bin_id, group_indices in enumerate(_equal_count_group_indices(values, bin_count)):
+    groups = _tie_aware_equal_count_group_indices(
+        values,
+        bin_count,
+        min_group_rows=MIN_ONE_WAY_GROUP_ROWS,
+    )
+    for bin_id, group_indices in enumerate(groups):
         group_values = values[group_indices]
         group_preds = preds[group_indices]
         weights_in_bin = bin_weights[group_indices]
@@ -1990,7 +2163,7 @@ def analyze_feature(
         },
         "one_way": {
             "method": "partial_dependence_replace_one_feature_weighted_average",
-            "grid_method": "equal_count_group_median_feature_values",
+            "grid_method": "tie_aware_equal_count_group_median_feature_values",
             "grid_point_count": int(len(grid_rows)),
             "baseline_pred_mean": baseline_mean,
             "min_mean_pred": min_mean_pred,
@@ -2111,8 +2284,14 @@ def validate_settings():
         raise ValueError("GRID_POINTS must be >= 2.")
     if int(BIN_COUNT) < 1:
         raise ValueError("BIN_COUNT must be >= 1.")
+    if int(MIN_ONE_WAY_GROUP_ROWS) < 1:
+        raise ValueError("MIN_ONE_WAY_GROUP_ROWS must be >= 1.")
     if int(BATCH_SIZE) <= 0:
         raise ValueError("BATCH_SIZE must be > 0.")
+    if not isinstance(DECISION_ROWS_ONLY, bool):
+        raise ValueError("DECISION_ROWS_ONLY must be a boolean.")
+    if not math.isfinite(float(MIN_DECISION_WEIGHT)):
+        raise ValueError("MIN_DECISION_WEIGHT must be finite.")
     if PLOT_X_AXIS_MODE not in {"central_quantile", "full"}:
         raise ValueError("PLOT_X_AXIS_MODE must be 'central_quantile' or 'full'.")
     if not isinstance(PLOT_TARGET_RATE_SECONDARY_AXIS, bool):
@@ -2156,6 +2335,9 @@ def main():
         data_path,
         parquet_file,
         available_columns,
+        decision_rows_only=bool(DECISION_ROWS_ONLY),
+        decision_weight_col=aux["weight_col"],
+        min_decision_weight=float(MIN_DECISION_WEIGHT),
     )
 
     output_dir = Path(OUTPUT_ROOT) / run_timestamp
@@ -2223,6 +2405,8 @@ def main():
         "plots_dir": path_to_portable_str(plots_dir),
         "feature_count": int(len(analyzed_feature_indices)),
         "target_col": aux["target_col"] if aux["target_col"] in sample_frame.columns else None,
+        "sampling": sampling_summary,
+        "sample_weight": weight_summary,
         "suspicious_feature_report": suspicious_feature_report,
         "legend": {
             "f": "feature_name",

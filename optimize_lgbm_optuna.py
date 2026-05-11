@@ -215,10 +215,42 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "feature_fraction_bynode": 0.5953308832632442,
       "path_smooth": 61.28073237083828,
       "extra_trees": False
+    },
+    {
+      "learning_rate": 0.040166858620227654,
+      "num_leaves": 97,
+      "min_data_in_leaf": 34,
+      "max_depth": 219,
+      "feature_fraction": 0.49152697810227164,
+      "bagging_fraction": 0.6687218276054827,
+      "bagging_freq": 22,
+      "lambda_l2": 34.27447477551414,
+      "lambda_l1": 16.29642005808772,
+      "min_sum_hessian_in_leaf": 4.6370061892768994,
+      "min_gain_to_split": 0.6705780188504484,
+      "feature_fraction_bynode": 0.5237714962797345,
+      "path_smooth": 1.8920129570355595,
+      "extra_trees": False
+    },
+    {
+      "learning_rate": 0.0232055790116649,
+      "num_leaves": 153,
+      "min_data_in_leaf": 16,
+      "max_depth": 204,
+      "feature_fraction": 0.4431937228828896,
+      "bagging_fraction": 0.8322310712611087,
+      "bagging_freq": 20,
+      "lambda_l2": 28.76389554546722,
+      "lambda_l1": 7.383529216274445,
+      "min_sum_hessian_in_leaf": 0.006286030943849801,
+      "min_gain_to_split": 0.16999148557266552,
+      "feature_fraction_bynode": 0.8624029035837287,
+      "path_smooth": 19.83320951468675,
+      "extra_trees": False
     }
 ]
 
-N_TRIALS = 250
+N_TRIALS = 100
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
 EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC

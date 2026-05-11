@@ -12,7 +12,7 @@ RAW_OHLCV_COLS = ("Open", "High", "Low", "Close", "Volume")
 _CANONICAL_BODY_RANGE_COL = "candle_body_pressure"
 MULTI_INTERVAL_CANDLE_DERIVED_COLS = (
     "candle_signed_vol",
-    "candle_up_down_vol_ratio",
+    "candle_up_down_vol_log_ratio",
     "candle_wick_asym",
     "candle_close_location_value",
     _CANONICAL_BODY_RANGE_COL,
@@ -24,7 +24,7 @@ ALL_CANDLE_DERIVED_COLS = (
     "candle_body_abs_open",
     _CANONICAL_BODY_RANGE_COL,
     "candle_signed_vol",
-    "candle_up_down_vol_ratio",
+    "candle_up_down_vol_log_ratio",
     "candle_wick_asym",
     "candle_close_location_value",
 )
@@ -384,7 +384,7 @@ def _compute_derived_feature_matrix(open_arr, high_arr, low_arr, close_arr, volu
         out[i, 3] = abs(body) / safe_open
         out[i, 4] = body / range_eps
         out[i, 5] = volume_value * np.sign(body)
-        out[i, 6] = up_volume / (down_volume + _EPS)
+        out[i, 6] = np.log1p(up_volume) - np.log1p(down_volume)
         out[i, 7] = (upper_wick - lower_wick) / range_eps
         out[i, 8] = (close_value - low_value) / range_eps
     return out
@@ -423,7 +423,7 @@ def _compute_derived_feature_matrix_with_volume_split(
         out[i, 3] = abs(body) / safe_open
         out[i, 4] = body / range_eps
         out[i, 5] = volume_value * np.sign(body)
-        out[i, 6] = up_volume_value / (down_volume_value + _EPS)
+        out[i, 6] = np.log1p(up_volume_value) - np.log1p(down_volume_value)
         out[i, 7] = (upper_wick - lower_wick) / range_eps
         out[i, 8] = (close_value - low_value) / range_eps
     return out
@@ -459,7 +459,8 @@ def build_candle_derived_features_from_series(
         "candle_body_abs_open": _safe_divide(np.abs(body), open_arr),
         "candle_body_pressure": body / range_eps,
         "candle_signed_vol": volume_arr * np.sign(body),
-        "candle_up_down_vol_ratio": up_volume_arr / (down_volume_arr + _EPS),
+        "candle_up_down_vol_log_ratio": np.log1p(up_volume_arr)
+        - np.log1p(down_volume_arr),
         "candle_wick_asym": (upper_wick - lower_wick) / range_eps,
         "candle_close_location_value": (close_arr - low_arr) / range_eps,
     }
@@ -684,7 +685,8 @@ def _compute_interval_derived_features(
         return pd.DataFrame(index=base_df.index)
 
     needs_underlying_volume_split = any(
-        _DERIVED_FEATURE_SPEC_BY_COL[feature_col][0] == "candle_up_down_vol_ratio"
+        _DERIVED_FEATURE_SPEC_BY_COL[feature_col][0]
+        == "candle_up_down_vol_log_ratio"
         for feature_col in feature_cols
     )
     interval_base = base_df[
