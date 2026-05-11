@@ -74,19 +74,19 @@ EARLY_STOPPING_EVAL_METRIC = make_sklearn_binary_balanced_accuracy_eval(
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.028370028338368332,
-      "num_leaves": 201,
-      "min_data_in_leaf": 2527,
-      "max_depth": 246,
-      "feature_fraction": 0.7371325954810048,
-      "bagging_fraction": 0.9308115159624847,
-      "bagging_freq": 25,
-      "lambda_l2": 39.51068447389412,
-      "lambda_l1": 5.269826622414657,
-      "min_sum_hessian_in_leaf": 1.5455745495230206,
-      "min_gain_to_split": 0.09322721688630903,
-      "feature_fraction_bynode": 0.38804968275175306,
-      "path_smooth": 39.06532785785736,
+      "learning_rate": 0.0232055790116649,
+      "num_leaves": 153,
+      "min_data_in_leaf": 16,
+      "max_depth": 204,
+      "feature_fraction": 0.4431937228828896,
+      "bagging_fraction": 0.8322310712611087,
+      "bagging_freq": 20,
+      "lambda_l2": 28.76389554546722,
+      "lambda_l1": 7.383529216274445,
+      "min_sum_hessian_in_leaf": 0.006286030943849801,
+      "min_gain_to_split": 0.16999148557266552,
+      "feature_fraction_bynode": 0.8624029035837287,
+      "path_smooth": 19.83320951468675,
       "extra_trees": False
     }
 LGBM_DEFAULT_PARAMS = {

@@ -103,7 +103,12 @@
           "candle_up_down_vol_log_ratio_15m_lag19",
           "candle_body_pressure_15m_lag19",
           "candle_body_pressure_15m_lag20",
-          "candle_signed_vol_30m_lag13"
+          "candle_signed_vol_30m_lag13",
+          "candle_close_location_value_1m_lag30",
+          "candle_close_location_value_5m_lag18",
+          "candle_body_abs_open_5m_lag9",
+          "candle_close_location_value_5m_lag15",
+          "candle_wick_asym_30m_lag14"
         ]
       },
       "train_lgbm": {
@@ -304,7 +309,21 @@
           "candle_up_down_vol_log_ratio_30m_lag11": -1,
           "candle_body_pressure_15m_lag12": 1,
           "candle_wick_asym_1d_lag13": 1,
-          "vp_short_log_density_ratio_to_current_bin_plus_2": 1
+          "vp_short_log_density_ratio_to_current_bin_plus_2": 1,
+          "candle_ret_co_1m_lag1": -1,
+          "StochOsc_fit_4m_pop16_faskper22_slodmatypwma_slodper502_slokmatypmama_slokper1681": -1,
+          "MACD_fit_15m_pop128_fasmatypfba_fasper98_fassouohlc4_sigmatypmama_sigper190_slomatyprma_sloper809_slosouhigh_qe0.1_qm0.3_tf0.8_stmc_sg20": -1,
+          "candle_log_volume_5m_lag24": -1,
+          "MACD_fit_1m_pop16_fasmatyprma_fasper2_fassouhlcc4_sigmatypmama_sigper566_slomatypgma_sloper25_slosouhlc3": -1,
+          "StochOsc_fit_15m_pop128_faskper183_slodmatyptema_slodper59_slokmatypwma_slokper699": -1,
+          "MACD_fit_3m_pop128_fasmatyprma_fasper741_fassoulow_sigmatypmama_sigper1931_slomatypnwmatria_sloper1884_slosouhlc3": -1,
+          "KeltnerChannel_fit_5m_candle_up_pop1024_atrmatypt3_atrper740_maper200_matypshmma_souhl2_qe0.15_qm0.25_tf0.8_stmc_sg20": 1,
+          "StochOsc_fit_15m_pop16_faskper588_slodmatypnwmacos_slodper3_slokmatypfba_slokper1468": -1,
+          "futures_index_basis_rel_30m": 1,
+          "candle_close_location_value_5m_lag7": -1,
+          "ADX_fit_1m_pop128_adxper492_atrper24_matypadxfba_matypatrema_matypnegdmtema_matypposdmsma_negdmper10_posdmper1876_qe0.2_qm0.2_tf0.8_stmc_sg15": -1,
+          "KeltnerChannel_fit_5m_pop128_atrmatypnwmabiw_atrper830_maper10_matypkama_souhl2_qe0.1_qm0.3_tf0.8_stmc_sg20": 1,
+          "candle_body_pressure_1m_lag15": -1
         }
       }
     }

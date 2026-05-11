@@ -247,10 +247,26 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "feature_fraction_bynode": 0.8624029035837287,
       "path_smooth": 19.83320951468675,
       "extra_trees": False
+    },
+    {
+      "learning_rate": 0.028370028338368332,
+      "num_leaves": 201,
+      "min_data_in_leaf": 2527,
+      "max_depth": 246,
+      "feature_fraction": 0.7371325954810048,
+      "bagging_fraction": 0.9308115159624847,
+      "bagging_freq": 25,
+      "lambda_l2": 39.51068447389412,
+      "lambda_l1": 5.269826622414657,
+      "min_sum_hessian_in_leaf": 1.5455745495230206,
+      "min_gain_to_split": 0.09322721688630903,
+      "feature_fraction_bynode": 0.38804968275175306,
+      "path_smooth": 39.06532785785736,
+      "extra_trees": False
     }
 ]
 
-N_TRIALS = 100
+N_TRIALS = 50
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
 EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC
