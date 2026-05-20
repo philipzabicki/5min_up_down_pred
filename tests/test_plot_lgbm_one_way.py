@@ -15,6 +15,42 @@ from target_weights import (
 )
 
 
+class PlotLgbmOneWayPlotAxisTests(unittest.TestCase):
+    def test_probability_axis_limits_align_center_value_for_different_ranges(self):
+        fig, ax = plot_lgbm_one_way.plt.subplots()
+        target_ax = ax.twinx()
+
+        try:
+            plot_lgbm_one_way._set_probability_axis_limits(
+                ax,
+                [0.49, 0.54],
+                pad=0.015,
+                clamp=True,
+                center_value=0.5,
+            )
+            plot_lgbm_one_way._set_probability_axis_limits(
+                target_ax,
+                [0.43, 0.58],
+                pad=0.030,
+                clamp=True,
+                center_value=0.5,
+            )
+
+            left_min, left_max = ax.get_ylim()
+            right_min, right_max = target_ax.get_ylim()
+            left_fraction = (0.5 - left_min) / (left_max - left_min)
+            right_fraction = (0.5 - right_min) / (right_max - right_min)
+
+            self.assertAlmostEqual(left_fraction, right_fraction)
+            self.assertAlmostEqual(left_fraction, 0.5)
+            self.assertNotAlmostEqual(
+                left_max - left_min,
+                right_max - right_min,
+            )
+        finally:
+            plot_lgbm_one_way.plt.close(fig)
+
+
 class PlotLgbmOneWaySamplingTests(unittest.TestCase):
     def test_decision_row_filter_is_applied_before_max_sample_rows(self):
         opened = pd.date_range("2026-01-01 00:00:00", periods=20, freq="min")

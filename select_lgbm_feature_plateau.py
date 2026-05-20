@@ -29,6 +29,7 @@ from modeling_dataset_utils import (
     resolve_modeling_dataset_parquet_path,
 )
 from train_lgbm import (
+    WF_TEST_TO_TRAIN_RATIO as DEFAULT_WF_TEST_TO_TRAIN_RATIO,
     format_lgbm_monotone_constraint_summary,
     make_lgbm_monotone_constraint_params,
     summarize_lgbm_monotone_constraints,
@@ -51,7 +52,7 @@ MIN_SAMPLE_WEIGHT = 0.4625
 RANKING_N_SPLITS = 10
 PERMUTATION_N_SPLITS = 10
 TOPK_N_SPLITS = 10
-WF_TEST_TO_TRAIN_RATIO = 0.2
+WF_TEST_TO_TRAIN_RATIO = DEFAULT_WF_TEST_TO_TRAIN_RATIO
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
@@ -107,10 +108,10 @@ REL_TOL = 0.0001
 MIN_PLATEAU_FEATURE_SAVINGS = 20
 
 MIN_NONZERO_IMPORTANCE_FOLDS = 6
-PERMUTATION_FEATURE_FRACTION = 0.6
+PERMUTATION_FEATURE_FRACTION = 0.7
 # Keep permutation reranking more stable than a single shuffle without making
 # selector runtime explode as aggressively as larger repeat counts.
-PERMUTATION_N_REPEATS = 3
+PERMUTATION_N_REPEATS = 5
 PERMUTATION_BASE_SEED = 37
 MAX_MISSING_RATIO = 0.01
 NEAR_CONSTANT_THRESHOLD = 0.9999

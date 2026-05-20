@@ -66,6 +66,7 @@ PLOT_X_VISIBLE_QUANTILES = (0.05, 0.95)
 PLOT_X_ZOOM_MAX_RANGE_FRACTION = 0.80
 PLOT_X_MIN_FINITE_ROWS = 20
 PLOT_TARGET_RATE_SECONDARY_AXIS = True
+PLOT_PROBABILITY_CENTER = 0.5
 PLOT_PRIMARY_Y_PAD = 0.015
 PLOT_TARGET_Y_PAD = 0.030
 TARGET_LOESS_FRAC = 0.45
@@ -1749,18 +1750,29 @@ def _filter_xy_for_xlim(x_values, y_values, x_axis):
     return x[mask].tolist(), y[mask].tolist()
 
 
-def _set_probability_axis_limits(ax, values, *, pad, clamp=True):
+def _set_probability_axis_limits(ax, values, *, pad, clamp=True, center_value=None):
     finite_values = _finite_float_values(values)
     if finite_values.size == 0:
         return
     y_min = float(np.min(finite_values))
     y_max = float(np.max(finite_values))
+    if center_value is not None:
+        center = float(center_value)
+        if np.isfinite(center):
+            y_min = min(y_min, center)
+            y_max = max(y_max, center)
     limits = _padded_limits(y_min, y_max, pad_fraction=0.0)
     if limits is None:
         return
     y_min, y_max = limits
     y_min -= float(pad)
     y_max += float(pad)
+    if center_value is not None:
+        center = float(center_value)
+        if np.isfinite(center) and y_min < center < y_max:
+            center_distance = max(center - y_min, y_max - center)
+            y_min = center - center_distance
+            y_max = center + center_distance
     if clamp:
         y_min = max(0.0, y_min)
         y_max = min(1.0, y_max)
@@ -2025,6 +2037,7 @@ def plot_feature_one_way(feature, feature_summary, plot_path):
         primary_y,
         pad=float(PLOT_PRIMARY_Y_PAD),
         clamp=True,
+        center_value=float(PLOT_PROBABILITY_CENTER),
     )
     if target_axis is not None:
         target_axis.set_ylabel("target rate", color=PLOT_COLORS["target_rate"])
@@ -2035,6 +2048,7 @@ def plot_feature_one_way(feature, feature_summary, plot_path):
             visible_target_y,
             pad=float(PLOT_TARGET_Y_PAD),
             clamp=True,
+            center_value=float(PLOT_PROBABILITY_CENTER),
         )
 
     if x_axis.get("visible_min") is not None and x_axis.get("visible_max") is not None:

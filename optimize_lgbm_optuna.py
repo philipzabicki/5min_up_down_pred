@@ -47,7 +47,7 @@ from train_lgbm import (
 TARGET_COL = "target_5m_candle_up"
 
 CV_FOLDS = 10
-WF_TEST_TO_TRAIN_RATIO = 0.2
+WF_TEST_TO_TRAIN_RATIO = FINAL_WF_TEST_TO_TRAIN_RATIO
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
@@ -68,7 +68,7 @@ LGBM_OPTUNA_SEARCH_SPACE = {
     "learning_rate": {"type": "float", "low": 0.0005, "high": 0.5, "log": True},
     "num_leaves": {"type": "int", "low": 16, "high": 384},
     "min_data_in_leaf": {"type": "int", "low": 2, "high": 8192, "log": True},
-    "max_depth": {"type": "int", "low": 2, "high": 256},
+    "max_depth": {"type": "int", "low": 9, "high": 256},
     "feature_fraction": {"type": "float", "low": 0.01, "high": 1.0},
     "bagging_fraction": {"type": "float", "low": 0.01, "high": 1.0},
     "bagging_freq": {"type": "int", "low": 0, "high": 25},
@@ -84,6 +84,16 @@ LGBM_OPTUNA_SEARCH_SPACE = {
     "feature_fraction_bynode": {"type": "float", "low": 0.01, "high": 1.0},
     "path_smooth": {"type": "float", "low": 0.0, "high": 100.0},
     "extra_trees": {"type": "categorical", "choices": [True, False]},
+    "monotone_constraints_method": {
+        "type": "categorical",
+        "choices": ["basic", "intermediate", "advanced"],
+    },
+    "monotone_penalty": {"type": "float", "low": 0.0, "high": 10.0},
+}
+
+OPTUNA_SEED_TRIAL_DEFAULT_PARAMS = {
+    "monotone_constraints_method": "basic",
+    "monotone_penalty": 0.0,
 }
 
 # Seed trials are injected before optimization starts.
@@ -263,6 +273,58 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "feature_fraction_bynode": 0.38804968275175306,
       "path_smooth": 39.06532785785736,
       "extra_trees": False
+    },
+    {
+      "learning_rate": 0.014324759771509326,
+      "num_leaves": 219,
+      "min_data_in_leaf": 134,
+      "max_depth": 166,
+      "feature_fraction": 0.9004727141904951,
+      "bagging_fraction": 0.8582425675795976,
+      "bagging_freq": 16,
+      "lambda_l2": 96.08153533203745,
+      "lambda_l1": 1.3495783734260116,
+      "min_sum_hessian_in_leaf": 0.005819496553267834,
+      "min_gain_to_split": 0.11935855858916433,
+      "feature_fraction_bynode": 0.4278157008307606,
+      "path_smooth": 91.00059177549922,
+      "extra_trees": False
+    },
+    {
+      "num_leaves": 201,
+      "learning_rate": 0.028370028338368332,
+      "min_data_in_leaf": 2527,
+      "max_depth": 246,
+      "feature_fraction": 0.7371325954810048,
+      "bagging_fraction": 0.9308115159624847,
+      "bagging_freq": 25,
+      "lambda_l2": 39.51068447389412,
+      "lambda_l1": 5.269826622414657,
+      "min_sum_hessian_in_leaf": 1.5455745495230206,
+      "min_gain_to_split": 0.09322721688630903,
+      "feature_fraction_bynode": 0.38804968275175306,
+      "path_smooth": 39.06532785785736,
+      "extra_trees": False,
+      "monotone_constraints_method": "basic",
+      "monotone_penalty": 0.0
+    },
+    {
+      "learning_rate": 0.03601725310962062,
+      "num_leaves": 232,
+      "min_data_in_leaf": 1284,
+      "max_depth": 238,
+      "feature_fraction": 0.6199037025636075,
+      "bagging_fraction": 0.823971026512396,
+      "bagging_freq": 25,
+      "lambda_l2": 60.953190284251875,
+      "lambda_l1": 29.676819923146972,
+      "min_sum_hessian_in_leaf": 0.12748346400557883,
+      "min_gain_to_split": 0.4087732850139867,
+      "feature_fraction_bynode": 0.35610397169696534,
+      "path_smooth": 34.47657007831167,
+      "extra_trees": False,
+      "monotone_constraints_method": "advanced",
+      "monotone_penalty": 3.9096906129788724
     }
 ]
 
@@ -287,7 +349,7 @@ RUN_MODE = "optimize"  # "optimize" or "recheck-topn"
 # Set only when running "recheck-topn". Falls back to STUDY_NAME when provided.
 RECHECK_STUDY_NAME = None
 RECHECK_STORAGE = STORAGE
-TOP_TRIALS_RECHECK_N = 5
+TOP_TRIALS_RECHECK_N = 20
 TOP_TRIALS_RECHECK_OUTPUT_DIR = Path("data/optuna/lgbm/recheck")
 TOP_TRIALS_RECHECK_OUTPUT_JSON_PATH = None
 TOP_TRIALS_RECHECK_OUTPUT_CSV_PATH = None
@@ -990,6 +1052,16 @@ def suggest_lgbm_hyperparams(trial, search_space):
     }
 
 
+def make_seed_trial_params(seed_params, search_space):
+    resolved = {
+        name: value
+        for name, value in OPTUNA_SEED_TRIAL_DEFAULT_PARAMS.items()
+        if name in search_space
+    }
+    resolved.update(seed_params)
+    return resolved
+
+
 def validate_seed_trial_params(seed_params, search_space):
     unknown_names = sorted(set(seed_params) - set(search_space))
     if unknown_names:
@@ -1043,6 +1115,7 @@ def enqueue_seed_trials(study, seed_trial_params, search_space):
     validate_lgbm_search_space(search_space)
 
     for seed_index, params in enumerate(seed_trial_params, start=1):
+        params = make_seed_trial_params(params, search_space)
         validate_seed_trial_params(params, search_space)
         study.enqueue_trial(
             params=params,
@@ -1689,6 +1762,7 @@ def run_optuna_optimization():
         "storage": STORAGE,
         "run_timestamp_utc": run_timestamp,
         "lgbm_optuna_search_space": LGBM_OPTUNA_SEARCH_SPACE,
+        "optuna_seed_trial_default_params": OPTUNA_SEED_TRIAL_DEFAULT_PARAMS,
         "optuna_seed_trial_params": OPTUNA_SEED_TRIAL_PARAMS,
         "cv_objective": {
             "name": resolve_cv_objective_name(),

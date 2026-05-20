@@ -14,6 +14,7 @@ from features.candle_features import (
     RAW_OHLCV_COLS,
     STREAK_FEATURE_PREFIX,
     SUPPORTED_CANDLE_FEATURE_COLS,
+    is_deprecated_candle_feature_col,
 )
 from features.session_open_features import (
     SUPPORTED_SESSION_OPEN_FEATURE_COLS,
@@ -379,6 +380,17 @@ def load_feature_subset_from_settings(settings):
         excluded_feature_names,
         source_label=f"feature_subset_path={subset_path}",
     )
+    deprecated_removed_features = tuple(
+        feature
+        for feature in filtered_features
+        if is_deprecated_candle_feature_col(feature)
+    )
+    if deprecated_removed_features:
+        filtered_features = tuple(
+            feature
+            for feature in filtered_features
+            if not is_deprecated_candle_feature_col(feature)
+        )
     return {
         **subset_info,
         "features": filtered_features,
@@ -387,6 +399,8 @@ def load_feature_subset_from_settings(settings):
         "excluded_feature_names": excluded_feature_names,
         "excluded_count": len(excluded_feature_names),
         "excluded_from_subset_count": len(removed_features),
+        "deprecated_removed_feature_names": deprecated_removed_features,
+        "deprecated_removed_count": len(deprecated_removed_features),
     }
 
 
@@ -497,6 +511,8 @@ def summarize_feature_subset(subset_info, excluded_features=None):
                 "created_utc": None,
                 "source_data_path": None,
                 "excluded_from_subset_count": 0,
+                "deprecated_removed_count": 0,
+                "deprecated_removed_feature_names": [],
             }
         )
         return payload
@@ -512,6 +528,12 @@ def summarize_feature_subset(subset_info, excluded_features=None):
             "source_data_path": subset_info.get("source_data_path"),
             "excluded_from_subset_count": int(
                 subset_info.get("excluded_from_subset_count", 0)
+            ),
+            "deprecated_removed_count": int(
+                subset_info.get("deprecated_removed_count", 0)
+            ),
+            "deprecated_removed_feature_names": list(
+                subset_info.get("deprecated_removed_feature_names") or ()
             ),
         }
     )

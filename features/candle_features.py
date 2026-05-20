@@ -20,7 +20,6 @@ MULTI_INTERVAL_CANDLE_DERIVED_COLS = (
 ALL_CANDLE_DERIVED_COLS = (
     "candle_ret_co",
     "candle_range_ho",
-    "candle_log_volume",
     "candle_body_abs_open",
     _CANONICAL_BODY_RANGE_COL,
     "candle_signed_vol",
@@ -135,6 +134,28 @@ INTERVAL_TO_RULE = {
     "1w": "1W-MON",
     "1M": "1MS",
 }
+
+
+def is_deprecated_candle_feature_col(feature_name):
+    name = str(feature_name).strip()
+    prefix = "candle_log_volume_"
+    if not name.startswith(prefix):
+        return False
+
+    suffix = name[len(prefix) :]
+    if suffix == BASE_CANDLE_INTERVAL_LABEL:
+        return True
+
+    base_lag_prefix = f"{BASE_CANDLE_INTERVAL_LABEL}_lag"
+    if suffix.startswith(base_lag_prefix):
+        return suffix[len(base_lag_prefix) :].isdigit()
+
+    if "_lag" not in suffix:
+        return False
+    interval_label, lag = suffix.rsplit("_lag", 1)
+    return interval_label in INTERVAL_TO_RULE and lag.isdigit()
+
+
 PATTERN_INTERVAL_TO_RULE = {
     "5m": INTERVAL_TO_RULE["5m"],
 }
@@ -380,13 +401,12 @@ def _compute_derived_feature_matrix(open_arr, high_arr, low_arr, close_arr, volu
 
         out[i, 0] = body / safe_open
         out[i, 1] = range_hl / safe_open
-        out[i, 2] = np.log(volume_value if volume_value > _EPS else _EPS)
-        out[i, 3] = abs(body) / safe_open
-        out[i, 4] = body / range_eps
-        out[i, 5] = volume_value * np.sign(body)
-        out[i, 6] = np.log1p(up_volume) - np.log1p(down_volume)
-        out[i, 7] = (upper_wick - lower_wick) / range_eps
-        out[i, 8] = (close_value - low_value) / range_eps
+        out[i, 2] = abs(body) / safe_open
+        out[i, 3] = body / range_eps
+        out[i, 4] = np.sign(body)
+        out[i, 5] = np.sign(up_volume - down_volume)
+        out[i, 6] = (upper_wick - lower_wick) / range_eps
+        out[i, 7] = (close_value - low_value) / range_eps
     return out
 
 
@@ -407,7 +427,6 @@ def _compute_derived_feature_matrix_with_volume_split(
         high_value = float(high_arr[i])
         low_value = float(low_arr[i])
         close_value = float(close_arr[i])
-        volume_value = float(volume_arr[i])
         up_volume_value = float(up_volume_arr[i])
         down_volume_value = float(down_volume_arr[i])
         body = close_value - open_value
@@ -419,13 +438,12 @@ def _compute_derived_feature_matrix_with_volume_split(
 
         out[i, 0] = body / safe_open
         out[i, 1] = range_hl / safe_open
-        out[i, 2] = np.log(volume_value if volume_value > _EPS else _EPS)
-        out[i, 3] = abs(body) / safe_open
-        out[i, 4] = body / range_eps
-        out[i, 5] = volume_value * np.sign(body)
-        out[i, 6] = np.log1p(up_volume_value) - np.log1p(down_volume_value)
-        out[i, 7] = (upper_wick - lower_wick) / range_eps
-        out[i, 8] = (close_value - low_value) / range_eps
+        out[i, 2] = abs(body) / safe_open
+        out[i, 3] = body / range_eps
+        out[i, 4] = np.sign(body)
+        out[i, 5] = np.sign(up_volume_value - down_volume_value)
+        out[i, 6] = (upper_wick - lower_wick) / range_eps
+        out[i, 7] = (close_value - low_value) / range_eps
     return out
 
 
@@ -455,12 +473,10 @@ def build_candle_derived_features_from_series(
     out = {
         "candle_ret_co": _safe_divide(body, open_arr),
         "candle_range_ho": _safe_divide(range_hl, open_arr),
-        "candle_log_volume": np.log(np.clip(volume_arr, _EPS, None)),
         "candle_body_abs_open": _safe_divide(np.abs(body), open_arr),
         "candle_body_pressure": body / range_eps,
-        "candle_signed_vol": volume_arr * np.sign(body),
-        "candle_up_down_vol_log_ratio": np.log1p(up_volume_arr)
-        - np.log1p(down_volume_arr),
+        "candle_signed_vol": np.sign(body),
+        "candle_up_down_vol_log_ratio": np.sign(up_volume_arr - down_volume_arr),
         "candle_wick_asym": (upper_wick - lower_wick) / range_eps,
         "candle_close_location_value": (close_arr - low_arr) / range_eps,
     }

@@ -32,6 +32,7 @@ from target_weights import (
     summarize_target_weights,
 )
 from train_lgbm import (
+    WF_TEST_TO_TRAIN_RATIO as DEFAULT_WF_TEST_TO_TRAIN_RATIO,
     format_lgbm_monotone_constraint_summary,
     make_lgbm_monotone_constraint_params,
     summarize_lgbm_monotone_constraints,
@@ -49,7 +50,7 @@ BASE_DATA_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
 SEED = 37
 
 CV_FOLDS = 10
-WF_TEST_TO_TRAIN_RATIO = 0.2
+WF_TEST_TO_TRAIN_RATIO = DEFAULT_WF_TEST_TO_TRAIN_RATIO
 ENABLE_FOLD_RECENCY_WEIGHTING = True
 FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0

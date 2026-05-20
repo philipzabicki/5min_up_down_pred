@@ -22,6 +22,8 @@ ACTIVE_CONFIG_PATH = CONFIGS_DIR / "active.json"
 RUNTIME_DIR = CONFIGS_DIR / "runtime"
 RUNTIME_ACTIVE_PATH = RUNTIME_DIR / "active.json"
 
+DEFAULT_WALK_FORWARD_TEST_TO_TRAIN_RATIO = 0.1
+
 
 def _require_bool_or_default(payload, key, *, default, source_label):
     if key not in payload:
@@ -72,6 +74,16 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
             f"Modeling profile '{profile_name}' must define 'train_lgbm' as a JSON object."
         )
     source_label = "modeling.train_lgbm"
+    raw_walk_forward_ratio = raw_config.get(
+        "walk_forward_test_to_train_ratio",
+        DEFAULT_WALK_FORWARD_TEST_TO_TRAIN_RATIO,
+    )
+    walk_forward_ratio = float(raw_walk_forward_ratio)
+    if not (0.0 < walk_forward_ratio < 1.0):
+        raise ValueError(
+            f"{source_label}.walk_forward_test_to_train_ratio must be in (0, 1), "
+            f"got: {raw_walk_forward_ratio!r}"
+        )
     return {
         "train_default_model": _require_bool_or_default(
             raw_config,
@@ -89,6 +101,7 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
             raw_config.get("monotone_constraints"),
             source_label=source_label,
         ),
+        "walk_forward_test_to_train_ratio": walk_forward_ratio,
     }
 
 

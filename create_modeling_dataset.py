@@ -663,6 +663,7 @@ def build_dataset_from_settings(settings):
             f"path={feature_subset['path']} count={feature_subset['count']} "
             f"source_count={source_count} format={feature_subset['format']} "
             f"excluded_from_subset={feature_subset.get('excluded_from_subset_count', 0)}"
+            f" deprecated_removed={feature_subset.get('deprecated_removed_count', 0)}"
         )
     if excluded_features:
         preview = ", ".join(excluded_feature_names[:5])
