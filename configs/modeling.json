@@ -25,7 +25,7 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float64",
+      "float_precision": "float32",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -68,8 +68,8 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260520_085822/recommended_features.json",
+        "mode": "none",
+        "artifact_path": "",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
@@ -116,7 +116,8 @@
           "candle_close_location_value_4h_lag15",
           "candle_close_location_value_30m_lag16",
           "candle_close_location_value_15m_lag21",
-          "candle_close_location_value_30m_lag21"
+          "candle_close_location_value_30m_lag21",
+          "CDLCLOSINGMARUBOZU_1m"
         ]
       },
       "train_lgbm": {
@@ -384,7 +385,9 @@
           "vp_long_log_density_ratio_to_current_bin_minus_2": 1,
           "candle_close_location_value_1m_lag13": 1,
           "candle_close_location_value_5m_lag13": 1,
-          "ChaikinOsc_fit_4m_pop128_fasmatypt3_fasper617_slomatypdema_sloper1834": 1
+          "ChaikinOsc_fit_4m_pop128_fasmatypt3_fasper617_slomatypdema_sloper1834": 1,
+          "futures_index_basis_rel_1d": 1,
+          "candle_close_location_value_5m_lag6": -1
         }
       }
     }
