@@ -117,7 +117,9 @@
           "candle_close_location_value_30m_lag16",
           "candle_close_location_value_15m_lag21",
           "candle_close_location_value_30m_lag21",
-          "CDLCLOSINGMARUBOZU_1m"
+          "CDLCLOSINGMARUBOZU_1m",
+          "CDLMARUBOZU_1m",
+          "CDLHANGINGMAN_5m"
         ]
       },
       "train_lgbm": {
@@ -387,7 +389,15 @@
           "candle_close_location_value_5m_lag13": 1,
           "ChaikinOsc_fit_4m_pop128_fasmatypt3_fasper617_slomatypdema_sloper1834": 1,
           "futures_index_basis_rel_1d": 1,
-          "candle_close_location_value_5m_lag6": -1
+          "candle_close_location_value_5m_lag6": -1,
+          "StochOsc_fit_1440m_pop128_faskper788_slodmatyphma_slodper968_slokmatypnwmaepan_slokper1154_qe0.1_qm0.2_tf0.8_stmc_sg15": -1,
+          "candle_body_pressure_5m_lag12": 1,
+          "candle_body_pressure_1m_lag34": -1,
+          "candle_up_down_vol_log_ratio_1d_lag2": -1,
+          "candle_body_pressure_15m_lag8": -1,
+          "candle_wick_asym_1m_lag21": -1,
+          "candle_close_location_value_30m_lag4": -1,
+          "candle_body_pressure_5m_lag7": -1
         }
       }
     }
