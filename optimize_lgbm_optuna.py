@@ -340,13 +340,13 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "min_gain_to_split": 0.4520600669558363,
       "feature_fraction_bynode": 0.9773524734598936,
       "path_smooth": 54.99959785886466,
-      "extra_trees": false,
+      "extra_trees": False,
       "monotone_constraints_method": "intermediate",
       "monotone_penalty": 2.00943387231227
     }
 ]
 
-N_TRIALS = 300
+N_TRIALS = 25
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
 EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC
