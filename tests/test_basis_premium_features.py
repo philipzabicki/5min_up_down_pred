@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from collections import deque
 from unittest import mock
 from pathlib import Path
 
@@ -21,6 +22,11 @@ from features.basis_premium_features import (
     is_basis_premium_feature,
 )
 from features.feature_intervals import FEATURE_INTERVAL_TO_RULE
+from live_predict_binance import (
+    LivePredictor,
+    _extract_live_auxiliary_ohlc_from_kline,
+    _merge_price_and_volume_frames as _merge_live_price_and_volume_frames,
+)
 from modeling_dataset_utils import split_feature_subset
 
 
@@ -193,6 +199,75 @@ class BasisPremiumFeatureTests(unittest.TestCase):
         self.assertIn("UM_BTCUSDT_Close", merged.columns)
         np.testing.assert_allclose(merged["UM_BTCUSDT_Close"], [101.0, 102.0, 103.0])
         np.testing.assert_allclose(merged["Volume"], [1.0, 2.0, 3.0])
+
+    def test_live_hybrid_merge_preserves_auxiliary_futures_close(self):
+        price_df = _base_frame(3).drop(columns=["UM_BTCUSDT_Close"])
+        volume_df = _base_frame(3).drop(columns=["UM_BTCUSDT_Close"])
+        volume_df["Close"] = [101.0, 102.0, 103.0]
+        merged = _merge_live_price_and_volume_frames(
+            price_df,
+            volume_df,
+            auxiliary_ohlc_cols={
+                "Open": "UM_BTCUSDT_Open",
+                "High": "UM_BTCUSDT_High",
+                "Low": "UM_BTCUSDT_Low",
+                "Close": "UM_BTCUSDT_Close",
+            },
+        )
+
+        self.assertIn("UM_BTCUSDT_Close", merged.columns)
+        np.testing.assert_allclose(merged["UM_BTCUSDT_Close"], [101.0, 102.0, 103.0])
+        np.testing.assert_allclose(merged["Volume"], [1.0, 2.0, 3.0])
+
+    def test_live_ws_volume_kline_extracts_auxiliary_futures_close(self):
+        values = _extract_live_auxiliary_ohlc_from_kline(
+            {"o": "100.0", "h": "101.0", "l": "99.0", "c": "100.5"},
+            auxiliary_ohlc_cols={
+                "Open": "UM_BTCUSDT_Open",
+                "High": "UM_BTCUSDT_High",
+                "Low": "UM_BTCUSDT_Low",
+                "Close": "UM_BTCUSDT_Close",
+            },
+        )
+
+        self.assertEqual(values["UM_BTCUSDT_Close"], 100.5)
+
+    def test_live_basis_premium_feature_vector_values(self):
+        predictor = object.__new__(LivePredictor)
+        predictor.basis_premium_feature_columns = (
+            "futures_index_basis_rel_1m",
+            "futures_index_basis_change_5m",
+        )
+        predictor.basis_premium_interval_to_rule = {
+            "1m": FEATURE_INTERVAL_TO_RULE["1m"],
+            "5m": FEATURE_INTERVAL_TO_RULE["5m"],
+        }
+        predictor.basis_premium_cfg = {"eps": 1e-12}
+        predictor.basis_index_close_col = "Close"
+        predictor.basis_index_ohlcv_idx = 3
+        predictor.basis_futures_close_col = "UM_BTCUSDT_Close"
+        predictor.opened_candles = deque(
+            pd.date_range("2026-01-01 00:00:00", periods=6, freq="min", tz="UTC")
+        )
+        index_close = np.full(6, 100.0)
+        predictor.ohlcv_np = np.column_stack(
+            [
+                index_close,
+                index_close,
+                index_close,
+                index_close,
+                np.ones(6),
+            ]
+        )
+        predictor.basis_futures_close_np = np.asarray(
+            [101.0, 102.0, 103.0, 104.0, 105.0, 106.0],
+            dtype=np.float64,
+        )
+
+        values = predictor._build_latest_basis_premium_features()
+
+        self.assertAlmostEqual(values["futures_index_basis_rel_1m"], 0.06)
+        self.assertTrue(np.isnan(values["futures_index_basis_change_5m"]))
 
     def test_hybrid_gap_repair_runs_on_both_ohlc_sets(self):
         raw_config = {

@@ -35,7 +35,9 @@ from project_config import (
     load_runtime_artifact_paths,
 )
 from features.basis_premium_features import (
+    add_basis_premium_features,
     is_basis_premium_feature,
+    resolve_futures_close_col,
     validate_basis_premium_feature_columns,
 )
 from features.candle_features import (
@@ -49,6 +51,7 @@ from features.candle_features import (
     resolve_candle_pattern_feature_cols,
     resolve_streak_interval_to_rule,
 )
+from features.feature_intervals import FEATURE_INTERVAL_TO_RULE
 
 from features.ADX import get_adx_values
 from features.BollingerBands import get_bollinger_bands_values
@@ -201,6 +204,80 @@ def _basis_premium_live_error():
         f"'{futures_close_col}' in raw history; rebuild live input with auxiliary "
         "source columns."
     )
+
+
+def _basis_premium_config():
+    cfg = dict(MODELING_DATASET_SETTINGS.get("basis_premium_features") or {})
+    return {
+        "enabled": bool(cfg.get("enabled", False)),
+        "index_close_col": str(cfg.get("index_close_col", "Close") or "Close").strip(),
+        "futures_close_col": str(cfg.get("futures_close_col", "") or "").strip(),
+        "eps": float(cfg.get("eps", 1e-12)),
+    }
+
+
+def _basis_premium_intervals_from_feature_cols(feature_cols):
+    intervals = []
+    seen = set()
+    unsupported = []
+    for raw_col in feature_cols:
+        interval = str(raw_col).strip().rsplit("_", 1)[-1]
+        if interval not in FEATURE_INTERVAL_TO_RULE:
+            unsupported.append(interval)
+            continue
+        if interval in seen:
+            continue
+        intervals.append(interval)
+        seen.add(interval)
+    if unsupported or not intervals:
+        raise ValueError(
+            "Unsupported basis premium live feature intervals: "
+            f"{unsupported}. Supported: {', '.join(FEATURE_INTERVAL_TO_RULE.keys())}"
+        )
+    return tuple(intervals)
+
+
+def _auxiliary_ohlc_cols(market_type, symbol):
+    market = str(market_type).strip().upper()
+    symbol = str(symbol).strip().upper()
+    return {
+        "Open": f"{market}_{symbol}_Open",
+        "High": f"{market}_{symbol}_High",
+        "Low": f"{market}_{symbol}_Low",
+        "Close": f"{market}_{symbol}_Close",
+    }
+
+
+def _live_auxiliary_ohlc_cols():
+    if PRICE_SOURCE == VOLUME_SOURCE:
+        return {}
+    if VOLUME_SOURCE != "trade" or VOLUME_MARKET not in {"um", "cm"}:
+        return {}
+    return _auxiliary_ohlc_cols(VOLUME_MARKET, VOLUME_SYMBOL)
+
+
+KLINE_PRICE_KEY_BY_COL = {
+    "Open": "o",
+    "High": "h",
+    "Low": "l",
+    "Close": "c",
+}
+
+
+def _extract_live_auxiliary_ohlc_from_kline(kline, auxiliary_ohlc_cols=None):
+    auxiliary_ohlc_cols = (
+        LIVE_AUXILIARY_OHLC_COLS
+        if auxiliary_ohlc_cols is None
+        else dict(auxiliary_ohlc_cols)
+    )
+    if not auxiliary_ohlc_cols:
+        return {}
+
+    values = {}
+    for source_col, auxiliary_col in auxiliary_ohlc_cols.items():
+        kline_key = KLINE_PRICE_KEY_BY_COL[source_col]
+        values[auxiliary_col] = float(kline[kline_key])
+    return values
 
 
 class IndicatorSpec:
@@ -490,6 +567,7 @@ PRICE_SOURCE, VOLUME_SOURCE = normalize_live_source_selection(
     DATASET_PROFILE["price_source"],
     DATASET_PROFILE["volume_source"],
 )
+LIVE_AUXILIARY_OHLC_COLS = _live_auxiliary_ohlc_cols()
 PRICE_STREAM_NAME = resolve_ws_stream_name(SYMBOL, INTERVAL, PRICE_SOURCE)
 VOLUME_STREAM_NAME = resolve_ws_stream_name(VOLUME_SYMBOL, INTERVAL, VOLUME_SOURCE)
 WS_TARGETS = build_ws_targets(
@@ -876,21 +954,38 @@ def _volume_from_rest_row(row, source):
     return float(row[5])
 
 
-def _merge_price_and_volume_frames(price_df, volume_df):
+def _merge_price_and_volume_frames(price_df, volume_df, auxiliary_ohlc_cols=None):
+    auxiliary_ohlc_cols = (
+        LIVE_AUXILIARY_OHLC_COLS
+        if auxiliary_ohlc_cols is None
+        else dict(auxiliary_ohlc_cols)
+    )
+    volume_cols = ["Opened", "Volume"]
+    volume_cols.extend(auxiliary_ohlc_cols.keys())
+
+    merged = price_df.loc[:, ["Opened", "Open", "High", "Low", "Close"]].merge(
+        volume_df.loc[:, volume_cols],
+        on="Opened",
+        how="inner",
+        suffixes=("", "__volume_source"),
+    )
+    if auxiliary_ohlc_cols:
+        drop_cols = []
+        for source_col, auxiliary_col in auxiliary_ohlc_cols.items():
+            merged_col = f"{source_col}__volume_source"
+            merged[auxiliary_col] = merged[merged_col]
+            drop_cols.append(merged_col)
+        merged = merged.drop(columns=drop_cols)
+
     merged = (
-        price_df.loc[:, ["Opened", "Open", "High", "Low", "Close"]]
-        .merge(
-            volume_df.loc[:, ["Opened", "Volume"]],
-            on="Opened",
-            how="inner",
-        )
-        .drop_duplicates(subset=["Opened"], keep="last")
+        merged.drop_duplicates(subset=["Opened"], keep="last")
         .sort_values("Opened")
         .reset_index(drop=True)
     )
+    ordered_cols = ["Opened", *OHLCV_COLS, *auxiliary_ohlc_cols.values()]
     if merged.empty:
-        return pd.DataFrame(columns=["Opened", *OHLCV_COLS])
-    return merged.loc[:, ["Opened", *OHLCV_COLS]]
+        return pd.DataFrame(columns=ordered_cols)
+    return merged.loc[:, ordered_cols]
 
 
 def _fetch_single_source_closed_ohlcv_range(
@@ -1077,8 +1172,35 @@ class LivePredictor:
         self.basis_premium_feature_columns = tuple(
             feature_parts["basis_premium_feature_cols"]
         )
+        self.basis_premium_cfg = _basis_premium_config()
+        self.basis_premium_interval_to_rule = {}
+        self.basis_index_close_col = ""
+        self.basis_index_ohlcv_idx = None
+        self.basis_futures_close_col = ""
+        self.basis_futures_close_np = None
         if self.basis_premium_feature_columns:
-            raise ValueError(_basis_premium_live_error())
+            if not self.basis_premium_cfg["enabled"]:
+                raise ValueError(
+                    "Model requires basis premium features but "
+                    "basis_premium_features.enabled is false."
+                )
+            self.basis_index_close_col = self.basis_premium_cfg["index_close_col"]
+            if self.basis_index_close_col not in OHLCV_COLS:
+                raise ValueError(
+                    "Live basis premium prediction requires index_close_col to be "
+                    f"one of raw OHLCV columns {OHLCV_COLS}; got "
+                    f"{self.basis_index_close_col!r}."
+                )
+            self.basis_index_ohlcv_idx = OHLCV_COLS.index(
+                self.basis_index_close_col
+            )
+            basis_intervals = _basis_premium_intervals_from_feature_cols(
+                self.basis_premium_feature_columns
+            )
+            self.basis_premium_interval_to_rule = {
+                interval: FEATURE_INTERVAL_TO_RULE[interval]
+                for interval in basis_intervals
+            }
         self.volume_profile_feature_columns = tuple(
             feature_parts["volume_profile_feature_cols"]
         )
@@ -1155,6 +1277,10 @@ class LivePredictor:
             for _ in range(drop_count):
                 self.opened_candles.popleft()
             self.ohlcv_np = self.ohlcv_np[-self.max_keep :, :]
+        basis_bootstrap_df = bootstrap_df.tail(len(self.opened_candles)).reset_index(
+            drop=True
+        )
+        self._initialize_basis_premium_state(basis_bootstrap_df)
         self.opened_ns_np = np.fromiter(
             (opened.value for opened in self.opened_candles),
             dtype=np.int64,
@@ -1225,7 +1351,128 @@ class LivePredictor:
             latest_values = self.realized_volatility_state.update(float(close_value))
         self.latest_realized_volatility_values = latest_values
 
-    def _append_new_candle(self, opened, ohlcv):
+    def _initialize_basis_premium_state(self, history_df):
+        if not self.basis_premium_feature_columns:
+            self.basis_futures_close_col = ""
+            self.basis_futures_close_np = None
+            return
+
+        try:
+            futures_close_col = resolve_futures_close_col(
+                history_df,
+                index_close_col=self.basis_index_close_col,
+                futures_close_col=self.basis_premium_cfg["futures_close_col"],
+            )
+        except ValueError as exc:
+            raise ValueError(_basis_premium_live_error()) from exc
+
+        futures_close = pd.to_numeric(
+            history_df[futures_close_col],
+            errors="coerce",
+        ).to_numpy(dtype=np.float64, copy=True)
+        if futures_close.shape[0] != len(self.opened_candles):
+            raise RuntimeError(
+                "Basis premium futures close history is not aligned with OHLCV "
+                f"history: {futures_close.shape[0]} != {len(self.opened_candles)}."
+            )
+
+        non_finite = int((~np.isfinite(futures_close)).sum())
+        if non_finite:
+            raise ValueError(
+                "Basis premium live prediction requires finite futures close "
+                f"history in {futures_close_col!r}; non_finite_count={non_finite}."
+            )
+
+        self.basis_futures_close_col = futures_close_col
+        self.basis_futures_close_np = futures_close
+        print(
+            "basis/premium live features: "
+            f"feature_count={len(self.basis_premium_feature_columns)} "
+            f"index_close_col={self.basis_index_close_col} "
+            f"futures_close_col={self.basis_futures_close_col} "
+            f"intervals={list(self.basis_premium_interval_to_rule.keys())}"
+        )
+
+    def _coerce_basis_futures_close(self, value, *, context):
+        if not self.basis_premium_feature_columns:
+            return None
+        try:
+            out = float(value)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(
+                "Basis premium live prediction requires futures close column "
+                f"{self.basis_futures_close_col!r} for {context}."
+            ) from exc
+        if not np.isfinite(out):
+            raise RuntimeError(
+                "Basis premium live prediction received a non-finite futures close "
+                f"for {context}: {out!r}."
+            )
+        return out
+
+    def _basis_futures_close_from_live_candle(self, kline, ohlcv):
+        if not self.basis_premium_feature_columns:
+            return None
+        opened = pd.to_datetime(int(kline["t"]), unit="ms", utc=True)
+        if self.basis_futures_close_col in OHLCV_COLS:
+            idx = OHLCV_COLS.index(self.basis_futures_close_col)
+            return self._coerce_basis_futures_close(
+                ohlcv[idx],
+                context=f"closed candle {opened}",
+            )
+        if self.basis_futures_close_col not in kline:
+            raise RuntimeError(
+                "Closed live candle is missing basis futures close column "
+                f"{self.basis_futures_close_col!r}. Check that live volume_source "
+                "is the same auxiliary futures trade source used for modeling."
+            )
+        return self._coerce_basis_futures_close(
+            kline[self.basis_futures_close_col],
+            context=f"closed candle {opened}",
+        )
+
+    def _build_latest_basis_premium_features(self):
+        if not self.basis_premium_feature_columns:
+            return {}
+        if self.basis_futures_close_np is None:
+            raise RuntimeError("Basis premium live state is not initialized.")
+        if self.basis_futures_close_np.shape[0] != len(self.opened_candles):
+            raise RuntimeError(
+                "Basis premium futures close history is not aligned with opened "
+                f"candles: {self.basis_futures_close_np.shape[0]} != "
+                f"{len(self.opened_candles)}."
+            )
+
+        history_df = pd.DataFrame(
+            {
+                "Opened": tuple(self.opened_candles),
+                self.basis_index_close_col: self.ohlcv_np[
+                    :, self.basis_index_ohlcv_idx
+                ],
+                self.basis_futures_close_col: self.basis_futures_close_np,
+            }
+        )
+        feature_df = add_basis_premium_features(
+            history_df,
+            opened_col="Opened",
+            index_close_col=self.basis_index_close_col,
+            futures_close_col=self.basis_futures_close_col,
+            interval_to_rule=self.basis_premium_interval_to_rule,
+            feature_cols=self.basis_premium_feature_columns,
+            eps=self.basis_premium_cfg["eps"],
+        )
+        latest = feature_df.iloc[-1]
+        return {
+            feature_col: float(latest[feature_col])
+            for feature_col in self.basis_premium_feature_columns
+        }
+
+    def _append_new_candle(self, opened, ohlcv, basis_futures_close=None):
+        if self.basis_premium_feature_columns:
+            basis_futures_close = self._coerce_basis_futures_close(
+                basis_futures_close,
+                context=f"closed candle {pd.Timestamp(opened).isoformat()}",
+            )
         ohlcv_row = np.asarray(ohlcv, dtype=np.float64).reshape(1, len(OHLCV_COLS))
         opened_ns_row = np.asarray([pd.Timestamp(opened).value], dtype=np.int64)
         if self.ohlcv_np.size == 0:
@@ -1240,6 +1487,17 @@ class LivePredictor:
             float(ohlcv_row[0, 0]),
             float(ohlcv_row[0, 3]),
         )
+        if self.basis_premium_feature_columns:
+            basis_row = np.asarray([basis_futures_close], dtype=np.float64)
+            if (
+                self.basis_futures_close_np is None
+                or self.basis_futures_close_np.size == 0
+            ):
+                self.basis_futures_close_np = basis_row
+            else:
+                self.basis_futures_close_np = np.concatenate(
+                    (self.basis_futures_close_np, basis_row)
+                )
         if self.realized_volatility_state is not None:
             self.latest_realized_volatility_values = self.realized_volatility_state.update(
                 float(ohlcv_row[0, 3])
@@ -1250,6 +1508,10 @@ class LivePredictor:
             self.candle_open_close.pop(dropped_opened, None)
             self.ohlcv_np = self.ohlcv_np[-self.max_keep :, :]
             self.opened_ns_np = self.opened_ns_np[-self.max_keep :]
+            if self.basis_premium_feature_columns:
+                self.basis_futures_close_np = self.basis_futures_close_np[
+                    -self.max_keep :
+                ]
 
     def _latest_btc_snapshot(self):
         if self.ohlcv_np.size == 0:
@@ -1401,6 +1663,7 @@ class LivePredictor:
             return None, None
 
         price_candle["v"] = float(volume_meta["volume"])
+        price_candle.update(volume_meta.get("auxiliary_ohlc") or {})
         self.pending_ws_price_candles.pop(opened, None)
         completed_at = max(
             pd.Timestamp(ts)
@@ -1420,6 +1683,7 @@ class LivePredictor:
         opened,
         volume,
         *,
+        auxiliary_ohlc=None,
         event_at=None,
         received_at=None,
     ):
@@ -1429,6 +1693,7 @@ class LivePredictor:
 
         volume_meta = {
             "volume": float(volume),
+            "auxiliary_ohlc": dict(auxiliary_ohlc or {}),
             "event_at": event_at,
             "received_at": received_at,
         }
@@ -1440,6 +1705,7 @@ class LivePredictor:
 
         price_candle = dict(price_meta["candle"])
         price_candle["v"] = float(volume)
+        price_candle.update(volume_meta.get("auxiliary_ohlc") or {})
         live_minute_opened = opened + INTERVAL_DELTA
         completed_at = max(
             pd.Timestamp(ts)
@@ -1544,6 +1810,7 @@ class LivePredictor:
             closed_candle, timing = self._store_pending_ws_volume(
                 opened,
                 float(kline["v"]),
+                auxiliary_ohlc=_extract_live_auxiliary_ohlc_from_kline(kline),
                 event_at=event_at,
                 received_at=received_at,
             )
@@ -1816,14 +2083,30 @@ class LivePredictor:
         if catchup_df.empty:
             return 0
 
+        basis_futures_close_values = None
+        if self.basis_premium_feature_columns:
+            if self.basis_futures_close_col not in catchup_df.columns:
+                raise RuntimeError(
+                    "REST catch-up is missing basis futures close column "
+                    f"{self.basis_futures_close_col!r}."
+                )
+            basis_futures_close_values = catchup_df[
+                self.basis_futures_close_col
+            ].to_numpy(dtype=np.float64, copy=False)
+
         added = 0
-        for row in catchup_df.itertuples(index=False):
+        for row_idx, row in enumerate(catchup_df.itertuples(index=False)):
             opened = pd.Timestamp(row.Opened)
             if opened <= self.opened_candles[-1]:
                 continue
             self._append_new_candle(
                 opened,
                 (row.Open, row.High, row.Low, row.Close, row.Volume),
+                basis_futures_close=(
+                    None
+                    if basis_futures_close_values is None
+                    else basis_futures_close_values[row_idx]
+                ),
             )
             self._update_volume_profile_state_for_latest_candle(
                 opened,
@@ -1905,6 +2188,8 @@ class LivePredictor:
             )
         if self.realized_volatility_state is not None:
             values.update(self.latest_realized_volatility_values)
+        if self.basis_premium_feature_columns:
+            values.update(self._build_latest_basis_premium_features())
 
         if volume_profile_values:
             values.update(volume_profile_values)
@@ -1988,6 +2273,7 @@ class LivePredictor:
             float(kline["c"]),
             float(kline["v"]),
         )
+        basis_futures_close = self._basis_futures_close_from_live_candle(kline, ohlcv)
 
         if self.opened_candles:
             last_opened = self.opened_candles[-1]
@@ -1996,9 +2282,15 @@ class LivePredictor:
             if opened == last_opened:
                 self.ohlcv_np[-1, :] = np.asarray(ohlcv, dtype=np.float64)
                 self.candle_open_close[opened] = (float(ohlcv[0]), float(ohlcv[3]))
+                if self.basis_premium_feature_columns:
+                    self.basis_futures_close_np[-1] = basis_futures_close
                 return opened
 
-        self._append_new_candle(opened, ohlcv)
+        self._append_new_candle(
+            opened,
+            ohlcv,
+            basis_futures_close=basis_futures_close,
+        )
         return opened
 
     def _settlement_http_session(self):
@@ -2604,6 +2896,7 @@ class LivePredictor:
             f"features={len(self.feature_columns)} "
             f"streak_features={len(self.streak_interval_to_rule)} "
             f"session_features={len(self.session_feature_columns)} "
+            f"basis_features={len(self.basis_premium_feature_columns)} "
             f"vp_features={len(self.volume_profile_feature_columns)}"
         )
         market_selector = (

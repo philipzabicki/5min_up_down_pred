@@ -3631,6 +3631,7 @@ class PolymarketLiveTrader(LivePredictor):
             f"price_symbol={SYMBOL} price_market={PRICE_MARKET} "
             f"volume_symbol={VOLUME_SYMBOL} volume_market={VOLUME_MARKET} "
             f"price_source={PRICE_SOURCE} volume_source={VOLUME_SOURCE} "
+            f"basis_features={len(self.basis_premium_feature_columns)} "
             f"series_slug={self.pm_cfg.series_slug} "
             f"market_slug_prefix={self.pm_cfg.market_slug_prefix} "
             f"settlement_source={self.settlement_source} "
