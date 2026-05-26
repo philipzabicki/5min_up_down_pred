@@ -52,6 +52,14 @@ def _safe_text(value, default=""):
     return text
 
 
+def polymarket_market_slug_matches_prefix(slug, market_slug_prefix):
+    slug_text = _safe_text(slug)
+    prefix = _safe_text(market_slug_prefix)
+    if not slug_text or not prefix:
+        return False
+    return slug_text == prefix or slug_text.startswith(f"{prefix}-")
+
+
 def validate_evm_address(address, *, field_name="address"):
     text = _safe_text(address)
     if _ADDRESS_RE.match(text) is None:
@@ -287,7 +295,7 @@ def collect_redeem_candidates(
 
 def _is_managed_position(position, market_slug_prefix):
     slug = _safe_text(position.get("slug") or position.get("eventSlug"))
-    return bool(market_slug_prefix) and slug.startswith(str(market_slug_prefix))
+    return polymarket_market_slug_matches_prefix(slug, market_slug_prefix)
 
 
 def _record_is_locally_resolved(record):

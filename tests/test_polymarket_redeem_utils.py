@@ -6,6 +6,7 @@ from polymarket_redeem_utils import (
     build_redeem_transactions,
     collect_redeem_candidates,
     encode_redeem_positions_call,
+    polymarket_market_slug_matches_prefix,
     resolve_redeem_collateral_address,
     resolve_redeem_target_address,
     resolve_relayer_tx_type,
@@ -82,6 +83,31 @@ class RedeemEncodingTests(unittest.TestCase):
 
 
 class RedeemCandidateTests(unittest.TestCase):
+    def test_market_slug_prefix_match_is_segment_safe(self):
+        self.assertTrue(
+            polymarket_market_slug_matches_prefix(
+                f"{MARKET_PREFIX}-1770000000", MARKET_PREFIX
+            )
+        )
+        self.assertFalse(
+            polymarket_market_slug_matches_prefix(
+                f"{MARKET_PREFIX}extra-1770000000", MARKET_PREFIX
+            )
+        )
+        self.assertFalse(polymarket_market_slug_matches_prefix("", MARKET_PREFIX))
+        self.assertFalse(polymarket_market_slug_matches_prefix(MARKET_PREFIX, ""))
+
+    def test_skip_positions_outside_market_prefix(self):
+        candidates, diagnostics = collect_redeem_candidates(
+            [_position(slug="some-other-market-1770000000")],
+            [_record()],
+            market_slug_prefix=MARKET_PREFIX,
+            require_redeemable=True,
+        )
+
+        self.assertEqual(candidates, [])
+        self.assertEqual(diagnostics, [])
+
     def test_dedupe_condition_id(self):
         positions = [
             _position(asset="111"),

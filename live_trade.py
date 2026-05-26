@@ -80,6 +80,7 @@ from polymarket_redeem_utils import (
     build_redeem_transactions as build_redeem_transaction_specs,
     collect_redeem_candidates as collect_redeem_candidate_specs,
     encode_redeem_positions_call,
+    polymarket_market_slug_matches_prefix,
     resolve_redeem_collateral_address,
     resolve_redeem_ctf_address,
     resolve_redeem_target_address,
@@ -1464,12 +1465,21 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _is_managed_position(self, position):
         slug = str(position.get("slug", "") or position.get("eventSlug", "") or "")
-        return slug.startswith(self.pm_cfg.market_slug_prefix)
+        return polymarket_market_slug_matches_prefix(
+            slug, self.pm_cfg.market_slug_prefix
+        )
+
+    def _is_managed_record(self, record):
+        return polymarket_market_slug_matches_prefix(
+            record.get("pm_market_slug"), self.pm_cfg.market_slug_prefix
+        )
 
     def _tracked_condition_ids(self):
         condition_ids = set()
         for rec in self._records_snapshot():
             if str(rec.get("pm_mode", "")) != "live":
+                continue
+            if not self._is_managed_record(rec):
                 continue
             condition_id = _safe_text(rec.get("pm_condition_id"))
             if condition_id:
@@ -1674,11 +1684,14 @@ class PolymarketLiveTrader(LivePredictor):
             _safe_text(rec.get("pm_selected_token_id")): rec
             for rec in self._records_snapshot()
             if str(rec.get("pm_mode", "")) == "live"
+            and self._is_managed_record(rec)
             and _safe_text(rec.get("pm_selected_token_id"))
         }
 
         candidates = []
         for pos in open_positions:
+            if not self._is_managed_position(pos):
+                continue
             asset = _safe_text(pos.get("asset"))
             if not asset:
                 continue
@@ -1774,6 +1787,7 @@ class PolymarketLiveTrader(LivePredictor):
                     "min_exit_pnl_usdc": float(min_exit_pnl_usdc),
                     "proceeds_net_usdc": float(proceeds["net_usdc"]),
                     "fee_usdc": float(proceeds["fee_usdc"]),
+                    "market_slug": _safe_text(pos.get("slug") or pos.get("eventSlug")),
                 }
             )
 
@@ -1789,6 +1803,15 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _submit_single_exit_candidate(self, candidate):
         asset = str(candidate["asset"])
+        if not polymarket_market_slug_matches_prefix(
+            candidate.get("market_slug"), self.pm_cfg.market_slug_prefix
+        ):
+            print(
+                "[pm] exit skip | "
+                f"reason=unmanaged_market asset={asset} "
+                f"marketSlug={candidate.get('market_slug', '')}"
+            )
+            return
         shares = float(candidate["shares"])
         price = float(candidate["price"])
         order_type = _polymarket_order_type_for_execution_mode(
@@ -2004,6 +2027,8 @@ class PolymarketLiveTrader(LivePredictor):
         with self.records_lock:
             for rec in self.records:
                 if str(rec.get("pm_mode", "")) != "live":
+                    continue
+                if not self._is_managed_record(rec):
                     continue
                 asset = str(rec.get("pm_selected_token_id", ""))
                 if not asset:
