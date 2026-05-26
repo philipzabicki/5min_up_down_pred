@@ -130,6 +130,43 @@ class BasisPremiumFeatureTests(unittest.TestCase):
         np.testing.assert_allclose(rel[2:], [0.03, 0.03, 0.03])
         self.assertTrue(np.isnan(out["futures_index_basis_change_3m"].iloc[4]))
 
+    def test_basis_premium_features_are_stable_after_slice_warmup(self):
+        futures_close = 101.0 + np.sin(np.arange(60, dtype=float) / 4.0)
+        df = _base_frame(60, futures_close=futures_close)
+        intervals = ("1m", "5m")
+        feature_cols = basis_premium_feature_columns(intervals)
+        interval_to_rule = {
+            interval: FEATURE_INTERVAL_TO_RULE[interval] for interval in intervals
+        }
+        full = add_basis_premium_features(
+            df,
+            opened_col="Opened",
+            index_close_col="Close",
+            futures_close_col="UM_BTCUSDT_Close",
+            interval_to_rule=interval_to_rule,
+            feature_cols=feature_cols,
+        )
+        sliced = add_basis_premium_features(
+            df.iloc[7:].copy(),
+            opened_col="Opened",
+            index_close_col="Close",
+            futures_close_col="UM_BTCUSDT_Close",
+            interval_to_rule=interval_to_rule,
+            feature_cols=feature_cols,
+        )
+        merged = full.loc[:, ["Opened", *feature_cols]].merge(
+            sliced.loc[:, ["Opened", *feature_cols]],
+            on="Opened",
+            suffixes=("_full", "_sliced"),
+        )
+        stable = merged.loc[merged["Opened"] >= df["Opened"].iloc[20]]
+        for feature_col in feature_cols:
+            np.testing.assert_allclose(
+                stable[f"{feature_col}_sliced"],
+                stable[f"{feature_col}_full"],
+                equal_nan=True,
+            )
+
     def test_split_feature_subset_classifies_basis_premium(self):
         feature_cols = basis_premium_feature_columns(("1m", "3m"))
         parts = split_feature_subset(feature_cols, source_label="test subset")

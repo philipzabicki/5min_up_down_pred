@@ -149,22 +149,6 @@ def _optional_path(value):
     return Path(value)
 
 
-def _basis_premium_futures_close_label():
-    cfg = dict(MODELING_DATASET_SETTINGS.get("basis_premium_features") or {})
-    return str(cfg.get("futures_close_col", "") or "").strip() or (
-        "<auto-detected futures close>"
-    )
-
-
-def _basis_premium_audit_raw_history_error():
-    futures_close_col = _basis_premium_futures_close_label()
-    return (
-        "Basis premium parity audit requires futures close column "
-        f"'{futures_close_col}' in raw history; rebuild dataset/audit input with "
-        "auxiliary source columns."
-    )
-
-
 def _load_model_feature_importance_frame(meta):
     artifacts = dict(meta.get("artifacts") or {})
     raw_path = str(artifacts.get("final_feature_importance_csv") or "").strip()
@@ -228,6 +212,36 @@ def _feature_group_map(feature_columns):
     for feature in parts["unclassified_feature_cols"]:
         group_by_feature[feature] = "unclassified"
     return group_by_feature
+
+
+def _ignored_basis_premium_feature_columns(feature_columns):
+    parts = split_feature_subset(feature_columns, source_label="audit feature columns")
+    return tuple(parts["basis_premium_feature_cols"])
+
+
+def _audited_feature_columns(feature_columns):
+    ignored = set(_ignored_basis_premium_feature_columns(feature_columns))
+    return [feature for feature in feature_columns if feature not in ignored]
+
+
+def _copy_ignored_basis_premium_features(candidate_df, reference_df, feature_columns):
+    ignored_cols = _ignored_basis_premium_feature_columns(feature_columns)
+    if not ignored_cols:
+        return candidate_df
+
+    missing_reference_cols = [col for col in ignored_cols if col not in reference_df]
+    if missing_reference_cols:
+        raise ValueError(
+            "Stored audit frame is missing ignored basis premium columns: "
+            f"{missing_reference_cols[:10]}"
+        )
+
+    out = candidate_df.copy()
+    for col in ignored_cols:
+        out[col] = reference_df[col].to_numpy(dtype=np.float64, copy=False)
+
+    leading_cols = [col for col in out.columns if col not in feature_columns]
+    return out.loc[:, [*leading_cols, *feature_columns]].copy()
 
 
 def _safe_rowwise_mean(values):
@@ -407,6 +421,12 @@ def _print_audit_console_summary(results, written_paths):
         f"{_format_console_value(summary.get('rows_with_any_policy_mismatch'))} "
         f"({_format_console_rate(summary.get('any_policy_mismatch_rate'))})"
     )
+    ignored_basis_count = int(summary.get("ignored_basis_premium_feature_count", 0) or 0)
+    if ignored_basis_count:
+        print(
+            "  ignored features: "
+            f"basis_premium={_format_console_value(ignored_basis_count)}"
+        )
     print(
         "  dominant source: "
         f"basis={_format_console_value(reason_summary.get('explanation_basis'))} | "
@@ -1193,8 +1213,7 @@ def build_current_recomputed_feature_history(
         feature_columns,
         source_label="audit feature columns",
     )
-    if feature_parts["basis_premium_feature_cols"]:
-        raise ValueError(_basis_premium_audit_raw_history_error())
+    recomputed_feature_columns = _audited_feature_columns(feature_columns)
     feature_frame = raw_history_df.loc[:, ["Opened", *RAW_OHLCV_COLS]].copy()
 
     configured_rules = resolve_streak_interval_to_rule(
@@ -1259,7 +1278,7 @@ def build_current_recomputed_feature_history(
         )
 
     if feature_parts["indicator_feature_cols"]:
-        indicator_config_map = _fit_indicator_config_map(feature_columns)
+        indicator_config_map = _fit_indicator_config_map(recomputed_feature_columns)
         indicator_configs = [
             indicator_config_map[feature]
             for feature in feature_parts["indicator_feature_cols"]
@@ -1279,7 +1298,7 @@ def build_current_recomputed_feature_history(
         feature_frame = add_indicator_values(feature_frame, ohlcv_np, indicator_configs)
 
     keep_cols = ["Opened", *RAW_OHLCV_COLS]
-    keep_cols.extend(col for col in feature_columns if col not in keep_cols)
+    keep_cols.extend(col for col in recomputed_feature_columns if col not in keep_cols)
     return feature_frame.loc[:, keep_cols].copy()
 
 
@@ -1295,7 +1314,7 @@ def align_feature_frame_to_audit_rows(
         how="left",
         sort=False,
     )
-    if aligned[feature_columns].isna().all(axis=1).any():
+    if feature_columns and aligned[feature_columns].isna().all(axis=1).any():
         missing_rows = aligned.loc[
             aligned[feature_columns].isna().all(axis=1), "Opened"
         ]
@@ -2325,8 +2344,6 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.basis_premium_feature_columns = tuple(
             feature_parts["basis_premium_feature_cols"]
         )
-        if self.basis_premium_feature_columns:
-            raise ValueError(_basis_premium_audit_raw_history_error())
         self.volume_profile_feature_columns = tuple(
             feature_parts["volume_profile_feature_cols"]
         )
@@ -2654,11 +2671,10 @@ def run_stored_modeling_vs_current_recompute_audit(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
     )
-    if split_feature_subset(
-        feature_columns,
-        source_label=f"model metadata {model_meta_path}",
-    )["basis_premium_feature_cols"]:
-        raise ValueError(_basis_premium_audit_raw_history_error())
+    ignored_basis_feature_columns = _ignored_basis_premium_feature_columns(
+        feature_columns
+    )
+    recomputed_feature_columns = _audited_feature_columns(feature_columns)
     validate_volume_profile_model_metadata(
         meta,
         feature_columns=feature_columns,
@@ -2700,12 +2716,17 @@ def run_stored_modeling_vs_current_recompute_audit(
     )
     recomputed_history_df = build_current_recomputed_feature_history(
         raw_history_df=raw_history_df,
-        feature_columns=feature_columns,
+        feature_columns=recomputed_feature_columns,
     )
     recomputed_audit_df = align_feature_frame_to_audit_rows(
         audit_df=stored_audit_df,
         feature_frame=recomputed_history_df,
-        feature_columns=feature_columns,
+        feature_columns=recomputed_feature_columns,
+    )
+    recomputed_audit_df = _copy_ignored_basis_premium_features(
+        recomputed_audit_df,
+        stored_audit_df,
+        feature_columns,
     )
 
     feature_group_by_name = _feature_group_map(feature_columns)
@@ -2751,6 +2772,12 @@ def run_stored_modeling_vs_current_recompute_audit(
                     "history_start": history_start.isoformat(),
                     "history_rows": int(history_rows),
                     "history_total_rows": int(history_total_rows),
+                    "ignored_basis_premium_feature_count": len(
+                        ignored_basis_feature_columns
+                    ),
+                    "ignored_basis_premium_features": ", ".join(
+                        ignored_basis_feature_columns
+                    ),
                     "report_type": "stored_modeling_vs_current_recompute",
                 }
             ),
@@ -2816,11 +2843,9 @@ def run_live_modeling_feature_audit(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
     )
-    if split_feature_subset(
-        feature_columns,
-        source_label=f"model metadata {model_meta_path}",
-    )["basis_premium_feature_cols"]:
-        raise ValueError(_basis_premium_audit_raw_history_error())
+    ignored_basis_feature_columns = _ignored_basis_premium_feature_columns(
+        feature_columns
+    )
     validate_volume_profile_model_metadata(
         meta,
         feature_columns=feature_columns,
@@ -2933,6 +2958,11 @@ def run_live_modeling_feature_audit(
     live_vector_rows = []
     live_nonfinite_rows = []
 
+    ignored_basis_feature_indices = [
+        feature_columns.index(feature)
+        for feature in ignored_basis_feature_columns
+        if feature in feature_columns
+    ]
     ohlcv_matrix = audit_df[list(RAW_OHLCV_COLS)].to_numpy(dtype=np.float64, copy=False)
     opened_values = audit_df["Opened"].to_list()
     loop_started_at = time.perf_counter()
@@ -2958,12 +2988,13 @@ def run_live_modeling_feature_audit(
         )
         if is_decision_step:
             snapshot = predictor.build_feature_snapshot(volume_profile_values)
-            live_vector_rows.append(
-                snapshot["vector"][0, :].astype(np.float64, copy=True)
-            )
-            nonfinite_row = np.zeros(len(feature_columns), dtype=bool)
-            if snapshot["nonfinite_feature_indices"]:
-                nonfinite_row[list(snapshot["nonfinite_feature_indices"])] = True
+            live_vector = snapshot["vector"][0, :].astype(np.float64, copy=True)
+            if ignored_basis_feature_indices:
+                live_vector[ignored_basis_feature_indices] = audit_df.loc[
+                    row_idx, list(ignored_basis_feature_columns)
+                ].to_numpy(dtype=np.float64, copy=False)
+            live_vector_rows.append(live_vector)
+            nonfinite_row = ~np.isfinite(live_vector)
             live_nonfinite_rows.append(nonfinite_row)
             indicator_nan_count_rows.append(len(snapshot["indicator_nan_cols"]))
             current_history_rows = len(predictor.opened_candles)
@@ -3046,6 +3077,12 @@ def run_live_modeling_feature_audit(
                     "max_steps": audit_window.max_steps,
                     "max_keep": int(max_keep),
                     "required_stable_window": int(predictor.required_stable_window),
+                    "ignored_basis_premium_feature_count": len(
+                        ignored_basis_feature_columns
+                    ),
+                    "ignored_basis_premium_features": ", ".join(
+                        ignored_basis_feature_columns
+                    ),
                     "use_anchor_vp_state": bool(use_anchor_vp_state),
                     "anchor_vp_state_path": (
                         None
