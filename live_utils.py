@@ -1,6 +1,9 @@
+import atexit
 import json
 import os
 import re
+import sys
+import threading
 import time
 from pathlib import Path
 
@@ -8,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 LIVE_ROOT_DIR = Path("data/live")
+LIVE_LOGS_DIR = LIVE_ROOT_DIR / "logs"
 LIVE_SHARED_MARKET_DATA_FILENAME = "polymarket_5m.csv"
 LIVE_SHARED_MARKET_DATA_KEY_COLUMNS = (
     "pm_run_started_at_utc",
@@ -230,6 +234,68 @@ def interval_to_floor_rule(interval):
     if interval.endswith("d"):
         return f"{int(interval[:-1])}d"
     raise ValueError(f"Unsupported floor rule interval: {interval}")
+
+
+class _TeeStream:
+    def __init__(self, primary_stream, log_stream, lock):
+        self.primary_stream = primary_stream
+        self.log_stream = log_stream
+        self.lock = lock
+
+    def write(self, text):
+        with self.lock:
+            self.primary_stream.write(text)
+            self.log_stream.write(text)
+        return len(text)
+
+    def flush(self):
+        with self.lock:
+            self.primary_stream.flush()
+            self.log_stream.flush()
+
+    def __getattr__(self, name):
+        return getattr(self.primary_stream, name)
+
+
+def build_live_console_log_path(run_name, run_started_at_utc=None, logs_dir=LIVE_LOGS_DIR):
+    timestamp = (
+        str(run_started_at_utc)
+        if run_started_at_utc is not None
+        else pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
+    )
+    safe_run_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(run_name).strip())
+    safe_run_name = safe_run_name.strip("._-") or "live"
+    return Path(logs_dir) / f"{safe_run_name}_{timestamp}.log"
+
+
+def setup_live_console_logging(run_name, run_started_at_utc=None, logs_dir=LIVE_LOGS_DIR):
+    log_path = build_live_console_log_path(
+        run_name,
+        run_started_at_utc=run_started_at_utc,
+        logs_dir=logs_dir,
+    )
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_file = log_path.open("a", encoding="utf-8", buffering=1)
+    lock = threading.RLock()
+    original_stdout = sys.stdout
+    original_stderr = sys.stderr
+    stdout_tee = _TeeStream(original_stdout, log_file, lock)
+    stderr_tee = _TeeStream(original_stderr, log_file, lock)
+    sys.stdout = stdout_tee
+    sys.stderr = stderr_tee
+
+    def close_log_file():
+        stdout_tee.flush()
+        stderr_tee.flush()
+        if sys.stdout is stdout_tee:
+            sys.stdout = original_stdout
+        if sys.stderr is stderr_tee:
+            sys.stderr = original_stderr
+        log_file.close()
+
+    atexit.register(close_log_file)
+    print(f"[log] console output file: {log_path}")
+    return log_path
 
 
 def build_live_trade_records_path(

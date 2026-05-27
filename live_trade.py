@@ -40,6 +40,7 @@ from live_utils import (
     build_live_market_data_path,
     build_live_trade_records_path,
     read_records_state,
+    setup_live_console_logging,
     upsert_records_csv,
     write_records_csv,
     write_records_state,
@@ -56,6 +57,7 @@ from live_predict_binance import (
     LivePredictor,
     PRICE_SOURCE,
     PRICE_MARKET,
+    RUN_STARTED_AT_UTC,
     resolve_model_accuracy_from_proba,
     resolve_model_side_from_proba,
     resolve_record_accuracy_from_side,
@@ -3743,6 +3745,10 @@ class PolymarketLiveTrader(LivePredictor):
 
 
 def main():
+    setup_live_console_logging(
+        f"live_trade_{SYMBOL}_{INTERVAL}",
+        run_started_at_utc=RUN_STARTED_AT_UTC,
+    )
     trader = PolymarketLiveTrader()
 
     now_utc = pd.Timestamp.now(tz="UTC")

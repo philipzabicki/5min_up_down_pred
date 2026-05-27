@@ -21,6 +21,7 @@ from live_utils import (
     build_live_market_data_path,
     interval_to_floor_rule,
     interval_to_timedelta,
+    setup_live_console_logging,
     upsert_records_csv,
     write_records_csv,
 )
@@ -2961,6 +2962,10 @@ class LivePredictor:
 
 
 def main():
+    setup_live_console_logging(
+        f"live_predict_binance_{SYMBOL}_{INTERVAL}",
+        run_started_at_utc=RUN_STARTED_AT_UTC,
+    )
     predictor = LivePredictor()
 
     now_utc = pd.Timestamp.now(tz="UTC")

@@ -56,10 +56,13 @@ data/live/*
 !data/live/.gitkeep
 !data/live/predictions/
 !data/live/trade/
+!data/live/logs/
 data/live/predictions/*
 !data/live/predictions/.gitkeep
 data/live/trade/*
 !data/live/trade/.gitkeep
+data/live/logs/*
+!data/live/logs/.gitkeep
 
 data/optuna/*
 !data/optuna/.gitkeep
