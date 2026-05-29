@@ -5,6 +5,7 @@ pyarrow
 fastparquet
 lightgbm
 optuna
+matplotlib
 scikit-learn
 websocket-client
 binance_data

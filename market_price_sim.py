@@ -21,6 +21,9 @@ LIVE_MARKET_OPTIONAL_COLUMNS = (
     "pm_run_started_at_utc",
     "pm_tick_size",
     "pm_order_min_size",
+    "signal_ready_delay_ms",
+    "decision_ready_delay_ms",
+    "cycle_complete_delay_ms",
     "decision_delay_ms",
     "market_lookup_ms",
     "submit_order_ms",
@@ -148,6 +151,9 @@ def load_live_market_empirical_frame(
     else:
         frame["pm_order_min_size"] = np.nan
     for col in (
+        "signal_ready_delay_ms",
+        "decision_ready_delay_ms",
+        "cycle_complete_delay_ms",
         "decision_delay_ms",
         "market_lookup_ms",
         "submit_order_ms",

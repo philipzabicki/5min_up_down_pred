@@ -114,8 +114,8 @@ POLYMARKET_SUBMITTED_ORDER_STATUSES = frozenset(
 POLYMARKET_RETRYABLE_SUBMISSION_STATUS = "submission_retryable_425"
 POLYMARKET_POST_ORDER_RETRYABLE_STATUS_CODES = frozenset({425})
 POLYMARKET_POST_ORDER_MAX_RETRIES = 3
-POLYMARKET_POST_ORDER_RETRY_INITIAL_DELAY_SEC = 1.0
-POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC = 4.0
+POLYMARKET_POST_ORDER_RETRY_INITIAL_DELAY_SEC = 0.25
+POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC = 1.0
 
 _PYCLOB_AUTH_TIME_OFFSET_SEC = 0.0
 
@@ -292,6 +292,8 @@ def _resolve_submitted_buy_price(
     entry_price,
     order_price_cap,
     submitted_price_mode,
+    tick_size=None,
+    slippage_ticks=0,
 ):
     entry_price_value = _safe_float(entry_price)
     if not np.isfinite(entry_price_value) or not (0.0 < entry_price_value < 1.0):
@@ -300,14 +302,32 @@ def _resolve_submitted_buy_price(
     submitted_price_mode_text = _safe_text(submitted_price_mode).lower()
     if submitted_price_mode_text in {"", "entry_price"}:
         return float(entry_price_value), ""
-    if submitted_price_mode_text != "order_price_cap":
-        return float("nan"), f"unsupported_submitted_price_mode:{submitted_price_mode_text}"
 
     order_price_cap_value = _safe_float(order_price_cap)
     if not np.isfinite(order_price_cap_value) or not (0.0 < order_price_cap_value < 1.0):
         return float("nan"), "invalid_order_price_cap"
     if entry_price_value > order_price_cap_value + 1e-12:
         return float("nan"), "entry_price_above_order_price_cap"
+
+    if submitted_price_mode_text == "entry_price_plus_ticks":
+        tick_size_value = _safe_float(tick_size)
+        try:
+            slippage_tick_count = int(slippage_ticks)
+        except (TypeError, ValueError):
+            return float("nan"), "invalid_submitted_price_slippage_ticks"
+        if not np.isfinite(tick_size_value) or tick_size_value <= 0.0:
+            return float("nan"), "invalid_tick_size"
+        if slippage_tick_count < 0:
+            return float("nan"), "invalid_submitted_price_slippage_ticks"
+        submitted_price = entry_price_value + slippage_tick_count * tick_size_value
+        submitted_price = min(submitted_price, order_price_cap_value)
+        submitted_price = round(float(submitted_price), 4)
+        if not (0.0 < submitted_price < 1.0):
+            return float("nan"), "invalid_submitted_price"
+        return float(submitted_price), ""
+
+    if submitted_price_mode_text != "order_price_cap":
+        return float("nan"), f"unsupported_submitted_price_mode:{submitted_price_mode_text}"
 
     return float(order_price_cap_value), ""
 
@@ -487,6 +507,35 @@ def _backfill_record_analysis_fields(record):
     current_shares = _safe_float(record.get("shares_net"))
     current_bankroll_before = _safe_float(record.get("bankroll_before_entry"))
     current_bankroll_after = _safe_float(record.get("bankroll_after_entry"))
+    intended_stake = _safe_float(record.get("intended_stake_usdc"))
+    if not np.isfinite(intended_stake):
+        intended_stake = _safe_float(record.get("effective_stake_usdc"))
+        if not np.isfinite(intended_stake):
+            intended_stake = _safe_float(record.get("entry_stake_usdc_orig"))
+        record["intended_stake_usdc"] = (
+            float(intended_stake) if np.isfinite(intended_stake) else np.nan
+        )
+    submitted_stake = _safe_float(record.get("submitted_stake_usdc"))
+    if not np.isfinite(submitted_stake):
+        order_status = _safe_text(record.get("pm_order_status"))
+        attempted_statuses = set(POLYMARKET_SUBMITTED_ORDER_STATUSES) | {
+            POLYMARKET_RETRYABLE_SUBMISSION_STATUS,
+            "submission_error",
+            "submission_rejected",
+        }
+        record["submitted_stake_usdc"] = (
+            float(record["intended_stake_usdc"])
+            if order_status in attempted_statuses
+            and np.isfinite(_safe_float(record.get("intended_stake_usdc")))
+            else np.nan
+        )
+    if not np.isfinite(_safe_float(record.get("filled_stake_usdc"))):
+        if np.isfinite(current_stake):
+            record["filled_stake_usdc"] = float(current_stake)
+        elif np.isfinite(stake_from_response):
+            record["filled_stake_usdc"] = float(stake_from_response)
+        else:
+            record["filled_stake_usdc"] = np.nan
     if not np.isfinite(_safe_float(record.get("entry_stake_usdc_orig"))):
         if np.isfinite(stake_from_response):
             record["entry_stake_usdc_orig"] = float(stake_from_response)
@@ -553,6 +602,9 @@ def _backfill_record_analysis_fields(record):
     record.setdefault("pm_account_sync_at_resolve", None)
     record.setdefault("pm_account_cash_balance_resolve_usdc", np.nan)
     record.setdefault("pm_account_positions_value_resolve_usdc", np.nan)
+    record.setdefault("signal_ready_delay_ms", np.nan)
+    record.setdefault("decision_ready_delay_ms", np.nan)
+    record.setdefault("cycle_complete_delay_ms", np.nan)
     record.setdefault("decision_delay_ms", np.nan)
     record.setdefault("ws_price_event_delay_ms", np.nan)
     record.setdefault("ws_volume_event_delay_ms", np.nan)
@@ -576,6 +628,10 @@ def _backfill_record_analysis_fields(record):
     record.setdefault("pm_fee_exponent", np.nan)
     record.setdefault("pm_fee_round_decimals", np.nan)
     record.setdefault("pm_min_fee_usdc", np.nan)
+    record.setdefault("pm_submitted_price", np.nan)
+    record.setdefault("pm_submitted_price_mode", "")
+    record.setdefault("pm_submitted_price_slippage_ticks", np.nan)
+    record.setdefault("pm_submitted_price_error", "")
     record.setdefault("pm_exit_decision_at", None)
     record.setdefault("pm_exit_best_bid", np.nan)
     record.setdefault("pm_exit_seconds_to_close", np.nan)
@@ -2585,6 +2641,12 @@ class PolymarketLiveTrader(LivePredictor):
         intent["tick_size"] = float(market.tick_size)
         intent["neg_risk"] = bool(market.neg_risk)
         intent["order_price_cap"] = float(self.pm_cfg.order_price_cap)
+        intent["submitted_price_mode"] = str(
+            self.live_trade_policy.get("submitted_price_mode", "entry_price")
+        )
+        intent["submitted_price_slippage_ticks"] = int(
+            self.live_trade_policy.get("submitted_price_slippage_ticks", 0)
+        )
         intent["fee_rate_bps"] = int(market.fee_rate_bps)
         intent["fee_model"] = market.fee_model
         intent["ask_yes"] = float(market.up_best_ask)
@@ -2599,6 +2661,10 @@ class PolymarketLiveTrader(LivePredictor):
             order_price_cap=self.pm_cfg.order_price_cap,
             submitted_price_mode=self.live_trade_policy.get(
                 "submitted_price_mode", "entry_price"
+            ),
+            tick_size=market.tick_size,
+            slippage_ticks=self.live_trade_policy.get(
+                "submitted_price_slippage_ticks", 0
             ),
         )
         if not np.isfinite(submitted_price):
@@ -2622,9 +2688,11 @@ class PolymarketLiveTrader(LivePredictor):
         status,
         error="",
         response_text="",
+        submitted_stake_usdc=np.nan,
         filled_stake_usdc=np.nan,
         filled_shares=np.nan,
     ):
+        submitted_stake_value = _safe_float(submitted_stake_usdc)
         filled_stake_value = _safe_float(filled_stake_usdc)
         filled_shares_value = _safe_float(filled_shares)
         return {
@@ -2632,6 +2700,11 @@ class PolymarketLiveTrader(LivePredictor):
             "status": str(status),
             "error": str(error),
             "response_text": str(response_text),
+            "submitted_stake_usdc": (
+                float(submitted_stake_value)
+                if np.isfinite(submitted_stake_value)
+                else np.nan
+            ),
             "filled_stake_usdc": (
                 float(filled_stake_value)
                 if np.isfinite(filled_stake_value)
@@ -2711,21 +2784,32 @@ class PolymarketLiveTrader(LivePredictor):
                 )
 
     def _maybe_submit_order(self, intent):
+        attempted_stake_usdc = np.nan
         try:
             if intent.get("final_reason") != "ok":
-                return self._submit_result(commit_bankroll=False, status="skipped")
+                return self._submit_result(
+                    commit_bankroll=False,
+                    status="skipped",
+                    submitted_stake_usdc=0.0,
+                )
             if self.pm_cfg.paper_mode:
-                return self._submit_result(commit_bankroll=True, status="paper_intent")
+                return self._submit_result(
+                    commit_bankroll=True,
+                    status="paper_intent",
+                    submitted_stake_usdc=float(intent.get("bet_usdc", 0.0) or 0.0),
+                )
             if self.pm_cfg.disable_order_submission:
                 return self._submit_result(
                     commit_bankroll=False,
                     status="submission_disabled",
+                    submitted_stake_usdc=0.0,
                 )
             if self.pm_client is None:
                 return self._submit_result(
                     commit_bankroll=False,
                     status="client_unavailable",
                     error="pm_client_not_initialized",
+                    submitted_stake_usdc=0.0,
                 )
 
             execution_mode = str(self.pm_cfg.execution_mode).lower()
@@ -2738,9 +2822,10 @@ class PolymarketLiveTrader(LivePredictor):
             )
             if execution_mode in POLYMARKET_EXECUTION_ORDER_TYPES:
                 self._prime_pm_client_order_metadata(intent)
+                attempted_stake_usdc = float(intent["bet_usdc"])
                 order = MarketOrderArgs(
                     token_id=str(intent["token_id"]),
-                    amount=float(intent["bet_usdc"]),
+                    amount=attempted_stake_usdc,
                     side=BUY,
                     price=float(
                         intent.get(
@@ -2770,6 +2855,7 @@ class PolymarketLiveTrader(LivePredictor):
                     commit_bankroll=False,
                     status="submission_rejected",
                     response_text=response_txt,
+                    submitted_stake_usdc=attempted_stake_usdc,
                 )
             filled_shares, filled_stake_usdc = _extract_buy_fill_metrics_from_response(
                 response
@@ -2781,6 +2867,7 @@ class PolymarketLiveTrader(LivePredictor):
                 commit_bankroll=commit_bankroll,
                 status=success_status,
                 response_text=response_txt,
+                submitted_stake_usdc=attempted_stake_usdc,
                 filled_stake_usdc=filled_stake_usdc,
                 filled_shares=filled_shares,
             )
@@ -2789,6 +2876,7 @@ class PolymarketLiveTrader(LivePredictor):
                 commit_bankroll=False,
                 status=_submission_error_status_from_exception(exc),
                 error=str(exc),
+                submitted_stake_usdc=attempted_stake_usdc,
             )
 
     def _resolve_pending(self):
@@ -2872,6 +2960,7 @@ class PolymarketLiveTrader(LivePredictor):
         market_lookup_ms = np.nan
         submit_order_ms = np.nan
         policy_compute_ms = np.nan
+        decision_ready_delay_ms = np.nan
         market_prefetch_hit = False
         market_prefetch_age_ms = np.nan
         market_lookup_source = ""
@@ -2887,6 +2976,7 @@ class PolymarketLiveTrader(LivePredictor):
             policy_started_perf = time.perf_counter()
             intent = self._recommend_polymarket_bet(prob_up_raw=proba_up, market=market)
             policy_compute_ms = _elapsed_ms(policy_started_perf)
+            decision_ready_delay_ms = _delay_ms_since(bucket_start)
             submit_started_perf = time.perf_counter()
             submit_result = self._maybe_submit_order(intent)
         except Exception as exc:
@@ -2906,6 +2996,7 @@ class PolymarketLiveTrader(LivePredictor):
             "intent": intent,
             "submit_result": submit_result,
             "policy_compute_ms": float(policy_compute_ms),
+            "decision_ready_delay_ms": float(decision_ready_delay_ms),
             "market_prefetch_hit": bool(market_prefetch_hit),
             "market_prefetch_age_ms": float(market_prefetch_age_ms),
             "market_lookup_source": str(market_lookup_source),
@@ -2932,6 +3023,12 @@ class PolymarketLiveTrader(LivePredictor):
         order_status = str(submit_result["status"])
         buy_record_fields = _resolve_buy_record_fields(intent, submit_result)
         btc_snapshot = self._latest_btc_snapshot()
+        intended_stake_usdc = _safe_float(intent.get("bet_usdc"), 0.0)
+        submitted_stake_usdc = _safe_float(
+            submit_result.get("submitted_stake_usdc"),
+            np.nan,
+        )
+        filled_stake_usdc = _safe_float(buy_record_fields["stake_usdc"], 0.0)
 
         record = {
             "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
@@ -2948,6 +3045,13 @@ class PolymarketLiveTrader(LivePredictor):
             ),
             "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(buy_record_fields["stake_usdc"]),
+            "intended_stake_usdc": float(intended_stake_usdc),
+            "submitted_stake_usdc": (
+                float(submitted_stake_usdc)
+                if np.isfinite(submitted_stake_usdc)
+                else np.nan
+            ),
+            "filled_stake_usdc": float(filled_stake_usdc),
             "stake_multiplier": float(intent.get("stake_multiplier", np.nan)),
             "required_stake_usdc": float(intent.get("required_stake_usdc", np.nan)),
             "effective_stake_usdc": float(
@@ -3059,6 +3163,16 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_order_price_cap": float(
                 intent.get("order_price_cap", self.pm_cfg.order_price_cap)
             ),
+            "pm_submitted_price": float(intent.get("submitted_price", np.nan)),
+            "pm_submitted_price_mode": str(
+                intent.get("submitted_price_mode", "")
+            ),
+            "pm_submitted_price_slippage_ticks": float(
+                intent.get("submitted_price_slippage_ticks", np.nan)
+            ),
+            "pm_submitted_price_error": str(
+                intent.get("submitted_price_error", "")
+            ),
             "pm_position_size": np.nan,
             "pm_position_current_value": np.nan,
             "pm_position_redeemable": False,
@@ -3140,6 +3254,10 @@ class PolymarketLiveTrader(LivePredictor):
         decision_delay_ms,
         latency_metrics,
     ):
+        submitted_stake_usdc = _safe_float(
+            submit_result.get("submitted_stake_usdc"),
+            np.nan,
+        )
         summary = {
             "decision_local": minute_close.tz_convert(self.local_tz).isoformat(),
             "bucket_start": bucket_start,
@@ -3151,6 +3269,13 @@ class PolymarketLiveTrader(LivePredictor):
             ),
             "trade_side": str(intent.get("trade_side", "none")),
             "stake_usdc": float(stake_usdc),
+            "intended_stake_usdc": float(_safe_float(intent.get("bet_usdc"), 0.0)),
+            "submitted_stake_usdc": (
+                float(submitted_stake_usdc)
+                if np.isfinite(submitted_stake_usdc)
+                else np.nan
+            ),
+            "filled_stake_usdc": float(stake_usdc),
             "stake_multiplier": float(intent.get("stake_multiplier", np.nan)),
             "required_stake_usdc": float(intent.get("required_stake_usdc", np.nan)),
             "effective_stake_usdc": float(
@@ -3163,6 +3288,11 @@ class PolymarketLiveTrader(LivePredictor):
             "policy_ev_yes": float(intent.get("ev_yes", np.nan)),
             "policy_ev_no": float(intent.get("ev_no", np.nan)),
             "policy_best_ev": float(intent.get("best_ev", np.nan)),
+            "pm_submitted_price": float(intent.get("submitted_price", np.nan)),
+            "pm_submitted_price_mode": str(intent.get("submitted_price_mode", "")),
+            "pm_submitted_price_slippage_ticks": float(
+                intent.get("submitted_price_slippage_ticks", np.nan)
+            ),
             "pm_order_status": str(submit_result["status"]),
             "pm_order_error": str(submit_result["error"]),
             "decision_delay_ms": float(decision_delay_ms),
@@ -3213,6 +3343,7 @@ class PolymarketLiveTrader(LivePredictor):
         model_predict_started_perf = time.perf_counter()
         proba_up = float(self.model.predict(feature_vector)[0])
         latency_metrics["model_predict_ms"] = _elapsed_ms(model_predict_started_perf)
+        latency_metrics["signal_ready_delay_ms"] = _delay_ms_since(bucket_start)
         bankroll_before_entry = float(self.live_bankroll_usdc)
         execution = self._evaluate_prediction_execution(
             bucket_start=bucket_start,
@@ -3228,6 +3359,9 @@ class PolymarketLiveTrader(LivePredictor):
         latency_metrics.setdefault("ws_receive_delay_ms", np.nan)
         latency_metrics.setdefault("ws_component_sync_ms", np.nan)
         latency_metrics["policy_compute_ms"] = float(execution["policy_compute_ms"])
+        latency_metrics["decision_ready_delay_ms"] = float(
+            execution["decision_ready_delay_ms"]
+        )
         latency_metrics["market_prefetch_hit"] = bool(execution["market_prefetch_hit"])
         latency_metrics["market_prefetch_age_ms"] = float(
             execution["market_prefetch_age_ms"]
@@ -3236,6 +3370,7 @@ class PolymarketLiveTrader(LivePredictor):
         latency_metrics["market_lookup_ms"] = float(execution["market_lookup_ms"])
         latency_metrics["submit_order_ms"] = float(execution["submit_order_ms"])
         latency_metrics["execution_ms"] = float(execution["execution_ms"])
+        latency_metrics["cycle_complete_delay_ms"] = float(decision_delay_ms)
         intent = execution["intent"]
         submit_result = execution["submit_result"]
         filled_stake_usdc = _safe_float(submit_result.get("filled_stake_usdc"))
@@ -3301,6 +3436,10 @@ class PolymarketLiveTrader(LivePredictor):
     def _format_rate(self, value):
         return "n/a" if not np.isfinite(value) else f"{value * 100:.2f}%"
 
+    def _format_number(self, value, decimals=2):
+        value = _safe_float(value)
+        return "n/a" if not np.isfinite(value) else f"{value:.{int(decimals)}f}"
+
     def _stats(self):
         records = self._records_snapshot()
         model_resolved = 0
@@ -3317,6 +3456,44 @@ class PolymarketLiveTrader(LivePredictor):
         policy_resolved = sum(1 for rec in records if self._record_is_resolved(rec))
         policy_resolved_wins = sum(
             int(rec["is_correct"]) for rec in records if self._record_is_resolved(rec)
+        )
+        policy_signals = sum(
+            1
+            for rec in records
+            if _safe_text(rec.get("policy_decision")) in {"buy_yes", "buy_no"}
+        )
+        policy_no_trade = sum(
+            1
+            for rec in records
+            if _safe_text(rec.get("policy_decision")) == "no_trade"
+        )
+        order_attempt_statuses = set(POLYMARKET_SUBMITTED_ORDER_STATUSES) | {
+            POLYMARKET_RETRYABLE_SUBMISSION_STATUS,
+            "submission_error",
+            "submission_rejected",
+        }
+        order_attempts = sum(
+            1
+            for rec in records
+            if _safe_text(rec.get("pm_order_status")) in order_attempt_statuses
+        )
+        order_submitted = sum(
+            1
+            for rec in records
+            if _is_polymarket_submitted_status(rec.get("pm_order_status"))
+        )
+        order_filled = sum(
+            1
+            for rec in records
+            if _safe_text(rec.get("policy_decision")) in {"buy_yes", "buy_no"}
+            and np.isfinite(_safe_float(rec.get("stake_usdc")))
+            and _safe_float(rec.get("stake_usdc")) > 0.0
+        )
+        order_failed_425 = sum(
+            1
+            for rec in records
+            if _safe_text(rec.get("pm_order_status"))
+            == POLYMARKET_RETRYABLE_SUBMISSION_STATUS
         )
         closed_trades = sum(1 for rec in records if self._record_is_traded(rec))
         closed_trade_wins = sum(
@@ -3351,6 +3528,12 @@ class PolymarketLiveTrader(LivePredictor):
             "policy_resolved_wins": policy_resolved_wins,
             "policy_resolved_losses": policy_resolved - policy_resolved_wins,
             "win_rate_policy_resolved": win_rate_policy_resolved,
+            "policy_signals": policy_signals,
+            "policy_no_trade": policy_no_trade,
+            "order_attempts": order_attempts,
+            "order_submitted": order_submitted,
+            "order_filled": order_filled,
+            "order_failed_425": order_failed_425,
             "closed_trades": closed_trades,
             "closed_trade_wins": closed_trade_wins,
             "closed_trade_losses": closed_trades - closed_trade_wins,
@@ -3448,6 +3631,17 @@ class PolymarketLiveTrader(LivePredictor):
             ],
         )
         self._print_log_fields(
+            "orders",
+            [
+                ("signals", stats["policy_signals"]),
+                ("no_trade", stats["policy_no_trade"]),
+                ("attempts", stats["order_attempts"]),
+                ("submitted", stats["order_submitted"]),
+                ("filled", stats["order_filled"]),
+                ("failed_425", stats["order_failed_425"]),
+            ],
+        )
+        self._print_log_fields(
             "trades",
             [
                 ("closed", stats["closed_trades"]),
@@ -3465,7 +3659,18 @@ class PolymarketLiveTrader(LivePredictor):
                     ("policy_decision", pred["policy_decision"]),
                     ("trade_side", pred["trade_side"]),
                     ("policy_best_ev", f"{pred['policy_best_ev']:.6f}"),
-                    ("stake_usdc", f"{pred['stake_usdc']:.2f}"),
+                    (
+                        "stake_intended",
+                        self._format_number(pred.get("intended_stake_usdc"), 2),
+                    ),
+                    (
+                        "stake_submitted",
+                        self._format_number(pred.get("submitted_stake_usdc"), 2),
+                    ),
+                    (
+                        "stake_filled",
+                        self._format_number(pred.get("filled_stake_usdc"), 2),
+                    ),
                     ("stake_multiplier", f"{pred['stake_multiplier']:.4f}"),
                     (
                         "required_stake_usdc",
@@ -3478,12 +3683,27 @@ class PolymarketLiveTrader(LivePredictor):
                         ),
                     ),
                     ("effective_stake_usdc", f"{pred['effective_stake_usdc']:.2f}"),
+                    (
+                        "submitted_price",
+                        self._format_number(pred.get("pm_submitted_price"), 4),
+                    ),
                 ],
             )
             execution_fields = [
                 ("pm_order_status", pred["pm_order_status"]),
                 ("policy_reason", pred["policy_reason"]),
-                ("decision_delay_ms", f"{pred['decision_delay_ms']:.0f}"),
+                (
+                    "signal_ready_ms",
+                    self._format_number(pred.get("signal_ready_delay_ms"), 0),
+                ),
+                (
+                    "decision_ready_ms",
+                    self._format_number(pred.get("decision_ready_delay_ms"), 0),
+                ),
+                (
+                    "cycle_complete_ms",
+                    self._format_number(pred.get("cycle_complete_delay_ms"), 0),
+                ),
             ]
             if np.isfinite(_safe_float(pred.get("ws_receive_delay_ms", np.nan))):
                 execution_fields.append(
@@ -3662,7 +3882,8 @@ class PolymarketLiveTrader(LivePredictor):
             f"mode={self.live_trade_policy.get('mode', 'ev')} "
             f"stake_multiplier={self.live_trade_policy['stake_multiplier']:.4f} "
             f"extra_buffer={self.live_trade_policy['extra_buffer']:.6f} "
-            f"submitted_price_mode={self.live_trade_policy.get('submitted_price_mode', 'entry_price')}"
+            f"submitted_price_mode={self.live_trade_policy.get('submitted_price_mode', 'entry_price')} "
+            f"submitted_price_slippage_ticks={self.live_trade_policy.get('submitted_price_slippage_ticks', 0)}"
         )
         print(
             "Exit policy | "

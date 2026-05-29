@@ -39,17 +39,10 @@ RANDOM_SEED = 37
 LIMIT_FEATURES = 0
 
 SUSPICIOUS_TOP_N = 30
-SUSPICIOUS_EDGE_FRACTION = 0.20
-SUSPICIOUS_TRIM_BIN_COUNT = 2
-SUSPICIOUS_TRIM_FRACTION = 0.10
-SUSPICIOUS_MIN_ABS_PDP_DELTA = 0.0005
-SUSPICIOUS_MIN_ABS_BASELINE_DELTA = 0.0005
-SUSPICIOUS_MIN_ABS_TARGET_DELTA = 0.003
 SUSPICIOUS_MIN_ABS_PDP_SLOPE = 0.0005
 SUSPICIOUS_MIN_ABS_BASELINE_SLOPE = 0.0005
 SUSPICIOUS_MIN_ABS_TARGET_SLOPE = 0.003
-SUSPICIOUS_MIN_ABS_SPEARMAN = 0.15
-SUSPICIOUS_MIN_VOTES_FOR_DIRECTION = 2
+SUSPICIOUS_MIN_ABS_KENDALL = 0.10
 
 TIME_COL = "Opened"
 TARGET_COL_OVERRIDE = None
@@ -847,10 +840,10 @@ def classify_curve(grid_values, pdp_values):
         positive_share = 0.0
         negative_share = 0.0
 
-    endpoint_delta = float(pdp_values[-1] - pdp_values[0])
-    if positive_share >= 0.70 and endpoint_delta > 0.0:
+    endpoint_change = float(pdp_values[-1] - pdp_values[0])
+    if positive_share >= 0.70 and endpoint_change > 0.0:
         return "mostly_increasing"
-    if negative_share >= 0.70 and endpoint_delta < 0.0:
+    if negative_share >= 0.70 and endpoint_change < 0.0:
         return "mostly_decreasing"
 
     peak_idx = int(np.argmax(pdp_values))
@@ -871,10 +864,11 @@ def _format_probability(value):
     return f"{float(value):.4f}"
 
 
-def _format_delta_pp(value):
+def _format_probability_change_pp(value, *, signed=True):
     if value is None or not np.isfinite(float(value)):
         return "brak danych"
-    return f"{float(value) * 100.0:+.2f} pp"
+    number = float(value) * 100.0
+    return f"{number:+.2f} pp" if signed else f"{number:.2f} pp"
 
 
 def _format_feature_value(value):
@@ -917,16 +911,6 @@ def _has_min_abs(value, threshold):
     return number is not None and abs(number) >= float(threshold)
 
 
-def _edge_mean(points):
-    if not points:
-        return None
-
-    total_weight = float(sum(point[2] for point in points))
-    if total_weight <= 0.0:
-        return None
-    return float(sum(point[1] * point[2] for point in points) / total_weight)
-
-
 def _series_points(
     rows,
     feature_value_key,
@@ -959,67 +943,6 @@ def _series_points(
     return points
 
 
-def _edge_delta_from_points(points, *, edge_fraction, min_points=2):
-    if len(points) < int(min_points):
-        return None
-
-    edge_count = max(
-        1,
-        int(math.ceil(len(points) * float(edge_fraction))),
-    )
-    edge_count = min(edge_count, len(points))
-    low_mean = _edge_mean(points[:edge_count])
-    high_mean = _edge_mean(points[-edge_count:])
-    if low_mean is None or high_mean is None:
-        return None
-    return float(high_mean - low_mean)
-
-
-def calculate_edge_delta(
-    rows,
-    feature_value_key,
-    metric_key,
-    *,
-    weight_key=None,
-    require_positive_target_count=False,
-):
-    points = _series_points(
-        rows,
-        feature_value_key,
-        metric_key,
-        weight_key=weight_key,
-        require_positive_target_count=require_positive_target_count,
-    )
-    return _edge_delta_from_points(
-        points,
-        edge_fraction=float(SUSPICIOUS_EDGE_FRACTION),
-    )
-
-
-def _trim_for_trimmed_delta(points):
-    if len(points) < 4:
-        return []
-    trim_count = int(SUSPICIOUS_TRIM_BIN_COUNT)
-    if len(points) - (2 * trim_count) < 4:
-        trim_count = int(math.floor(len(points) * float(SUSPICIOUS_TRIM_FRACTION)))
-    if trim_count <= 0:
-        trimmed = list(points)
-    else:
-        trimmed = list(points[trim_count:-trim_count])
-    return trimmed if len(trimmed) >= 4 else []
-
-
-def _middle_80_points(points):
-    if len(points) < 4:
-        return []
-    trim_count = int(math.floor(len(points) * 0.10))
-    if trim_count <= 0:
-        middle = list(points)
-    else:
-        middle = list(points[trim_count:-trim_count])
-    return middle if len(middle) >= 4 else []
-
-
 def _weighted_slope(points):
     if len(points) < 2:
         return None
@@ -1049,7 +972,7 @@ def _weighted_slope(points):
     return slope if math.isfinite(slope) else None
 
 
-def _spearman(points):
+def _kendall_tau_b(points):
     if len(points) < 3:
         return None
     x = np.asarray([point[0] for point in points], dtype=np.float64)
@@ -1057,14 +980,39 @@ def _spearman(points):
     valid = np.isfinite(x) & np.isfinite(y)
     if np.count_nonzero(valid) < 3:
         return None
-    x_rank = pd.Series(x[valid]).rank(method="average").to_numpy(dtype=np.float64)
-    y_rank = pd.Series(y[valid]).rank(method="average").to_numpy(dtype=np.float64)
-    if float(np.max(x_rank) - np.min(x_rank)) <= 0.0:
+    x = x[valid]
+    y = y[valid]
+    if float(np.max(x) - np.min(x)) <= 0.0:
         return None
-    if float(np.max(y_rank) - np.min(y_rank)) <= 0.0:
+    if float(np.max(y) - np.min(y)) <= 0.0:
         return None
-    correlation = float(np.corrcoef(x_rank, y_rank)[0, 1])
-    return correlation if math.isfinite(correlation) else None
+
+    concordant = 0
+    discordant = 0
+    tied_x = 0
+    tied_y = 0
+    for left_idx in range(len(x) - 1):
+        dx = x[left_idx + 1 :] - x[left_idx]
+        dy = y[left_idx + 1 :] - y[left_idx]
+        tied_both_mask = (dx == 0.0) & (dy == 0.0)
+        tied_x_mask = (dx == 0.0) & ~tied_both_mask
+        tied_y_mask = (dy == 0.0) & ~tied_both_mask
+        comparable = ~(tied_both_mask | tied_x_mask | tied_y_mask)
+
+        tied_x += int(np.count_nonzero(tied_x_mask))
+        tied_y += int(np.count_nonzero(tied_y_mask))
+        products = dx[comparable] * dy[comparable]
+        concordant += int(np.count_nonzero(products > 0.0))
+        discordant += int(np.count_nonzero(products < 0.0))
+
+    denominator = math.sqrt(
+        float(concordant + discordant + tied_x)
+        * float(concordant + discordant + tied_y)
+    )
+    if denominator <= 0.0 or not math.isfinite(denominator):
+        return None
+    tau = float((concordant - discordant) / denominator)
+    return tau if math.isfinite(tau) else None
 
 
 def _direction_with_threshold(value, threshold):
@@ -1084,98 +1032,44 @@ def _opposes(left_direction, right_direction):
 
 def _series_thresholds(series_kind):
     if series_kind == "target":
-        return {
-            "delta": float(SUSPICIOUS_MIN_ABS_TARGET_DELTA),
-            "slope": float(SUSPICIOUS_MIN_ABS_TARGET_SLOPE),
-        }
+        return {"slope": float(SUSPICIOUS_MIN_ABS_TARGET_SLOPE)}
     if series_kind == "baseline":
-        return {
-            "delta": float(SUSPICIOUS_MIN_ABS_BASELINE_DELTA),
-            "slope": float(SUSPICIOUS_MIN_ABS_BASELINE_SLOPE),
-        }
-    return {
-        "delta": float(SUSPICIOUS_MIN_ABS_PDP_DELTA),
-        "slope": float(SUSPICIOUS_MIN_ABS_PDP_SLOPE),
-    }
+        return {"slope": float(SUSPICIOUS_MIN_ABS_BASELINE_SLOPE)}
+    return {"slope": float(SUSPICIOUS_MIN_ABS_PDP_SLOPE)}
 
 
 def _build_direction_metrics(points, series_kind):
     thresholds = _series_thresholds(series_kind)
-    edge_delta = _edge_delta_from_points(
-        points,
-        edge_fraction=float(SUSPICIOUS_EDGE_FRACTION),
-    )
-    trimmed_points = _trim_for_trimmed_delta(points)
-    middle_points = _middle_80_points(points)
-    trimmed_edge_delta = _edge_delta_from_points(
-        trimmed_points,
-        edge_fraction=float(SUSPICIOUS_EDGE_FRACTION),
-        min_points=4,
-    )
-    middle_80_delta = _edge_delta_from_points(
-        middle_points,
-        edge_fraction=float(SUSPICIOUS_EDGE_FRACTION),
-        min_points=4,
-    )
     weighted_slope = _weighted_slope(points)
-    spearman = _spearman(points)
+    kendall_tau = _kendall_tau_b(points)
 
     directions = {
-        "edge_delta": _direction_with_threshold(edge_delta, thresholds["delta"]),
-        "trimmed_edge_delta": _direction_with_threshold(
-            trimmed_edge_delta,
-            thresholds["delta"],
-        ),
-        "middle_80_delta": _direction_with_threshold(
-            middle_80_delta,
-            thresholds["delta"],
-        ),
         "weighted_slope": _direction_with_threshold(
             weighted_slope,
             thresholds["slope"],
         ),
-        "spearman": _direction_with_threshold(
-            spearman,
-            float(SUSPICIOUS_MIN_ABS_SPEARMAN),
+        "kendall_tau": _direction_with_threshold(
+            kendall_tau,
+            float(SUSPICIOUS_MIN_ABS_KENDALL),
         ),
     }
-    main_votes = [
-        directions["trimmed_edge_delta"],
-        directions["middle_80_delta"],
+    direction_conflict = _opposes(
         directions["weighted_slope"],
-        directions["spearman"],
-    ]
-    positive_votes = sum(1 for direction in main_votes if direction > 0)
-    negative_votes = sum(1 for direction in main_votes if direction < 0)
-    robust_direction = 0
-    if (
-        positive_votes >= int(SUSPICIOUS_MIN_VOTES_FOR_DIRECTION)
-        and positive_votes > negative_votes
-    ):
-        robust_direction = 1
-    elif (
-        negative_votes >= int(SUSPICIOUS_MIN_VOTES_FOR_DIRECTION)
-        and negative_votes > positive_votes
-    ):
-        robust_direction = -1
-
-    edge_outlier_warning = (
-        _opposes(directions["edge_delta"], robust_direction)
-        or _opposes(directions["edge_delta"], directions["trimmed_edge_delta"])
-        or _opposes(directions["edge_delta"], directions["weighted_slope"])
+        directions["kendall_tau"],
     )
+    if direction_conflict:
+        robust_direction = 0
+    elif directions["kendall_tau"] != 0:
+        robust_direction = directions["kendall_tau"]
+    else:
+        robust_direction = directions["weighted_slope"]
 
     return {
-        "edge_delta": edge_delta,
-        "trimmed_edge_delta": trimmed_edge_delta,
-        "middle_80_delta": middle_80_delta,
         "weighted_slope": weighted_slope,
-        "spearman": spearman,
+        "kendall_tau": kendall_tau,
         "directions": directions,
         "robust_direction": int(robust_direction),
-        "positive_votes": int(positive_votes),
-        "negative_votes": int(negative_votes),
-        "edge_outlier_warning": bool(edge_outlier_warning),
+        "direction_conflict": bool(direction_conflict),
     }
 
 
@@ -1183,7 +1077,7 @@ def _core_vote_count(series_metrics, expected_direction):
     directions = series_metrics.get("directions", {})
     return sum(
         1
-        for key in ("trimmed_edge_delta", "weighted_slope", "spearman")
+        for key in ("weighted_slope", "kendall_tau")
         if int(directions.get(key) or 0) == int(expected_direction)
     )
 
@@ -1192,20 +1086,12 @@ def _series_strength(series_metrics, series_kind):
     thresholds = _series_thresholds(series_kind)
     values = [
         (
-            _abs_or_none(series_metrics.get("trimmed_edge_delta")),
-            thresholds["delta"],
-        ),
-        (
-            _abs_or_none(series_metrics.get("middle_80_delta")),
-            thresholds["delta"],
-        ),
-        (
             _abs_or_none(series_metrics.get("weighted_slope")),
             thresholds["slope"],
         ),
         (
-            _abs_or_none(series_metrics.get("spearman")),
-            float(SUSPICIOUS_MIN_ABS_SPEARMAN),
+            _abs_or_none(series_metrics.get("kendall_tau")),
+            float(SUSPICIOUS_MIN_ABS_KENDALL),
         ),
     ]
     scaled = [
@@ -1217,22 +1103,17 @@ def _series_strength(series_metrics, series_kind):
 
 
 def _series_abs_signal(series_metrics):
-    values = [
-        _abs_or_none(series_metrics.get("trimmed_edge_delta")),
-        _abs_or_none(series_metrics.get("middle_80_delta")),
-        _abs_or_none(series_metrics.get("weighted_slope")),
-    ]
-    finite_values = [float(value) for value in values if value is not None]
-    return max(finite_values) if finite_values else 0.0
+    value = _abs_or_none(series_metrics.get("weighted_slope"))
+    return float(value) if value is not None else 0.0
 
 
 def _target_has_required_strength(target_metrics):
     return _has_min_abs(
-        target_metrics.get("trimmed_edge_delta"),
-        SUSPICIOUS_MIN_ABS_TARGET_DELTA,
-    ) or _has_min_abs(
         target_metrics.get("weighted_slope"),
         SUSPICIOUS_MIN_ABS_TARGET_SLOPE,
+    ) or _has_min_abs(
+        target_metrics.get("kendall_tau"),
+        SUSPICIOUS_MIN_ABS_KENDALL,
     )
 
 
@@ -1241,11 +1122,11 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
     baseline_dir = int(baseline_metrics["robust_direction"])
     pdp_dir = int(pdp_metrics["robust_direction"])
 
-    edge_outlier_warning = any(
+    direction_conflict_warning = any(
         (
-            pdp_metrics["edge_outlier_warning"],
-            baseline_metrics["edge_outlier_warning"],
-            target_metrics["edge_outlier_warning"],
+            pdp_metrics["direction_conflict"],
+            baseline_metrics["direction_conflict"],
+            target_metrics["direction_conflict"],
         )
     )
     target_strong = _target_has_required_strength(target_metrics)
@@ -1257,7 +1138,7 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
         and target_strong
         and baseline_dir == -target_dir
         and pdp_dir == -target_dir
-        and not edge_outlier_warning
+        and not direction_conflict_warning
         and baseline_against_target_votes >= 2
         and pdp_against_target_votes >= 2
     ):
@@ -1287,7 +1168,7 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
     pdp_much_stronger_than_target = (
         pdp_strong
         and pdp_abs_signal >= max(
-            float(SUSPICIOUS_MIN_ABS_PDP_DELTA) * 4.0,
+            float(SUSPICIOUS_MIN_ABS_PDP_SLOPE) * 4.0,
             target_abs_signal * 3.0,
         )
     )
@@ -1296,17 +1177,17 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
     pdp_target_conflict = target_dir != 0 and pdp_dir == -target_dir
     baseline_target_conflict = target_dir != 0 and baseline_dir == -target_dir
 
-    if edge_outlier_warning and any_robust_direction:
-        return (
-            "edge_outlier_or_edge_metric_conflict",
-            "inspect_interactions_do_not_auto_exclude",
-            None,
-        )
-
     if pdp_strong and (target_weak or pdp_much_stronger_than_target):
         return (
             "strong_pdp_weak_or_smaller_target_signal",
             "monitor_calibration_or_ablation",
+            None,
+        )
+
+    if direction_conflict_warning and any_robust_direction:
+        return (
+            "slope_kendall_direction_conflict",
+            "inspect_interactions_do_not_auto_exclude",
             None,
         )
 
@@ -1324,51 +1205,116 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
     return ("none", "none", None)
 
 
-def _feature_suspicion_score(pdp_metrics, baseline_metrics, target_metrics, suggested_action):
-    target_dir = int(target_metrics["robust_direction"])
-    baseline_dir = int(baseline_metrics["robust_direction"])
-    pdp_dir = int(pdp_metrics["robust_direction"])
-    target_strength = _series_strength(target_metrics, "target")
-    baseline_strength = _series_strength(baseline_metrics, "baseline")
-    pdp_strength = _series_strength(pdp_metrics, "pdp")
-
-    score = 0.0
-    score += min(target_strength, 10.0) * 5.0
-    score += min(pdp_strength, 10.0) * 4.0
-    score += min(baseline_strength, 10.0) * 2.0
-    if target_dir != 0 and pdp_dir == -target_dir:
-        score += 80.0 + (_core_vote_count(pdp_metrics, -target_dir) * 10.0)
-    if target_dir != 0 and baseline_dir == -target_dir:
-        score += 55.0 + (_core_vote_count(baseline_metrics, -target_dir) * 8.0)
-    if target_dir != 0 and baseline_dir == target_dir and pdp_dir == -target_dir:
-        score += 70.0
-    if suggested_action == "exclude_candidate":
-        score += 60.0
-    elif suggested_action == "monotonic_constraint_candidate":
-        score += 45.0
-    elif suggested_action == "monitor_calibration_or_ablation":
-        score += 25.0
-    elif suggested_action == "inspect_interactions_do_not_auto_exclude":
-        score += 15.0
-
-    if any(
-        (
-            pdp_metrics["edge_outlier_warning"],
-            baseline_metrics["edge_outlier_warning"],
-            target_metrics["edge_outlier_warning"],
-        )
-    ):
-        score -= 10.0
-    return max(0.0, float(score))
-
-
 def _compact_metric(value):
     return _compact_number(value)
+
+
+def _weighted_mean_or_none(values, weights):
+    values = np.asarray(values, dtype=np.float64)
+    weights = np.asarray(weights, dtype=np.float64)
+    valid = np.isfinite(values) & np.isfinite(weights) & (weights > 0.0)
+    if not np.any(valid):
+        return None
+    return float(np.average(values[valid], weights=weights[valid]))
+
+
+def _sum_or_none(*values):
+    numbers = []
+    for value in values:
+        number = _finite_number_or_none(value)
+        if number is None:
+            return None
+        numbers.append(number)
+    return float(sum(numbers))
+
+
+def _interpolate_pdp_at_feature_values(grid_rows, feature_values):
+    points = _series_points(grid_rows, "feature_value", "mean_pred")
+    if not points:
+        return None
+
+    x = np.asarray([point[0] for point in points], dtype=np.float64)
+    y = np.asarray([point[1] for point in points], dtype=np.float64)
+    unique_x = np.unique(x)
+    if unique_x.size == 1:
+        return np.full_like(feature_values, fill_value=float(y[0]), dtype=np.float64)
+
+    if unique_x.size != x.size:
+        unique_y = np.empty(unique_x.size, dtype=np.float64)
+        for idx, x_value in enumerate(unique_x):
+            unique_y[idx] = float(np.mean(y[x == x_value]))
+    else:
+        unique_y = y
+
+    return np.interp(
+        feature_values,
+        unique_x,
+        unique_y,
+        left=float(unique_y[0]),
+        right=float(unique_y[-1]),
+    )
+
+
+def build_target_alignment_metrics(observed_bins, grid_rows):
+    target_rows = []
+    for row in observed_bins or []:
+        feature_center = _finite_number_or_none(row.get("feature_center"))
+        target_rate = _finite_number_or_none(row.get("target_rate"))
+        baseline_pred = _finite_number_or_none(row.get("baseline_pred_mean"))
+        target_count = _finite_number_or_none(row.get("target_count"))
+        if (
+            feature_center is None
+            or target_rate is None
+            or baseline_pred is None
+            or target_count is None
+            or target_count <= 0.0
+        ):
+            continue
+        target_rows.append((feature_center, target_rate, baseline_pred, target_count))
+
+    base = {
+        "method": "target_bin_weighted_mean_absolute_error",
+        "main_metric": "target_alignment_score",
+        "lower_is_better": True,
+        "weight": "target_count",
+        "pdp_at_target_bin": "linear_interpolation_clamped_to_pdp_grid",
+        "point_count": int(len(target_rows)),
+        "weight_sum": 0.0,
+        "target_alignment_score": None,
+        "baseline_target_wmae": None,
+        "pdp_target_wmae": None,
+    }
+    if not target_rows:
+        return base
+
+    feature_values = np.asarray([row[0] for row in target_rows], dtype=np.float64)
+    target_rates = np.asarray([row[1] for row in target_rows], dtype=np.float64)
+    baseline_preds = np.asarray([row[2] for row in target_rows], dtype=np.float64)
+    weights = np.asarray([row[3] for row in target_rows], dtype=np.float64)
+
+    baseline_errors = np.abs(baseline_preds - target_rates)
+    pdp_preds = _interpolate_pdp_at_feature_values(grid_rows, feature_values)
+    pdp_errors = (
+        np.abs(pdp_preds - target_rates)
+        if pdp_preds is not None
+        else np.asarray([], dtype=np.float64)
+    )
+
+    base["weight_sum"] = float(np.sum(weights))
+    base["baseline_target_wmae"] = _weighted_mean_or_none(baseline_errors, weights)
+    if pdp_preds is not None:
+        base["pdp_target_wmae"] = _weighted_mean_or_none(pdp_errors, weights)
+    base["target_alignment_score"] = _sum_or_none(
+        base["pdp_target_wmae"],
+        base["baseline_target_wmae"],
+    )
+    return base
 
 
 def build_feature_suspicion_diagnostics(feature_summary):
     one_way = feature_summary.get("one_way", {})
     observed_bins = feature_summary.get("observed_bins", [])
+    target_alignment = feature_summary.get("target_alignment") or {}
 
     pdp_metrics = _build_direction_metrics(
         _series_points(one_way.get("grid", []), "feature_value", "mean_pred"),
@@ -1388,7 +1334,7 @@ def build_feature_suspicion_diagnostics(feature_summary):
             observed_bins,
             "feature_center",
             "target_rate",
-            weight_key="row_count",
+            weight_key="target_count",
             require_positive_target_count=True,
         ),
         "target",
@@ -1399,28 +1345,15 @@ def build_feature_suspicion_diagnostics(feature_summary):
         baseline_metrics,
         target_metrics,
     )
-    suspicion_score = _feature_suspicion_score(
-        pdp_metrics,
-        baseline_metrics,
-        target_metrics,
-        suggested_action,
-    )
     target_dir = int(target_metrics["robust_direction"])
     baseline_dir = int(baseline_metrics["robust_direction"])
     pdp_dir = int(pdp_metrics["robust_direction"])
-    edge_outlier_warning = any(
+    direction_conflict_warning = any(
         (
-            pdp_metrics["edge_outlier_warning"],
-            baseline_metrics["edge_outlier_warning"],
-            target_metrics["edge_outlier_warning"],
+            pdp_metrics["direction_conflict"],
+            baseline_metrics["direction_conflict"],
+            target_metrics["direction_conflict"],
         )
-    )
-    edge_conflicts_with_robust = any(
-        _opposes(
-            metrics["directions"].get("edge_delta", 0),
-            metrics.get("robust_direction", 0),
-        )
-        for metrics in (pdp_metrics, baseline_metrics, target_metrics)
     )
 
     row = {
@@ -1428,35 +1361,29 @@ def build_feature_suspicion_diagnostics(feature_summary):
         "plot": Path(feature_summary.get("plot_path") or "").name,
         "category": category,
         "suggested_action": suggested_action,
-        "suspicion_score": _compact_metric(suspicion_score),
+        "main_metric": "target_alignment_score",
+        "target_alignment_score": _compact_metric(
+            target_alignment.get("target_alignment_score")
+        ),
+        "pdp_target_wmae": _compact_metric(target_alignment.get("pdp_target_wmae")),
+        "baseline_target_wmae": _compact_metric(
+            target_alignment.get("baseline_target_wmae")
+        ),
+        "target_alignment_points": int(target_alignment.get("point_count") or 0),
         "target_dir": target_dir,
         "baseline_dir": baseline_dir,
         "pdp_dir": pdp_dir,
-        "edge_delta_target": _compact_metric(target_metrics["edge_delta"]),
-        "edge_delta_baseline": _compact_metric(baseline_metrics["edge_delta"]),
-        "edge_delta_pdp": _compact_metric(pdp_metrics["edge_delta"]),
-        "trimmed_delta_target": _compact_metric(target_metrics["trimmed_edge_delta"]),
-        "trimmed_delta_baseline": _compact_metric(
-            baseline_metrics["trimmed_edge_delta"]
-        ),
-        "trimmed_delta_pdp": _compact_metric(pdp_metrics["trimmed_edge_delta"]),
-        "middle_80_delta_target": _compact_metric(target_metrics["middle_80_delta"]),
-        "middle_80_delta_baseline": _compact_metric(
-            baseline_metrics["middle_80_delta"]
-        ),
-        "middle_80_delta_pdp": _compact_metric(pdp_metrics["middle_80_delta"]),
         "slope_target": _compact_metric(target_metrics["weighted_slope"]),
         "slope_baseline": _compact_metric(baseline_metrics["weighted_slope"]),
         "slope_pdp": _compact_metric(pdp_metrics["weighted_slope"]),
-        "spearman_target": _compact_metric(target_metrics["spearman"]),
-        "spearman_baseline": _compact_metric(baseline_metrics["spearman"]),
-        "spearman_pdp": _compact_metric(pdp_metrics["spearman"]),
-        "edge_outlier_warning": bool(edge_outlier_warning),
+        "kendall_tau_target": _compact_metric(target_metrics["kendall_tau"]),
+        "kendall_tau_baseline": _compact_metric(baseline_metrics["kendall_tau"]),
+        "kendall_tau_pdp": _compact_metric(pdp_metrics["kendall_tau"]),
+        "direction_conflict_warning": bool(direction_conflict_warning),
         "baseline_target_direction_agree": (
             target_dir != 0 and baseline_dir == target_dir
         ),
         "pdp_target_direction_agree": target_dir != 0 and pdp_dir == target_dir,
-        "edge_conflicts_with_robust": bool(edge_conflicts_with_robust),
     }
     if monotonic_constraint is not None:
         row["monotonic_constraint"] = int(monotonic_constraint)
@@ -1473,7 +1400,7 @@ def build_suspicious_feature_report(feature_summaries):
     ]
     suspicious.sort(
         key=lambda row: (
-            -float(row["suspicion_score"]),
+            -_number_or_zero(row.get("target_alignment_score")),
             str(row.get("feature") or ""),
         )
     )
@@ -1495,23 +1422,23 @@ def build_suspicious_feature_report(feature_summaries):
 
     return {
         "description": (
-            "Robust ranking of features whose PDP direction may conflict with observed "
-            "baseline prediction or target_rate direction. Edge deltas are diagnostic "
-            "only; exclude_candidate requires agreement across independent robust metrics."
+            "Ranking of features whose PDP direction may conflict with observed "
+            "baseline prediction or target_rate direction. The main feature score is "
+            "PDP WMAE plus baseline WMAE to target_rate by observed target bin."
         ),
-        "metrics_version": "robust_direction_v1",
-        "edge_fraction": float(SUSPICIOUS_EDGE_FRACTION),
+        "metrics_version": "target_alignment_kendall_v1",
+        "main_metric": {
+            "name": "target_alignment_score",
+            "lower_is_better": True,
+            "weight": "target_count",
+            "components": ["pdp_target_wmae", "baseline_target_wmae"],
+        },
+        "ranked_features_sort": "target_alignment_score_desc",
         "thresholds": {
-            "trim_bin_count": int(SUSPICIOUS_TRIM_BIN_COUNT),
-            "trim_fraction": float(SUSPICIOUS_TRIM_FRACTION),
-            "min_abs_delta": float(SUSPICIOUS_MIN_ABS_PDP_DELTA),
-            "min_abs_baseline_delta": float(SUSPICIOUS_MIN_ABS_BASELINE_DELTA),
-            "min_abs_target_delta": float(SUSPICIOUS_MIN_ABS_TARGET_DELTA),
             "min_abs_slope": float(SUSPICIOUS_MIN_ABS_PDP_SLOPE),
             "min_abs_baseline_slope": float(SUSPICIOUS_MIN_ABS_BASELINE_SLOPE),
             "min_abs_target_slope": float(SUSPICIOUS_MIN_ABS_TARGET_SLOPE),
-            "min_abs_spearman": float(SUSPICIOUS_MIN_ABS_SPEARMAN),
-            "min_votes_for_direction": int(SUSPICIOUS_MIN_VOTES_FOR_DIRECTION),
+            "min_abs_kendall_tau": float(SUSPICIOUS_MIN_ABS_KENDALL),
         },
         "ranked_features": ranked_features,
         "excluded_feature_names_candidate": excluded_feature_names_candidate,
@@ -1529,9 +1456,10 @@ def print_suspicious_feature_preview(report):
         print(
             "[one-way]   "
             f"{idx}. {row.get('feature')} | {row.get('category')} | "
-            f"pdp={_format_delta_pp(row.get('trimmed_delta_pdp'))} "
-            f"target={_format_delta_pp(row.get('trimmed_delta_target'))} "
-            f"baseline={_format_delta_pp(row.get('trimmed_delta_baseline'))} | "
+            f"score={_format_probability_change_pp(row.get('target_alignment_score'), signed=False)} "
+            f"pdp_wmae={_format_probability_change_pp(row.get('pdp_target_wmae'), signed=False)} "
+            f"baseline_wmae={_format_probability_change_pp(row.get('baseline_target_wmae'), signed=False)} "
+            f"dirs t/b/p={row.get('target_dir')}/{row.get('baseline_dir')}/{row.get('pdp_dir')} | "
             f"{row.get('suggested_action')}"
         )
 
@@ -1549,6 +1477,7 @@ def build_llm_summary(feature, summary):
     one_way = summary["one_way"]
     stats = summary["feature_stats"]
     observed = summary["observed_bins_summary"]
+    alignment = summary.get("target_alignment", {})
 
     parts = [
         (
@@ -1556,14 +1485,12 @@ def build_llm_summary(feature, summary):
             f"Srednia predykcja bazowa na probce to {_format_probability(one_way['baseline_pred_mean'])}; "
             f"PDP zmienia sie od {_format_probability(one_way['min_mean_pred'])} "
             f"do {_format_probability(one_way['max_mean_pred'])}, czyli amplituda "
-            f"{_format_delta_pp(one_way['amplitude'])}."
+            f"{_format_probability_change_pp(one_way['amplitude'], signed=False)}."
         ),
         (
             f"Najwyzsza srednia predykcja wypada przy wartosci okolo "
             f"{_format_feature_value(one_way['max_grid_value'])}, a najnizsza przy "
-            f"{_format_feature_value(one_way['min_grid_value'])}. "
-            f"Przejscie od najnizszego do najwyzszego punktu siatki daje "
-            f"{_format_delta_pp(one_way['endpoint_delta'])}."
+            f"{_format_feature_value(one_way['min_grid_value'])}."
         ),
         (
             f"W probce wartosci skonczone stanowia {stats['finite_count']}/{stats['row_count']} "
@@ -1582,6 +1509,14 @@ def build_llm_summary(feature, summary):
         )
     else:
         parts.append("Target rate nie zostal policzony, bo target jest niedostepny lub pusty w probce.")
+
+    if alignment.get("pdp_target_wmae") is not None:
+        parts.append(
+            "Glowny score dopasowania do target_rate to suma wazonych srednich bledow bezwzglednych: "
+            f"score={_format_probability_change_pp(alignment.get('target_alignment_score'), signed=False)}, "
+            f"PDP={_format_probability_change_pp(alignment['pdp_target_wmae'], signed=False)}, "
+            f"baseline={_format_probability_change_pp(alignment.get('baseline_target_wmae'), signed=False)}."
+        )
 
     return " ".join(parts)
 
@@ -2115,7 +2050,6 @@ def analyze_feature(
                 {
                     "feature_value": float(feature_value),
                     "mean_pred": mean_pred,
-                    "delta_vs_baseline": float(mean_pred - baseline_mean),
                 }
             )
 
@@ -2127,6 +2061,7 @@ def analyze_feature(
         bin_count=bin_count,
     )
     target_loess = build_target_loess(observed_bins)
+    target_alignment = build_target_alignment_metrics(observed_bins, grid_rows)
 
     pdp_values = np.asarray([row["mean_pred"] for row in grid_rows], dtype=np.float64)
     direction = classify_curve(grid_values, pdp_values)
@@ -2137,9 +2072,6 @@ def analyze_feature(
         max_mean_pred = float(pdp_values[max_idx])
         min_grid_value = float(grid_values[min_idx])
         max_grid_value = float(grid_values[max_idx])
-        endpoint_delta = (
-            float(pdp_values[-1] - pdp_values[0]) if pdp_values.size >= 2 else 0.0
-        )
         amplitude = float(max_mean_pred - min_mean_pred)
         mean_abs_step = (
             float(np.mean(np.abs(np.diff(pdp_values))))
@@ -2151,14 +2083,8 @@ def analyze_feature(
         max_mean_pred = float("nan")
         min_grid_value = float("nan")
         max_grid_value = float("nan")
-        endpoint_delta = float("nan")
         amplitude = float("nan")
         mean_abs_step = float("nan")
-
-    if grid_values.size >= 2 and np.nanstd(grid_values) > 0.0 and np.nanstd(pdp_values) > 0.0:
-        linear_corr = float(np.corrcoef(grid_values, pdp_values)[0, 1])
-    else:
-        linear_corr = float("nan")
 
     feature_summary = {
         "feature": feature,
@@ -2185,14 +2111,13 @@ def analyze_feature(
             "amplitude": amplitude,
             "min_grid_value": min_grid_value,
             "max_grid_value": max_grid_value,
-            "endpoint_delta": endpoint_delta,
             "mean_abs_step": mean_abs_step,
-            "linear_corr_grid_vs_pdp": linear_corr,
             "direction": direction,
             "grid": grid_rows,
         },
         "observed_bins_summary": summarize_observed_bins(observed_bins),
         "observed_bins": observed_bins,
+        "target_alignment": target_alignment,
         "target_loess": target_loess,
         "plot_axis": {
             "x": build_plot_x_axis(
@@ -2242,12 +2167,19 @@ def build_compact_feature_summary(feature_summary):
     one_way = feature_summary["one_way"]
     observed_bins = feature_summary["observed_bins"]
     target_loess = feature_summary.get("target_loess", [])
+    target_alignment = feature_summary.get("target_alignment", {})
     x_axis = feature_summary.get("plot_axis", {}).get("x", {})
 
     return {
         "f": feature_summary["feature"],
         "plot": Path(feature_summary["plot_path"]).name,
         "base": _compact_number(one_way["baseline_pred_mean"]),
+        "align": [
+            _compact_number(target_alignment.get("target_alignment_score")),
+            _compact_number(target_alignment.get("pdp_target_wmae")),
+            _compact_number(target_alignment.get("baseline_target_wmae")),
+            int(target_alignment.get("point_count") or 0),
+        ],
         "x": [
             _compact_number(x_axis.get("visible_min")),
             _compact_number(x_axis.get("visible_max")),
@@ -2426,18 +2358,19 @@ def main():
             "f": "feature_name",
             "plot": "png_file_under_plots_dir",
             "base": "sample_baseline_avg_model_probability",
+            "align": "target_alignment_pdp_and_baseline_wmae_to_target_rate",
             "x": "plot_x_axis_metadata",
             "pdp": "PDP_avg_model_probability_at_equal_count_group_medians",
             "bins": "baseline_pred_by_bin_and_target_rate_by_bin",
             "target_loess": "LOESS_target_rate_with_approx_95pct_confidence_interval",
-            "edge_delta_pdp": "top-edge PDP mean minus bottom-edge PDP mean",
-            "edge_delta_baseline": (
-                "top-edge observed baseline prediction minus bottom-edge observed "
-                "baseline prediction"
-            ),
-            "edge_delta_target": "top-edge target_rate minus bottom-edge target_rate",
         },
         "cols": {
+            "align": [
+                "target_alignment_score",
+                "pdp_target_wmae",
+                "baseline_target_wmae",
+                "target_alignment_point_count",
+            ],
             "x": [
                 "visible_min",
                 "visible_max",

@@ -12,7 +12,9 @@ EV_DECISION_EPS = 1e-12
 POLYMARKET_MARKET_BUY_AMOUNT_DECIMALS = 2
 MIN_ORDER_STAKE_ADJUST_MAX_STEPS = 8
 SUPPORTED_TRADE_POLICY_MODES = frozenset({"ev", "model_direction_min_stake"})
-SUPPORTED_SUBMITTED_PRICE_MODES = frozenset({"entry_price", "order_price_cap"})
+SUPPORTED_SUBMITTED_PRICE_MODES = frozenset(
+    {"entry_price", "entry_price_plus_ticks", "order_price_cap"}
+)
 
 
 def _as_float(value):
@@ -184,6 +186,9 @@ def load_trade_policy_runtime_config(config_path):
         "submitted_price_mode": normalize_submitted_price_mode(
             payload.get("submitted_price_mode", "entry_price")
         ),
+        "submitted_price_slippage_ticks": int(
+            payload.get("submitted_price_slippage_ticks", 0)
+        ),
         "extra_buffer": float(payload.get("extra_buffer", 0.0)),
         "stake_multiplier": float(payload.get("stake_multiplier", 1.0)),
         "fee_model": normalize_polymarket_fee_model(
@@ -203,6 +208,10 @@ def load_trade_policy_runtime_config(config_path):
     if not math.isfinite(cfg["stake_multiplier"]) or cfg["stake_multiplier"] <= 0.0:
         raise ValueError(
             "Trade policy config invalid: stake_multiplier must be finite and > 0."
+        )
+    if cfg["submitted_price_slippage_ticks"] < 0:
+        raise ValueError(
+            "Trade policy config invalid: submitted_price_slippage_ticks must be >= 0."
         )
     if "min_decision_margin" in cfg and (
         not math.isfinite(cfg["min_decision_margin"]) or cfg["min_decision_margin"] < 0.0
