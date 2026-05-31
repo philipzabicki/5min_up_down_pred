@@ -1,10 +1,8 @@
 {
-  "description": "Trade every model direction: zero decision margin, submit with current ask plus a small tick buffer capped by the live profile.",
-  "mode": "model_direction_min_stake",
+  "description": "Trade only positive EV opportunities, using minimum executable stake sizing and current ask plus a small tick buffer capped by the live profile.",
+  "mode": "ev",
   "submitted_price_mode": "entry_price_plus_ticks",
   "submitted_price_slippage_ticks": 3,
-  "min_decision_margin_up": 0.0,
-  "min_decision_margin_down": 0.0,
   "extra_buffer": 0.0,
   "stake_multiplier": 1.0,
   "fee_model": {
