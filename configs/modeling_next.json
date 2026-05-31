@@ -132,7 +132,9 @@
           "candle_close_location_value_1m_lag26",
           "candle_range_ho_1m_lag23",
           "candle_body_pressure_1m_lag4",
-          "candle_close_location_value_5m_lag19"
+          "candle_close_location_value_5m_lag19",
+          "candle_body_pressure_30m_lag2",
+          "candle_wick_asym_1d_lag3"
         ]
       },
       "train_lgbm": {
@@ -444,7 +446,8 @@
           "MACD_fit_60m_pop16_fasmatyptrima_fasper749_fassouhigh_sigmatypnwmatria_sigper1218_slomatypsma_sloper1318_slosouopen": -1,
           "candle_range_ho_5m_lag24": -1,
           "candle_body_pressure_4h_lag6": 1,
-          "futures_index_basis_abs_30m": -1
+          "futures_index_basis_abs_30m": -1,
+          "vp_medium_log_density_ratio_to_current_bin_plus_7": 1
         }
       }
     }
