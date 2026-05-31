@@ -2344,6 +2344,14 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.basis_premium_feature_columns = tuple(
             feature_parts["basis_premium_feature_cols"]
         )
+        # The audit copies stored basis-premium features back into the candidate vector.
+        self.basis_premium_feature_columns = ()
+        self.basis_premium_cfg = {}
+        self.basis_premium_interval_to_rule = {}
+        self.basis_index_close_col = ""
+        self.basis_index_ohlcv_idx = None
+        self.basis_futures_close_col = ""
+        self.basis_futures_close_np = None
         self.volume_profile_feature_columns = tuple(
             feature_parts["volume_profile_feature_cols"]
         )
