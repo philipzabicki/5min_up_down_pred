@@ -22,7 +22,9 @@ from optuna_run_utils import (
 from metrics_utils import (
     make_lightgbm_binary_balanced_accuracy_eval,
     make_lightgbm_binary_brier_eval,
+    make_lightgbm_binary_logloss_eval,
     weighted_balanced_accuracy_score,
+    weighted_binary_logloss,
 )
 from target_weights import (
     TARGET_WEIGHT_COL,
@@ -371,23 +373,23 @@ OPTUNA_SEED_TRIAL_PARAMS = [
   }
 ]
 
-N_TRIALS = 300
+N_TRIALS = 600
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
 
-CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
+CV_OBJECTIVE_BASE_METRIC = "binary_logloss"
 EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC
-CV_OBJECTIVE_IS_HIGHER_BETTER = True
+CV_OBJECTIVE_IS_HIGHER_BETTER = False
 CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
-DEFAULT_STUDY_NAME_PREFIX = "volume_profile_balanced_accuracy_mean_std"
+DEFAULT_STUDY_NAME_PREFIX = "volume_profile_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
-STUDY_NAME = "volume_profile_balanced_accuracy_mean_std_20260508_2"
+STUDY_NAME = None
 STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
 ARTIFACT_OUTPUT_DIR = Path("data/optuna/volume_profile")
-BEST_RESULT_STEM = "volume_profile_best_balanced_accuracy_mean_std"
-TRIALS_CSV_STEM = "volume_profile_trials_balanced_accuracy_mean_std"
+BEST_RESULT_STEM = "volume_profile_best_binary_logloss_mean_std"
+TRIALS_CSV_STEM = "volume_profile_trials_binary_logloss_mean_std"
 
 
 def require_columns(df, required_columns):
@@ -671,7 +673,8 @@ def cv_objective_base_score_label():
 
 
 def resolve_cv_objective_name():
-    return f"{cv_objective_base_score_label()}_minus_std_penalty"
+    suffix = "minus_std_penalty" if CV_OBJECTIVE_IS_HIGHER_BETTER else "plus_std_penalty"
+    return f"{cv_objective_base_score_label()}_{suffix}"
 
 
 def combine_metric_mean_std(mean_value, std_value, *, higher_is_better, std_penalty):
@@ -719,12 +722,25 @@ def score_cv_objective_metric(y_true, y_pred_proba, sample_weight):
     y_true_arr = np.asarray(y_true, dtype=np.float64)
     y_pred_arr = np.asarray(y_pred_proba, dtype=np.float64)
     sample_weight_arr = np.asarray(sample_weight, dtype=np.float64)
-    return float(
-        weighted_balanced_accuracy_score(
-            y_true=y_true_arr,
-            y_pred_proba=y_pred_arr,
-            sample_weight=sample_weight_arr,
+    if CV_OBJECTIVE_BASE_METRIC == "balanced_accuracy":
+        return float(
+            weighted_balanced_accuracy_score(
+                y_true=y_true_arr,
+                y_pred_proba=y_pred_arr,
+                sample_weight=sample_weight_arr,
+            )
         )
+    if CV_OBJECTIVE_BASE_METRIC == "binary_logloss":
+        return float(
+            weighted_binary_logloss(
+                y_true=y_true_arr,
+                y_pred_proba=y_pred_arr,
+                sample_weight=sample_weight_arr,
+            )
+        )
+    raise ValueError(
+        "Per-fold rescoring supports CV_OBJECTIVE_BASE_METRIC in "
+        "{'balanced_accuracy', 'binary_logloss'}."
     )
 
 
@@ -1401,7 +1417,8 @@ def run_lightgbm_cv(
         stratified=False,
         shuffle=False,
         feval=[
-            make_lightgbm_binary_balanced_accuracy_eval(CV_OBJECTIVE_BASE_METRIC),
+            make_lightgbm_binary_logloss_eval(CV_OBJECTIVE_BASE_METRIC),
+            make_lightgbm_binary_balanced_accuracy_eval("balanced_accuracy"),
             make_lightgbm_binary_brier_eval("brier_score"),
         ],
         callbacks=callbacks,
@@ -1415,8 +1432,16 @@ def run_lightgbm_cv(
     std_series = np.asarray(
         cv_results[f"valid {CV_OBJECTIVE_BASE_METRIC}-stdv"], dtype=np.float64
     )
-    objective_series = mean_series - (CV_STD_PENALTY * std_series)
-    best_index = int(np.argmax(objective_series))
+    objective_series = (
+        mean_series - (CV_STD_PENALTY * std_series)
+        if CV_OBJECTIVE_IS_HIGHER_BETTER
+        else mean_series + (CV_STD_PENALTY * std_series)
+    )
+    best_index = int(
+        np.argmax(objective_series)
+        if CV_OBJECTIVE_IS_HIGHER_BETTER
+        else np.argmin(objective_series)
+    )
     best_iteration = int(best_index + 1)
 
     result = {"best_iteration": best_iteration}
@@ -1748,7 +1773,11 @@ def run_optuna_optimization():
             "name": resolve_cv_objective_name(),
             "base_metric": CV_OBJECTIVE_BASE_METRIC,
             "base_score": cv_objective_base_score_label(),
-            "aggregation": f"{cv_objective_base_score_label()} - std_penalty * cv_std",
+            "aggregation": (
+                f"{cv_objective_base_score_label()} "
+                f"{'-' if CV_OBJECTIVE_IS_HIGHER_BETTER else '+'} "
+                "std_penalty * cv_std"
+            ),
             "std_penalty": float(CV_STD_PENALTY),
         },
         "lgbm_params": make_lgbm_cv_params(

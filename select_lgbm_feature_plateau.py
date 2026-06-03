@@ -10,7 +10,6 @@ import pandas as pd
 from sklearn.metrics import (
     balanced_accuracy_score,
     f1_score,
-    log_loss,
 )
 
 from features.candle_features import CANDLE_PATTERN_COLS, RAW_OHLCV_COLS
@@ -18,6 +17,8 @@ from features.volume_profile_fixed_range import validate_volume_profile_feature_
 from metrics_utils import (
     make_sklearn_binary_balanced_accuracy_eval,
     make_sklearn_binary_brier_eval,
+    make_sklearn_binary_logloss_eval,
+    weighted_binary_logloss,
     weighted_brier_score,
 )
 from target_weights import (
@@ -89,8 +90,8 @@ EARLY_STOPPING_ROUNDS = 100
 RANDOM_SEEDS = [37]
 
 SCORER = {
-    "name": "balanced_accuracy",
-    "greater_is_better": True,
+    "name": "binary_logloss",
+    "greater_is_better": False,
 }
 
 TOPK_SELECTION_MODE = "mean_plus_std"
@@ -943,6 +944,8 @@ def resolve_eval_metric():
         return make_sklearn_binary_balanced_accuracy_eval("balanced_accuracy")
     if metric_name in {"brier_score", "brier"}:
         return make_sklearn_binary_brier_eval("brier_score")
+    if metric_name in {"logloss", "log_loss", "binary_logloss"}:
+        return make_sklearn_binary_logloss_eval("binary_logloss")
     raise ValueError(f"Unsupported early stopping metric: {SCORER['name']}")
 
 
@@ -1071,11 +1074,10 @@ def score_predictions(
         "binary_logloss",
     }:
         return float(
-            log_loss(
-                y_true,
-                y_pred_proba[:, 1],
+            weighted_binary_logloss(
+                y_true=y_true,
+                y_pred_proba=y_pred_proba[:, 1],
                 sample_weight=sample_weight,
-                labels=[0, 1],
             )
         )
 
@@ -1087,11 +1089,10 @@ def score_predictions(
 
 def binary_logloss_from_positive_class_proba(y_true, y_pred_proba_pos, sample_weight):
     return float(
-        log_loss(
-            y_true,
-            y_pred_proba_pos,
+        weighted_binary_logloss(
+            y_true=y_true,
+            y_pred_proba=y_pred_proba_pos,
             sample_weight=sample_weight,
-            labels=[0, 1],
         )
     )
 

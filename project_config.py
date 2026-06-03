@@ -514,12 +514,20 @@ def load_runtime_artifact_paths(runtime_manifest_path=RUNTIME_ACTIVE_PATH):
         raise ValueError(
             f"Missing or invalid 'artifacts' object in runtime manifest: {runtime_manifest_path}"
         )
-    trade_policy_runtime_config_path = coerce_path(
-        require_text(artifacts, "trade_policy_runtime_config_path")
-    )
+    if "trade_policy_runtime_config_path" in artifacts:
+        raise ValueError(
+            "Runtime manifest uses deprecated artifacts.trade_policy_runtime_config_path. "
+            "Use artifacts.trade_policy_path as the single active trade policy path."
+        )
+    if "trade_policy_presets" in payload:
+        raise ValueError(
+            "Runtime manifest must not define trade_policy_presets. "
+            "Only artifacts.trade_policy_path is active for live runtime."
+        )
+    trade_policy_path = coerce_path(require_text(artifacts, "trade_policy_path"))
     return {
         "model_meta_path": coerce_path(require_text(artifacts, "model_meta_path")),
-        "trade_policy_runtime_config_path": trade_policy_runtime_config_path,
+        "trade_policy_path": trade_policy_path,
         "indicator_history_requirements_path": coerce_path(
             require_text(artifacts, "indicator_history_requirements_path")
         ),

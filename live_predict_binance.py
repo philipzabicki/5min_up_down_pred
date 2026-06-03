@@ -131,7 +131,7 @@ INDEX_PRICE_SYNTHETIC_VOLUME_DEFAULT = float(
 )
 MODEL_META_PATH = Path(RUNTIME_ARTIFACT_PATHS["model_meta_path"])
 TRADE_POLICY_CONFIG_PATH = Path(
-    RUNTIME_ARTIFACT_PATHS["trade_policy_runtime_config_path"]
+    RUNTIME_ARTIFACT_PATHS["trade_policy_path"]
 )
 INDICATOR_HISTORY_REQUIREMENTS_PATH = Path(
     RUNTIME_ARTIFACT_PATHS["indicator_history_requirements_path"]

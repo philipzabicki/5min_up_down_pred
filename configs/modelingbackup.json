@@ -25,7 +25,7 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float64",
+      "float_precision": "float32",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -34,31 +34,31 @@
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "step": 85,
-            "local_window": 91,
-            "sigma_divisor": 0.07037161452897564,
-            "min_sigma": 0.020559992569818792,
-            "half_life_candles": 130
+            "step": 21,
+            "local_window": 15,
+            "sigma_divisor": 74.7387354639903,
+            "min_sigma": 28.92764770584107,
+            "half_life_candles": 14
           },
           "medium": {
-            "step": 28,
-            "local_window": 56,
-            "sigma_divisor": 0.040821800289437694,
-            "min_sigma": 4.940952404814962,
-            "half_life_candles": 5955
+            "step": 155,
+            "local_window": 1,
+            "sigma_divisor": 2.165604737507246,
+            "min_sigma": 41.022138709472074,
+            "half_life_candles": 3465
           },
           "long": {
-            "step": 1,
-            "local_window": 6,
-            "sigma_divisor": 0.8093377455632282,
-            "min_sigma": 283.9067560771312,
-            "half_life_candles": 34135
+            "step": 257,
+            "local_window": 23,
+            "sigma_divisor": 0.022683952943750366,
+            "min_sigma": 169.9508040579233,
+            "half_life_candles": 19648
           },
           "all": {
-            "step": 8,
-            "local_window": 39,
-            "sigma_divisor": 16.116334450686086,
-            "min_sigma": 7.000129924695852,
+            "step": 6,
+            "local_window": 51,
+            "sigma_divisor": 0.16922521437363278,
+            "min_sigma": 0.9510213090570391,
             "half_life_candles": null
           }
         }
@@ -68,8 +68,8 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260530_041327/recommended_features.json",
+        "mode": "none",
+        "artifact_path": "",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",

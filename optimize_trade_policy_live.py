@@ -25,7 +25,7 @@ optuna.logging.set_verbosity(optuna.logging.INFO)
 
 CONFIG_PATH = Path("configs/trade_policy_optimizer_config.json")
 RUNTIME_CONFIG_PATH = Path(
-    load_runtime_artifact_paths()["trade_policy_runtime_config_path"]
+    load_runtime_artifact_paths()["trade_policy_path"]
 )
 OPTUNA_OUTPUT_DIR = Path("data/optuna/trade_policy_live")
 OPTUNA_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)

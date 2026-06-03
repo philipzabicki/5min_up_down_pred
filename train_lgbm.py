@@ -11,7 +11,8 @@ from features.candle_features import (
     RAW_OHLCV_COLS,
 )
 from metrics_utils import (
-    make_sklearn_binary_balanced_accuracy_eval,
+    make_sklearn_binary_logloss_eval,
+    weighted_binary_logloss,
     weighted_brier_score,
 )
 from features.session_open_features import add_session_open_features
@@ -63,12 +64,9 @@ LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
 PREDICTION_THRESHOLD = 0.5
 LGBM_MAX_BIN = 63
-PRIMARY_REPORTING_METRIC = "balanced_accuracy"
+PRIMARY_REPORTING_METRIC = "binary_logloss"
 EARLY_STOPPING_METRIC = PRIMARY_REPORTING_METRIC
-EARLY_STOPPING_EVAL_METRIC = make_sklearn_binary_balanced_accuracy_eval(
-    EARLY_STOPPING_METRIC,
-    threshold=PREDICTION_THRESHOLD,
-)
+EARLY_STOPPING_EVAL_METRIC = make_sklearn_binary_logloss_eval(EARLY_STOPPING_METRIC)
 
 
 def resolve_walk_forward_test_to_train_ratio():
@@ -82,19 +80,19 @@ WF_TEST_TO_TRAIN_RATIO = resolve_walk_forward_test_to_train_ratio()
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.028370028338368332,
-      "num_leaves": 201,
-      "min_data_in_leaf": 2527,
-      "max_depth": 246,
-      "feature_fraction": 0.7371325954810048,
-      "bagging_fraction": 0.9308115159624847,
-      "bagging_freq": 25,
-      "lambda_l2": 39.51068447389412,
-      "lambda_l1": 5.269826622414657,
-      "min_sum_hessian_in_leaf": 1.5455745495230206,
-      "min_gain_to_split": 0.09322721688630903,
-      "feature_fraction_bynode": 0.38804968275175306,
-      "path_smooth": 39.06532785785736,
+      "learning_rate": 0.014324759771509326,
+      "num_leaves": 219,
+      "min_data_in_leaf": 134,
+      "max_depth": 166,
+      "feature_fraction": 0.9004727141904951,
+      "bagging_fraction": 0.8582425675795976,
+      "bagging_freq": 16,
+      "lambda_l2": 96.08153533203745,
+      "lambda_l1": 1.3495783734260116,
+      "min_sum_hessian_in_leaf": 0.005819496553267834,
+      "min_gain_to_split": 0.11935855858916433,
+      "feature_fraction_bynode": 0.4278157008307606,
+      "path_smooth": 91.00059177549922,
       "extra_trees": False,
       "monotone_constraints_method": "basic",
       "monotone_penalty": 0.0
@@ -298,10 +296,11 @@ def classification_metrics(
             sample_weight=w,
         )
     )
-    p = np.clip(y_pred_proba_f, 1e-15, 1.0 - 1e-15)
     binary_logloss = float(
-        np.average(
-            -(y_true_i * np.log(p) + (1 - y_true_i) * np.log(1.0 - p)), weights=w
+        weighted_binary_logloss(
+            y_true=y_true_i,
+            y_pred_proba=y_pred_proba_f,
+            sample_weight=w,
         )
     )
 

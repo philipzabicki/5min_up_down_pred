@@ -42,6 +42,23 @@ def weighted_brier_score(y_true, y_pred_proba, sample_weight=None):
     return float(np.average((y_pred_proba_f - y_true_f) ** 2, weights=weights))
 
 
+def weighted_binary_logloss(y_true, y_pred_proba, sample_weight=None):
+    y_true_f = np.asarray(y_true, dtype=np.float64)
+    y_pred_proba_f = _resolve_positive_class_proba(y_pred_proba)
+    if y_true_f.ndim != 1 or y_pred_proba_f.ndim != 1:
+        raise ValueError("weighted_binary_logloss expects 1D arrays.")
+    if y_true_f.shape[0] != y_pred_proba_f.shape[0]:
+        raise ValueError(
+            "weighted_binary_logloss length mismatch: "
+            f"{y_true_f.shape[0]} != {y_pred_proba_f.shape[0]}"
+        )
+
+    weights = _resolve_sample_weight(sample_weight, len(y_true_f))
+    p = np.clip(y_pred_proba_f, 1e-15, 1.0 - 1e-15)
+    loss = -(y_true_f * np.log(p) + (1.0 - y_true_f) * np.log(1.0 - p))
+    return float(np.average(loss, weights=weights))
+
+
 def weighted_balanced_accuracy_score(
     y_true,
     y_pred_proba,
@@ -79,6 +96,23 @@ def weighted_balanced_accuracy_score(
     return float((tpr + tnr) / 2.0)
 
 
+def make_lightgbm_binary_logloss_eval(metric_name="binary_logloss"):
+    metric_name = str(metric_name).strip() or "binary_logloss"
+
+    def _eval(preds, train_data):
+        return (
+            metric_name,
+            weighted_binary_logloss(
+                y_true=train_data.get_label(),
+                y_pred_proba=preds,
+                sample_weight=train_data.get_weight(),
+            ),
+            False,
+        )
+
+    return _eval
+
+
 def make_lightgbm_binary_brier_eval(metric_name="brier_score"):
     metric_name = str(metric_name).strip() or "brier_score"
 
@@ -113,6 +147,23 @@ def make_lightgbm_binary_balanced_accuracy_eval(
                 threshold=threshold_value,
             ),
             True,
+        )
+
+    return _eval
+
+
+def make_sklearn_binary_logloss_eval(metric_name="binary_logloss"):
+    metric_name = str(metric_name).strip() or "binary_logloss"
+
+    def _eval(y_true, y_pred, sample_weight=None):
+        return (
+            metric_name,
+            weighted_binary_logloss(
+                y_true=y_true,
+                y_pred_proba=y_pred,
+                sample_weight=sample_weight,
+            ),
+            False,
         )
 
     return _eval

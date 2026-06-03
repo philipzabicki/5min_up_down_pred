@@ -95,7 +95,7 @@ def resolve_script_inputs(args):
         args.runtime_manifest_path or RUNTIME_ACTIVE_PATH
     )
     runtime_config_path = Path(
-        args.runtime_config_path or runtime_paths["trade_policy_runtime_config_path"]
+        args.runtime_config_path or runtime_paths["trade_policy_path"]
     )
     runtime_cfg = load_trade_policy_runtime_config(runtime_config_path)
 

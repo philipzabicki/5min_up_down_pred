@@ -27,7 +27,9 @@ from optuna_run_utils import (
 from metrics_utils import (
     make_lightgbm_binary_balanced_accuracy_eval,
     make_lightgbm_binary_brier_eval,
+    make_lightgbm_binary_logloss_eval,
     weighted_balanced_accuracy_score,
+    weighted_binary_logloss,
 )
 from target_weights import (
     TARGET_WEIGHT_COL,
@@ -234,16 +236,16 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     }
 ]
 
-N_TRIALS = 20
+N_TRIALS = 50
 TIMEOUT_SECONDS = None
-CV_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
+CV_OBJECTIVE_BASE_METRIC = "binary_logloss"
 EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC
-CV_OBJECTIVE_IS_HIGHER_BETTER = True
+CV_OBJECTIVE_IS_HIGHER_BETTER = False
 CV_STD_PENALTY = 0.5
-RECHECK_OBJECTIVE_BASE_METRIC = "balanced_accuracy"
-RECHECK_OBJECTIVE_IS_HIGHER_BETTER = True
+RECHECK_OBJECTIVE_BASE_METRIC = "binary_logloss"
+RECHECK_OBJECTIVE_IS_HIGHER_BETTER = False
 RECHECK_STD_PENALTY = 0.75
-DEFAULT_STUDY_NAME_PREFIX = "lgbm_generic_balanced_accuracy_mean_std"
+DEFAULT_STUDY_NAME_PREFIX = "lgbm_generic_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
 STUDY_NAME = None
 STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
@@ -637,19 +639,50 @@ def objective_base_score_label(base_metric):
 
 
 def resolve_cv_objective_name():
-    return f"{objective_base_score_label(CV_OBJECTIVE_BASE_METRIC)}_minus_std_penalty"
+    suffix = "minus_std_penalty" if CV_OBJECTIVE_IS_HIGHER_BETTER else "plus_std_penalty"
+    return f"{objective_base_score_label(CV_OBJECTIVE_BASE_METRIC)}_{suffix}"
 
 
 def resolve_recheck_objective_name():
+    suffix = (
+        "minus_std_penalty"
+        if RECHECK_OBJECTIVE_IS_HIGHER_BETTER
+        else "plus_std_penalty"
+    )
     return (
-        f"{objective_base_score_label(RECHECK_OBJECTIVE_BASE_METRIC)}_minus_std_penalty"
+        f"{objective_base_score_label(RECHECK_OBJECTIVE_BASE_METRIC)}_{suffix}"
     )
 
 
 def objective_aggregation_description(base_metric):
+    is_higher_better = base_metric in {"accuracy", "balanced_accuracy", "precision", "recall", "f1"}
+    operator = "-" if is_higher_better else "+"
     return (
-        f"cv_{objective_base_score_label(base_metric)} - std_penalty * "
+        f"cv_{objective_base_score_label(base_metric)} {operator} std_penalty * "
         f"cv_{base_metric}_std"
+    )
+
+
+def score_cv_objective_metric(y_true, y_pred_proba, sample_weight):
+    if CV_OBJECTIVE_BASE_METRIC == "balanced_accuracy":
+        return float(
+            weighted_balanced_accuracy_score(
+                y_true=y_true,
+                y_pred_proba=y_pred_proba,
+                sample_weight=sample_weight,
+            )
+        )
+    if CV_OBJECTIVE_BASE_METRIC == "binary_logloss":
+        return float(
+            weighted_binary_logloss(
+                y_true=y_true,
+                y_pred_proba=y_pred_proba,
+                sample_weight=sample_weight,
+            )
+        )
+    raise ValueError(
+        "Per-fold rescoring supports CV_OBJECTIVE_BASE_METRIC in "
+        "{'balanced_accuracy', 'binary_logloss'}."
     )
 
 
@@ -711,11 +744,6 @@ def compute_cv_fold_scores_at_iteration(
         raise ValueError(
             f"cvbooster fold count mismatch: {len(boosters)} != {len(folds)}"
         )
-    if CV_OBJECTIVE_BASE_METRIC != "balanced_accuracy":
-        raise ValueError(
-            "Per-fold rescoring supports only CV_OBJECTIVE_BASE_METRIC='balanced_accuracy'."
-        )
-
     fold_scores = []
     for booster, fold in zip(boosters, folds):
         valid_start = int(fold["test_start"])
@@ -725,7 +753,7 @@ def compute_cv_fold_scores_at_iteration(
             num_iteration=int(best_iteration),
         )
         fold_scores.append(
-            weighted_balanced_accuracy_score(
+            score_cv_objective_metric(
                 y_true=y_np[valid_start:valid_end],
                 y_pred_proba=y_pred_proba,
                 sample_weight=sample_weight_np[valid_start:valid_end],
@@ -1069,9 +1097,8 @@ def make_objective(
             stratified=False,
             shuffle=False,
             feval=[
-                make_lightgbm_binary_balanced_accuracy_eval(
-                    CV_OBJECTIVE_BASE_METRIC
-                ),
+                make_lightgbm_binary_logloss_eval(CV_OBJECTIVE_BASE_METRIC),
+                make_lightgbm_binary_balanced_accuracy_eval("balanced_accuracy"),
                 make_lightgbm_binary_brier_eval("brier_score"),
             ],
             callbacks=[
@@ -1097,8 +1124,16 @@ def make_objective(
         std_series = np.asarray(
             cv_results[f"valid {CV_OBJECTIVE_BASE_METRIC}-stdv"], dtype=np.float64
         )
-        objective_series = mean_series - (CV_STD_PENALTY * std_series)
-        best_index = int(np.argmax(objective_series))
+        objective_series = (
+            mean_series - (CV_STD_PENALTY * std_series)
+            if CV_OBJECTIVE_IS_HIGHER_BETTER
+            else mean_series + (CV_STD_PENALTY * std_series)
+        )
+        best_index = int(
+            np.argmax(objective_series)
+            if CV_OBJECTIVE_IS_HIGHER_BETTER
+            else np.argmin(objective_series)
+        )
         best_iteration = best_index + 1
         if need_cvbooster:
             fold_score_summary = summarize_cv_fold_scores(
