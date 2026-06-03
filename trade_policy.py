@@ -15,6 +15,7 @@ SUPPORTED_TRADE_POLICY_MODES = frozenset({"ev", "model_direction_min_stake"})
 SUPPORTED_SUBMITTED_PRICE_MODES = frozenset(
     {"entry_price", "entry_price_plus_ticks", "order_price_cap"}
 )
+SUPPORTED_STAKE_MULTIPLIER_MODES = frozenset({"fixed", "return_multiple"})
 
 
 def _as_float(value):
@@ -164,6 +165,21 @@ def normalize_submitted_price_mode(mode):
     return normalized
 
 
+def normalize_stake_multiplier_config(value):
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized == "return_multiple":
+            return 1.0, "return_multiple"
+
+    multiplier = _as_float(value)
+    if multiplier is None or not math.isfinite(multiplier) or multiplier <= 0.0:
+        raise ValueError(
+            "Trade policy config invalid: stake_multiplier must be finite and > 0 "
+            "or 'return_multiple'."
+        )
+    return float(multiplier), "fixed"
+
+
 def load_trade_policy_runtime_config(config_path):
     config_path = coerce_path(config_path)
     if not config_path.exists():
@@ -181,6 +197,10 @@ def load_trade_policy_runtime_config(config_path):
             "Trade policy config invalid: stake_usdc was removed; use stake_multiplier."
         )
 
+    stake_multiplier, stake_multiplier_mode = normalize_stake_multiplier_config(
+        payload.get("stake_multiplier", 1.0)
+    )
+
     cfg = {
         "mode": normalize_trade_policy_mode(payload.get("mode", "ev")),
         "submitted_price_mode": normalize_submitted_price_mode(
@@ -190,7 +210,8 @@ def load_trade_policy_runtime_config(config_path):
             payload.get("submitted_price_slippage_ticks", 0)
         ),
         "extra_buffer": float(payload.get("extra_buffer", 0.0)),
-        "stake_multiplier": float(payload.get("stake_multiplier", 1.0)),
+        "stake_multiplier": float(stake_multiplier),
+        "stake_multiplier_mode": stake_multiplier_mode,
         "fee_model": normalize_polymarket_fee_model(
             fee_model,
             context=f"Trade policy config '{config_path}' fee_model",
@@ -425,9 +446,15 @@ def build_trade_intent(
     fee_model,
     order_min_size=0.0,
     external_stake_cap_usdc=math.inf,
+    stake_multiplier_mode="fixed",
+    initial_bankroll=None,
+    return_multiple_balance=None,
 ):
     bankroll_value = _as_float(bankroll)
     stake_multiplier_value = _as_float(stake_multiplier)
+    stake_multiplier_mode_value = str(stake_multiplier_mode or "fixed").strip().lower()
+    if not stake_multiplier_mode_value:
+        stake_multiplier_mode_value = "fixed"
     order_min_size_value = 0.0 if order_min_size is None else float(order_min_size)
     external_cap_value = float(external_stake_cap_usdc)
 
@@ -444,6 +471,7 @@ def build_trade_intent(
         if stake_multiplier_value is not None and math.isfinite(stake_multiplier_value)
         else float("nan")
     )
+    intent["stake_multiplier_mode"] = stake_multiplier_mode_value
     intent["required_stake_usdc"] = float("nan")
     intent["effective_stake_usdc"] = float("nan")
 
@@ -455,6 +483,35 @@ def build_trade_intent(
         intent["trade_side"] = "none"
         intent["final_reason"] = "bankroll_non_positive"
         return intent
+    if stake_multiplier_mode_value not in SUPPORTED_STAKE_MULTIPLIER_MODES:
+        intent["decision"] = "no_trade"
+        intent["trade_side"] = "none"
+        intent["final_reason"] = "unsupported_stake_multiplier_mode"
+        return intent
+    if stake_multiplier_mode_value == "return_multiple":
+        initial_bankroll_value = _as_float(initial_bankroll)
+        if (
+            initial_bankroll_value is None
+            or not math.isfinite(initial_bankroll_value)
+            or initial_bankroll_value <= 0.0
+        ):
+            intent["decision"] = "no_trade"
+            intent["trade_side"] = "none"
+            intent["final_reason"] = "initial_bankroll_non_positive"
+            return intent
+        return_balance_value = _as_float(return_multiple_balance)
+        if (
+            return_balance_value is None
+            or not math.isfinite(return_balance_value)
+            or return_balance_value <= 0.0
+        ):
+            return_balance_value = bankroll_value
+        stake_multiplier_value = (
+            float(return_balance_value / initial_bankroll_value)
+            if return_balance_value > initial_bankroll_value
+            else 1.0
+        )
+        intent["stake_multiplier"] = float(stake_multiplier_value)
     if (
         stake_multiplier_value is None
         or not math.isfinite(stake_multiplier_value)
@@ -493,6 +550,11 @@ def build_trade_intent(
 
     intent["required_stake_usdc"] = float(required_stake_value)
     effective_stake_value = float(required_stake_value * stake_multiplier_value)
+    if stake_multiplier_mode_value == "return_multiple":
+        effective_stake_value = _round_up_to_decimals(
+            effective_stake_value,
+            POLYMARKET_MARKET_BUY_AMOUNT_DECIMALS,
+        )
     intent["effective_stake_usdc"] = float(effective_stake_value)
 
     if effective_stake_value > bankroll_value:

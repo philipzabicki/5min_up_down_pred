@@ -143,9 +143,6 @@ POLYMARKET_SERIES_SLUG = str(LIVE_PROFILE["polymarket_series_slug"]).strip()
 POLYMARKET_MARKET_SLUG_PREFIX = str(
     LIVE_PROFILE["polymarket_market_slug_prefix"]
 ).strip()
-POLYMARKET_MARKET_SLUG_OVERRIDE = str(
-    LIVE_PROFILE.get("polymarket_market_slug_override", "")
-).strip()
 POLYMARKET_MARKET_REQUEST_TIMEOUT_SEC = float(
     LIVE_PROFILE["polymarket_market_request_timeout_sec"]
 )
@@ -360,8 +357,6 @@ def resolve_polymarket_market_slug(bucket_start, market_slug=""):
     market_slug_text = str(market_slug or "").strip()
     if market_slug_text:
         return market_slug_text
-    if POLYMARKET_MARKET_SLUG_OVERRIDE:
-        return POLYMARKET_MARKET_SLUG_OVERRIDE
     bucket_start_ts = as_utc_timestamp(bucket_start)
     return f"{POLYMARKET_MARKET_SLUG_PREFIX}-{int(bucket_start_ts.timestamp())}"
 
@@ -2235,6 +2230,9 @@ class LivePredictor:
                 "trade_side": "none",
                 "bet_usdc": 0.0,
                 "stake_multiplier": float(self.trade_policy_runtime["stake_multiplier"]),
+                "stake_multiplier_mode": self.trade_policy_runtime.get(
+                    "stake_multiplier_mode", "fixed"
+                ),
                 "required_stake_usdc": float("nan"),
                 "effective_stake_usdc": float("nan"),
                 "entry_price": float("nan"),
@@ -2260,6 +2258,11 @@ class LivePredictor:
             bankroll=float(bankroll),
             stake_multiplier=float(self.trade_policy_runtime["stake_multiplier"]),
             fee_model=self.trade_policy_runtime["fee_model"],
+            stake_multiplier_mode=self.trade_policy_runtime.get(
+                "stake_multiplier_mode", "fixed"
+            ),
+            initial_bankroll=float(LIVE_INITIAL_BANKROLL_USDC),
+            return_multiple_balance=float(bankroll),
         )
         intent["price_eps"] = float("nan")
         intent["price_slip"] = float("nan")
@@ -2900,16 +2903,11 @@ class LivePredictor:
             f"basis_features={len(self.basis_premium_feature_columns)} "
             f"vp_features={len(self.volume_profile_feature_columns)}"
         )
-        market_selector = (
-            f"market_slug_override={POLYMARKET_MARKET_SLUG_OVERRIDE}"
-            if POLYMARKET_MARKET_SLUG_OVERRIDE
-            else f"market_slug_prefix={POLYMARKET_MARKET_SLUG_PREFIX}"
-        )
         print(
             "Settlement source | "
             f"source=polymarket gamma_host={POLYMARKET_GAMMA_HOST} "
             f"series_slug={POLYMARKET_SERIES_SLUG} "
-            f"{market_selector} "
+            f"market_slug_prefix={POLYMARKET_MARKET_SLUG_PREFIX} "
             "rule=market_resolution"
         )
         if PRICE_SOURCE == "index" and VOLUME_SOURCE == "trade":
@@ -2934,6 +2932,7 @@ class LivePredictor:
             f"bankroll={self.live_bankroll_usdc:.2f} "
             f"mode={self.trade_policy_runtime.get('mode', 'ev')} "
             f"stake_multiplier={self.trade_policy_runtime['stake_multiplier']:.4f} "
+            f"stake_multiplier_mode={self.trade_policy_runtime.get('stake_multiplier_mode', 'fixed')} "
             f"extra_buffer={self.trade_policy_runtime['extra_buffer']:.6f} "
             f"submitted_price_mode={self.trade_policy_runtime.get('submitted_price_mode', 'entry_price')}"
         )

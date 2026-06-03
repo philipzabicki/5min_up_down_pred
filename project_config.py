@@ -382,8 +382,6 @@ def load_live_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PAT
         )
     profile["symbol"] = dataset["symbol"]
     profile["interval"] = dataset["interval"]
-    if "polymarket_market_slug_override" not in profile:
-        profile["polymarket_market_slug_override"] = ""
     profile.setdefault("polymarket_clob_host", "https://clob.polymarket.com")
     profile.setdefault("polymarket_data_api_host", "https://data-api.polymarket.com")
     profile.setdefault("polymarket_relayer_host", "https://relayer-v2.polymarket.com")

@@ -1,10 +1,10 @@
 {
-  "description": "Trade only positive EV opportunities, using minimum executable stake sizing and current ask plus a small tick buffer capped by the live profile.",
+  "description": "Trade only positive EV opportunities, using return-multiple minimum executable stake sizing and current ask plus a small tick buffer capped by the live profile.",
   "mode": "ev",
   "submitted_price_mode": "entry_price_plus_ticks",
   "submitted_price_slippage_ticks": 3,
   "extra_buffer": 0.0,
-  "stake_multiplier": 1.0,
+  "stake_multiplier": "return_multiple",
   "fee_model": {
     "rate": 0.072,
     "exponent": 1.0,

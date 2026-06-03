@@ -779,11 +779,6 @@ def load_polymarket_settings(trade_records_path):
             "polymarket_market_slug_prefix",
             "btc-updown-5m",
         ),
-        market_slug_override=_profile_text(
-            live_profile,
-            "polymarket_market_slug_override",
-            "",
-        ),
         paper_mode=_profile_bool(live_profile, "polymarket_paper_mode", True),
         disable_order_submission=_profile_bool(
             live_profile,
@@ -2414,8 +2409,6 @@ class PolymarketLiveTrader(LivePredictor):
         }
 
     def _market_slug_for_bucket(self, bucket_start):
-        if self.pm_cfg.market_slug_override:
-            return self.pm_cfg.market_slug_override
         return f"{self.pm_cfg.market_slug_prefix}-{int(bucket_start.timestamp())}"
 
     def _get_json(self, host, path, params=None):
@@ -2622,6 +2615,11 @@ class PolymarketLiveTrader(LivePredictor):
                 float(fee_fractions["fee_no"]),
                 float(self.live_trade_policy["extra_buffer"]),
             )
+        return_multiple_balance = (
+            float(self.pm_cash_balance_usdc)
+            if np.isfinite(self.pm_cash_balance_usdc)
+            else float(self.live_bankroll_usdc)
+        )
         intent = build_trade_intent(
             policy_result=policy_result,
             bankroll=float(self.live_bankroll_usdc),
@@ -2629,6 +2627,11 @@ class PolymarketLiveTrader(LivePredictor):
             fee_model=market.fee_model,
             order_min_size=float(market.order_min_size),
             external_stake_cap_usdc=float(self.pm_cfg.max_exposure_usdc),
+            stake_multiplier_mode=self.live_trade_policy.get(
+                "stake_multiplier_mode", "fixed"
+            ),
+            initial_bankroll=float(self.pm_cfg.start_bankroll_usdc),
+            return_multiple_balance=float(return_multiple_balance),
         )
 
         side = str(intent.get("trade_side", "") or "").lower()
@@ -3881,6 +3884,7 @@ class PolymarketLiveTrader(LivePredictor):
             f"bankroll={self.live_bankroll_usdc:.2f} "
             f"mode={self.live_trade_policy.get('mode', 'ev')} "
             f"stake_multiplier={self.live_trade_policy['stake_multiplier']:.4f} "
+            f"stake_multiplier_mode={self.live_trade_policy.get('stake_multiplier_mode', 'fixed')} "
             f"extra_buffer={self.live_trade_policy['extra_buffer']:.6f} "
             f"submitted_price_mode={self.live_trade_policy.get('submitted_price_mode', 'entry_price')} "
             f"submitted_price_slippage_ticks={self.live_trade_policy.get('submitted_price_slippage_ticks', 0)}"
