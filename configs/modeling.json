@@ -134,7 +134,8 @@
           "candle_body_pressure_1m_lag4",
           "candle_close_location_value_5m_lag19",
           "candle_body_pressure_30m_lag2",
-          "candle_wick_asym_1d_lag3"
+          "candle_wick_asym_1d_lag3",
+          "BollingerBands_fit_3m_pop64_maper1081_masouhlc3_matypdema_stdmaper8_stdmatypema_stdmul13.190983_stdsouohlc4"
         ]
       },
       "train_lgbm": {

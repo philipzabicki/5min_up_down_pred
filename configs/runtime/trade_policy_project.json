@@ -3,7 +3,7 @@
   "mode": "ev",
   "submitted_price_mode": "entry_price_plus_ticks",
   "submitted_price_slippage_ticks": 3,
-  "extra_buffer": 0.0,
+  "extra_buffer": 0.0007192999439518398,
   "stake_multiplier": "return_multiple",
   "fee_model": {
     "rate": 0.072,
