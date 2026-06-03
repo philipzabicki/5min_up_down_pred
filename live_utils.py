@@ -1,6 +1,7 @@
 import atexit
 import json
 import os
+import queue
 import re
 import sys
 import threading
@@ -9,6 +10,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import requests
 
 LIVE_ROOT_DIR = Path("data/live")
 LIVE_LOGS_DIR = LIVE_ROOT_DIR / "logs"
@@ -225,6 +227,9 @@ LIVE_TRADE_RECORD_PATH_RE = re.compile(
     r"modeling_(?P<modeling_dataset_config_hash>[0-9a-f]{12})_"
     r"(?P<run_started_at_utc>\d{8}_\d{6})\.csv$"
 )
+TELEGRAM_BOT_TOKEN_ENV = "TELEGRAM_BOT_TOKEN"
+TELEGRAM_CHAT_ID_ENV = "TELEGRAM_CHAT_ID"
+TELEGRAM_CONSOLE_MAX_MESSAGE_CHARS = 3900
 
 
 def as_utc_timestamp(value):
@@ -252,22 +257,193 @@ def interval_to_floor_rule(interval):
     raise ValueError(f"Unsupported floor rule interval: {interval}")
 
 
+def _telegram_api_post(bot_token, method, payload=None, timeout=5.0):
+    response = requests.post(
+        f"https://api.telegram.org/bot{bot_token}/{method}",
+        data=payload or {},
+        timeout=timeout,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _resolve_telegram_chat_id(
+    bot_token,
+    chat_id=None,
+    *,
+    timeout=5.0,
+    api_post=_telegram_api_post,
+):
+    chat_id = str(chat_id or "").strip()
+    if chat_id:
+        return chat_id
+
+    try:
+        updates = api_post(
+            bot_token,
+            "getUpdates",
+            {
+                "limit": 20,
+                "timeout": 0,
+                "allowed_updates": json.dumps(
+                    ["message", "edited_message", "channel_post", "my_chat_member"]
+                ),
+            },
+            timeout,
+        ).get("result") or []
+    except Exception:
+        return None
+
+    chats = []
+    for update in updates:
+        if not isinstance(update, dict):
+            continue
+        for payload in (
+            update.get("message"),
+            update.get("edited_message"),
+            update.get("channel_post"),
+            update.get("my_chat_member"),
+        ):
+            if not isinstance(payload, dict):
+                continue
+            chat = payload.get("chat")
+            if isinstance(chat, dict) and "id" in chat:
+                chats.append((str(chat["id"]), chat.get("type")))
+
+    chat_ids = list(dict.fromkeys(chat_id for chat_id, _ in chats))
+    private_chat_ids = list(
+        dict.fromkeys(chat_id for chat_id, chat_type in chats if chat_type == "private")
+    )
+    if len(private_chat_ids) == 1:
+        return private_chat_ids[0]
+    if len(chat_ids) == 1:
+        return chat_ids[0]
+    return None
+
+
+class _TelegramConsoleSink:
+    def __init__(
+        self,
+        bot_token,
+        chat_id,
+        *,
+        timeout=5.0,
+        max_message_chars=TELEGRAM_CONSOLE_MAX_MESSAGE_CHARS,
+        max_queue_size=1000,
+        api_post=_telegram_api_post,
+    ):
+        self.bot_token = bot_token
+        self.chat_id = str(chat_id)
+        self.timeout = timeout
+        self.max_message_chars = max_message_chars
+        self.api_post = api_post
+        self.lock = threading.RLock()
+        self.buffer = ""
+        self.closed = False
+        self.stop_marker = object()
+        self.queue = queue.Queue(maxsize=max_queue_size)
+        self.worker = threading.Thread(
+            target=self._run,
+            name="telegram-console-mirror",
+            daemon=True,
+        )
+        self.worker.start()
+
+    def write(self, text):
+        if not text:
+            return 0
+        with self.lock:
+            if self.closed:
+                return len(text)
+            self.buffer += str(text)
+            lines = self.buffer.splitlines(keepends=True)
+            if lines and not lines[-1].endswith(("\n", "\r")):
+                self.buffer = lines.pop()
+            else:
+                self.buffer = ""
+        for line in lines:
+            self._enqueue(line)
+        return len(text)
+
+    def flush(self):
+        with self.lock:
+            text = self.buffer
+            self.buffer = ""
+        if text:
+            self._enqueue(text)
+
+    def close(self):
+        self.flush()
+        with self.lock:
+            if self.closed:
+                return
+            self.closed = True
+        try:
+            self.queue.put(self.stop_marker, timeout=1.0)
+        except queue.Full:
+            return
+        self.worker.join(timeout=2.0)
+
+    def _enqueue(self, text):
+        try:
+            self.queue.put_nowait(str(text))
+        except queue.Full:
+            pass
+
+    def _run(self):
+        while True:
+            item = self.queue.get()
+            if item is self.stop_marker:
+                break
+            for message in self._split_message(item):
+                self._send_message(message)
+
+    def _split_message(self, text):
+        message = str(text).rstrip("\r\n")
+        if not message.strip():
+            return []
+        return [
+            message[start : start + self.max_message_chars]
+            for start in range(0, len(message), self.max_message_chars)
+        ]
+
+    def _send_message(self, text):
+        try:
+            self.api_post(
+                self.bot_token,
+                "sendMessage",
+                {
+                    "chat_id": self.chat_id,
+                    "text": text,
+                    "disable_web_page_preview": "true",
+                },
+                self.timeout,
+            )
+        except (requests.RequestException, ValueError):
+            return
+
+
 class _TeeStream:
-    def __init__(self, primary_stream, log_stream, lock):
+    def __init__(self, primary_stream, log_stream, lock, extra_streams=()):
         self.primary_stream = primary_stream
         self.log_stream = log_stream
         self.lock = lock
+        self.extra_streams = tuple(extra_streams or ())
 
     def write(self, text):
         with self.lock:
             self.primary_stream.write(text)
             self.log_stream.write(text)
+            for stream in self.extra_streams:
+                stream.write(text)
         return len(text)
 
     def flush(self):
         with self.lock:
             self.primary_stream.flush()
             self.log_stream.flush()
+            for stream in self.extra_streams:
+                stream.flush()
 
     def __getattr__(self, name):
         return getattr(self.primary_stream, name)
@@ -284,7 +460,15 @@ def build_live_console_log_path(run_name, run_started_at_utc=None, logs_dir=LIVE
     return Path(logs_dir) / f"{safe_run_name}_{timestamp}.log"
 
 
-def setup_live_console_logging(run_name, run_started_at_utc=None, logs_dir=LIVE_LOGS_DIR):
+def setup_live_console_logging(
+    run_name,
+    run_started_at_utc=None,
+    logs_dir=LIVE_LOGS_DIR,
+    *,
+    telegram=False,
+    telegram_bot_token=None,
+    telegram_chat_id=None,
+):
     log_path = build_live_console_log_path(
         run_name,
         run_started_at_utc=run_started_at_utc,
@@ -295,14 +479,44 @@ def setup_live_console_logging(run_name, run_started_at_utc=None, logs_dir=LIVE_
     lock = threading.RLock()
     original_stdout = sys.stdout
     original_stderr = sys.stderr
-    stdout_tee = _TeeStream(original_stdout, log_file, lock)
-    stderr_tee = _TeeStream(original_stderr, log_file, lock)
+    telegram_sink = None
+    telegram_status = None
+    if telegram:
+        bot_token = str(
+            telegram_bot_token or os.environ.get(TELEGRAM_BOT_TOKEN_ENV, "")
+        ).strip()
+        configured_chat_id = str(
+            telegram_chat_id or os.environ.get(TELEGRAM_CHAT_ID_ENV, "")
+        ).strip()
+        if not bot_token:
+            telegram_status = (
+                f"[telegram] console mirror disabled: missing {TELEGRAM_BOT_TOKEN_ENV}"
+            )
+        else:
+            resolved_chat_id = _resolve_telegram_chat_id(
+                bot_token,
+                chat_id=configured_chat_id,
+            )
+            if resolved_chat_id:
+                telegram_sink = _TelegramConsoleSink(bot_token, resolved_chat_id)
+                telegram_status = "[telegram] console mirror enabled"
+            else:
+                telegram_status = (
+                    "[telegram] console mirror disabled: missing "
+                    f"{TELEGRAM_CHAT_ID_ENV} and auto-detect found no unique chat"
+                )
+
+    extra_streams = (telegram_sink,) if telegram_sink is not None else ()
+    stdout_tee = _TeeStream(original_stdout, log_file, lock, extra_streams)
+    stderr_tee = _TeeStream(original_stderr, log_file, lock, extra_streams)
     sys.stdout = stdout_tee
     sys.stderr = stderr_tee
 
     def close_log_file():
         stdout_tee.flush()
         stderr_tee.flush()
+        if telegram_sink is not None:
+            telegram_sink.close()
         if sys.stdout is stdout_tee:
             sys.stdout = original_stdout
         if sys.stderr is stderr_tee:
@@ -311,6 +525,8 @@ def setup_live_console_logging(run_name, run_started_at_utc=None, logs_dir=LIVE_
 
     atexit.register(close_log_file)
     print(f"[log] console output file: {log_path}")
+    if telegram_status:
+        print(telegram_status)
     return log_path
 
 

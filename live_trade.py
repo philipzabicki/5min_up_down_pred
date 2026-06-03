@@ -3969,6 +3969,7 @@ def main():
     setup_live_console_logging(
         f"live_trade_{SYMBOL}_{INTERVAL}",
         run_started_at_utc=RUN_STARTED_AT_UTC,
+        telegram=True,
     )
     trader = PolymarketLiveTrader()
 
