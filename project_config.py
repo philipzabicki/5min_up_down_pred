@@ -23,6 +23,28 @@ RUNTIME_DIR = CONFIGS_DIR / "runtime"
 RUNTIME_ACTIVE_PATH = RUNTIME_DIR / "active.json"
 
 DEFAULT_WALK_FORWARD_TEST_TO_TRAIN_RATIO = 0.1
+ASSET_PLACEHOLDER = "{asset}"
+
+
+def normalize_asset_name(value, *, source_label="active_asset"):
+    asset = str(value).strip().upper()
+    if not asset:
+        raise ValueError(f"Config key '{source_label}' cannot be empty")
+    if any(ch in asset for ch in "\\/{} "):
+        raise ValueError(
+            f"Config key '{source_label}' must be a compact asset code, got: {value!r}"
+        )
+    return asset
+
+
+def format_asset_text(value, asset):
+    return str(value).replace(ASSET_PLACEHOLDER, normalize_asset_name(asset))
+
+
+def active_asset_path(path_template, *, active_config_path=ACTIVE_CONFIG_PATH):
+    return coerce_path(
+        format_asset_text(path_template, load_active_asset(active_config_path))
+    )
 
 
 def _require_bool_or_default(payload, key, *, default, source_label):
@@ -183,20 +205,46 @@ def _load_named_profile(config_path, profile_name):
     return dict(profile)
 
 
+def load_active_asset(config_path=ACTIVE_CONFIG_PATH):
+    payload = load_json_object(config_path)
+    if "active_asset" in payload:
+        return normalize_asset_name(require_text(payload, "active_asset"))
+    if "dataset_profile" in payload:
+        # Backward-compatible fallback for older local configs. New configs should
+        # use active_asset explicitly and name dataset profiles by asset code.
+        return normalize_asset_name(str(require_text(payload, "dataset_profile")).split("_", 1)[0])
+    raise ValueError(f"Missing required config key: active_asset in {Path(config_path)}")
+
+
 def load_active_profile_names(config_path=ACTIVE_CONFIG_PATH):
     payload = load_json_object(config_path)
+    active_asset = load_active_asset(config_path)
+    modeling_profile = (
+        require_text(payload, "modeling_profile")
+        if "modeling_profile" in payload
+        else active_asset
+    )
     return {
-        "dataset_profile": require_text(payload, "dataset_profile"),
-        "modeling_profile": require_text(payload, "modeling_profile"),
+        "active_asset": active_asset,
+        "dataset_profile": str(payload.get("dataset_profile") or active_asset).strip(),
+        "modeling_profile": modeling_profile,
         "indicator_fit_profile": require_text(payload, "indicator_fit_profile"),
         "live_profile": require_text(payload, "live_profile"),
     }
 
 
 def load_dataset_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PATH):
+    active = load_active_profile_names(active_config_path)
+    active_asset = active["active_asset"]
     if profile_name is None:
-        profile_name = load_active_profile_names(active_config_path)["dataset_profile"]
+        profile_name = active["dataset_profile"]
     profile = _load_named_profile(DATASETS_CONFIG_PATH, profile_name)
+    profile_asset = normalize_asset_name(profile.get("asset", active_asset))
+    if profile_name == active["dataset_profile"] and profile_asset != active_asset:
+        raise ValueError(
+            f"Active asset {active_asset!r} does not match dataset profile "
+            f"{profile_name!r} asset={profile_asset!r}."
+        )
     required_keys = (
         "symbol",
         "interval",
@@ -216,6 +264,7 @@ def load_dataset_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_
         "data_dir",
         source_label=f"dataset profile '{profile_name}'",
     )
+    profile["raw_data_dir"] = format_asset_text(profile["raw_data_dir"], profile_asset)
     intervals = profile.get("intervals")
     if not isinstance(intervals, list) or not intervals:
         raise ValueError(
@@ -233,12 +282,16 @@ def load_dataset_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_
     profile["end_date"] = str(profile.get("end_date", "") or "").strip()
     profile["raw_ohlcv_repair"] = profile.get("raw_ohlcv_repair")
     profile["data_dir"] = profile["raw_data_dir"]
+    profile["asset"] = profile_asset
+    profile["profile_name"] = str(profile_name)
     return profile
 
 
 def load_modeling_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PATH):
+    active = load_active_profile_names(active_config_path)
+    active_asset = active["active_asset"]
     if profile_name is None:
-        profile_name = load_active_profile_names(active_config_path)["modeling_profile"]
+        profile_name = active["modeling_profile"]
     profile = _load_named_profile(MODELING_CONFIG_PATH, profile_name)
     feature_selection = profile.get("feature_selection")
     if not isinstance(feature_selection, dict):
@@ -256,12 +309,16 @@ def load_modeling_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG
     profile["output_dir"] = str(
         profile.get("output_dir") or path_to_portable_str(MODELING_DATASETS_DIR)
     ).strip()
+    profile["output_dir"] = format_asset_text(profile["output_dir"], active_asset)
     if not profile["output_dir"]:
         raise ValueError(
             f"Modeling profile '{profile_name}' must define non-empty 'output_dir'."
         )
     require_text(profile, "output_suffix")
-    require_text(profile, "fit_results_dir")
+    profile["fit_results_dir"] = format_asset_text(
+        require_text(profile, "fit_results_dir"),
+        active_asset,
+    )
     require_positive_int(profile, "preview_rows")
     profile["candle_streak_intervals"] = _normalize_candle_streak_intervals(
         profile.get("candle_streak_intervals"),
@@ -271,7 +328,13 @@ def load_modeling_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG
     profile["basis_premium_features"] = dict(
         profile.get("basis_premium_features") or {}
     )
-    profile["feature_selection"] = dict(feature_selection)
+    feature_selection = dict(feature_selection)
+    if str(feature_selection.get("artifact_path", "") or "").strip():
+        feature_selection["artifact_path"] = format_asset_text(
+            feature_selection["artifact_path"],
+            active_asset,
+        )
+    profile["feature_selection"] = feature_selection
     profile["train_lgbm"] = _normalize_train_lgbm_config(
         profile.get("train_lgbm"),
         profile_name=profile_name,
@@ -411,6 +474,7 @@ def load_live_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PAT
 
 
 def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
+    active = load_active_profile_names(active_config_path)
     dataset = load_dataset_profile(active_config_path=active_config_path)
     modeling = load_modeling_profile(active_config_path=active_config_path)
     feature_selection = modeling["feature_selection"]
@@ -429,6 +493,12 @@ def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
             "modeling.feature_selection.excluded_feature_names must be a JSON array."
         )
     return {
+        "active_asset": active["active_asset"],
+        "symbol": dataset["symbol"],
+        "interval": dataset["interval"],
+        "market": dataset["market"],
+        "volume_symbol": dataset["volume_symbol"],
+        "volume_market": dataset["volume_market"],
         "raw_data_dir": coerce_path(require_text(dataset, "raw_data_dir")),
         "data_dir": coerce_path(require_text(dataset, "raw_data_dir")),
         "base_data_file": require_text(dataset, "base_data_file"),
@@ -452,8 +522,11 @@ def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
 
 
 def load_fetch_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
+    active = load_active_profile_names(active_config_path)
     dataset = load_dataset_profile(active_config_path=active_config_path)
     return {
+        "active_asset": active["active_asset"],
+        "raw_data_dir": dataset["raw_data_dir"],
         "symbol": dataset["symbol"],
         "market": dataset["market"],
         "source": dataset["source"],
@@ -474,9 +547,10 @@ def build_indicator_fit_legacy_config(*, active_config_path=ACTIVE_CONFIG_PATH):
     dataset = load_dataset_profile(active_config_path=active_config_path)
     fit = load_indicator_fit_profile(active_config_path=active_config_path)
     metric = dict(fit["metric"])
+    metric_recency_weighting = dict(metric.get("recency_weighting") or {})
     return {
         "pairs": {
-            active["indicator_fit_profile"]: {
+            f"{active['active_asset']}_{active['indicator_fit_profile']}": {
                 "proxy_target_horizonts": list(fit["proxy_target_horizonts"]),
                 "proxy_target_price_col": str(fit["proxy_target_price_col"]),
                 "proxy_target_mode": str(fit["proxy_target_mode"]),
@@ -491,6 +565,18 @@ def build_indicator_fit_legacy_config(*, active_config_path=ACTIVE_CONFIG_PATH):
                 "clip_q": float(metric["clip_q"]),
                 "min_bucket_size": int(metric["min_bucket_size"]),
                 "min_valid_segments": int(metric["min_valid_segments"]),
+                "metric_recency_weighting_enabled": bool(
+                    metric_recency_weighting.get("enabled", False)
+                ),
+                "metric_recency_weighting_mode": str(
+                    metric_recency_weighting.get("mode", "linear")
+                ),
+                "metric_recency_weight_min": float(
+                    metric_recency_weighting.get("min_weight", 1.0)
+                ),
+                "metric_recency_weight_max": float(
+                    metric_recency_weighting.get("max_weight", 1.5)
+                ),
                 "base_pop_size": int(fit["base_pop_size"]),
                 "drop_frozen_ohlc_blocks": fit.get("drop_frozen_ohlc_blocks"),
                 "intervals": {
@@ -506,6 +592,7 @@ def build_indicator_fit_legacy_config(*, active_config_path=ACTIVE_CONFIG_PATH):
 
 
 def load_runtime_artifact_paths(runtime_manifest_path=RUNTIME_ACTIVE_PATH):
+    active_asset = load_active_asset()
     payload = load_json_object(runtime_manifest_path)
     artifacts = payload.get("artifacts")
     if not isinstance(artifacts, dict):
@@ -524,9 +611,16 @@ def load_runtime_artifact_paths(runtime_manifest_path=RUNTIME_ACTIVE_PATH):
         )
     trade_policy_path = coerce_path(require_text(artifacts, "trade_policy_path"))
     return {
-        "model_meta_path": coerce_path(require_text(artifacts, "model_meta_path")),
-        "trade_policy_path": trade_policy_path,
+        "model_meta_path": coerce_path(
+            format_asset_text(require_text(artifacts, "model_meta_path"), active_asset)
+        ),
+        "trade_policy_path": coerce_path(
+            format_asset_text(str(trade_policy_path), active_asset)
+        ),
         "indicator_history_requirements_path": coerce_path(
-            require_text(artifacts, "indicator_history_requirements_path")
+            format_asset_text(
+                require_text(artifacts, "indicator_history_requirements_path"),
+                active_asset,
+            )
         ),
     }

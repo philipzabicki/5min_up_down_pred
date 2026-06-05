@@ -1,22 +1,39 @@
-import argparse
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 import requests
 
+from common_config_utils import (
+    coerce_path,
+    load_json_object,
+    require_positive_int,
+)
 from data.chainlink_sources import (
+    _has_candlestick_credentials,
+    _normalize_symbol,
     _public_reports_to_ohlcv,
+    fetch_authenticated_candlestick_ohlcv,
     fetch_public_historical_engine_ohlcv,
     fetch_public_recent_live_reports,
     fetch_stream_metadata,
 )
+from project_config import (
+    format_asset_text,
+    load_active_profile_names,
+    load_dataset_profile,
+)
 
-DEFAULT_OUTPUT_ROOT = Path("data/analysis/polymarket_chainlink_binance_compare")
+CONFIG_PATH = Path("configs/polymarket_chainlink_binance_compare.json")
+DEFAULT_OUTPUT_TEMPLATE = "data/analysis/polymarket_chainlink_binance_compare/{asset}"
 CHAINLINK_TICKER = "BTCUSD"
 BINANCE_INTERVAL = "1m"
 REQUEST_TIMEOUT_SEC = 30
+DEFAULT_BINANCE_QUOTE_ASSETS = ["USDT", "USDC", "USD"]
+DEFAULT_BINANCE_MARKET_TYPES = ["spot", "um", "cm"]
+DEFAULT_FUTURES_DATA_TYPES = ["klines", "indexPriceKlines", "markPriceKlines"]
 OHLCV_COLS = ["Opened", "Open", "High", "Low", "Close", "Volume"]
 OHLC_COLS = ["Open", "High", "Low", "Close"]
 
@@ -135,56 +152,106 @@ class SourceCandidate:
         }
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description=(
-            "Compare the last 24h of public Chainlink BTC/USD minute candles used by "
-            "Polymarket against multiple Binance spot and futures candle variants."
-        )
-    )
-    parser.add_argument(
-        "--lookback-hours",
-        type=int,
-        default=24,
-        help="Trailing analysis window in hours counted back from the newest Chainlink minute.",
-    )
-    parser.add_argument(
-        "--output-root",
-        type=Path,
-        default=DEFAULT_OUTPUT_ROOT,
-        help="Directory under which a timestamped analysis run directory will be created.",
-    )
-    parser.add_argument(
-        "--refresh-chainlink-metadata",
-        action="store_true",
-        help="Refresh cached Chainlink stream metadata before querying the public history.",
-    )
-    parser.add_argument(
-        "--skip-live-reports",
-        dest="include_live_reports",
-        action="store_false",
-        help="Do not top off the public 1D Chainlink history with recent live reports.",
-    )
-    parser.add_argument(
-        "--skip-aligned",
-        dest="save_aligned",
-        action="store_false",
-        help="Do not save per-source aligned 1m and 5m comparison CSVs.",
-    )
-    parser.add_argument(
-        "--top-n",
-        type=int,
-        default=5,
-        help="How many top-ranked sources to print and include in the markdown report.",
-    )
-    parser.set_defaults(include_live_reports=True, save_aligned=True)
-    args = parser.parse_args()
+def _require_bool(payload, key):
+    if key not in payload:
+        raise ValueError(f"Missing required config key: {key}")
+    value = payload[key]
+    if not isinstance(value, bool):
+        raise ValueError(f"Config key '{key}' must be a JSON boolean, got: {value!r}")
+    return bool(value)
 
-    if args.lookback_hours < 1 or args.lookback_hours > 24:
-        raise ValueError("--lookback-hours must be in the inclusive range [1, 24].")
-    if args.top_n < 1:
-        raise ValueError("--top-n must be >= 1.")
-    return args
+
+def _optional_bool(payload, key, default=False):
+    if key not in payload:
+        return bool(default)
+    value = payload[key]
+    if not isinstance(value, bool):
+        raise ValueError(f"Config key '{key}' must be a JSON boolean, got: {value!r}")
+    return bool(value)
+
+
+def _normalize_text_list(payload, key, allowed_values=None, uppercase=False):
+    values = payload.get(key)
+    if values is None:
+        return []
+    if not isinstance(values, list):
+        raise ValueError(f"Config key '{key}' must be a JSON array.")
+    normalized = []
+    allowed = {str(value) for value in allowed_values or []}
+    for value in values:
+        item = str(value).strip()
+        if uppercase:
+            item = item.upper()
+        if not item:
+            continue
+        if allowed and item not in allowed:
+            raise ValueError(
+                f"Config key '{key}' contains unsupported value {item!r}. "
+                f"Allowed: {sorted(allowed)}"
+            )
+        if item not in normalized:
+            normalized.append(item)
+    return normalized
+
+
+def load_compare_settings(config_path=CONFIG_PATH, *, active_config_path=None):
+    cfg = load_json_object(config_path)
+    if active_config_path is None:
+        active = load_active_profile_names()
+        dataset = load_dataset_profile()
+    else:
+        active = load_active_profile_names(active_config_path)
+        dataset = load_dataset_profile(active_config_path=active_config_path)
+    active_asset = active["active_asset"]
+    symbol_info = _normalize_symbol(dataset["symbol"])
+    lookback_hours = require_positive_int(cfg, "lookback_hours")
+    if lookback_hours > 24:
+        raise ValueError("Config key 'lookback_hours' must be in the range [1, 24].")
+
+    top_n = require_positive_int(cfg, "top_n")
+    output_root_text = str(cfg.get("output_root", "") or "").strip()
+    output_root = coerce_path(
+        format_asset_text(output_root_text or DEFAULT_OUTPUT_TEMPLATE, active_asset)
+    )
+
+    quote_assets = _normalize_text_list(cfg, "binance_quote_assets", uppercase=True)
+    if not quote_assets:
+        quote_assets = list(DEFAULT_BINANCE_QUOTE_ASSETS)
+    if symbol_info["quote"] not in quote_assets:
+        quote_assets.append(symbol_info["quote"])
+
+    market_types = _normalize_text_list(
+        cfg,
+        "binance_market_types",
+        allowed_values=MARKET_LABELS,
+    )
+    if not market_types:
+        market_types = list(DEFAULT_BINANCE_MARKET_TYPES)
+
+    futures_data_types = _normalize_text_list(
+        cfg,
+        "futures_data_types",
+        allowed_values={"klines", "indexPriceKlines", "markPriceKlines"},
+    )
+    if not futures_data_types:
+        futures_data_types = list(DEFAULT_FUTURES_DATA_TYPES)
+
+    return {
+        "active_asset": active_asset,
+        "dataset_profile": active["dataset_profile"],
+        "chainlink_ticker": symbol_info["compact_symbol"],
+        "lookback_hours": int(lookback_hours),
+        "output_root": output_root,
+        "refresh_chainlink_metadata": _optional_bool(
+            cfg, "refresh_chainlink_metadata", default=False
+        ),
+        "include_live_reports": _require_bool(cfg, "include_live_reports"),
+        "save_aligned": _require_bool(cfg, "save_aligned"),
+        "top_n": int(top_n),
+        "binance_quote_assets": quote_assets,
+        "binance_market_types": market_types,
+        "futures_data_types": futures_data_types,
+    }
 
 
 def get_json(session, url, params=None):
@@ -259,12 +326,12 @@ def make_futures_candidate(market_type, pair, data_type):
     if market_type != "cm":
         raise ValueError(f"Unsupported futures market_type: {market_type!r}")
 
-    api_symbol = "BTCUSD_PERP" if pair == "BTCUSD" else pair
+    api_symbol = f"{pair}_PERP" if pair.endswith("USD") else pair
     note = ""
-    if pair == "BTCUSD":
+    if api_symbol != pair:
         note = (
-            "Coin-M BTCUSD uses BTCUSD_PERP for klines and markPriceKlines; "
-            "indexPriceKlines stays on pair BTCUSD."
+            f"Coin-M {pair} uses {api_symbol} for klines and markPriceKlines; "
+            f"indexPriceKlines stays on pair {pair}."
         )
     return SourceCandidate(
         market_type=market_type,
@@ -277,30 +344,45 @@ def make_futures_candidate(market_type, pair, data_type):
     )
 
 
-def build_candidates():
-    pairs = ["BTCUSDT", "BTCUSDC", "BTCUSD"]
-    futures_data_types = ["klines", "indexPriceKlines", "markPriceKlines"]
+def build_candidates(
+    chainlink_ticker=CHAINLINK_TICKER,
+    quote_assets=None,
+    market_types=None,
+    futures_data_types=None,
+):
+    symbol_info = _normalize_symbol(chainlink_ticker)
+    quote_assets = list(quote_assets or DEFAULT_BINANCE_QUOTE_ASSETS)
+    pairs = []
+    for quote_asset in quote_assets:
+        pair = f"{symbol_info['base']}{str(quote_asset).strip().upper()}"
+        if pair not in pairs:
+            pairs.append(pair)
+    market_types = list(market_types or DEFAULT_BINANCE_MARKET_TYPES)
+    futures_data_types = list(futures_data_types or DEFAULT_FUTURES_DATA_TYPES)
     candidates = []
 
-    for pair in pairs:
-        candidates.append(
-            SourceCandidate(
-                market_type="spot",
-                data_type="klines",
-                requested_pair=pair,
-                api_symbol=pair,
-                api_pair=pair,
-                validation_kind="symbol",
+    if "spot" in market_types:
+        for pair in pairs:
+            candidates.append(
+                SourceCandidate(
+                    market_type="spot",
+                    data_type="klines",
+                    requested_pair=pair,
+                    api_symbol=pair,
+                    api_pair=pair,
+                    validation_kind="symbol",
+                )
             )
-        )
 
-    for pair in pairs:
-        for data_type in futures_data_types:
-            candidates.append(make_futures_candidate("um", pair, data_type))
+    if "um" in market_types:
+        for pair in pairs:
+            for data_type in futures_data_types:
+                candidates.append(make_futures_candidate("um", pair, data_type))
 
-    for pair in pairs:
-        for data_type in futures_data_types:
-            candidates.append(make_futures_candidate("cm", pair, data_type))
+    if "cm" in market_types:
+        for pair in pairs:
+            for data_type in futures_data_types:
+                candidates.append(make_futures_candidate("cm", pair, data_type))
 
     return candidates
 
@@ -355,18 +437,56 @@ def validate_candidate(candidate, catalogs):
     return True, f"pair_symbols={active_symbols}"
 
 
+def chainlink_stream_page_url(chainlink_ticker):
+    symbol_info = _normalize_symbol(chainlink_ticker)
+    streams_root = DOC_URLS["chainlink_stream_page"].rsplit("/", 1)[0]
+    return f"{streams_root}/{symbol_info['stream_slug']}"
+
+
 def fetch_chainlink_reference(
-    lookback_hours, refresh_metadata=False, include_live_reports=True
+    lookback_hours,
+    chainlink_ticker=CHAINLINK_TICKER,
+    refresh_metadata=False,
+    include_live_reports=True,
 ):
-    history_df = normalize_ohlcv_frame(
-        fetch_public_historical_engine_ohlcv(
-            ticker=CHAINLINK_TICKER,
-            time_range="1D",
-            refresh_metadata=refresh_metadata,
+    symbol_info = _normalize_symbol(chainlink_ticker)
+    history_source = "public_historical_engine"
+    try:
+        history_df = normalize_ohlcv_frame(
+            fetch_public_historical_engine_ohlcv(
+                ticker=chainlink_ticker,
+                time_range="1D",
+                refresh_metadata=refresh_metadata,
+            )
         )
-    )
+    except requests.HTTPError as exc:
+        status_code = getattr(exc.response, "status_code", None)
+        if status_code != 429:
+            raise
+        if not _has_candlestick_credentials():
+            raise RuntimeError(
+                "Chainlink public history API returned HTTP 429. "
+                "The stream metadata fallback is available, but the candle history "
+                "endpoint is also protected/rate-limited from this environment. "
+                "Set CHAINLINK_CANDLESTICK_USER_ID and CHAINLINK_CANDLESTICK_API_KEY "
+                "to let this comparison use the authenticated Chainlink Candlestick "
+                "API fallback."
+            ) from exc
+
+        end_opened = pd.Timestamp.now(tz="UTC").floor("min") - pd.Timedelta(minutes=1)
+        start_opened = end_opened - pd.Timedelta(hours=int(lookback_hours))
+        history_df = normalize_ohlcv_frame(
+            fetch_authenticated_candlestick_ohlcv(
+                ticker=chainlink_ticker,
+                interval=BINANCE_INTERVAL,
+                start_date=start_opened.isoformat(),
+                end_date=end_opened.isoformat(),
+                refresh_metadata=refresh_metadata,
+            )
+        )
+        history_source = "authenticated_candlestick"
     metadata = fetch_stream_metadata(
-        ticker=CHAINLINK_TICKER,
+        ticker=chainlink_ticker,
         refresh=refresh_metadata,
     )
 
@@ -378,7 +498,7 @@ def fetch_chainlink_reference(
     if include_live_reports:
         try:
             raw_reports_df = fetch_public_recent_live_reports(
-                ticker=CHAINLINK_TICKER,
+                ticker=chainlink_ticker,
                 refresh_metadata=refresh_metadata,
             )
             live_report_rows = len(raw_reports_df)
@@ -397,6 +517,10 @@ def fetch_chainlink_reference(
         raise RuntimeError("Chainlink public reference frame is empty after trimming.")
 
     meta = {
+        "chainlink_ticker": symbol_info["compact_symbol"],
+        "chainlink_pair_symbol": symbol_info["pair_symbol"],
+        "chainlink_stream_page_url": chainlink_stream_page_url(chainlink_ticker),
+        "history_source": history_source,
         "history_rows_1m": len(history_df),
         "recent_live_report_rows": int(live_report_rows),
         "recent_live_report_ohlcv_rows_1m": int(recent_ohlcv_rows),
@@ -690,6 +814,12 @@ def write_markdown_report(
     five_min_df,
     top_n,
 ):
+    chainlink_ticker = chainlink_meta.get("chainlink_ticker", CHAINLINK_TICKER)
+    chainlink_pair_symbol = chainlink_meta.get("chainlink_pair_symbol", "")
+    chainlink_label = chainlink_pair_symbol or chainlink_ticker
+    chainlink_stream_url = chainlink_meta.get(
+        "chainlink_stream_page_url", DOC_URLS["chainlink_stream_page"]
+    )
     fetched_count = (
         int((status_df["status"] == "fetched").sum()) if not status_df.empty else 0
     )
@@ -715,10 +845,15 @@ def write_markdown_report(
         "",
         "## Reference facts",
         "",
-        f"- Polymarket market rules page points BTC 5m resolution to Chainlink BTC/USD: `{DOC_URLS['polymarket_market_rules']}`",
-        f"- Chainlink public stream page shows a 1 Minute view with 1D / 1W / 1M windows and says the webpage is delayed: `{DOC_URLS['chainlink_stream_page']}`",
-        f"- Public Chainlink 1D history rows collected in this run: `{chainlink_meta['history_rows_1m']}`",
+        f"- Chainlink reference ticker: `{chainlink_ticker}` (`{chainlink_label}`)",
+        f"- Chainlink public stream page shows a 1 Minute view with 1D / 1W / 1M windows and says the webpage is delayed: `{chainlink_stream_url}`",
+        f"- Chainlink history source used in this run: `{chainlink_meta['history_source']}`",
+        f"- Chainlink history rows collected in this run: `{chainlink_meta['history_rows_1m']}`",
     ]
+    if chainlink_ticker == CHAINLINK_TICKER:
+        lines.append(
+            f"- Polymarket market rules page points BTC 5m resolution to Chainlink BTC/USD: `{DOC_URLS['polymarket_market_rules']}`",
+        )
 
     if chainlink_meta.get("recent_live_report_ohlcv_rows_1m", 0):
         lines.append(
@@ -771,21 +906,20 @@ def write_markdown_report(
 
 
 def main():
-    args = parse_args()
+    settings = load_compare_settings()
     started_at = datetime.now(timezone.utc)
-    run_dir = build_run_dir(args.output_root)
-    sources_dir = run_dir / "sources"
-    aligned_dir = run_dir / "aligned"
-    sources_dir.mkdir(parents=True, exist_ok=True)
-    if args.save_aligned:
-        aligned_dir.mkdir(parents=True, exist_ok=True)
 
     session = requests.Session()
     catalogs = fetch_exchange_catalogs(session)
 
     status_rows = []
     supported_candidates = []
-    for candidate in build_candidates():
+    for candidate in build_candidates(
+        settings["chainlink_ticker"],
+        quote_assets=settings["binance_quote_assets"],
+        market_types=settings["binance_market_types"],
+        futures_data_types=settings["futures_data_types"],
+    ):
         is_supported, detail = validate_candidate(candidate, catalogs)
         row = {
             **candidate.to_dict(),
@@ -800,11 +934,19 @@ def main():
             supported_candidates.append(candidate)
 
     reference_1m, chainlink_meta = fetch_chainlink_reference(
-        lookback_hours=args.lookback_hours,
-        refresh_metadata=args.refresh_chainlink_metadata,
-        include_live_reports=args.include_live_reports,
+        lookback_hours=settings["lookback_hours"],
+        chainlink_ticker=settings["chainlink_ticker"],
+        refresh_metadata=settings["refresh_chainlink_metadata"],
+        include_live_reports=settings["include_live_reports"],
     )
     reference_5m = resample_to_5m(reference_1m)
+
+    run_dir = build_run_dir(settings["output_root"])
+    sources_dir = run_dir / "sources"
+    aligned_dir = run_dir / "aligned"
+    sources_dir.mkdir(parents=True, exist_ok=True)
+    if settings["save_aligned"]:
+        aligned_dir.mkdir(parents=True, exist_ok=True)
     reference_1m.to_csv(run_dir / "chainlink_reference_1m.csv", index=False)
     reference_5m.to_csv(run_dir / "chainlink_reference_5m.csv", index=False)
 
@@ -812,6 +954,8 @@ def main():
     analysis_end = pd.Timestamp(reference_1m["Opened"].max())
     print(
         "[info] "
+        f"active_asset={settings['active_asset']} "
+        f"chainlink_ticker={settings['chainlink_ticker']} "
         f"chainlink_window={analysis_start.isoformat()}..{analysis_end.isoformat()} "
         f"rows_1m={len(reference_1m)} rows_5m={len(reference_5m)}"
     )
@@ -847,7 +991,7 @@ def main():
             summary_1m_rows.append({**candidate.to_dict(), **summary_1m})
             summary_5m_rows.append({**candidate.to_dict(), **summary_5m})
 
-            if args.save_aligned:
+            if settings["save_aligned"]:
                 aligned_1m.to_csv(
                     aligned_dir / f"{candidate.source_id}_aligned_1m.csv", index=False
                 )
@@ -879,14 +1023,24 @@ def main():
 
     summary_payload = {
         "generated_at_utc": started_at.isoformat(),
+        "active_asset": settings["active_asset"],
+        "dataset_profile": settings["dataset_profile"],
         "analysis_window_start_utc": analysis_start.isoformat(),
         "analysis_window_end_utc": analysis_end.isoformat(),
-        "lookback_hours": int(args.lookback_hours),
+        "lookback_hours": int(settings["lookback_hours"]),
+        "chainlink_ticker": settings["chainlink_ticker"],
+        "binance_quote_assets": list(settings["binance_quote_assets"]),
+        "binance_market_types": list(settings["binance_market_types"]),
+        "futures_data_types": list(settings["futures_data_types"]),
         "chainlink_rows_1m": len(reference_1m),
         "chainlink_rows_5m": len(reference_5m),
         "chainlink_feed_id": chainlink_meta.get("chainlink_feed_id", ""),
         "chainlink_stream_slug": chainlink_meta.get("chainlink_stream_slug", ""),
+        "chainlink_stream_page_url": chainlink_meta.get(
+            "chainlink_stream_page_url", ""
+        ),
         "chainlink_product_name": chainlink_meta.get("chainlink_product_name", ""),
+        "chainlink_history_source": chainlink_meta.get("history_source", ""),
         "chainlink_history_rows_1m": int(chainlink_meta.get("history_rows_1m", 0)),
         "chainlink_recent_live_report_rows": int(
             chainlink_meta.get("recent_live_report_rows", 0)
@@ -932,12 +1086,16 @@ def main():
         status_df=status_df,
         one_min_df=summary_1m_df,
         five_min_df=summary_5m_df,
-        top_n=args.top_n,
+        top_n=settings["top_n"],
     )
 
-    print_rankings(summary_1m_df, summary_5m_df, top_n=args.top_n)
+    print_rankings(summary_1m_df, summary_5m_df, top_n=settings["top_n"])
     print(f"\n[done] run_dir={run_dir}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except RuntimeError as exc:
+        print(f"[error] {exc}", file=sys.stderr)
+        sys.exit(1)

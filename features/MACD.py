@@ -33,6 +33,10 @@ METRIC_STAT = "mean_clip"
 METRIC_CLIP_Q = 0.01
 METRIC_MIN_BUCKET_SIZE = 50
 METRIC_MIN_VALID_SEGMENTS = 2
+METRIC_RECENCY_WEIGHTING_ENABLED = False
+METRIC_RECENCY_WEIGHTING_MODE = "linear"
+METRIC_RECENCY_WEIGHT_MIN = 1.0
+METRIC_RECENCY_WEIGHT_MAX = 1.5
 DEBUG = False
 
 
@@ -87,6 +91,10 @@ class MACDFitting(ElementwiseProblem):
             clip_q=METRIC_CLIP_Q,
             min_bucket_size=METRIC_MIN_BUCKET_SIZE,
             min_valid_segments=METRIC_MIN_VALID_SEGMENTS,
+            recency_weighting_enabled=METRIC_RECENCY_WEIGHTING_ENABLED,
+            recency_weighting_mode=METRIC_RECENCY_WEIGHTING_MODE,
+            recency_weight_min=METRIC_RECENCY_WEIGHT_MIN,
+            recency_weight_max=METRIC_RECENCY_WEIGHT_MAX,
         )
 
 
@@ -127,12 +135,18 @@ def macd_initializer(
     clip_q=0.01,
     min_bucket_size=50,
     min_valid_segments=2,
+    recency_weighting_enabled=False,
+    recency_weighting_mode="linear",
+    recency_weight_min=1.0,
+    recency_weight_max=1.5,
 ):
     global OHLCV_BYTES, OHLCV_SHAPE, SOURCE_CACHE, VOLUME_CACHE
     global TARGET_BYTES, TARGET_SHAPE
     global METRIC_SEGMENTS_COUNT, METRIC_TRAIN_FRAC, METRIC_GAP
     global METRIC_Q_EXT, METRIC_Q_MID, METRIC_STAT, METRIC_CLIP_Q
     global METRIC_MIN_BUCKET_SIZE, METRIC_MIN_VALID_SEGMENTS
+    global METRIC_RECENCY_WEIGHTING_ENABLED, METRIC_RECENCY_WEIGHTING_MODE
+    global METRIC_RECENCY_WEIGHT_MIN, METRIC_RECENCY_WEIGHT_MAX
     # Reset memoized arrays to avoid stale cache hits after re-initialization
     # in the same process.
     get_ma_from_source_cache.cache_clear()
@@ -152,6 +166,10 @@ def macd_initializer(
     METRIC_CLIP_Q = float(clip_q)
     METRIC_MIN_BUCKET_SIZE = max(1, int(min_bucket_size))
     METRIC_MIN_VALID_SEGMENTS = max(1, int(min_valid_segments))
+    METRIC_RECENCY_WEIGHTING_ENABLED = bool(recency_weighting_enabled)
+    METRIC_RECENCY_WEIGHTING_MODE = str(recency_weighting_mode)
+    METRIC_RECENCY_WEIGHT_MIN = float(recency_weight_min)
+    METRIC_RECENCY_WEIGHT_MAX = float(recency_weight_max)
 
 
 @lru_cache(maxsize=64)

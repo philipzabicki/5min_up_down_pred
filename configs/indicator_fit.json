@@ -21,7 +21,7 @@
       "proxy_target_time_col": "Opened",
       "metric": {
         "name": "extremes_vs_mid_ir_oof",
-        "segments_count": 20,
+        "segments_count": 10,
         "train_frac": 0.8,
         "gap": 2000,
         "q_ext": [
@@ -31,7 +31,13 @@
         "stat": "mean_clip",
         "clip_q": 0.01,
         "min_bucket_size": 1000,
-        "min_valid_segments": 19
+        "min_valid_segments": 9,
+        "recency_weighting": {
+          "enabled": true,
+          "mode": "linear",
+          "min_weight": 1.0,
+          "max_weight": 1.5
+        }
       },
       "base_pop_size": 128,
       "drop_frozen_ohlc_blocks": {
@@ -47,7 +53,7 @@
         "BollingerBands"
       ]
     },
-    "main_task_candle_up_5m": {
+    "candle_up_5m_quick_narrow": {
       "proxy_target_horizonts": [
         5
       ],
@@ -56,19 +62,66 @@
       "proxy_target_time_col": "Opened",
       "metric": {
         "name": "extremes_vs_mid_ir_oof",
-        "segments_count": 20,
+        "segments_count": 10,
         "train_frac": 0.8,
         "gap": 2000,
         "q_ext": [
           0.1
         ],
-        "q_mid": 0.3,
+        "q_mid": 0.15,
         "stat": "mean_clip",
         "clip_q": 0.01,
         "min_bucket_size": 1000,
-        "min_valid_segments": 19
+        "min_valid_segments": 9,
+        "recency_weighting": {
+          "enabled": true,
+          "mode": "linear",
+          "min_weight": 1.0,
+          "max_weight": 1.5
+        }
       },
-      "base_pop_size": 1024,
+      "base_pop_size": 128,
+      "drop_frozen_ohlc_blocks": {
+        "enabled": true,
+        "min_block_len": 3
+      },
+      "indicators": [
+        "ADX",
+        "ChaikinOsc",
+        "KeltnerChannel",
+        "MACD",
+        "StochOsc",
+        "BollingerBands"
+      ]
+    },
+    "candle_up_5m_slow_wide": {
+      "proxy_target_horizonts": [
+        5
+      ],
+      "proxy_target_price_col": "Close",
+      "proxy_target_mode": "candle_up",
+      "proxy_target_time_col": "Opened",
+      "metric": {
+        "name": "extremes_vs_mid_ir_oof",
+        "segments_count": 10,
+        "train_frac": 0.8,
+        "gap": 2000,
+        "q_ext": [
+          0.2
+        ],
+        "q_mid": 0.2,
+        "stat": "mean_clip",
+        "clip_q": 0.01,
+        "min_bucket_size": 1000,
+        "min_valid_segments": 9,
+        "recency_weighting": {
+          "enabled": true,
+          "mode": "linear",
+          "min_weight": 1.0,
+          "max_weight": 1.5
+        }
+      },
+      "base_pop_size": 512,
       "drop_frozen_ohlc_blocks": {
         "enabled": true,
         "min_block_len": 3

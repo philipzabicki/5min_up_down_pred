@@ -9,11 +9,11 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
 from metrics_utils import weighted_brier_score
+from modeling_dataset_utils import resolve_oof_prediction_output_paths
+from project_config import active_asset_path
 
-DEFAULT_OOF_PATH = Path(
-    "data/datasets/modeling/BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet"
-)
-DEFAULT_OUTPUT_DIR = Path("data/calibration/model_probability")
+DEFAULT_OOF_PATH = resolve_oof_prediction_output_paths()["parquet"]
+DEFAULT_OUTPUT_DIR = active_asset_path("data/calibration/model_probability/{asset}")
 DEFAULT_TIME_COL = "Opened"
 DEFAULT_TARGET_COL = "target_5m_candle_up"
 DEFAULT_WEIGHT_COL = "target_5m_weight"

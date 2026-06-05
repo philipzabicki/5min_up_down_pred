@@ -465,7 +465,9 @@ def parse_fit_results(fit_dir):
     )
 
 
-def resolve_volume_profile_modeling_state_path(base_data_file):
+def resolve_volume_profile_modeling_state_path(base_data_file, asset=None):
+    if asset is None:
+        asset = load_modeling_dataset_settings().get("active_asset")
     stem = Path(base_data_file).stem
     match = BASE_DATA_FILE_SYMBOL_INTERVAL_RE.match(stem)
     if not match:
@@ -475,8 +477,11 @@ def resolve_volume_profile_modeling_state_path(base_data_file):
         )
     symbol = match.group("symbol")
     interval = match.group("interval")
+    state_dir = VP_MODELING_STATE_DIR
+    if asset:
+        state_dir = state_dir / str(asset).strip().upper()
     return (
-        VP_MODELING_STATE_DIR / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
+        state_dir / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
     )
 
 
@@ -806,7 +811,10 @@ def build_dataset_from_settings(settings):
             vp_feature_frame,
             context="Volume profile features",
         )
-        vp_state_path = resolve_volume_profile_modeling_state_path(base_data_file)
+        vp_state_path = resolve_volume_profile_modeling_state_path(
+            base_data_file,
+            asset=settings.get("active_asset"),
+        )
         saved_paths = save_volume_profile_state(vp_state, vp_state_path)
         print(f"[vp] saved modeling-end state -> {saved_paths['npz']}")
     else:

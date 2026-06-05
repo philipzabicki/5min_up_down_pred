@@ -135,9 +135,11 @@ def _final_csv_path(
     market_type="",
     volume_ticker="",
     volume_market_type="",
+    output_dir=None,
 ):
-    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    return RAW_DATA_DIR / (f"{ticker}" f"{_data_type_file_suffix(
+    raw_data_dir = Path(output_dir) if output_dir else RAW_DATA_DIR
+    raw_data_dir.mkdir(parents=True, exist_ok=True)
+    return raw_data_dir / (f"{ticker}" f"{_data_type_file_suffix(
                 data_type,
                 price_source,
                 volume_source,
@@ -539,6 +541,7 @@ def by_BinanceVision(
     end_date="2030-01-01 00:00:00",
     split=False,
     delay=LAST_DATA_POINT_DELAY,
+    output_dir=None,
     raw_ohlcv_repair_config=None,
 ):
     market_type = _normalize_market_type(market_type, field_name="market_type")
@@ -581,6 +584,7 @@ def by_BinanceVision(
             market_type=market_type,
             volume_ticker=effective_volume_ticker,
             volume_market_type=effective_volume_market_type,
+            output_dir=output_dir,
         )
         print(f"Hybrid final CSV: {final_csv}")
         print(
@@ -603,6 +607,7 @@ def by_BinanceVision(
             end_date=end_date,
             split=False,
             delay=delay,
+            output_dir=output_dir,
             raw_ohlcv_repair_config={"enabled": False},
         )
         volume_df = by_BinanceVision(
@@ -618,6 +623,7 @@ def by_BinanceVision(
             end_date=end_date,
             split=False,
             delay=delay,
+            output_dir=output_dir,
             raw_ohlcv_repair_config={"enabled": False},
         )
         price_repair_label = f"{market_type}_{ticker}_{price_source}"
@@ -699,6 +705,7 @@ def by_BinanceVision(
         price_source=price_source,
         volume_source=volume_source,
         market_type=market_type,
+        output_dir=output_dir,
     )
     temp_root = _vision_tmp_root(
         ticker=ticker,
@@ -822,10 +829,16 @@ def by_DataClient(
     split=False,
     delay=LAST_DATA_POINT_DELAY,
     raw_ohlcv_repair_config=None,
+    output_dir=None,
 ):
     price_decimals = 2 if futures else None
     volume_decimals = 3 if futures else None
-    final_csv = _final_csv_path(ticker, interval, data_type="klines")
+    final_csv = _final_csv_path(
+        ticker,
+        interval,
+        data_type="klines",
+        output_dir=output_dir,
+    )
     df = _read_cached_ohlcv_csv(final_csv) if final_csv.is_file() else None
     if df is not None:
         last_timestamp = int(df.iloc[-1]["Opened"].value // 10**9)

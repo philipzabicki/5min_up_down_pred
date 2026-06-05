@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+from project_config import load_active_asset
+
 LIVE_ROOT_DIR = Path("data/live")
 LIVE_LOGS_DIR = LIVE_ROOT_DIR / "logs"
 LIVE_SHARED_MARKET_DATA_FILENAME = "polymarket_5m.csv"
@@ -546,7 +548,15 @@ def build_live_trade_records_path(
     )
 
 
-def build_live_market_data_path(live_root_dir=LIVE_ROOT_DIR):
+def build_live_market_data_path(live_root_dir=LIVE_ROOT_DIR, asset=None):
+    asset_name = str(asset or "").strip().upper()
+    if not asset_name:
+        try:
+            asset_name = load_active_asset()
+        except Exception:
+            asset_name = ""
+    if asset_name:
+        return Path(live_root_dir) / asset_name / LIVE_SHARED_MARKET_DATA_FILENAME
     return Path(live_root_dir) / LIVE_SHARED_MARKET_DATA_FILENAME
 
 

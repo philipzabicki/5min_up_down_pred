@@ -1,0 +1,21 @@
+{
+  "extraConfig": {
+    "feedId": "0x000362205e10b3a147d02792eccee483dca6c7b44ecce7012cb8c6e0b68b3ae9",
+    "name": "ETH / USD",
+    "slug": "eth-usd-cexprice-streams",
+    "symbol": {
+      "prefix": "$"
+    }
+  },
+  "streamMetadata": {
+    "feedId": "0x000362205e10b3a147d02792eccee483dca6c7b44ecce7012cb8c6e0b68b3ae9",
+    "multiply": "1000000000000000000",
+    "name": "ETH/USD-RefPrice-DS-Premium-Global-003",
+    "pair": [
+      "ETH",
+      "USD"
+    ],
+    "status": "live",
+    "valuePrefix": "$"
+  }
+}

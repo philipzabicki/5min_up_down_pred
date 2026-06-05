@@ -14,12 +14,13 @@ from modeling_dataset_utils import (
     load_modeling_dataset_settings,
     resolve_oof_prediction_output_paths,
 )
+from project_config import active_asset_path
 
 
 # Edit these constants directly. This script intentionally has no CLI.
 OOF_PATH = None
 MARKET_DATA_PATH = None
-OUTPUT_DIR = Path("data/analysis/lucky_run_market_segments")
+OUTPUT_DIR = active_asset_path("data/analysis/lucky_run_market_segments/{asset}")
 
 OOF_TIME_COL = "Opened"
 OOF_PRED_COL = "oof_pred_proba_up"

@@ -1,9 +1,9 @@
 {
   "profiles": {
-    "default": {
-      "output_dir": "data/datasets/modeling",
+    "BTC": {
+      "output_dir": "data/datasets/modeling/{asset}",
       "output_suffix": "_model_ready",
-      "fit_results_dir": "data/features/indicators_fit/all",
+      "fit_results_dir": "data/features/indicators_fit/{asset}/all",
       "preview_rows": 1000,
       "candle_streak_intervals": {
         "1m": 34,
@@ -25,7 +25,7 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float64",
+      "float_precision": "float32",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -68,8 +68,8 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/20260603_151232/recommended_features.json",
+        "mode": "none",
+        "artifact_path": "",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
@@ -437,7 +437,22 @@
           "vp_short_log_density_ratio_to_current_bin_plus_2": 1,
           "vp_medium_log_density_ratio_to_current_bin_plus_32": 1,
           "vp_short_log_density_ratio_to_current_bin_plus_9": 1,
-          "candle_close_location_value_1m_lag11": -1
+          "candle_close_location_value_1m_lag11": -1,
+          "vp_short_log_density_ratio_to_current_bin_plus_4": 1,
+          "candle_body_pressure_1m_lag33": -1,
+          "candle_wick_asym_5m_lag24": -1,
+          "candle_body_pressure_1m_lag11": -1,
+          "vp_medium_log_density_ratio_to_current_bin_plus_10": 1,
+          "realized_volatility_down_5m": 1,
+          "vp_medium_log_density_ratio_to_current_bin_minus_3": -1,
+          "vp_medium_log_density_ratio_to_current_bin_minus_5": -1,
+          "vp_medium_log_density_ratio_to_current_bin_plus_12": 1,
+          "candle_body_pressure_1m_lag10": -1,
+          "vp_medium_log_density_ratio_to_current_bin_plus_6": 1,
+          "vp_short_log_density_ratio_to_current_bin_plus_6": 1,
+          "vp_medium_log_density_ratio_to_current_bin_minus_2": -1,
+          "vp_medium_log_density_ratio_to_current_bin_plus_27": 1,
+          "candle_body_pressure_5m_lag17": -1
         }
       }
     }

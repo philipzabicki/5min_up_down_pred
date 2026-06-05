@@ -26,6 +26,7 @@ from modeling_dataset_utils import (
     summarize_feature_subset,
 )
 from optuna_run_utils import make_timestamped_artifact_path, resolve_run_study_name
+from project_config import active_asset_path
 from target_weights import (
     TARGET_WEIGHT_COL,
     TARGET_WEIGHT_DECISION_VALUE,
@@ -54,7 +55,7 @@ from train_lgbm import (
 DECISION_ROW_OBJECTIVE_METRIC = "balanced_accuracy"
 DECISION_ROW_STD_PENALTY = 1.0
 DEFAULT_STUDY_NAME_PREFIX = "lgbm_target_weight_search_decision_rows_balanced_accuracy"
-DEFAULT_OUTPUT_DIR = Path("data/optuna/target_weights")
+DEFAULT_OUTPUT_DIR = active_asset_path("data/optuna/target_weights/{asset}")
 BEST_RESULT_STEM = "lgbm_target_weight_search_best_decision_rows_balanced_accuracy"
 SEARCH_RESULTS_CSV_STEM = "lgbm_target_weight_search_proxy_candidates"
 SEARCH_CONTEXT_RESULTS_CSV_STEM = "lgbm_target_weight_search_proxy_contexts"
@@ -93,7 +94,9 @@ LGBM_N_JOBS = 16
 OBJECTIVE_STD_PENALTY = DECISION_ROW_STD_PENALTY
 SAVE_BEST_OOF = False
 
-FEATURE_SELECTOR_ARTIFACT_ROOT = Path("data/analysis/feature_selector")
+FEATURE_SELECTOR_ARTIFACT_ROOT = active_asset_path(
+    "data/analysis/feature_selector/{asset}"
+)
 FEATURE_SUBSET_RECENT_LIMIT = 3
 MAX_FEATURE_SUBSET_CANDIDATES = 3
 FEATURE_SUBSET_CANDIDATE_MODE_ACTIVE_ONLY = "active_only"

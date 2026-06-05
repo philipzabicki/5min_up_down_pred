@@ -19,6 +19,7 @@ from optuna_run_utils import (
     make_timestamped_artifact_path,
     resolve_run_study_name,
 )
+from project_config import active_asset_path
 from metrics_utils import (
     make_lightgbm_binary_balanced_accuracy_eval,
     make_lightgbm_binary_brier_eval,
@@ -386,8 +387,11 @@ CRASH_PENALTY = float("inf")
 DEFAULT_STUDY_NAME_PREFIX = "volume_profile_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
 STUDY_NAME = None
-STORAGE = "sqlite:///data/optuna/databases/volume_profile.db"
-ARTIFACT_OUTPUT_DIR = Path("data/optuna/volume_profile")
+STORAGE = (
+    "sqlite:///"
+    + active_asset_path("data/optuna/databases/{asset}/volume_profile.db").as_posix()
+)
+ARTIFACT_OUTPUT_DIR = active_asset_path("data/optuna/volume_profile/{asset}")
 BEST_RESULT_STEM = "volume_profile_best_binary_logloss_mean_std"
 TRIALS_CSV_STEM = "volume_profile_trials_binary_logloss_mean_std"
 

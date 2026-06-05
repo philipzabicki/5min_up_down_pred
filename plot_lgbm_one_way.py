@@ -15,7 +15,7 @@ import pyarrow.parquet as pq
 
 from common_config_utils import coerce_path, path_to_portable_str
 from optuna_run_utils import make_utc_run_timestamp, sanitize_run_name
-from project_config import load_runtime_artifact_paths
+from project_config import active_asset_path, load_runtime_artifact_paths
 from target_weights import TARGET_WEIGHT_COL, TARGET_WEIGHT_DECISION_VALUE
 
 matplotlib.use("Agg")
@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 # MODEL_ARTIFACT_PATH=None uses configs/runtime/active.json artifacts.model_meta_path.
 MODEL_ARTIFACT_PATH = None
 DATA_PATH_OVERRIDE = None
-OUTPUT_ROOT = Path("data/analysis/model_one_way")
+OUTPUT_ROOT = active_asset_path("data/analysis/model_one_way/{asset}")
 
 SAMPLE_MODE = "recent_uniform"
 RECENT_DAYS = 365.0

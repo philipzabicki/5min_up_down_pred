@@ -16,7 +16,6 @@ from pymoo.core.mixed import (
     MixedVariableMating,
     MixedVariableSampling,
 )
-from pymoo.core.problem import StarmapParallelization
 from pymoo.core.variable import Binary, Choice, Integer, Real
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.crossover.ux import UX
@@ -26,6 +25,11 @@ from pymoo.operators.mutation.rm import ChoiceRandomMutation
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultSingleObjectiveTermination
+
+try:
+    from pymoo.core.problem import StarmapParallelization
+except ImportError:
+    from pymoo.parallelization.starmap import StarmapParallelization
 
 from features.ADX import ADXFitting, adx_initializer
 from features.BollingerBands import BollingerBandsFitting, bollinger_bands_initializer
@@ -38,6 +42,8 @@ from features.common_utils import (
 from project_config import (
     ACTIVE_CONFIG_PATH,
     INDICATOR_FIT_CONFIG_PATH,
+    active_asset_path,
+    load_active_asset,
     build_indicator_fit_legacy_config,
 )
 from features.KeltnerChannel import KeltnerChannelFitting, keltner_channel_initializer
@@ -49,7 +55,7 @@ from features.StochOsc import (
 
 CONFIG_FILE = str(INDICATOR_FIT_CONFIG_PATH)
 CPU_CORES_COUNT = 17
-FIT_RESULTS_ROOT = Path("data/features/indicators_fit/tuning")
+FIT_RESULTS_ROOT = active_asset_path("data/features/indicators_fit/{asset}/tuning")
 
 DEFAULT_METRIC_NAME = "extremes_vs_mid_ir_oof"
 DEFAULT_METRIC_SEGMENTS_COUNT = 12
@@ -61,6 +67,10 @@ DEFAULT_METRIC_STAT = "mean_clip"
 DEFAULT_METRIC_CLIP_Q = 0.01
 DEFAULT_METRIC_MIN_BUCKET_SIZE = 50
 DEFAULT_METRIC_MIN_VALID_SEGMENTS = 2
+DEFAULT_METRIC_RECENCY_WEIGHTING_ENABLED = False
+DEFAULT_METRIC_RECENCY_WEIGHTING_MODE = "linear"
+DEFAULT_METRIC_RECENCY_WEIGHT_MIN = 1.0
+DEFAULT_METRIC_RECENCY_WEIGHT_MAX = 1.5
 DEFAULT_PROXY_TARGET_MODE = "ahead_ret"
 DEFAULT_PROXY_TARGET_TIME_COL = "Opened"
 SUPPORTED_PROXY_TARGET_MODES = frozenset({"ahead_ret", "candle_up"})
@@ -238,6 +248,12 @@ def _normalize_prob_param_values(raw_value, field_name):
     return out
 
 
+def _coerce_bool_param(raw_value, field_name):
+    if isinstance(raw_value, bool):
+        return bool(raw_value)
+    raise ValueError(f"{field_name} must be a boolean, got: {raw_value!r}")
+
+
 def _resolve_metric_configs(interval_cfg, pair_cfg):
     metric_name = str(
         interval_cfg.get(
@@ -315,6 +331,59 @@ def _resolve_metric_configs(interval_cfg, pair_cfg):
     if min_valid_segments < 1:
         raise ValueError(f"min_valid_segments must be >= 1, got: {min_valid_segments}")
 
+    recency_weighting_enabled = _coerce_bool_param(
+        interval_cfg.get(
+            "metric_recency_weighting_enabled",
+            pair_cfg.get(
+                "metric_recency_weighting_enabled",
+                DEFAULT_METRIC_RECENCY_WEIGHTING_ENABLED,
+            ),
+        ),
+        "metric_recency_weighting_enabled",
+    )
+    recency_weighting_mode = str(
+        interval_cfg.get(
+            "metric_recency_weighting_mode",
+            pair_cfg.get(
+                "metric_recency_weighting_mode",
+                DEFAULT_METRIC_RECENCY_WEIGHTING_MODE,
+            ),
+        )
+    ).strip().lower()
+    if recency_weighting_mode != "linear":
+        raise ValueError(
+            "metric_recency_weighting_mode must be 'linear', "
+            f"got: {recency_weighting_mode!r}"
+        )
+    recency_weight_min = float(
+        interval_cfg.get(
+            "metric_recency_weight_min",
+            pair_cfg.get(
+                "metric_recency_weight_min",
+                DEFAULT_METRIC_RECENCY_WEIGHT_MIN,
+            ),
+        )
+    )
+    recency_weight_max = float(
+        interval_cfg.get(
+            "metric_recency_weight_max",
+            pair_cfg.get(
+                "metric_recency_weight_max",
+                DEFAULT_METRIC_RECENCY_WEIGHT_MAX,
+            ),
+        )
+    )
+    if recency_weight_min <= 0.0 or recency_weight_max <= 0.0:
+        raise ValueError(
+            "metric recency weights must be strictly positive: "
+            f"min={recency_weight_min}, max={recency_weight_max}"
+        )
+    if recency_weight_max < recency_weight_min:
+        raise ValueError(
+            "metric_recency_weight_max must be >= metric_recency_weight_min: "
+            f"min={recency_weight_min}, max={recency_weight_max}"
+        )
+
     common = {
         "name": metric_name,
         "segments_count": int(segments_count),
@@ -324,6 +393,10 @@ def _resolve_metric_configs(interval_cfg, pair_cfg):
         "clip_q": float(clip_q),
         "min_bucket_size": int(min_bucket_size),
         "min_valid_segments": int(min_valid_segments),
+        "recency_weighting_enabled": bool(recency_weighting_enabled),
+        "recency_weighting_mode": recency_weighting_mode,
+        "recency_weight_min": float(recency_weight_min),
+        "recency_weight_max": float(recency_weight_max),
     }
 
     out = []
@@ -352,13 +425,22 @@ def _stat_code_for_filename(stat):
 
 
 def _metric_filename_suffix(metric_config):
-    return (
+    suffix = (
         f"qe{_format_float_token(metric_config['q_ext'])}"
         f"_qm{_format_float_token(metric_config['q_mid'])}"
         f"_tf{_format_float_token(metric_config['train_frac'])}"
         f"_st{_stat_code_for_filename(metric_config['stat'])}"
         f"_sg{int(metric_config['segments_count'])}"
     )
+    if bool(metric_config.get("recency_weighting_enabled")) and not np.isclose(
+        float(metric_config["recency_weight_min"]),
+        float(metric_config["recency_weight_max"]),
+    ):
+        suffix += (
+            f"_rwlin{_format_float_token(metric_config['recency_weight_min'])}"
+            f"-{_format_float_token(metric_config['recency_weight_max'])}"
+        )
+    return suffix
 
 
 def _fit_config_hash(config_payload):
@@ -421,6 +503,10 @@ def run_indicator_ga(
             metric_config["clip_q"],
             metric_config["min_bucket_size"],
             metric_config["min_valid_segments"],
+            metric_config["recency_weighting_enabled"],
+            metric_config["recency_weighting_mode"],
+            metric_config["recency_weight_min"],
+            metric_config["recency_weight_max"],
         ),
     ) as pool:
         runner = StarmapParallelization(pool.starmap)
@@ -454,6 +540,7 @@ def run_indicator_ga(
 
 def main():
     cfg = build_indicator_fit_legacy_config()
+    active_asset = load_active_asset()
     config_hash = _fit_config_hash(cfg)
     results_dir = FIT_RESULTS_ROOT / config_hash
     results_dir.mkdir(parents=True, exist_ok=True)
@@ -464,6 +551,7 @@ def main():
     print(
         "fit results dir: "
         f"{results_dir} (config_hash={config_hash}, "
+        f"active_asset={active_asset}, "
         f"indicator_fit_config={INDICATOR_FIT_CONFIG_PATH}, "
         f"active_profiles={ACTIVE_CONFIG_PATH})"
     )

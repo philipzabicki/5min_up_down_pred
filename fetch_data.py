@@ -5,6 +5,7 @@ from project_config import ACTIVE_CONFIG_PATH, DATASETS_CONFIG_PATH, load_fetch_
 
 
 def fetch_all(
+    raw_data_dir,
     symbol,
     market,
     source,
@@ -23,6 +24,7 @@ def fetch_all(
         f"market={market} symbol={symbol} "
         f"volume_market={volume_market or market} volume_symbol={volume_symbol or symbol} "
         f"intervals={len(intervals)} "
+        f"raw_data_dir={raw_data_dir} "
         f"raw_ohlcv_repair={raw_ohlcv_repair_config}"
     )
     successes, failures = 0, []
@@ -43,6 +45,7 @@ def fetch_all(
                     volume_market_type=volume_market,
                     start_date=start_date,
                     end_date=end_date,
+                    output_dir=raw_data_dir,
                     raw_ohlcv_repair_config=raw_ohlcv_repair_config,
                 )
             elif source == "chainlink":
@@ -53,6 +56,7 @@ def fetch_all(
                     interval=interval,
                     start_date=start_date,
                     end_date=end_date,
+                    output_dir=raw_data_dir,
                     raw_ohlcv_repair_config=raw_ohlcv_repair_config,
                 )
             else:
@@ -63,6 +67,7 @@ def fetch_all(
                     interval=interval,
                     futures=(market != "spot"),
                     statements=not quiet,
+                    output_dir=raw_data_dir,
                     raw_ohlcv_repair_config=raw_ohlcv_repair_config,
                 )
             if not quiet:
@@ -86,6 +91,7 @@ def main():
     cfg = load_fetch_settings()
 
     fetch_all(
+        cfg["raw_data_dir"],
         cfg["symbol"],
         cfg["market"],
         cfg["source"],

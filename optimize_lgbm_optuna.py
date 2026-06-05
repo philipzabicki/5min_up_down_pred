@@ -24,6 +24,7 @@ from optuna_run_utils import (
     resolve_existing_study_name,
     resolve_run_study_name,
 )
+from project_config import active_asset_path
 from metrics_utils import (
     make_lightgbm_binary_balanced_accuracy_eval,
     make_lightgbm_binary_brier_eval,
@@ -233,6 +234,24 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "extra_trees": False,
       "monotone_constraints_method": "basic",
       "monotone_penalty": 1.4043678835536488
+    },
+    {
+      "learning_rate": 0.0065094262862249175,
+      "num_leaves": 215,
+      "min_data_in_leaf": 97,
+      "max_depth": 195,
+      "feature_fraction": 0.8985980039678766,
+      "bagging_fraction": 0.7035525517200346,
+      "bagging_freq": 3,
+      "lambda_l2": 84.66552493332907,
+      "lambda_l1": 3.8623890143572983,
+      "min_sum_hessian_in_leaf": 0.0006044966264154735,
+      "min_gain_to_split": 0.23134325634193995,
+      "feature_fraction_bynode": 0.3141763321857879,
+      "path_smooth": 60.87851990364099,
+      "extra_trees": False,
+      "monotone_constraints_method": "basic",
+      "monotone_penalty": 0.648819578510189
     }
 ]
 
@@ -248,9 +267,14 @@ RECHECK_STD_PENALTY = 0.75
 DEFAULT_STUDY_NAME_PREFIX = "lgbm_generic_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
 STUDY_NAME = None
-STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
+STORAGE = (
+    "sqlite:///"
+    + active_asset_path(
+        "data/optuna/databases/{asset}/lgbm_generic_tpe_hyperband_gpu.db"
+    ).as_posix()
+)
 LOAD_IF_EXISTS = True
-ARTIFACT_OUTPUT_DIR = Path("data/optuna/lgbm")
+ARTIFACT_OUTPUT_DIR = active_asset_path("data/optuna/lgbm/{asset}")
 BEST_RESULT_STEM = "lgbm_generic_optuna_best_mean_std"
 TRIALS_CSV_STEM = "lgbm_generic_optuna_trials_mean_std"
 RUN_MODE = "optimize"  # "optimize" or "recheck-topn"
@@ -258,7 +282,7 @@ RUN_MODE = "optimize"  # "optimize" or "recheck-topn"
 RECHECK_STUDY_NAME = None
 RECHECK_STORAGE = STORAGE
 TOP_TRIALS_RECHECK_N = 20
-TOP_TRIALS_RECHECK_OUTPUT_DIR = Path("data/optuna/lgbm/recheck")
+TOP_TRIALS_RECHECK_OUTPUT_DIR = active_asset_path("data/optuna/lgbm/{asset}/recheck")
 TOP_TRIALS_RECHECK_OUTPUT_JSON_PATH = None
 TOP_TRIALS_RECHECK_OUTPUT_CSV_PATH = None
 

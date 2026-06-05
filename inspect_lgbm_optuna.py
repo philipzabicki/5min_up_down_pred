@@ -10,13 +10,19 @@ from optuna_run_utils import (
     make_utc_run_timestamp,
     sanitize_run_name,
 )
+from project_config import active_asset_path
 
 
-STORAGE = "sqlite:///data/optuna/databases/lgbm_generic_tpe_hyperband_gpu.db"
+STORAGE = (
+    "sqlite:///"
+    + active_asset_path(
+        "data/optuna/databases/{asset}/lgbm_generic_tpe_hyperband_gpu.db"
+    ).as_posix()
+)
 # Leave empty to inspect the latest study in STORAGE.
 STUDY_NAME = None
 RUN_MODE = "inspect"  # "inspect" or "list-studies"
-OUTPUT_DIR = Path("data/optuna/lgbm/inspect")
+OUTPUT_DIR = active_asset_path("data/optuna/lgbm/{asset}/inspect")
 TOP_N = 10
 SAVE_PLOTS = True
 

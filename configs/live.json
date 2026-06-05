@@ -28,7 +28,7 @@
       "polymarket_exit_min_profit_usdc": 0.15,
       "polymarket_exit_min_roi": 0.01,
       "polymarket_exit_min_seconds_to_close": 45,
-      "polymarket_exit_redeem_profit_tolerance": 0.05,
+      "polymarket_exit_redeem_profit_tolerance": 0.02,
       "polymarket_redeem_resolved_positions": true,
       "index_price_synthetic_volume_default": 60.0,
       "default_bootstrap_candles": 21600,

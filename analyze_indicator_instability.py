@@ -9,8 +9,9 @@ import numpy as np
 import pandas as pd
 
 import audit_indicator_stability as audit
+from project_config import active_asset_path
 
-DEFAULT_OUTPUT_DIR = Path("data/analysis/indicator_instability")
+DEFAULT_OUTPUT_DIR = active_asset_path("data/analysis/indicator_instability/{asset}")
 DEFAULT_WINDOW_POINTS = 10
 DEFAULT_FINITE_SCAN_UPPER = 65_536
 

@@ -17,6 +17,35 @@ REAL_VAR_WEIGHT = 8.0
 BINARY_VAR_WEIGHT = 1.0
 
 
+def build_linear_recency_weights(
+    count,
+    *,
+    enabled=True,
+    min_weight=1.0,
+    max_weight=1.5,
+):
+    count_val = int(count)
+    if count_val <= 0:
+        raise ValueError("count must be > 0.")
+
+    min_weight_val = float(min_weight)
+    max_weight_val = float(max_weight)
+    if min_weight_val <= 0.0 or max_weight_val <= 0.0:
+        raise ValueError("Recency weights must be strictly positive.")
+    if max_weight_val < min_weight_val:
+        raise ValueError("max_weight must be >= min_weight.")
+
+    if count_val == 1 or not bool(enabled):
+        return np.ones(count_val, dtype=np.float64)
+
+    return np.linspace(
+        min_weight_val,
+        max_weight_val,
+        num=count_val,
+        dtype=np.float64,
+    )
+
+
 def _to_serializable(value):
     if isinstance(value, np.generic):
         return value.item()
@@ -190,6 +219,15 @@ def _segment_score_extremes_vs_mid_oof_numba(
 
 
 @njit(cache=True, nogil=True)
+def _linear_recency_weight_numba(seg_idx, segments_count, min_weight, max_weight):
+    if segments_count <= 1:
+        return 1.0
+    return min_weight + (
+        (max_weight - min_weight) * (float(seg_idx) / float(segments_count - 1))
+    )
+
+
+@njit(cache=True, nogil=True)
 def _extremes_vs_mid_ir_oof_numba(
     x_arr,
     y_arr,
@@ -202,6 +240,9 @@ def _extremes_vs_mid_ir_oof_numba(
     clip_q,
     min_bucket_size,
     min_valid_segments,
+    recency_weighting_enabled,
+    recency_weight_min,
+    recency_weight_max,
 ):
     n = x_arr.shape[0]
     k = int(segments_count)
@@ -212,6 +253,7 @@ def _extremes_vs_mid_ir_oof_numba(
         min_valid = 2
 
     scores = np.empty(k, dtype=np.float64)
+    score_weights = np.empty(k, dtype=np.float64)
     valid_count = 0
 
     for seg_idx in range(k):
@@ -235,6 +277,15 @@ def _extremes_vs_mid_ir_oof_numba(
             continue
 
         scores[valid_count] = seg_score
+        if recency_weighting_enabled:
+            score_weights[valid_count] = _linear_recency_weight_numba(
+                seg_idx,
+                k,
+                recency_weight_min,
+                recency_weight_max,
+            )
+        else:
+            score_weights[valid_count] = 1.0
         valid_count += 1
 
     if valid_count < min_valid:
@@ -247,6 +298,20 @@ def _extremes_vs_mid_ir_oof_numba(
     if not np.isfinite(mean_score):
         return 0.0
 
+    objective_mean_score = mean_score
+    if recency_weighting_enabled:
+        weighted_sum = 0.0
+        weight_sum = 0.0
+        for i in range(valid_count):
+            weight = score_weights[i]
+            weighted_sum += scores[i] * weight
+            weight_sum += weight
+        if weight_sum <= 0.0 or not np.isfinite(weight_sum):
+            return 0.0
+        objective_mean_score = weighted_sum / weight_sum
+        if not np.isfinite(objective_mean_score):
+            return 0.0
+
     var_sum = 0.0
     for i in range(valid_count):
         d = scores[i] - mean_score
@@ -256,7 +321,7 @@ def _extremes_vs_mid_ir_oof_numba(
     if not np.isfinite(std_score) or std_score == 0.0:
         return 0.0
 
-    ir = mean_score / std_score
+    ir = objective_mean_score / std_score
     if not np.isfinite(ir) or ir < 0.0:
         return 0.0
     return ir
@@ -274,6 +339,10 @@ def extremes_vs_mid_ir_oof(
     clip_q=0.01,
     min_bucket_size=50,
     min_valid_segments=2,
+    recency_weighting_enabled=False,
+    recency_weighting_mode="linear",
+    recency_weight_min=1.0,
+    recency_weight_max=1.5,
 ):
     stat_txt = str(stat).strip().lower()
     if stat_txt == "mean_clip":
@@ -291,6 +360,9 @@ def extremes_vs_mid_ir_oof(
     clip_q_val = float(clip_q)
     min_bucket_size_val = int(min_bucket_size)
     min_valid_segments_val = int(min_valid_segments)
+    recency_mode_txt = str(recency_weighting_mode).strip().lower()
+    recency_weight_min_val = float(recency_weight_min)
+    recency_weight_max_val = float(recency_weight_max)
 
     if segments_count_val < 1:
         return 0.0
@@ -310,6 +382,20 @@ def extremes_vs_mid_ir_oof(
         return 0.0
     if min_valid_segments_val < 1:
         return 0.0
+    if recency_mode_txt != "linear":
+        raise ValueError(
+            "Unsupported recency_weighting_mode="
+            f"{recency_weighting_mode!r}. Use 'linear'."
+        )
+    if recency_weight_min_val <= 0.0 or recency_weight_max_val <= 0.0:
+        return 0.0
+    if recency_weight_max_val < recency_weight_min_val:
+        return 0.0
+
+    recency_weighting_active = bool(recency_weighting_enabled) and not np.isclose(
+        recency_weight_min_val,
+        recency_weight_max_val,
+    )
 
     x_arr = np.asarray(x, dtype=np.float64).reshape(-1)
     y_arr = np.asarray(y, dtype=np.float64).reshape(-1)
@@ -338,6 +424,9 @@ def extremes_vs_mid_ir_oof(
             clip_q=clip_q_val,
             min_bucket_size=min_bucket_size_val,
             min_valid_segments=min_valid_segments_val,
+            recency_weighting_enabled=recency_weighting_active,
+            recency_weight_min=recency_weight_min_val,
+            recency_weight_max=recency_weight_max_val,
         )
     )
 

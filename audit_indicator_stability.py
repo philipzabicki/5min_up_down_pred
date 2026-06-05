@@ -29,13 +29,8 @@ from features.session_open_features import SUPPORTED_SESSION_OPEN_FEATURE_COLS
 from features.StochOsc import get_stochastic_oscillator_values
 from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
 
-SYMBOL = "BTCUSDT"
-INTERVAL = "1m"
 FUTURES_REST_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
 
-OUTPUT_DIR = Path("data/analysis/indicator_stability")
-OUTPUT_JSON = OUTPUT_DIR / "summary.json"
-OUTPUT_CSV = OUTPUT_DIR / "report.csv"
 META_PATH_ENV = "AUDIT_MODEL_META_PATH"
 REFERENCE_PATH_ENV = "AUDIT_REFERENCE_PATH"
 RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
@@ -58,6 +53,16 @@ REST_BOOTSTRAP_EXTRA_CANDLES = 100_000
 REST_TIMEOUT_SEC = 20
 
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
+SYMBOL = str(
+    MODELING_DATASET_SETTINGS.get("volume_symbol")
+    or MODELING_DATASET_SETTINGS.get("symbol")
+).upper()
+INTERVAL = str(MODELING_DATASET_SETTINGS["interval"])
+OUTPUT_DIR = Path("data/analysis/indicator_stability") / str(
+    MODELING_DATASET_SETTINGS["active_asset"]
+)
+OUTPUT_JSON = OUTPUT_DIR / "summary.json"
+OUTPUT_CSV = OUTPUT_DIR / "report.csv"
 MODELING_OUTPUT_PATHS = resolve_modeling_dataset_output_paths(MODELING_DATASET_SETTINGS)
 OHLCV_LOCAL_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
     MODELING_DATASET_SETTINGS["base_data_file"]

@@ -9,12 +9,16 @@ import pandas as pd
 
 from common_config_utils import load_json_object
 from market_price_sim import load_live_market_empirical_frame
-from project_config import RUNTIME_ACTIVE_PATH, load_runtime_artifact_paths
+from project_config import (
+    RUNTIME_ACTIVE_PATH,
+    active_asset_path,
+    load_runtime_artifact_paths,
+)
 from target_weights import compute_decision_mask_from_opened
 from trade_policy import build_trade_intent, load_trade_policy_runtime_config
 
 DEFAULT_SHARED_CSV_PATH = Path("data/live/polymarket_5m.csv")
-DEFAULT_OUTPUT_DIR = Path("data/analysis/model_direction_margins")
+DEFAULT_OUTPUT_DIR = active_asset_path("data/analysis/model_direction_margins/{asset}")
 DEFAULT_OOF_TIME_COL = "Opened"
 DEFAULT_TARGET_COL = "target_5m_candle_up"
 DEFAULT_PRED_COL = "oof_pred_proba_up"

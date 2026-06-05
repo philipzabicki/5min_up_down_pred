@@ -13,12 +13,13 @@ import audit_indicator_stability as audit
 from create_modeling_dataset import parse_fit_results
 from modeling_dataset_utils import load_modeling_dataset_settings
 
-INPUT_DIR = Path("data/features/indicators_fit/all")
-UNSTABLE_DIR = Path("data/features/indicators_fit/unstable")
-OUTPUT_DIR = Path("data/analysis/fit_results_stability")
-
 # Read only raw OHLCV and compute indicators sequentially from this source.
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
+INPUT_DIR = Path(MODELING_DATASET_SETTINGS["fit_results_dir"])
+UNSTABLE_DIR = INPUT_DIR.parent / "unstable"
+OUTPUT_DIR = Path("data/analysis/fit_results_stability") / str(
+    MODELING_DATASET_SETTINGS["active_asset"]
+)
 REFERENCE_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
     MODELING_DATASET_SETTINGS["base_data_file"]
 )

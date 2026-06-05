@@ -1,6 +1,5 @@
 {
-  "dataset_profile": "btc_1m_main",
-  "modeling_profile": "default",
-  "indicator_fit_profile": "main_task_candle_up_5m",
+  "active_asset": "ETH",
+  "indicator_fit_profile": "candle_up_5m_quick_narrow",
   "live_profile": "polymarket_live"
 }

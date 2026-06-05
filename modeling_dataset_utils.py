@@ -151,6 +151,12 @@ def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
     )
 
     return {
+        "active_asset": str(settings["active_asset"]),
+        "symbol": str(settings["symbol"]),
+        "interval": str(settings["interval"]),
+        "market": str(settings["market"]),
+        "volume_symbol": str(settings["volume_symbol"]),
+        "volume_market": str(settings["volume_market"]),
         "raw_data_dir": Path(settings["raw_data_dir"]),
         "data_dir": Path(settings["raw_data_dir"]),
         "base_data_file": str(settings["base_data_file"]),

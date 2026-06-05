@@ -6,6 +6,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 import lightgbm as lgb
 from common_config_utils import path_to_portable_str
+from project_config import active_asset_path
 from features.candle_features import (
     CANDLE_PATTERN_COLS,
     RAW_OHLCV_COLS,
@@ -59,7 +60,7 @@ N_ESTIMATORS = 3000
 EARLY_STOPPING_ROUNDS = 25
 SEED = 37
 N_JOBS = 16
-MODELS_DIR = Path("data/models")
+MODELS_DIR = active_asset_path("data/models/{asset}")
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
 PREDICTION_THRESHOLD = 0.5
@@ -80,22 +81,22 @@ WF_TEST_TO_TRAIN_RATIO = resolve_walk_forward_test_to_train_ratio()
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.014324759771509326,
-      "num_leaves": 219,
-      "min_data_in_leaf": 134,
-      "max_depth": 166,
-      "feature_fraction": 0.9004727141904951,
-      "bagging_fraction": 0.8582425675795976,
-      "bagging_freq": 16,
-      "lambda_l2": 96.08153533203745,
-      "lambda_l1": 1.3495783734260116,
-      "min_sum_hessian_in_leaf": 0.005819496553267834,
-      "min_gain_to_split": 0.11935855858916433,
-      "feature_fraction_bynode": 0.4278157008307606,
-      "path_smooth": 91.00059177549922,
+      "learning_rate": 0.0065094262862249175,
+      "num_leaves": 215,
+      "min_data_in_leaf": 97,
+      "max_depth": 195,
+      "feature_fraction": 0.8985980039678766,
+      "bagging_fraction": 0.7035525517200346,
+      "bagging_freq": 3,
+      "lambda_l2": 84.66552493332907,
+      "lambda_l1": 3.8623890143572983,
+      "min_sum_hessian_in_leaf": 0.0006044966264154735,
+      "min_gain_to_split": 0.23134325634193995,
+      "feature_fraction_bynode": 0.3141763321857879,
+      "path_smooth": 60.87851990364099,
       "extra_trees": False,
       "monotone_constraints_method": "basic",
-      "monotone_penalty": 0.0
+      "monotone_penalty": 0.648819578510189
     }
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
@@ -927,6 +928,7 @@ def main():
         )
 
     meta_payload = {
+        "active_asset": str(dataset_settings.get("active_asset", "")),
         "data_path": path_to_portable_str(data_path),
         "target_col": TARGET_COL,
         "rows_used": len(df),

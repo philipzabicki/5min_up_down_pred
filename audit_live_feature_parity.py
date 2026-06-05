@@ -3696,7 +3696,11 @@ def save_audit_outputs(
 
 def _default_output_dir():
     stamp = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
-    return Path("data/analysis/live_feature_parity") / stamp
+    return (
+        Path("data/analysis/live_feature_parity")
+        / str(MODELING_DATASET_SETTINGS["active_asset"])
+        / stamp
+    )
 
 
 def main():

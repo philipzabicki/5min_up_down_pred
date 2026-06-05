@@ -12,9 +12,12 @@ import select_lgbm_feature_plateau as feature_plateau
 from create_modeling_dataset import build_dataset_from_settings, parse_fit_results
 from modeling_dataset_utils import load_feature_subset, load_modeling_dataset_settings
 
-INDICATOR_ALL_DIR = Path("data/features/indicators_fit/all")
-LOW_IMPORTANCE_DIR = Path("data/features/indicators_fit/less_important")
-OUTPUT_ROOT = Path("data/analysis/indicator_feature_selector")
+MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
+INDICATOR_ALL_DIR = Path(MODELING_DATASET_SETTINGS["fit_results_dir"])
+LOW_IMPORTANCE_DIR = INDICATOR_ALL_DIR.parent / "less_important"
+OUTPUT_ROOT = Path("data/analysis/indicator_feature_selector") / str(
+    MODELING_DATASET_SETTINGS["active_asset"]
+)
 KEEP_NUMERATOR = 1
 KEEP_DENOMINATOR = 3
 DATASET_OUTPUT_SUFFIX_PREFIX = "_indicator_top_third_selector_"

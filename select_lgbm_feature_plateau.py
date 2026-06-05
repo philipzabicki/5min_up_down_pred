@@ -29,6 +29,7 @@ from target_weights import (
 from modeling_dataset_utils import (
     resolve_modeling_dataset_parquet_path,
 )
+from project_config import active_asset_path
 from train_lgbm import (
     WF_TEST_TO_TRAIN_RATIO as DEFAULT_WF_TEST_TO_TRAIN_RATIO,
     format_lgbm_monotone_constraint_summary,
@@ -37,7 +38,7 @@ from train_lgbm import (
 )
 
 DATA_PATH = resolve_modeling_dataset_parquet_path()
-OUTPUT_ROOT = Path("data/analysis/feature_selector")
+OUTPUT_ROOT = active_asset_path("data/analysis/feature_selector/{asset}")
 
 TARGET_COL = "target_5m_candle_up"
 FEATURE_COLS = None

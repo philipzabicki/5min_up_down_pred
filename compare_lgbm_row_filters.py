@@ -17,6 +17,7 @@ from modeling_dataset_utils import (
     resolve_modeling_float_dtype_name,
     summarize_feature_subset,
 )
+from project_config import active_asset_path
 from target_weights import TARGET_WEIGHT_COL, compute_decision_mask_from_opened
 from train_lgbm import (
     CV_FOLDS as DEFAULT_CV_FOLDS,
@@ -44,7 +45,7 @@ SUPPORTED_ROW_MODES = (ROW_MODE_ALL_ROWS, ROW_MODE_DECISION_ONLY)
 LOWER_IS_BETTER_METRICS = {"brier_score", "binary_logloss"}
 PRIMARY_SCOPE = "decision_rows"
 PRIMARY_METRIC = "balanced_accuracy"
-DEFAULT_OUTPUT_DIR = Path("data/analysis/lgbm_row_filter_compare")
+DEFAULT_OUTPUT_DIR = active_asset_path("data/analysis/lgbm_row_filter_compare/{asset}")
 
 
 def utc_now():

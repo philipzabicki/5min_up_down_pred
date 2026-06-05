@@ -1,6 +1,7 @@
 {
   "profiles": {
-    "btc_1m_main": {
+    "BTC": {
+      "asset": "BTC",
       "symbol": "BTCUSD",
       "interval": "1m",
       "market": "cm",
@@ -27,8 +28,39 @@
         "gap_chart_context_before": 50,
         "gap_chart_context_after": 50
       },
-      "raw_data_dir": "data/datasets/raw",
+      "raw_data_dir": "data/datasets/raw/{asset}",
       "base_data_file": "BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv"
+    },
+    "ETH": {
+      "asset": "ETH",
+      "symbol": "ETHUSD",
+      "interval": "1m",
+      "market": "cm",
+      "source": "vision",
+      "price_source": "index",
+      "volume_source": "trade",
+      "volume_symbol": "ETHUSDT",
+      "volume_market": "um",
+      "intervals": [
+        "1m"
+      ],
+      "start_date": "",
+      "end_date": "",
+      "quiet": false,
+      "raw_ohlcv_repair": {
+        "enabled": true,
+        "mode": "monte_carlo_histogram",
+        "histogram_bins": 3000,
+        "gap_min_block_len": 3,
+        "volume_range_bins": 3000,
+        "random_seed": 37,
+        "bridge_weight_power": 2.0,
+        "save_gap_charts": true,
+        "gap_chart_context_before": 50,
+        "gap_chart_context_after": 50
+      },
+      "raw_data_dir": "data/datasets/raw/{asset}",
+      "base_data_file": "ETHUSD_INDEXVOL_UM_ETHUSDT1m.csv"
     }
   }
 }

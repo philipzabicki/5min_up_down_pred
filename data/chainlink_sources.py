@@ -53,6 +53,22 @@ _TOKEN_CACHE = {
     "access_token": "",
     "expiration": 0.0,
 }
+KNOWN_STREAM_METADATA = {
+    "BTCUSD": {
+        "feed_id": "0x00039d9e45394f473ab1f050a1b963e6b05351e52d71e507509ada0c95ed75b8",
+        "name": "BTC/USD-RefPrice-DS-Premium-Global-003",
+        "slug": "btc-usd-cexprice-streams",
+        "display_name": "BTC / USD",
+        "multiply": "1000000000000000000",
+    },
+    "ETHUSD": {
+        "feed_id": "0x000362205e10b3a147d02792eccee483dca6c7b44ecce7012cb8c6e0b68b3ae9",
+        "name": "ETH/USD-RefPrice-DS-Premium-Global-003",
+        "slug": "eth-usd-cexprice-streams",
+        "display_name": "ETH / USD",
+        "multiply": "1000000000000000000",
+    },
+}
 
 
 load_repo_env(overwrite=False)
@@ -174,12 +190,36 @@ def _metadata_cache_path(symbol_info):
     return CHAINLINK_META_DIR / f"{symbol_info['compact_symbol']}.json"
 
 
+def _known_stream_metadata(symbol_info):
+    known = KNOWN_STREAM_METADATA.get(symbol_info["compact_symbol"])
+    if not known:
+        return None
+    return {
+        "extraConfig": {
+            "feedId": known["feed_id"],
+            "name": known["display_name"],
+            "slug": known["slug"],
+            "symbol": {"prefix": "$"},
+        },
+        "streamMetadata": {
+            "feedId": known["feed_id"],
+            "multiply": known["multiply"],
+            "name": known["name"],
+            "pair": [symbol_info["base"], symbol_info["quote"]],
+            "status": "live",
+            "valuePrefix": "$",
+        },
+    }
+
+
 def _raw_reports_archive_path(symbol_info):
     return CHAINLINK_RAW_REPORTS_DIR / f"{symbol_info['compact_symbol']}_reports.csv"
 
 
-def _final_csv_path(symbol_info, interval):
-    return RAW_DATA_DIR / f"{symbol_info['compact_symbol']}_CHAINLINK{interval}.csv"
+def _final_csv_path(symbol_info, interval, output_dir=None):
+    raw_data_dir = Path(output_dir) if output_dir else RAW_DATA_DIR
+    raw_data_dir.mkdir(parents=True, exist_ok=True)
+    return raw_data_dir / f"{symbol_info['compact_symbol']}_CHAINLINK{interval}.csv"
 
 
 def _extract_next_data_payload(html):
@@ -205,7 +245,17 @@ def fetch_stream_metadata(ticker="BTCUSD", refresh=False, session=None):
         CHAINLINK_STREAM_PAGE_URL.format(stream_slug=symbol_info["stream_slug"]),
         timeout=CHAINLINK_HTTP_TIMEOUT_SEC,
     )
-    response.raise_for_status()
+    try:
+        response.raise_for_status()
+    except requests.HTTPError:
+        known_metadata = _known_stream_metadata(symbol_info)
+        if known_metadata is None:
+            raise
+        cache_path.write_text(
+            json.dumps(known_metadata, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        return known_metadata
     payload = _extract_next_data_payload(response.text)
     stream_data = payload["props"]["pageProps"]["streamData"]
     cache_path.write_text(
@@ -837,6 +887,7 @@ def _by_public_delayed_chainlink(
     split=False,
     delay=0,
     refresh_metadata=False,
+    output_dir=None,
     raw_ohlcv_repair_config=None,
 ):
     _ = delay
@@ -870,7 +921,7 @@ def _by_public_delayed_chainlink(
             .reset_index(drop=True)
         )
 
-    final_csv = _final_csv_path(ctx, interval)
+    final_csv = _final_csv_path(ctx, interval, output_dir=output_dir)
     combined_df.to_csv(final_csv, index=False)
     combined_df, _repair_summary = repair_raw_ohlcv_csv(
         final_csv,
@@ -895,6 +946,7 @@ def by_ChainlinkDataStream(
     split=False,
     delay=0,
     refresh_metadata=False,
+    output_dir=None,
     raw_ohlcv_repair_config=None,
 ):
     _ensure_dirs()
@@ -907,7 +959,7 @@ def by_ChainlinkDataStream(
             end_date=end_date,
             refresh_metadata=refresh_metadata,
         )
-        final_csv = _final_csv_path(ctx, interval)
+        final_csv = _final_csv_path(ctx, interval, output_dir=output_dir)
         auth_df.to_csv(final_csv, index=False)
         auth_df, _repair_summary = repair_raw_ohlcv_csv(
             final_csv,
@@ -935,5 +987,6 @@ def by_ChainlinkDataStream(
         split=split,
         delay=delay,
         refresh_metadata=refresh_metadata,
+        output_dir=output_dir,
         raw_ohlcv_repair_config=raw_ohlcv_repair_config,
     )

@@ -1,0 +1,23 @@
+{
+  "lookback_hours": 24,
+  "output_root": "data/analysis/polymarket_chainlink_binance_compare/{asset}",
+  "refresh_chainlink_metadata": false,
+  "include_live_reports": true,
+  "save_aligned": true,
+  "top_n": 5,
+  "binance_quote_assets": [
+    "USDT",
+    "USDC",
+    "USD"
+  ],
+  "binance_market_types": [
+    "spot",
+    "um",
+    "cm"
+  ],
+  "futures_data_types": [
+    "klines",
+    "indexPriceKlines",
+    "markPriceKlines"
+  ]
+}
