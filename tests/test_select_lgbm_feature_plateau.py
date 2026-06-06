@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-import select_lgbm_feature_plateau as plateau
+import select_features as plateau
 
 
 class SelectLgbmFeaturePlateauMetricTests(unittest.TestCase):

@@ -5,13 +5,13 @@ import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
 import lightgbm as lgb
-from common_config_utils import path_to_portable_str
-from project_config import active_asset_path
+from utils.config import path_to_portable_str
+from utils.project_config import active_asset_path
 from features.candle_features import (
     CANDLE_PATTERN_COLS,
     RAW_OHLCV_COLS,
 )
-from metrics_utils import (
+from utils.metrics import (
     make_sklearn_binary_logloss_eval,
     weighted_binary_logloss,
     weighted_brier_score,
@@ -23,7 +23,7 @@ from features.volume_profile_fixed_range import (
     validate_volume_profile_dataset_metadata,
     validate_volume_profile_feature_columns,
 )
-from modeling_dataset_utils import (
+from utils.data import (
     load_modeling_dataset_artifact_metadata,
     load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
@@ -36,7 +36,7 @@ from modeling_dataset_utils import (
     summarize_feature_subset,
     validate_parquet_magic_bytes,
 )
-from target_weights import (
+from utils.data import (
     TARGET_WEIGHT_COL,
     compute_target_weights_from_opened,
     summarize_target_weights,
@@ -81,22 +81,22 @@ WF_TEST_TO_TRAIN_RATIO = resolve_walk_forward_test_to_train_ratio()
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0065094262862249175,
-      "num_leaves": 215,
-      "min_data_in_leaf": 97,
-      "max_depth": 195,
-      "feature_fraction": 0.8985980039678766,
-      "bagging_fraction": 0.7035525517200346,
-      "bagging_freq": 3,
-      "lambda_l2": 84.66552493332907,
-      "lambda_l1": 3.8623890143572983,
-      "min_sum_hessian_in_leaf": 0.0006044966264154735,
-      "min_gain_to_split": 0.23134325634193995,
-      "feature_fraction_bynode": 0.3141763321857879,
-      "path_smooth": 60.87851990364099,
+      "learning_rate": 0.004387225197481959,
+      "num_leaves": 133,
+      "min_data_in_leaf": 720,
+      "max_depth": 206,
+      "feature_fraction": 0.8974595250202884,
+      "bagging_fraction": 0.79292032203349,
+      "bagging_freq": 20,
+      "lambda_l2": 11.605081849728947,
+      "lambda_l1": 6.882639835280196,
+      "min_sum_hessian_in_leaf": 7.72484450824706,
+      "min_gain_to_split": 0.3243665400449587,
+      "feature_fraction_bynode": 0.42688754866797657,
+      "path_smooth": 33.372266902988066,
       "extra_trees": False,
       "monotone_constraints_method": "basic",
-      "monotone_penalty": 0.648819578510189
+      "monotone_penalty": 1.2685005945295802
     }
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,

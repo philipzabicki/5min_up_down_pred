@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 
+from utils.collections import dedupe_ordered_tuple as _dedupe_ordered
+
 OPENED_COL = "Opened"
 SESSION_FLOW_FEATURE_PREFIX = "session_flow_"
 SESSION_OPEN_IMPULSE_FEATURE_PREFIX = "session_open_impulse_"
@@ -176,17 +178,6 @@ _RAW_SESSIONS = {
         "avg_turnover_gold_oz": 7363,
     },
 }
-
-
-def _dedupe_ordered(values):
-    out = []
-    seen = set()
-    for value in values:
-        if value in seen:
-            continue
-        out.append(value)
-        seen.add(value)
-    return tuple(out)
 
 
 def _normalize_sessions(raw_sessions):

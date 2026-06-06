@@ -9,7 +9,7 @@ import pandas as pd
 import pyarrow.parquet as pq
 
 import plot_lgbm_one_way as plot_lgbm_one_way
-from target_weights import (
+from utils.data import (
     TARGET_WEIGHT_COL,
     TARGET_WEIGHT_DECISION_VALUE,
     compute_target_weights_from_opened,

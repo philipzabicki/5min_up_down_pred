@@ -5,8 +5,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from data_quality_filters import drop_frozen_ohlc_blocks
-from modeling_dataset_utils import (
+from utils.data import drop_frozen_ohlc_blocks
+from utils.data import (
     MODELING_DATASET_CONFIG_FILE,
     load_excluded_feature_names_from_settings,
     load_feature_subset_from_settings,
@@ -18,7 +18,7 @@ from modeling_dataset_utils import (
     split_feature_subset,
     validate_parquet_magic_bytes,
 )
-from target_weights import (
+from utils.data import (
     TARGET_WEIGHT_COL,
     TARGET_WEIGHT_DECISION_VALUE,
     TARGET_WEIGHT_OTHER_VALUE,

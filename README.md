@@ -2,7 +2,7 @@
 
 Experimental machine learning pipeline for predicting whether a crypto candle closes up over a 5-minute horizon, with optional live inference and Polymarket 5-minute up/down market execution.
 
-This repository is research and automation tooling. It can connect to live markets and, through `live_trade.py`, submit real orders when configured to do so. Review the live settings and secrets carefully before running anything that can trade.
+This repository is research and automation tooling. It can connect to live markets and, through `run.py`, submit real orders when configured to do so. Review the live settings and secrets carefully before running anything that can trade.
 
 ## What It Does
 
@@ -10,7 +10,7 @@ This repository is research and automation tooling. It can connect to live marke
 - Fits technical indicators with genetic search over ADX, Bollinger Bands, Chaikin Oscillator, Keltner Channel, MACD, and Stochastic Oscillator variants.
 - Builds modeling datasets with candle features, session-open features, realized volatility features, basis/premium features, fixed-range volume profile features, and a 5-minute candle-up target.
 - Trains LightGBM binary classifiers with walk-forward cross-validation, sample weights, optional monotone constraints, and Optuna-tuned parameters.
-- Exports model metadata, feature importance, out-of-fold predictions, calibration reports, and audit artifacts.
+- Exports model metadata, feature importance, out-of-fold predictions, and audit artifacts.
 - Runs live Binance websocket inference and can optionally place Polymarket orders using an expected-value trade policy.
 
 ## Repository Layout
@@ -27,8 +27,7 @@ This repository is research and automation tooling. It can connect to live marke
 | `create_modeling_dataset.py` | Builds the final parquet modeling dataset and metadata. |
 | `optimize_lgbm_optuna.py` | Runs Optuna tuning for LightGBM hyperparameters. |
 | `train_lgbm.py` | Trains the final LightGBM model and writes model artifacts. |
-| `live_predict_binance.py` | Runs live prediction without direct order submission. |
-| `live_trade.py` | Runs live prediction plus Polymarket order management. |
+| `run.py` | Runs live prediction plus Polymarket order management. Real order submission is controlled by the active live profile. |
 
 ## Configuration Model
 
@@ -66,7 +65,7 @@ Some training scripts currently configure LightGBM with GPU settings. If you are
 
 ## Secrets And Environment
 
-Local secrets are loaded from `.env` by `project_env.load_repo_env()` for live trading. Keep secrets out of git.
+Local secrets are loaded from `.env` by `utils.config.load_repo_env()` for live trading. Keep secrets out of git.
 
 Set only the variables needed by your workflow:
 
@@ -77,6 +76,10 @@ POLY_FUNDER_ADDRESS=
 POLY_RELAYER_API_KEY=
 POLY_RELAYER_API_KEY_ADDRESS=
 POLY_RELAYER_TX_TYPE=SAFE
+
+# Optional Binance API credentials
+BINANCE_API_KEY=
+BINANCE_SECRET_KEY=
 
 # Optional redemption overrides
 POLY_REDEEM_RESOLVED_POSITIONS=true
@@ -154,36 +157,23 @@ Model artifacts are written under `data/models/{asset}/<timestamp>/`, including 
 Useful validation scripts:
 
 ```powershell
-python audit_model_calibration.py
-python audit_live_feature_parity.py
-python audit_indicator_stability.py
+python audit_feature_readiness.py
 python screen_fit_results_stability.py
-python optimize_trade_policy_live.py
+python optimize_trade_policy.py
 python compare_polymarket_chainlink_binance.py
-python recommend_model_direction_margins.py
 ```
 
-These scripts write reports under `data/analysis/`, `data/calibration/`, or `data/optuna/` depending on the tool.
+These scripts write reports under `data/analysis/` or `data/optuna/` depending on the tool.
 
-## Live Modes
-
-Prediction-only mode:
+## Live Runtime
 
 ```powershell
-python live_predict_binance.py
+python run.py
 ```
 
-This starts live websocket processing, builds the latest features, loads the runtime model from `configs/runtime/active.json`, queries the relevant Polymarket market data, and writes prediction records under `data/live/predictions/`.
+This starts live websocket processing, builds the latest features, loads the runtime model from `configs/runtime/active.json`, queries Polymarket market data, tracks positions, handles exits/redemption, and writes trade records under `data/live/trade/` plus console logs under `data/live/logs/`.
 
-Trading mode:
-
-```powershell
-python live_trade.py
-```
-
-This includes live prediction plus Polymarket order submission, position tracking, exit handling, and optional redemption. It writes trade records under `data/live/trade/` and console logs under `data/live/logs/`.
-
-For dry runs, use `polymarket_paper_mode=true` in `configs/live.json` or set `polymarket_disable_order_submission=true`.
+Real order submission is controlled by the active profile named in `configs/active.json` via `live_profile`. For dry runs, use `polymarket_paper_mode=true` in `configs/live.json` or set `polymarket_disable_order_submission=true`.
 
 ## Tests
 

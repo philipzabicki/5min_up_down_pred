@@ -3,7 +3,7 @@ from unittest import mock
 
 import pandas as pd
 
-import audit_live_feature_parity as audit
+import audit_feature_readiness as audit
 
 
 class PseudoLiveAuditPredictorTests(unittest.TestCase):

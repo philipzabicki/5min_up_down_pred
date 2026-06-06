@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 from numba import jit
 
+from utils.collections import dedupe_ordered_tuple as _dedupe_ordered
+
 REALIZED_VOL_WINDOWS_MINUTES = (1, 5, 15, 60, 240)
 REALIZED_VOL_EPS = 1e-12
 
@@ -48,17 +50,6 @@ REALIZED_VOLATILITY_FEATURE_COLUMNS = (
     + RV_CE_FEATURE_COLUMNS
 )
 _ALL_FEATURE_COLUMNS_SET = set(REALIZED_VOLATILITY_FEATURE_COLUMNS)
-
-
-def _dedupe_ordered(values):
-    out = []
-    seen = set()
-    for value in values:
-        if value in seen:
-            continue
-        out.append(value)
-        seen.add(value)
-    return tuple(out)
 
 
 def is_realized_volatility_feature(feature_name):

@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from metrics_utils import (
+from utils.metrics import (
     make_lightgbm_binary_logloss_eval,
     make_sklearn_binary_logloss_eval,
     weighted_binary_logloss,

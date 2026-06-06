@@ -3,7 +3,7 @@ import threading
 import unittest
 from pathlib import Path
 
-from live_utils import _TeeStream, _resolve_telegram_chat_id, build_live_console_log_path
+from utils.live import _TeeStream, _resolve_telegram_chat_id, build_live_console_log_path
 
 
 class LiveConsoleLoggingTests(unittest.TestCase):

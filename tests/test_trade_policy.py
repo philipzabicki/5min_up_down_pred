@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from trade_policy import build_trade_intent, load_trade_policy_runtime_config
+from utils.trading import build_trade_intent, load_trade_policy_runtime_config
 
 
 def _policy_payload(**overrides):

@@ -6,9 +6,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from common_config_utils import coerce_path
-from data_quality_filters import drop_frozen_ohlc_blocks
-from target_weights import compute_binary_close_target_from_opened
+from utils.config import coerce_path
+from utils.data import drop_frozen_ohlc_blocks
+from utils.data import compute_binary_close_target_from_opened
 
 from pymoo.core.mixed import MixedVariableGA
 from pymoo.core.mixed import (
@@ -39,12 +39,12 @@ from features.common_utils import (
     normalize_indicators,
     resolve_base_pop_size,
 )
-from project_config import (
+from utils.project_config import (
     ACTIVE_CONFIG_PATH,
     INDICATOR_FIT_CONFIG_PATH,
     active_asset_path,
+    build_indicator_fit_config,
     load_active_asset,
-    build_indicator_fit_legacy_config,
 )
 from features.KeltnerChannel import KeltnerChannelFitting, keltner_channel_initializer
 from features.MACD import MACDFitting, macd_initializer
@@ -539,7 +539,7 @@ def run_indicator_ga(
 
 
 def main():
-    cfg = build_indicator_fit_legacy_config()
+    cfg = build_indicator_fit_config()
     active_asset = load_active_asset()
     config_hash = _fit_config_hash(cfg)
     results_dir = FIT_RESULTS_ROOT / config_hash

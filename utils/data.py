@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 
-from data_quality_filters import normalize_drop_frozen_ohlc_blocks_config
 from features.basis_premium_features import (
     is_basis_premium_feature,
     validate_basis_premium_feature_columns,
@@ -25,11 +25,12 @@ from features.realized_volatility import (
 )
 from features.volume_profile_fixed_range import is_volume_profile_feature
 from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
-from project_config import (
+from utils.project_config import (
     ACTIVE_CONFIG_PATH,
     MODELING_CONFIG_PATH,
     load_modeling_settings,
 )
+from utils.collections import dedupe_ordered as _dedupe_ordered
 
 MODELING_DATASET_CONFIG_FILE = MODELING_CONFIG_PATH
 ACTIVE_PROFILE_CONFIG_FILE = ACTIVE_CONFIG_PATH
@@ -41,17 +42,203 @@ FEATURE_SUBSET_JSON_KEYS = (
 SUPPORTED_MODELING_FLOAT_PRECISIONS = ("float32", "float64")
 _TXT_METADATA_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 PARQUET_MAGIC_BYTES = b"PAR1"
+DEFAULT_DROP_FROZEN_OHLC_BLOCKS_CONFIG = {
+    "enabled": False,
+    "min_block_len": 3,
+}
+TARGET_WEIGHT_COL = "target_5m_weight"
+TARGET_WEIGHT_MINUTE_MODULO = 5
+TARGET_WEIGHT_MINUTE_REMAINDER = 4
+TARGET_WEIGHT_DECISION_VALUE = 0.4625
+TARGET_WEIGHT_OTHER_VALUE = 0.5375 / 4
 
 
-def _dedupe_ordered(values):
-    out = []
-    seen = set()
-    for value in values:
-        if value in seen:
-            continue
-        out.append(value)
-        seen.add(value)
+def _format_weight_key(value):
+    return f"{float(value):.6f}".rstrip("0").rstrip(".")
+
+
+def compute_decision_mask_from_opened(
+    opened_values,
+    minute_modulo=TARGET_WEIGHT_MINUTE_MODULO,
+    minute_remainder=TARGET_WEIGHT_MINUTE_REMAINDER,
+):
+    opened_index = pd.DatetimeIndex(pd.to_datetime(opened_values, errors="raise"))
+    opened_minute = opened_index.minute.to_numpy(dtype=np.int16, copy=False)
+    return (opened_minute % int(minute_modulo)) == int(minute_remainder)
+
+
+def compute_target_weights_from_opened(opened_values, dtype=np.float64):
+    decision_mask = compute_decision_mask_from_opened(opened_values)
+    weights = np.where(
+        decision_mask,
+        TARGET_WEIGHT_DECISION_VALUE,
+        TARGET_WEIGHT_OTHER_VALUE,
+    )
+    return weights.astype(dtype, copy=False)
+
+
+def compute_binary_close_target_from_opened(
+    opened_values,
+    close_values,
+    horizon_minutes,
+    dtype=np.float64,
+):
+    horizon = int(horizon_minutes)
+    if horizon <= 0:
+        raise ValueError(f"horizon_minutes must be > 0, got: {horizon_minutes}")
+
+    opened_index = pd.DatetimeIndex(pd.to_datetime(opened_values, errors="raise"))
+    if opened_index.has_duplicates:
+        dup_count = int(opened_index.duplicated().sum())
+        raise ValueError(f"Duplicate Opened values found: {dup_count}")
+
+    close_np = pd.to_numeric(close_values, errors="coerce").to_numpy(
+        dtype=np.float64,
+        copy=False,
+    )
+    close_series = pd.Series(close_np, index=opened_index)
+    future_opened = opened_index + pd.Timedelta(minutes=horizon)
+    future_close = close_series.reindex(future_opened).to_numpy(
+        dtype=np.float64, copy=False
+    )
+    current_close = close_series.to_numpy(dtype=np.float64, copy=False)
+
+    target = np.full(len(close_series), np.nan, dtype=dtype)
+    valid_mask = np.isfinite(current_close) & np.isfinite(future_close)
+    if np.any(valid_mask):
+        # Keep target semantics aligned with Polymarket settlement: ties resolve Up.
+        target[valid_mask] = (
+            future_close[valid_mask] >= current_close[valid_mask]
+        ).astype(dtype, copy=False)
+    return target
+
+
+def add_target_weights(
+    df,
+    opened_col="Opened",
+    weight_col=TARGET_WEIGHT_COL,
+    dtype=np.float64,
+):
+    if opened_col not in df.columns:
+        raise ValueError(
+            f"Cannot build target weights without opened column '{opened_col}'."
+        )
+
+    out = df.copy(deep=False)
+    out[weight_col] = compute_target_weights_from_opened(
+        out[opened_col],
+        dtype=dtype,
+    )
     return out
+
+
+def summarize_target_weights(weights):
+    weights_np = np.asarray(weights, dtype=np.float64)
+    if weights_np.ndim != 1:
+        raise ValueError("Target weights summary expects a 1D array.")
+    if weights_np.size == 0:
+        raise ValueError("Cannot summarize empty target weights.")
+
+    unique_weights, counts = np.unique(weights_np, return_counts=True)
+    distribution = {
+        _format_weight_key(weight): int(count)
+        for weight, count in zip(unique_weights, counts)
+    }
+    return {
+        "min": float(np.min(weights_np)),
+        "max": float(np.max(weights_np)),
+        "mean": float(np.mean(weights_np)),
+        "sum": float(np.sum(weights_np)),
+        "distribution": distribution,
+    }
+
+
+def normalize_drop_frozen_ohlc_blocks_config(raw_config):
+    if raw_config is None:
+        return dict(DEFAULT_DROP_FROZEN_OHLC_BLOCKS_CONFIG)
+    if not isinstance(raw_config, dict):
+        raise ValueError("drop_frozen_ohlc_blocks config must be a JSON object.")
+
+    enabled = bool(raw_config.get("enabled", False))
+    min_block_len = int(
+        raw_config.get(
+            "min_block_len",
+            DEFAULT_DROP_FROZEN_OHLC_BLOCKS_CONFIG["min_block_len"],
+        )
+    )
+    if min_block_len < 1:
+        raise ValueError(
+            f"drop_frozen_ohlc_blocks.min_block_len must be >= 1, got: {min_block_len}"
+        )
+
+    return {
+        "enabled": enabled,
+        "min_block_len": int(min_block_len),
+    }
+
+
+def drop_frozen_ohlc_blocks(
+    df,
+    raw_config=None,
+    opened_col="Opened",
+    ohlc_cols=("Open", "High", "Low", "Close"),
+):
+    config = normalize_drop_frozen_ohlc_blocks_config(raw_config)
+    summary = {
+        "enabled": bool(config["enabled"]),
+        "min_block_len": int(config["min_block_len"]),
+        "rows_before": len(df),
+        "rows_removed": 0,
+        "rows_after": len(df),
+        "blocks_removed": 0,
+        "largest_block_len": 0,
+        "first_removed_opened": None,
+        "last_removed_opened": None,
+    }
+    if not config["enabled"] or df.empty:
+        return df, summary
+
+    required_cols = [col for col in (opened_col, *ohlc_cols) if col not in df.columns]
+    if required_cols:
+        raise ValueError(
+            "Missing required columns for drop_frozen_ohlc_blocks: "
+            + ", ".join(required_cols)
+        )
+
+    same_prev_mask = (
+        df.loc[:, list(ohlc_cols)].eq(df.loc[:, list(ohlc_cols)].shift(1)).all(axis=1)
+    )
+    same_prev_mask = same_prev_mask.fillna(False)
+    run_group = (~same_prev_mask).cumsum()
+    run_lengths = same_prev_mask.groupby(run_group).transform("sum")
+    drop_mask = same_prev_mask & (run_lengths >= int(config["min_block_len"]))
+
+    if not bool(drop_mask.any()):
+        return df.reset_index(drop=True), summary
+
+    removed_opened = pd.to_datetime(
+        df.loc[drop_mask, opened_col],
+        errors="coerce",
+    )
+    block_starts = drop_mask & ~drop_mask.shift(1, fill_value=False)
+    largest_block_len = int(run_lengths.loc[drop_mask].max())
+
+    summary.update(
+        {
+            "rows_removed": int(drop_mask.sum()),
+            "rows_after": int((~drop_mask).sum()),
+            "blocks_removed": int(block_starts.sum()),
+            "largest_block_len": largest_block_len,
+            "first_removed_opened": (
+                None if removed_opened.empty else str(removed_opened.iloc[0])
+            ),
+            "last_removed_opened": (
+                None if removed_opened.empty else str(removed_opened.iloc[-1])
+            ),
+        }
+    )
+    filtered = df.loc[~drop_mask].reset_index(drop=True)
+    return filtered, summary
 
 
 def _normalize_feature_names(features, source_path):

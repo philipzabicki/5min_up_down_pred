@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-from project_config import load_active_asset
+from utils.project_config import load_active_asset
 
 LIVE_ROOT_DIR = Path("data/live")
 LIVE_LOGS_DIR = LIVE_ROOT_DIR / "logs"
@@ -78,7 +78,7 @@ LATENCY_DIAGNOSTIC_COLUMNS = (
     "market_lookup_source",
 )
 
-LIVE_PREDICTION_EXPORT_COLUMNS = (
+LIVE_BASE_EXPORT_COLUMNS = (
     "record_id",
     "record_snapshot_at",
     "pm_model_hash",
@@ -107,7 +107,7 @@ LIVE_PREDICTION_EXPORT_COLUMNS = (
     "win_rate_closed_trade",
 ) + POLICY_DIAGNOSTIC_COLUMNS
 
-LIVE_TRADE_EXPORT_COLUMNS = LIVE_PREDICTION_EXPORT_COLUMNS + (
+LIVE_TRADE_EXPORT_COLUMNS = LIVE_BASE_EXPORT_COLUMNS + (
     "entry_fee_raw_usdc",
     "shares_net",
     "pm_mode",

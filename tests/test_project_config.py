@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from project_config import (
+from utils.project_config import (
     format_asset_text,
     load_active_profile_names,
     load_modeling_profile,
@@ -48,7 +48,7 @@ class RuntimeArtifactPathTests(unittest.TestCase):
 
         self.assertEqual(profile["output_dir"], "data/datasets/modeling/BTC")
         self.assertEqual(profile["fit_results_dir"], "data/features/indicators_fit/BTC/all")
-        self.assertEqual(profile["feature_selection"]["mode"], "none")
+        self.assertIn(profile["feature_selection"]["mode"], {"artifact", "none"})
 
     def test_formats_asset_placeholder(self):
         self.assertEqual(

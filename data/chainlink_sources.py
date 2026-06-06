@@ -8,8 +8,8 @@ import pandas as pd
 import requests
 
 from data.raw_ohlcv_repair import repair_raw_ohlcv_csv
-from project_config import DATA_DIR, RAW_DATASETS_DIR
-from project_env import load_repo_env
+from utils.project_config import DATA_DIR, RAW_DATASETS_DIR
+from utils.config import load_repo_env
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_DATA_DIR = PROJECT_ROOT / DATA_DIR

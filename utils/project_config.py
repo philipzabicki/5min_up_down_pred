@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from common_config_utils import (
+from utils.config import (
     coerce_path,
     load_json_object,
     path_to_portable_str,
@@ -542,7 +542,7 @@ def load_fetch_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
     }
 
 
-def build_indicator_fit_legacy_config(*, active_config_path=ACTIVE_CONFIG_PATH):
+def build_indicator_fit_config(*, active_config_path=ACTIVE_CONFIG_PATH):
     active = load_active_profile_names(active_config_path)
     dataset = load_dataset_profile(active_config_path=active_config_path)
     fit = load_indicator_fit_profile(active_config_path=active_config_path)

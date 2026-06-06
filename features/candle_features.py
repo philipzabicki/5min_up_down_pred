@@ -6,7 +6,8 @@ import talib
 from talib import abstract as talib_abstract
 from numba import njit
 from pandas.tseries.frequencies import to_offset
-from project_config import load_modeling_profile
+from utils.project_config import load_modeling_profile
+from utils.collections import dedupe_ordered_tuple as _dedupe_ordered
 
 RAW_OHLCV_COLS = ("Open", "High", "Low", "Close", "Volume")
 _CANONICAL_BODY_RANGE_COL = "candle_body_pressure"
@@ -260,17 +261,6 @@ CANDLE_DERIVED_COLS = _CANDLE_FEATURE_CATALOG["candle_derived_cols"]
 CANDLE_FEATURE_COLS = _CANDLE_FEATURE_CATALOG["candle_feature_cols"]
 SUPPORTED_CANDLE_FEATURE_COLS = _CANDLE_FEATURE_CATALOG["supported_feature_cols"]
 _DERIVED_FEATURE_SPEC_BY_COL = _CANDLE_FEATURE_CATALOG["derived_feature_spec_by_col"]
-
-
-def _dedupe_ordered(values):
-    out = []
-    seen = set()
-    for value in values:
-        if value in seen:
-            continue
-        out.append(value)
-        seen.add(value)
-    return tuple(out)
 
 
 def resolve_candle_feature_cols(feature_cols=None):

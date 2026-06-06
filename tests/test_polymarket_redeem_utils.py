@@ -1,6 +1,6 @@
 import unittest
 
-from polymarket_redeem_utils import (
+from utils.polymarket import (
     DEFAULT_POLYMARKET_CTF_COLLATERAL_ADAPTER_ADDRESS,
     DEFAULT_POLYMARKET_PUSD_ADDRESS,
     build_redeem_transactions,

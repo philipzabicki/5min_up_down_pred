@@ -1,8 +1,8 @@
 import json
 import math
 
-from common_config_utils import coerce_path
-from polymarket_fee_utils import (
+from utils.config import coerce_path
+from utils.polymarket import (
     normalize_polymarket_fee_model,
     polymarket_taker_fee_fraction_of_notional,
     polymarket_taker_fee_usdc_from_notional,

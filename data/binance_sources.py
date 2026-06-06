@@ -10,7 +10,8 @@ from binance_data import DataClient
 from dateutil.relativedelta import relativedelta
 
 from data.raw_ohlcv_repair import repair_raw_ohlcv_csv, repair_raw_ohlcv_frame
-from project_config import DATA_DIR, DATASETS_DIR, RAW_DATASETS_DIR
+from utils.project_config import DATA_DIR, DATASETS_DIR, RAW_DATASETS_DIR
+from utils.config import load_repo_env
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_DATA_DIR = PROJECT_ROOT / DATA_DIR
@@ -18,6 +19,8 @@ RAW_DATA_DIR = PROJECT_ROOT / RAW_DATASETS_DIR
 DATASETS_TMP_DIR = PROJECT_ROOT / DATASETS_DIR / "_tmp"
 VISION_TMP_DIR = DATASETS_TMP_DIR / "binance_vision"
 DATACLIENT_TMP_DIR = DATASETS_TMP_DIR / "binance_dataclient"
+
+load_repo_env(overwrite=False)
 
 print(f"[paths] PROJECT_ROOT={PROJECT_ROOT}")
 print(f"[paths] REPO_DATA_DIR={REPO_DATA_DIR}")

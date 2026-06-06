@@ -1,7 +1,7 @@
 from pathlib import Path
 import sys
 
-from project_config import ACTIVE_CONFIG_PATH, DATASETS_CONFIG_PATH, load_fetch_settings
+from utils.project_config import ACTIVE_CONFIG_PATH, DATASETS_CONFIG_PATH, load_fetch_settings
 
 
 def fetch_all(

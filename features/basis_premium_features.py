@@ -5,6 +5,7 @@ import pandas as pd
 from pandas.tseries.frequencies import to_offset
 
 from features.feature_intervals import FEATURE_INTERVAL_TO_RULE
+from utils.collections import dedupe_ordered_tuple as _dedupe_ordered
 
 BASIS_PREMIUM_FEATURE_PREFIX = "futures_index_basis_"
 BASIS_PREMIUM_FEATURE_TYPES = ("rel", "abs", "change")
@@ -13,17 +14,6 @@ _BASIS_FEATURE_RE = re.compile(
     rf"^{BASIS_PREMIUM_FEATURE_PREFIX}(rel|abs|change)_(.+)$"
 )
 _FUTURES_MARKER_RE = re.compile(r"(^|[^a-z0-9])um([^a-z0-9]|$)")
-
-
-def _dedupe_ordered(values):
-    out = []
-    seen = set()
-    for value in values:
-        if value in seen:
-            continue
-        out.append(value)
-        seen.add(value)
-    return tuple(out)
 
 
 def _supported_intervals_text():

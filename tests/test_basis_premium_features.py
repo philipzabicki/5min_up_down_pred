@@ -22,12 +22,12 @@ from features.basis_premium_features import (
     is_basis_premium_feature,
 )
 from features.feature_intervals import FEATURE_INTERVAL_TO_RULE
-from live_predict_binance import (
+from run import (
     LivePredictor,
     _extract_live_auxiliary_ohlc_from_kline,
     _merge_price_and_volume_frames as _merge_live_price_and_volume_frames,
 )
-from modeling_dataset_utils import split_feature_subset
+from utils.data import split_feature_subset
 
 
 def _base_frame(rows, futures_close=None):
