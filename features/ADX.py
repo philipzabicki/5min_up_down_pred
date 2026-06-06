@@ -1,3 +1,6 @@
+from functools import lru_cache
+
+from numpy import float64
 from numpy import (
     roll,
     where,
@@ -10,13 +13,10 @@ from numpy import (
     concatenate,
     zeros,
 )
-from numpy import float64
-from talib import TRANGE
-from functools import lru_cache
-from pymoo.core.variable import Real, Integer, Choice
 from pymoo.core.problem import ElementwiseProblem
+from pymoo.core.variable import Integer, Choice
+from talib import TRANGE
 
-from .ta_tools import MA_FUNCS, get_1d_ma
 from .common_utils import (
     NAN_PENALTY,
     NAN_RATIO_THRESHOLD,
@@ -25,6 +25,7 @@ from .common_utils import (
     score_nan_ratio,
     score_nan_stats,
 )
+from .ta_tools import MA_FUNCS, get_1d_ma
 
 TRANGE_BYTES = None
 TRANGE_SHAPE = None
@@ -185,21 +186,21 @@ def custom_neg_dm_cache(ma_type_negDM, negDM_period):
 
 
 def adx_initializer(
-    ohlcv,
-    target,
-    metric_segments_count=12,
-    metric_train_frac=0.80,
-    metric_gap=1500,
-    q_ext=0.10,
-    q_mid=0.10,
-    stat="mean_clip",
-    clip_q=0.01,
-    min_bucket_size=50,
-    min_valid_segments=2,
-    recency_weighting_enabled=False,
-    recency_weighting_mode="linear",
-    recency_weight_min=1.0,
-    recency_weight_max=1.5,
+        ohlcv,
+        target,
+        metric_segments_count=12,
+        metric_train_frac=0.80,
+        metric_gap=1500,
+        q_ext=0.10,
+        q_mid=0.10,
+        stat="mean_clip",
+        clip_q=0.01,
+        min_bucket_size=50,
+        min_valid_segments=2,
+        recency_weighting_enabled=False,
+        recency_weighting_mode="linear",
+        recency_weight_min=1.0,
+        recency_weight_max=1.5,
 ):
     global TRANGE_BYTES, TRANGE_SHAPE
     global UP_MOVE_BYTES, UP_MOVE_SHAPE
@@ -255,15 +256,15 @@ def adx_initializer(
 
 
 def custom_adx(
-    ohlcv,
-    atr_period,
-    posDM_period,
-    negDM_period,
-    adx_period,
-    ma_type_atr,
-    ma_type_posDM,
-    ma_type_negDM,
-    ma_type_adx,
+        ohlcv,
+        atr_period,
+        posDM_period,
+        negDM_period,
+        adx_period,
+        ma_type_atr,
+        ma_type_posDM,
+        ma_type_negDM,
+        ma_type_adx,
 ):
     if ohlcv is None:
         TR_smooth = custom_atr_cache(ma_type_atr, atr_period)

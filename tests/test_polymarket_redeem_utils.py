@@ -12,7 +12,6 @@ from utils.polymarket import (
     resolve_relayer_tx_type,
 )
 
-
 CONDITION_ID = "0x" + "12" * 32
 ALT_CONDITION_ID = "0x" + "34" * 32
 MARKET_PREFIX = "btc-updown-5m"

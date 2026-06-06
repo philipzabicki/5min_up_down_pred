@@ -328,8 +328,8 @@ def _get_timezone_local_parts(opened_utc, timezone_name, tz_parts_cache):
     cached = {
         "weekday": local_naive.dt.dayofweek.to_numpy(dtype=np.int8, copy=False),
         "minute_of_day": (
-            local_naive.dt.hour.to_numpy(dtype=np.int16, copy=False) * 60
-            + local_naive.dt.minute.to_numpy(dtype=np.int16, copy=False)
+                local_naive.dt.hour.to_numpy(dtype=np.int16, copy=False) * 60
+                + local_naive.dt.minute.to_numpy(dtype=np.int16, copy=False)
         ),
     }
     tz_parts_cache[timezone_name] = cached
@@ -350,8 +350,8 @@ def _compute_session_open_feature_arrays(session_cfg, tz_local_parts, requested_
         return values_by_kind
 
     is_active = np.isin(weekday, session_cfg["weekdays_arr"]) & (
-        (minute_of_day >= int(session_cfg["start_minute"]))
-        & (minute_of_day < int(session_cfg["end_minute"]))
+            (minute_of_day >= int(session_cfg["start_minute"]))
+            & (minute_of_day < int(session_cfg["end_minute"]))
     )
     if not np.any(is_active):
         return values_by_kind
@@ -401,8 +401,8 @@ def add_session_open_features(df, feature_cols=None, opened_col=OPENED_COL):
     feature_values = {}
 
     for (
-        session_name,
-        feature_specs,
+            session_name,
+            feature_specs,
     ) in _group_feature_cols_by_session(selected_cols).items():
         session_cfg = SESSIONS[session_name]
         tz_local_parts = _get_timezone_local_parts(
@@ -431,9 +431,9 @@ def add_session_open_features(df, feature_cols=None, opened_col=OPENED_COL):
 
 
 def build_latest_session_open_feature_dict(
-    opened_values,
-    feature_cols=None,
-    opened_col=OPENED_COL,
+        opened_values,
+        feature_cols=None,
+        opened_col=OPENED_COL,
 ):
     if len(opened_values) == 0:
         return {}
@@ -461,10 +461,10 @@ def _compute_latest_session_open_feature_values(local_dt, session_cfg, requested
     minute_of_day = int(local_dt.hour) * 60 + int(local_dt.minute)
     weekday = int(local_dt.weekday())
     is_active = (
-        weekday in session_cfg["weekdays"]
-        and int(session_cfg["start_minute"])
-        <= minute_of_day
-        < int(session_cfg["end_minute"])
+            weekday in session_cfg["weekdays"]
+            and int(session_cfg["start_minute"])
+            <= minute_of_day
+            < int(session_cfg["end_minute"])
     )
     if not is_active:
         return values_by_kind
@@ -509,8 +509,8 @@ def build_latest_session_open_feature_dict_fast(latest_opened, feature_cols=None
     local_dt_cache = {}
     out = {}
     for (
-        session_name,
-        feature_specs,
+            session_name,
+            feature_specs,
     ) in _group_feature_cols_by_session(selected_cols).items():
         session_cfg = SESSIONS[session_name]
         timezone_name = session_cfg["timezone"]

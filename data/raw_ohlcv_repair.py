@@ -70,10 +70,10 @@ class VolumeRangeMeanMap:
         clean_ranges = np.asarray(candle_ranges, dtype=np.float64)
         clean_volumes = np.asarray(volumes, dtype=np.float64)
         valid_mask = (
-            np.isfinite(clean_ranges)
-            & (clean_ranges >= 0.0)
-            & np.isfinite(clean_volumes)
-            & (clean_volumes > 0.0)
+                np.isfinite(clean_ranges)
+                & (clean_ranges >= 0.0)
+                & np.isfinite(clean_volumes)
+                & (clean_volumes > 0.0)
         )
         clean_ranges = clean_ranges[valid_mask]
         clean_volumes = clean_volumes[valid_mask]
@@ -316,10 +316,10 @@ def _reindex_with_gap_placeholders(df, interval):
     out = full_index.merge(df, on="Opened", how="left")
 
     inserted_mask = (
-        out["Open"].isna()
-        | out["High"].isna()
-        | out["Low"].isna()
-        | out["Close"].isna()
+            out["Open"].isna()
+            | out["High"].isna()
+            | out["Low"].isna()
+            | out["Close"].isna()
     )
     if bool(inserted_mask.any()):
         out[PRICE_COLS] = out[PRICE_COLS].ffill()
@@ -541,11 +541,11 @@ def _fill_invalid_volume(df, invalid_mask, range_bins):
     ].to_numpy(dtype=np.float64, copy=False)
     volumes = out["Volume"].to_numpy(dtype=np.float64, copy=True)
     original_valid_mask = (
-        np.isfinite(candle_ranges)
-        & (candle_ranges >= 0.0)
-        & np.isfinite(volumes)
-        & (volumes > 0.0)
-        & (~invalid_mask)
+            np.isfinite(candle_ranges)
+            & (candle_ranges >= 0.0)
+            & np.isfinite(volumes)
+            & (volumes > 0.0)
+            & (~invalid_mask)
     )
     invalid_indices = np.flatnonzero(invalid_mask)
 
@@ -729,11 +729,11 @@ def _write_gap_artifacts(csv_path, original_df, repaired_df, gap_records, config
 
     timestamp_dir = pd.Timestamp.utcnow().strftime("%Y%m%d_%H%M%S")
     run_dir = (
-        Path(csv_path).parent
-        / "analysis"
-        / "raw_ohlcv_repair"
-        / Path(csv_path).stem
-        / timestamp_dir
+            Path(csv_path).parent
+            / "analysis"
+            / "raw_ohlcv_repair"
+            / Path(csv_path).stem
+            / timestamp_dir
     )
     charts_dir = run_dir / "charts"
     charts_dir.mkdir(parents=True, exist_ok=True)
@@ -750,10 +750,10 @@ def _write_gap_artifacts(csv_path, original_df, repaired_df, gap_records, config
         rel_gap_start = start_idx - view_start
         rel_gap_end = end_idx - view_start
 
-        original_slice = original_df.iloc[view_start : view_end + 1].reset_index(
+        original_slice = original_df.iloc[view_start: view_end + 1].reset_index(
             drop=True
         )
-        repaired_slice = repaired_df.iloc[view_start : view_end + 1].reset_index(
+        repaired_slice = repaired_df.iloc[view_start: view_end + 1].reset_index(
             drop=True
         )
 
@@ -831,12 +831,12 @@ def _write_gap_artifacts(csv_path, original_df, repaired_df, gap_records, config
 
 
 def repair_raw_ohlcv_frame(
-    df,
-    interval,
-    raw_config=None,
-    price_decimals=None,
-    volume_decimals=None,
-    artifact_csv_path=None,
+        df,
+        interval,
+        raw_config=None,
+        price_decimals=None,
+        volume_decimals=None,
+        artifact_csv_path=None,
 ):
     config = normalize_raw_ohlcv_repair_config(raw_config)
     price_decimals = _normalize_decimal_places(price_decimals, "price_decimals")
@@ -910,10 +910,10 @@ def repair_raw_ohlcv_frame(
             summary["gap_rows_repaired"] = int(repaired_rows)
 
         invalid_volume_mask = (
-            repaired["Volume"].isna().to_numpy(dtype=bool, copy=True)
-            | (repaired["Volume"].to_numpy(dtype=np.float64, copy=False) <= 0.0)
-            | inserted_mask
-            | gap_mask
+                repaired["Volume"].isna().to_numpy(dtype=bool, copy=True)
+                | (repaired["Volume"].to_numpy(dtype=np.float64, copy=False) <= 0.0)
+                | inserted_mask
+                | gap_mask
         )
         repaired, volume_summary = _fill_invalid_volume(
             repaired,
@@ -966,11 +966,11 @@ def repair_raw_ohlcv_frame(
 
 
 def repair_raw_ohlcv_csv(
-    csv_path,
-    interval,
-    raw_config=None,
-    price_decimals=None,
-    volume_decimals=None,
+        csv_path,
+        interval,
+        raw_config=None,
+        price_decimals=None,
+        volume_decimals=None,
 ):
     path = Path(csv_path)
     if not path.exists():

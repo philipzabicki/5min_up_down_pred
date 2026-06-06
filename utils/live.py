@@ -79,33 +79,33 @@ LATENCY_DIAGNOSTIC_COLUMNS = (
 )
 
 LIVE_BASE_EXPORT_COLUMNS = (
-    "record_id",
-    "record_snapshot_at",
-    "pm_model_hash",
-    "pm_policy_hash",
-    "pm_run_started_at_utc",
-    "prediction_time",
-    "resolved_at",
-    "bucket_start",
-    "bucket_end",
-    "proba_up",
-    "trade_side",
-    "stake_usdc",
-    *STAKE_DIAGNOSTIC_COLUMNS,
-    "entry_price",
-    "entry_fee_usdc",
-    "bankroll_after_entry",
-    "bankroll_after_resolve",
-    "bucket_open_price",
-    "bucket_close_price",
-    "actual_up",
-    "is_correct",
-    "trade_is_win",
-    "payout_usdc",
-    "pnl_usdc",
-    "win_rate_policy_resolved",
-    "win_rate_closed_trade",
-) + POLICY_DIAGNOSTIC_COLUMNS
+                               "record_id",
+                               "record_snapshot_at",
+                               "pm_model_hash",
+                               "pm_policy_hash",
+                               "pm_run_started_at_utc",
+                               "prediction_time",
+                               "resolved_at",
+                               "bucket_start",
+                               "bucket_end",
+                               "proba_up",
+                               "trade_side",
+                               "stake_usdc",
+                               *STAKE_DIAGNOSTIC_COLUMNS,
+                               "entry_price",
+                               "entry_fee_usdc",
+                               "bankroll_after_entry",
+                               "bankroll_after_resolve",
+                               "bucket_open_price",
+                               "bucket_close_price",
+                               "actual_up",
+                               "is_correct",
+                               "trade_is_win",
+                               "payout_usdc",
+                               "pnl_usdc",
+                               "win_rate_policy_resolved",
+                               "win_rate_closed_trade",
+                           ) + POLICY_DIAGNOSTIC_COLUMNS
 
 LIVE_TRADE_EXPORT_COLUMNS = LIVE_BASE_EXPORT_COLUMNS + (
     "entry_fee_raw_usdc",
@@ -166,59 +166,59 @@ LIVE_TRADE_EXPORT_COLUMNS = LIVE_BASE_EXPORT_COLUMNS + (
 )
 
 LIVE_SHARED_MARKET_DATA_COLUMNS = (
-    "record_id",
-    "pm_model_hash",
-    "pm_policy_hash",
-    "pm_run_started_at_utc",
-    "prediction_time",
-    "resolved_at",
-    "bucket_start",
-    "bucket_end",
-    "proba_up",
-    "trade_side",
-    "price_eps",
-    "price_slip",
-    "ask_yes",
-    "ask_no",
-    "stake_usdc",
-    *STAKE_DIAGNOSTIC_COLUMNS,
-    "entry_price",
-    "entry_fee_usdc",
-    "entry_fee_raw_usdc",
-    "shares_net",
-    "bankroll_after_entry",
-    "bankroll_after_resolve",
-    "btc_open",
-    "btc_high",
-    "btc_low",
-    "btc_close",
-    "btc_volume",
-    "bucket_open_price",
-    "bucket_close_price",
-    "pm_order_price_cap",
-    "pm_submitted_price",
-    "pm_submitted_price_mode",
-    "pm_submitted_price_slippage_ticks",
-    "pm_submitted_price_error",
-    "pm_fees_enabled",
-    "pm_fee_rate_bps",
-    "pm_fee_source",
-    "pm_fee_rate",
-    "pm_fee_exponent",
-    "pm_fee_round_decimals",
-    "pm_min_fee_usdc",
-    "pm_up_best_bid",
-    "pm_up_best_ask",
-    "pm_down_best_bid",
-    "pm_down_best_ask",
-    "pm_order_status",
-    "pm_settlement_status",
-    "actual_up",
-    "is_correct",
-    "trade_is_win",
-    "payout_usdc",
-    "pnl_usdc",
-) + POLICY_DIAGNOSTIC_COLUMNS + LATENCY_DIAGNOSTIC_COLUMNS
+                                      "record_id",
+                                      "pm_model_hash",
+                                      "pm_policy_hash",
+                                      "pm_run_started_at_utc",
+                                      "prediction_time",
+                                      "resolved_at",
+                                      "bucket_start",
+                                      "bucket_end",
+                                      "proba_up",
+                                      "trade_side",
+                                      "price_eps",
+                                      "price_slip",
+                                      "ask_yes",
+                                      "ask_no",
+                                      "stake_usdc",
+                                      *STAKE_DIAGNOSTIC_COLUMNS,
+                                      "entry_price",
+                                      "entry_fee_usdc",
+                                      "entry_fee_raw_usdc",
+                                      "shares_net",
+                                      "bankroll_after_entry",
+                                      "bankroll_after_resolve",
+                                      "btc_open",
+                                      "btc_high",
+                                      "btc_low",
+                                      "btc_close",
+                                      "btc_volume",
+                                      "bucket_open_price",
+                                      "bucket_close_price",
+                                      "pm_order_price_cap",
+                                      "pm_submitted_price",
+                                      "pm_submitted_price_mode",
+                                      "pm_submitted_price_slippage_ticks",
+                                      "pm_submitted_price_error",
+                                      "pm_fees_enabled",
+                                      "pm_fee_rate_bps",
+                                      "pm_fee_source",
+                                      "pm_fee_rate",
+                                      "pm_fee_exponent",
+                                      "pm_fee_round_decimals",
+                                      "pm_min_fee_usdc",
+                                      "pm_up_best_bid",
+                                      "pm_up_best_ask",
+                                      "pm_down_best_bid",
+                                      "pm_down_best_ask",
+                                      "pm_order_status",
+                                      "pm_settlement_status",
+                                      "actual_up",
+                                      "is_correct",
+                                      "trade_is_win",
+                                      "payout_usdc",
+                                      "pnl_usdc",
+                                  ) + POLICY_DIAGNOSTIC_COLUMNS + LATENCY_DIAGNOSTIC_COLUMNS
 
 LIVE_TRADE_RECORD_PATH_RE = re.compile(
     r"^live_trade_polymarket_"
@@ -270,11 +270,11 @@ def _telegram_api_post(bot_token, method, payload=None, timeout=5.0):
 
 
 def _resolve_telegram_chat_id(
-    bot_token,
-    chat_id=None,
-    *,
-    timeout=5.0,
-    api_post=_telegram_api_post,
+        bot_token,
+        chat_id=None,
+        *,
+        timeout=5.0,
+        api_post=_telegram_api_post,
 ):
     chat_id = str(chat_id or "").strip()
     if chat_id:
@@ -301,10 +301,10 @@ def _resolve_telegram_chat_id(
         if not isinstance(update, dict):
             continue
         for payload in (
-            update.get("message"),
-            update.get("edited_message"),
-            update.get("channel_post"),
-            update.get("my_chat_member"),
+                update.get("message"),
+                update.get("edited_message"),
+                update.get("channel_post"),
+                update.get("my_chat_member"),
         ):
             if not isinstance(payload, dict):
                 continue
@@ -325,14 +325,14 @@ def _resolve_telegram_chat_id(
 
 class _TelegramConsoleSink:
     def __init__(
-        self,
-        bot_token,
-        chat_id,
-        *,
-        timeout=5.0,
-        max_message_chars=TELEGRAM_CONSOLE_MAX_MESSAGE_CHARS,
-        max_queue_size=1000,
-        api_post=_telegram_api_post,
+            self,
+            bot_token,
+            chat_id,
+            *,
+            timeout=5.0,
+            max_message_chars=TELEGRAM_CONSOLE_MAX_MESSAGE_CHARS,
+            max_queue_size=1000,
+            api_post=_telegram_api_post,
     ):
         self.bot_token = bot_token
         self.chat_id = str(chat_id)
@@ -405,7 +405,7 @@ class _TelegramConsoleSink:
         if not message.strip():
             return []
         return [
-            message[start : start + self.max_message_chars]
+            message[start: start + self.max_message_chars]
             for start in range(0, len(message), self.max_message_chars)
         ]
 
@@ -463,13 +463,13 @@ def build_live_console_log_path(run_name, run_started_at_utc=None, logs_dir=LIVE
 
 
 def setup_live_console_logging(
-    run_name,
-    run_started_at_utc=None,
-    logs_dir=LIVE_LOGS_DIR,
-    *,
-    telegram=False,
-    telegram_bot_token=None,
-    telegram_chat_id=None,
+        run_name,
+        run_started_at_utc=None,
+        logs_dir=LIVE_LOGS_DIR,
+        *,
+        telegram=False,
+        telegram_bot_token=None,
+        telegram_chat_id=None,
 ):
     log_path = build_live_console_log_path(
         run_name,
@@ -533,13 +533,13 @@ def setup_live_console_logging(
 
 
 def build_live_trade_records_path(
-    live_trade_dir,
-    symbol,
-    interval,
-    run_started_at_utc,
-    model_hash,
-    policy_config_hash,
-    modeling_dataset_config_hash,
+        live_trade_dir,
+        symbol,
+        interval,
+        run_started_at_utc,
+        model_hash,
+        policy_config_hash,
+        modeling_dataset_config_hash,
 ):
     return Path(live_trade_dir) / (
         f"live_trade_polymarket_{symbol}_{interval}_"
@@ -609,12 +609,12 @@ def serialize_timestamp_columns(frame, columns):
 
 
 def records_to_export_frame(
-    records,
-    *,
-    export_columns,
-    timestamp_columns=LIVE_RECORD_TIMESTAMP_COLUMNS,
-    is_resolved,
-    is_traded,
+        records,
+        *,
+        export_columns,
+        timestamp_columns=LIVE_RECORD_TIMESTAMP_COLUMNS,
+        is_resolved,
+        is_traded,
 ):
     out = pd.DataFrame(records)
     if out.empty:
@@ -637,13 +637,13 @@ def records_to_export_frame(
 
 
 def write_records_csv(
-    records,
-    path,
-    *,
-    export_columns,
-    timestamp_columns=LIVE_RECORD_TIMESTAMP_COLUMNS,
-    is_resolved,
-    is_traded,
+        records,
+        path,
+        *,
+        export_columns,
+        timestamp_columns=LIVE_RECORD_TIMESTAMP_COLUMNS,
+        is_resolved,
+        is_traded,
 ):
     frame = records_to_export_frame(
         records,
@@ -688,15 +688,15 @@ def _release_csv_lock(fd, lock_path):
 
 
 def upsert_records_csv(
-    records,
-    path,
-    *,
-    export_columns,
-    key_columns=LIVE_SHARED_MARKET_DATA_KEY_COLUMNS,
-    timestamp_columns=LIVE_RECORD_TIMESTAMP_COLUMNS,
-    is_resolved,
-    is_traded,
-    record_filter=None,
+        records,
+        path,
+        *,
+        export_columns,
+        key_columns=LIVE_SHARED_MARKET_DATA_KEY_COLUMNS,
+        timestamp_columns=LIVE_RECORD_TIMESTAMP_COLUMNS,
+        is_resolved,
+        is_traded,
+        record_filter=None,
 ):
     filtered_records = list(records)
     if record_filter is not None:

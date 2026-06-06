@@ -7,7 +7,6 @@ import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
-from utils.config import path_to_portable_str
 from features.candle_features import CANDLE_PATTERN_COLS, RAW_OHLCV_COLS
 from features.session_open_features import add_session_open_features
 from features.volume_profile_fixed_range import (
@@ -15,28 +14,7 @@ from features.volume_profile_fixed_range import (
     validate_volume_profile_dataset_metadata,
     validate_volume_profile_feature_columns,
 )
-from utils.data import (
-    load_modeling_dataset_artifact_metadata,
-    load_excluded_feature_names_from_settings,
-    load_feature_subset,
-    load_feature_subset_from_settings,
-    load_modeling_dataset_settings,
-    resolve_modeling_dataset_output_paths,
-    resolve_modeling_float_dtype,
-    resolve_modeling_float_dtype_name,
-    split_feature_subset,
-    summarize_feature_subset,
-)
-from utils.optuna import make_timestamped_artifact_path, resolve_run_study_name
-from utils.project_config import active_asset_path
-from utils.data import (
-    TARGET_WEIGHT_COL,
-    TARGET_WEIGHT_DECISION_VALUE,
-    compute_decision_mask_from_opened,
-    summarize_target_weights,
-)
 from train_lgbm import (
-    CV_FOLDS as DEFAULT_CV_FOLDS,
     EARLY_STOPPING_EVAL_METRIC,
     EARLY_STOPPING_ROUNDS,
     LGBM_DEFAULT_PARAMS,
@@ -55,6 +33,27 @@ from train_lgbm import (
     resolve_sample_weight_series,
     summarize_lgbm_monotone_constraints,
 )
+from utils.config import path_to_portable_str
+from utils.data import (
+    TARGET_WEIGHT_COL,
+    TARGET_WEIGHT_DECISION_VALUE,
+    compute_decision_mask_from_opened,
+    summarize_target_weights,
+)
+from utils.data import (
+    load_modeling_dataset_artifact_metadata,
+    load_excluded_feature_names_from_settings,
+    load_feature_subset,
+    load_feature_subset_from_settings,
+    load_modeling_dataset_settings,
+    resolve_modeling_dataset_output_paths,
+    resolve_modeling_float_dtype,
+    resolve_modeling_float_dtype_name,
+    split_feature_subset,
+    summarize_feature_subset,
+)
+from utils.optuna import make_timestamped_artifact_path, resolve_run_study_name
+from utils.project_config import active_asset_path
 
 DECISION_ROW_OBJECTIVE_METRIC = "balanced_accuracy"
 DECISION_ROW_STD_PENALTY = 1.0
@@ -277,11 +276,11 @@ def decision_objective_aggregation_description():
 
 
 def summarize_decision_fold_metric_scores(
-    metric_values,
-    folds,
-    fold_weight_by_id,
-    *,
-    std_penalty,
+        metric_values,
+        folds,
+        fold_weight_by_id,
+        *,
+        std_penalty,
 ):
     metric_values_arr = np.asarray(metric_values, dtype=np.float64)
     if metric_values_arr.ndim != 1:
@@ -454,11 +453,11 @@ def row_filter_eval_scope(variant_name):
 
 
 def evaluate_weighted_prediction_scopes(
-    *,
-    y_true,
-    y_pred_proba,
-    sample_weight,
-    decision_mask,
+        *,
+        y_true,
+        y_pred_proba,
+        sample_weight,
+        decision_mask,
 ):
     y_true_np = np.asarray(y_true, dtype=np.int8)
     y_pred_np = np.asarray(y_pred_proba, dtype=np.float64)
@@ -515,15 +514,15 @@ def metric_summary_from_row_filter_fold_df(fold_df, scope_name):
         col
         for col in fold_df.columns
         if col.startswith(metric_prefix)
-        and col
-        not in {
-            f"{scope_name}_rows",
-            f"{scope_name}_weight_sum",
-            f"{scope_name}_positive_rate",
-        }
+           and col
+           not in {
+               f"{scope_name}_rows",
+               f"{scope_name}_weight_sum",
+               f"{scope_name}_positive_rate",
+           }
     ]
     for metric_col in metric_cols:
-        metric_name = metric_col[len(metric_prefix) :]
+        metric_name = metric_col[len(metric_prefix):]
         metric_values = pd.to_numeric(fold_df[metric_col], errors="coerce").dropna()
         if metric_values.empty:
             continue
@@ -604,16 +603,16 @@ def resolve_row_filter_recommendation(comparison_payload):
 
 
 def evaluate_row_filter_variant(
-    *,
-    variant_name,
-    x,
-    y,
-    sample_weight,
-    df,
-    decision_mask,
-    folds,
-    param_overrides,
-    float_dtype,
+        *,
+        variant_name,
+        x,
+        y,
+        sample_weight,
+        df,
+        decision_mask,
+        folds,
+        param_overrides,
+        float_dtype,
 ):
     y_np = y.to_numpy(dtype=np.int8, copy=False)
     sample_weight_np = sample_weight.to_numpy(dtype=np.float64, copy=False)
@@ -1170,13 +1169,13 @@ def evaluate_unweighted_prediction_scopes(y_true, y_pred_proba, decision_mask):
 
 
 def select_strategy_fold_indices(
-    train_indices,
-    test_indices,
-    decision_mask,
-    *,
-    row_mode,
-    eval_scope,
-    prediction_scope,
+        train_indices,
+        test_indices,
+        decision_mask,
+        *,
+        row_mode,
+        eval_scope,
+        prediction_scope,
 ):
     train_indices = np.asarray(train_indices, dtype=np.int32)
     test_indices = np.asarray(test_indices, dtype=np.int32)
@@ -1211,12 +1210,12 @@ def select_strategy_fold_indices(
 
 
 def _strategy_sample_weight_series(
-    *,
-    row_mode,
-    decision_mask,
-    index,
-    float_dtype,
-    weight_config,
+        *,
+        row_mode,
+        decision_mask,
+        index,
+        float_dtype,
+        weight_config,
 ):
     if row_mode == ROW_MODE_ALL_ROWS:
         if weight_config is None:
@@ -1233,22 +1232,22 @@ def _strategy_sample_weight_series(
 
 
 def evaluate_strategy(
-    *,
-    x,
-    y,
-    decision_mask,
-    folds,
-    fold_weight_by_id,
-    param_overrides,
-    row_mode,
-    eval_scope,
-    prediction_scope,
-    weight_config,
-    std_penalty,
-    float_dtype,
-    model_variant,
-    n_estimators,
-    early_stopping_rounds,
+        *,
+        x,
+        y,
+        decision_mask,
+        folds,
+        fold_weight_by_id,
+        param_overrides,
+        row_mode,
+        eval_scope,
+        prediction_scope,
+        weight_config,
+        std_penalty,
+        float_dtype,
+        model_variant,
+        n_estimators,
+        early_stopping_rounds,
 ):
     decision_mask_np = np.asarray(decision_mask, dtype=bool)
     sample_weight = _strategy_sample_weight_series(
@@ -1436,15 +1435,15 @@ def evaluate_strategy(
 
 
 def build_result_row(
-    *,
-    stage,
-    feature_subset_candidate,
-    strategy_name,
-    result,
-    weight_config,
-    n_estimators,
-    cv_folds,
-    search_round=None,
+        *,
+        stage,
+        feature_subset_candidate,
+        strategy_name,
+        result,
+        weight_config,
+        n_estimators,
+        cv_folds,
+        search_round=None,
 ):
     row = {
         "stage": stage,
@@ -1518,12 +1517,12 @@ def build_result_row(
 
 
 def attach_metadata_to_fold_metrics(
-    fold_df,
-    *,
-    stage,
-    feature_subset_candidate,
-    strategy_name,
-    weight_config,
+        fold_df,
+        *,
+        stage,
+        feature_subset_candidate,
+        strategy_name,
+        weight_config,
 ):
     out = fold_df.copy()
     out.insert(0, "stage", stage)
@@ -1576,9 +1575,9 @@ def load_target_weight_search_settings(dataset_settings):
     if lookback_days < 1:
         raise ValueError("DEFAULT_TARGET_WEIGHT_LOOKBACK_DAYS must be >= 1.")
     if (
-        not include_all_features_view
-        and not include_active_feature_subset_view
-        and random_feature_subsets < 1
+            not include_all_features_view
+            and not include_active_feature_subset_view
+            and random_feature_subsets < 1
     ):
         raise ValueError("Target-weight search must enable at least one feature view.")
 
@@ -1639,12 +1638,12 @@ def _normalize_parquet_filter_timestamp(value):
 
 
 def load_target_weight_training_frame(
-    *,
-    data_path,
-    excluded_features=None,
-    float_dtype=np.float64,
-    opened_start_utc=None,
-    opened_end_utc=None,
+        *,
+        data_path,
+        excluded_features=None,
+        float_dtype=np.float64,
+        opened_start_utc=None,
+        opened_end_utc=None,
 ):
     excluded_feature_names = (
         tuple(excluded_features["features"]) if excluded_features else tuple()
@@ -1801,8 +1800,8 @@ def resolve_feature_subset_required_parquet_columns(subset_info):
 
 
 def resolve_missing_parquet_columns_for_subset(
-    subset_info,
-    available_parquet_columns,
+        subset_info,
+        available_parquet_columns,
 ):
     available_column_set = set(available_parquet_columns)
     required_columns = resolve_feature_subset_required_parquet_columns(subset_info)
@@ -1829,13 +1828,13 @@ def _feature_subset_candidate_label(subset_info, *, is_active):
 
 
 def resolve_feature_subset_candidates(
-    dataset_settings,
-    excluded_features,
-    *,
-    available_parquet_columns=None,
-    candidate_mode=FEATURE_SUBSET_CANDIDATE_MODE_ACTIVE_ONLY,
-    recent_limit=FEATURE_SUBSET_RECENT_LIMIT,
-    max_candidates=MAX_FEATURE_SUBSET_CANDIDATES,
+        dataset_settings,
+        excluded_features,
+        *,
+        available_parquet_columns=None,
+        candidate_mode=FEATURE_SUBSET_CANDIDATE_MODE_ACTIVE_ONLY,
+        recent_limit=FEATURE_SUBSET_RECENT_LIMIT,
+        max_candidates=MAX_FEATURE_SUBSET_CANDIDATES,
 ):
     candidate_mode = str(candidate_mode).strip().lower()
     if candidate_mode not in {
@@ -1853,8 +1852,8 @@ def resolve_feature_subset_candidates(
 
     def register_candidate(subset_info, *, is_active):
         if (
-            subset_info is not None
-            and available_parquet_columns is not None
+                subset_info is not None
+                and available_parquet_columns is not None
         ):
             missing_parquet_columns = resolve_missing_parquet_columns_for_subset(
                 subset_info,
@@ -1906,8 +1905,8 @@ def resolve_feature_subset_candidates(
         register_candidate(active_subset, is_active=True)
     if candidate_mode == FEATURE_SUBSET_CANDIDATE_MODE_ACTIVE_PLUS_RECENT:
         for subset_path in discover_recent_feature_subset_paths(
-            root_dir=FEATURE_SELECTOR_ARTIFACT_ROOT,
-            limit=int(recent_limit),
+                root_dir=FEATURE_SELECTOR_ARTIFACT_ROOT,
+                limit=int(recent_limit),
         ):
             if active_subset_path is not None and Path(subset_path) == active_subset_path:
                 continue
@@ -2016,15 +2015,15 @@ def build_feature_matrix_by_subset(x_union, feature_subset_candidates):
 
 
 def build_feature_view_candidates(
-    *,
-    x_all,
-    active_subset,
-    include_all_features_view,
-    include_active_feature_subset_view,
-    random_feature_subsets,
-    random_feature_subset_size,
-    random_feature_subset_fraction,
-    random_feature_subset_min_features,
+        *,
+        x_all,
+        active_subset,
+        include_all_features_view,
+        include_active_feature_subset_view,
+        random_feature_subsets,
+        random_feature_subset_size,
+        random_feature_subset_fraction,
+        random_feature_subset_min_features,
 ):
     candidates = []
     seen_signatures = set()
@@ -2032,14 +2031,14 @@ def build_feature_view_candidates(
     all_column_set = set(all_columns)
 
     def register_candidate(
-        feature_names,
-        *,
-        label,
-        source_kind,
-        path=None,
-        is_active=False,
-        summary=None,
-        metadata=None,
+            feature_names,
+            *,
+            label,
+            source_kind,
+            path=None,
+            is_active=False,
+            summary=None,
+            metadata=None,
     ):
         feature_names = all_columns if feature_names is None else tuple(feature_names)
         missing_features = [
@@ -2221,15 +2220,15 @@ def build_evaluation_contexts(feature_views, x_by_view, param_profiles):
 
 
 def build_context_result_row(
-    *,
-    stage,
-    evaluation_context,
-    strategy_name,
-    result,
-    weight_config,
-    n_estimators,
-    cv_folds,
-    search_round=None,
+        *,
+        stage,
+        evaluation_context,
+        strategy_name,
+        result,
+        weight_config,
+        n_estimators,
+        cv_folds,
+        search_round=None,
 ):
     row = {
         "stage": stage,
@@ -2311,12 +2310,12 @@ def build_context_result_row(
 
 
 def attach_context_metadata_to_fold_metrics(
-    fold_df,
-    *,
-    stage,
-    evaluation_context,
-    strategy_name,
-    weight_config,
+        fold_df,
+        *,
+        stage,
+        evaluation_context,
+        strategy_name,
+        weight_config,
 ):
     out = fold_df.copy()
     out.insert(0, "stage", stage)
@@ -2334,15 +2333,15 @@ def attach_context_metadata_to_fold_metrics(
 
 
 def build_context_weight_summary_row(
-    context_rows,
-    *,
-    stage,
-    strategy_name,
-    weight_config,
-    n_estimators,
-    cv_folds,
-    search_round,
-    context_std_penalty,
+        context_rows,
+        *,
+        stage,
+        strategy_name,
+        weight_config,
+        n_estimators,
+        cv_folds,
+        search_round,
+        context_std_penalty,
 ):
     if not context_rows:
         raise ValueError("context_rows must not be empty.")
@@ -2515,9 +2514,9 @@ def enrich_context_results_with_baseline_deltas(context_results_df):
 
 
 def enrich_aggregate_results_with_baseline_deltas(
-    aggregate_results_df,
-    *,
-    context_results_df,
+        aggregate_results_df,
+        *,
+        context_results_df,
 ):
     if aggregate_results_df.empty:
         return aggregate_results_df
@@ -2545,7 +2544,7 @@ def enrich_aggregate_results_with_baseline_deltas(
     baseline_decision_bal_acc_mean = float(baseline_row["decision_rows_bal_acc_mean"])
     baseline_context_rows = context_results_df[
         context_results_df["strategy_name"] == STRATEGY_DECISION_ONLY_BASELINE
-    ]
+        ]
     baseline_context_by_id = baseline_context_rows.set_index("context_id").to_dict(
         orient="index"
     )
@@ -2579,7 +2578,7 @@ def enrich_aggregate_results_with_baseline_deltas(
                 float(row["decision_weight"]),
                 equal_nan=False,
             )
-        ]
+            ]
         wins = 0
         losses = 0
         ties = 0
@@ -2608,10 +2607,10 @@ def build_baseline_recommendation_summary(final_results_df):
 
     baseline_df = final_results_df[
         final_results_df["strategy_name"] == STRATEGY_DECISION_ONLY_BASELINE
-    ]
+        ]
     weighted_df = final_results_df[
         final_results_df["strategy_name"] == STRATEGY_ALL_ROWS_WEIGHTED
-    ]
+        ]
     baseline_row = None if baseline_df.empty else baseline_df.iloc[0]
     best_weighted_row = None if weighted_df.empty else weighted_df.iloc[0]
 
@@ -2622,7 +2621,7 @@ def build_baseline_recommendation_summary(final_results_df):
         recommended_row = baseline_row
         recommendation_reason = "no_weighted_candidate"
     elif float(best_weighted_row["objective_value"]) > float(
-        baseline_row["objective_value"]
+            baseline_row["objective_value"]
     ):
         recommended_row = best_weighted_row
         recommendation_reason = "weighted_beats_context_baseline"
@@ -2675,22 +2674,22 @@ def build_baseline_recommendation_summary(final_results_df):
 
 
 def evaluate_strategy_across_contexts(
-    *,
-    stage,
-    evaluation_contexts,
-    strategy_name,
-    row_mode,
-    weight_config,
-    y,
-    decision_mask,
-    folds,
-    fold_weight_by_id,
-    float_dtype,
-    n_estimators,
-    early_stopping_rounds,
-    prediction_scope,
-    search_round,
-    context_std_penalty,
+        *,
+        stage,
+        evaluation_contexts,
+        strategy_name,
+        row_mode,
+        weight_config,
+        y,
+        decision_mask,
+        folds,
+        fold_weight_by_id,
+        float_dtype,
+        n_estimators,
+        early_stopping_rounds,
+        prediction_scope,
+        search_round,
+        context_std_penalty,
 ):
     context_rows = []
     fold_frames = []
@@ -2771,20 +2770,20 @@ def evaluate_strategy_across_contexts(
 
 
 def evaluate_weight_candidate_across_contexts(
-    *,
-    stage,
-    evaluation_contexts,
-    decision_weight,
-    y,
-    decision_mask,
-    folds,
-    fold_weight_by_id,
-    float_dtype,
-    n_estimators,
-    early_stopping_rounds,
-    prediction_scope,
-    search_round,
-    context_std_penalty,
+        *,
+        stage,
+        evaluation_contexts,
+        decision_weight,
+        y,
+        decision_mask,
+        folds,
+        fold_weight_by_id,
+        float_dtype,
+        n_estimators,
+        early_stopping_rounds,
+        prediction_scope,
+        search_round,
+        context_std_penalty,
 ):
     weight_config = build_weight_config(decision_weight)
     return evaluate_strategy_across_contexts(
@@ -2807,18 +2806,18 @@ def evaluate_weight_candidate_across_contexts(
 
 
 def evaluate_baseline_across_contexts(
-    *,
-    stage,
-    evaluation_contexts,
-    y,
-    decision_mask,
-    folds,
-    fold_weight_by_id,
-    float_dtype,
-    n_estimators,
-    early_stopping_rounds,
-    prediction_scope,
-    context_std_penalty,
+        *,
+        stage,
+        evaluation_contexts,
+        y,
+        decision_mask,
+        folds,
+        fold_weight_by_id,
+        float_dtype,
+        n_estimators,
+        early_stopping_rounds,
+        prediction_scope,
+        context_std_penalty,
 ):
     return evaluate_strategy_across_contexts(
         stage=stage,
@@ -2840,14 +2839,14 @@ def evaluate_baseline_across_contexts(
 
 
 def run_proxy_weight_search_across_contexts(
-    *,
-    evaluation_contexts,
-    y,
-    decision_mask,
-    folds,
-    fold_weight_by_id,
-    float_dtype,
-    context_std_penalty,
+        *,
+        evaluation_contexts,
+        y,
+        decision_mask,
+        folds,
+        fold_weight_by_id,
+        float_dtype,
+        context_std_penalty,
 ):
     search_rows = []
     search_context_rows = []
@@ -2935,15 +2934,15 @@ def run_proxy_weight_search_across_contexts(
 
 
 def run_final_weight_recheck_across_contexts(
-    *,
-    evaluation_contexts,
-    shortlist_rows,
-    y,
-    decision_mask,
-    folds,
-    fold_weight_by_id,
-    float_dtype,
-    context_std_penalty,
+        *,
+        evaluation_contexts,
+        shortlist_rows,
+        y,
+        decision_mask,
+        folds,
+        fold_weight_by_id,
+        float_dtype,
+        context_std_penalty,
 ):
     final_rows = []
     final_context_rows = []
@@ -3025,15 +3024,15 @@ def _top_weight_results(weight_rows, *, limit):
 
 
 def run_proxy_weight_search_for_subset(
-    *,
-    feature_subset_candidate,
-    x,
-    y,
-    decision_mask,
-    folds,
-    fold_weight_by_id,
-    param_overrides,
-    float_dtype,
+        *,
+        feature_subset_candidate,
+        x,
+        y,
+        decision_mask,
+        folds,
+        fold_weight_by_id,
+        param_overrides,
+        float_dtype,
 ):
     search_rows = []
     search_fold_frames = []
@@ -3209,15 +3208,15 @@ def build_final_candidate_specs(proxy_subset_results):
 
 
 def evaluate_final_candidate(
-    *,
-    candidate_spec,
-    x,
-    y,
-    decision_mask,
-    folds,
-    fold_weight_by_id,
-    param_overrides,
-    float_dtype,
+        *,
+        candidate_spec,
+        x,
+        y,
+        decision_mask,
+        folds,
+        fold_weight_by_id,
+        param_overrides,
+        float_dtype,
 ):
     strategy_name = candidate_spec["strategy_name"]
     feature_subset_candidate = candidate_spec["feature_subset_candidate"]
@@ -3317,10 +3316,10 @@ def build_subset_summary_rows(final_results_df):
         )
         baseline_df = subset_df[
             subset_df["strategy_name"] == STRATEGY_DECISION_ONLY_BASELINE
-        ]
+            ]
         weighted_df = subset_df[
             subset_df["strategy_name"] == STRATEGY_ALL_ROWS_WEIGHTED
-        ]
+            ]
         baseline_row = None if baseline_df.empty else baseline_df.iloc[0]
         best_weighted_row = None if weighted_df.empty else weighted_df.iloc[0]
 
@@ -3331,7 +3330,7 @@ def build_subset_summary_rows(final_results_df):
             recommended_row = baseline_row
             recommendation_reason = "no_weighted_candidate"
         elif float(best_weighted_row["objective_value"]) > float(
-            baseline_row["objective_value"]
+                baseline_row["objective_value"]
         ):
             recommended_row = best_weighted_row
             recommendation_reason = "weighted_beats_subset_baseline"
@@ -3408,27 +3407,27 @@ def json_safe_value(value):
 
 
 def build_best_result_payload(
-    *,
-    run_info,
-    data_path,
-    class_distribution,
-    decision_mask,
-    time_window,
-    excluded_features,
-    active_feature_subset,
-    feature_views,
-    param_profiles,
-    evaluation_contexts,
-    target_weight_search_settings,
-    final_results_df,
-    final_context_results_df,
-    best_row,
+        *,
+        run_info,
+        data_path,
+        class_distribution,
+        decision_mask,
+        time_window,
+        excluded_features,
+        active_feature_subset,
+        feature_views,
+        param_profiles,
+        evaluation_contexts,
+        target_weight_search_settings,
+        final_results_df,
+        final_context_results_df,
+        best_row,
 ):
     decision_mask_np = np.asarray(decision_mask, dtype=bool)
     best_strategy_name = str(best_row["strategy_name"])
     best_context_rows = final_context_results_df[
         final_context_results_df["strategy_name"] == best_strategy_name
-    ].copy()
+        ].copy()
     if best_strategy_name == STRATEGY_ALL_ROWS_WEIGHTED:
         best_weight = float(best_row["decision_weight"])
         best_context_rows = best_context_rows[
@@ -3452,7 +3451,7 @@ def build_best_result_payload(
     ).reset_index(drop=True)
     baseline_context_rows = final_context_results_df[
         final_context_results_df["strategy_name"] == STRATEGY_DECISION_ONLY_BASELINE
-    ].copy()
+        ].copy()
     baseline_context_rows = baseline_context_rows.sort_values(
         by=[
             "objective_value",
@@ -3465,7 +3464,7 @@ def build_best_result_payload(
     recommendation = build_baseline_recommendation_summary(final_results_df)
     baseline_df = final_results_df[
         final_results_df["strategy_name"] == STRATEGY_DECISION_ONLY_BASELINE
-    ]
+        ]
     baseline_row = None if baseline_df.empty else baseline_df.iloc[0]
     return {
         "created_utc": pd.Timestamp.utcnow().isoformat(),
@@ -3609,11 +3608,11 @@ def build_best_result_payload(
 
 
 def save_best_oof_predictions(
-    *,
-    output_path,
-    df,
-    decision_mask,
-    final_result,
+        *,
+        output_path,
+        df,
+        decision_mask,
+        final_result,
 ):
     export_df = df.loc[
         :,

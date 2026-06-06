@@ -3,11 +3,12 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 import talib
-from talib import abstract as talib_abstract
 from numba import njit
 from pandas.tseries.frequencies import to_offset
-from utils.project_config import load_modeling_profile
+from talib import abstract as talib_abstract
+
 from utils.collections import dedupe_ordered_tuple as _dedupe_ordered
+from utils.project_config import load_modeling_profile
 
 RAW_OHLCV_COLS = ("Open", "High", "Low", "Close", "Volume")
 _CANONICAL_BODY_RANGE_COL = "candle_body_pressure"
@@ -52,9 +53,9 @@ def _interval_derived_lag_feature_col(base_col, interval_label, lag):
 
 
 def _normalize_candle_interval_lag_config(
-    raw_config,
-    *,
-    source_label="candle_streak_intervals",
+        raw_config,
+        *,
+        source_label="candle_streak_intervals",
 ):
     if not isinstance(raw_config, dict) or not raw_config:
         raise ValueError(f"{source_label} must be a non-empty JSON object.")
@@ -143,13 +144,13 @@ def is_deprecated_candle_feature_col(feature_name):
     if not name.startswith(prefix):
         return False
 
-    suffix = name[len(prefix) :]
+    suffix = name[len(prefix):]
     if suffix == BASE_CANDLE_INTERVAL_LABEL:
         return True
 
     base_lag_prefix = f"{BASE_CANDLE_INTERVAL_LABEL}_lag"
     if suffix.startswith(base_lag_prefix):
-        return suffix[len(base_lag_prefix) :].isdigit()
+        return suffix[len(base_lag_prefix):].isdigit()
 
     if "_lag" not in suffix:
         return False
@@ -191,11 +192,11 @@ def _build_candle_feature_catalog():
         )
     )
     candle_derived_cols = (
-        direct_derived_cols + lagged_derived_cols + interval_derived_cols
+            direct_derived_cols + lagged_derived_cols + interval_derived_cols
     )
     candle_feature_cols = candle_derived_cols + DEFAULT_CANDLE_PATTERN_COLS
     supported_feature_cols = (
-        candle_derived_cols + CANDLE_PATTERN_COLS + INTERVAL_CANDLE_PATTERN_COLS
+            candle_derived_cols + CANDLE_PATTERN_COLS + INTERVAL_CANDLE_PATTERN_COLS
     )
 
     derived_feature_spec_by_col = {
@@ -217,8 +218,8 @@ def _build_candle_feature_catalog():
                 lag,
             )
             for interval_label, base_col, lag in _iter_configured_interval_derived_specs(
-                interval_lag_counts
-            )
+            interval_lag_counts
+        )
         }
     )
     return {
@@ -402,13 +403,13 @@ def _compute_derived_feature_matrix(open_arr, high_arr, low_arr, close_arr, volu
 
 @njit(cache=True)
 def _compute_derived_feature_matrix_with_volume_split(
-    open_arr,
-    high_arr,
-    low_arr,
-    close_arr,
-    volume_arr,
-    up_volume_arr,
-    down_volume_arr,
+        open_arr,
+        high_arr,
+        low_arr,
+        close_arr,
+        volume_arr,
+        up_volume_arr,
+        down_volume_arr,
 ):
     n = len(open_arr)
     out = np.empty((n, len(ALL_CANDLE_DERIVED_COLS)), dtype=np.float64)
@@ -438,7 +439,7 @@ def _compute_derived_feature_matrix_with_volume_split(
 
 
 def build_candle_derived_features_from_series(
-    open_, high, low, close, volume, *, up_volume=None, down_volume=None
+        open_, high, low, close, volume, *, up_volume=None, down_volume=None
 ):
     open_arr = np.asarray(open_, dtype=np.float64)
     high_arr = np.asarray(high, dtype=np.float64)
@@ -474,7 +475,7 @@ def build_candle_derived_features_from_series(
 
 
 def build_candle_pattern_features_from_series(
-    open_, high, low, close, pattern_cols=None
+        open_, high, low, close, pattern_cols=None
 ):
     (
         selected_pattern_cols,
@@ -508,14 +509,14 @@ def build_candle_pattern_features_from_series(
 
 
 def _resample_complete_interval_frame(
-    base_df,
-    rule,
-    required_cols,
-    agg_spec,
-    dropna_cols,
-    count_col,
-    opened_col=OPENED_COL,
-    context="interval candles",
+        base_df,
+        rule,
+        required_cols,
+        agg_spec,
+        dropna_cols,
+        count_col,
+        opened_col=OPENED_COL,
+        context="interval candles",
 ):
     missing = [col for col in required_cols if col not in base_df.columns]
     if missing:
@@ -608,15 +609,15 @@ def _empty_interval_derived_frame(base_index, feature_cols, float_dtype=np.float
 
 
 def _compute_interval_patterns(
-    base_df,
-    interval_label,
-    rule,
-    feature_cols,
-    opened_col=OPENED_COL,
-    open_col=OPEN_COL,
-    high_col=HIGH_COL,
-    low_col=LOW_COL,
-    close_col=CLOSE_COL,
+        base_df,
+        interval_label,
+        rule,
+        feature_cols,
+        opened_col=OPENED_COL,
+        open_col=OPEN_COL,
+        high_col=HIGH_COL,
+        low_col=LOW_COL,
+        close_col=CLOSE_COL,
 ):
     if not feature_cols:
         return pd.DataFrame(index=base_df.index)
@@ -675,17 +676,17 @@ def _compute_interval_patterns(
 
 
 def _compute_interval_derived_features(
-    base_df,
-    interval_label,
-    rule,
-    feature_cols,
-    float_dtype=np.float64,
-    opened_col=OPENED_COL,
-    open_col=OPEN_COL,
-    high_col=HIGH_COL,
-    low_col=LOW_COL,
-    close_col=CLOSE_COL,
-    volume_col=VOLUME_COL,
+        base_df,
+        interval_label,
+        rule,
+        feature_cols,
+        float_dtype=np.float64,
+        opened_col=OPENED_COL,
+        open_col=OPEN_COL,
+        high_col=HIGH_COL,
+        low_col=LOW_COL,
+        close_col=CLOSE_COL,
+        volume_col=VOLUME_COL,
 ):
     if not feature_cols:
         return pd.DataFrame(index=base_df.index)
@@ -812,9 +813,9 @@ def add_candle_derived_features(df, feature_cols=None, float_dtype=np.float64):
         interval_to_derived_feature_cols,
     ) = _split_derived_feature_cols(selected_cols)
     if (
-        direct_derived_feature_cols
-        or lag_to_derived_feature_cols
-        or interval_to_derived_feature_cols
+            direct_derived_feature_cols
+            or lag_to_derived_feature_cols
+            or interval_to_derived_feature_cols
     ):
         derived = build_candle_derived_features_from_series(
             open_=open_arr,
@@ -851,8 +852,8 @@ def add_candle_derived_features(df, feature_cols=None, float_dtype=np.float64):
             [OPENED_COL, OPEN_COL, HIGH_COL, LOW_COL, CLOSE_COL, VOLUME_COL]
         ].copy()
         for (
-            interval_label,
-            interval_feature_cols,
+                interval_label,
+                interval_feature_cols,
         ) in interval_to_derived_feature_cols.items():
             interval_rule = INTERVAL_TO_RULE[interval_label]
             interval_derived = _compute_interval_derived_features(
@@ -908,8 +909,8 @@ def add_candle_derived_features(df, feature_cols=None, float_dtype=np.float64):
             )
         pattern_base = df[[OPENED_COL, OPEN_COL, HIGH_COL, LOW_COL, CLOSE_COL]].copy()
         for (
-            interval_label,
-            interval_feature_cols,
+                interval_label,
+                interval_feature_cols,
         ) in interval_to_pattern_feature_cols.items():
             interval_rule = PATTERN_INTERVAL_TO_RULE[interval_label]
             interval_patterns = _compute_interval_patterns(
@@ -941,13 +942,13 @@ def add_candle_derived_features(df, feature_cols=None, float_dtype=np.float64):
 
 
 def build_latest_candle_derived_feature_dict(
-    opened_values,
-    open_values,
-    high_values,
-    low_values,
-    close_values,
-    volume_values,
-    feature_cols=None,
+        opened_values,
+        open_values,
+        high_values,
+        low_values,
+        close_values,
+        volume_values,
+        feature_cols=None,
 ):
     selected_cols = resolve_candle_derived_feature_cols(feature_cols)
     if not selected_cols:
@@ -970,16 +971,16 @@ def build_latest_candle_derived_feature_dict(
 
 
 def _compute_latest_complete_interval_derived_matrix_fast(
-    opened_ns,
-    open_values,
-    high_values,
-    low_values,
-    close_values,
-    volume_values,
-    *,
-    bucket_ns,
-    expected_count,
-    needed_complete,
+        opened_ns,
+        open_values,
+        high_values,
+        low_values,
+        close_values,
+        volume_values,
+        *,
+        bucket_ns,
+        expected_count,
+        needed_complete,
 ):
     if needed_complete <= 0 or len(opened_ns) == 0:
         return np.empty((0, len(ALL_CANDLE_DERIVED_COLS)), dtype=np.float64)
@@ -1036,14 +1037,14 @@ def _compute_latest_complete_interval_derived_matrix_fast(
 
 
 def build_latest_candle_derived_feature_dict_fast(
-    opened_values,
-    opened_ns_values,
-    open_values,
-    high_values,
-    low_values,
-    close_values,
-    volume_values,
-    feature_cols=None,
+        opened_values,
+        opened_ns_values,
+        open_values,
+        high_values,
+        low_values,
+        close_values,
+        volume_values,
+        feature_cols=None,
 ):
     selected_cols = resolve_candle_derived_feature_cols(feature_cols)
     if not selected_cols:
@@ -1059,12 +1060,12 @@ def build_latest_candle_derived_feature_dict_fast(
     opened_ns = np.asarray(opened_ns_values, dtype=np.int64)
 
     if not (
-        len(opened_ns)
-        == len(open_arr)
-        == len(high_arr)
-        == len(low_arr)
-        == len(close_arr)
-        == len(volume_arr)
+            len(opened_ns)
+            == len(open_arr)
+            == len(high_arr)
+            == len(low_arr)
+            == len(close_arr)
+            == len(volume_arr)
     ):
         return build_latest_candle_derived_feature_dict(
             opened_values=opened_values,
@@ -1126,8 +1127,8 @@ def build_latest_candle_derived_feature_dict_fast(
             out[feature_col] = float(row[_DERIVED_BASE_COL_TO_INDEX[base_col]])
 
     for (
-        interval_label,
-        interval_feature_cols,
+            interval_label,
+            interval_feature_cols,
     ) in interval_to_derived_feature_cols.items():
         rule = INTERVAL_TO_RULE.get(interval_label)
         if rule is None:
@@ -1200,7 +1201,7 @@ def build_latest_candle_derived_feature_dict_fast(
 
 
 def build_latest_candle_pattern_feature_dict(
-    opened_values, open_values, high_values, low_values, close_values, pattern_cols=None
+        opened_values, open_values, high_values, low_values, close_values, pattern_cols=None
 ):
     selected_pattern_cols = resolve_candle_pattern_feature_cols(pattern_cols)
     if not selected_pattern_cols:
@@ -1246,8 +1247,8 @@ def build_latest_candle_pattern_feature_dict(
         }
     )
     for (
-        interval_label,
-        interval_feature_cols,
+            interval_label,
+            interval_feature_cols,
     ) in interval_to_pattern_feature_cols.items():
         interval_rule = PATTERN_INTERVAL_TO_RULE[interval_label]
         interval_patterns = _compute_interval_patterns(
@@ -1267,15 +1268,15 @@ def build_latest_candle_pattern_feature_dict(
 
 
 def _compute_latest_complete_interval_pattern_values_fast(
-    opened_ns,
-    open_values,
-    high_values,
-    low_values,
-    close_values,
-    *,
-    bucket_ns,
-    expected_count,
-    base_pattern_cols,
+        opened_ns,
+        open_values,
+        high_values,
+        low_values,
+        close_values,
+        *,
+        bucket_ns,
+        expected_count,
+        base_pattern_cols,
 ):
     if not base_pattern_cols or len(opened_ns) == 0:
         return {}
@@ -1325,13 +1326,13 @@ def _compute_latest_complete_interval_pattern_values_fast(
 
 
 def build_latest_candle_pattern_feature_dict_fast(
-    opened_values,
-    opened_ns_values,
-    open_values,
-    high_values,
-    low_values,
-    close_values,
-    pattern_cols=None,
+        opened_values,
+        opened_ns_values,
+        open_values,
+        high_values,
+        low_values,
+        close_values,
+        pattern_cols=None,
 ):
     selected_pattern_cols = resolve_candle_pattern_feature_cols(pattern_cols)
     if not selected_pattern_cols:
@@ -1345,11 +1346,11 @@ def build_latest_candle_pattern_feature_dict_fast(
     low_arr = np.asarray(low_values, dtype=np.float64)
     close_arr = np.asarray(close_values, dtype=np.float64)
     if not (
-        len(opened_ns)
-        == len(open_arr)
-        == len(high_arr)
-        == len(low_arr)
-        == len(close_arr)
+            len(opened_ns)
+            == len(open_arr)
+            == len(high_arr)
+            == len(low_arr)
+            == len(close_arr)
     ):
         return build_latest_candle_pattern_feature_dict(
             opened_values=opened_values,
@@ -1396,8 +1397,8 @@ def build_latest_candle_pattern_feature_dict_fast(
             out[feature_col] = int(pattern_values[base_col][-1])
 
     for (
-        interval_label,
-        interval_feature_cols,
+            interval_label,
+            interval_feature_cols,
     ) in interval_to_pattern_feature_cols.items():
         rule = PATTERN_INTERVAL_TO_RULE.get(interval_label)
         if rule is None:
@@ -1512,12 +1513,12 @@ def signed_streak_from_signs(signs):
 
 
 def _compute_interval_streak(
-    base_df,
-    interval_label,
-    rule,
-    opened_col=OPENED_COL,
-    open_col=OPEN_COL,
-    close_col=CLOSE_COL,
+        base_df,
+        interval_label,
+        rule,
+        opened_col=OPENED_COL,
+        open_col=OPEN_COL,
+        close_col=CLOSE_COL,
 ):
     agg = _resample_complete_interval_frame(
         base_df=base_df,
@@ -1572,11 +1573,11 @@ def validate_signed_streak_logic():
 
 
 def add_candle_streak_features(
-    df,
-    interval_to_rule,
-    opened_col=OPENED_COL,
-    open_col=OPEN_COL,
-    close_col=CLOSE_COL,
+        df,
+        interval_to_rule,
+        opened_col=OPENED_COL,
+        open_col=OPEN_COL,
+        close_col=CLOSE_COL,
 ):
     required = [opened_col, open_col, close_col]
     missing = [c for c in required if c not in df.columns]
@@ -1628,11 +1629,11 @@ def add_candle_streak_features(
 
 
 def _prepare_latest_streak_base(
-    opened_index,
-    open_values,
-    close_values,
-    open_col=OPEN_COL,
-    close_col=CLOSE_COL,
+        opened_index,
+        open_values,
+        close_values,
+        open_col=OPEN_COL,
+        close_col=CLOSE_COL,
 ):
     return pd.DataFrame(
         {
@@ -1644,10 +1645,10 @@ def _prepare_latest_streak_base(
 
 
 def _prepare_latest_streak_inputs(
-    opened_values,
-    open_values,
-    close_values,
-    opened_col=OPENED_COL,
+        opened_values,
+        open_values,
+        close_values,
+        opened_col=OPENED_COL,
 ):
     opened_index = pd.DatetimeIndex(pd.to_datetime(opened_values, errors="raise"))
     open_arr = np.asarray(open_values, dtype=np.float64)
@@ -1686,10 +1687,10 @@ def _latest_signed_streak_value(signs):
 
 
 def _compute_latest_interval_streak_value_fast(
-    opened_ns,
-    open_values,
-    close_values,
-    rule,
+        opened_ns,
+        open_values,
+        close_values,
+        rule,
 ):
     open_arr = np.asarray(open_values, dtype=np.float64)
     close_arr = np.asarray(close_values, dtype=np.float64)
@@ -1735,11 +1736,11 @@ def _compute_latest_interval_streak_value_fast(
 
 
 def _compute_latest_interval_streak_value_pandas(
-    indexed_base,
-    interval_label,
-    rule,
-    open_col=OPEN_COL,
-    close_col=CLOSE_COL,
+        indexed_base,
+        interval_label,
+        rule,
+        open_col=OPEN_COL,
+        close_col=CLOSE_COL,
 ):
     agg = indexed_base.resample(rule, label="left", closed="left").agg(
         {open_col: "first", close_col: "last"}
@@ -1774,13 +1775,13 @@ def _compute_latest_interval_streak_value_pandas(
 
 
 def build_latest_candle_streak_feature_dict(
-    opened_values,
-    open_values,
-    close_values,
-    interval_to_rule,
-    opened_col=OPENED_COL,
-    open_col=OPEN_COL,
-    close_col=CLOSE_COL,
+        opened_values,
+        open_values,
+        close_values,
+        interval_to_rule,
+        opened_col=OPENED_COL,
+        open_col=OPEN_COL,
+        close_col=CLOSE_COL,
 ):
     if len(opened_values) == 0:
         return {}
@@ -1823,14 +1824,14 @@ def build_latest_candle_streak_feature_dict(
 
 
 def build_latest_candle_streak_feature_dict_fast(
-    opened_values,
-    opened_ns_values,
-    open_values,
-    close_values,
-    interval_to_rule,
-    opened_col=OPENED_COL,
-    open_col=OPEN_COL,
-    close_col=CLOSE_COL,
+        opened_values,
+        opened_ns_values,
+        open_values,
+        close_values,
+        interval_to_rule,
+        opened_col=OPENED_COL,
+        open_col=OPEN_COL,
+        close_col=CLOSE_COL,
 ):
     if len(open_values) == 0:
         return {}

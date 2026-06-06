@@ -33,31 +33,31 @@ def _is_missing_number(value):
 
 
 def _round_up_to_decimals(value, decimals):
-    factor = 10**int(decimals)
+    factor = 10 ** int(decimals)
     return math.ceil(float(value) * factor - 1e-12) / factor
 
 
 def _minimum_executable_stake_usdc(
-    *,
-    entry_price,
-    fee_model,
-    order_min_size,
-    amount_round_decimals=POLYMARKET_MARKET_BUY_AMOUNT_DECIMALS,
-    max_adjust_steps=MIN_ORDER_STAKE_ADJUST_MAX_STEPS,
+        *,
+        entry_price,
+        fee_model,
+        order_min_size,
+        amount_round_decimals=POLYMARKET_MARKET_BUY_AMOUNT_DECIMALS,
+        max_adjust_steps=MIN_ORDER_STAKE_ADJUST_MAX_STEPS,
 ):
     entry_price_value = _as_float(entry_price)
     order_min_size_value = _as_float(order_min_size)
     if (
-        entry_price_value is None
-        or not math.isfinite(entry_price_value)
-        or entry_price_value <= 0.0
-        or entry_price_value >= 1.0
+            entry_price_value is None
+            or not math.isfinite(entry_price_value)
+            or entry_price_value <= 0.0
+            or entry_price_value >= 1.0
     ):
         return float("nan")
     if (
-        order_min_size_value is None
-        or not math.isfinite(order_min_size_value)
-        or order_min_size_value <= 0.0
+            order_min_size_value is None
+            or not math.isfinite(order_min_size_value)
+            or order_min_size_value <= 0.0
     ):
         return 0.0
 
@@ -93,13 +93,13 @@ def _minimum_executable_stake_usdc(
 
 
 def _missing_policy_inputs(
-    *,
-    proba_up,
-    ask_yes,
-    ask_no,
-    fee_yes,
-    fee_no,
-    extra_buffer,
+        *,
+        proba_up,
+        ask_yes,
+        ask_no,
+        fee_yes,
+        fee_no,
+        extra_buffer,
 ):
     missing = []
     values = {
@@ -132,9 +132,9 @@ def _missing_policy_inputs(
 
     extra_buffer_value = _as_float(extra_buffer)
     if (
-        extra_buffer_value is not None
-        and math.isfinite(extra_buffer_value)
-        and extra_buffer_value < 0.0
+            extra_buffer_value is not None
+            and math.isfinite(extra_buffer_value)
+            and extra_buffer_value < 0.0
     ):
         missing.append("extra_buffer_negative")
 
@@ -235,7 +235,7 @@ def load_trade_policy_runtime_config(config_path):
             "Trade policy config invalid: submitted_price_slippage_ticks must be >= 0."
         )
     if "min_decision_margin" in cfg and (
-        not math.isfinite(cfg["min_decision_margin"]) or cfg["min_decision_margin"] < 0.0
+            not math.isfinite(cfg["min_decision_margin"]) or cfg["min_decision_margin"] < 0.0
     ):
         raise ValueError(
             "Trade policy config invalid: min_decision_margin must be finite and >= 0."
@@ -249,17 +249,17 @@ def load_trade_policy_runtime_config(config_path):
 
 
 def decide_trade_from_model_direction(
-    *,
-    proba_up,
-    threshold,
-    ask_yes=None,
-    ask_no=None,
-    fee_yes=None,
-    fee_no=None,
-    extra_buffer=0.0,
-    min_decision_margin=0.0,
-    min_decision_margin_up=None,
-    min_decision_margin_down=None,
+        *,
+        proba_up,
+        threshold,
+        ask_yes=None,
+        ask_no=None,
+        fee_yes=None,
+        fee_no=None,
+        extra_buffer=0.0,
+        min_decision_margin=0.0,
+        min_decision_margin_up=None,
+        min_decision_margin_down=None,
 ):
     try:
         threshold_value = float(threshold)
@@ -301,25 +301,25 @@ def decide_trade_from_model_direction(
     min_decision_margin_down_value = _as_float(min_decision_margin_down)
 
     if (
-        ask_yes_value is not None
-        and ask_no_value is not None
-        and fee_yes_value is not None
-        and fee_no_value is not None
-        and extra_buffer_value is not None
-        and all(
-            math.isfinite(value)
-            for value in (
+            ask_yes_value is not None
+            and ask_no_value is not None
+            and fee_yes_value is not None
+            and fee_no_value is not None
+            and extra_buffer_value is not None
+            and all(
+        math.isfinite(value)
+        for value in (
                 ask_yes_value,
                 ask_no_value,
                 fee_yes_value,
                 fee_no_value,
                 extra_buffer_value,
-            )
         )
+    )
     ):
         ev_yes = proba_value - ask_yes_value - fee_yes_value - extra_buffer_value
         ev_no = (
-            (1.0 - proba_value) - ask_no_value - fee_no_value - extra_buffer_value
+                (1.0 - proba_value) - ask_no_value - fee_no_value - extra_buffer_value
         )
         if abs(ev_yes) <= EV_DECISION_EPS:
             ev_yes = 0.0
@@ -356,12 +356,12 @@ def decide_trade_from_model_direction(
 
 
 def decide_trade_from_ev(
-    proba_up,
-    ask_yes,
-    ask_no,
-    fee_yes,
-    fee_no,
-    extra_buffer,
+        proba_up,
+        ask_yes,
+        ask_no,
+        fee_yes,
+        fee_no,
+        extra_buffer,
 ):
     missing = _missing_policy_inputs(
         proba_up=proba_up,
@@ -439,16 +439,16 @@ def decision_to_trade_side(decision):
 
 
 def build_trade_intent(
-    *,
-    policy_result,
-    bankroll,
-    stake_multiplier,
-    fee_model,
-    order_min_size=0.0,
-    external_stake_cap_usdc=math.inf,
-    stake_multiplier_mode="fixed",
-    initial_bankroll=None,
-    return_multiple_balance=None,
+        *,
+        policy_result,
+        bankroll,
+        stake_multiplier,
+        fee_model,
+        order_min_size=0.0,
+        external_stake_cap_usdc=math.inf,
+        stake_multiplier_mode="fixed",
+        initial_bankroll=None,
+        return_multiple_balance=None,
 ):
     bankroll_value = _as_float(bankroll)
     stake_multiplier_value = _as_float(stake_multiplier)
@@ -491,9 +491,9 @@ def build_trade_intent(
     if stake_multiplier_mode_value == "return_multiple":
         initial_bankroll_value = _as_float(initial_bankroll)
         if (
-            initial_bankroll_value is None
-            or not math.isfinite(initial_bankroll_value)
-            or initial_bankroll_value <= 0.0
+                initial_bankroll_value is None
+                or not math.isfinite(initial_bankroll_value)
+                or initial_bankroll_value <= 0.0
         ):
             intent["decision"] = "no_trade"
             intent["trade_side"] = "none"
@@ -501,9 +501,9 @@ def build_trade_intent(
             return intent
         return_balance_value = _as_float(return_multiple_balance)
         if (
-            return_balance_value is None
-            or not math.isfinite(return_balance_value)
-            or return_balance_value <= 0.0
+                return_balance_value is None
+                or not math.isfinite(return_balance_value)
+                or return_balance_value <= 0.0
         ):
             return_balance_value = bankroll_value
         stake_multiplier_value = (
@@ -513,9 +513,9 @@ def build_trade_intent(
         )
         intent["stake_multiplier"] = float(stake_multiplier_value)
     if (
-        stake_multiplier_value is None
-        or not math.isfinite(stake_multiplier_value)
-        or stake_multiplier_value <= 0.0
+            stake_multiplier_value is None
+            or not math.isfinite(stake_multiplier_value)
+            or stake_multiplier_value <= 0.0
     ):
         intent["decision"] = "no_trade"
         intent["trade_side"] = "none"

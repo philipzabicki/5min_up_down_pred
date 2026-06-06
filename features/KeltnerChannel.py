@@ -1,16 +1,10 @@
-from numpy import frombuffer, float64
 from functools import lru_cache
-from talib import TRANGE
-from pymoo.core.variable import Integer, Real, Choice
-from pymoo.core.problem import ElementwiseProblem
 
-from .ta_tools import (
-    MA_FUNCS,
-    apply_ma,
-    get_1d_ma,
-    keltner_channel_signal,
-    precompute_ohlcv_sources,
-)
+from numpy import frombuffer, float64
+from pymoo.core.problem import ElementwiseProblem
+from pymoo.core.variable import Integer, Choice
+from talib import TRANGE
+
 from .common_utils import (
     NAN_PENALTY,
     NAN_RATIO_THRESHOLD,
@@ -18,6 +12,13 @@ from .common_utils import (
     log_nan_debug,
     score_nan_ratio,
     score_nan_stats,
+)
+from .ta_tools import (
+    MA_FUNCS,
+    apply_ma,
+    get_1d_ma,
+    keltner_channel_signal,
+    precompute_ohlcv_sources,
 )
 
 OHLCV_BYTES = None
@@ -130,21 +131,21 @@ def get_keltner_channel_features(params, ohlcv_np):
 
 
 def keltner_channel_initializer(
-    ohlcv,
-    target,
-    metric_segments_count=12,
-    metric_train_frac=0.80,
-    metric_gap=1500,
-    q_ext=0.10,
-    q_mid=0.10,
-    stat="mean_clip",
-    clip_q=0.01,
-    min_bucket_size=50,
-    min_valid_segments=2,
-    recency_weighting_enabled=False,
-    recency_weighting_mode="linear",
-    recency_weight_min=1.0,
-    recency_weight_max=1.5,
+        ohlcv,
+        target,
+        metric_segments_count=12,
+        metric_train_frac=0.80,
+        metric_gap=1500,
+        q_ext=0.10,
+        q_mid=0.10,
+        stat="mean_clip",
+        clip_q=0.01,
+        min_bucket_size=50,
+        min_valid_segments=2,
+        recency_weighting_enabled=False,
+        recency_weighting_mode="linear",
+        recency_weight_min=1.0,
+        recency_weight_max=1.5,
 ):
     global TRANGE_BYTES, TRANGE_SHAPE, OHLCV_BYTES, OHLCV_SHAPE
     global SOURCE_CACHE, VOLUME_CACHE, TARGET_BYTES, TARGET_SHAPE
@@ -194,13 +195,13 @@ def custom_atr_cache(atr_ma_type, atr_period):
 
 
 def custom_keltner_channel(
-    ohlcv,
-    ma_type,
-    ma_period,
-    atr_ma_type,
-    atr_period,
-    source,
-    atr_multi=1.0,
+        ohlcv,
+        ma_type,
+        ma_period,
+        atr_ma_type,
+        atr_period,
+        source,
+        atr_multi=1.0,
 ):
     if ohlcv is None:
         return keltner_channel_signal(

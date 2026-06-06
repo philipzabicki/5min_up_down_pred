@@ -1,5 +1,5 @@
-import unittest
 import math
+import unittest
 
 import pandas as pd
 
@@ -7,7 +7,6 @@ from optimize_trade_policy import (
     aggregate_price_observations,
     replay_policy,
 )
-
 
 ZERO_FEE_MODEL = {
     "rate": 0.0,

@@ -3,7 +3,6 @@ import json
 import math
 import os
 from pathlib import Path
-from typing import Dict, Iterable, Mapping, Type
 
 import numpy as np
 from numba import njit
@@ -18,11 +17,11 @@ BINARY_VAR_WEIGHT = 1.0
 
 
 def build_linear_recency_weights(
-    count,
-    *,
-    enabled=True,
-    min_weight=1.0,
-    max_weight=1.5,
+        count,
+        *,
+        enabled=True,
+        min_weight=1.0,
+        max_weight=1.5,
 ):
     count_val = int(count)
     if count_val <= 0:
@@ -147,17 +146,17 @@ def _bucket_stat_numba(values, stat_code, clip_q):
 
 @njit(cache=True, nogil=True)
 def _segment_score_extremes_vs_mid_oof_numba(
-    x_arr,
-    y_arr,
-    start,
-    end,
-    train_frac,
-    gap,
-    q_ext,
-    q_mid,
-    stat_code,
-    clip_q,
-    min_bucket_size,
+        x_arr,
+        y_arr,
+        start,
+        end,
+        train_frac,
+        gap,
+        q_ext,
+        q_mid,
+        stat_code,
+        clip_q,
+        min_bucket_size,
 ):
     seg_len = end - start
     cut = start + int(train_frac * seg_len)
@@ -188,9 +187,9 @@ def _segment_score_extremes_vs_mid_oof_numba(
     mid_count = int(np.sum(mid_mask))
 
     if (
-        bot_count < min_bucket_size
-        or top_count < min_bucket_size
-        or mid_count < min_bucket_size
+            bot_count < min_bucket_size
+            or top_count < min_bucket_size
+            or mid_count < min_bucket_size
     ):
         return np.nan
 
@@ -206,12 +205,12 @@ def _segment_score_extremes_vs_mid_oof_numba(
 
     # expected |diff of means| under null ~ sqrt(2/pi) * std * sqrt(1/n1 + 1/n2)
     noise = (
-        np.sqrt(2 / np.pi)
-        * np.std(test_y)
-        * (
-            np.sqrt(1.0 / top_count + 1.0 / mid_count)
-            + np.sqrt(1.0 / bot_count + 1.0 / mid_count)
-        )
+            np.sqrt(2 / np.pi)
+            * np.std(test_y)
+            * (
+                    np.sqrt(1.0 / top_count + 1.0 / mid_count)
+                    + np.sqrt(1.0 / bot_count + 1.0 / mid_count)
+            )
     )
 
     score = raw - noise
@@ -223,26 +222,26 @@ def _linear_recency_weight_numba(seg_idx, segments_count, min_weight, max_weight
     if segments_count <= 1:
         return 1.0
     return min_weight + (
-        (max_weight - min_weight) * (float(seg_idx) / float(segments_count - 1))
+            (max_weight - min_weight) * (float(seg_idx) / float(segments_count - 1))
     )
 
 
 @njit(cache=True, nogil=True)
 def _extremes_vs_mid_ir_oof_numba(
-    x_arr,
-    y_arr,
-    segments_count,
-    train_frac,
-    gap,
-    q_ext,
-    q_mid,
-    stat_code,
-    clip_q,
-    min_bucket_size,
-    min_valid_segments,
-    recency_weighting_enabled,
-    recency_weight_min,
-    recency_weight_max,
+        x_arr,
+        y_arr,
+        segments_count,
+        train_frac,
+        gap,
+        q_ext,
+        q_mid,
+        stat_code,
+        clip_q,
+        min_bucket_size,
+        min_valid_segments,
+        recency_weighting_enabled,
+        recency_weight_min,
+        recency_weight_max,
 ):
     n = x_arr.shape[0]
     k = int(segments_count)
@@ -328,21 +327,21 @@ def _extremes_vs_mid_ir_oof_numba(
 
 
 def extremes_vs_mid_ir_oof(
-    x,
-    y,
-    segments_count=12,
-    train_frac=0.80,
-    gap=1500,
-    q_ext=0.10,
-    q_mid=0.10,
-    stat="mean_clip",
-    clip_q=0.01,
-    min_bucket_size=50,
-    min_valid_segments=2,
-    recency_weighting_enabled=False,
-    recency_weighting_mode="linear",
-    recency_weight_min=1.0,
-    recency_weight_max=1.5,
+        x,
+        y,
+        segments_count=12,
+        train_frac=0.80,
+        gap=1500,
+        q_ext=0.10,
+        q_mid=0.10,
+        stat="mean_clip",
+        clip_q=0.01,
+        min_bucket_size=50,
+        min_valid_segments=2,
+        recency_weighting_enabled=False,
+        recency_weighting_mode="linear",
+        recency_weight_min=1.0,
+        recency_weight_max=1.5,
 ):
     stat_txt = str(stat).strip().lower()
     if stat_txt == "mean_clip":
@@ -493,8 +492,8 @@ def _variable_score(var):
 
 
 def indicator_space_score(
-    indicator_name,
-    problem_map,
+        indicator_name,
+        problem_map,
 ):
     if indicator_name not in problem_map:
         raise KeyError(f"Unsupported indicator in problem_map: {indicator_name}")
@@ -510,9 +509,9 @@ def indicator_space_score(
 
 
 def compute_indicator_pop_sizes(
-    indicator_names,
-    problem_map,
-    base_pop_size,
+        indicator_names,
+        problem_map,
+        base_pop_size,
 ):
     base = _safe_positive_int(int(base_pop_size), "base_pop_size")
     names = sorted(set(indicator_names))

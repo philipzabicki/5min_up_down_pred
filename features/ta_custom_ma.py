@@ -124,7 +124,7 @@ def SWMA_fast(close, period):
 
     # np.convolve odwraca drugi wektor
     valid = np.convolve(close, w[::-1], mode="valid")
-    out[period - 1 :] = valid
+    out[period - 1:] = valid
     return out
 
 
@@ -142,7 +142,7 @@ def SWMA_INV_fast(close, period):
 
     # np.convolve odwraca drugi wektor
     valid = np.convolve(close, w[::-1], mode="valid")
-    out[period - 1 :] = valid
+    out[period - 1:] = valid
     return out
 
 
@@ -180,7 +180,7 @@ def LSMA(close, timeperiod):
     AT = np.ascontiguousarray(A.T)
     ATA_inv = np.linalg.inv(np.dot(AT, A))
     for i in range(timeperiod - 1, len(close)):
-        m, c = np.dot(ATA_inv, np.dot(AT, close[i - timeperiod + 1 : i + 1]))
+        m, c = np.dot(ATA_inv, np.dot(AT, close[i - timeperiod + 1: i + 1]))
         lsma[i] = m * (timeperiod - 1) + c
     return lsma
 
@@ -207,7 +207,7 @@ def ALMA(close, timeperiod, offset=0.85, sigma=6):
 
     # convolve odwraca kernel, więc dla ALMA trzeba odwrócić wagi ręcznie
     alma_valid = np.convolve(close, wtd[::-1], "valid")
-    out[timeperiod - 1 :] = alma_valid
+    out[timeperiod - 1:] = alma_valid
     return out
 
 
@@ -261,8 +261,8 @@ def VWMAv1(close, volume, timeperiod):
     volume = np.ascontiguousarray(volume)
     vwma = np.array(
         [
-            np.sum(close[i - timeperiod : i] * volume[i - timeperiod : i])
-            / np.sum(volume[i - timeperiod : i])
+            np.sum(close[i - timeperiod: i] * volume[i - timeperiod: i])
+            / np.sum(volume[i - timeperiod: i])
             for i in range(timeperiod, len(close) + 1)
         ]
     )
@@ -317,7 +317,7 @@ def HammingMA(close, timeperiod):
 
     w = np.hamming(timeperiod).astype(close.dtype)
     hma_valid = np.convolve(close, w, mode="valid") / w.sum()
-    out[timeperiod - 1 :] = hma_valid
+    out[timeperiod - 1:] = hma_valid
     return out
 
 
@@ -339,19 +339,19 @@ def NadarayWatsonMA(close, timeperiod, kernel=0):
     # oldest -> newest, więc newest ma lag 0 i największą wagę
     lags = np.arange(timeperiod - 1, -1, -1, dtype=np.float64)
     u = (
-        lags / timeperiod
+            lags / timeperiod
     )  # zostawiam obecną skalę, żeby nie rozjechać charakteru wygładzania
 
     if kernel == 0:
-        weights = np.exp(-0.5 * u**2) / np.sqrt(2.0 * np.pi)
+        weights = np.exp(-0.5 * u ** 2) / np.sqrt(2.0 * np.pi)
     elif kernel == 1:
-        weights = np.where(u <= 1.0, 0.75 * (1.0 - u**2), 0.0)
+        weights = np.where(u <= 1.0, 0.75 * (1.0 - u ** 2), 0.0)
     elif kernel == 2:
         weights = np.where(u <= 1.0, 0.5, 0.0)
     elif kernel == 3:
         weights = np.where(u <= 1.0, 1.0 - u, 0.0)
     elif kernel == 4:
-        weights = np.where(u <= 1.0, (15.0 / 16.0) * (1.0 - u**2) ** 2, 0.0)
+        weights = np.where(u <= 1.0, (15.0 / 16.0) * (1.0 - u ** 2) ** 2, 0.0)
     elif kernel == 5:
         weights = np.where(u <= 1.0, (np.pi / 4.0) * np.cos((np.pi / 2.0) * u), 0.0)
     else:
@@ -363,7 +363,7 @@ def NadarayWatsonMA(close, timeperiod, kernel=0):
         return out
 
     for i in range(timeperiod - 1, n):
-        out[i] = (weights @ close[i - timeperiod + 1 : i + 1]) / weights_sum
+        out[i] = (weights @ close[i - timeperiod + 1: i + 1]) / weights_sum
 
     return out
 
@@ -383,7 +383,7 @@ def LWMA(close, period):
     weights_sum = weights.sum()
 
     for i in range(period - 1, n):
-        out[i] = np.dot(close[i - period + 1 : i + 1], weights) / weights_sum
+        out[i] = np.dot(close[i - period + 1: i + 1], weights) / weights_sum
 
     return out
 
@@ -451,7 +451,7 @@ def CWMA(close, weights, period):
     for i in range(period, len(close)):
         # print(f'window_weight_sum {window_weight_sum}')
         # print(f'window_prod_sum {window_prod_sum}')
-        window_prod_sum = np.sum(close[i - period : i] * weights)
+        window_prod_sum = np.sum(close[i - period: i] * weights)
         cwma[i] = window_prod_sum / window_weight_sum
         # print(f'cwma {cwma[i]}')
     return cwma

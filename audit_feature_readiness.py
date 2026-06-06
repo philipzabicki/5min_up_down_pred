@@ -1,33 +1,25 @@
-import json
-import os
-import time
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
 import requests
+
+from features.ADX import get_adx_values
+from features.BollingerBands import get_bollinger_bands_values
+from features.ChaikinOsc import get_chaikin_oscillator_values
+from features.KeltnerChannel import get_keltner_channel_values
+from features.MACD import get_macd_values
+from features.StochOsc import get_stochastic_oscillator_values
+from features.candle_features import (
+    RAW_OHLCV_COLS,
+    STREAK_FEATURE_PREFIX,
+    SUPPORTED_CANDLE_FEATURE_COLS,
+)
+from features.session_open_features import SUPPORTED_SESSION_OPEN_FEATURE_COLS
 from utils.config import coerce_path
-from create_modeling_dataset import parse_fit_results
 from utils.data import (
     load_modeling_dataset_settings,
     resolve_modeling_dataset_output_paths,
 )
 from utils.project_config import load_runtime_artifact_paths
-
-from features.ADX import get_adx_values
-from features.BollingerBands import get_bollinger_bands_values
-from features.ChaikinOsc import get_chaikin_oscillator_values
-from features.candle_features import (
-    RAW_OHLCV_COLS,
-    STREAK_FEATURE_PREFIX,
-    SUPPORTED_CANDLE_FEATURE_COLS,
-    add_candle_derived_features,
-)
-from features.KeltnerChannel import get_keltner_channel_values
-from features.MACD import get_macd_values
-from features.session_open_features import SUPPORTED_SESSION_OPEN_FEATURE_COLS
-from features.StochOsc import get_stochastic_oscillator_values
-from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
 
 FUTURES_REST_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
 
@@ -71,9 +63,9 @@ FIT_RESULTS_DIR = Path(MODELING_DATASET_SETTINGS["fit_results_dir"])
 
 OHLCV_COLS = list(RAW_OHLCV_COLS)
 BASE_FEATURE_COLS = (
-    set(OHLCV_COLS)
-    | set(SUPPORTED_CANDLE_FEATURE_COLS)
-    | set(SUPPORTED_SESSION_OPEN_FEATURE_COLS)
+        set(OHLCV_COLS)
+        | set(SUPPORTED_CANDLE_FEATURE_COLS)
+        | set(SUPPORTED_SESSION_OPEN_FEATURE_COLS)
 )
 VALUE_BUILDERS = {
     "ADX": get_adx_values,
@@ -95,12 +87,12 @@ class IndicatorSpec:
     )
 
     def __init__(
-        self,
-        feature_col,
-        indicator,
-        builder,
-        params,
-        required_candles_estimate,
+            self,
+            feature_col,
+            indicator,
+            builder,
+            params,
+            required_candles_estimate,
     ):
         self.feature_col = feature_col
         self.indicator = indicator
@@ -550,14 +542,14 @@ def compare_anchor_ohlcv(reference_df, ohlcv_df, anchor_positions):
 
 
 def evaluate_feature_stability(
-    spec,
-    ohlcv_np,
-    anchor_positions,
-    reference_values,
-    abs_tol,
-    rel_tol,
-    max_window,
-    scan_back,
+        spec,
+        ohlcv_np,
+        anchor_positions,
+        reference_values,
+        abs_tol,
+        rel_tol,
+        max_window,
+        scan_back,
 ):
     anchor_positions = np.asarray(anchor_positions, dtype=np.int64)
     reference_values = np.asarray(reference_values, dtype=np.float64)
@@ -607,7 +599,7 @@ def evaluate_feature_stability(
                 cache[window_len] = (False, np.inf)
                 return cache[window_len]
 
-            window = ohlcv_np[start : int(pos) + 1, :]
+            window = ohlcv_np[start: int(pos) + 1, :]
             try:
                 built = spec.builder(spec.params, window)
             except Exception:
@@ -943,8 +935,6 @@ def _run_indicator_stability_audit_impl():
     )
 
 
-
-
 def _capture_indicator_stability_globals():
     excluded = {
         "__name__",
@@ -1009,16 +999,12 @@ from features.candle_features import (
     SUPPORTED_CANDLE_FEATURE_COLS,
     add_candle_derived_features,
     add_candle_streak_features,
-    build_latest_candle_derived_feature_dict_fast,
-    build_latest_candle_pattern_feature_dict,
-    build_latest_candle_streak_feature_dict_fast,
     resolve_candle_derived_feature_cols,
     resolve_candle_pattern_feature_cols,
     resolve_streak_interval_to_rule,
 )
 from features.session_open_features import (
     add_session_open_features,
-    build_latest_session_open_feature_dict_fast,
 )
 from features.realized_volatility import add_realized_volatility_features
 from features.volume_profile_fixed_range import (
@@ -1028,12 +1014,10 @@ from features.volume_profile_fixed_range import (
     PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR as VP_PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR,
     build_volume_profile_features,
     bootstrap_state_from_history,
-    extract_features_from_state,
     load_state as load_volume_profile_state,
     normalize_config as normalize_volume_profile_config,
     save_state as save_volume_profile_state,
     state_matches_config as volume_profile_state_matches_config,
-    update_state_with_candle as update_volume_profile_state_with_candle,
     validate_volume_profile_feature_columns,
     validate_volume_profile_model_metadata,
 )
@@ -1175,8 +1159,8 @@ def _load_model_feature_importance_frame(meta):
 def resolve_anchor_volume_profile_state_path(anchor_candle_opened):
     stamp = pd.Timestamp(anchor_candle_opened).strftime("%Y%m%d_%H%M")
     return (
-        VP_AUDIT_ANCHOR_STATE_DIR
-        / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}_audit_anchor_{stamp}"
+            VP_AUDIT_ANCHOR_STATE_DIR
+            / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}_audit_anchor_{stamp}"
     )
 
 
@@ -1357,12 +1341,12 @@ def _format_console_rate(value):
 
 
 def _print_console_ranked_rows(
-    title,
-    frame,
-    *,
-    label_col,
-    metric_specs,
-    limit=AUDIT_CONSOLE_TOP_N,
+        title,
+        frame,
+        *,
+        label_col,
+        metric_specs,
+        limit=AUDIT_CONSOLE_TOP_N,
 ):
     if frame is None or frame.empty:
         return
@@ -1514,10 +1498,10 @@ def _safe_nanmax_axis0(values):
 
 
 def _safe_relative_diff(
-    candidate_values,
-    reference_values,
-    *,
-    denom_floor=REL_DIFF_DENOM_FLOOR,
+        candidate_values,
+        reference_values,
+        *,
+        denom_floor=REL_DIFF_DENOM_FLOOR,
 ):
     candidate = np.asarray(candidate_values, dtype=np.float64)
     reference = np.asarray(reference_values, dtype=np.float64)
@@ -1672,18 +1656,18 @@ def _feature_builder_frame(feature_columns):
 
 
 def _build_single_feature_prediction_impact_report(
-    *,
-    candidate_label,
-    reference_label,
-    candidate_matrix,
-    reference_matrix,
-    candidate_pred,
-    reference_pred,
-    audit_df,
-    feature_columns,
-    feature_group_by_name,
-    feature_builder_frame,
-    model,
+        *,
+        candidate_label,
+        reference_label,
+        candidate_matrix,
+        reference_matrix,
+        candidate_pred,
+        reference_pred,
+        audit_df,
+        feature_columns,
+        feature_group_by_name,
+        feature_builder_frame,
+        model,
 ):
     row_count, feature_count = candidate_matrix.shape
     if feature_count != len(feature_columns):
@@ -2031,11 +2015,11 @@ def _build_single_feature_prediction_impact_report(
             "top_prediction_impact_signal_mismatch_resolved_if_fixed": np.where(
                 row_has_helpful_single_feature_fix,
                 (
-                    base_signal_mismatch
-                    & ~(
+                        base_signal_mismatch
+                        & ~(
                         (fixed_pred_matrix[np.arange(row_count), row_best_idx] >= 0.5)
                         != (reference_pred >= 0.5)
-                    )
+                )
                 ),
                 False,
             ),
@@ -2135,10 +2119,10 @@ def _build_single_feature_prediction_impact_report(
 
 
 def resolve_recent_history_tail_window(
-    *,
-    parquet_path,
-    audit_end,
-    tail_fraction,
+        *,
+        parquet_path,
+        audit_end,
+        tail_fraction,
 ):
     tail_fraction = float(tail_fraction)
     if not (0.0 < tail_fraction <= 1.0):
@@ -2159,10 +2143,10 @@ def resolve_recent_history_tail_window(
 
 
 def load_modeling_raw_history_frame(
-    *,
-    parquet_path,
-    audit_end,
-    history_start=None,
+        *,
+        parquet_path,
+        audit_end,
+        history_start=None,
 ):
     filters = []
     if history_start is not None:
@@ -2195,9 +2179,9 @@ def load_modeling_raw_history_frame(
 
 
 def build_current_recomputed_feature_history(
-    *,
-    raw_history_df,
-    feature_columns,
+        *,
+        raw_history_df,
+        feature_columns,
 ):
     feature_parts = split_feature_subset(
         feature_columns,
@@ -2293,10 +2277,10 @@ def build_current_recomputed_feature_history(
 
 
 def align_feature_frame_to_audit_rows(
-    *,
-    audit_df,
-    feature_frame,
-    feature_columns,
+        *,
+        audit_df,
+        feature_frame,
+        feature_columns,
 ):
     aligned = audit_df.loc[:, ["Opened"]].merge(
         feature_frame.loc[:, ["Opened", *feature_columns]],
@@ -2316,17 +2300,17 @@ def align_feature_frame_to_audit_rows(
 
 
 def _compare_policy_decisions(
-    *,
-    predictor,
-    candidate_proba,
-    reference_proba,
-    candidate_label,
-    reference_label,
+        *,
+        predictor,
+        candidate_proba,
+        reference_proba,
+        candidate_label,
+        reference_label,
 ):
     bankroll = float(LIVE_INITIAL_BANKROLL_USDC)
     rows = []
     for candidate_prob, reference_prob in zip(
-        candidate_proba, reference_proba, strict=True
+            candidate_proba, reference_proba, strict=True
     ):
         candidate_decision = predictor.evaluate_policy_decision(
             float(candidate_prob),
@@ -2381,18 +2365,18 @@ def _compare_policy_decisions(
 
 
 def build_matrix_comparison_report(
-    *,
-    candidate_label,
-    reference_label,
-    candidate_matrix,
-    reference_matrix,
-    audit_df,
-    feature_columns,
-    feature_group_by_name,
-    feature_builder_frame,
-    model,
-    feature_importance_df=None,
-    policy_predictor=None,
+        *,
+        candidate_label,
+        reference_label,
+        candidate_matrix,
+        reference_matrix,
+        audit_df,
+        feature_columns,
+        feature_group_by_name,
+        feature_builder_frame,
+        model,
+        feature_importance_df=None,
+        policy_predictor=None,
 ):
     feature_names = np.asarray(feature_columns, dtype=object)
     builder_meta = (
@@ -2484,7 +2468,7 @@ def build_matrix_comparison_report(
             f"{reference_label}_proba_up": reference_pred,
             "proba_up_abs_diff": pred_abs_diff,
             "signal_mismatch": (
-                (candidate_pred >= 0.5) != (reference_pred >= 0.5)
+                    (candidate_pred >= 0.5) != (reference_pred >= 0.5)
             ).astype(np.int8),
         }
     )
@@ -2511,14 +2495,14 @@ def build_matrix_comparison_report(
             copy=False,
         )
         step_summary_df["business_decision_mismatch"] = (
-            (step_summary_df["signal_mismatch"] > 0)
-            | (step_summary_df["policy_side_mismatch"] > 0)
-            | (step_summary_df["policy_reason_mismatch"] > 0)
-            | (step_summary_df["policy_trade_flag_mismatch"] > 0)
+                (step_summary_df["signal_mismatch"] > 0)
+                | (step_summary_df["policy_side_mismatch"] > 0)
+                | (step_summary_df["policy_reason_mismatch"] > 0)
+                | (step_summary_df["policy_trade_flag_mismatch"] > 0)
         ).astype(np.int8)
         step_summary_df["stake_only_policy_mismatch"] = (
-            (step_summary_df["policy_decision_mismatch"] > 0)
-            & (step_summary_df["business_decision_mismatch"] == 0)
+                (step_summary_df["policy_decision_mismatch"] > 0)
+                & (step_summary_df["business_decision_mismatch"] == 0)
         ).astype(np.int8)
     else:
         step_summary_df["business_decision_mismatch"] = step_summary_df[
@@ -2844,9 +2828,9 @@ def build_matrix_comparison_report(
 
 
 def build_live_drift_reason_report(
-    report,
-    *,
-    top_n=20,
+        report,
+        *,
+        top_n=20,
 ):
     step_summary_df = report["step_summary_df"].copy()
     feature_summary_df = report["feature_summary_df"].copy()
@@ -3061,11 +3045,11 @@ def build_live_drift_reason_report(
     )
 
     if (
-        fixed_pred_matrix is not None
-        and proba_shift_matrix is not None
-        and gap_reduction_matrix is not None
-        and candidate_proba_col in step_summary_df.columns
-        and reference_proba_col in step_summary_df.columns
+            fixed_pred_matrix is not None
+            and proba_shift_matrix is not None
+            and gap_reduction_matrix is not None
+            and candidate_proba_col in step_summary_df.columns
+            and reference_proba_col in step_summary_df.columns
     ):
         explain_fixed_pred_matrix = fixed_pred_matrix[explain_row_mask, :]
         explain_abs_proba_shift_matrix = np.abs(proba_shift_matrix[explain_row_mask, :])
@@ -3083,11 +3067,11 @@ def build_live_drift_reason_report(
             copy=False,
         )
         explain_signal_mismatch = (
-            (explain_candidate_pred >= 0.5) != (explain_reference_pred >= 0.5)
+                (explain_candidate_pred >= 0.5) != (explain_reference_pred >= 0.5)
         )[:, None]
         explain_fixed_signal_mismatch = (
-            explain_fixed_pred_matrix >= 0.5
-        ) != explain_reference_pred[:, None]
+                                                explain_fixed_pred_matrix >= 0.5
+                                        ) != explain_reference_pred[:, None]
 
         explain_feature_summary_df = (
             pd.DataFrame(
@@ -3106,12 +3090,12 @@ def build_live_drift_reason_report(
                         explain_abs_proba_shift_matrix
                     ),
                     "rows_abs_proba_gap_reduced_if_fixed_on_explained_rows": (
-                        explain_gap_reduction_matrix > PREDICTION_DIFF_TOL
+                            explain_gap_reduction_matrix > PREDICTION_DIFF_TOL
                     )
                     .sum(axis=0)
                     .astype(np.int32),
                     "rows_signal_mismatch_resolved_if_fixed_on_explained_rows": (
-                        explain_signal_mismatch & ~explain_fixed_signal_mismatch
+                            explain_signal_mismatch & ~explain_fixed_signal_mismatch
                     )
                     .sum(axis=0)
                     .astype(np.int32),
@@ -3260,14 +3244,14 @@ class AuditWindow:
     )
 
     def __init__(
-        self,
-        bootstrap_start,
-        audit_start,
-        audit_end,
-        bootstrap_rows,
-        audit_rows,
-        requested_days_back,
-        max_steps,
+            self,
+            bootstrap_start,
+            audit_start,
+            audit_end,
+            bootstrap_rows,
+            audit_rows,
+            requested_days_back,
+            max_steps,
     ):
         self.bootstrap_start = bootstrap_start
         self.audit_start = audit_start
@@ -3280,13 +3264,13 @@ class AuditWindow:
 
 class PseudoLiveAuditPredictor(LivePredictor):
     def __init__(
-        self,
-        bootstrap_df,
-        *,
-        model_meta_path=MODEL_META_PATH,
-        max_keep=DEFAULT_MAX_KEEP,
-        volume_profile_state=None,
-        allow_unstable_indicator_summary=AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY,
+            self,
+            bootstrap_df,
+            *,
+            model_meta_path=MODEL_META_PATH,
+            max_keep=DEFAULT_MAX_KEEP,
+            volume_profile_state=None,
+            allow_unstable_indicator_summary=AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY,
     ):
         self.model, meta = load_model_and_meta(model_meta_path)
         self.feature_columns = list(meta.get("feature_columns", []))
@@ -3358,12 +3342,12 @@ class PseudoLiveAuditPredictor(LivePredictor):
             self.volume_profile_feature_columns and self.volume_profile_cfg["enabled"]
         )
         self.volume_profile_state_path = (
-            VP_PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR
-            / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}"
+                VP_PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR
+                / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}"
         )
         self.volume_profile_modeling_state_path = (
-            VP_PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR
-            / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}_modeling_end"
+                VP_PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR
+                / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}_modeling_end"
         )
         self.volume_profile_state_source_path = None
         self.volume_profile_save_pool = None
@@ -3471,10 +3455,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
         return None
 
     def evaluate_policy_decision(
-        self,
-        prob_up_raw,
-        *,
-        bankroll=None,
+            self,
+            prob_up_raw,
+            *,
+            bankroll=None,
     ):
         prev_bankroll = float(self.live_bankroll_usdc)
         try:
@@ -3502,11 +3486,11 @@ def _load_opened_series(parquet_path):
 
 
 def resolve_audit_window(
-    *,
-    parquet_path,
-    days_back=DEFAULT_AUDIT_DAYS_BACK,
-    bootstrap_candles=DEFAULT_BOOTSTRAP_CANDLES,
-    max_steps=None,
+        *,
+        parquet_path,
+        days_back=DEFAULT_AUDIT_DAYS_BACK,
+        bootstrap_candles=DEFAULT_BOOTSTRAP_CANDLES,
+        max_steps=None,
 ):
     opened = _load_opened_series(parquet_path)
     if opened.empty:
@@ -3544,10 +3528,10 @@ def resolve_audit_window(
 
 
 def load_modeling_audit_frame(
-    *,
-    parquet_path,
-    feature_columns,
-    audit_window,
+        *,
+        parquet_path,
+        feature_columns,
+        audit_window,
 ):
     columns = ["Opened", *RAW_OHLCV_COLS, *feature_columns]
     frame = pd.read_parquet(
@@ -3576,9 +3560,9 @@ def load_modeling_audit_frame(
 
 
 def load_anchor_volume_profile_history(
-    *,
-    parquet_path,
-    anchor_candle_opened,
+        *,
+        parquet_path,
+        anchor_candle_opened,
 ):
     anchor_candle_opened = pd.Timestamp(anchor_candle_opened)
     frame = pd.read_parquet(
@@ -3602,19 +3586,19 @@ def load_anchor_volume_profile_history(
 
 
 def build_or_load_anchor_volume_profile_state(
-    *,
-    parquet_path,
-    anchor_candle_opened,
-    overwrite=False,
+        *,
+        parquet_path,
+        anchor_candle_opened,
+        overwrite=False,
 ):
     state_path = resolve_anchor_volume_profile_state_path(anchor_candle_opened)
     vp_cfg = normalize_volume_profile_config(
         MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
     )
     if (
-        not overwrite
-        and state_path.with_suffix(".npz").exists()
-        and state_path.with_suffix(".json").exists()
+            not overwrite
+            and state_path.with_suffix(".npz").exists()
+            and state_path.with_suffix(".json").exists()
     ):
         try:
             state = load_volume_profile_state(state_path)
@@ -3644,16 +3628,16 @@ def build_or_load_anchor_volume_profile_state(
 
 
 def run_stored_modeling_vs_current_recompute_audit(
-    *,
-    days_back=DEFAULT_AUDIT_DAYS_BACK,
-    max_steps=None,
-    history_tail_fraction=1.0,
-    model_meta_path=MODEL_META_PATH,
-    parquet_path=None,
+        *,
+        days_back=DEFAULT_AUDIT_DAYS_BACK,
+        max_steps=None,
+        history_tail_fraction=1.0,
+        model_meta_path=MODEL_META_PATH,
+        parquet_path=None,
 ):
     model_meta_path = Path(model_meta_path)
     parquet_path = (
-        _optional_path(parquet_path) or resolve_modeling_dataset_parquet_path()
+            _optional_path(parquet_path) or resolve_modeling_dataset_parquet_path()
     )
 
     model, meta = load_model_and_meta(model_meta_path)
@@ -3794,19 +3778,19 @@ def run_stored_modeling_vs_current_recompute_audit(
 
 
 def run_live_modeling_feature_audit(
-    *,
-    days_back=DEFAULT_AUDIT_DAYS_BACK,
-    bootstrap_candles=DEFAULT_BOOTSTRAP_CANDLES,
-    max_steps=None,
-    max_keep=DEFAULT_MAX_KEEP,
-    model_meta_path=MODEL_META_PATH,
-    parquet_path=None,
-    use_anchor_vp_state=True,
-    overwrite_anchor_vp_state=False,
+        *,
+        days_back=DEFAULT_AUDIT_DAYS_BACK,
+        bootstrap_candles=DEFAULT_BOOTSTRAP_CANDLES,
+        max_steps=None,
+        max_keep=DEFAULT_MAX_KEEP,
+        model_meta_path=MODEL_META_PATH,
+        parquet_path=None,
+        use_anchor_vp_state=True,
+        overwrite_anchor_vp_state=False,
 ):
     model_meta_path = Path(model_meta_path)
     parquet_path = (
-        _optional_path(parquet_path) or resolve_modeling_dataset_parquet_path()
+            _optional_path(parquet_path) or resolve_modeling_dataset_parquet_path()
     )
     progress_enabled = bool(AUDIT_PROGRESS_ENABLED)
     progress_every = max(1, int(AUDIT_PROGRESS_EVERY_STEPS))
@@ -3862,8 +3846,8 @@ def run_live_modeling_feature_audit(
     )
     resolved_max_keep = max(int(max_keep), int(required_stable_window))
     if progress_enabled and (
-        resolved_bootstrap_candles != int(bootstrap_candles)
-        or resolved_max_keep != int(max_keep)
+            resolved_bootstrap_candles != int(bootstrap_candles)
+            or resolved_max_keep != int(max_keep)
     ):
         print(
             "[audit] adjusted_history_windows "
@@ -3904,7 +3888,7 @@ def run_live_modeling_feature_audit(
 
     bootstrap_df = modeling_frame.iloc[: audit_window.bootstrap_rows].copy()
     audit_df = (
-        modeling_frame.iloc[audit_window.bootstrap_rows :].copy().reset_index(drop=True)
+        modeling_frame.iloc[audit_window.bootstrap_rows:].copy().reset_index(drop=True)
     )
     if audit_df.empty:
         raise RuntimeError("Audit dataframe is empty after splitting bootstrap rows.")
@@ -4004,9 +3988,9 @@ def run_live_modeling_feature_audit(
             decision_steps += 1
         completed_steps = row_idx + 1
         if progress_enabled and (
-            completed_steps == 1
-            or completed_steps == total_steps
-            or completed_steps % progress_interval == 0
+                completed_steps == 1
+                or completed_steps == total_steps
+                or completed_steps % progress_interval == 0
         ):
             elapsed_sec = time.perf_counter() - loop_started_at
             steps_per_sec = (
@@ -4132,11 +4116,11 @@ def run_live_modeling_feature_audit(
 
 
 def feature_drilldown(
-    results,
-    feature_name,
-    *,
-    report_key=None,
-    top_n=20,
+        results,
+        feature_name,
+        *,
+        report_key=None,
+        top_n=20,
 ):
     report = results if report_key is None else results[report_key]
     feature_columns = list(report["feature_columns"])
@@ -4196,11 +4180,11 @@ def feature_drilldown(
     proba_shift_matrix = report.get("single_feature_proba_shift_matrix")
     gap_reduction_matrix = report.get("single_feature_gap_reduction_matrix")
     if (
-        fixed_pred_matrix is not None
-        and proba_shift_matrix is not None
-        and gap_reduction_matrix is not None
-        and candidate_proba_col in step_summary_df.columns
-        and reference_proba_col in step_summary_df.columns
+            fixed_pred_matrix is not None
+            and proba_shift_matrix is not None
+            and gap_reduction_matrix is not None
+            and candidate_proba_col in step_summary_df.columns
+            and reference_proba_col in step_summary_df.columns
     ):
         fixed_pred_series = np.asarray(fixed_pred_matrix, dtype=np.float64)[
             :, feature_idx
@@ -4223,10 +4207,10 @@ def feature_drilldown(
         drilldown_df["proba_up_shift_if_feature_fixed"] = proba_shift_series
         drilldown_df["abs_proba_gap_reduction_if_feature_fixed"] = gap_reduction_series
         drilldown_df["signal_mismatch_resolved_if_feature_fixed"] = (
-            base_signal_mismatch & ~fixed_signal_mismatch
+                base_signal_mismatch & ~fixed_signal_mismatch
         ).astype(np.int8)
         drilldown_df["signal_mismatch_introduced_if_feature_fixed"] = (
-            ~base_signal_mismatch & fixed_signal_mismatch
+                ~base_signal_mismatch & fixed_signal_mismatch
         ).astype(np.int8)
 
     sort_spec = [
@@ -4247,22 +4231,22 @@ def feature_drilldown(
 
 
 def _build_feature_prediction_impact_export_df(
-    feature_summary_df,
-    *,
-    top_k=None,
-    only_impactful=False,
+        feature_summary_df,
+        *,
+        top_k=None,
+        only_impactful=False,
 ):
     feature_summary_df = feature_summary_df.copy()
     if (
-        "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed"
-        not in feature_summary_df.columns
+            "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed"
+            not in feature_summary_df.columns
     ):
         feature_summary_df["mean_abs_proba_gap_reduction_on_drift_rows_if_fixed"] = (
             feature_summary_df.get("mean_abs_proba_gap_reduction_if_fixed", 0.0)
         )
     if (
-        "mean_abs_proba_gap_reduction_on_helped_rows_if_fixed"
-        not in feature_summary_df.columns
+            "mean_abs_proba_gap_reduction_on_helped_rows_if_fixed"
+            not in feature_summary_df.columns
     ):
         feature_summary_df["mean_abs_proba_gap_reduction_on_helped_rows_if_fixed"] = (
             feature_summary_df.get("mean_abs_proba_gap_reduction_if_fixed", 0.0)
@@ -4297,10 +4281,10 @@ def _build_feature_prediction_impact_export_df(
         )
         if only_impactful and not export_df.empty:
             impact_mask = (
-                export_df["rows_helped"].gt(0)
-                | export_df["signal_flips_resolved"].gt(0)
-                | export_df["proba_drift_rows_resolved"].gt(0)
-                | export_df["net_pred_gap_reduction"].gt(PREDICTION_DIFF_TOL)
+                    export_df["rows_helped"].gt(0)
+                    | export_df["signal_flips_resolved"].gt(0)
+                    | export_df["proba_drift_rows_resolved"].gt(0)
+                    | export_df["net_pred_gap_reduction"].gt(PREDICTION_DIFF_TOL)
             )
             export_df = export_df.loc[impact_mask].reset_index(drop=True)
             export_df["rank"] = np.arange(1, len(export_df) + 1, dtype=np.int32)
@@ -4373,10 +4357,10 @@ def _build_feature_prediction_impact_export_df(
     export_df.insert(0, "rank", np.arange(1, len(export_df) + 1, dtype=np.int32))
     if only_impactful and not export_df.empty:
         impact_mask = (
-            export_df["rows_helped"].gt(0)
-            | export_df["signal_flips_resolved"].gt(0)
-            | export_df["proba_drift_rows_resolved"].gt(0)
-            | export_df["net_pred_gap_reduction"].gt(PREDICTION_DIFF_TOL)
+                export_df["rows_helped"].gt(0)
+                | export_df["signal_flips_resolved"].gt(0)
+                | export_df["proba_drift_rows_resolved"].gt(0)
+                | export_df["net_pred_gap_reduction"].gt(PREDICTION_DIFF_TOL)
         )
         export_df = export_df.loc[impact_mask].reset_index(drop=True)
         export_df["rank"] = np.arange(1, len(export_df) + 1, dtype=np.int32)
@@ -4387,9 +4371,9 @@ def _build_feature_prediction_impact_export_df(
 
 
 def _feature_prediction_impact_records(
-    feature_summary_df,
-    *,
-    top_k,
+        feature_summary_df,
+        *,
+        top_k,
 ):
     export_df = _build_feature_prediction_impact_export_df(
         feature_summary_df,
@@ -4400,9 +4384,9 @@ def _feature_prediction_impact_records(
 
 
 def _build_feature_drop_candidates_df(
-    feature_summary_df,
-    *,
-    top_k=None,
+        feature_summary_df,
+        *,
+        top_k=None,
 ):
     if feature_summary_df.empty:
         return pd.DataFrame(
@@ -4447,7 +4431,7 @@ def _build_feature_drop_candidates_df(
         export_df["rows_proba_diff_gt_tol_resolved_if_fixed"] = 0
 
     export_df["flag_finite_status_mismatch"] = (
-        export_df["finite_status_mismatch_count"] > 0
+            export_df["finite_status_mismatch_count"] > 0
     )
     export_df["flag_max_abs_diff"] = export_df["max_abs_diff"].abs().gt(
         FEATURE_DROP_MAX_ABS_DIFF_TOL
@@ -4459,20 +4443,20 @@ def _build_feature_drop_candidates_df(
         FEATURE_DROP_MAX_REL_DIFF_TOL
     )
     export_df["flag_prediction_impact"] = (
-        export_df["max_abs_proba_shift_if_fixed"].gt(PREDICTION_DIFF_TOL)
-        | export_df["rows_signal_mismatch_resolved_if_fixed"].gt(0)
-        | export_df["rows_proba_diff_gt_tol_resolved_if_fixed"].gt(0)
+            export_df["max_abs_proba_shift_if_fixed"].gt(PREDICTION_DIFF_TOL)
+            | export_df["rows_signal_mismatch_resolved_if_fixed"].gt(0)
+            | export_df["rows_proba_diff_gt_tol_resolved_if_fixed"].gt(0)
     )
     export_df["flag_abs_diff_material"] = (
-        export_df["flag_max_abs_diff"] | export_df["flag_mean_abs_diff"]
+            export_df["flag_max_abs_diff"] | export_df["flag_mean_abs_diff"]
     )
     export_df["drop_candidate"] = (
-        export_df["flag_finite_status_mismatch"]
-        | export_df["flag_max_rel_diff"]
-        | (
-            export_df["flag_abs_diff_material"]
-            & export_df["flag_prediction_impact"]
-        )
+            export_df["flag_finite_status_mismatch"]
+            | export_df["flag_max_rel_diff"]
+            | (
+                    export_df["flag_abs_diff_material"]
+                    & export_df["flag_prediction_impact"]
+            )
     )
 
     reason_cols = [
@@ -4550,11 +4534,11 @@ def _build_feature_drop_candidates_df(
 
 
 def save_audit_outputs(
-    results,
-    *,
-    output_dir,
-    drilldown_feature_name=None,
-    top_n=50,
+        results,
+        *,
+        output_dir,
+        drilldown_feature_name=None,
+        top_n=50,
 ):
     output_dir.mkdir(parents=True, exist_ok=True)
     written_paths = {}
@@ -4564,19 +4548,19 @@ def save_audit_outputs(
     written_paths["summary_json"] = output_dir / "live_vs_stored_summary.json"
     written_paths["decision_rows_csv"] = output_dir / "live_vs_stored_decision_rows.csv"
     written_paths["feature_prediction_impacts_csv"] = (
-        output_dir / "live_vs_stored_feature_prediction_impacts.csv"
+            output_dir / "live_vs_stored_feature_prediction_impacts.csv"
     )
     written_paths["feature_prediction_impacts_full_csv"] = (
-        output_dir / "live_vs_stored_feature_prediction_impacts_full.csv"
+            output_dir / "live_vs_stored_feature_prediction_impacts_full.csv"
     )
     written_paths["feature_drop_candidates_csv"] = (
-        output_dir / "live_vs_stored_feature_drop_candidates.csv"
+            output_dir / "live_vs_stored_feature_drop_candidates.csv"
     )
     written_paths["builder_prediction_impacts_csv"] = (
-        output_dir / "live_vs_stored_builder_prediction_impacts.csv"
+            output_dir / "live_vs_stored_builder_prediction_impacts.csv"
     )
     written_paths["group_prediction_impacts_csv"] = (
-        output_dir / "live_vs_stored_group_prediction_impacts.csv"
+            output_dir / "live_vs_stored_group_prediction_impacts.csv"
     )
     feature_export_df = _build_feature_prediction_impact_export_df(
         report["feature_summary_df"],
@@ -4671,7 +4655,7 @@ def save_audit_outputs(
 
     if drilldown_feature_name:
         drilldown_path = (
-            output_dir / f"live_vs_stored_drilldown_{drilldown_feature_name}.csv"
+                output_dir / f"live_vs_stored_drilldown_{drilldown_feature_name}.csv"
         )
         feature_drilldown(
             results,
@@ -4687,9 +4671,9 @@ def save_audit_outputs(
 def _default_output_dir():
     stamp = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
     return (
-        Path("data/analysis/live_feature_parity")
-        / str(MODELING_DATASET_SETTINGS["active_asset"])
-        / stamp
+            Path("data/analysis/live_feature_parity")
+            / str(MODELING_DATASET_SETTINGS["active_asset"])
+            / stamp
     )
 
 
@@ -4751,8 +4735,6 @@ __all__ = [
     "run_live_modeling_feature_audit",
     "save_audit_outputs",
 ]
-
-
 
 
 def run_feature_readiness_audit():

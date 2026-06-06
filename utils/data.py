@@ -16,21 +16,21 @@ from features.candle_features import (
     SUPPORTED_CANDLE_FEATURE_COLS,
     is_deprecated_candle_feature_col,
 )
+from features.realized_volatility import (
+    is_realized_volatility_feature,
+)
 from features.session_open_features import (
     SUPPORTED_SESSION_OPEN_FEATURE_COLS,
     is_session_open_feature,
 )
-from features.realized_volatility import (
-    is_realized_volatility_feature,
-)
 from features.volume_profile_fixed_range import is_volume_profile_feature
 from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
+from utils.collections import dedupe_ordered as _dedupe_ordered
 from utils.project_config import (
     ACTIVE_CONFIG_PATH,
     MODELING_CONFIG_PATH,
     load_modeling_settings,
 )
-from utils.collections import dedupe_ordered as _dedupe_ordered
 
 MODELING_DATASET_CONFIG_FILE = MODELING_CONFIG_PATH
 ACTIVE_PROFILE_CONFIG_FILE = ACTIVE_CONFIG_PATH
@@ -58,9 +58,9 @@ def _format_weight_key(value):
 
 
 def compute_decision_mask_from_opened(
-    opened_values,
-    minute_modulo=TARGET_WEIGHT_MINUTE_MODULO,
-    minute_remainder=TARGET_WEIGHT_MINUTE_REMAINDER,
+        opened_values,
+        minute_modulo=TARGET_WEIGHT_MINUTE_MODULO,
+        minute_remainder=TARGET_WEIGHT_MINUTE_REMAINDER,
 ):
     opened_index = pd.DatetimeIndex(pd.to_datetime(opened_values, errors="raise"))
     opened_minute = opened_index.minute.to_numpy(dtype=np.int16, copy=False)
@@ -78,10 +78,10 @@ def compute_target_weights_from_opened(opened_values, dtype=np.float64):
 
 
 def compute_binary_close_target_from_opened(
-    opened_values,
-    close_values,
-    horizon_minutes,
-    dtype=np.float64,
+        opened_values,
+        close_values,
+        horizon_minutes,
+        dtype=np.float64,
 ):
     horizon = int(horizon_minutes)
     if horizon <= 0:
@@ -108,16 +108,16 @@ def compute_binary_close_target_from_opened(
     if np.any(valid_mask):
         # Keep target semantics aligned with Polymarket settlement: ties resolve Up.
         target[valid_mask] = (
-            future_close[valid_mask] >= current_close[valid_mask]
+                future_close[valid_mask] >= current_close[valid_mask]
         ).astype(dtype, copy=False)
     return target
 
 
 def add_target_weights(
-    df,
-    opened_col="Opened",
-    weight_col=TARGET_WEIGHT_COL,
-    dtype=np.float64,
+        df,
+        opened_col="Opened",
+        weight_col=TARGET_WEIGHT_COL,
+        dtype=np.float64,
 ):
     if opened_col not in df.columns:
         raise ValueError(
@@ -178,10 +178,10 @@ def normalize_drop_frozen_ohlc_blocks_config(raw_config):
 
 
 def drop_frozen_ohlc_blocks(
-    df,
-    raw_config=None,
-    opened_col="Opened",
-    ohlc_cols=("Open", "High", "Low", "Close"),
+        df,
+        raw_config=None,
+        opened_col="Opened",
+        ohlc_cols=("Open", "High", "Low", "Close"),
 ):
     config = normalize_drop_frozen_ohlc_blocks_config(raw_config)
     summary = {
@@ -641,10 +641,10 @@ def split_feature_subset(feature_names, *, source_label="feature columns"):
             continue
         if feature_name.startswith(STREAK_FEATURE_PREFIX):
             streak_feature_cols.append(feature_name)
-            streak_intervals.append(feature_name[len(STREAK_FEATURE_PREFIX) :])
+            streak_intervals.append(feature_name[len(STREAK_FEATURE_PREFIX):])
             continue
         if feature_name in session_feature_set or is_session_open_feature(
-            feature_name
+                feature_name
         ):
             session_feature_cols.append(feature_name)
             continue

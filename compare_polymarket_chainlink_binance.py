@@ -6,11 +6,6 @@ from pathlib import Path
 import pandas as pd
 import requests
 
-from utils.config import (
-    coerce_path,
-    load_json_object,
-    require_positive_int,
-)
 from data.chainlink_sources import (
     _has_candlestick_credentials,
     _normalize_symbol,
@@ -19,6 +14,11 @@ from data.chainlink_sources import (
     fetch_public_historical_engine_ohlcv,
     fetch_public_recent_live_reports,
     fetch_stream_metadata,
+)
+from utils.config import (
+    coerce_path,
+    load_json_object,
+    require_positive_int,
 )
 from utils.project_config import (
     format_asset_text,
@@ -101,14 +101,14 @@ class SourceCandidate:
     )
 
     def __init__(
-        self,
-        market_type,
-        data_type,
-        requested_pair,
-        api_symbol,
-        api_pair,
-        validation_kind,
-        note="",
+            self,
+            market_type,
+            data_type,
+            requested_pair,
+            api_symbol,
+            api_pair,
+            validation_kind,
+            note="",
     ):
         self.market_type = market_type
         self.data_type = data_type
@@ -345,10 +345,10 @@ def make_futures_candidate(market_type, pair, data_type):
 
 
 def build_candidates(
-    chainlink_ticker=CHAINLINK_TICKER,
-    quote_assets=None,
-    market_types=None,
-    futures_data_types=None,
+        chainlink_ticker=CHAINLINK_TICKER,
+        quote_assets=None,
+        market_types=None,
+        futures_data_types=None,
 ):
     symbol_info = _normalize_symbol(chainlink_ticker)
     quote_assets = list(quote_assets or DEFAULT_BINANCE_QUOTE_ASSETS)
@@ -444,10 +444,10 @@ def chainlink_stream_page_url(chainlink_ticker):
 
 
 def fetch_chainlink_reference(
-    lookback_hours,
-    chainlink_ticker=CHAINLINK_TICKER,
-    refresh_metadata=False,
-    include_live_reports=True,
+        lookback_hours,
+        chainlink_ticker=CHAINLINK_TICKER,
+        refresh_metadata=False,
+        include_live_reports=True,
 ):
     symbol_info = _normalize_symbol(chainlink_ticker)
     history_source = "public_historical_engine"
@@ -722,13 +722,13 @@ def compare_ohlc(reference_df, source_df, frequency):
 
     if frequency == "5m":
         merged["decision_chainlink_up"] = (
-            merged["Close_chainlink"] >= merged["Open_chainlink"]
+                merged["Close_chainlink"] >= merged["Open_chainlink"]
         )
         merged["decision_candidate_up"] = (
-            merged["Close_candidate"] >= merged["Open_candidate"]
+                merged["Close_candidate"] >= merged["Open_candidate"]
         )
         merged["decision_match"] = (
-            merged["decision_chainlink_up"] == merged["decision_candidate_up"]
+                merged["decision_chainlink_up"] == merged["decision_candidate_up"]
         )
         summary["mae_decision_price"] = float(
             pd.Series(
@@ -803,16 +803,16 @@ def print_rankings(one_min_df, five_min_df, top_n):
 
 
 def write_markdown_report(
-    report_path,
-    *,
-    run_dir,
-    chainlink_meta,
-    reference_1m,
-    reference_5m,
-    status_df,
-    one_min_df,
-    five_min_df,
-    top_n,
+        report_path,
+        *,
+        run_dir,
+        chainlink_meta,
+        reference_1m,
+        reference_5m,
+        status_df,
+        one_min_df,
+        five_min_df,
+        top_n,
 ):
     chainlink_ticker = chainlink_meta.get("chainlink_ticker", CHAINLINK_TICKER)
     chainlink_pair_symbol = chainlink_meta.get("chainlink_pair_symbol", "")
@@ -915,10 +915,10 @@ def main():
     status_rows = []
     supported_candidates = []
     for candidate in build_candidates(
-        settings["chainlink_ticker"],
-        quote_assets=settings["binance_quote_assets"],
-        market_types=settings["binance_market_types"],
-        futures_data_types=settings["futures_data_types"],
+            settings["chainlink_ticker"],
+            quote_assets=settings["binance_quote_assets"],
+            market_types=settings["binance_market_types"],
+            futures_data_types=settings["futures_data_types"],
     ):
         is_supported, detail = validate_candidate(candidate, catalogs)
         row = {

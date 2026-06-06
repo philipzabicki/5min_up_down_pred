@@ -11,7 +11,6 @@ from utils.data import (
 )
 from utils.project_config import active_asset_path
 
-
 # Edit these constants directly. This script intentionally has no CLI.
 OOF_PATH = None
 OUTPUT_DIR = active_asset_path("data/analysis/lucky_run/{asset}")
@@ -146,7 +145,7 @@ def load_analysis_frame(path):
     out["event_time"] = out["decision_time"]
     out["pred_side"] = out["oof_proba_up"] >= float(PREDICTION_THRESHOLD)
     out["correct"] = (
-        out["pred_side"].to_numpy(dtype=bool) == out["oof_target"].to_numpy(dtype=bool)
+            out["pred_side"].to_numpy(dtype=bool) == out["oof_target"].to_numpy(dtype=bool)
     )
     out["event_day"] = out["event_time"].dt.floor("D")
     out.attrs["all_oof_rows_loaded"] = all_oof_rows_loaded
@@ -677,9 +676,9 @@ def aggregate_simulation_summary(by_seed):
         result_fraction = np.zeros(len(summary), dtype=np.float64)
     summary["best_pnl_fraction"] = result_fraction
     summary["risk_reward_score"] = (
-        summary["mean_total_pnl_units"]
-        - 0.25 * summary["mean_max_drawdown_units"]
-        - 20.0 * summary["share_losing_days"]
+            summary["mean_total_pnl_units"]
+            - 0.25 * summary["mean_max_drawdown_units"]
+            - 20.0 * summary["share_losing_days"]
     )
     return summary.sort_values(
         ["risk_reward_score", "mean_total_pnl_units"],
@@ -735,7 +734,7 @@ def recommend_starts_per_day(sim_summary, max_steps, *, target_fraction):
 
     viable = subset.loc[
         subset["mean_total_pnl_units"] >= best_mean * float(target_fraction)
-    ].copy()
+        ].copy()
     if viable.empty:
         viable = subset.copy()
     viable = viable.sort_values(
@@ -792,20 +791,20 @@ def json_default(value):
 
 
 def write_outputs(
-    *,
-    output_dir,
-    source_path,
-    basic_stats,
-    weighted_survival,
-    weighted_summary,
-    rolling_survival,
-    rolling_summary,
-    completed_summary,
-    sim_summary,
-    sim_by_seed,
-    sim_by_day,
-    simulation_meta,
-    recommendations,
+        *,
+        output_dir,
+        source_path,
+        basic_stats,
+        weighted_survival,
+        weighted_summary,
+        rolling_survival,
+        rolling_summary,
+        completed_summary,
+        sim_summary,
+        sim_by_seed,
+        sim_by_day,
+        simulation_meta,
+        recommendations,
 ):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -895,13 +894,13 @@ def write_outputs(
 
 
 def print_console_summary(
-    *,
-    basic_stats,
-    weighted_summary,
-    rolling_summary,
-    sim_summary,
-    recommendations,
-    paths,
+        *,
+        basic_stats,
+        weighted_summary,
+        rolling_summary,
+        sim_summary,
+        recommendations,
+        paths,
 ):
     print(
         "lucky run OOF analysis | "

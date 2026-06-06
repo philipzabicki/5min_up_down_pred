@@ -1,10 +1,10 @@
-from numpy import array, frombuffer, float64
-from talib import AD
 from functools import lru_cache
-from pymoo.core.variable import Integer, Choice
-from pymoo.core.problem import ElementwiseProblem
 
-from .ta_tools import MA_FUNCS, get_1d_ma
+from numpy import array, frombuffer, float64
+from pymoo.core.problem import ElementwiseProblem
+from pymoo.core.variable import Integer, Choice
+from talib import AD
+
 from .common_utils import (
     NAN_PENALTY,
     NAN_RATIO_THRESHOLD,
@@ -13,6 +13,7 @@ from .common_utils import (
     score_nan_ratio,
     score_nan_stats,
 )
+from .ta_tools import MA_FUNCS, get_1d_ma
 
 ADL_BYTES = None
 ADL_SHAPE = None
@@ -104,21 +105,21 @@ def get_chaikin_oscillator_features(params, ohlcv_np):
 
 
 def adl_initializer(
-    ohlcv,
-    target,
-    metric_segments_count=12,
-    metric_train_frac=0.80,
-    metric_gap=1500,
-    q_ext=0.10,
-    q_mid=0.10,
-    stat="mean_clip",
-    clip_q=0.01,
-    min_bucket_size=50,
-    min_valid_segments=2,
-    recency_weighting_enabled=False,
-    recency_weighting_mode="linear",
-    recency_weight_min=1.0,
-    recency_weight_max=1.5,
+        ohlcv,
+        target,
+        metric_segments_count=12,
+        metric_train_frac=0.80,
+        metric_gap=1500,
+        q_ext=0.10,
+        q_mid=0.10,
+        stat="mean_clip",
+        clip_q=0.01,
+        min_bucket_size=50,
+        min_valid_segments=2,
+        recency_weighting_enabled=False,
+        recency_weighting_mode="linear",
+        recency_weight_min=1.0,
+        recency_weight_max=1.5,
 ):
     global ADL_BYTES, ADL_SHAPE, TARGET_BYTES, TARGET_SHAPE
     global METRIC_SEGMENTS_COUNT, METRIC_TRAIN_FRAC, METRIC_GAP
@@ -157,7 +158,7 @@ def get_adl_ma_cache(ma_type, period):
 
 
 def custom_chaikin_oscillator(
-    ohlcv, fast_period, slow_period, fast_ma_type, slow_ma_type
+        ohlcv, fast_period, slow_period, fast_ma_type, slow_ma_type
 ):
     if ohlcv is None:
         return get_adl_ma_cache(fast_ma_type, fast_period) - get_adl_ma_cache(

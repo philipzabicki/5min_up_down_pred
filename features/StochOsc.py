@@ -1,10 +1,10 @@
-from numpy import frombuffer, float64
 from functools import lru_cache
-from talib import STOCHF
-from pymoo.core.variable import Integer, Choice
-from pymoo.core.problem import ElementwiseProblem
 
-from .ta_tools import MA_FUNCS, get_1d_ma
+from numpy import frombuffer, float64
+from pymoo.core.problem import ElementwiseProblem
+from pymoo.core.variable import Integer, Choice
+from talib import STOCHF
+
 from .common_utils import (
     NAN_PENALTY,
     NAN_RATIO_THRESHOLD,
@@ -13,6 +13,7 @@ from .common_utils import (
     score_nan_ratio,
     score_nan_stats,
 )
+from .ta_tools import MA_FUNCS, get_1d_ma
 
 OHLCV_BYTES = None
 OHLCV_SHAPE = None
@@ -106,21 +107,21 @@ def get_stochastic_oscillator_features(params, ohlcv_np):
 
 
 def stochastic_oscillator_initializer(
-    ohlcv,
-    target,
-    metric_segments_count=12,
-    metric_train_frac=0.80,
-    metric_gap=1500,
-    q_ext=0.10,
-    q_mid=0.10,
-    stat="mean_clip",
-    clip_q=0.01,
-    min_bucket_size=50,
-    min_valid_segments=2,
-    recency_weighting_enabled=False,
-    recency_weighting_mode="linear",
-    recency_weight_min=1.0,
-    recency_weight_max=1.5,
+        ohlcv,
+        target,
+        metric_segments_count=12,
+        metric_train_frac=0.80,
+        metric_gap=1500,
+        q_ext=0.10,
+        q_mid=0.10,
+        stat="mean_clip",
+        clip_q=0.01,
+        min_bucket_size=50,
+        min_valid_segments=2,
+        recency_weighting_enabled=False,
+        recency_weighting_mode="linear",
+        recency_weight_min=1.0,
+        recency_weight_max=1.5,
 ):
     global OHLCV_BYTES, OHLCV_SHAPE, TARGET_BYTES, TARGET_SHAPE
     global METRIC_SEGMENTS_COUNT, METRIC_TRAIN_FRAC, METRIC_GAP
@@ -164,7 +165,7 @@ def stochf_cache(fastk_period):
 
 
 def custom_stochastic_oscillator(
-    ohlcv, fastK_period, slowK_period, slowD_period, slowK_ma_type, slowD_ma_type
+        ohlcv, fastK_period, slowK_period, slowD_period, slowK_ma_type, slowD_ma_type
 ):
     if ohlcv is None:
         fastK = stochf_cache(fastK_period)

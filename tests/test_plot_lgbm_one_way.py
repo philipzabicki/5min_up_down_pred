@@ -85,8 +85,8 @@ class PlotLgbmOneWaySamplingTests(unittest.TestCase):
         self.assertEqual(sample_indices.tolist(), [4, 19])
         self.assertTrue(
             (
-                frame.loc[sample_indices, TARGET_WEIGHT_COL]
-                >= TARGET_WEIGHT_DECISION_VALUE
+                    frame.loc[sample_indices, TARGET_WEIGHT_COL]
+                    >= TARGET_WEIGHT_DECISION_VALUE
             ).all()
         )
         self.assertEqual(summary["eligible_rows"], 4)

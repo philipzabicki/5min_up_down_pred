@@ -2,7 +2,6 @@ import math
 import os
 import re
 
-
 DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS = 5
 DEFAULT_POLYMARKET_MIN_FEE_USDC = 0.00001
 DEFAULT_POLYMARKET_PUSD_ADDRESS = "0xC011a7E12a19f7B1f670d46F03B03f3342E82DFB"
@@ -38,11 +37,11 @@ _BYTES32_RE = re.compile(r"^0x[a-fA-F0-9]{64}$")
 
 
 def normalize_polymarket_fee_model(
-    fee_model,
-    *,
-    context="fee_model",
-    default_round_decimals=DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
-    default_min_fee=DEFAULT_POLYMARKET_MIN_FEE_USDC,
+        fee_model,
+        *,
+        context="fee_model",
+        default_round_decimals=DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
+        default_min_fee=DEFAULT_POLYMARKET_MIN_FEE_USDC,
 ):
     if not isinstance(fee_model, dict):
         raise ValueError(f"{context} must be an object.")
@@ -85,10 +84,10 @@ def normalize_polymarket_fee_model(
 
 
 def polymarket_fee_model_from_market(
-    market_payload,
-    *,
-    default_round_decimals=DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
-    default_min_fee=DEFAULT_POLYMARKET_MIN_FEE_USDC,
+        market_payload,
+        *,
+        default_round_decimals=DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
+        default_min_fee=DEFAULT_POLYMARKET_MIN_FEE_USDC,
 ):
     fees_enabled = bool(market_payload.get("feesEnabled", False))
     fee_schedule = market_payload.get("feeSchedule")
@@ -140,11 +139,11 @@ def polymarket_taker_fee_usdc_from_shares(shares, price, fee_model):
     price = float(price)
 
     if (
-        not math.isfinite(shares)
-        or shares <= 0.0
-        or not math.isfinite(price)
-        or price <= 0.0
-        or price >= 1.0
+            not math.isfinite(shares)
+            or shares <= 0.0
+            or not math.isfinite(price)
+            or price <= 0.0
+            or price >= 1.0
     ):
         return {"fee_usdc": 0.0, "fee_raw_usdc": 0.0, "eff_rate": 0.0}
 
@@ -169,11 +168,11 @@ def polymarket_taker_fee_usdc_from_notional(notional, price, fee_model):
     price = float(price)
 
     if (
-        not math.isfinite(notional)
-        or notional <= 0.0
-        or not math.isfinite(price)
-        or price <= 0.0
-        or price >= 1.0
+            not math.isfinite(notional)
+            or notional <= 0.0
+            or not math.isfinite(price)
+            or price <= 0.0
+            or price >= 1.0
     ):
         return {"fee_usdc": 0.0, "fee_raw_usdc": 0.0, "eff_rate": 0.0}
 
@@ -272,11 +271,11 @@ def resolve_relayer_tx_type(env=None, *, signature_type=None, default="SAFE"):
 
 
 def encode_redeem_positions_call(
-    condition_id,
-    *,
-    collateral_token_address=None,
-    parent_collection_id=POLYMARKET_ZERO_BYTES32,
-    index_sets=POLYMARKET_BINARY_INDEX_SETS,
+        condition_id,
+        *,
+        collateral_token_address=None,
+        parent_collection_id=POLYMARKET_ZERO_BYTES32,
+        index_sets=POLYMARKET_BINARY_INDEX_SETS,
 ):
     collateral = validate_evm_address(
         collateral_token_address or DEFAULT_POLYMARKET_PUSD_ADDRESS,
@@ -315,13 +314,13 @@ def _encode_uint_word(value):
 
 
 def build_redeem_transactions(
-    candidates,
-    *,
-    collateral_token_address,
-    ctf_address,
-    target_address,
-    relayer_tx_type,
-    index_sets=POLYMARKET_BINARY_INDEX_SETS,
+        candidates,
+        *,
+        collateral_token_address,
+        ctf_address,
+        target_address,
+        relayer_tx_type,
+        index_sets=POLYMARKET_BINARY_INDEX_SETS,
 ):
     collateral = validate_evm_address(
         collateral_token_address,
@@ -361,11 +360,11 @@ def build_redeem_transactions(
 
 
 def collect_redeem_candidates(
-    open_positions,
-    records,
-    *,
-    market_slug_prefix,
-    require_redeemable=True,
+        open_positions,
+        records,
+        *,
+        market_slug_prefix,
+        require_redeemable=True,
 ):
     records_by_condition = {}
     for rec in records or []:

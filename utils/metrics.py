@@ -60,10 +60,10 @@ def weighted_binary_logloss(y_true, y_pred_proba, sample_weight=None):
 
 
 def weighted_balanced_accuracy_score(
-    y_true,
-    y_pred_proba,
-    sample_weight=None,
-    threshold=0.5,
+        y_true,
+        y_pred_proba,
+        sample_weight=None,
+        threshold=0.5,
 ):
     y_true_i = np.asarray(y_true, dtype=np.int8)
     y_pred_proba_f = _resolve_positive_class_proba(y_pred_proba)
@@ -131,8 +131,8 @@ def make_lightgbm_binary_brier_eval(metric_name="brier_score"):
 
 
 def make_lightgbm_binary_balanced_accuracy_eval(
-    metric_name="balanced_accuracy",
-    threshold=0.5,
+        metric_name="balanced_accuracy",
+        threshold=0.5,
 ):
     metric_name = str(metric_name).strip() or "balanced_accuracy"
     threshold_value = float(threshold)
@@ -187,8 +187,8 @@ def make_sklearn_binary_brier_eval(metric_name="brier_score"):
 
 
 def make_sklearn_binary_balanced_accuracy_eval(
-    metric_name="balanced_accuracy",
-    threshold=0.5,
+        metric_name="balanced_accuracy",
+        threshold=0.5,
 ):
     metric_name = str(metric_name).strip() or "balanced_accuracy"
     threshold_value = float(threshold)

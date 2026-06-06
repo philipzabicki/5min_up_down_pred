@@ -14,12 +14,11 @@ from sklearn.metrics import (
 
 from features.candle_features import CANDLE_PATTERN_COLS, RAW_OHLCV_COLS
 from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
-from utils.metrics import (
-    make_sklearn_binary_balanced_accuracy_eval,
-    make_sklearn_binary_brier_eval,
-    make_sklearn_binary_logloss_eval,
-    weighted_binary_logloss,
-    weighted_brier_score,
+from train_lgbm import (
+    WF_TEST_TO_TRAIN_RATIO as DEFAULT_WF_TEST_TO_TRAIN_RATIO,
+    format_lgbm_monotone_constraint_summary,
+    make_lgbm_monotone_constraint_params,
+    summarize_lgbm_monotone_constraints,
 )
 from utils.data import (
     TARGET_WEIGHT_COL,
@@ -29,13 +28,14 @@ from utils.data import (
 from utils.data import (
     resolve_modeling_dataset_parquet_path,
 )
-from utils.project_config import active_asset_path
-from train_lgbm import (
-    WF_TEST_TO_TRAIN_RATIO as DEFAULT_WF_TEST_TO_TRAIN_RATIO,
-    format_lgbm_monotone_constraint_summary,
-    make_lgbm_monotone_constraint_params,
-    summarize_lgbm_monotone_constraints,
+from utils.metrics import (
+    make_sklearn_binary_balanced_accuracy_eval,
+    make_sklearn_binary_brier_eval,
+    make_sklearn_binary_logloss_eval,
+    weighted_binary_logloss,
+    weighted_brier_score,
 )
+from utils.project_config import active_asset_path
 
 DATA_PATH = resolve_modeling_dataset_parquet_path()
 OUTPUT_ROOT = active_asset_path("data/analysis/feature_selector/{asset}")
@@ -395,14 +395,14 @@ def should_use_screened_correlation(df, threshold):
     if CORRELATION_FILTER_MODE != "screened_exact":
         return False
     if (
-        CORRELATION_SCREEN_SAMPLE_ROWS is None
-        or int(CORRELATION_SCREEN_SAMPLE_ROWS) <= 0
+            CORRELATION_SCREEN_SAMPLE_ROWS is None
+            or int(CORRELATION_SCREEN_SAMPLE_ROWS) <= 0
     ):
         return False
     return (
-        len(df) >= int(CORRELATION_SCREEN_MIN_ROWS)
-        and df.shape[1] >= int(CORRELATION_SCREEN_MIN_COLS)
-        and float(threshold) >= float(CORRELATION_SCREEN_MIN_THRESHOLD)
+            len(df) >= int(CORRELATION_SCREEN_MIN_ROWS)
+            and df.shape[1] >= int(CORRELATION_SCREEN_MIN_COLS)
+            and float(threshold) >= float(CORRELATION_SCREEN_MIN_THRESHOLD)
     )
 
 
@@ -576,11 +576,11 @@ def find_highly_correlated_columns(df, threshold):
 
 
 def make_prefilter_report_row(
-    step,
-    removed_features,
-    remaining_count,
-    duration_sec,
-    details=None,
+        step,
+        removed_features,
+        remaining_count,
+        duration_sec,
+        details=None,
 ):
     if details is None:
         details = {}
@@ -595,9 +595,9 @@ def make_prefilter_report_row(
 
 
 def prefilter_features(
-    x,
-    correlation_reference=None,
-    correlation_reference_details=None,
+        x,
+        correlation_reference=None,
+        correlation_reference_details=None,
 ):
     work = x
     if correlation_reference is None:
@@ -701,7 +701,7 @@ def prefilter_features(
         missing_ratio = work.isna().mean()
         high_missing_cols = missing_ratio[
             missing_ratio > float(MAX_MISSING_RATIO)
-        ].index.tolist()
+            ].index.tolist()
         if high_missing_cols:
             work = work.drop(columns=high_missing_cols)
             correlation_work = correlation_work.drop(
@@ -739,9 +739,9 @@ def prefilter_features(
     high_corr_cols = []
     high_corr_details = dict(correlation_details)
     if (
-        work.shape[1] > 1
-        and ENABLE_CORRELATION_FILTER
-        and MAX_ABS_CORRELATION is not None
+            work.shape[1] > 1
+            and ENABLE_CORRELATION_FILTER
+            and MAX_ABS_CORRELATION is not None
     ):
         corr_eval_input = correlation_work.loc[:, work.columns]
         (
@@ -951,13 +951,13 @@ def resolve_eval_metric():
 
 
 def fit_model(
-    model,
-    x_train,
-    y_train,
-    w_train,
-    x_valid,
-    y_valid,
-    w_valid,
+        model,
+        x_train,
+        y_train,
+        w_train,
+        x_valid,
+        y_valid,
+        w_valid,
 ):
     fit_kwargs = {
         "sample_weight": w_train,
@@ -996,11 +996,11 @@ def predict_for_scoring(model, x_valid, best_iteration):
 
 
 def score_predictions(
-    scorer_cfg,
-    y_true,
-    y_pred,
-    y_pred_proba,
-    sample_weight,
+        scorer_cfg,
+        y_true,
+        y_pred,
+        y_pred_proba,
+        sample_weight,
 ):
     custom_scorer = scorer_cfg.get("callable")
     if custom_scorer is not None:
@@ -1227,12 +1227,12 @@ def resolve_permutation_feature_limit(feature_count):
 
 def make_permutation_seed(fold_id, feature_idx, repeat_idx):
     seed = (
-        int(PERMUTATION_BASE_SEED)
-        + (int(fold_id) + 1) * 1_000_003
-        + (int(feature_idx) + 1) * 10_007
-        + (int(repeat_idx) + 1) * 101
+            int(PERMUTATION_BASE_SEED)
+            + (int(fold_id) + 1) * 1_000_003
+            + (int(feature_idx) + 1) * 10_007
+            + (int(repeat_idx) + 1) * 101
     )
-    return int(seed % (2**32 - 1))
+    return int(seed % (2 ** 32 - 1))
 
 
 def build_fold_ranking(fold_gain_series, fold_used_series):
@@ -1416,12 +1416,12 @@ def run_feature_prescreen(x, y, sample_weight, folds, fold_weight_by_id):
 
 
 def run_permutation_reranking(
-    x,
-    y,
-    sample_weight,
-    folds,
-    fold_weight_by_id,
-    ranking_df,
+        x,
+        y,
+        sample_weight,
+        folds,
+        fold_weight_by_id,
+        ranking_df,
 ):
     if int(PERMUTATION_N_REPEATS) <= 0:
         raise ValueError("PERMUTATION_N_REPEATS must be > 0.")
@@ -1560,13 +1560,13 @@ def run_permutation_reranking(
 
 
 def run_feature_ranking(
-    x,
-    y,
-    sample_weight,
-    prescreen_folds,
-    prescreen_fold_weight_by_id,
-    permutation_folds,
-    permutation_fold_weight_by_id,
+        x,
+        y,
+        sample_weight,
+        prescreen_folds,
+        prescreen_fold_weight_by_id,
+        permutation_folds,
+        permutation_fold_weight_by_id,
 ):
     ranking_df, fold_rankings, fold_metadata = run_feature_prescreen(
         x=x,
@@ -1646,14 +1646,14 @@ def resolve_max_sweep_evaluations():
 
 
 def score_topk_subset(
-    x,
-    y,
-    sample_weight,
-    folds,
-    fold_weight_by_id,
-    global_feature_order,
-    k,
-    phase,
+        x,
+        y,
+        sample_weight,
+        folds,
+        fold_weight_by_id,
+        global_feature_order,
+        k,
+        phase,
 ):
     k = int(k)
     if k <= 0:
@@ -1794,8 +1794,8 @@ def find_refinement_candidates(results_df):
 
     candidates = set()
     for left_row, right_row in zip(
-        sorted_df.iloc[:-1].itertuples(index=False),
-        sorted_df.iloc[1:].itertuples(index=False),
+            sorted_df.iloc[:-1].itertuples(index=False),
+            sorted_df.iloc[1:].itertuples(index=False),
     ):
         left_k = int(left_row.k)
         right_k = int(right_row.k)
@@ -1807,9 +1807,9 @@ def find_refinement_candidates(results_df):
         interval_contains_best = left_k <= best_k <= right_k
         interval_is_wide = right_k - left_k > interval_limit
         should_refine = (
-            (left_ok != right_ok)
-            or (left_ok and right_ok and interval_is_wide)
-            or interval_contains_best
+                (left_ok != right_ok)
+                or (left_ok and right_ok and interval_is_wide)
+                or interval_contains_best
         )
         if not should_refine:
             continue
@@ -1823,19 +1823,19 @@ def find_refinement_candidates(results_df):
 
 
 def run_topk_sweep(
-    x,
-    y,
-    sample_weight,
-    folds,
-    fold_weight_by_id,
-    global_feature_order,
+        x,
+        y,
+        sample_weight,
+        folds,
+        fold_weight_by_id,
+        global_feature_order,
 ):
     pool_size = len(global_feature_order)
     coarse_ks = build_coarse_k_grid(pool_size)
     max_refinement_rounds = resolve_max_refinement_rounds(pool_size)
     max_sweep_evaluations = resolve_max_sweep_evaluations()
     if max_sweep_evaluations is not None and len(coarse_ks) > int(
-        max_sweep_evaluations
+            max_sweep_evaluations
     ):
         raise ValueError(
             "MAX_SWEEP_EVALUATIONS is smaller than the required coarse grid size."
@@ -1878,7 +1878,7 @@ def run_topk_sweep(
             break
 
         if max_sweep_evaluations is not None and (
-            len(rows) + len(candidates) > int(max_sweep_evaluations)
+                len(rows) + len(candidates) > int(max_sweep_evaluations)
         ):
             print(
                 f"topk | stop=max_sweep_evaluations limit={int(max_sweep_evaluations)} "
@@ -1967,7 +1967,7 @@ def choose_recommended_row(results_df):
     if min_feature_savings > 0:
         acceptable_with_savings = acceptable[
             (best_k - acceptable["k"].astype(int)) >= min_feature_savings
-        ].reset_index(drop=True)
+            ].reset_index(drop=True)
     else:
         acceptable_with_savings = acceptable
 
@@ -2006,12 +2006,12 @@ def pct_loss_vs_best(best_score, candidate_score):
 
 
 def write_outputs(
-    output_dir,
-    filter_report_df,
-    ranking_df,
-    topk_df,
-    summary_payload,
-    recommended_features,
+        output_dir,
+        filter_report_df,
+        ranking_df,
+        topk_df,
+        summary_payload,
+        recommended_features,
 ):
     output_dir.mkdir(parents=True, exist_ok=True)
 

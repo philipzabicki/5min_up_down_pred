@@ -1,23 +1,22 @@
-from pathlib import Path
 import sys
 
-from utils.project_config import ACTIVE_CONFIG_PATH, DATASETS_CONFIG_PATH, load_fetch_settings
+from utils.project_config import load_fetch_settings
 
 
 def fetch_all(
-    raw_data_dir,
-    symbol,
-    market,
-    source,
-    intervals,
-    start_date,
-    end_date,
-    quiet,
-    price_source="trade",
-    volume_source="same",
-    volume_symbol="",
-    volume_market="",
-    raw_ohlcv_repair_config=None,
+        raw_data_dir,
+        symbol,
+        market,
+        source,
+        intervals,
+        start_date,
+        end_date,
+        quiet,
+        price_source="trade",
+        volume_source="same",
+        volume_symbol="",
+        volume_market="",
+        raw_ohlcv_repair_config=None,
 ):
     print(
         f"[INFO] source={source} price_source={price_source} volume_source={volume_source} "

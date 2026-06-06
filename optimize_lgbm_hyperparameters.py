@@ -1,41 +1,16 @@
+import gc
 import json
 import re
-import gc
 from datetime import datetime, timezone
 from pathlib import Path
+
 import lightgbm as lgb
 import numpy as np
 import optuna
 import pandas as pd
+
 from features.candle_features import RAW_OHLCV_COLS
 from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
-from utils.data import (
-    load_excluded_feature_names_from_settings,
-    load_feature_subset_from_settings,
-    load_modeling_dataset_settings,
-    resolve_modeling_float_dtype,
-    resolve_modeling_float_dtype_name,
-    resolve_modeling_dataset_output_paths,
-    summarize_feature_subset,
-    validate_parquet_magic_bytes,
-)
-from utils.optuna import (
-    make_timestamped_artifact_path,
-    resolve_existing_study_name,
-    resolve_run_study_name,
-)
-from utils.project_config import active_asset_path
-from utils.metrics import (
-    make_lightgbm_binary_balanced_accuracy_eval,
-    make_lightgbm_binary_brier_eval,
-    make_lightgbm_binary_logloss_eval,
-    weighted_balanced_accuracy_score,
-    weighted_binary_logloss,
-)
-from utils.data import (
-    TARGET_WEIGHT_COL,
-    summarize_target_weights,
-)
 from train_lgbm import (
     CV_FOLDS as FINAL_CV_FOLDS,
     WF_TEST_TO_TRAIN_RATIO as FINAL_WF_TEST_TO_TRAIN_RATIO,
@@ -46,6 +21,33 @@ from train_lgbm import (
     make_walk_forward_folds as make_final_walk_forward_folds,
     summarize_lgbm_monotone_constraints,
 )
+from utils.data import (
+    TARGET_WEIGHT_COL,
+    summarize_target_weights,
+)
+from utils.data import (
+    load_excluded_feature_names_from_settings,
+    load_feature_subset_from_settings,
+    load_modeling_dataset_settings,
+    resolve_modeling_float_dtype,
+    resolve_modeling_float_dtype_name,
+    resolve_modeling_dataset_output_paths,
+    summarize_feature_subset,
+    validate_parquet_magic_bytes,
+)
+from utils.metrics import (
+    make_lightgbm_binary_balanced_accuracy_eval,
+    make_lightgbm_binary_brier_eval,
+    make_lightgbm_binary_logloss_eval,
+    weighted_balanced_accuracy_score,
+    weighted_binary_logloss,
+)
+from utils.optuna import (
+    make_timestamped_artifact_path,
+    resolve_existing_study_name,
+    resolve_run_study_name,
+)
+from utils.project_config import active_asset_path
 
 TARGET_COL = "target_5m_candle_up"
 
@@ -118,140 +120,140 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "extra_trees": False,
     },
     {
-      "learning_rate": 0.040166858620227654,
-      "num_leaves": 97,
-      "min_data_in_leaf": 34,
-      "max_depth": 219,
-      "feature_fraction": 0.49152697810227164,
-      "bagging_fraction": 0.6687218276054827,
-      "bagging_freq": 22,
-      "lambda_l2": 34.27447477551414,
-      "lambda_l1": 16.29642005808772,
-      "min_sum_hessian_in_leaf": 4.6370061892768994,
-      "min_gain_to_split": 0.6705780188504484,
-      "feature_fraction_bynode": 0.5237714962797345,
-      "path_smooth": 1.8920129570355595,
-      "extra_trees": False
+        "learning_rate": 0.040166858620227654,
+        "num_leaves": 97,
+        "min_data_in_leaf": 34,
+        "max_depth": 219,
+        "feature_fraction": 0.49152697810227164,
+        "bagging_fraction": 0.6687218276054827,
+        "bagging_freq": 22,
+        "lambda_l2": 34.27447477551414,
+        "lambda_l1": 16.29642005808772,
+        "min_sum_hessian_in_leaf": 4.6370061892768994,
+        "min_gain_to_split": 0.6705780188504484,
+        "feature_fraction_bynode": 0.5237714962797345,
+        "path_smooth": 1.8920129570355595,
+        "extra_trees": False
     },
     {
-      "learning_rate": 0.0232055790116649,
-      "num_leaves": 153,
-      "min_data_in_leaf": 16,
-      "max_depth": 204,
-      "feature_fraction": 0.4431937228828896,
-      "bagging_fraction": 0.8322310712611087,
-      "bagging_freq": 20,
-      "lambda_l2": 28.76389554546722,
-      "lambda_l1": 7.383529216274445,
-      "min_sum_hessian_in_leaf": 0.006286030943849801,
-      "min_gain_to_split": 0.16999148557266552,
-      "feature_fraction_bynode": 0.8624029035837287,
-      "path_smooth": 19.83320951468675,
-      "extra_trees": False
+        "learning_rate": 0.0232055790116649,
+        "num_leaves": 153,
+        "min_data_in_leaf": 16,
+        "max_depth": 204,
+        "feature_fraction": 0.4431937228828896,
+        "bagging_fraction": 0.8322310712611087,
+        "bagging_freq": 20,
+        "lambda_l2": 28.76389554546722,
+        "lambda_l1": 7.383529216274445,
+        "min_sum_hessian_in_leaf": 0.006286030943849801,
+        "min_gain_to_split": 0.16999148557266552,
+        "feature_fraction_bynode": 0.8624029035837287,
+        "path_smooth": 19.83320951468675,
+        "extra_trees": False
     },
     {
-      "learning_rate": 0.028370028338368332,
-      "num_leaves": 201,
-      "min_data_in_leaf": 2527,
-      "max_depth": 246,
-      "feature_fraction": 0.7371325954810048,
-      "bagging_fraction": 0.9308115159624847,
-      "bagging_freq": 25,
-      "lambda_l2": 39.51068447389412,
-      "lambda_l1": 5.269826622414657,
-      "min_sum_hessian_in_leaf": 1.5455745495230206,
-      "min_gain_to_split": 0.09322721688630903,
-      "feature_fraction_bynode": 0.38804968275175306,
-      "path_smooth": 39.06532785785736,
-      "extra_trees": False
+        "learning_rate": 0.028370028338368332,
+        "num_leaves": 201,
+        "min_data_in_leaf": 2527,
+        "max_depth": 246,
+        "feature_fraction": 0.7371325954810048,
+        "bagging_fraction": 0.9308115159624847,
+        "bagging_freq": 25,
+        "lambda_l2": 39.51068447389412,
+        "lambda_l1": 5.269826622414657,
+        "min_sum_hessian_in_leaf": 1.5455745495230206,
+        "min_gain_to_split": 0.09322721688630903,
+        "feature_fraction_bynode": 0.38804968275175306,
+        "path_smooth": 39.06532785785736,
+        "extra_trees": False
     },
     {
-      "learning_rate": 0.014324759771509326,
-      "num_leaves": 219,
-      "min_data_in_leaf": 134,
-      "max_depth": 166,
-      "feature_fraction": 0.9004727141904951,
-      "bagging_fraction": 0.8582425675795976,
-      "bagging_freq": 16,
-      "lambda_l2": 96.08153533203745,
-      "lambda_l1": 1.3495783734260116,
-      "min_sum_hessian_in_leaf": 0.005819496553267834,
-      "min_gain_to_split": 0.11935855858916433,
-      "feature_fraction_bynode": 0.4278157008307606,
-      "path_smooth": 91.00059177549922,
-      "extra_trees": False
+        "learning_rate": 0.014324759771509326,
+        "num_leaves": 219,
+        "min_data_in_leaf": 134,
+        "max_depth": 166,
+        "feature_fraction": 0.9004727141904951,
+        "bagging_fraction": 0.8582425675795976,
+        "bagging_freq": 16,
+        "lambda_l2": 96.08153533203745,
+        "lambda_l1": 1.3495783734260116,
+        "min_sum_hessian_in_leaf": 0.005819496553267834,
+        "min_gain_to_split": 0.11935855858916433,
+        "feature_fraction_bynode": 0.4278157008307606,
+        "path_smooth": 91.00059177549922,
+        "extra_trees": False
     },
     {
-      "learning_rate": 0.03601725310962062,
-      "num_leaves": 232,
-      "min_data_in_leaf": 1284,
-      "max_depth": 238,
-      "feature_fraction": 0.6199037025636075,
-      "bagging_fraction": 0.823971026512396,
-      "bagging_freq": 25,
-      "lambda_l2": 60.953190284251875,
-      "lambda_l1": 29.676819923146972,
-      "min_sum_hessian_in_leaf": 0.12748346400557883,
-      "min_gain_to_split": 0.4087732850139867,
-      "feature_fraction_bynode": 0.35610397169696534,
-      "path_smooth": 34.47657007831167,
-      "extra_trees": False,
-      "monotone_constraints_method": "advanced",
-      "monotone_penalty": 3.9096906129788724
+        "learning_rate": 0.03601725310962062,
+        "num_leaves": 232,
+        "min_data_in_leaf": 1284,
+        "max_depth": 238,
+        "feature_fraction": 0.6199037025636075,
+        "bagging_fraction": 0.823971026512396,
+        "bagging_freq": 25,
+        "lambda_l2": 60.953190284251875,
+        "lambda_l1": 29.676819923146972,
+        "min_sum_hessian_in_leaf": 0.12748346400557883,
+        "min_gain_to_split": 0.4087732850139867,
+        "feature_fraction_bynode": 0.35610397169696534,
+        "path_smooth": 34.47657007831167,
+        "extra_trees": False,
+        "monotone_constraints_method": "advanced",
+        "monotone_penalty": 3.9096906129788724
     },
     {
-      "learning_rate": 0.04640319526767822,
-      "num_leaves": 268,
-      "min_data_in_leaf": 5306,
-      "max_depth": 13,
-      "feature_fraction": 0.7752615284806654,
-      "bagging_fraction": 0.7083041610957306,
-      "bagging_freq": 12,
-      "lambda_l2": 99.45821431148829,
-      "lambda_l1": 8.798400892318645,
-      "min_sum_hessian_in_leaf": 1.0877816428524054e-05,
-      "min_gain_to_split": 0.4520600669558363,
-      "feature_fraction_bynode": 0.9773524734598936,
-      "path_smooth": 54.99959785886466,
-      "extra_trees": False,
-      "monotone_constraints_method": "intermediate",
-      "monotone_penalty": 2.00943387231227
-    }, 
-    {
-      "learning_rate": 0.018911429915801383,
-      "num_leaves": 249,
-      "min_data_in_leaf": 33,
-      "max_depth": 182,
-      "feature_fraction": 0.8947859540147098,
-      "bagging_fraction": 0.7422077424372853,
-      "bagging_freq": 16,
-      "lambda_l2": 98.80079501643887,
-      "lambda_l1": 12.85240865670112,
-      "min_sum_hessian_in_leaf": 7.238167505794533e-05,
-      "min_gain_to_split": 0.1025385907005768,
-      "feature_fraction_bynode": 0.6666400250804688,
-      "path_smooth": 78.42447945281934,
-      "extra_trees": False,
-      "monotone_constraints_method": "basic",
-      "monotone_penalty": 1.4043678835536488
+        "learning_rate": 0.04640319526767822,
+        "num_leaves": 268,
+        "min_data_in_leaf": 5306,
+        "max_depth": 13,
+        "feature_fraction": 0.7752615284806654,
+        "bagging_fraction": 0.7083041610957306,
+        "bagging_freq": 12,
+        "lambda_l2": 99.45821431148829,
+        "lambda_l1": 8.798400892318645,
+        "min_sum_hessian_in_leaf": 1.0877816428524054e-05,
+        "min_gain_to_split": 0.4520600669558363,
+        "feature_fraction_bynode": 0.9773524734598936,
+        "path_smooth": 54.99959785886466,
+        "extra_trees": False,
+        "monotone_constraints_method": "intermediate",
+        "monotone_penalty": 2.00943387231227
     },
     {
-      "learning_rate": 0.0065094262862249175,
-      "num_leaves": 215,
-      "min_data_in_leaf": 97,
-      "max_depth": 195,
-      "feature_fraction": 0.8985980039678766,
-      "bagging_fraction": 0.7035525517200346,
-      "bagging_freq": 3,
-      "lambda_l2": 84.66552493332907,
-      "lambda_l1": 3.8623890143572983,
-      "min_sum_hessian_in_leaf": 0.0006044966264154735,
-      "min_gain_to_split": 0.23134325634193995,
-      "feature_fraction_bynode": 0.3141763321857879,
-      "path_smooth": 60.87851990364099,
-      "extra_trees": False,
-      "monotone_constraints_method": "basic",
-      "monotone_penalty": 0.648819578510189
+        "learning_rate": 0.018911429915801383,
+        "num_leaves": 249,
+        "min_data_in_leaf": 33,
+        "max_depth": 182,
+        "feature_fraction": 0.8947859540147098,
+        "bagging_fraction": 0.7422077424372853,
+        "bagging_freq": 16,
+        "lambda_l2": 98.80079501643887,
+        "lambda_l1": 12.85240865670112,
+        "min_sum_hessian_in_leaf": 7.238167505794533e-05,
+        "min_gain_to_split": 0.1025385907005768,
+        "feature_fraction_bynode": 0.6666400250804688,
+        "path_smooth": 78.42447945281934,
+        "extra_trees": False,
+        "monotone_constraints_method": "basic",
+        "monotone_penalty": 1.4043678835536488
+    },
+    {
+        "learning_rate": 0.0065094262862249175,
+        "num_leaves": 215,
+        "min_data_in_leaf": 97,
+        "max_depth": 195,
+        "feature_fraction": 0.8985980039678766,
+        "bagging_fraction": 0.7035525517200346,
+        "bagging_freq": 3,
+        "lambda_l2": 84.66552493332907,
+        "lambda_l1": 3.8623890143572983,
+        "min_sum_hessian_in_leaf": 0.0006044966264154735,
+        "min_gain_to_split": 0.23134325634193995,
+        "feature_fraction_bynode": 0.3141763321857879,
+        "path_smooth": 60.87851990364099,
+        "extra_trees": False,
+        "monotone_constraints_method": "basic",
+        "monotone_penalty": 0.648819578510189
     }
 ]
 
@@ -268,10 +270,10 @@ DEFAULT_STUDY_NAME_PREFIX = "lgbm_generic_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
 STUDY_NAME = None
 STORAGE = (
-    "sqlite:///"
-    + active_asset_path(
-        "data/optuna/databases/{asset}/lgbm_generic_tpe_hyperband_gpu.db"
-    ).as_posix()
+        "sqlite:///"
+        + active_asset_path(
+    "data/optuna/databases/{asset}/lgbm_generic_tpe_hyperband_gpu.db"
+).as_posix()
 )
 LOAD_IF_EXISTS = True
 ARTIFACT_OUTPUT_DIR = active_asset_path("data/optuna/lgbm/{asset}")
@@ -296,9 +298,9 @@ TARGET_HORIZON_RE = re.compile(r"target_(\d+)m")
 
 
 def make_walk_forward_folds(
-    n_rows,
-    n_folds,
-    test_to_train_ratio,
+        n_rows,
+        n_folds,
+        test_to_train_ratio,
 ):
     if n_rows < 100:
         raise ValueError(f"Dataset too small for walk-forward CV: {n_rows} rows.")
@@ -343,10 +345,10 @@ def make_walk_forward_folds(
 
 
 def load_generic_training_data(
-    data_path,
-    feature_subset=None,
-    excluded_features=None,
-    float_dtype=np.float32,
+        data_path,
+        feature_subset=None,
+        excluded_features=None,
+        float_dtype=np.float32,
 ):
     excluded_feature_names = (
         tuple(excluded_features["features"]) if excluded_features else tuple()
@@ -711,13 +713,13 @@ def score_cv_objective_metric(y_true, y_pred_proba, sample_weight):
 
 
 def summarize_cv_fold_scores(
-    fold_scores,
-    folds,
-    fold_weight_by_id,
-    *,
-    base_metric,
-    higher_is_better,
-    std_penalty,
+        fold_scores,
+        folds,
+        fold_weight_by_id,
+        *,
+        base_metric,
+        higher_is_better,
+        std_penalty,
 ):
     fold_scores_arr = np.asarray(fold_scores, dtype=np.float64)
     if fold_scores_arr.ndim != 1:
@@ -754,12 +756,12 @@ def summarize_cv_fold_scores(
 
 
 def compute_cv_fold_scores_at_iteration(
-    cvbooster,
-    x_np,
-    y_np,
-    sample_weight_np,
-    folds,
-    best_iteration,
+        cvbooster,
+        x_np,
+        y_np,
+        sample_weight_np,
+        folds,
+        best_iteration,
 ):
     boosters = getattr(cvbooster, "boosters", None)
     if boosters is None:
@@ -788,13 +790,13 @@ def compute_cv_fold_scores_at_iteration(
 
 
 def summarize_cv_result_metric(
-    cv_result,
-    folds,
-    fold_weight_by_id,
-    *,
-    base_metric,
-    higher_is_better,
-    std_penalty,
+        cv_result,
+        folds,
+        fold_weight_by_id,
+        *,
+        base_metric,
+        higher_is_better,
+        std_penalty,
 ):
     fold_scores = [
         float(fold["metrics"][base_metric])
@@ -822,12 +824,12 @@ def objective_study_direction(*, higher_is_better):
 
 class ObjectiveAlignedLightGBMPruningCallback:
     def __init__(
-        self,
-        trial,
-        metric,
-        std_penalty,
-        valid_name="valid_0",
-        report_interval=1,
+            self,
+            trial,
+            metric,
+            std_penalty,
+            valid_name="valid_0",
+            report_interval=1,
     ):
         self._trial = trial
         self._valid_name = valid_name
@@ -856,9 +858,9 @@ class ObjectiveAlignedLightGBMPruningCallback:
 
         evaluation_result_list = env.evaluation_result_list
         is_cv = (
-            evaluation_result_list is not None
-            and len(evaluation_result_list) > 0
-            and len(evaluation_result_list[0]) == 5
+                evaluation_result_list is not None
+                and len(evaluation_result_list) > 0
+                and len(evaluation_result_list[0]) == 5
         )
         if is_cv:
             # LightGBM 4.6.0 reports CV metrics under "valid".
@@ -1083,15 +1085,15 @@ def enqueue_seed_trials(study, seed_trial_params, search_space):
 
 
 def make_objective(
-    train_set,
-    feature_names,
-    x_np,
-    y_np,
-    sample_weight_np,
-    folds,
-    fold_indices,
-    fold_weight_by_id,
-    search_space,
+        train_set,
+        feature_names,
+        x_np,
+        y_np,
+        sample_weight_np,
+        folds,
+        fold_indices,
+        fold_weight_by_id,
+        search_space,
 ):
     def objective(trial):
         params = {
@@ -1208,10 +1210,10 @@ def make_objective(
 
 
 def make_top_trial_recheck_output_paths(
-    study_name,
-    top_n,
-    output_json=None,
-    output_csv=None,
+        study_name,
+        top_n,
+        output_json=None,
+        output_csv=None,
 ):
     if output_json is not None and output_csv is not None:
         return output_json, output_csv
@@ -1301,11 +1303,11 @@ def build_top_trial_recheck_best_trial(result):
 
 
 def run_top_trials_recheck(
-    study_name,
-    storage,
-    top_n,
-    output_json=None,
-    output_csv=None,
+        study_name,
+        storage,
+        top_n,
+        output_json=None,
+        output_csv=None,
 ):
     if top_n < 1:
         raise ValueError("top_n must be >= 1.")

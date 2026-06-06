@@ -5,7 +5,37 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from utils.data import drop_frozen_ohlc_blocks
+
+from features.ADX import get_adx_values
+from features.BollingerBands import get_bollinger_bands_values
+from features.ChaikinOsc import get_chaikin_oscillator_values
+from features.KeltnerChannel import get_keltner_channel_values
+from features.MACD import get_macd_values
+from features.StochOsc import get_stochastic_oscillator_values
+from features.basis_premium_features import (
+    add_basis_premium_features,
+    basis_premium_feature_columns,
+    resolve_futures_close_col,
+)
+from features.candle_features import (
+    add_candle_derived_features,
+    add_candle_streak_features,
+    resolve_streak_interval_to_rule,
+)
+from features.feature_intervals import FEATURE_INTERVAL_TO_RULE, resolve_feature_intervals
+from features.realized_volatility import (
+    REALIZED_VOLATILITY_FEATURE_COLUMNS,
+    add_realized_volatility_features,
+)
+from features.session_open_features import add_session_open_features
+from features.volume_profile_fixed_range import (
+    FEATURE_VERSION as VP_FEATURE_VERSION,
+    MODELING_STATE_DIR as VP_MODELING_STATE_DIR,
+    build_volume_profile_features,
+    get_feature_columns as get_volume_profile_feature_columns,
+    normalize_config as normalize_volume_profile_config,
+    save_state as save_volume_profile_state,
+)
 from utils.data import (
     MODELING_DATASET_CONFIG_FILE,
     load_excluded_feature_names_from_settings,
@@ -26,37 +56,7 @@ from utils.data import (
     compute_binary_close_target_from_opened,
     summarize_target_weights,
 )
-
-from features.ADX import get_adx_values
-from features.basis_premium_features import (
-    add_basis_premium_features,
-    basis_premium_feature_columns,
-    resolve_futures_close_col,
-)
-from features.BollingerBands import get_bollinger_bands_values
-from features.ChaikinOsc import get_chaikin_oscillator_values
-from features.candle_features import (
-    add_candle_derived_features,
-    add_candle_streak_features,
-    resolve_streak_interval_to_rule,
-)
-from features.feature_intervals import FEATURE_INTERVAL_TO_RULE, resolve_feature_intervals
-from features.KeltnerChannel import get_keltner_channel_values
-from features.MACD import get_macd_values
-from features.realized_volatility import (
-    REALIZED_VOLATILITY_FEATURE_COLUMNS,
-    add_realized_volatility_features,
-)
-from features.session_open_features import add_session_open_features
-from features.StochOsc import get_stochastic_oscillator_values
-from features.volume_profile_fixed_range import (
-    FEATURE_VERSION as VP_FEATURE_VERSION,
-    MODELING_STATE_DIR as VP_MODELING_STATE_DIR,
-    build_volume_profile_features,
-    get_feature_columns as get_volume_profile_feature_columns,
-    normalize_config as normalize_volume_profile_config,
-    save_state as save_volume_profile_state,
-)
+from utils.data import drop_frozen_ohlc_blocks
 
 TARGET_TIME_COL = "Opened"
 TARGET_PRICE_COL = "Close"
@@ -166,10 +166,10 @@ def _resolve_basis_intervals(cfg, feature_intervals):
 def _has_auxiliary_price_marker(column_name):
     lower = str(column_name).strip().lower()
     return (
-        "futures" in lower
-        or "future" in lower
-        or "btcusdt" in lower
-        or bool(_AUX_PRICE_MARKER_RE.search(lower))
+            "futures" in lower
+            or "future" in lower
+            or "btcusdt" in lower
+            or bool(_AUX_PRICE_MARKER_RE.search(lower))
     )
 
 
@@ -225,10 +225,10 @@ def build_target(df, float_dtype=np.float64):
 
     opened = pd.to_datetime(df[TARGET_TIME_COL], errors="raise")
     has_default_index = (
-        isinstance(df.index, pd.RangeIndex)
-        and df.index.start == 0
-        and df.index.step == 1
-        and len(df.index) == len(df)
+            isinstance(df.index, pd.RangeIndex)
+            and df.index.start == 0
+            and df.index.step == 1
+            and len(df.index) == len(df)
     )
     if opened.is_monotonic_increasing:
         out = df if has_default_index else df.reset_index(drop=True)
@@ -481,7 +481,7 @@ def resolve_volume_profile_modeling_state_path(base_data_file, asset=None):
     if asset:
         state_dir = state_dir / str(asset).strip().upper()
     return (
-        state_dir / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
+            state_dir / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
     )
 
 
@@ -774,8 +774,8 @@ def build_dataset_from_settings(settings):
     else:
         print("skipping global session open features (none requested)")
     should_add_realized_volatility = (
-        selected_realized_volatility_feature_cols is None
-        or bool(selected_realized_volatility_feature_cols)
+            selected_realized_volatility_feature_cols is None
+            or bool(selected_realized_volatility_feature_cols)
     )
     if should_add_realized_volatility:
         kept_realized_volatility_cols = [
@@ -927,7 +927,7 @@ def build_dataset_from_settings(settings):
                         **basis_cfg,
                         "intervals": list(basis_intervals),
                         "futures_close_col": resolved_futures_close_col
-                        or basis_cfg["futures_close_col"],
+                                             or basis_cfg["futures_close_col"],
                     }
                     if basis_enabled
                     else None

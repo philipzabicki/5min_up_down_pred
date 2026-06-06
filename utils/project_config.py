@@ -343,7 +343,7 @@ def load_modeling_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG
 
 
 def load_indicator_fit_profile(
-    profile_name=None, *, active_config_path=ACTIVE_CONFIG_PATH
+        profile_name=None, *, active_config_path=ACTIVE_CONFIG_PATH
 ):
     if profile_name is None:
         profile_name = load_active_profile_names(active_config_path)[
@@ -368,16 +368,16 @@ def load_indicator_fit_profile(
             f"Indicator-fit profile '{profile_name}' must define 'metric'."
         )
     for key in (
-        "name",
-        "segments_count",
-        "train_frac",
-        "gap",
-        "q_ext",
-        "q_mid",
-        "stat",
-        "clip_q",
-        "min_bucket_size",
-        "min_valid_segments",
+            "name",
+            "segments_count",
+            "train_frac",
+            "gap",
+            "q_ext",
+            "q_mid",
+            "stat",
+            "clip_q",
+            "min_bucket_size",
+            "min_valid_segments",
     ):
         if key not in metric:
             raise ValueError(
@@ -416,10 +416,10 @@ def load_live_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PAT
     profile = _load_named_profile(LIVE_CONFIG_PATH, profile_name)
     dataset = load_dataset_profile(active_config_path=active_config_path)
     for key in (
-        "settlement_source",
-        "settlement_ticker",
-        "default_price_source",
-        "default_volume_source",
+            "settlement_source",
+            "settlement_ticker",
+            "default_price_source",
+            "default_volume_source",
     ):
         profile.pop(key, None)
     required_text_keys = (

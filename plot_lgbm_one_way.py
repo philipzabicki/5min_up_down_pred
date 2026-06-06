@@ -14,13 +14,12 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from utils.config import coerce_path, path_to_portable_str
+from utils.data import TARGET_WEIGHT_COL, TARGET_WEIGHT_DECISION_VALUE
 from utils.optuna import make_utc_run_timestamp, sanitize_run_name
 from utils.project_config import active_asset_path, load_runtime_artifact_paths
-from utils.data import TARGET_WEIGHT_COL, TARGET_WEIGHT_DECISION_VALUE
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
-
 
 # MODEL_ARTIFACT_PATH=None uses configs/runtime/active.json artifacts.model_meta_path.
 MODEL_ARTIFACT_PATH = None
@@ -153,9 +152,9 @@ def resolve_model_artifact(model_artifact):
         payload = _read_json_object(artifact_path)
         runtime_artifacts = payload.get("artifacts")
         if (
-            isinstance(runtime_artifacts, dict)
-            and "model_meta_path" in runtime_artifacts
-            and "feature_columns" not in payload
+                isinstance(runtime_artifacts, dict)
+                and "model_meta_path" in runtime_artifacts
+                and "feature_columns" not in payload
         ):
             return resolve_model_artifact(coerce_path(runtime_artifacts["model_meta_path"]))
 
@@ -279,13 +278,13 @@ def _select_random(values, max_rows, rng):
 
 
 def select_sample_indices(
-    data_path,
-    parquet_file,
-    available_columns,
-    *,
-    decision_rows_only=False,
-    decision_weight_col=None,
-    min_decision_weight=None,
+        data_path,
+        parquet_file,
+        available_columns,
+        *,
+        decision_rows_only=False,
+        decision_weight_col=None,
+        min_decision_weight=None,
 ):
     total_rows = int(parquet_file.metadata.num_rows)
     rng = np.random.default_rng(int(RANDOM_SEED))
@@ -299,9 +298,9 @@ def select_sample_indices(
     if use_recent:
         eligible_indices = None
         if (
-            float(RECENT_DAYS) > 0.0
-            and TIME_COL
-            and TIME_COL in available_columns
+                float(RECENT_DAYS) > 0.0
+                and TIME_COL
+                and TIME_COL in available_columns
         ):
             time_frame = pd.read_parquet(data_path, columns=[TIME_COL])
             times = pd.to_datetime(time_frame[TIME_COL], errors="coerce")
@@ -418,11 +417,11 @@ def _row_group_bounds(parquet_file):
 
 
 def read_parquet_rows_by_position(
-    data_path,
-    *,
-    columns,
-    row_indices,
-    batch_size,
+        data_path,
+        *,
+        columns,
+        row_indices,
+        batch_size,
 ):
     parquet_file = pq.ParquetFile(data_path)
     row_indices = np.unique(np.asarray(row_indices, dtype=np.int64))
@@ -437,9 +436,9 @@ def read_parquet_rows_by_position(
         group_indices = row_indices[left:right]
         batch_start = group_start
         for batch in parquet_file.iter_batches(
-            batch_size=int(batch_size),
-            columns=columns,
-            row_groups=[row_group_idx],
+                batch_size=int(batch_size),
+                columns=columns,
+                row_groups=[row_group_idx],
         ):
             batch_end = batch_start + int(batch.num_rows)
             batch_left = int(np.searchsorted(group_indices, batch_start, side="left"))
@@ -619,7 +618,7 @@ def _tie_aware_equal_count_group_indices(values, group_count, *, min_group_rows=
 
     if unique_count <= group_count:
         groups = [
-            order[int(start) : int(end)].astype(np.int64, copy=False)
+            order[int(start): int(end)].astype(np.int64, copy=False)
             for start, end in zip(run_starts, run_ends)
         ]
         return _merge_small_adjacent_groups(values, groups, min_group_rows)
@@ -648,7 +647,7 @@ def _tie_aware_equal_count_group_indices(values, group_count, *, min_group_rows=
                 best_size = candidate_size
                 best_error = candidate_error
 
-        group = order[int(run_starts[start_run]) : int(run_ends[end_run - 1])]
+        group = order[int(run_starts[start_run]): int(run_ends[end_run - 1])]
         groups.append(group)
         remaining_rows -= int(group.size)
         remaining_groups -= 1
@@ -689,21 +688,21 @@ def build_feature_quantiles(feature_values):
 
 
 def build_observed_bins(
-    feature_values,
-    baseline_pred,
-    target_values,
-    weights,
-    *,
-    bin_count,
+        feature_values,
+        baseline_pred,
+        target_values,
+        weights,
+        *,
+        bin_count,
 ):
     feature_values = np.asarray(feature_values, dtype=np.float64)
     baseline_pred = np.asarray(baseline_pred, dtype=np.float64)
     weights = np.asarray(weights, dtype=np.float64)
     finite_mask = (
-        np.isfinite(feature_values)
-        & np.isfinite(baseline_pred)
-        & np.isfinite(weights)
-        & (weights > 0.0)
+            np.isfinite(feature_values)
+            & np.isfinite(baseline_pred)
+            & np.isfinite(weights)
+            & (weights > 0.0)
     )
     if not np.any(finite_mask):
         return []
@@ -912,12 +911,12 @@ def _has_min_abs(value, threshold):
 
 
 def _series_points(
-    rows,
-    feature_value_key,
-    metric_key,
-    *,
-    weight_key=None,
-    require_positive_target_count=False,
+        rows,
+        feature_value_key,
+        metric_key,
+        *,
+        weight_key=None,
+        require_positive_target_count=False,
 ):
     points = []
     for row in rows or []:
@@ -992,8 +991,8 @@ def _kendall_tau_b(points):
     tied_x = 0
     tied_y = 0
     for left_idx in range(len(x) - 1):
-        dx = x[left_idx + 1 :] - x[left_idx]
-        dy = y[left_idx + 1 :] - y[left_idx]
+        dx = x[left_idx + 1:] - x[left_idx]
+        dy = y[left_idx + 1:] - y[left_idx]
         tied_both_mask = (dx == 0.0) & (dy == 0.0)
         tied_x_mask = (dx == 0.0) & ~tied_both_mask
         tied_y_mask = (dy == 0.0) & ~tied_both_mask
@@ -1024,9 +1023,9 @@ def _direction_with_threshold(value, threshold):
 
 def _opposes(left_direction, right_direction):
     return (
-        int(left_direction) != 0
-        and int(right_direction) != 0
-        and int(left_direction) == -int(right_direction)
+            int(left_direction) != 0
+            and int(right_direction) != 0
+            and int(left_direction) == -int(right_direction)
     )
 
 
@@ -1134,13 +1133,13 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
     pdp_against_target_votes = _core_vote_count(pdp_metrics, -target_dir)
 
     if (
-        target_dir != 0
-        and target_strong
-        and baseline_dir == -target_dir
-        and pdp_dir == -target_dir
-        and not direction_conflict_warning
-        and baseline_against_target_votes >= 2
-        and pdp_against_target_votes >= 2
+            target_dir != 0
+            and target_strong
+            and baseline_dir == -target_dir
+            and pdp_dir == -target_dir
+            and not direction_conflict_warning
+            and baseline_against_target_votes >= 2
+            and pdp_against_target_votes >= 2
     ):
         return (
             "robust_pdp_and_baseline_vs_target_conflict",
@@ -1149,9 +1148,9 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
         )
 
     if (
-        target_dir != 0
-        and baseline_dir == target_dir
-        and pdp_dir == -target_dir
+            target_dir != 0
+            and baseline_dir == target_dir
+            and pdp_dir == -target_dir
     ):
         return (
             "robust_pdp_vs_target_baseline_agrees_target",
@@ -1166,11 +1165,11 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
     pdp_strong = pdp_dir != 0 and pdp_strength >= 1.0
     target_weak = target_dir == 0 or not target_strong
     pdp_much_stronger_than_target = (
-        pdp_strong
-        and pdp_abs_signal >= max(
-            float(SUSPICIOUS_MIN_ABS_PDP_SLOPE) * 4.0,
-            target_abs_signal * 3.0,
-        )
+            pdp_strong
+            and pdp_abs_signal >= max(
+        float(SUSPICIOUS_MIN_ABS_PDP_SLOPE) * 4.0,
+        target_abs_signal * 3.0,
+    )
     )
     any_robust_direction = any(direction != 0 for direction in (target_dir, baseline_dir, pdp_dir))
     robust_zero_count = sum(1 for direction in (target_dir, baseline_dir, pdp_dir) if direction == 0)
@@ -1192,9 +1191,9 @@ def _classify_suspicious_feature(pdp_metrics, baseline_metrics, target_metrics):
         )
 
     if (
-        pdp_target_conflict
-        or baseline_target_conflict
-        or (robust_zero_count >= 2 and any_robust_direction)
+            pdp_target_conflict
+            or baseline_target_conflict
+            or (robust_zero_count >= 2 and any_robust_direction)
     ):
         return (
             "mixed_or_inconclusive_robust_directions",
@@ -1263,11 +1262,11 @@ def build_target_alignment_metrics(observed_bins, grid_rows):
         baseline_pred = _finite_number_or_none(row.get("baseline_pred_mean"))
         target_count = _finite_number_or_none(row.get("target_count"))
         if (
-            feature_center is None
-            or target_rate is None
-            or baseline_pred is None
-            or target_count is None
-            or target_count <= 0.0
+                feature_center is None
+                or target_rate is None
+                or baseline_pred is None
+                or target_count is None
+                or target_count <= 0.0
         ):
             continue
         target_rows.append((feature_center, target_rate, baseline_pred, target_count))
@@ -1381,7 +1380,7 @@ def build_feature_suspicion_diagnostics(feature_summary):
         "kendall_tau_pdp": _compact_metric(pdp_metrics["kendall_tau"]),
         "direction_conflict_warning": bool(direction_conflict_warning),
         "baseline_target_direction_agree": (
-            target_dir != 0 and baseline_dir == target_dir
+                target_dir != 0 and baseline_dir == target_dir
         ),
         "pdp_target_direction_agree": target_dir != 0 and pdp_dir == target_dir,
     }
@@ -1415,8 +1414,8 @@ def build_suspicious_feature_report(feature_summaries):
         if row.get("suggested_action") == "exclude_candidate":
             excluded_feature_names_candidate.append(feature)
         if (
-            row.get("suggested_action") == "monotonic_constraint_candidate"
-            and int(row.get("monotonic_constraint") or 0) != 0
+                row.get("suggested_action") == "monotonic_constraint_candidate"
+                and int(row.get("monotonic_constraint") or 0) != 0
         ):
             monotonic_constraint_candidates[feature] = int(row["monotonic_constraint"])
 
@@ -1587,9 +1586,9 @@ def build_plot_x_axis(feature_values, grid_values, observed_bins=None, target_lo
     raw_max = float(np.max(finite_values)) if finite_values.size > 0 else None
     full_limits = _padded_limits(full_min, full_max, pad_fraction=0.04)
     if (
-        PLOT_X_AXIS_MODE == "full"
-        or finite_axis_values.size < int(PLOT_X_MIN_FINITE_ROWS)
-        or full_limits is None
+            PLOT_X_AXIS_MODE == "full"
+            or finite_axis_values.size < int(PLOT_X_MIN_FINITE_ROWS)
+            or full_limits is None
     ):
         return {
             "mode": "full",
@@ -1628,7 +1627,7 @@ def build_plot_x_axis(feature_values, grid_values, observed_bins=None, target_lo
     should_zoom = clipped_sample_rows > 0
     if full_range > 0.0 and visible_range > 0.0:
         should_zoom = should_zoom and (
-            visible_range <= full_range * float(PLOT_X_ZOOM_MAX_RANGE_FRACTION)
+                visible_range <= full_range * float(PLOT_X_ZOOM_MAX_RANGE_FRACTION)
         )
 
     if not should_zoom:
@@ -1678,9 +1677,9 @@ def _filter_xy_for_xlim(x_values, y_values, x_axis):
     mask = np.isfinite(x) & np.isfinite(y)
     if x_axis.get("zoomed"):
         mask = (
-            mask
-            & (x >= float(x_axis["visible_min"]))
-            & (x <= float(x_axis["visible_max"]))
+                mask
+                & (x >= float(x_axis["visible_min"]))
+                & (x <= float(x_axis["visible_max"]))
         )
     return x[mask].tolist(), y[mask].tolist()
 
@@ -1756,7 +1755,7 @@ def build_target_loess(observed_bins):
         bandwidth = float(np.max(distances[nearest]))
         if bandwidth > 0.0:
             scaled = np.clip(distances[nearest] / bandwidth, 0.0, 1.0)
-            local_weights = weights[nearest] * ((1.0 - scaled**3) ** 3)
+            local_weights = weights[nearest] * ((1.0 - scaled ** 3) ** 3)
         else:
             local_weights = weights[nearest].copy()
 
@@ -1917,16 +1916,16 @@ def plot_feature_one_way(feature, feature_summary, plot_path):
                         dtype=np.float64,
                     )
                     loess_mask = (
-                        np.isfinite(loess_x)
-                        & np.isfinite(loess_y)
-                        & np.isfinite(loess_low)
-                        & np.isfinite(loess_high)
+                            np.isfinite(loess_x)
+                            & np.isfinite(loess_y)
+                            & np.isfinite(loess_low)
+                            & np.isfinite(loess_high)
                     )
                     if x_axis.get("zoomed"):
                         loess_mask = (
-                            loess_mask
-                            & (loess_x >= float(x_axis["visible_min"]))
-                            & (loess_x <= float(x_axis["visible_max"]))
+                                loess_mask
+                                & (loess_x >= float(x_axis["visible_min"]))
+                                & (loess_x <= float(x_axis["visible_max"]))
                         )
                     if np.any(loess_mask):
                         loess_x = loess_x[loess_mask]
@@ -2020,17 +2019,17 @@ def plot_feature_one_way(feature, feature_summary, plot_path):
 
 
 def analyze_feature(
-    booster,
-    x_base,
-    baseline_pred,
-    target_values,
-    weights,
-    feature_columns,
-    feature_idx,
-    *,
-    grid_points,
-    bin_count,
-    plot_path,
+        booster,
+        x_base,
+        baseline_pred,
+        target_values,
+        weights,
+        feature_columns,
+        feature_idx,
+        *,
+        grid_points,
+        bin_count,
+        plot_path,
 ):
     feature = feature_columns[feature_idx]
     values = x_base[:, feature_idx].astype(np.float64, copy=False)

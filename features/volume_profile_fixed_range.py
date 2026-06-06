@@ -85,7 +85,7 @@ def validate_volume_profile_feature_columns(feature_names, *, source_label):
     for raw_feature_name in feature_names:
         feature_name = str(raw_feature_name).strip()
         if feature_name.startswith(VP_FEATURE_PREFIX) and not is_volume_profile_feature(
-            feature_name
+                feature_name
         ):
             invalid_feature_cols.append(feature_name)
 
@@ -582,11 +582,11 @@ def load_state(path):
 
 
 def validate_volume_profile_model_metadata(
-    metadata_payload,
-    *,
-    feature_columns,
-    cfg=None,
-    source_label,
+        metadata_payload,
+        *,
+        feature_columns,
+        cfg=None,
+        source_label,
 ):
     feature_columns = tuple(str(feature_name).strip() for feature_name in feature_columns)
     validate_volume_profile_feature_columns(
@@ -623,11 +623,11 @@ def validate_volume_profile_model_metadata(
 
 
 def validate_volume_profile_dataset_metadata(
-    metadata_payload,
-    *,
-    feature_columns,
-    cfg=None,
-    source_label,
+        metadata_payload,
+        *,
+        feature_columns,
+        cfg=None,
+        source_label,
 ):
     feature_columns = tuple(str(feature_name).strip() for feature_name in feature_columns)
     validate_volume_profile_feature_columns(
@@ -663,7 +663,7 @@ def validate_volume_profile_dataset_metadata(
         metadata_payload.get("volume_profile_feature_columns") or ()
     )
     if meta_feature_columns and meta_feature_columns != tuple(
-        expected_cfg["feature_columns"]
+            expected_cfg["feature_columns"]
     ):
         raise ValueError(
             f"{source_label} volume_profile_feature_columns do not match the active "
@@ -710,18 +710,18 @@ def _normal_cdf_numba(x):
 
 @njit(cache=True)
 def _extract_feature_row_array_numba(
-    raw_profile_buffer,
-    global_scales,
-    high,
-    low,
-    price_min,
-    neighbor_bins,
-    eps,
-    horizon_offsets,
-    horizon_bins,
-    horizon_steps,
-    horizon_local_windows,
-    out_row,
+        raw_profile_buffer,
+        global_scales,
+        high,
+        low,
+        price_min,
+        neighbor_bins,
+        eps,
+        horizon_offsets,
+        horizon_bins,
+        horizon_steps,
+        horizon_local_windows,
+        out_row,
 ):
     price_ref = 0.5 * (high + low)
     cursor = 0
@@ -787,20 +787,20 @@ def _extract_feature_row_array_numba(
 
 @njit(cache=True)
 def _update_state_with_candle_numba(
-    raw_profile_buffer,
-    global_scales,
-    horizon_offsets,
-    horizon_bins,
-    horizon_steps,
-    horizon_sigma_divisors,
-    horizon_min_sigmas,
-    horizon_decays,
-    high,
-    low,
-    volume,
-    price_min,
-    renormalize_scale_min,
-    weight_buffer,
+        raw_profile_buffer,
+        global_scales,
+        horizon_offsets,
+        horizon_bins,
+        horizon_steps,
+        horizon_sigma_divisors,
+        horizon_min_sigmas,
+        horizon_decays,
+        high,
+        low,
+        volume,
+        price_min,
+        renormalize_scale_min,
+        weight_buffer,
 ):
     if not np.isfinite(high) or not np.isfinite(low) or not np.isfinite(volume):
         return
@@ -865,7 +865,7 @@ def _update_state_with_candle_numba(
             if scale < renormalize_scale_min:
                 for bin_idx in range(bins):
                     raw_profile_buffer[offset + bin_idx] = (
-                        raw_profile_buffer[offset + bin_idx] * scale
+                            raw_profile_buffer[offset + bin_idx] * scale
                     )
                 global_scales[horizon_idx] = 1.0
                 scale = 1.0
@@ -876,31 +876,31 @@ def _update_state_with_candle_numba(
         inv_scale = base_increment / scale
         for weight_idx in range(length):
             raw_profile_buffer[offset + start_idx + weight_idx] += (
-                weight_buffer[weight_idx] * inv_scale
+                    weight_buffer[weight_idx] * inv_scale
             )
 
 
 @njit(cache=True)
 def _build_volume_profile_feature_matrix_numba(
-    high,
-    low,
-    volume,
-    keep_mask,
-    out_rows,
-    price_min,
-    neighbor_bins,
-    eps,
-    horizon_offsets,
-    horizon_bins,
-    horizon_steps,
-    horizon_local_windows,
-    horizon_sigma_divisors,
-    horizon_min_sigmas,
-    horizon_decays,
-    feature_count,
-    total_bins,
-    max_bins,
-    renormalize_scale_min,
+        high,
+        low,
+        volume,
+        keep_mask,
+        out_rows,
+        price_min,
+        neighbor_bins,
+        eps,
+        horizon_offsets,
+        horizon_bins,
+        horizon_steps,
+        horizon_local_windows,
+        horizon_sigma_divisors,
+        horizon_min_sigmas,
+        horizon_decays,
+        feature_count,
+        total_bins,
+        max_bins,
+        renormalize_scale_min,
 ):
     raw_profile_buffer = np.zeros(total_bins, dtype=np.float64)
     global_scales = np.ones(horizon_bins.shape[0], dtype=np.float64)
@@ -992,7 +992,7 @@ def _apply_flat_profiles_to_state(state, normalized, raw_profile_buffer, global_
         offset = int(normalized["horizons"][horizon_name]["offset"])
         bins = int(normalized["horizons"][horizon_name]["bins"])
         state["horizons"][horizon_name]["raw_profile"][:] = raw_profile_buffer[
-            offset : offset + bins
+            offset: offset + bins
         ]
         state["horizons"][horizon_name]["global_scale"] = float(
             global_scales[horizon_idx]
@@ -1000,11 +1000,11 @@ def _apply_flat_profiles_to_state(state, normalized, raw_profile_buffer, global_
 
 
 def build_volume_profile_feature_matrix_from_arrays(
-    high,
-    low,
-    volume,
-    cfg=None,
-    keep_mask=None,
+        high,
+        low,
+        volume,
+        cfg=None,
+        keep_mask=None,
 ):
     normalized = normalize_config(cfg)
     state = create_empty_state(normalized)
@@ -1056,14 +1056,14 @@ def build_volume_profile_feature_matrix_from_arrays(
 
 
 def _build_candle_contribution_slice(
-    high,
-    low,
-    volume,
-    price_min,
-    step,
-    bins,
-    sigma_divisor,
-    min_sigma,
+        high,
+        low,
+        volume,
+        price_min,
+        step,
+        bins,
+        sigma_divisor,
+        min_sigma,
 ):
     if not np.isfinite(high) or not np.isfinite(low) or not np.isfinite(volume):
         return None, np.empty(0, dtype=np.float64)
@@ -1104,9 +1104,9 @@ def _build_candle_contribution_slice(
 
 
 def _extract_feature_row_array(
-    state,
-    high,
-    low,
+        state,
+        high,
+        low,
 ):
     if not state["enabled"]:
         return np.empty(0, dtype=np.float64)
@@ -1144,7 +1144,7 @@ def _extract_feature_row_array(
         local_slice = raw_profile[left:right]
         center = bin_idx - left
 
-        above = float(local_slice[center + 1 :].sum(dtype=np.float64)) * scale
+        above = float(local_slice[center + 1:].sum(dtype=np.float64)) * scale
         below = float(local_slice[:center].sum(dtype=np.float64)) * scale
         local_sum = float(local_slice.sum(dtype=np.float64)) * scale
         local_max = float(local_slice.max()) * scale
@@ -1160,9 +1160,9 @@ def _extract_feature_row_array(
 
 
 def extract_features_from_state(
-    state,
-    high,
-    low,
+        state,
+        high,
+        low,
 ):
     values = _extract_feature_row_array(state, high=high, low=low)
     return {
@@ -1172,10 +1172,10 @@ def extract_features_from_state(
 
 
 def update_state_with_candle(
-    state,
-    high,
-    low,
-    volume,
+        state,
+        high,
+        low,
+        volume,
 ):
     if not state["enabled"]:
         return state
@@ -1211,8 +1211,8 @@ def update_state_with_candle(
 
 
 def bootstrap_state_from_history(
-    df_hist,
-    cfg=None,
+        df_hist,
+        cfg=None,
 ):
     _require_dataframe_columns(df_hist, _REQUIRED_COLUMNS)
     normalized = normalize_config(cfg)
@@ -1242,9 +1242,9 @@ def bootstrap_state_from_history(
 
 
 def build_volume_profile_features(
-    df,
-    cfg=None,
-    verbose=True,
+        df,
+        cfg=None,
+        verbose=True,
 ):
     _require_dataframe_columns(df, _REQUIRED_COLUMNS)
     normalized = normalize_config(cfg)
@@ -1278,10 +1278,10 @@ def build_volume_profile_features(
 
 
 def check_batch_live_consistency(
-    df,
-    cfg=None,
-    atol=1e-6,
-    rtol=1e-6,
+        df,
+        cfg=None,
+        atol=1e-6,
+        rtol=1e-6,
 ):
     _require_dataframe_columns(df, _REQUIRED_COLUMNS)
     batch_df, _ = build_volume_profile_features(df, cfg)

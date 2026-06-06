@@ -1,21 +1,16 @@
-import json
 import hashlib
+import json
 import time
 from multiprocessing import Pool
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from utils.config import coerce_path
-from utils.data import drop_frozen_ohlc_blocks
-from utils.data import compute_binary_close_target_from_opened
-
-from pymoo.core.mixed import MixedVariableGA
 from pymoo.core.mixed import (
     MixedVariableDuplicateElimination,
     MixedVariableMating,
     MixedVariableSampling,
 )
+from pymoo.core.mixed import MixedVariableGA
 from pymoo.core.variable import Binary, Choice, Integer, Real
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.crossover.ux import UX
@@ -25,6 +20,10 @@ from pymoo.operators.mutation.rm import ChoiceRandomMutation
 from pymoo.operators.repair.rounding import RoundingRepair
 from pymoo.optimize import minimize
 from pymoo.termination.default import DefaultSingleObjectiveTermination
+
+from utils.config import coerce_path
+from utils.data import compute_binary_close_target_from_opened
+from utils.data import drop_frozen_ohlc_blocks
 
 try:
     from pymoo.core.problem import StarmapParallelization
@@ -96,7 +95,7 @@ INITIALIZER_MAP = {
 
 
 def df_size_mib(df):
-    return df.memory_usage(index=True, deep=True).sum() / 1024**2
+    return df.memory_usage(index=True, deep=True).sum() / 1024 ** 2
 
 
 def to_serializable_params(params):
@@ -433,8 +432,8 @@ def _metric_filename_suffix(metric_config):
         f"_sg{int(metric_config['segments_count'])}"
     )
     if bool(metric_config.get("recency_weighting_enabled")) and not np.isclose(
-        float(metric_config["recency_weight_min"]),
-        float(metric_config["recency_weight_max"]),
+            float(metric_config["recency_weight_min"]),
+            float(metric_config["recency_weight_max"]),
     ):
         suffix += (
             f"_rwlin{_format_float_token(metric_config['recency_weight_min'])}"
@@ -481,33 +480,33 @@ MATING = MixedVariableMating(
 
 
 def run_indicator_ga(
-    ind_name,
-    ohlcv_np,
-    target_np,
-    pop_size,
-    interval,
-    metric_config,
+        ind_name,
+        ohlcv_np,
+        target_np,
+        pop_size,
+        interval,
+        metric_config,
 ):
     with Pool(
-        CPU_CORES_COUNT,
-        initializer=INITIALIZER_MAP[ind_name],
-        initargs=(
-            ohlcv_np,
-            target_np,
-            metric_config["segments_count"],
-            metric_config["train_frac"],
-            metric_config["gap"],
-            metric_config["q_ext"],
-            metric_config["q_mid"],
-            metric_config["stat"],
-            metric_config["clip_q"],
-            metric_config["min_bucket_size"],
-            metric_config["min_valid_segments"],
-            metric_config["recency_weighting_enabled"],
-            metric_config["recency_weighting_mode"],
-            metric_config["recency_weight_min"],
-            metric_config["recency_weight_max"],
-        ),
+            CPU_CORES_COUNT,
+            initializer=INITIALIZER_MAP[ind_name],
+            initargs=(
+                    ohlcv_np,
+                    target_np,
+                    metric_config["segments_count"],
+                    metric_config["train_frac"],
+                    metric_config["gap"],
+                    metric_config["q_ext"],
+                    metric_config["q_mid"],
+                    metric_config["stat"],
+                    metric_config["clip_q"],
+                    metric_config["min_bucket_size"],
+                    metric_config["min_valid_segments"],
+                    metric_config["recency_weighting_enabled"],
+                    metric_config["recency_weighting_mode"],
+                    metric_config["recency_weight_min"],
+                    metric_config["recency_weight_max"],
+            ),
     ) as pool:
         runner = StarmapParallelization(pool.starmap)
 

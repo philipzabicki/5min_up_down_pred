@@ -57,13 +57,13 @@ def normalize_path_text(value):
         if normalized == old:
             return new
         if normalized.startswith(marker):
-            return new + normalized[len(old) :]
+            return new + normalized[len(old):]
         if normalized.endswith(os.sep + old):
             return normalized[: -len(old)] + new
         marker_index = normalized.find(os.sep + marker)
         if marker_index >= 0:
             return normalized[: marker_index + 1] + new + normalized[
-                marker_index + 1 + len(old) :
+                marker_index + 1 + len(old):
             ]
     return normalized
 

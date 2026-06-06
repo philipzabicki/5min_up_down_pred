@@ -7,25 +7,17 @@ import lightgbm as lgb
 import numpy as np
 import optuna
 import pandas as pd
-from utils.data import drop_frozen_ohlc_blocks
 
 from features.candle_features import RAW_OHLCV_COLS
 from features.volume_profile_fixed_range import (
     build_volume_profile_feature_matrix_from_arrays,
     normalize_config as normalize_volume_profile_config,
 )
-from utils.data import load_modeling_dataset_settings
-from utils.optuna import (
-    make_timestamped_artifact_path,
-    resolve_run_study_name,
-)
-from utils.project_config import active_asset_path
-from utils.metrics import (
-    make_lightgbm_binary_balanced_accuracy_eval,
-    make_lightgbm_binary_brier_eval,
-    make_lightgbm_binary_logloss_eval,
-    weighted_balanced_accuracy_score,
-    weighted_binary_logloss,
+from train_lgbm import (
+    WF_TEST_TO_TRAIN_RATIO as DEFAULT_WF_TEST_TO_TRAIN_RATIO,
+    format_lgbm_monotone_constraint_summary,
+    make_lgbm_monotone_constraint_params,
+    summarize_lgbm_monotone_constraints,
 )
 from utils.data import (
     TARGET_WEIGHT_COL,
@@ -34,12 +26,20 @@ from utils.data import (
     compute_binary_close_target_from_opened,
     summarize_target_weights,
 )
-from train_lgbm import (
-    WF_TEST_TO_TRAIN_RATIO as DEFAULT_WF_TEST_TO_TRAIN_RATIO,
-    format_lgbm_monotone_constraint_summary,
-    make_lgbm_monotone_constraint_params,
-    summarize_lgbm_monotone_constraints,
+from utils.data import drop_frozen_ohlc_blocks
+from utils.data import load_modeling_dataset_settings
+from utils.metrics import (
+    make_lightgbm_binary_balanced_accuracy_eval,
+    make_lightgbm_binary_brier_eval,
+    make_lightgbm_binary_logloss_eval,
+    weighted_balanced_accuracy_score,
+    weighted_binary_logloss,
 )
+from utils.optuna import (
+    make_timestamped_artifact_path,
+    resolve_run_study_name,
+)
+from utils.project_config import active_asset_path
 
 TARGET_TIME_COL = "Opened"
 TARGET_PRICE_COL = "Close"
@@ -212,8 +212,8 @@ DEFAULT_STUDY_NAME_PREFIX = "volume_profile_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
 STUDY_NAME = None
 STORAGE = (
-    "sqlite:///"
-    + active_asset_path("data/optuna/databases/{asset}/volume_profile.db").as_posix()
+        "sqlite:///"
+        + active_asset_path("data/optuna/databases/{asset}/volume_profile.db").as_posix()
 )
 ARTIFACT_OUTPUT_DIR = active_asset_path("data/optuna/volume_profile/{asset}")
 BEST_RESULT_STEM = "volume_profile_best_binary_logloss_mean_std"
@@ -573,12 +573,12 @@ def score_cv_objective_metric(y_true, y_pred_proba, sample_weight):
 
 
 def compute_cv_fold_scores_at_iteration(
-    cvbooster,
-    x_np,
-    y_np,
-    sample_weight_np,
-    folds,
-    best_iteration,
+        cvbooster,
+        x_np,
+        y_np,
+        sample_weight_np,
+        folds,
+        best_iteration,
 ):
     boosters = getattr(cvbooster, "boosters", None)
     if boosters is None:
@@ -609,12 +609,12 @@ def compute_cv_fold_scores_at_iteration(
 
 class ObjectiveAlignedLightGBMPruningCallback:
     def __init__(
-        self,
-        trial,
-        metric,
-        std_penalty,
-        valid_name="valid_0",
-        report_interval=1,
+            self,
+            trial,
+            metric,
+            std_penalty,
+            valid_name="valid_0",
+            report_interval=1,
     ):
         self._trial = trial
         self._valid_name = valid_name
@@ -643,9 +643,9 @@ class ObjectiveAlignedLightGBMPruningCallback:
 
         evaluation_result_list = env.evaluation_result_list
         is_cv = (
-            evaluation_result_list is not None
-            and len(evaluation_result_list) > 0
-            and len(evaluation_result_list[0]) == 5
+                evaluation_result_list is not None
+                and len(evaluation_result_list) > 0
+                and len(evaluation_result_list[0]) == 5
         )
         target_valid_names = ("cv_agg", "valid") if is_cv else (self._valid_name,)
         evaluation_result = self._find_evaluation_result(target_valid_names, env)
@@ -1167,13 +1167,13 @@ def make_lgbm_cv_params(feature_names=None):
 
 
 def build_filtered_training_arrays(
-    high_np,
-    low_np,
-    volume_np,
-    keep_mask,
-    y_filtered,
-    sample_weight_filtered,
-    normalized_vp_config,
+        high_np,
+        low_np,
+        volume_np,
+        keep_mask,
+        y_filtered,
+        sample_weight_filtered,
+        normalized_vp_config,
 ):
     x_np, _ = build_volume_profile_feature_matrix_from_arrays(
         high=high_np,
@@ -1202,15 +1202,15 @@ def build_filtered_training_arrays(
 
 
 def run_lightgbm_cv(
-    x_np,
-    y_np,
-    sample_weight_np,
-    folds,
-    fold_indices,
-    fold_weight_by_id,
-    feature_names,
-    trial=None,
-    return_cvbooster=False,
+        x_np,
+        y_np,
+        sample_weight_np,
+        folds,
+        fold_indices,
+        fold_weight_by_id,
+        feature_names,
+        trial=None,
+        return_cvbooster=False,
 ):
     train_set = lgb.Dataset(
         data=x_np,
@@ -1333,12 +1333,12 @@ def get_best_successful_trial(study):
 
 
 def make_objective(
-    base_data,
-    folds,
-    fold_indices,
-    fold_weight_by_id,
-    base_vp_config,
-    search_space,
+        base_data,
+        folds,
+        fold_indices,
+        fold_weight_by_id,
+        base_vp_config,
+        search_space,
 ):
     def objective(trial):
         normalized_vp_config = None

@@ -32,8 +32,8 @@ class IndicatorWindowScratch:
         self.window_len = min(int(window_len), int(full_scratch.ohlcv.shape[0]))
         if self.window_len <= 0:
             self.window_len = int(full_scratch.ohlcv.shape[0])
-        self.ohlcv = full_scratch.ohlcv[-self.window_len :, :]
-        self.volume = full_scratch.volume[-self.window_len :]
+        self.ohlcv = full_scratch.ohlcv[-self.window_len:, :]
+        self.volume = full_scratch.volume[-self.window_len:]
         self._source_cache = {}
         self._trange = None
         self._adl = None
@@ -50,7 +50,7 @@ class IndicatorWindowScratch:
         if self.window_len >= int(base.shape[0]):
             cached = base
         else:
-            cached = base[-self.window_len :]
+            cached = base[-self.window_len:]
         self._source_cache[source] = cached
         return cached
 

@@ -43,11 +43,11 @@ RV_CE_FEATURE_COLUMNS = tuple(
     for short_w, long_w in _CE_WINDOW_PAIRS
 )
 REALIZED_VOLATILITY_FEATURE_COLUMNS = (
-    RV_FEATURE_COLUMNS
-    + RV_UP_FEATURE_COLUMNS
-    + RV_DOWN_FEATURE_COLUMNS
-    + VOV_FEATURE_COLUMNS
-    + RV_CE_FEATURE_COLUMNS
+        RV_FEATURE_COLUMNS
+        + RV_UP_FEATURE_COLUMNS
+        + RV_DOWN_FEATURE_COLUMNS
+        + VOV_FEATURE_COLUMNS
+        + RV_CE_FEATURE_COLUMNS
 )
 _ALL_FEATURE_COLUMNS_SET = set(REALIZED_VOLATILITY_FEATURE_COLUMNS)
 
@@ -208,9 +208,9 @@ def compute_realized_volatility_feature_arrays(close):
 
 
 def add_realized_volatility_features(
-    df: pd.DataFrame,
-    close_col: str = "Close",
-    float_dtype=np.float64,
+        df: pd.DataFrame,
+        close_col: str = "Close",
+        float_dtype=np.float64,
 ) -> pd.DataFrame:
     if close_col not in df.columns:
         raise ValueError(f"Missing required close column: {close_col}")

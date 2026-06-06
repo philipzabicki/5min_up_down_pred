@@ -8,8 +8,8 @@ import pandas as pd
 import requests
 
 from data.raw_ohlcv_repair import repair_raw_ohlcv_csv
-from utils.project_config import DATA_DIR, RAW_DATASETS_DIR
 from utils.config import load_repo_env
+from utils.project_config import DATA_DIR, RAW_DATASETS_DIR
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_DATA_DIR = PROJECT_ROOT / DATA_DIR
@@ -70,7 +70,6 @@ KNOWN_STREAM_METADATA = {
     },
 }
 
-
 load_repo_env(overwrite=False)
 
 
@@ -86,11 +85,11 @@ def _env_int(name, default):
 
 def _ensure_dirs():
     for path in (
-        REPO_DATA_DIR,
-        RAW_DATA_DIR,
-        CHAINLINK_DATA_DIR,
-        CHAINLINK_META_DIR,
-        CHAINLINK_RAW_REPORTS_DIR,
+            REPO_DATA_DIR,
+            RAW_DATA_DIR,
+            CHAINLINK_DATA_DIR,
+            CHAINLINK_META_DIR,
+            CHAINLINK_RAW_REPORTS_DIR,
     ):
         path.mkdir(parents=True, exist_ok=True)
 
@@ -160,7 +159,7 @@ def _normalize_symbol(ticker):
         base = quote = None
         for candidate_quote in KNOWN_QUOTES:
             if compact.endswith(candidate_quote) and len(compact) > len(
-                candidate_quote
+                    candidate_quote
             ):
                 base = compact[: -len(candidate_quote)]
                 quote = candidate_quote
@@ -331,9 +330,9 @@ def _get_candlestick_access_token(session=None):
     cached_token = _TOKEN_CACHE["access_token"]
     cached_expiration = float(_TOKEN_CACHE["expiration"] or 0.0)
     if (
-        _TOKEN_CACHE["base_url"] == base_url
-        and cached_token
-        and cached_expiration > (now_ts + CHAINLINK_TOKEN_REFRESH_LEEWAY_SEC)
+            _TOKEN_CACHE["base_url"] == base_url
+            and cached_token
+            and cached_expiration > (now_ts + CHAINLINK_TOKEN_REFRESH_LEEWAY_SEC)
     ):
         return cached_token
 
@@ -416,11 +415,11 @@ def _parse_authenticated_candle_rows(candles, multiply):
 
 
 def _fetch_authenticated_candlestick_window(
-    ctx,
-    interval,
-    batch_start,
-    batch_end_exclusive,
-    session=None,
+        ctx,
+        interval,
+        batch_start,
+        batch_end_exclusive,
+        session=None,
 ):
     interval_delta = _interval_to_timedelta(interval)
     if batch_end_exclusive <= batch_start:
@@ -453,11 +452,11 @@ def _fetch_authenticated_candlestick_window(
 
 
 def _fetch_authenticated_forward_batches(
-    ctx,
-    interval,
-    start_inclusive,
-    end_exclusive,
-    session=None,
+        ctx,
+        interval,
+        start_inclusive,
+        end_exclusive,
+        session=None,
 ):
     max_window = _candlestick_max_window(interval)
     max_batches = _env_int("CHAINLINK_CANDLESTICK_MAX_BATCHES", CHAINLINK_MAX_BATCHES)
@@ -503,7 +502,7 @@ def _fetch_authenticated_forward_batches(
 
 
 def _fetch_authenticated_backward_all_available(
-    ctx, interval, end_exclusive, session=None
+        ctx, interval, end_exclusive, session=None
 ):
     max_window = _candlestick_max_window(interval)
     max_batches = _env_int("CHAINLINK_CANDLESTICK_MAX_BATCHES", CHAINLINK_MAX_BATCHES)
@@ -561,12 +560,12 @@ def _fetch_authenticated_backward_all_available(
 
 
 def fetch_authenticated_candlestick_ohlcv(
-    ticker="BTCUSD",
-    interval="1m",
-    start_date="",
-    end_date="",
-    refresh_metadata=False,
-    session=None,
+        ticker="BTCUSD",
+        interval="1m",
+        start_date="",
+        end_date="",
+        refresh_metadata=False,
+        session=None,
 ):
     ctx = _build_stream_context(
         ticker=ticker,
@@ -595,7 +594,7 @@ def fetch_authenticated_candlestick_ohlcv(
 
 
 def fetch_public_recent_live_reports(
-    ticker="BTCUSD", refresh_metadata=False, session=None
+        ticker="BTCUSD", refresh_metadata=False, session=None
 ):
     ctx = _build_stream_context(
         ticker=ticker,
@@ -649,9 +648,9 @@ def fetch_public_recent_live_reports(
 
 
 def update_public_live_reports_archive(
-    ticker="BTCUSD",
-    refresh_metadata=False,
-    session=None,
+        ticker="BTCUSD",
+        refresh_metadata=False,
+        session=None,
 ):
     _ensure_dirs()
     ctx = _build_stream_context(
@@ -706,10 +705,10 @@ def _parse_public_candlestick_text(text):
 
 
 def fetch_public_historical_engine_ohlcv(
-    ticker="BTCUSD",
-    time_range="1D",
-    refresh_metadata=False,
-    session=None,
+        ticker="BTCUSD",
+        time_range="1D",
+        refresh_metadata=False,
+        session=None,
 ):
     data_field = CHAINLINK_PUBLIC_HISTORICAL_FIELD_BY_RANGE.get(str(time_range))
     if data_field is None:
@@ -809,7 +808,7 @@ def _resample_ohlcv(df, interval):
         return pd.DataFrame(columns=OHLCV_COLS)
 
     complete_mask = (out["Opened"] >= coverage_start) & (
-        (out["Opened"] + interval_delta) <= coverage_end
+            (out["Opened"] + interval_delta) <= coverage_end
     )
     out = out.loc[complete_mask].reset_index(drop=True)
     if out.empty:
@@ -844,7 +843,7 @@ def _public_reports_to_ohlcv(raw_reports_df, interval):
         return pd.DataFrame(columns=OHLCV_COLS)
 
     complete_mask = (out["Opened"] >= coverage_start) & (
-        (out["Opened"] + interval_delta) <= coverage_end
+            (out["Opened"] + interval_delta) <= coverage_end
     )
     out = out.loc[complete_mask].reset_index(drop=True)
     if out.empty:
@@ -861,8 +860,8 @@ def _integrity_report(df, interval, ticker, source_mode, volume_mode):
 
     gap_count = int(
         (
-            df["Opened"].sort_values().diff().dropna()
-            > _interval_to_timedelta(interval)
+                df["Opened"].sort_values().diff().dropna()
+                > _interval_to_timedelta(interval)
         ).sum()
     )
     newest = pd.Timestamp(df["Opened"].iloc[-1])
@@ -880,15 +879,15 @@ def _integrity_report(df, interval, ticker, source_mode, volume_mode):
 
 
 def _by_public_delayed_chainlink(
-    ticker="BTCUSD",
-    interval="1m",
-    start_date="",
-    end_date="2030-01-01 00:00:00",
-    split=False,
-    delay=0,
-    refresh_metadata=False,
-    output_dir=None,
-    raw_ohlcv_repair_config=None,
+        ticker="BTCUSD",
+        interval="1m",
+        start_date="",
+        end_date="2030-01-01 00:00:00",
+        split=False,
+        delay=0,
+        refresh_metadata=False,
+        output_dir=None,
+        raw_ohlcv_repair_config=None,
 ):
     _ = delay
     ctx = _build_stream_context(ticker=ticker, refresh_metadata=refresh_metadata)
@@ -939,15 +938,15 @@ def _by_public_delayed_chainlink(
 
 
 def by_ChainlinkDataStream(
-    ticker="BTCUSD",
-    interval="1m",
-    start_date="",
-    end_date="2030-01-01 00:00:00",
-    split=False,
-    delay=0,
-    refresh_metadata=False,
-    output_dir=None,
-    raw_ohlcv_repair_config=None,
+        ticker="BTCUSD",
+        interval="1m",
+        start_date="",
+        end_date="2030-01-01 00:00:00",
+        split=False,
+        delay=0,
+        refresh_metadata=False,
+        output_dir=None,
+        raw_ohlcv_repair_config=None,
 ):
     _ensure_dirs()
     if _has_candlestick_credentials():

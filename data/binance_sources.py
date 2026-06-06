@@ -10,8 +10,8 @@ from binance_data import DataClient
 from dateutil.relativedelta import relativedelta
 
 from data.raw_ohlcv_repair import repair_raw_ohlcv_csv, repair_raw_ohlcv_frame
-from utils.project_config import DATA_DIR, DATASETS_DIR, RAW_DATASETS_DIR
 from utils.config import load_repo_env
+from utils.project_config import DATA_DIR, DATASETS_DIR, RAW_DATASETS_DIR
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 REPO_DATA_DIR = PROJECT_ROOT / DATA_DIR
@@ -92,13 +92,13 @@ def _normalize_source_selection(price_source, volume_source="same"):
 
 
 def _data_type_file_suffix(
-    data_type,
-    price_source="trade",
-    volume_source="trade",
-    ticker="",
-    market_type="",
-    volume_ticker="",
-    volume_market_type="",
+        data_type,
+        price_source="trade",
+        volume_source="trade",
+        ticker="",
+        market_type="",
+        volume_ticker="",
+        volume_market_type="",
 ):
     suffix_by_data_type = {
         "klines": "",
@@ -130,27 +130,27 @@ def _data_type_file_suffix(
 
 
 def _final_csv_path(
-    ticker,
-    interval,
-    data_type="klines",
-    price_source="trade",
-    volume_source="trade",
-    market_type="",
-    volume_ticker="",
-    volume_market_type="",
-    output_dir=None,
+        ticker,
+        interval,
+        data_type="klines",
+        price_source="trade",
+        volume_source="trade",
+        market_type="",
+        volume_ticker="",
+        volume_market_type="",
+        output_dir=None,
 ):
     raw_data_dir = Path(output_dir) if output_dir else RAW_DATA_DIR
     raw_data_dir.mkdir(parents=True, exist_ok=True)
     return raw_data_dir / (f"{ticker}" f"{_data_type_file_suffix(
-                data_type,
-                price_source,
-                volume_source,
-                ticker=ticker,
-                market_type=market_type,
-                volume_ticker=volume_ticker,
-                volume_market_type=volume_market_type,
-            )}" f"{interval}.csv")
+        data_type,
+        price_source,
+        volume_source,
+        ticker=ticker,
+        market_type=market_type,
+        volume_ticker=volume_ticker,
+        volume_market_type=volume_market_type,
+    )}" f"{interval}.csv")
 
 
 def _vision_tmp_root(ticker, interval, market_type, data_type):
@@ -247,14 +247,14 @@ def _merge_price_and_volume_frames(price_df, volume_df, auxiliary_ohlc_cols=None
 
 
 def _repair_hybrid_source_frame(
-    df,
-    *,
-    interval,
-    raw_config,
-    price_decimals,
-    volume_decimals,
-    source_label,
-    artifact_csv_path=None,
+        df,
+        *,
+        interval,
+        raw_config,
+        price_decimals,
+        volume_decimals,
+        source_label,
+        artifact_csv_path=None,
 ):
     repaired_df, summary = repair_raw_ohlcv_frame(
         df,
@@ -356,10 +356,10 @@ def _read_cached_ohlcv_csv(path):
         df = pd.read_csv(path, header=0)
         df["Opened"] = pd.to_datetime(df["Opened"], errors="raise")
     except (
-        OSError,
-        UnicodeDecodeError,
-        ValueError,
-        pd.errors.ParserError,
+            OSError,
+            UnicodeDecodeError,
+            ValueError,
+            pd.errors.ParserError,
     ) as exc:
         print(f"[cache] ignoring unreadable final CSV {path}: {exc}")
         return None
@@ -384,7 +384,7 @@ def _download_and_unzip(url, output_dir):
 
 
 def _fetch_rest_klines_tail(
-    ticker, interval, market_type, start_opened, data_type="klines"
+        ticker, interval, market_type, start_opened, data_type="klines"
 ):
     endpoint = REST_KLINES_ENDPOINTS.get((str(market_type), str(data_type)))
     if endpoint is None:
@@ -474,11 +474,11 @@ def _read_partial_df(unzip_dir, data_type="klines"):
 
 
 def _collect_to_date(
-    url_prefix,
-    temp_root,
-    data_type="klines",
-    start_date=date(year=2017, month=1, day=1),
-    delta_itv="months",
+        url_prefix,
+        temp_root,
+        data_type="klines",
+        start_date=date(year=2017, month=1, day=1),
+        delta_itv="months",
 ):
     if delta_itv == "months":
         delta = relativedelta(months=1)
@@ -532,20 +532,20 @@ def _resolve_daily_update_start_date(requested_start_date, data_frames, fallback
 
 
 def by_BinanceVision(
-    ticker="BTCBUSD",
-    interval="1m",
-    market_type="um",
-    data_type="klines",
-    price_source="trade",
-    volume_source="same",
-    volume_ticker="",
-    volume_market_type="",
-    start_date="",
-    end_date="2030-01-01 00:00:00",
-    split=False,
-    delay=LAST_DATA_POINT_DELAY,
-    output_dir=None,
-    raw_ohlcv_repair_config=None,
+        ticker="BTCBUSD",
+        interval="1m",
+        market_type="um",
+        data_type="klines",
+        price_source="trade",
+        volume_source="same",
+        volume_ticker="",
+        volume_market_type="",
+        start_date="",
+        end_date="2030-01-01 00:00:00",
+        split=False,
+        delay=LAST_DATA_POINT_DELAY,
+        output_dir=None,
+        raw_ohlcv_repair_config=None,
 ):
     market_type = _normalize_market_type(market_type, field_name="market_type")
     ticker = _normalize_optional_symbol(ticker)
@@ -568,7 +568,7 @@ def by_BinanceVision(
     effective_volume_ticker = volume_ticker or ticker
     effective_volume_market_type = volume_market_type or market_type
     uses_cross_volume_target = (
-        effective_volume_ticker != ticker or effective_volume_market_type != market_type
+            effective_volume_ticker != ticker or effective_volume_market_type != market_type
     )
 
     if uses_cross_volume_target and price_source == volume_source:
@@ -669,7 +669,7 @@ def by_BinanceVision(
                 effective_volume_ticker,
             )
             if volume_source == "trade"
-            and effective_volume_market_type in {"um", "cm"}
+               and effective_volume_market_type in {"um", "cm"}
             else {}
         )
         merged_df = _clean_ohlcv_df(
@@ -729,7 +729,7 @@ def by_BinanceVision(
     df = _read_cached_ohlcv_csv(final_csv) if final_csv.is_file() else None
     if df is not None:
         first_opened_date = pd.Timestamp(df.iloc[0]["Opened"]).date()
-        last_timestamp = int(df.iloc[-1]["Opened"].value // 10**9)
+        last_timestamp = int(df.iloc[-1]["Opened"].value // 10 ** 9)
         if requested_start_date < first_opened_date:
             print(
                 "[cache] existing final CSV starts too late for requested range; "
@@ -825,14 +825,14 @@ def by_BinanceVision(
 
 
 def by_DataClient(
-    ticker="BTCUSDT",
-    interval="1m",
-    futures=True,
-    statements=True,
-    split=False,
-    delay=LAST_DATA_POINT_DELAY,
-    raw_ohlcv_repair_config=None,
-    output_dir=None,
+        ticker="BTCUSDT",
+        interval="1m",
+        futures=True,
+        statements=True,
+        split=False,
+        delay=LAST_DATA_POINT_DELAY,
+        raw_ohlcv_repair_config=None,
+        output_dir=None,
 ):
     price_decimals = 2 if futures else None
     volume_decimals = 3 if futures else None
@@ -844,7 +844,7 @@ def by_DataClient(
     )
     df = _read_cached_ohlcv_csv(final_csv) if final_csv.is_file() else None
     if df is not None:
-        last_timestamp = int(df.iloc[-1]["Opened"].value // 10**9)
+        last_timestamp = int(df.iloc[-1]["Opened"].value // 10 ** 9)
         if (time() - last_timestamp) <= delay:
             df, _repair_summary = repair_raw_ohlcv_csv(
                 final_csv,

@@ -85,10 +85,10 @@ def resolve_basis_premium_feature_cols(feature_cols=None, intervals=None):
 
 
 def validate_basis_premium_feature_columns(
-    feature_names,
-    *,
-    source_label,
-    intervals=None,
+        feature_names,
+        *,
+        source_label,
+        intervals=None,
 ):
     supported_cols = set(basis_premium_feature_columns(_normalize_intervals(intervals)))
     invalid_feature_cols = []
@@ -114,10 +114,10 @@ def validate_basis_premium_feature_columns(
 def _has_safe_futures_marker(column_name):
     lower = str(column_name).strip().lower()
     return (
-        "futures" in lower
-        or "future" in lower
-        or "btcusdt" in lower
-        or bool(_FUTURES_MARKER_RE.search(lower))
+            "futures" in lower
+            or "future" in lower
+            or "btcusdt" in lower
+            or bool(_FUTURES_MARKER_RE.search(lower))
     )
 
 
@@ -265,15 +265,15 @@ def _feature_type_by_col(feature_cols):
 
 
 def _compute_1m_basis_features(
-    df,
-    work,
-    *,
-    opened_col,
-    index_close_col,
-    futures_close_col,
-    feature_cols,
-    eps,
-    float_dtype,
+        df,
+        work,
+        *,
+        opened_col,
+        index_close_col,
+        futures_close_col,
+        feature_cols,
+        eps,
+        float_dtype,
 ):
     basis = _basis_arrays(
         work[index_close_col].to_numpy(dtype=np.float64, copy=False),
@@ -292,16 +292,16 @@ def _compute_1m_basis_features(
 
 
 def _compute_interval_basis_features(
-    df,
-    work,
-    *,
-    opened_col,
-    index_close_col,
-    futures_close_col,
-    rule,
-    feature_cols,
-    eps,
-    float_dtype,
+        df,
+        work,
+        *,
+        opened_col,
+        index_close_col,
+        futures_close_col,
+        rule,
+        feature_cols,
+        eps,
+        float_dtype,
 ):
     indexed = work.set_index(opened_col)
     agg = indexed.resample(rule, label="left", closed="left").agg(
@@ -353,15 +353,15 @@ def _compute_interval_basis_features(
 
 
 def add_basis_premium_features(
-    df,
-    *,
-    opened_col,
-    index_close_col,
-    futures_close_col,
-    interval_to_rule,
-    feature_cols=None,
-    eps=1e-12,
-    float_dtype=np.float64,
+        df,
+        *,
+        opened_col,
+        index_close_col,
+        futures_close_col,
+        interval_to_rule,
+        feature_cols=None,
+        eps=1e-12,
+        float_dtype=np.float64,
 ):
     if not interval_to_rule:
         raise ValueError("interval_to_rule cannot be empty for basis premium features.")

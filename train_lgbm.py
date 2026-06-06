@@ -1,20 +1,14 @@
 import json
 from datetime import datetime
-from pathlib import Path
+
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import pyarrow.parquet as pq
-import lightgbm as lgb
-from utils.config import path_to_portable_str
-from utils.project_config import active_asset_path
+
 from features.candle_features import (
     CANDLE_PATTERN_COLS,
     RAW_OHLCV_COLS,
-)
-from utils.metrics import (
-    make_sklearn_binary_logloss_eval,
-    weighted_binary_logloss,
-    weighted_brier_score,
 )
 from features.session_open_features import add_session_open_features
 from features.volume_profile_fixed_range import (
@@ -22,6 +16,12 @@ from features.volume_profile_fixed_range import (
     normalize_config as normalize_volume_profile_config,
     validate_volume_profile_dataset_metadata,
     validate_volume_profile_feature_columns,
+)
+from utils.config import path_to_portable_str
+from utils.data import (
+    TARGET_WEIGHT_COL,
+    compute_target_weights_from_opened,
+    summarize_target_weights,
 )
 from utils.data import (
     load_modeling_dataset_artifact_metadata,
@@ -36,11 +36,12 @@ from utils.data import (
     summarize_feature_subset,
     validate_parquet_magic_bytes,
 )
-from utils.data import (
-    TARGET_WEIGHT_COL,
-    compute_target_weights_from_opened,
-    summarize_target_weights,
+from utils.metrics import (
+    make_sklearn_binary_logloss_eval,
+    weighted_binary_logloss,
+    weighted_brier_score,
 )
+from utils.project_config import active_asset_path
 
 TARGET_COL = "target_5m_candle_up"
 OOF_PRED_COL = "oof_pred_proba_up"
@@ -81,23 +82,23 @@ WF_TEST_TO_TRAIN_RATIO = resolve_walk_forward_test_to_train_ratio()
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.004387225197481959,
-      "num_leaves": 133,
-      "min_data_in_leaf": 720,
-      "max_depth": 206,
-      "feature_fraction": 0.8974595250202884,
-      "bagging_fraction": 0.79292032203349,
-      "bagging_freq": 20,
-      "lambda_l2": 11.605081849728947,
-      "lambda_l1": 6.882639835280196,
-      "min_sum_hessian_in_leaf": 7.72484450824706,
-      "min_gain_to_split": 0.3243665400449587,
-      "feature_fraction_bynode": 0.42688754866797657,
-      "path_smooth": 33.372266902988066,
-      "extra_trees": False,
-      "monotone_constraints_method": "basic",
-      "monotone_penalty": 1.2685005945295802
-    }
+    "learning_rate": 0.004387225197481959,
+    "num_leaves": 133,
+    "min_data_in_leaf": 720,
+    "max_depth": 206,
+    "feature_fraction": 0.8974595250202884,
+    "bagging_fraction": 0.79292032203349,
+    "bagging_freq": 20,
+    "lambda_l2": 11.605081849728947,
+    "lambda_l1": 6.882639835280196,
+    "min_sum_hessian_in_leaf": 7.72484450824706,
+    "min_gain_to_split": 0.3243665400449587,
+    "feature_fraction_bynode": 0.42688754866797657,
+    "path_smooth": 33.372266902988066,
+    "extra_trees": False,
+    "monotone_constraints_method": "basic",
+    "monotone_penalty": 1.2685005945295802
+}
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
     "num_leaves": 31,
@@ -130,8 +131,8 @@ def load_active_lgbm_monotone_constraints():
 
 
 def build_lgbm_monotone_constraint_vector(
-    feature_names,
-    constraints_by_feature=None,
+        feature_names,
+        constraints_by_feature=None,
 ):
     if constraints_by_feature is None:
         constraints_by_feature = load_active_lgbm_monotone_constraints()
@@ -145,8 +146,8 @@ def build_lgbm_monotone_constraint_vector(
 
 
 def make_lgbm_monotone_constraint_params(
-    feature_names,
-    constraints_by_feature=None,
+        feature_names,
+        constraints_by_feature=None,
 ):
     constraint_vector = build_lgbm_monotone_constraint_vector(
         feature_names,
@@ -158,8 +159,8 @@ def make_lgbm_monotone_constraint_params(
 
 
 def summarize_lgbm_monotone_constraints(
-    feature_names,
-    constraints_by_feature=None,
+        feature_names,
+        constraints_by_feature=None,
 ):
     if constraints_by_feature is None:
         constraints_by_feature = load_active_lgbm_monotone_constraints()
@@ -195,10 +196,10 @@ def format_lgbm_monotone_constraint_summary(summary):
 
 
 def build_lgbm_model(
-    n_estimators,
-    param_overrides=None,
-    feature_names=None,
-    monotone_constraints_by_feature=None,
+        n_estimators,
+        param_overrides=None,
+        feature_names=None,
+        monotone_constraints_by_feature=None,
 ):
     params = {
         "objective": "binary",
@@ -223,9 +224,9 @@ def build_lgbm_model(
 
 
 def make_walk_forward_folds(
-    n_rows,
-    n_folds,
-    test_to_train_ratio,
+        n_rows,
+        n_folds,
+        test_to_train_ratio,
 ):
     ratio_inv = 1.0 / test_to_train_ratio
     test_len = int(np.floor(n_rows / (n_folds + ratio_inv)))
@@ -253,10 +254,10 @@ def make_walk_forward_folds(
 
 
 def classification_metrics(
-    y_true,
-    y_pred_proba,
-    sample_weight=None,
-    threshold=PREDICTION_THRESHOLD,
+        y_true,
+        y_pred_proba,
+        sample_weight=None,
+        threshold=PREDICTION_THRESHOLD,
 ):
     y_true_i = np.asarray(y_true, dtype=np.int8)
     y_pred_proba_f = np.asarray(y_pred_proba, dtype=np.float64)
@@ -349,9 +350,9 @@ def resolve_sample_weight_series(df, float_dtype=np.float64):
 
 
 def clean_and_impute_fold(
-    x_train_raw,
-    x_test_raw,
-    float_dtype=np.float64,
+        x_train_raw,
+        x_test_raw,
+        float_dtype=np.float64,
 ):
     all_nan_train_features = x_train_raw.columns[x_train_raw.isna().all()].tolist()
     if all_nan_train_features:
@@ -364,10 +365,10 @@ def clean_and_impute_fold(
 
 
 def load_walk_forward_training_frame(
-    data_path,
-    feature_subset=None,
-    excluded_features=None,
-    float_dtype=np.float64,
+        data_path,
+        feature_subset=None,
+        excluded_features=None,
+        float_dtype=np.float64,
 ):
     excluded_feature_names = (
         tuple(excluded_features["features"]) if excluded_features else tuple()
@@ -555,16 +556,16 @@ def load_walk_forward_training_frame(
 
 
 def evaluate_walk_forward_variant(
-    x,
-    y,
-    sample_weight,
-    folds,
-    param_overrides,
-    model_variant,
-    collect_oof_predictions=True,
-    collect_feature_importance=True,
-    early_stopping_verbose=True,
-    float_dtype=np.float64,
+        x,
+        y,
+        sample_weight,
+        folds,
+        param_overrides,
+        model_variant,
+        collect_oof_predictions=True,
+        collect_feature_importance=True,
+        early_stopping_verbose=True,
+        float_dtype=np.float64,
 ):
     fold_results = []
     best_iterations = []
@@ -633,9 +634,9 @@ def evaluate_walk_forward_variant(
 
         if collect_feature_importance:
             for feature_name, gain_value, split_value in zip(
-                model.booster_.feature_name(),
-                model.booster_.feature_importance(importance_type="gain"),
-                model.booster_.feature_importance(importance_type="split"),
+                    model.booster_.feature_name(),
+                    model.booster_.feature_importance(importance_type="gain"),
+                    model.booster_.feature_importance(importance_type="split"),
             ):
                 cv_gain_sum[feature_name] = cv_gain_sum.get(feature_name, 0.0) + float(
                     gain_value
@@ -644,7 +645,7 @@ def evaluate_walk_forward_variant(
                     feature_name, 0.0
                 ) + float(split_value)
                 cv_fold_presence[feature_name] = (
-                    cv_fold_presence.get(feature_name, 0) + 1
+                        cv_fold_presence.get(feature_name, 0) + 1
                 )
 
         best_iterations.append(best_iteration)
@@ -899,7 +900,7 @@ def main():
     fi_path = run_dir / f"lgbm_feature_importance_{run_timestamp}.csv"
     cv_fi_paths = {
         model_variant: run_dir
-        / f"lgbm_cv_feature_importance_{model_variant}_{run_timestamp}.csv"
+                       / f"lgbm_cv_feature_importance_{model_variant}_{run_timestamp}.csv"
         for model_variant in cv_variants
     }
 
@@ -919,8 +920,8 @@ def main():
     fi_df.to_csv(fi_path, index=False)
 
     for (
-        model_variant,
-        cv_feature_importance,
+            model_variant,
+            cv_feature_importance,
     ) in cv_feature_importance_by_variant.items():
         cv_feature_importance.drop(columns=["model_variant"]).to_csv(
             cv_fi_paths[model_variant],

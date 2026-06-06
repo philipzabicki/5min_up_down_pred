@@ -80,9 +80,9 @@ def build_indicator_spec(cfg):
 
 
 def compute_reference_anchor_values(
-    spec,
-    full_ohlcv_np,
-    anchor_positions,
+        spec,
+        full_ohlcv_np,
+        anchor_positions,
 ):
     try:
         built = spec.builder(spec.params, full_ohlcv_np)
@@ -111,7 +111,7 @@ def compute_reference_anchor_values(
 
 
 def count_problematic_variables(
-    flagged_cfgs,
+        flagged_cfgs,
 ):
     counts = Counter()
     for cfg in flagged_cfgs:
@@ -148,15 +148,15 @@ def count_problematic_variables(
 
 
 def split_problematic_variables_by_kind(
-    variable_counts_df,
-    top_n=20,
+        variable_counts_df,
+        top_n=20,
 ):
     if variable_counts_df.empty:
         return {}
 
     grouped = {}
     for variable_kind, group_df in variable_counts_df.groupby(
-        "variable_kind", sort=True
+            "variable_kind", sort=True
     ):
         top_df = group_df.sort_values(
             by=["count", "variable_name"],
@@ -167,10 +167,10 @@ def split_problematic_variables_by_kind(
 
 
 def move_screened_configs(
-    flagged_cfgs,
-    input_dir,
-    unstable_dir,
-    move_files,
+        flagged_cfgs,
+        input_dir,
+        unstable_dir,
+        move_files,
 ):
     manifest_rows = []
     for cfg in flagged_cfgs:
@@ -291,9 +291,9 @@ def main():
         reference_build_failed = not stability_evaluated
         never_stable_within_max_window = stability_evaluated and not is_stable
         requires_more_history_than_allowed = (
-            is_stable
-            and stable_min_window is not None
-            and stable_min_window > int(MAX_ALLOWED_STABLE_WINDOW)
+                is_stable
+                and stable_min_window is not None
+                and stable_min_window > int(MAX_ALLOWED_STABLE_WINDOW)
         )
 
         stability_label = STABLE_LABEL
@@ -432,10 +432,10 @@ def main():
     variable_counts_path = OUTPUT_DIR / "problematic_variables.csv"
     indicator_summary_path = OUTPUT_DIR / "indicator_summary.csv"
     requires_more_history_path = (
-        OUTPUT_DIR / f"configs_require_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}.csv"
+            OUTPUT_DIR / f"configs_require_more_than_{int(MAX_ALLOWED_STABLE_WINDOW)}.csv"
     )
     never_stable_path = (
-        OUTPUT_DIR / f"configs_never_stable_within_{int(MAX_WINDOW)}.csv"
+            OUTPUT_DIR / f"configs_never_stable_within_{int(MAX_WINDOW)}.csv"
     )
     reference_failure_path = OUTPUT_DIR / "configs_reference_build_failed.csv"
     move_candidates_path = OUTPUT_DIR / "configs_to_move.csv"
@@ -448,13 +448,13 @@ def main():
     indicator_summary_df.to_csv(indicator_summary_path, index=False)
     export_df.loc[
         export_df["move_reason"] == REQUIRES_MORE_HISTORY_REASON
-    ].to_csv(requires_more_history_path, index=False)
+        ].to_csv(requires_more_history_path, index=False)
     export_df.loc[export_df["move_reason"] == NEVER_STABLE_REASON].to_csv(
         never_stable_path, index=False
     )
     export_df.loc[
         export_df["move_reason"] == REFERENCE_BUILD_FAILED_REASON
-    ].to_csv(reference_failure_path, index=False)
+        ].to_csv(reference_failure_path, index=False)
     export_df.loc[export_df["move_reason"] != ""].to_csv(
         move_candidates_path, index=False
     )

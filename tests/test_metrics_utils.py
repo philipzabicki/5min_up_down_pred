@@ -27,7 +27,7 @@ class BinaryLoglossMetricTests(unittest.TestCase):
         y_pred = np.asarray([0.8, 0.25, 0.6], dtype=np.float64)
         weights = np.asarray([2.0, 1.0, 3.0], dtype=np.float64)
         manual_loss = -(
-            y_true * np.log(y_pred) + (1.0 - y_true) * np.log(1.0 - y_pred)
+                y_true * np.log(y_pred) + (1.0 - y_true) * np.log(1.0 - y_pred)
         )
         expected = float(np.average(manual_loss, weights=weights))
 

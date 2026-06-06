@@ -1,11 +1,9 @@
-from numpy import int64, empty, where
-from numba import jit
 import talib
+from numba import jit
+from numpy import int64, empty, where
 from tindicators import ti
 
 from .ta_custom_ma import (
-    ALMA,
-    HammingMA,
     LWMA,
     MGD,
     GMA_or_SMA,
@@ -15,8 +13,6 @@ from .ta_custom_ma import (
     RMA,
     HullMA,
     LINEARREG_fast,
-    SWMA_fast,
-    SWMA_INV_fast,
 )
 
 MA_FUNCS = {
@@ -182,7 +178,7 @@ def ADX_DIs_cross_above_threshold(adx_col, minus_di, plus_di, adx_threshold):
 
 @jit(nopython=True, nogil=True, cache=True)
 def ADX_DIs_approaching_cross_above_threshold(
-    adx_col, minus_di, plus_di, adx_threshold
+        adx_col, minus_di, plus_di, adx_threshold
 ):
     return [0] + [
         (
@@ -194,8 +190,8 @@ def ADX_DIs_approaching_cross_above_threshold(
                 else (
                     -1
                     if (cur_pDI < prev_pDI)
-                    and (cur_mDI > prev_mDI)
-                    and (cur_pDI > cur_mDI)
+                       and (cur_mDI > prev_mDI)
+                       and (cur_pDI > cur_mDI)
                     else 0
                 )
             )
@@ -209,7 +205,7 @@ def ADX_DIs_approaching_cross_above_threshold(
 ## Chaikin Oscillator signal functions
 @jit(nopython=True, nogil=True, cache=True)
 def ChaikinOscillator_signal(
-    chaikin_oscillator,
+        chaikin_oscillator,
 ):
     return [0] + [
         1 if cur_chosc > 0 > prev_chosc else -1 if cur_chosc < 0 < prev_chosc else 0
@@ -260,15 +256,15 @@ def MACD_lines_cross_with_zero(macd_col, signal_col):
         (
             1
             if (cur_sig < 0)
-            and (cur_macd < 0)
-            and (cur_macd > cur_sig)
-            and (prev_macd < prev_sig)
+               and (cur_macd < 0)
+               and (cur_macd > cur_sig)
+               and (prev_macd < prev_sig)
             else (
                 -1
                 if (cur_sig > 0)
-                and (cur_macd > 0)
-                and (cur_macd < cur_sig)
-                and (prev_macd > prev_sig)
+                   and (cur_macd > 0)
+                   and (cur_macd < cur_sig)
+                   and (prev_macd > prev_sig)
                 else 0
             )
         )
@@ -298,15 +294,15 @@ def MACD_lines_approaching_cross_with_zero(macd_col, signal_col):
         (
             1
             if (cur_sig < 0)
-            and (cur_macd < 0)
-            and (cur_macd > prev_macd)
-            and (cur_sig < prev_sig)
+               and (cur_macd < 0)
+               and (cur_macd > prev_macd)
+               and (cur_sig < prev_sig)
             else (
                 -1
                 if (cur_sig > 0)
-                and (cur_macd > 0)
-                and (cur_macd < prev_macd)
-                and (cur_sig > prev_sig)
+                   and (cur_macd > 0)
+                   and (cur_macd < prev_macd)
+                   and (cur_sig > prev_sig)
                 else 0
             )
         )
@@ -368,10 +364,10 @@ def MACD_histogram_reversal(macd_col, signal_col):
 ## Stochastic Oscillator signal functions
 @jit(nopython=True, nogil=True, cache=True)
 def k_int_cross(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -386,10 +382,10 @@ def k_int_cross(
 # 2. k_ext_cross: k-line external threshold cross
 @jit(nopython=True, nogil=True, cache=True)
 def k_ext_cross(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -404,10 +400,10 @@ def k_ext_cross(
 # 3. d_int_cross: d-line internal threshold cross
 @jit(nopython=True, nogil=True, cache=True)
 def d_int_cross(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -422,10 +418,10 @@ def d_int_cross(
 # 4. d_ext_cross: d-line external threshold cross
 @jit(nopython=True, nogil=True, cache=True)
 def d_ext_cross(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -441,10 +437,10 @@ def d_ext_cross(
 #    Buy signal when k-line crosses oversold internally; sell signal when k-line crosses overbought externally.
 @jit(nopython=True, nogil=True, cache=True)
 def k_cross_int_os_ext_ob(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -460,10 +456,10 @@ def k_cross_int_os_ext_ob(
 #    Buy signal when k-line crosses oversold externally; sell signal when k-line crosses overbought internally.
 @jit(nopython=True, nogil=True, cache=True)
 def k_cross_ext_os_int_ob(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -479,10 +475,10 @@ def k_cross_ext_os_int_ob(
 #    Buy signal when d-line crosses oversold internally; sell signal when d-line crosses overbought externally.
 @jit(nopython=True, nogil=True, cache=True)
 def d_cross_int_os_ext_ob(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -498,10 +494,10 @@ def d_cross_int_os_ext_ob(
 #    Buy signal when d-line crosses oversold externally; sell signal when d-line crosses overbought internally.
 @jit(nopython=True, nogil=True, cache=True)
 def d_cross_ext_os_int_ob(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -516,10 +512,10 @@ def d_cross_ext_os_int_ob(
 # 9. kd_cross: Generic crossing between k and d lines (no threshold limits)
 @jit(nopython=True, nogil=True, cache=True)
 def kd_cross(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
@@ -536,27 +532,27 @@ def kd_cross(
 # 10. kd_cross_inside: k and d cross when both are within the threshold range (between oversold and overbought)
 @jit(nopython=True, nogil=True, cache=True)
 def kd_cross_inside(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
             1
             if (
-                prev_k < prev_d
-                and curr_k > curr_d
-                and (oversold_threshold < curr_k < overbought_threshold)
-                and (oversold_threshold < curr_d < overbought_threshold)
+                    prev_k < prev_d
+                    and curr_k > curr_d
+                    and (oversold_threshold < curr_k < overbought_threshold)
+                    and (oversold_threshold < curr_d < overbought_threshold)
             )
             else (
                 -1
                 if (
-                    prev_k > prev_d
-                    and curr_k < curr_d
-                    and (oversold_threshold < curr_k < overbought_threshold)
-                    and (oversold_threshold < curr_d < overbought_threshold)
+                        prev_k > prev_d
+                        and curr_k < curr_d
+                        and (oversold_threshold < curr_k < overbought_threshold)
+                        and (oversold_threshold < curr_d < overbought_threshold)
                 )
                 else 0
             )
@@ -570,27 +566,27 @@ def kd_cross_inside(
 # 11. kd_cross_outside: k and d cross when both are outside the threshold range on the same side
 @jit(nopython=True, nogil=True, cache=True)
 def kd_cross_outside(
-    k_line,
-    d_line=None,
-    oversold_threshold=20.0,
-    overbought_threshold=80.0,
+        k_line,
+        d_line=None,
+        oversold_threshold=20.0,
+        overbought_threshold=80.0,
 ):
     return [0] + [
         (
             1
             if (
-                prev_k < prev_d
-                and curr_k > curr_d
-                and (curr_k < oversold_threshold and curr_d < oversold_threshold)
+                    prev_k < prev_d
+                    and curr_k > curr_d
+                    and (curr_k < oversold_threshold and curr_d < oversold_threshold)
             )
             else (
                 -1
                 if (
-                    prev_k > prev_d
-                    and curr_k < curr_d
-                    and (
-                        curr_k > overbought_threshold and curr_d > overbought_threshold
-                    )
+                        prev_k > prev_d
+                        and curr_k < curr_d
+                        and (
+                                curr_k > overbought_threshold and curr_d > overbought_threshold
+                        )
                 )
                 else 0
             )

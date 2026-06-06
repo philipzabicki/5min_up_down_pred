@@ -15,7 +15,6 @@ from utils.polymarket import (
 from utils.project_config import load_live_profile, load_runtime_artifact_paths
 from utils.trading import decide_trade_from_ev, load_trade_policy_runtime_config
 
-
 LIVE_DIR = Path("data/live")
 OOF_PREDICTIONS_FALLBACK_PATH = Path(
     "data/datasets/modeling/BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet"
@@ -250,16 +249,16 @@ def build_backtest_frame(oof_predictions, live_prices):
             merged[column] = pd.to_numeric(merged[column], errors="coerce")
 
     valid = (
-        np.isfinite(merged["proba_up"])
-        & merged["proba_up"].between(0.0, 1.0)
-        & np.isfinite(merged["btc_open"])
-        & np.isfinite(merged["btc_close"])
-        & (merged["btc_open"] > 0.0)
-        & (merged["btc_close"] > 0.0)
-        & np.isfinite(merged["ask_yes"])
-        & np.isfinite(merged["ask_no"])
-        & merged["ask_yes"].between(0.0, 1.0, inclusive="neither")
-        & merged["ask_no"].between(0.0, 1.0, inclusive="neither")
+            np.isfinite(merged["proba_up"])
+            & merged["proba_up"].between(0.0, 1.0)
+            & np.isfinite(merged["btc_open"])
+            & np.isfinite(merged["btc_close"])
+            & (merged["btc_open"] > 0.0)
+            & (merged["btc_close"] > 0.0)
+            & np.isfinite(merged["ask_yes"])
+            & np.isfinite(merged["ask_no"])
+            & merged["ask_yes"].between(0.0, 1.0, inclusive="neither")
+            & merged["ask_no"].between(0.0, 1.0, inclusive="neither")
     )
     merged = merged.loc[valid].copy()
     if merged.empty:
@@ -288,12 +287,12 @@ def build_backtest_frame(oof_predictions, live_prices):
 
 
 def resolve_submitted_buy_price(
-    *,
-    entry_price,
-    order_price_cap,
-    submitted_price_mode,
-    tick_size,
-    slippage_ticks,
+        *,
+        entry_price,
+        order_price_cap,
+        submitted_price_mode,
+        tick_size,
+        slippage_ticks,
 ):
     entry_price = float(entry_price)
     order_price_cap = float(order_price_cap)
@@ -439,7 +438,7 @@ def replay_policy(backtest_frame, runtime_config, *, order_price_cap):
     total_profit = float(np.sum(pnl_array))
     mean_return = float(np.mean(return_array))
     downside_returns = np.minimum(return_array, 0.0)
-    downside_deviation = float(np.sqrt(np.mean(downside_returns**2)))
+    downside_deviation = float(np.sqrt(np.mean(downside_returns ** 2)))
     objective_denominator = max(abs(downside_deviation), OBJECTIVE_DOWNSIDE_EPS)
     objective = float(total_profit / objective_denominator)
 
@@ -493,8 +492,8 @@ def enqueue_seed_trials(study, base_runtime_config):
         extra_buffer = float(params["extra_buffer"])
         slippage_ticks = int(params["submitted_price_slippage_ticks"])
         if not (
-            extra_buffer_low <= extra_buffer <= extra_buffer_high
-            and slippage_ticks_low <= slippage_ticks <= slippage_ticks_high
+                extra_buffer_low <= extra_buffer <= extra_buffer_high
+                and slippage_ticks_low <= slippage_ticks <= slippage_ticks_high
         ):
             continue
         key = (round(extra_buffer, 12), slippage_ticks)

@@ -2,8 +2,8 @@ import json
 import tempfile
 import unittest
 from collections import deque
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -347,8 +347,8 @@ class BasisPremiumFeatureTests(unittest.TestCase):
             return original_builder(df, gap_mask, histogram_bins, rng)
 
         with mock.patch(
-            "data.raw_ohlcv_repair._build_distribution_samplers",
-            side_effect=record_sampler_fit,
+                "data.raw_ohlcv_repair._build_distribution_samplers",
+                side_effect=record_sampler_fit,
         ):
             _repair_hybrid_source_frame(
                 price_df,
@@ -428,10 +428,10 @@ class BasisPremiumFeatureTests(unittest.TestCase):
 
             self.assertTrue(all(col in out.columns for col in feature_cols))
             for aux_col in (
-                "UM_BTCUSDT_Open",
-                "UM_BTCUSDT_High",
-                "UM_BTCUSDT_Low",
-                "UM_BTCUSDT_Close",
+                    "UM_BTCUSDT_Open",
+                    "UM_BTCUSDT_High",
+                    "UM_BTCUSDT_Low",
+                    "UM_BTCUSDT_Close",
             ):
                 self.assertNotIn(aux_col, out.columns)
             parts = split_feature_subset(feature_cols, source_label="test output subset")

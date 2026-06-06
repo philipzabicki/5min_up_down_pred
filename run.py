@@ -1,39 +1,33 @@
-import json
 import hashlib
+import json
+import math
+import os
 import re
 import threading
 import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from datetime import datetime
+from datetime import datetime as std_datetime, timedelta as std_timedelta
 from pathlib import Path
 
+import lightgbm as lgb
 import numpy as np
 import pandas as pd
 import requests
-
-import lightgbm as lgb
-from utils.config import coerce_path
-from utils.live import (
-    LIVE_SHARED_MARKET_DATA_COLUMNS,
-    as_utc_timestamp,
-    build_live_market_data_path,
-    interval_to_floor_rule,
-    interval_to_timedelta,
-    setup_live_console_logging,
-    upsert_records_csv,
-    write_records_csv,
-)
 from websocket import WebSocketApp
+
 from create_modeling_dataset import (
     parse_fit_results,
     resolve_volume_profile_modeling_state_path,
 )
-from utils.project_config import (
-    load_dataset_profile,
-    load_live_profile,
-    load_runtime_artifact_paths,
-)
+from features.ADX import get_adx_values
+from features.BollingerBands import get_bollinger_bands_values
+from features.ChaikinOsc import get_chaikin_oscillator_values
+from features.KeltnerChannel import get_keltner_channel_values
+from features.MACD import get_macd_values
+from features.StochOsc import get_stochastic_oscillator_values
 from features.basis_premium_features import (
     add_basis_premium_features,
     is_basis_premium_feature,
@@ -52,17 +46,11 @@ from features.candle_features import (
     resolve_streak_interval_to_rule,
 )
 from features.feature_intervals import FEATURE_INTERVAL_TO_RULE
-
-from features.ADX import get_adx_values
-from features.BollingerBands import get_bollinger_bands_values
-from features.ChaikinOsc import get_chaikin_oscillator_values
-from features.KeltnerChannel import get_keltner_channel_values
 from features.live_indicator_runtime import (
     LATEST_VALUE_BUILDERS as LIVE_LATEST_VALUE_BUILDERS,
     IndicatorFullHistoryScratch,
     IndicatorWindowScratch,
 )
-from features.MACD import get_macd_values
 from features.realized_volatility import (
     REALIZED_VOLATILITY_FEATURE_COLUMNS,
     RealizedVolatilityRuntimeState,
@@ -71,7 +59,6 @@ from features.session_open_features import (
     SUPPORTED_SESSION_OPEN_FEATURE_COLS,
     build_latest_session_open_feature_dict_fast,
 )
-from features.StochOsc import get_stochastic_oscillator_values
 from features.volume_profile_fixed_range import (
     FEATURE_VERSION as VP_FEATURE_VERSION,
     RUNTIME_STATE_DIR as VP_RUNTIME_STATE_DIR,
@@ -85,21 +72,32 @@ from features.volume_profile_fixed_range import (
     validate_volume_profile_feature_columns,
     validate_volume_profile_model_metadata,
 )
+from utils.config import coerce_path
 from utils.data import (
     MODELING_DATASET_CONFIG_FILE,
     load_modeling_dataset_settings,
     split_feature_subset,
+)
+from utils.live import (
+    LIVE_SHARED_MARKET_DATA_COLUMNS,
+    as_utc_timestamp,
+    build_live_market_data_path,
+    interval_to_floor_rule,
+    interval_to_timedelta,
+    setup_live_console_logging,
+    upsert_records_csv,
+    write_records_csv,
+)
+from utils.project_config import (
+    load_dataset_profile,
+    load_live_profile,
+    load_runtime_artifact_paths,
 )
 from utils.trading import (
     build_trade_intent,
     decide_trade_from_ev,
     load_trade_policy_runtime_config,
 )
-
-import math
-import os
-from concurrent.futures import TimeoutError as FutureTimeoutError
-from datetime import datetime as std_datetime, timedelta as std_timedelta
 
 TRADING_IMPORT_ERROR = None
 try:
@@ -145,6 +143,7 @@ except ModuleNotFoundError as exc:
     pyclob_http_helpers = None
     BUY = None
     SELL = None
+
 
     class OrderType:
         FOK = "FOK"
@@ -200,6 +199,7 @@ def _delay_ms_between(start, end):
     end_ts = pd.Timestamp(end)
     return float(max((end_ts - start_ts).total_seconds() * 1000.0, 0.0))
 
+
 LIVE_PROFILE = load_live_profile()
 DATASET_PROFILE = load_dataset_profile()
 RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
@@ -236,7 +236,7 @@ LIVE_ROOT_DIR = Path("data/live")
 LIVE_TRADE_DIR = LIVE_ROOT_DIR / "trade"
 RUN_STARTED_AT_UTC = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
 VOLUME_PROFILE_RUNTIME_STATE_PATH = (
-    VP_RUNTIME_STATE_DIR / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}"
+        VP_RUNTIME_STATE_DIR / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}"
 )
 
 DEFAULT_BOOTSTRAP_CANDLES = int(LIVE_PROFILE["default_bootstrap_candles"])
@@ -254,10 +254,10 @@ LIVE_INITIAL_BANKROLL_USDC = float(LIVE_PROFILE["live_initial_bankroll_usdc"])
 
 OHLCV_COLS = list(RAW_OHLCV_COLS)
 BASE_FEATURE_COLS = (
-    set(OHLCV_COLS)
-    | set(SUPPORTED_CANDLE_FEATURE_COLS)
-    | set(SUPPORTED_SESSION_OPEN_FEATURE_COLS)
-    | set(REALIZED_VOLATILITY_FEATURE_COLUMNS)
+        set(OHLCV_COLS)
+        | set(SUPPORTED_CANDLE_FEATURE_COLS)
+        | set(SUPPORTED_SESSION_OPEN_FEATURE_COLS)
+        | set(REALIZED_VOLATILITY_FEATURE_COLUMNS)
 )
 VALUE_BUILDERS = {
     "ADX": get_adx_values,
@@ -370,13 +370,13 @@ class IndicatorSpec:
     )
 
     def __init__(
-        self,
-        indicator,
-        feature_col,
-        builder,
-        latest_builder,
-        params,
-        required_candles,
+            self,
+            indicator,
+            feature_col,
+            builder,
+            latest_builder,
+            params,
+            required_candles,
     ):
         self.indicator = indicator
         self.feature_col = feature_col
@@ -526,10 +526,10 @@ def resolve_model_side_from_proba(proba_up, threshold=DEFAULT_MODEL_PREDICTION_T
 
 
 def resolve_model_accuracy_from_proba(
-    record,
-    *,
-    actual_up=None,
-    threshold=DEFAULT_MODEL_PREDICTION_THRESHOLD,
+        record,
+        *,
+        actual_up=None,
+        threshold=DEFAULT_MODEL_PREDICTION_THRESHOLD,
 ):
     if actual_up is None:
         actual_up = record.get("actual_up")
@@ -585,14 +585,14 @@ def resolve_ws_base_url(market_type):
 
 
 def build_ws_targets(
-    *,
-    interval,
-    price_symbol,
-    price_market,
-    price_source,
-    volume_symbol,
-    volume_market,
-    volume_source,
+        *,
+        interval,
+        price_symbol,
+        price_market,
+        price_source,
+        volume_symbol,
+        volume_market,
+        volume_source,
 ):
     candidates = [
         {
@@ -664,8 +664,8 @@ INDICATOR_HISTORY_MIN_EXTRA_CANDLES = int(
 )
 
 if (
-    not np.isfinite(INDICATOR_HISTORY_MARGIN_RATIO)
-    or INDICATOR_HISTORY_MARGIN_RATIO < 0.0
+        not np.isfinite(INDICATOR_HISTORY_MARGIN_RATIO)
+        or INDICATOR_HISTORY_MARGIN_RATIO < 0.0
 ):
     raise ValueError(
         "live.indicator_history_margin_ratio must be a finite number >= 0."
@@ -773,10 +773,10 @@ def estimate_required_candles(indicator, params):
 
 
 def apply_indicator_history_margin(
-    required_window,
-    *,
-    margin_ratio=INDICATOR_HISTORY_MARGIN_RATIO,
-    min_extra_candles=INDICATOR_HISTORY_MIN_EXTRA_CANDLES,
+        required_window,
+        *,
+        margin_ratio=INDICATOR_HISTORY_MARGIN_RATIO,
+        min_extra_candles=INDICATOR_HISTORY_MIN_EXTRA_CANDLES,
 ):
     base_window = int(required_window or 0)
     if base_window <= 0:
@@ -811,10 +811,10 @@ def _normalize_feature_window_map(raw_map):
 
 
 def load_indicator_history_requirements(
-    artifact_path,
-    *,
-    indicator_specs=None,
-    allow_unstable=False,
+        artifact_path,
+        *,
+        indicator_specs=None,
+        allow_unstable=False,
 ):
     artifact_path = coerce_path(artifact_path)
     if not artifact_path.exists():
@@ -916,10 +916,10 @@ def load_indicator_history_requirements(
 
 
 def load_required_stable_window(
-    artifact_path,
-    *,
-    allow_unstable=False,
-    indicator_specs=None,
+        artifact_path,
+        *,
+        allow_unstable=False,
+        indicator_specs=None,
 ):
     requirements = load_indicator_history_requirements(
         artifact_path,
@@ -947,10 +947,10 @@ def load_indicator_specs(feature_columns, *, source_label=None):
 
     for col in feature_columns:
         if (
-            col in BASE_FEATURE_COLS
-            or col.startswith(STREAK_FEATURE_PREFIX)
-            or is_volume_profile_feature(col)
-            or is_basis_premium_feature(col)
+                col in BASE_FEATURE_COLS
+                or col.startswith(STREAK_FEATURE_PREFIX)
+                or is_volume_profile_feature(col)
+                or is_basis_premium_feature(col)
         ):
             continue
 
@@ -995,12 +995,12 @@ def load_indicator_specs(feature_columns, *, source_label=None):
 
 
 def _rest_kline_params(
-    source,
-    market_type,
-    symbol,
-    limit,
-    start_time_ms=None,
-    end_time_ms=None,
+        source,
+        market_type,
+        symbol,
+        limit,
+        start_time_ms=None,
+        end_time_ms=None,
 ):
     rest_url, symbol_param = resolve_rest_klines_endpoint(source, market_type)
     params = {
@@ -1066,13 +1066,13 @@ def _merge_price_and_volume_frames(price_df, volume_df, auxiliary_ohlc_cols=None
 
 
 def _fetch_single_source_closed_ohlcv_range(
-    session,
-    start_opened,
-    end_opened=None,
-    limit=1000,
-    source="trade",
-    symbol="",
-    market_type="um",
+        session,
+        start_opened,
+        end_opened=None,
+        limit=1000,
+        source="trade",
+        symbol="",
+        market_type="um",
 ):
     start_ts = pd.Timestamp(start_opened)
     if end_opened is None:
@@ -1291,8 +1291,8 @@ class LivePredictor:
             source_label=f"model metadata {self.model_meta_path}",
         )
         if (
-            self.volume_profile_feature_columns
-            and not self.volume_profile_cfg["enabled"]
+                self.volume_profile_feature_columns
+                and not self.volume_profile_cfg["enabled"]
         ):
             raise ValueError(
                 "Model requires volume profile features but volume_profile_fixed_range.enabled is false."
@@ -1353,7 +1353,7 @@ class LivePredictor:
             drop_count = len(self.opened_candles) - self.max_keep
             for _ in range(drop_count):
                 self.opened_candles.popleft()
-            self.ohlcv_np = self.ohlcv_np[-self.max_keep :, :]
+            self.ohlcv_np = self.ohlcv_np[-self.max_keep:, :]
         basis_bootstrap_df = bootstrap_df.tail(len(self.opened_candles)).reset_index(
             drop=True
         )
@@ -1403,7 +1403,7 @@ class LivePredictor:
         return self.ohlcv_np[-window_len:, :]
 
     def _compute_latest_indicator_value(
-        self, spec, full_history_scratch, window_scratch_by_len
+            self, spec, full_history_scratch, window_scratch_by_len
     ):
         window_len = max(2, int(self._resolve_indicator_window_len(spec.feature_col)))
         window_scratch = window_scratch_by_len.get(window_len)
@@ -1563,8 +1563,8 @@ class LivePredictor:
         if self.basis_premium_feature_columns:
             basis_row = np.asarray([basis_futures_close], dtype=np.float64)
             if (
-                self.basis_futures_close_np is None
-                or self.basis_futures_close_np.size == 0
+                    self.basis_futures_close_np is None
+                    or self.basis_futures_close_np.size == 0
             ):
                 self.basis_futures_close_np = basis_row
             else:
@@ -1579,11 +1579,11 @@ class LivePredictor:
         if len(self.opened_candles) > self.max_keep:
             dropped_opened = self.opened_candles.popleft()
             self.candle_open_close.pop(dropped_opened, None)
-            self.ohlcv_np = self.ohlcv_np[-self.max_keep :, :]
-            self.opened_ns_np = self.opened_ns_np[-self.max_keep :]
+            self.ohlcv_np = self.ohlcv_np[-self.max_keep:, :]
+            self.opened_ns_np = self.opened_ns_np[-self.max_keep:]
             if self.basis_premium_feature_columns:
                 self.basis_futures_close_np = self.basis_futures_close_np[
-                    -self.max_keep :
+                    -self.max_keep:
                 ]
 
     def _latest_btc_snapshot(self):
@@ -1636,13 +1636,13 @@ class LivePredictor:
         }
 
     def _build_ws_closed_candle_timing(
-        self,
-        *,
-        opened,
-        live_minute_opened,
-        price_meta=None,
-        volume_meta=None,
-        completed_at=None,
+            self,
+            *,
+            opened,
+            live_minute_opened,
+            price_meta=None,
+            volume_meta=None,
+            completed_at=None,
     ):
         completed_at = (
             pd.Timestamp.now(tz="UTC") if completed_at is None else pd.Timestamp(completed_at)
@@ -1706,11 +1706,11 @@ class LivePredictor:
         }
 
     def _store_pending_ws_price_candle(
-        self,
-        price_candle,
-        *,
-        event_at=None,
-        received_at=None,
+            self,
+            price_candle,
+            *,
+            event_at=None,
+            received_at=None,
     ):
         opened = self._pending_ws_candle_opened(price_candle)
         if self.opened_candles and opened <= self.opened_candles[-1]:
@@ -1752,13 +1752,13 @@ class LivePredictor:
         )
 
     def _store_pending_ws_volume(
-        self,
-        opened,
-        volume,
-        *,
-        auxiliary_ohlc=None,
-        event_at=None,
-        received_at=None,
+            self,
+            opened,
+            volume,
+            *,
+            auxiliary_ohlc=None,
+            event_at=None,
+            received_at=None,
     ):
         opened = pd.Timestamp(opened)
         if self.opened_candles and opened <= self.opened_candles[-1]:
@@ -2041,9 +2041,9 @@ class LivePredictor:
                 )
             gap_opened = gap_df["Opened"]
             if (
-                pd.Timestamp(gap_opened.iloc[0]) != gap_start
-                or pd.Timestamp(gap_opened.iloc[-1]) != gap_end
-                or not gap_opened.diff().iloc[1:].eq(INTERVAL_DELTA).all()
+                    pd.Timestamp(gap_opened.iloc[0]) != gap_start
+                    or pd.Timestamp(gap_opened.iloc[-1]) != gap_end
+                    or not gap_opened.diff().iloc[1:].eq(INTERVAL_DELTA).all()
             ):
                 raise RuntimeError(
                     "volume profile catch-up gap is not contiguous "
@@ -2528,6 +2528,7 @@ class LivePredictor:
             thread.start()
         self._run_websocket_target_forever(WS_TARGETS[0])
 
+
 DEFAULT_GAMMA_HOST = "https://gamma-api.polymarket.com"
 DEFAULT_CLOB_HOST = "https://clob.polymarket.com"
 DEFAULT_DATA_API_HOST = "https://data-api.polymarket.com"
@@ -2612,8 +2613,8 @@ def _configure_clob_http_client(timeout_sec):
         limits=httpx.Limits(max_connections=8, max_keepalive_connections=4),
     )
     if (
-        previous_client is not None
-        and previous_client is not pyclob_http_helpers._http_client
+            previous_client is not None
+            and previous_client is not pyclob_http_helpers._http_client
     ):
         close_fn = getattr(previous_client, "close", None)
         if callable(close_fn):
@@ -2721,12 +2722,12 @@ def _best_size(levels, side):
 
 
 def _resolve_submitted_buy_price(
-    *,
-    entry_price,
-    order_price_cap,
-    submitted_price_mode,
-    tick_size=None,
-    slippage_ticks=0,
+        *,
+        entry_price,
+        order_price_cap,
+        submitted_price_mode,
+        tick_size=None,
+        slippage_ticks=0,
 ):
     entry_price_value = _safe_float(entry_price)
     if not np.isfinite(entry_price_value) or not (0.0 < entry_price_value < 1.0):
@@ -2882,7 +2883,7 @@ def _resolve_buy_record_fields(intent, submit_result):
     requested_fee_raw = _safe_float(intent.get("entry_fee_raw_usdc"))
     requested_shares = _safe_float(intent.get("shares_net"))
     committed = bool(submit_result.get("commit_bankroll")) and (
-        _safe_text(intent.get("final_reason")) == "ok"
+            _safe_text(intent.get("final_reason")) == "ok"
     )
     filled_stake = _safe_float(submit_result.get("filled_stake_usdc"))
     filled_shares = _safe_float(submit_result.get("filled_shares"))
@@ -2959,7 +2960,7 @@ def _backfill_record_analysis_fields(record):
         record["submitted_stake_usdc"] = (
             float(record["intended_stake_usdc"])
             if order_status in attempted_statuses
-            and np.isfinite(_safe_float(record.get("intended_stake_usdc")))
+               and np.isfinite(_safe_float(record.get("intended_stake_usdc")))
             else np.nan
         )
     if not np.isfinite(_safe_float(record.get("filled_stake_usdc"))):
@@ -3089,6 +3090,7 @@ def _backfill_record_analysis_fields(record):
     record.setdefault("pm_redeem_confirmed_at", None)
     record.setdefault("pm_settlement_payout_source", "")
 
+
 def _fee_model_from_record(record):
     rate = _safe_float(record.get("pm_fee_rate"))
     exponent = _safe_float(record.get("pm_fee_exponent"))
@@ -3127,7 +3129,7 @@ def _collateral_balance_to_usdc(raw_balance):
         if isinstance(raw_balance, str):
             raw_balance = raw_balance.strip()
         balance_int = int(raw_balance)
-        return float(balance_int / (10**POLYMARKET_COLLATERAL_DECIMALS))
+        return float(balance_int / (10 ** POLYMARKET_COLLATERAL_DECIMALS))
     except (TypeError, ValueError):
         return _safe_float(raw_balance)
 
@@ -3364,7 +3366,7 @@ class PolymarketLiveTrader(LivePredictor):
             else ""
         )
         self.pm_relayer_api_key_address = (
-            self.pm_cfg.relayer_api_key_address or self.pm_signer_address
+                self.pm_cfg.relayer_api_key_address or self.pm_signer_address
         )
         self.live_bankroll_usdc = self._capped_trading_bankroll_usdc(
             self.pm_cfg.start_bankroll_usdc
@@ -3539,7 +3541,7 @@ class PolymarketLiveTrader(LivePredictor):
         rows = []
         chunk_size = 20  # bezpiecznie, ĹĽeby query string nie urĂłsĹ‚ za bardzo
         for i in range(0, len(condition_ids), chunk_size):
-            chunk = condition_ids[i : i + chunk_size]
+            chunk = condition_ids[i: i + chunk_size]
             offset = 0
 
             while True:
@@ -3581,7 +3583,7 @@ class PolymarketLiveTrader(LivePredictor):
         if sync_bankroll and np.isfinite(balance_usdc):
             self.live_bankroll_usdc = self._capped_trading_bankroll_usdc(balance_usdc)
             if np.isfinite(self.pm_cfg.max_bankroll_usdc) and float(
-                balance_usdc
+                    balance_usdc
             ) > float(self.live_bankroll_usdc):
                 self.bankroll_source = "polymarket_cash_balance_capped"
             else:
@@ -3872,14 +3874,14 @@ class PolymarketLiveTrader(LivePredictor):
             self.pm_redeem_submit_lock.release()
 
     def _mark_redeem_submission(
-        self,
-        *,
-        condition_ids,
-        tx_id,
-        tx_hash,
-        tx_state,
-        error,
-        nonce,
+            self,
+            *,
+            condition_ids,
+            tx_id,
+            tx_hash,
+            tx_state,
+            error,
+            nonce,
     ):
         target_conditions = set(str(x) for x in condition_ids if str(x))
         submitted_at = pd.Timestamp.now(tz="UTC")
@@ -4175,8 +4177,8 @@ class PolymarketLiveTrader(LivePredictor):
             _safe_text(rec.get("pm_selected_token_id")): rec
             for rec in self._records_snapshot()
             if str(rec.get("pm_mode", "")) == "live"
-            and self._is_managed_record(rec)
-            and _safe_text(rec.get("pm_selected_token_id"))
+               and self._is_managed_record(rec)
+               and _safe_text(rec.get("pm_selected_token_id"))
         }
 
         candidates = []
@@ -4295,7 +4297,7 @@ class PolymarketLiveTrader(LivePredictor):
     def _submit_single_exit_candidate(self, candidate):
         asset = str(candidate["asset"])
         if not polymarket_market_slug_matches_prefix(
-            candidate.get("market_slug"), self.pm_cfg.market_slug_prefix
+                candidate.get("market_slug"), self.pm_cfg.market_slug_prefix
         ):
             print(
                 "[pm] exit skip | "
@@ -4440,9 +4442,9 @@ class PolymarketLiveTrader(LivePredictor):
                 self.pm_bg_pending_reason = reason
                 return
             if (
-                not force
-                and now - self.pm_bg_last_started
-                < POLYMARKET_BACKGROUND_SYNC_MIN_INTERVAL_SEC
+                    not force
+                    and now - self.pm_bg_last_started
+                    < POLYMARKET_BACKGROUND_SYNC_MIN_INTERVAL_SEC
             ):
                 self.pm_bg_pending_reason = reason
                 return
@@ -4491,13 +4493,13 @@ class PolymarketLiveTrader(LivePredictor):
         self._save_records()
 
     def _reconcile_live_records(
-        self,
-        *,
-        cash_balance_usdc,
-        open_positions,
-        closed_positions,
-        sync_at,
-        reason,
+            self,
+            *,
+            cash_balance_usdc,
+            open_positions,
+            closed_positions,
+            sync_at,
+            reason,
     ):
         open_by_asset = {
             str(item.get("asset", "")): item
@@ -4540,7 +4542,7 @@ class PolymarketLiveTrader(LivePredictor):
                         rec.get("pm_account_sync_at")
                     ) or sync_at
                 if not np.isfinite(
-                    _safe_float(rec.get("pm_account_cash_balance_entry_usdc"))
+                        _safe_float(rec.get("pm_account_cash_balance_entry_usdc"))
                 ):
                     rec["pm_account_cash_balance_entry_usdc"] = (
                         float(rec["pm_account_cash_balance_usdc"])
@@ -4548,7 +4550,7 @@ class PolymarketLiveTrader(LivePredictor):
                         else np.nan
                     )
                 if not np.isfinite(
-                    _safe_float(rec.get("pm_account_positions_value_entry_usdc"))
+                        _safe_float(rec.get("pm_account_positions_value_entry_usdc"))
                 ):
                     rec["pm_account_positions_value_entry_usdc"] = (
                         float(rec["pm_account_positions_value_usdc"])
@@ -4565,8 +4567,8 @@ class PolymarketLiveTrader(LivePredictor):
                     shares_net = (
                         float(total_bought / avg_price)
                         if np.isfinite(total_bought)
-                        and np.isfinite(avg_price)
-                        and avg_price > 0
+                           and np.isfinite(avg_price)
+                           and avg_price > 0
                         else float(rec.get("shares_net", 0.0) or 0.0)
                     )
                     payout = (
@@ -4617,7 +4619,7 @@ class PolymarketLiveTrader(LivePredictor):
                     if not _safe_text(rec.get("pm_account_sync_at_resolve")):
                         rec["pm_account_sync_at_resolve"] = sync_at
                     if not np.isfinite(
-                        _safe_float(rec.get("pm_account_cash_balance_resolve_usdc"))
+                            _safe_float(rec.get("pm_account_cash_balance_resolve_usdc"))
                     ):
                         rec["pm_account_cash_balance_resolve_usdc"] = (
                             float(cash_balance_usdc)
@@ -4625,7 +4627,7 @@ class PolymarketLiveTrader(LivePredictor):
                             else np.nan
                         )
                     if not np.isfinite(
-                        _safe_float(rec.get("pm_account_positions_value_resolve_usdc"))
+                            _safe_float(rec.get("pm_account_positions_value_resolve_usdc"))
                     ):
                         rec["pm_account_positions_value_resolve_usdc"] = (
                             float(self.pm_positions_value_usdc)
@@ -4945,8 +4947,8 @@ class PolymarketLiveTrader(LivePredictor):
                 _safe_float(down_book.get("tick_size"), 0.0),
             ),
             neg_risk=bool(market.get("negRisk", False))
-            or bool(up_book.get("neg_risk"))
-            or bool(down_book.get("neg_risk")),
+                     or bool(up_book.get("neg_risk"))
+                     or bool(down_book.get("neg_risk")),
             fee_rate_bps=fee_rate_bps,
             fee_model=fee_model,
             up_token_id=up_token_id,
@@ -4965,7 +4967,7 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _fetch_market_snapshot_with_retry(self, bucket_start):
         deadline = time.perf_counter() + (
-            max(int(self.pm_cfg.market_lookup_max_wait_ms), 0) / 1000.0
+                max(int(self.pm_cfg.market_lookup_max_wait_ms), 0) / 1000.0
         )
         retry_sleep_sec = max(int(self.pm_cfg.market_lookup_retry_ms), 0) / 1000.0
         last_error = None
@@ -5123,15 +5125,15 @@ class PolymarketLiveTrader(LivePredictor):
         return intent
 
     def _submit_result(
-        self,
-        *,
-        commit_bankroll,
-        status,
-        error="",
-        response_text="",
-        submitted_stake_usdc=np.nan,
-        filled_stake_usdc=np.nan,
-        filled_shares=np.nan,
+            self,
+            *,
+            commit_bankroll,
+            status,
+            error="",
+            response_text="",
+            submitted_stake_usdc=np.nan,
+            filled_stake_usdc=np.nan,
+            filled_shares=np.nan,
     ):
         submitted_stake_value = _safe_float(submitted_stake_usdc)
         filled_stake_value = _safe_float(filled_stake_usdc)
@@ -5208,7 +5210,7 @@ class PolymarketLiveTrader(LivePredictor):
             except Exception as exc:
                 status_code = _http_status_code(exc)
                 is_retryable = (
-                    status_code in POLYMARKET_POST_ORDER_RETRYABLE_STATUS_CODES
+                        status_code in POLYMARKET_POST_ORDER_RETRYABLE_STATUS_CODES
                 )
                 if not is_retryable or attempt_idx >= max_attempts - 1:
                     raise
@@ -5302,7 +5304,7 @@ class PolymarketLiveTrader(LivePredictor):
                 response
             )
             commit_bankroll = execution_mode == "fok" or (
-                np.isfinite(filled_stake_usdc) and float(filled_stake_usdc) > 0.0
+                    np.isfinite(filled_stake_usdc) and float(filled_stake_usdc) > 0.0
             )
             return self._submit_result(
                 commit_bankroll=commit_bankroll,
@@ -5336,8 +5338,8 @@ class PolymarketLiveTrader(LivePredictor):
                     continue
 
                 if not self._resolve_record_outcome_from_settlement_truth(
-                    rec,
-                    resolved_at=resolved_at,
+                        rec,
+                        resolved_at=resolved_at,
                 ):
                     continue
 
@@ -5350,7 +5352,7 @@ class PolymarketLiveTrader(LivePredictor):
                     rec["pm_settlement_status"] = "resolved_waiting_settlement"
                 else:
                     rec["pm_settlement_status"] = (
-                        rec.get("pm_settlement_status") or "resolved_no_position"
+                            rec.get("pm_settlement_status") or "resolved_no_position"
                     )
                 resolved_now += 1
 
@@ -5384,11 +5386,11 @@ class PolymarketLiveTrader(LivePredictor):
             return self._fetch_market_snapshot_with_retry(bucket_start), metadata
 
     def _evaluate_prediction_execution(
-        self,
-        *,
-        bucket_start,
-        proba_up,
-        market_future,
+            self,
+            *,
+            bucket_start,
+            proba_up,
+            market_future,
     ):
         execution_started_perf = time.perf_counter()
         market_lookup_started_perf = execution_started_perf
@@ -5447,19 +5449,19 @@ class PolymarketLiveTrader(LivePredictor):
         }
 
     def _build_prediction_record(
-        self,
-        *,
-        bucket_start,
-        bucket_end,
-        proba_up,
-        bankroll_before_entry,
-        bankroll_after_entry,
-        stake_usdc,
-        market,
-        intent,
-        submit_result,
-        decision_delay_ms,
-        latency_metrics,
+            self,
+            *,
+            bucket_start,
+            bucket_end,
+            proba_up,
+            bankroll_before_entry,
+            bankroll_after_entry,
+            stake_usdc,
+            market,
+            intent,
+            submit_result,
+            decision_delay_ms,
+            latency_metrics,
     ):
         order_status = str(submit_result["status"])
         buy_record_fields = _resolve_buy_record_fields(intent, submit_result)
@@ -5681,19 +5683,19 @@ class PolymarketLiveTrader(LivePredictor):
         return record
 
     def _build_prediction_summary(
-        self,
-        *,
-        minute_close,
-        bucket_start,
-        bucket_end,
-        proba_up,
-        stake_usdc,
-        bankroll_before_entry,
-        bankroll_after_entry,
-        intent,
-        submit_result,
-        decision_delay_ms,
-        latency_metrics,
+            self,
+            *,
+            minute_close,
+            bucket_start,
+            bucket_end,
+            proba_up,
+            stake_usdc,
+            bankroll_before_entry,
+            bankroll_after_entry,
+            intent,
+            submit_result,
+            decision_delay_ms,
+            latency_metrics,
     ):
         submitted_stake_usdc = _safe_float(
             submit_result.get("submitted_stake_usdc"),
@@ -5756,14 +5758,14 @@ class PolymarketLiveTrader(LivePredictor):
         latency_metrics = {}
         if delay_timing is not None:
             for key in (
-                "ws_price_event_delay_ms",
-                "ws_volume_event_delay_ms",
-                "ws_price_receive_delay_ms",
-                "ws_volume_receive_delay_ms",
-                "ws_event_delay_ms",
-                "ws_receive_delay_ms",
-                "ws_component_sync_ms",
-                "feature_prep_ms",
+                    "ws_price_event_delay_ms",
+                    "ws_volume_event_delay_ms",
+                    "ws_price_receive_delay_ms",
+                    "ws_volume_receive_delay_ms",
+                    "ws_event_delay_ms",
+                    "ws_receive_delay_ms",
+                    "ws_component_sync_ms",
+                    "feature_prep_ms",
             ):
                 if key in delay_timing:
                     latency_metrics[key] = delay_timing[key]
@@ -5821,7 +5823,7 @@ class PolymarketLiveTrader(LivePredictor):
             stake_usdc = (
                 float(intent.get("bet_usdc", 0.0) or 0.0)
                 if bool(submit_result["commit_bankroll"])
-                and str(intent.get("final_reason", "")) == "ok"
+                   and str(intent.get("final_reason", "")) == "ok"
                 else 0.0
             )
         if self.pm_cfg.paper_mode and stake_usdc > 0.0:
@@ -5869,9 +5871,9 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _record_is_traded(self, record):
         return (
-            _safe_text(record.get("pm_settlement_status")) == "closed"
-            and self._has_binary_flag(record.get("trade_is_win"))
-            and record.get("pnl_usdc") is not None
+                _safe_text(record.get("pm_settlement_status")) == "closed"
+                and self._has_binary_flag(record.get("trade_is_win"))
+                and record.get("pnl_usdc") is not None
         )
 
     def _format_rate(self, value):
@@ -6199,11 +6201,11 @@ class PolymarketLiveTrader(LivePredictor):
             self._sync_closed_candles_from_rest(stop_before_opened=opened_from_ws)
 
     def _maybe_predict_closed_bucket(
-        self,
-        opened,
-        volume_profile_values,
-        *,
-        delay_timing=None,
+            self,
+            opened,
+            volume_profile_values,
+            *,
+            delay_timing=None,
     ):
         bucket_start = opened.floor(f"{self.target_bucket_minutes}min")
         bucket_end = bucket_start + pd.Timedelta(minutes=self.target_bucket_minutes - 1)
@@ -6223,7 +6225,7 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _schedule_post_cycle_syncs(self, pred, resolved_now):
         if pred is not None and _is_polymarket_submitted_status(
-            pred.get("pm_order_status")
+                pred.get("pm_order_status")
         ):
             self._schedule_background_sync("post_submit", force=True)
         if resolved_now > 0:
@@ -6361,8 +6363,8 @@ class PolymarketLiveTrader(LivePredictor):
                 if opened is None:
                     return
                 if (
-                    self.last_processed_closed_opened is not None
-                    and opened <= self.last_processed_closed_opened
+                        self.last_processed_closed_opened is not None
+                        and opened <= self.last_processed_closed_opened
                 ):
                     return
                 if PRICE_SOURCE == "index":
@@ -6405,6 +6407,7 @@ class PolymarketLiveTrader(LivePredictor):
         self._schedule_background_sync("startup", force=True)
 
         self._run_all_websocket_targets_forever()
+
 
 def main():
     setup_live_console_logging(
