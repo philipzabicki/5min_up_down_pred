@@ -1072,6 +1072,7 @@ AUDIT_PROGRESS_EVERY_STEPS = 60
 AUDIT_PROGRESS_MAX_UPDATES = 12
 AUDIT_CONSOLE_TOP_N = 5
 AUDIT_CONSOLE_LABEL_MAX_LEN = 100
+AUDIT_WRITE_DEBUG_CSVS = False
 AUDIT_MAX_MEAN_PROBA_ABS_DIFF = None
 AUDIT_MAX_MAX_PROBA_ABS_DIFF = None
 AUDIT_MAX_SIGNAL_MISMATCH_RATE = None
@@ -1340,6 +1341,18 @@ def _format_console_rate(value):
     return f"{numeric_value * 100.0:.3f}%"
 
 
+def _format_console_pct_value(value):
+    if value is None:
+        return "n/a"
+    try:
+        numeric_value = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if not np.isfinite(numeric_value):
+        return "n/a"
+    return f"{numeric_value:.3f}%"
+
+
 def _print_console_ranked_rows(
         title,
         frame,
@@ -1417,34 +1430,29 @@ def _print_audit_console_summary(results, written_paths):
         print("  guardrails: OK")
 
     _print_console_ranked_rows(
-        "Top prediction-impact features",
-        _build_feature_prediction_impact_export_df(
+        "Features to inspect",
+        _build_features_to_inspect_df(
             results["live_vs_stored_report"]["feature_summary_df"],
-            top_k=min(int(AUDIT_CONSOLE_TOP_N), int(AUDIT_TOP_N)),
-            only_impactful=True,
-        ),
-        label_col="feature",
-        metric_specs=[
-            ("builder", "builder", _format_console_value),
-            ("proba_drift_rows_resolved", "drift_rows", _format_console_value),
-            ("rows_helped", "rows_helped", _format_console_value),
-            ("net_pred_gap_reduction", "net_gap_reduction", _format_console_value),
-            ("max_pred_shift", "max_pred_shift", _format_console_value),
-        ],
-    )
-    _print_console_ranked_rows(
-        "Top feature drop candidates",
-        _build_feature_drop_candidates_df(
-            results["live_vs_stored_report"]["feature_summary_df"],
+            decision_row_count=summary.get("decision_row_count", 0),
             top_k=min(int(AUDIT_CONSOLE_TOP_N), int(AUDIT_TOP_N)),
         ),
         label_col="feature",
         metric_specs=[
-            ("builder", "builder", _format_console_value),
-            ("drop_candidate_reason", "reason", _truncate_console_label),
-            ("max_abs_diff", "max_abs_diff", _format_console_value),
-            ("mean_abs_diff", "mean_abs_diff", _format_console_value),
-            ("proba_drift_rows_resolved", "drift_rows", _format_console_value),
+            ("severity", "severity", _format_console_value),
+            ("pred_shift_rows", "pred_shift_rows", _format_console_value),
+            ("pred_shift_rows_pct", "pred_shift_pct", _format_console_pct_value),
+            ("mean_pred_shift", "mean_shift", _format_console_value),
+            ("max_pred_shift", "max_shift", _format_console_value),
+            (
+                "rows_where_prediction_diff_exceeds_tol_explained",
+                "pred_diff_rows",
+                _format_console_value,
+            ),
+            (
+                "rows_where_up_down_prediction_flips_explained",
+                "up_down_flip_rows",
+                _format_console_value,
+            ),
         ],
     )
 
@@ -1724,6 +1732,9 @@ def _build_single_feature_prediction_impact_report(
         proba_shift_matrix[:, feature_idx] = proba_shift
         gap_reduction_matrix[:, feature_idx] = gap_reduction
 
+        abs_proba_shift = np.abs(proba_shift)
+        proba_shift_mask = abs_proba_shift > PREDICTION_DIFF_TOL
+        proba_shift_values = abs_proba_shift[proba_shift_mask]
         fixed_signal_mismatch = (fixed_pred >= 0.5) != (reference_pred >= 0.5)
         fixed_drift_mask = fixed_abs_gap > PREDICTION_DIFF_TOL
         helpful_gap_mask = gap_reduction > PREDICTION_DIFF_TOL
@@ -1768,8 +1779,14 @@ def _build_single_feature_prediction_impact_report(
                 "builder_family": builder_families[feature_idx],
                 "builder_name": builder_names[feature_idx],
                 "builder_source": builder_sources[feature_idx],
-                "mean_abs_proba_shift_if_fixed": float(np.mean(np.abs(proba_shift))),
-                "max_abs_proba_shift_if_fixed": float(np.max(np.abs(proba_shift))),
+                "rows_pred_shift_gt_tol_if_fixed": int(proba_shift_mask.sum()),
+                "mean_abs_proba_shift_on_shift_rows_if_fixed": (
+                    float(np.mean(proba_shift_values))
+                    if proba_shift_mask.any()
+                    else 0.0
+                ),
+                "mean_abs_proba_shift_if_fixed": float(np.mean(abs_proba_shift)),
+                "max_abs_proba_shift_if_fixed": float(np.max(abs_proba_shift)),
                 "mean_signed_proba_shift_if_fixed": float(np.mean(proba_shift)),
                 "net_abs_proba_gap_reduction_if_fixed": float(np.sum(gap_reduction)),
                 "mean_abs_proba_gap_reduction_on_drift_rows_if_fixed": (
@@ -4370,17 +4387,339 @@ def _build_feature_prediction_impact_export_df(
     return export_df
 
 
-def _feature_prediction_impact_records(
+FEATURES_TO_INSPECT_COLUMNS = [
+    "rank",
+    "severity",
+    "feature",
+    "pred_shift_rows",
+    "pred_shift_rows_pct",
+    "mean_pred_shift",
+    "max_pred_shift",
+    "rows_where_prediction_diff_exceeds_tol_explained",
+    "rows_where_up_down_prediction_flips_explained",
+    "max_feature_abs_diff",
+    "mean_feature_abs_diff",
+    "importance_gain",
+]
+
+
+def _build_features_to_inspect_df(
         feature_summary_df,
         *,
-        top_k,
+        decision_row_count,
+        top_k=None,
 ):
-    export_df = _build_feature_prediction_impact_export_df(
-        feature_summary_df,
-        top_k=top_k,
-        only_impactful=True,
+    if feature_summary_df is None or feature_summary_df.empty:
+        return pd.DataFrame(columns=FEATURES_TO_INSPECT_COLUMNS)
+
+    export_df = feature_summary_df.copy()
+    if "mean_abs_proba_shift_on_shift_rows_if_fixed" not in export_df.columns:
+        export_df["mean_abs_proba_shift_on_shift_rows_if_fixed"] = export_df.get(
+            "mean_abs_proba_shift_if_fixed",
+            0.0,
+        )
+
+    numeric_defaults = {
+        "rows_pred_shift_gt_tol_if_fixed": 0,
+        "mean_abs_proba_shift_on_shift_rows_if_fixed": 0.0,
+        "max_abs_proba_shift_if_fixed": 0.0,
+        "rows_proba_diff_gt_tol_resolved_if_fixed": 0,
+        "rows_signal_mismatch_resolved_if_fixed": 0,
+        "max_abs_diff": 0.0,
+        "mean_abs_diff": 0.0,
+        "importance_gain": 0.0,
+    }
+    for column_name, default_value in numeric_defaults.items():
+        if column_name not in export_df.columns:
+            export_df[column_name] = default_value
+        export_df[column_name] = pd.to_numeric(
+            export_df[column_name],
+            errors="coerce",
+        ).fillna(default_value)
+
+    if "feature" not in export_df.columns:
+        export_df["feature"] = ""
+
+    pred_shift_rows = export_df["rows_pred_shift_gt_tol_if_fixed"].astype(np.int64)
+    pred_diff_rows_explained = export_df[
+        "rows_proba_diff_gt_tol_resolved_if_fixed"
+    ].astype(np.int64)
+    up_down_flip_rows_explained = export_df[
+        "rows_signal_mismatch_resolved_if_fixed"
+    ].astype(np.int64)
+    max_pred_shift = export_df["max_abs_proba_shift_if_fixed"].astype(float)
+
+    inspect_mask = (
+            pred_shift_rows.gt(0)
+            | pred_diff_rows_explained.gt(0)
+            | up_down_flip_rows_explained.gt(0)
+            | max_pred_shift.gt(PREDICTION_DIFF_TOL)
     )
-    return json.loads(export_df.to_json(orient="records"))
+    if not bool(inspect_mask.any()):
+        return pd.DataFrame(columns=FEATURES_TO_INSPECT_COLUMNS)
+
+    decision_rows = max(int(decision_row_count or 0), 0)
+    selected = pd.DataFrame(
+        {
+            "severity": np.select(
+                [
+                    up_down_flip_rows_explained.gt(0),
+                    pred_diff_rows_explained.gt(0),
+                    pred_shift_rows.gt(0),
+                ],
+                ["critical", "high", "medium"],
+                default="low",
+            ),
+            "feature": export_df["feature"].astype(str),
+            "pred_shift_rows": pred_shift_rows,
+            "pred_shift_rows_pct": (
+                np.where(
+                    decision_rows > 0,
+                    pred_shift_rows.astype(float) / float(decision_rows) * 100.0,
+                    0.0,
+                )
+            ),
+            "mean_pred_shift": export_df[
+                "mean_abs_proba_shift_on_shift_rows_if_fixed"
+            ].astype(float),
+            "max_pred_shift": max_pred_shift,
+            "rows_where_prediction_diff_exceeds_tol_explained": (
+                pred_diff_rows_explained
+            ),
+            "rows_where_up_down_prediction_flips_explained": (
+                up_down_flip_rows_explained
+            ),
+            "max_feature_abs_diff": export_df["max_abs_diff"].astype(float),
+            "mean_feature_abs_diff": export_df["mean_abs_diff"].astype(float),
+            "importance_gain": export_df["importance_gain"].astype(float),
+        }
+    ).loc[inspect_mask].reset_index(drop=True)
+
+    severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+    selected["_severity_order"] = selected["severity"].map(severity_order).fillna(9)
+    selected = selected.sort_values(
+        [
+            "_severity_order",
+            "rows_where_up_down_prediction_flips_explained",
+            "rows_where_prediction_diff_exceeds_tol_explained",
+            "pred_shift_rows",
+            "max_pred_shift",
+            "mean_pred_shift",
+            "importance_gain",
+            "feature",
+        ],
+        ascending=[True, False, False, False, False, False, False, True],
+        kind="stable",
+    ).drop(columns=["_severity_order"]).reset_index(drop=True)
+    selected.insert(0, "rank", np.arange(1, len(selected) + 1, dtype=np.int32))
+    selected = selected.loc[:, FEATURES_TO_INSPECT_COLUMNS]
+    if top_k is not None:
+        selected = selected.head(int(top_k)).reset_index(drop=True)
+    return selected
+
+
+ROWS_TO_INSPECT_COLUMNS = [
+    "Opened",
+    "live_proba_up",
+    "stored_proba_up",
+    "pred_abs_diff",
+    "up_down_prediction_flipped",
+    "business_decision_changed",
+    "policy_decision_changed",
+    "top_feature",
+    "top_feature_pred_shift",
+    "top_feature_live_value",
+    "top_feature_stored_value",
+    "max_feature_abs_diff",
+    "mean_feature_abs_diff",
+]
+
+
+def _build_rows_to_inspect_df(step_summary_df, *, top_k=None):
+    if step_summary_df is None or step_summary_df.empty:
+        return pd.DataFrame(columns=ROWS_TO_INSPECT_COLUMNS)
+
+    frame = step_summary_df.copy()
+    pred_diff = pd.to_numeric(
+        frame.get("proba_up_abs_diff", 0.0),
+        errors="coerce",
+    ).fillna(0.0)
+    up_down_flipped = pd.to_numeric(
+        frame.get("signal_mismatch", 0),
+        errors="coerce",
+    ).fillna(0).astype(bool)
+    business_changed = pd.to_numeric(
+        frame.get("business_decision_mismatch", 0),
+        errors="coerce",
+    ).fillna(0).astype(bool)
+    policy_changed = pd.to_numeric(
+        frame.get("policy_decision_mismatch", 0),
+        errors="coerce",
+    ).fillna(0).astype(bool)
+    top_feature = frame.get("top_prediction_impact_feature", "")
+    top_feature = pd.Series(top_feature, index=frame.index).fillna("").astype(str)
+    top_feature_shift = pd.to_numeric(
+        frame.get("top_prediction_impact_abs_proba_shift_if_fixed", 0.0),
+        errors="coerce",
+    ).fillna(0.0)
+
+    inspect_mask = (
+            pred_diff.gt(PREDICTION_DIFF_TOL)
+            | up_down_flipped
+            | business_changed
+            | policy_changed
+            | top_feature.ne("")
+            | top_feature_shift.gt(PREDICTION_DIFF_TOL)
+    )
+    if not bool(inspect_mask.any()):
+        return pd.DataFrame(columns=ROWS_TO_INSPECT_COLUMNS)
+
+    out = pd.DataFrame(
+        {
+            "Opened": frame.get("Opened"),
+            "live_proba_up": pd.to_numeric(
+                frame.get("live_proba_up", np.nan),
+                errors="coerce",
+            ),
+            "stored_proba_up": pd.to_numeric(
+                frame.get("stored_proba_up", np.nan),
+                errors="coerce",
+            ),
+            "pred_abs_diff": pred_diff,
+            "up_down_prediction_flipped": up_down_flipped,
+            "business_decision_changed": business_changed,
+            "policy_decision_changed": policy_changed,
+            "top_feature": top_feature,
+            "top_feature_pred_shift": top_feature_shift,
+            "top_feature_live_value": pd.to_numeric(
+                frame.get("top_prediction_impact_live_value", np.nan),
+                errors="coerce",
+            ),
+            "top_feature_stored_value": pd.to_numeric(
+                frame.get("top_prediction_impact_stored_value", np.nan),
+                errors="coerce",
+            ),
+            "max_feature_abs_diff": pd.to_numeric(
+                frame.get("feature_max_abs_diff", 0.0),
+                errors="coerce",
+            ).fillna(0.0),
+            "mean_feature_abs_diff": pd.to_numeric(
+                frame.get("feature_mean_abs_diff", 0.0),
+                errors="coerce",
+            ).fillna(0.0),
+        }
+    ).loc[inspect_mask].reset_index(drop=True)
+
+    out = out.sort_values(
+        [
+            "up_down_prediction_flipped",
+            "business_decision_changed",
+            "policy_decision_changed",
+            "pred_abs_diff",
+            "top_feature_pred_shift",
+            "max_feature_abs_diff",
+            "Opened",
+        ],
+        ascending=[False, False, False, False, False, False, True],
+        kind="stable",
+    ).reset_index(drop=True)
+    out = out.loc[:, ROWS_TO_INSPECT_COLUMNS]
+    if top_k is not None:
+        out = out.head(int(top_k)).reset_index(drop=True)
+    return out
+
+
+def _summary_int(summary, key, default=0):
+    value = summary.get(key, default)
+    if pd.isna(value):
+        return int(default)
+    return int(value)
+
+
+def _summary_float(summary, key, default=0.0):
+    value = summary.get(key, default)
+    if pd.isna(value):
+        return float(default)
+    return float(value)
+
+
+def _build_live_feature_parity_summary_payload(
+        report,
+        drift_reason_report,
+        features_to_inspect_df,
+):
+    live_summary = report["summary"]
+    reason_summary = drift_reason_report["summary"]
+    guardrail_violations = _evaluate_guardrail_violations(live_summary)
+
+    proba_drift_rows = _summary_int(live_summary, "rows_with_proba_diff_gt_tol")
+    signal_mismatch_rows = _summary_int(live_summary, "rows_with_signal_mismatch")
+    business_mismatch_rows = _summary_int(
+        live_summary,
+        "rows_with_business_decision_mismatch",
+    )
+    policy_mismatch_rows = _summary_int(live_summary, "rows_with_any_policy_mismatch")
+    features_to_inspect_count = int(len(features_to_inspect_df))
+
+    if guardrail_violations:
+        verdict = "fail"
+    elif (
+            signal_mismatch_rows > 0
+            or business_mismatch_rows > 0
+            or policy_mismatch_rows > 0
+            or proba_drift_rows > 0
+            or features_to_inspect_count > 0
+    ):
+        verdict = "inspect"
+    else:
+        verdict = "ok"
+
+    severity_counts = (
+        features_to_inspect_df["severity"]
+        .value_counts()
+        .reindex(["critical", "high", "medium", "low"], fill_value=0)
+        .astype(int)
+        .to_dict()
+        if not features_to_inspect_df.empty
+        else {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    )
+
+    payload = {
+        "verdict": verdict,
+        "proba_diff_tol": PREDICTION_DIFF_TOL,
+        "severity": {
+            "critical": "feature explains at least one up/down prediction flip",
+            "high": "feature explains at least one row where live/stored prediction difference exceeded proba_diff_tol",
+            "medium": "feature changes prediction by more than proba_diff_tol",
+        },
+        "audit_start": live_summary.get("audit_start"),
+        "audit_end": live_summary.get("audit_end"),
+        "bootstrap_rows": _summary_int(live_summary, "bootstrap_rows"),
+        "audit_rows_total_1m": _summary_int(live_summary, "audit_rows_total_1m"),
+        "decision_rows": _summary_int(live_summary, "decision_row_count"),
+        "feature_count": _summary_int(live_summary, "feature_count"),
+        "features_to_inspect": features_to_inspect_count,
+        "features_to_inspect_by_severity": severity_counts,
+        "proba_drift_rows": proba_drift_rows,
+        "max_proba_up_abs_diff": _summary_float(
+            live_summary,
+            "max_proba_up_abs_diff",
+        ),
+        "mean_proba_up_abs_diff": _summary_float(
+            live_summary,
+            "mean_proba_up_abs_diff",
+        ),
+        "signal_mismatch_rows": signal_mismatch_rows,
+        "business_decision_mismatch_rows": business_mismatch_rows,
+        "policy_mismatch_rows": policy_mismatch_rows,
+        "explanation_basis": reason_summary.get("explanation_basis"),
+        "top_features": json.loads(
+            features_to_inspect_df.head(10).to_json(orient="records")
+        ),
+    }
+    if guardrail_violations:
+        payload["guardrail_violations"] = guardrail_violations
+    return payload
 
 
 def _build_feature_drop_candidates_df(
@@ -4546,112 +4885,112 @@ def save_audit_outputs(
     drift_reason_report = results["drift_reason_report"]
 
     written_paths["summary_json"] = output_dir / "live_vs_stored_summary.json"
-    written_paths["decision_rows_csv"] = output_dir / "live_vs_stored_decision_rows.csv"
-    written_paths["feature_prediction_impacts_csv"] = (
-            output_dir / "live_vs_stored_feature_prediction_impacts.csv"
-    )
-    written_paths["feature_prediction_impacts_full_csv"] = (
-            output_dir / "live_vs_stored_feature_prediction_impacts_full.csv"
-    )
-    written_paths["feature_drop_candidates_csv"] = (
-            output_dir / "live_vs_stored_feature_drop_candidates.csv"
-    )
-    written_paths["builder_prediction_impacts_csv"] = (
-            output_dir / "live_vs_stored_builder_prediction_impacts.csv"
-    )
-    written_paths["group_prediction_impacts_csv"] = (
-            output_dir / "live_vs_stored_group_prediction_impacts.csv"
-    )
-    feature_export_df = _build_feature_prediction_impact_export_df(
+    written_paths["features_to_inspect_csv"] = output_dir / "features_to_inspect.csv"
+    written_paths["rows_to_inspect_csv"] = output_dir / "rows_to_inspect.csv"
+    features_to_inspect_df = _build_features_to_inspect_df(
         report["feature_summary_df"],
-        only_impactful=True,
+        decision_row_count=report["summary"].get("decision_row_count", 0),
     )
-    top10_feature_records = _feature_prediction_impact_records(
-        report["feature_summary_df"],
-        top_k=10,
-    )
-    top25_feature_records = _feature_prediction_impact_records(
-        report["feature_summary_df"],
-        top_k=25,
-    )
-    drop_candidate_df = _build_feature_drop_candidates_df(report["feature_summary_df"])
-    top10_drop_candidate_records = json.loads(
-        drop_candidate_df.head(10).to_json(orient="records")
-    )
-    top25_drop_candidate_records = json.loads(
-        drop_candidate_df.head(25).to_json(orient="records")
-    )
+    rows_to_inspect_df = _build_rows_to_inspect_df(report["step_summary_df"])
 
     written_paths["summary_json"].write_text(
         json.dumps(
-            {
-                "live_vs_stored": report["summary"].to_dict(),
-                "drift_reason": drift_reason_report["summary"].to_dict(),
-                "feature_drop_candidate_thresholds": {
-                    "max_abs_diff_gt": FEATURE_DROP_MAX_ABS_DIFF_TOL,
-                    "mean_abs_diff_gt": FEATURE_DROP_MEAN_ABS_DIFF_TOL,
-                    "max_rel_diff_gt": FEATURE_DROP_MAX_REL_DIFF_TOL,
-                },
-                "feature_drop_candidate_count": int(len(drop_candidate_df)),
-                "top10_feature_drop_candidates": top10_drop_candidate_records,
-                "top25_feature_drop_candidates": top25_drop_candidate_records,
-                "prediction_impact_feature_rank_metric": (
-                    "rows_proba_diff_gt_tol_resolved_then_net_pred_gap_reduction"
-                ),
-                "top10_prediction_impact_features": top10_feature_records,
-                "top25_prediction_impact_features": top25_feature_records,
-            },
+            _build_live_feature_parity_summary_payload(
+                report,
+                drift_reason_report,
+                features_to_inspect_df,
+            ),
             indent=2,
             ensure_ascii=True,
             default=str,
         ),
         encoding="utf-8",
     )
-    decision_sort_spec = [
-        ("top_prediction_impact_abs_proba_gap_reduction_if_fixed", False),
-        ("proba_up_abs_diff", False),
-        ("top_prediction_impact_abs_proba_shift_if_fixed", False),
-        ("feature_mean_rel_diff", False),
-        ("feature_mean_abs_diff", False),
-        ("Opened", True),
-    ]
-    decision_sort_cols = [
-        col
-        for col, _ascending in decision_sort_spec
-        if col in report["step_summary_df"]
-    ]
-    decision_sort_ascending = [
-        ascending
-        for col, ascending in decision_sort_spec
-        if col in report["step_summary_df"]
-    ]
-    decision_rows_export_df = report["step_summary_df"].sort_values(
-        decision_sort_cols,
-        ascending=decision_sort_ascending,
-        kind="stable",
-        na_position="last",
-    )
-    decision_rows_export_df.to_csv(written_paths["decision_rows_csv"], index=False)
-    feature_export_df.to_csv(
-        written_paths["feature_prediction_impacts_csv"],
+    features_to_inspect_df.to_csv(
+        written_paths["features_to_inspect_csv"],
         index=False,
     )
-    report["feature_summary_df"].to_csv(
-        written_paths["feature_prediction_impacts_full_csv"],
+    rows_to_inspect_df.to_csv(
+        written_paths["rows_to_inspect_csv"],
         index=False,
     )
-    drop_candidate_df.to_csv(
-        written_paths["feature_drop_candidates_csv"],
-        index=False,
-    )
-    report["builder_summary_df"].to_csv(
-        written_paths["builder_prediction_impacts_csv"],
-        index=False,
-    )
-    report["group_summary_df"].to_csv(
-        written_paths["group_prediction_impacts_csv"],
-        index=False,
-    )
+
+    if AUDIT_WRITE_DEBUG_CSVS:
+        written_paths["debug_decision_rows_csv"] = (
+                output_dir / "debug_live_vs_stored_decision_rows.csv"
+        )
+        written_paths["debug_feature_prediction_impacts_csv"] = (
+                output_dir / "debug_live_vs_stored_feature_prediction_impacts.csv"
+        )
+        written_paths["debug_feature_prediction_impacts_full_csv"] = (
+                output_dir / "debug_live_vs_stored_feature_prediction_impacts_full.csv"
+        )
+        written_paths["debug_feature_drop_candidates_csv"] = (
+                output_dir / "debug_live_vs_stored_feature_drop_candidates.csv"
+        )
+        written_paths["debug_builder_prediction_impacts_csv"] = (
+                output_dir / "debug_live_vs_stored_builder_prediction_impacts.csv"
+        )
+        written_paths["debug_group_prediction_impacts_csv"] = (
+                output_dir / "debug_live_vs_stored_group_prediction_impacts.csv"
+        )
+
+        decision_sort_spec = [
+            ("top_prediction_impact_abs_proba_gap_reduction_if_fixed", False),
+            ("proba_up_abs_diff", False),
+            ("top_prediction_impact_abs_proba_shift_if_fixed", False),
+            ("feature_mean_rel_diff", False),
+            ("feature_mean_abs_diff", False),
+            ("Opened", True),
+        ]
+        decision_sort_cols = [
+            col
+            for col, _ascending in decision_sort_spec
+            if col in report["step_summary_df"]
+        ]
+        decision_sort_ascending = [
+            ascending
+            for col, ascending in decision_sort_spec
+            if col in report["step_summary_df"]
+        ]
+        decision_rows_export_df = report["step_summary_df"].sort_values(
+            decision_sort_cols,
+            ascending=decision_sort_ascending,
+            kind="stable",
+            na_position="last",
+        )
+        feature_export_df = _build_feature_prediction_impact_export_df(
+            report["feature_summary_df"],
+            only_impactful=True,
+        )
+        drop_candidate_df = _build_feature_drop_candidates_df(
+            report["feature_summary_df"]
+        )
+
+        decision_rows_export_df.to_csv(
+            written_paths["debug_decision_rows_csv"],
+            index=False,
+        )
+        feature_export_df.to_csv(
+            written_paths["debug_feature_prediction_impacts_csv"],
+            index=False,
+        )
+        report["feature_summary_df"].to_csv(
+            written_paths["debug_feature_prediction_impacts_full_csv"],
+            index=False,
+        )
+        drop_candidate_df.to_csv(
+            written_paths["debug_feature_drop_candidates_csv"],
+            index=False,
+        )
+        report["builder_summary_df"].to_csv(
+            written_paths["debug_builder_prediction_impacts_csv"],
+            index=False,
+        )
+        report["group_summary_df"].to_csv(
+            written_paths["debug_group_prediction_impacts_csv"],
+            index=False,
+        )
 
     if drilldown_feature_name:
         drilldown_path = (

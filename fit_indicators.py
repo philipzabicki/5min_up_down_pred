@@ -247,6 +247,50 @@ def _normalize_prob_param_values(raw_value, field_name):
     return out
 
 
+def _normalize_quantile_pairs_param(raw_value, field_name):
+    if isinstance(raw_value, dict):
+        values = [raw_value]
+    elif isinstance(raw_value, (list, tuple)):
+        values = list(raw_value)
+    else:
+        raise ValueError(f"{field_name} must be a JSON array of q_ext/q_mid objects.")
+    if not values:
+        raise ValueError(f"{field_name} list cannot be empty.")
+
+    out = []
+    for index, value in enumerate(values):
+        if not isinstance(value, dict):
+            raise ValueError(f"{field_name}[{index}] must be a JSON object.")
+        if "q_ext" not in value or "q_mid" not in value:
+            raise ValueError(f"{field_name}[{index}] must define q_ext and q_mid.")
+
+        q_ext = float(value["q_ext"])
+        q_mid = float(value["q_mid"])
+        if not (0.0 < q_ext < 0.5):
+            raise ValueError(
+                f"{field_name}[{index}].q_ext must satisfy 0 < value < 0.5, "
+                f"got: {q_ext}"
+            )
+        if not (0.0 < q_mid < 0.5):
+            raise ValueError(
+                f"{field_name}[{index}].q_mid must satisfy 0 < value < 0.5, "
+                f"got: {q_mid}"
+            )
+        if not (0.5 - q_mid > q_ext):
+            raise ValueError(
+                "Invalid q_ext/q_mid: require 0.5 - q_mid > q_ext so mid band does not "
+                "overlap extremes. "
+                f"Got q_ext={q_ext}, q_mid={q_mid}"
+            )
+        if not any(
+                abs(q_ext - prev_q_ext) <= 1e-12
+                and abs(q_mid - prev_q_mid) <= 1e-12
+                for prev_q_ext, prev_q_mid in out
+        ):
+            out.append((float(q_ext), float(q_mid)))
+    return out
+
+
 def _coerce_bool_param(raw_value, field_name):
     if isinstance(raw_value, bool):
         return bool(raw_value)
@@ -289,14 +333,29 @@ def _resolve_metric_configs(interval_cfg, pair_cfg):
     )
     if gap < 0:
         raise ValueError(f"metric_gap must be >= 0, got: {gap}")
-    q_ext_values = _normalize_prob_param_values(
-        interval_cfg.get("q_ext", pair_cfg.get("q_ext", DEFAULT_METRIC_Q_EXT)),
-        "q_ext",
+    raw_quantile_pairs = interval_cfg.get(
+        "quantile_pairs",
+        pair_cfg.get("quantile_pairs"),
     )
-    q_mid_values = _normalize_prob_param_values(
-        interval_cfg.get("q_mid", pair_cfg.get("q_mid", DEFAULT_METRIC_Q_MID)),
-        "q_mid",
-    )
+    if raw_quantile_pairs is None:
+        q_ext_values = _normalize_prob_param_values(
+            interval_cfg.get("q_ext", pair_cfg.get("q_ext", DEFAULT_METRIC_Q_EXT)),
+            "q_ext",
+        )
+        q_mid_values = _normalize_prob_param_values(
+            interval_cfg.get("q_mid", pair_cfg.get("q_mid", DEFAULT_METRIC_Q_MID)),
+            "q_mid",
+        )
+        quantile_pairs = [
+            (q_ext, q_mid)
+            for q_ext in q_ext_values
+            for q_mid in q_mid_values
+        ]
+    else:
+        quantile_pairs = _normalize_quantile_pairs_param(
+            raw_quantile_pairs,
+            "quantile_pairs",
+        )
 
     stat = (
         str(interval_cfg.get("stat", pair_cfg.get("stat", DEFAULT_METRIC_STAT)))
@@ -399,18 +458,17 @@ def _resolve_metric_configs(interval_cfg, pair_cfg):
     }
 
     out = []
-    for q_ext in q_ext_values:
-        for q_mid in q_mid_values:
-            if not (0.5 - q_mid > q_ext):
-                raise ValueError(
-                    "Invalid q_ext/q_mid: require 0.5 - q_mid > q_ext so mid band does not "
-                    "overlap extremes. "
-                    f"Got q_ext={q_ext}, q_mid={q_mid}"
-                )
-            metric = dict(common)
-            metric["q_ext"] = float(q_ext)
-            metric["q_mid"] = float(q_mid)
-            out.append(metric)
+    for q_ext, q_mid in quantile_pairs:
+        if not (0.5 - q_mid > q_ext):
+            raise ValueError(
+                "Invalid q_ext/q_mid: require 0.5 - q_mid > q_ext so mid band does not "
+                "overlap extremes. "
+                f"Got q_ext={q_ext}, q_mid={q_mid}"
+            )
+        metric = dict(common)
+        metric["q_ext"] = float(q_ext)
+        metric["q_mid"] = float(q_mid)
+        out.append(metric)
     return out
 
 

@@ -26,6 +26,7 @@ data/analysis/*
 !data/analysis/indicator_instability/
 !data/analysis/live_feature_parity/
 !data/analysis/profile_ma_funcs/
+!data/analysis/fitted_indicator_plots/
 data/analysis/feature_selector/*
 !data/analysis/feature_selector/.gitkeep
 data/analysis/fit_results_stability/*
@@ -38,6 +39,8 @@ data/analysis/live_feature_parity/*
 !data/analysis/live_feature_parity/.gitkeep
 data/analysis/profile_ma_funcs/*
 !data/analysis/profile_ma_funcs/.gitkeep
+data/analysis/fitted_indicator_plots/*
+!data/analysis/fitted_indicator_plots/.gitkeep
 
 data/features/indicators_fit/*
 !data/features/indicators_fit/.gitkeep

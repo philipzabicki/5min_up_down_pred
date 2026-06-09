@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from utils.project_config import (
+    build_indicator_fit_config,
     format_asset_text,
     load_active_profile_names,
     load_modeling_profile,
@@ -49,6 +50,27 @@ class RuntimeArtifactPathTests(unittest.TestCase):
         self.assertEqual(profile["output_dir"], "data/datasets/modeling/BTC")
         self.assertEqual(profile["fit_results_dir"], "data/features/indicators_fit/BTC/all")
         self.assertIn(profile["feature_selection"]["mode"], {"artifact", "none"})
+
+    def test_indicator_fit_config_passes_quantile_pairs(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            active_config_path = _write_manifest(
+                tmpdir,
+                {
+                    "active_asset": "BTC",
+                    "indicator_fit_profile": "candle_up_5m_qe20_qm20_core",
+                    "live_profile": "polymarket_live",
+                },
+            )
+
+            cfg = build_indicator_fit_config(active_config_path=active_config_path)
+
+        pair_cfg = next(iter(cfg["pairs"].values()))
+        self.assertEqual(
+            pair_cfg["quantile_pairs"],
+            [{"q_ext": 0.2, "q_mid": 0.2}],
+        )
+        self.assertNotIn("q_ext", pair_cfg)
+        self.assertNotIn("q_mid", pair_cfg)
 
     def test_formats_asset_placeholder(self):
         self.assertEqual(

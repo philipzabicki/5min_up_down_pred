@@ -60,6 +60,15 @@ For multi-step tasks, state a brief plan:
 
 Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
 
+## 5. No Console Arguments
+
+**Never add command-line argument parsing in this project.**
+
+- Do not use argparse, click, typer, sys.argv, or similar console-argument APIs.
+- Project scripts should be configured through constants near the top of the file, JSON config files, or existing project settings.
+- If a script needs user-adjustable inputs, make them explicit editable variables in the file or read them from the project's configuration conventions.
+- Do not suggest console flags as the normal way to run project scripts.
+
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

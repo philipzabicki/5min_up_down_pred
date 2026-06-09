@@ -1,0 +1,47 @@
+{
+  "pairs": {
+    "BTC_candle_up_5m_slow_wide": {
+      "proxy_target_horizonts": [
+        5
+      ],
+      "proxy_target_price_col": "Close",
+      "proxy_target_mode": "candle_up",
+      "proxy_target_time_col": "Opened",
+      "metric_name": "extremes_vs_mid_ir_oof",
+      "metric_segments_count": 10,
+      "metric_train_frac": 0.8,
+      "metric_gap": 2000,
+      "q_ext": [
+        0.2
+      ],
+      "q_mid": 0.2,
+      "stat": "mean_clip",
+      "clip_q": 0.01,
+      "min_bucket_size": 1000,
+      "min_valid_segments": 9,
+      "metric_recency_weighting_enabled": true,
+      "metric_recency_weighting_mode": "linear",
+      "metric_recency_weight_min": 1.0,
+      "metric_recency_weight_max": 1.5,
+      "base_pop_size": 512,
+      "drop_frozen_ohlc_blocks": {
+        "enabled": true,
+        "min_block_len": 3
+      },
+      "intervals": {
+        "1m": {
+          "data_path": "data/datasets/raw/BTC",
+          "data_file": "BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv",
+          "indicators": [
+            "ADX",
+            "ChaikinOsc",
+            "KeltnerChannel",
+            "MACD",
+            "StochOsc",
+            "BollingerBands"
+          ]
+        }
+      }
+    }
+  }
+}

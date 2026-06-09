@@ -1,0 +1,40 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "KAMA",
+      "atr_ma_type": "TRIMA",
+      "source": "close",
+      "ma_period": 390,
+      "atr_period": 378
+    },
+    "score": 3.5583896523819076,
+    "abs_corr": 3.5583896523819076
+  },
+  "population": {
+    "base_pop_size": 512,
+    "adjusted_pop_size": 409
+  },
+  "proxy_target": {
+    "mode": "candle_up",
+    "horizon_minutes": 5,
+    "price_col": "Close",
+    "time_col": "Opened"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 10,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 1000,
+    "min_valid_segments": 9,
+    "recency_weighting_enabled": true,
+    "recency_weighting_mode": "linear",
+    "recency_weight_min": 1.0,
+    "recency_weight_max": 1.5,
+    "q_ext": 0.2,
+    "q_mid": 0.2
+  },
+  "fit_config_hash": "bc59db708d8a8823"
+}

@@ -127,6 +127,53 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
     }
 
 
+def _normalize_indicator_quantile_pairs(raw_pairs, *, profile_name):
+    if not isinstance(raw_pairs, list) or not raw_pairs:
+        raise ValueError(
+            f"Indicator-fit profile '{profile_name}' metric.quantile_pairs must be "
+            "a non-empty JSON array."
+        )
+
+    out = []
+    for index, raw_pair in enumerate(raw_pairs):
+        if not isinstance(raw_pair, dict):
+            raise ValueError(
+                f"Indicator-fit profile '{profile_name}' metric.quantile_pairs[{index}] "
+                "must be a JSON object."
+            )
+        if "q_ext" not in raw_pair or "q_mid" not in raw_pair:
+            raise ValueError(
+                f"Indicator-fit profile '{profile_name}' metric.quantile_pairs[{index}] "
+                "must define q_ext and q_mid."
+            )
+
+        q_ext = float(raw_pair["q_ext"])
+        q_mid = float(raw_pair["q_mid"])
+        if not (0.0 < q_ext < 0.5):
+            raise ValueError(
+                f"Indicator-fit profile '{profile_name}' metric.quantile_pairs[{index}]."
+                f"q_ext must satisfy 0 < value < 0.5, got: {q_ext}"
+            )
+        if not (0.0 < q_mid < 0.5):
+            raise ValueError(
+                f"Indicator-fit profile '{profile_name}' metric.quantile_pairs[{index}]."
+                f"q_mid must satisfy 0 < value < 0.5, got: {q_mid}"
+            )
+        if not (0.5 - q_mid > q_ext):
+            raise ValueError(
+                f"Indicator-fit profile '{profile_name}' metric.quantile_pairs[{index}] "
+                "is invalid: require 0.5 - q_mid > q_ext so mid band does not "
+                f"overlap extremes. Got q_ext={q_ext}, q_mid={q_mid}"
+            )
+        if not any(
+                abs(q_ext - prev["q_ext"]) <= 1e-12
+                and abs(q_mid - prev["q_mid"]) <= 1e-12
+                for prev in out
+        ):
+            out.append({"q_ext": q_ext, "q_mid": q_mid})
+    return out
+
+
 def _normalize_candle_streak_intervals(raw_config, *, profile_name):
     if not isinstance(raw_config, dict) or not raw_config:
         raise ValueError(
@@ -372,8 +419,7 @@ def load_indicator_fit_profile(
             "segments_count",
             "train_frac",
             "gap",
-            "q_ext",
-            "q_mid",
+            "quantile_pairs",
             "stat",
             "clip_q",
             "min_bucket_size",
@@ -390,6 +436,10 @@ def load_indicator_fit_profile(
         raise ValueError(
             f"Indicator-fit profile '{profile_name}' contains no valid indicators."
         )
+    metric["quantile_pairs"] = _normalize_indicator_quantile_pairs(
+        metric["quantile_pairs"],
+        profile_name=profile_name,
+    )
     profile["proxy_target_mode"] = str(
         profile.get("proxy_target_mode", "ahead_ret")
     ).strip().lower()
@@ -559,8 +609,7 @@ def build_indicator_fit_config(*, active_config_path=ACTIVE_CONFIG_PATH):
                 "metric_segments_count": int(metric["segments_count"]),
                 "metric_train_frac": float(metric["train_frac"]),
                 "metric_gap": int(metric["gap"]),
-                "q_ext": metric["q_ext"],
-                "q_mid": metric["q_mid"],
+                "quantile_pairs": list(metric["quantile_pairs"]),
                 "stat": str(metric["stat"]),
                 "clip_q": float(metric["clip_q"]),
                 "min_bucket_size": int(metric["min_bucket_size"]),
