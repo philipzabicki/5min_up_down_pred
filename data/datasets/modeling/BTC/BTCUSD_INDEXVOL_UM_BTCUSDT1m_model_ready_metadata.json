@@ -2,11 +2,10 @@
   "basis_premium_feature_columns": [
     "futures_index_basis_change_5m",
     "futures_index_basis_change_1m",
-    "futures_index_basis_change_1h",
     "futures_index_basis_rel_5m",
     "futures_index_basis_rel_1m",
-    "futures_index_basis_change_15m",
-    "futures_index_basis_change_3m"
+    "futures_index_basis_change_1h",
+    "futures_index_basis_change_15m"
   ],
   "basis_premium_features": {
     "enabled": true,
@@ -24,7 +23,7 @@
       "1d"
     ]
   },
-  "created_utc": "2026-06-09T20:38:52.428422+00:00",
+  "created_utc": "2026-06-11T18:21:20.680433+00:00",
   "feature_intervals": {
     "enabled": [
       "1m",

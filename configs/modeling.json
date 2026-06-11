@@ -69,7 +69,7 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/BTC/20260609_202602/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/BTC/20260611_180719/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
@@ -102,7 +102,9 @@
           "candle_body_pressure_30m_lag2",
           "candle_wick_asym_1d_lag3",
           "BollingerBands_fit_3m_pop64_maper1081_masouhlc3_matypdema_stdmaper8_stdmatypema_stdmul13.190983_stdsouohlc4",
-          "StochOsc_fit_720m_pop128_faskper744_slodmatypkama_slodper1496_slokmatyptrima_slokper1093_qe0.1_qm0.3_tf0.8_stmc_sg20"
+          "StochOsc_fit_720m_pop128_faskper744_slodmatypkama_slodper1496_slokmatyptrima_slokper1093_qe0.1_qm0.3_tf0.8_stmc_sg20",
+          "BollingerBands_fit_60m_pop64_maper1532_masoulow_matypvwma_stdmaper13_stdmatypwma_stdmul10.549775_stdsouhlc3",
+          "ChaikinOsc_fit_5m_candle_up_pop128_fasmatyphma_fasper509_slomatypsma_sloper8_qe0.1_qm0.15_tf0.8_stmc_sg10"
         ]
       },
       "train_lgbm": {
@@ -357,7 +359,25 @@
           "candle_body_pressure_30m_lag5": -1,
           "realized_volatility_up_5m": -1,
           "candle_close_location_value_1h_lag2": -1,
-          "candle_streak_1d": -1
+          "candle_streak_1d": -1,
+          "candle_wick_asym_30m_lag5": -1,
+          "vp_long_log_density_ratio_to_current_bin_plus_4": 1,
+          "CDLHAMMER_1m": 1,
+          "candle_ret_co_1m_lag7": -1,
+          "vp_short_log_density_ratio_to_current_bin_plus_4": 1,
+          "vp_short_log_density_ratio_to_current_bin_plus_3": 1,
+          "vp_long_log_density_ratio_to_current_bin_minus_4": -1,
+          "candle_body_pressure_1m_lag2": -1,
+          "vp_long_log_density_ratio_to_current_bin_plus_5": 1,
+          "candle_body_pressure_30m_lag4": -1,
+          "candle_close_location_value_15m_lag5": -1,
+          "realized_volatility_15m": -1,
+          "MACD_fit_2m_pop128_fasmatypshmma_fasper869_fassouohlc4_sigmatypmama_sigper1440_slomatypkama_sloper335_slosouhlcc4": 1,
+          "StochOsc_fit_5m_candle_up_pop512_faskper216_slodmatyptema_slodper669_slokmatypkama_slokper330_qe0.2_qm0.2_tf0.8_stmc_sg10": -1,
+          "vp_short_log_density_ratio_to_current_bin_minus_2": -1,
+          "CDLBELTHOLD_1m": -1,
+          "candle_signed_vol_4h_lag7": 1,
+          "CDLBELTHOLD_5m": -1
         }
       }
     }

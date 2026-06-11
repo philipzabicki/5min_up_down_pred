@@ -82,22 +82,22 @@ WF_TEST_TO_TRAIN_RATIO = resolve_walk_forward_test_to_train_ratio()
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.0065094262862249175,
-      "num_leaves": 215,
-      "min_data_in_leaf": 97,
-      "max_depth": 195,
-      "feature_fraction": 0.8985980039678766,
-      "bagging_fraction": 0.7035525517200346,
-      "bagging_freq": 3,
-      "lambda_l2": 84.66552493332907,
-      "lambda_l1": 3.8623890143572983,
-      "min_sum_hessian_in_leaf": 0.0006044966264154735,
-      "min_gain_to_split": 0.23134325634193995,
-      "feature_fraction_bynode": 0.3141763321857879,
-      "path_smooth": 60.87851990364099,
+      "learning_rate": 0.028370028338368332,
+      "num_leaves": 201,
+      "min_data_in_leaf": 2527,
+      "max_depth": 246,
+      "feature_fraction": 0.7371325954810048,
+      "bagging_fraction": 0.9308115159624847,
+      "bagging_freq": 25,
+      "lambda_l2": 39.51068447389412,
+      "lambda_l1": 5.269826622414657,
+      "min_sum_hessian_in_leaf": 1.5455745495230206,
+      "min_gain_to_split": 0.09322721688630903,
+      "feature_fraction_bynode": 0.38804968275175306,
+      "path_smooth": 39.06532785785736,
       "extra_trees": False,
       "monotone_constraints_method": "basic",
-      "monotone_penalty": 0.648819578510189
+      "monotone_penalty": 0.0
     }
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
