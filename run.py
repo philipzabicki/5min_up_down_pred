@@ -84,6 +84,7 @@ from utils.live import (
     build_live_market_data_path,
     interval_to_floor_rule,
     interval_to_timedelta,
+    resolve_polymarket_closed_position_settlement,
     setup_live_console_logging,
     upsert_records_csv,
     write_records_csv,
@@ -4561,51 +4562,51 @@ class PolymarketLiveTrader(LivePredictor):
                     )
                 closed_pos = closed_by_asset.get(asset)
                 if closed_pos is not None:
-                    avg_price = _safe_float(closed_pos.get("avgPrice"))
-                    total_bought = _safe_float(closed_pos.get("totalBought"))
-                    realized_pnl = _safe_float(closed_pos.get("realizedPnl"))
-                    shares_net = (
-                        float(total_bought / avg_price)
-                        if np.isfinite(total_bought)
-                           and np.isfinite(avg_price)
-                           and avg_price > 0
-                        else float(rec.get("shares_net", 0.0) or 0.0)
+                    settlement = resolve_polymarket_closed_position_settlement(
+                        rec,
+                        closed_pos,
+                        prefer_data_api_pnl=_is_polymarket_submitted_status(
+                            rec.get("pm_exit_order_status")
+                        ),
                     )
                     payout = (
-                        float(total_bought + realized_pnl)
-                        if np.isfinite(total_bought) and np.isfinite(realized_pnl)
+                        _safe_float(settlement.get("payout_usdc"))
+                        if np.isfinite(_safe_float(settlement.get("payout_usdc")))
                         else np.nan
                     )
                     rec["pm_closed_avg_price"] = (
-                        float(avg_price) if np.isfinite(avg_price) else np.nan
+                        float(settlement["closed_avg_price"])
+                        if np.isfinite(settlement["closed_avg_price"])
+                        else np.nan
                     )
                     rec["pm_closed_total_bought_usdc"] = (
-                        float(total_bought) if np.isfinite(total_bought) else np.nan
+                        float(settlement["closed_total_bought"])
+                        if np.isfinite(settlement["closed_total_bought"])
+                        else np.nan
                     )
                     rec["pm_closed_realized_pnl_usdc"] = (
-                        float(realized_pnl) if np.isfinite(realized_pnl) else np.nan
+                        float(settlement["closed_realized_pnl"])
+                        if np.isfinite(settlement["closed_realized_pnl"])
+                        else np.nan
                     )
                     rec["pm_closed_payout_usdc"] = (
                         float(payout) if np.isfinite(payout) else np.nan
                     )
-                    rec["pm_settlement_payout_source"] = "data_api_closed_positions"
-                    if np.isfinite(total_bought):
-                        rec["stake_usdc"] = float(total_bought)
-                    if np.isfinite(avg_price):
-                        rec["entry_price"] = float(avg_price)
-                    if np.isfinite(shares_net):
-                        rec["shares_net"] = float(shares_net)
-                    rec["trade_is_win"] = (
-                        int(realized_pnl > 0.0)
-                        if np.isfinite(realized_pnl)
-                        else rec["trade_is_win"]
-                    )
+                    rec["pm_settlement_payout_source"] = settlement["payout_source"]
+                    if np.isfinite(settlement["stake_usdc"]):
+                        rec["stake_usdc"] = float(settlement["stake_usdc"])
+                    if np.isfinite(settlement["closed_avg_price"]):
+                        rec["entry_price"] = float(settlement["closed_avg_price"])
+                    if np.isfinite(settlement["shares_net"]):
+                        rec["shares_net"] = float(settlement["shares_net"])
+                    if settlement["trade_is_win"] is not None:
+                        rec["trade_is_win"] = settlement["trade_is_win"]
                     rec["payout_usdc"] = (
                         float(payout) if np.isfinite(payout) else rec.get("payout_usdc")
                     )
                     rec["pnl_usdc"] = (
-                        float(realized_pnl)
-                        if np.isfinite(realized_pnl)
+                        float(settlement["pnl_usdc"])
+                        if np.isfinite(settlement["pnl_usdc"])
                         else rec.get("pnl_usdc")
                     )
                     effective_bankroll_usdc = self._capped_trading_bankroll_usdc(

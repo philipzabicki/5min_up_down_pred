@@ -20,7 +20,7 @@ from utils.project_config import load_modeling_settings
 
 
 INDICATOR_CONFIG_PATH = Path(
-    "data/features/indicators_fit/BTC/tuning/06a0ab99d0606253/BollingerBands_target_5m_candle_up_pop512_qe0.2_qm0.2_tf0.8_stmc_sg10_rwlin1-1.5.json"
+    "data\\features\\indicators_fit\\ETH\\tuning\\a8315f28f7f11b30\\MACD_target_5m_candle_up_pop768_qe0.1_qm0.3_tf0.8_stmc_sg10_rwlin1-1.5.json"
 )
 OUTPUT_DIR = Path("data/analysis/fitted_indicator_plots")
 PLOT_TAIL_ROWS = 1500

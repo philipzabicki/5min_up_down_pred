@@ -3,7 +3,12 @@ import threading
 import unittest
 from pathlib import Path
 
-from utils.live import _TeeStream, _resolve_telegram_chat_id, build_live_console_log_path
+from utils.live import (
+    _TeeStream,
+    _resolve_telegram_chat_id,
+    build_live_console_log_path,
+    resolve_polymarket_closed_position_settlement,
+)
 
 
 class LiveConsoleLoggingTests(unittest.TestCase):
@@ -75,6 +80,72 @@ class LiveConsoleLoggingTests(unittest.TestCase):
             _resolve_telegram_chat_id("token", chat_id=" 123456 "),
             "123456",
         )
+
+
+class PolymarketSettlementTests(unittest.TestCase):
+    def test_settlement_winner_uses_shares_minus_filled_stake(self):
+        settlement = resolve_polymarket_closed_position_settlement(
+            {
+                "trade_side": "no",
+                "actual_up": 0,
+                "filled_stake_usdc": 2.65,
+                "entry_stake_usdc_orig": 2.65,
+                "shares_net": 5.017843137254902,
+            },
+            {
+                "avgPrice": 0.509999,
+                "totalBought": 5.196077,
+                "realizedPnl": 0.0,
+            },
+        )
+
+        self.assertEqual(settlement["trade_is_win"], 1)
+        self.assertAlmostEqual(settlement["stake_usdc"], 2.65)
+        self.assertAlmostEqual(settlement["shares_net"], 5.196077)
+        self.assertAlmostEqual(settlement["payout_usdc"], 5.196077)
+        self.assertAlmostEqual(settlement["pnl_usdc"], 2.546077)
+        self.assertEqual(settlement["payout_source"], "settlement_outcome_shares")
+
+    def test_settlement_loser_payout_is_zero(self):
+        settlement = resolve_polymarket_closed_position_settlement(
+            {
+                "trade_side": "no",
+                "actual_up": 1,
+                "filled_stake_usdc": 2.65,
+                "entry_stake_usdc_orig": 2.65,
+            },
+            {
+                "avgPrice": 0.509999,
+                "totalBought": 5.196077,
+                "realizedPnl": -2.649994,
+            },
+        )
+
+        self.assertEqual(settlement["trade_is_win"], 0)
+        self.assertAlmostEqual(settlement["payout_usdc"], 0.0)
+        self.assertAlmostEqual(settlement["pnl_usdc"], -2.65)
+        self.assertEqual(settlement["payout_source"], "settlement_outcome_shares")
+
+    def test_exit_order_keeps_data_api_realized_pnl(self):
+        settlement = resolve_polymarket_closed_position_settlement(
+            {
+                "trade_side": "yes",
+                "actual_up": 1,
+                "filled_stake_usdc": 2.45,
+                "entry_stake_usdc_orig": 2.45,
+            },
+            {
+                "avgPrice": 0.459999,
+                "totalBought": 5.326085,
+                "realizedPnl": 2.819605,
+            },
+            prefer_data_api_pnl=True,
+        )
+
+        self.assertEqual(settlement["trade_is_win"], 1)
+        self.assertAlmostEqual(settlement["payout_usdc"], 5.269605)
+        self.assertAlmostEqual(settlement["pnl_usdc"], 2.819605)
+        self.assertEqual(settlement["payout_source"], "data_api_closed_positions")
 
 
 if __name__ == "__main__":

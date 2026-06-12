@@ -599,6 +599,106 @@ def compute_running_win_rates(records, *, is_resolved, is_traded):
     return policy_resolved_rates, closed_trade_rates
 
 
+def _finite_float(value, default=np.nan):
+    try:
+        if value is None:
+            return default
+        if isinstance(value, str) and not value.strip():
+            return default
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if np.isfinite(parsed) else default
+
+
+def _first_positive_float(*values):
+    for value in values:
+        parsed = _finite_float(value)
+        if np.isfinite(parsed) and parsed > 0.0:
+            return float(parsed)
+    return float("nan")
+
+
+def _zero_near(value, tolerance=1e-6):
+    if np.isfinite(value) and abs(value) <= float(tolerance):
+        return 0.0
+    return value
+
+
+def resolve_polymarket_closed_position_settlement(
+        record,
+        closed_position,
+        *,
+        prefer_data_api_pnl=False,
+):
+    record = record or {}
+    closed_position = closed_position or {}
+
+    avg_price = _finite_float(closed_position.get("avgPrice"))
+    closed_shares = _finite_float(closed_position.get("totalBought"))
+    realized_pnl = _finite_float(closed_position.get("realizedPnl"))
+
+    shares_net = _first_positive_float(
+        closed_shares,
+        record.get("shares_net"),
+        record.get("entry_shares_net_orig"),
+    )
+    stake_usdc = _first_positive_float(
+        record.get("filled_stake_usdc"),
+        record.get("entry_stake_usdc_orig"),
+        record.get("submitted_stake_usdc"),
+        record.get("intended_stake_usdc"),
+        record.get("stake_usdc"),
+    )
+    if (
+            not np.isfinite(stake_usdc)
+            and np.isfinite(shares_net)
+            and np.isfinite(avg_price)
+            and avg_price > 0.0
+    ):
+        stake_usdc = float(shares_net * avg_price)
+
+    actual_up = _finite_float(record.get("actual_up"))
+    trade_side = str(record.get("trade_side", "") or "").strip().lower()
+    side_won = None
+    if actual_up in {0.0, 1.0}:
+        if trade_side == "yes":
+            side_won = bool(actual_up == 1.0)
+        elif trade_side == "no":
+            side_won = bool(actual_up == 0.0)
+
+    payout_usdc = float("nan")
+    pnl_usdc = float("nan")
+    payout_source = "data_api_closed_positions"
+
+    if prefer_data_api_pnl and np.isfinite(realized_pnl):
+        pnl_usdc = float(realized_pnl)
+        if np.isfinite(stake_usdc):
+            payout_usdc = _zero_near(float(stake_usdc + pnl_usdc))
+    elif side_won is not None and np.isfinite(stake_usdc):
+        payout_usdc = float(shares_net) if side_won and np.isfinite(shares_net) else 0.0
+        pnl_usdc = float(payout_usdc - stake_usdc)
+        payout_source = "settlement_outcome_shares"
+    elif np.isfinite(realized_pnl):
+        pnl_usdc = float(realized_pnl)
+        if np.isfinite(stake_usdc):
+            payout_usdc = _zero_near(float(stake_usdc + pnl_usdc))
+
+    trade_is_win = int(pnl_usdc > 0.0) if np.isfinite(pnl_usdc) else None
+
+    return {
+        "closed_avg_price": avg_price,
+        "closed_total_bought": closed_shares,
+        "closed_realized_pnl": realized_pnl,
+        "stake_usdc": stake_usdc,
+        "shares_net": shares_net,
+        "payout_usdc": payout_usdc,
+        "pnl_usdc": pnl_usdc,
+        "trade_is_win": trade_is_win,
+        "payout_source": payout_source,
+    }
+
+
 def serialize_timestamp_columns(frame, columns):
     for col in columns:
         if col not in frame.columns:
