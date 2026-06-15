@@ -7,7 +7,9 @@ from utils.project_config import (
     build_indicator_fit_config,
     format_asset_text,
     load_active_profile_names,
+    load_enabled_runtime_asset_settings,
     load_modeling_profile,
+    load_runtime_asset_settings,
     load_runtime_artifact_paths,
 )
 
@@ -78,15 +80,20 @@ class RuntimeArtifactPathTests(unittest.TestCase):
             "data/models/ETH",
         )
 
-    def test_loads_single_trade_policy_path(self):
+    def test_loads_single_enabled_trade_policy_path(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = _write_manifest(
                 tmpdir,
                 {
-                    "artifacts": {
-                        "model_meta_path": "model_meta.json",
-                        "trade_policy_path": "policy.json",
-                        "indicator_history_requirements_path": "requirements.json",
+                    "assets": {
+                        "ETH": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "model_meta.json",
+                                "trade_policy_path": "policy.json",
+                                "indicator_history_requirements_path": "requirements.json",
+                            }
+                        }
                     }
                 },
             )
@@ -95,17 +102,55 @@ class RuntimeArtifactPathTests(unittest.TestCase):
 
             self.assertEqual(paths["trade_policy_path"], Path("policy.json"))
 
+    def test_loads_runtime_asset_settings_metadata(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = _write_manifest(
+                tmpdir,
+                {
+                    "assets": {
+                        "ETH": {
+                            "enabled": True,
+                            "dataset_profile": "ETH",
+                            "live_profile": "polymarket_eth_live",
+                            "artifacts": {
+                                "model_meta_path": "model_meta.json",
+                                "trade_policy_path": "policy.json",
+                                "indicator_history_requirements_path": "requirements.json",
+                            },
+                        }
+                    },
+                },
+            )
+
+            settings = load_runtime_asset_settings(
+                runtime_manifest_path=manifest_path,
+            )
+
+        self.assertEqual(settings["asset"], "ETH")
+        self.assertTrue(settings["enabled"])
+        self.assertEqual(settings["dataset_profile"], "ETH")
+        self.assertEqual(settings["live_profile"], "polymarket_eth_live")
+        self.assertEqual(
+            settings["artifacts"]["model_meta_path"],
+            Path("model_meta.json"),
+        )
+
     def test_formats_asset_placeholders_in_runtime_manifest_paths(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = _write_manifest(
                 tmpdir,
                 {
-                    "artifacts": {
-                        "model_meta_path": "data/models/{asset}/meta.json",
-                        "trade_policy_path": "configs/runtime/{asset}/policy.json",
-                        "indicator_history_requirements_path": (
-                            "configs/runtime/{asset}/requirements.json"
-                        ),
+                    "assets": {
+                        "BTC": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "data/models/{asset}/meta.json",
+                                "trade_policy_path": "configs/runtime/{asset}/policy.json",
+                                "indicator_history_requirements_path": (
+                                    "data/runtime/{asset}/requirements.json"
+                                ),
+                            }
+                        }
                     }
                 },
             )
@@ -119,18 +164,109 @@ class RuntimeArtifactPathTests(unittest.TestCase):
         )
         self.assertEqual(
             paths["indicator_history_requirements_path"],
-            Path("configs/runtime/BTC/requirements.json"),
+            Path("data/runtime/BTC/requirements.json"),
         )
+
+    def test_loads_requested_runtime_asset(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = _write_manifest(
+                tmpdir,
+                {
+                    "assets": {
+                        "BTC": {
+                            "enabled": False
+                        },
+                        "ETH": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "data/models/{asset}/meta.json",
+                                "trade_policy_path": "policy_eth.json",
+                                "indicator_history_requirements_path": "requirements_eth.json",
+                            }
+                        },
+                    }
+                },
+            )
+
+            paths = load_runtime_artifact_paths(manifest_path, asset="ETH")
+
+        self.assertEqual(paths["model_meta_path"], Path("data/models/ETH/meta.json"))
+        self.assertEqual(paths["trade_policy_path"], Path("policy_eth.json"))
+
+    def test_loads_enabled_runtime_asset_settings(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = _write_manifest(
+                tmpdir,
+                {
+                    "assets": {
+                        "BTC": {
+                            "enabled": False
+                        },
+                        "ETH": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "eth_meta.json",
+                                "trade_policy_path": "eth_policy.json",
+                                "indicator_history_requirements_path": "eth_requirements.json",
+                            }
+                        },
+                    }
+                },
+            )
+
+            settings = load_enabled_runtime_asset_settings(
+                runtime_manifest_path=manifest_path,
+            )
+
+        self.assertEqual(list(settings), ["ETH"])
+        self.assertEqual(
+            settings["ETH"]["artifacts"]["model_meta_path"],
+            Path("eth_meta.json"),
+        )
+
+    def test_requires_asset_for_single_asset_helper_when_multiple_enabled(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = _write_manifest(
+                tmpdir,
+                {
+                    "assets": {
+                        "BTC": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "btc_meta.json",
+                                "trade_policy_path": "btc_policy.json",
+                                "indicator_history_requirements_path": "btc_requirements.json",
+                            }
+                        },
+                        "ETH": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "eth_meta.json",
+                                "trade_policy_path": "eth_policy.json",
+                                "indicator_history_requirements_path": "eth_requirements.json",
+                            }
+                        },
+                    }
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "multiple enabled"):
+                load_runtime_artifact_paths(manifest_path)
 
     def test_rejects_deprecated_trade_policy_path_key(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = _write_manifest(
                 tmpdir,
                 {
-                    "artifacts": {
-                        "model_meta_path": "model_meta.json",
-                        "trade_policy_runtime_config_path": "policy.json",
-                        "indicator_history_requirements_path": "requirements.json",
+                    "assets": {
+                        "ETH": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "model_meta.json",
+                                "trade_policy_runtime_config_path": "policy.json",
+                                "indicator_history_requirements_path": "requirements.json",
+                            }
+                        }
                     }
                 },
             )

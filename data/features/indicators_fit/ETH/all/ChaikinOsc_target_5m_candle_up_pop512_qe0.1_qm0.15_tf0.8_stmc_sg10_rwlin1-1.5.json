@@ -1,0 +1,39 @@
+{
+  "best": {
+    "params": {
+      "fast_period": 26,
+      "slow_period": 17,
+      "fast_ma_type": "NWMA_BIW",
+      "slow_ma_type": "MAMA"
+    },
+    "score": 5.383805362120613,
+    "abs_corr": 5.383805362120613
+  },
+  "population": {
+    "base_pop_size": 512,
+    "adjusted_pop_size": 361
+  },
+  "proxy_target": {
+    "mode": "candle_up",
+    "horizon_minutes": 5,
+    "price_col": "Close",
+    "time_col": "Opened"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 10,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 1000,
+    "min_valid_segments": 9,
+    "recency_weighting_enabled": true,
+    "recency_weighting_mode": "linear",
+    "recency_weight_min": 1.0,
+    "recency_weight_max": 1.5,
+    "q_ext": 0.1,
+    "q_mid": 0.15
+  },
+  "fit_config_hash": "bd71f7fcbb48aad2"
+}

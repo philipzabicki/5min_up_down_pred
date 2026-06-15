@@ -41,29 +41,40 @@ class PseudoLiveAuditPredictorTests(unittest.TestCase):
             "runtime_window_by_feature": {},
         }
 
-        with (
-            mock.patch.object(
-                audit,
-                "load_model_and_meta",
-                return_value=(object(), meta),
-            ),
-            mock.patch.object(
-                audit,
-                "load_trade_policy_runtime_config",
-                return_value={},
-            ),
-            mock.patch.object(audit, "load_indicator_specs", return_value=[]),
-            mock.patch.object(
-                audit,
-                "load_indicator_history_requirements",
-                return_value=requirements,
-            ),
-        ):
-            predictor = audit.PseudoLiveAuditPredictor(
-                bootstrap_df,
-                model_meta_path="unused.json",
-                max_keep=10,
+        with tempfile.TemporaryDirectory() as tmpdir:
+            requirements_path = Path(tmpdir) / "requirements.json"
+            requirements_path.write_text(
+                json.dumps({"unstable_features": []}),
+                encoding="utf-8",
             )
+            with (
+                mock.patch.object(
+                    audit,
+                    "INDICATOR_HISTORY_REQUIREMENTS_PATH",
+                    requirements_path,
+                ),
+                mock.patch.object(
+                    audit,
+                    "load_model_and_meta",
+                    return_value=(object(), meta),
+                ),
+                mock.patch.object(
+                    audit,
+                    "load_trade_policy_runtime_config",
+                    return_value={},
+                ),
+                mock.patch.object(audit, "load_indicator_specs", return_value=[]),
+                mock.patch.object(
+                    audit,
+                    "load_indicator_history_requirements",
+                    return_value=requirements,
+                ),
+            ):
+                predictor = audit.PseudoLiveAuditPredictor(
+                    bootstrap_df,
+                    model_meta_path="unused.json",
+                    max_keep=10,
+                )
 
         self.assertIn("futures_index_basis_rel_1m", predictor.feature_columns)
         self.assertEqual(predictor.basis_premium_feature_columns, ())

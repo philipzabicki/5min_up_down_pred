@@ -1,4 +1,5 @@
 import json
+import faulthandler
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
@@ -210,7 +211,7 @@ CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
 DEFAULT_STUDY_NAME_PREFIX = "volume_profile_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
-STUDY_NAME = None
+STUDY_NAME = "volume_profile_binary_logloss_mean_std_20260613_183734"
 STORAGE = (
         "sqlite:///"
         + active_asset_path("data/optuna/databases/{asset}/volume_profile.db").as_posix()
@@ -218,6 +219,19 @@ STORAGE = (
 ARTIFACT_OUTPUT_DIR = active_asset_path("data/optuna/volume_profile/{asset}")
 BEST_RESULT_STEM = "volume_profile_best_binary_logloss_mean_std"
 TRIALS_CSV_STEM = "volume_profile_trials_binary_logloss_mean_std"
+NATIVE_CRASH_LOG_PATH = ARTIFACT_OUTPUT_DIR / "volume_profile_native_crash.log"
+
+
+def enable_native_crash_log():
+    NATIVE_CRASH_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    crash_log_file = NATIVE_CRASH_LOG_PATH.open("a", encoding="utf-8")
+    crash_log_file.write(
+        f"\n=== fit_volume_profile start {datetime.now(timezone.utc).isoformat()} ===\n"
+    )
+    crash_log_file.flush()
+    faulthandler.enable(file=crash_log_file, all_threads=True)
+    print(f"native crash log -> {NATIVE_CRASH_LOG_PATH}")
+    return crash_log_file
 
 
 def require_columns(df, required_columns):
@@ -1146,7 +1160,7 @@ def make_lgbm_cv_params(feature_names=None):
         if feature_names is not None
         else {}
     )
-    return {
+    params = {
         "objective": "binary",
         "metric": "None",
         "boosting_type": "gbdt",
@@ -1154,7 +1168,6 @@ def make_lgbm_cv_params(feature_names=None):
         "verbosity": LGBM_VERBOSITY,
         "num_threads": LGBM_NUM_THREADS,
         "max_bin": GPU_MAX_BIN_LIMIT,
-        "gpu_use_dp": LGBM_GPU_USE_DP,
         "num_iterations": MAX_N_ESTIMATORS,
         "seed": SEED,
         "feature_fraction_seed": SEED,
@@ -1164,6 +1177,13 @@ def make_lgbm_cv_params(feature_names=None):
         **LGBM_DEFAULT_PARAMS,
         **monotone_params,
     }
+    if is_lgbm_gpu_enabled():
+        params["gpu_use_dp"] = LGBM_GPU_USE_DP
+    return params
+
+
+def is_lgbm_gpu_enabled():
+    return str(LGBM_DEVICE_TYPE).strip().lower() == "gpu"
 
 
 def build_filtered_training_arrays(
@@ -1182,6 +1202,10 @@ def build_filtered_training_arrays(
         cfg=normalized_vp_config,
         keep_mask=keep_mask,
     )
+    if is_lgbm_gpu_enabled():
+        # LightGBM GPU can hard-crash on this Windows setup when fed the VP
+        # matrix as float64, so keep the GPU training matrix explicitly float32.
+        x_np = np.ascontiguousarray(x_np, dtype=np.float32)
     y_np = y_filtered
     sample_weight_np = sample_weight_filtered
 
@@ -1479,6 +1503,7 @@ def run_optuna_optimization():
         f"start optimize | base_rows={len(base_df)} filtered_rows={filtered_rows} "
         f"folds={len(fold_indices)} trials={N_TRIALS} timeout={TIMEOUT_SECONDS} "
         f"objective={resolve_cv_objective_name()} std_penalty={CV_STD_PENALTY:.4f} "
+        f"lgbm_device={LGBM_DEVICE_TYPE} "
         f"study_name={study_name} study_name_source={study_name_source} "
         f"load_if_exists={LOAD_IF_EXISTS}"
     )
@@ -1658,7 +1683,12 @@ def run_optuna_optimization():
 
 
 def main():
-    run_optuna_optimization()
+    crash_log_file = enable_native_crash_log()
+    try:
+        run_optuna_optimization()
+    finally:
+        faulthandler.disable()
+        crash_log_file.close()
 
 
 if __name__ == "__main__":

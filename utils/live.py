@@ -323,6 +323,52 @@ def _resolve_telegram_chat_id(
     return None
 
 
+def send_telegram_message(
+        text,
+        *,
+        bot_token=None,
+        chat_id=None,
+        timeout=5.0,
+        api_post=_telegram_api_post,
+):
+    message = str(text or "").strip()
+    if not message:
+        return False
+
+    resolved_bot_token = str(
+        bot_token or os.environ.get(TELEGRAM_BOT_TOKEN_ENV, "")
+    ).strip()
+    if not resolved_bot_token:
+        return False
+
+    configured_chat_id = str(
+        chat_id or os.environ.get(TELEGRAM_CHAT_ID_ENV, "")
+    ).strip()
+    resolved_chat_id = _resolve_telegram_chat_id(
+        resolved_bot_token,
+        chat_id=configured_chat_id,
+        timeout=timeout,
+        api_post=api_post,
+    )
+    if not resolved_chat_id:
+        return False
+
+    try:
+        response = api_post(
+            resolved_bot_token,
+            "sendMessage",
+            {
+                "chat_id": resolved_chat_id,
+                "text": message[:TELEGRAM_CONSOLE_MAX_MESSAGE_CHARS],
+                "disable_web_page_preview": "true",
+            },
+            timeout,
+        )
+    except Exception:
+        return False
+    return not isinstance(response, dict) or bool(response.get("ok", True))
+
+
 class _TelegramConsoleSink:
     def __init__(
             self,

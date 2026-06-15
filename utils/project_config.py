@@ -460,11 +460,19 @@ def load_indicator_fit_profile(
     return profile
 
 
-def load_live_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PATH):
+def load_live_profile(
+        profile_name=None,
+        *,
+        active_config_path=ACTIVE_CONFIG_PATH,
+        dataset_profile_name=None,
+):
     if profile_name is None:
         profile_name = load_active_profile_names(active_config_path)["live_profile"]
     profile = _load_named_profile(LIVE_CONFIG_PATH, profile_name)
-    dataset = load_dataset_profile(active_config_path=active_config_path)
+    dataset = load_dataset_profile(
+        dataset_profile_name,
+        active_config_path=active_config_path,
+    )
     for key in (
             "settlement_source",
             "settlement_ticker",
@@ -640,36 +648,214 @@ def build_indicator_fit_config(*, active_config_path=ACTIVE_CONFIG_PATH):
     }
 
 
-def load_runtime_artifact_paths(runtime_manifest_path=RUNTIME_ACTIVE_PATH):
-    active_asset = load_active_asset()
-    payload = load_json_object(runtime_manifest_path)
-    artifacts = payload.get("artifacts")
+def _format_runtime_path(value, asset, *, source_label):
+    text = str(value).strip()
+    if ASSET_PLACEHOLDER in text:
+        if asset is None:
+            raise ValueError(
+                f"{source_label} uses {ASSET_PLACEHOLDER!r} but no runtime asset "
+                "was selected. Pass asset=... or define the path under "
+                "assets.<asset> in the runtime manifest."
+            )
+        text = format_asset_text(text, asset)
+    elif asset is not None:
+        text = format_asset_text(text, asset)
+    return coerce_path(text)
+
+
+def _normalize_runtime_artifacts(artifacts, asset, *, source_label):
     if not isinstance(artifacts, dict):
         raise ValueError(
-            f"Missing or invalid 'artifacts' object in runtime manifest: {runtime_manifest_path}"
+            f"Missing or invalid 'artifacts' object in runtime manifest: {source_label}"
         )
     if "trade_policy_runtime_config_path" in artifacts:
         raise ValueError(
             "Runtime manifest uses deprecated artifacts.trade_policy_runtime_config_path. "
             "Use artifacts.trade_policy_path as the single active trade policy path."
         )
+    return {
+        "model_meta_path": _format_runtime_path(
+            require_text(artifacts, "model_meta_path"),
+            asset,
+            source_label=f"{source_label}.artifacts.model_meta_path",
+        ),
+        "trade_policy_path": _format_runtime_path(
+            require_text(artifacts, "trade_policy_path"),
+            asset,
+            source_label=f"{source_label}.artifacts.trade_policy_path",
+        ),
+        "indicator_history_requirements_path": _format_runtime_path(
+            require_text(artifacts, "indicator_history_requirements_path"),
+            asset,
+            source_label=(
+                f"{source_label}.artifacts.indicator_history_requirements_path"
+            ),
+        ),
+    }
+
+
+def _runtime_asset_enabled(entry, *, source_label):
+    if "enabled" not in entry:
+        return True
+    enabled = entry["enabled"]
+    if not isinstance(enabled, bool):
+        raise ValueError(
+            f"{source_label}.enabled must be a JSON boolean, got: {enabled!r}"
+        )
+    return bool(enabled)
+
+
+def _load_runtime_asset_entries(payload, *, runtime_manifest_path):
     if "trade_policy_presets" in payload:
         raise ValueError(
             "Runtime manifest must not define trade_policy_presets. "
             "Only artifacts.trade_policy_path is active for live runtime."
         )
-    trade_policy_path = coerce_path(require_text(artifacts, "trade_policy_path"))
-    return {
-        "model_meta_path": coerce_path(
-            format_asset_text(require_text(artifacts, "model_meta_path"), active_asset)
-        ),
-        "trade_policy_path": coerce_path(
-            format_asset_text(str(trade_policy_path), active_asset)
-        ),
-        "indicator_history_requirements_path": coerce_path(
-            format_asset_text(
-                require_text(artifacts, "indicator_history_requirements_path"),
-                active_asset,
+    assets = payload.get("assets")
+    if not isinstance(assets, dict) or not assets:
+        raise ValueError(
+            f"Runtime manifest {runtime_manifest_path} must define non-empty "
+            "'assets' object."
+        )
+
+    normalized_assets = {}
+    for raw_asset, raw_entry in assets.items():
+        runtime_asset = normalize_asset_name(
+            raw_asset,
+            source_label=f"{runtime_manifest_path}.assets key",
+        )
+        if runtime_asset in normalized_assets:
+            raise ValueError(
+                f"Runtime manifest {runtime_manifest_path} defines duplicate asset "
+                f"after normalization: {runtime_asset!r}."
             )
-        ),
+        if not isinstance(raw_entry, dict):
+            raise ValueError(
+                f"Runtime manifest asset {runtime_asset!r} must be a JSON object."
+            )
+        entry = dict(raw_entry)
+        entry_asset = entry.get("asset")
+        if entry_asset is not None:
+            entry_asset = normalize_asset_name(
+                entry_asset,
+                source_label=f"assets.{runtime_asset}.asset",
+            )
+            if entry_asset != runtime_asset:
+                raise ValueError(
+                    f"Runtime manifest asset key {runtime_asset!r} does not match "
+                    f"entry asset={entry_asset!r}."
+                )
+        normalized_assets[runtime_asset] = entry
+    return normalized_assets
+
+
+def _build_runtime_asset_settings(asset, entry, *, source_label):
+    enabled = _runtime_asset_enabled(entry, source_label=source_label)
+    dataset_profile = str(entry.get("dataset_profile") or asset or "").strip()
+    live_profile = str(entry.get("live_profile") or "").strip() or None
+    if not enabled:
+        return {
+            "asset": asset,
+            "enabled": False,
+            "dataset_profile": dataset_profile,
+            "live_profile": live_profile,
+            "artifacts": None,
+        }
+    if not dataset_profile:
+        raise ValueError(f"Runtime manifest {source_label} must define dataset_profile.")
+    artifacts = _normalize_runtime_artifacts(
+        entry.get("artifacts"),
+        asset,
+        source_label=source_label,
+    )
+    return {
+        "asset": asset,
+        "enabled": enabled,
+        "dataset_profile": dataset_profile,
+        "live_profile": live_profile,
+        "artifacts": artifacts,
     }
+
+
+def _load_runtime_asset_settings_map(runtime_manifest_path):
+    payload = load_json_object(runtime_manifest_path)
+    entries = _load_runtime_asset_entries(
+        payload,
+        runtime_manifest_path=runtime_manifest_path,
+    )
+    return {
+        runtime_asset: _build_runtime_asset_settings(
+            runtime_asset,
+            entry,
+            source_label=f"{runtime_manifest_path}.assets.{runtime_asset}",
+        )
+        for runtime_asset, entry in entries.items()
+    }
+
+
+def load_enabled_runtime_asset_settings(
+        *,
+        runtime_manifest_path=RUNTIME_ACTIVE_PATH,
+):
+    settings = _load_runtime_asset_settings_map(runtime_manifest_path)
+    enabled = {
+        runtime_asset: runtime_settings
+        for runtime_asset, runtime_settings in settings.items()
+        if runtime_settings["enabled"]
+    }
+    if not enabled:
+        raise ValueError(
+            f"Runtime manifest {runtime_manifest_path} has no enabled assets."
+        )
+    return enabled
+
+
+def load_runtime_asset_settings(
+        asset=None,
+        *,
+        runtime_manifest_path=RUNTIME_ACTIVE_PATH,
+):
+    settings = _load_runtime_asset_settings_map(runtime_manifest_path)
+    if asset is None:
+        enabled = {
+            runtime_asset: runtime_settings
+            for runtime_asset, runtime_settings in settings.items()
+            if runtime_settings["enabled"]
+        }
+        if len(enabled) == 1:
+            return next(iter(enabled.values()))
+        if not enabled:
+            raise ValueError(
+                f"Runtime manifest {runtime_manifest_path} has no enabled assets."
+            )
+        available = ", ".join(sorted(enabled))
+        raise ValueError(
+            f"Runtime manifest {runtime_manifest_path} defines multiple enabled "
+            f"assets: {available}. Use load_enabled_runtime_asset_settings() to "
+            "run all enabled assets, or pass asset=... for one runtime process."
+        )
+
+    runtime_asset = normalize_asset_name(asset, source_label="runtime asset")
+    if runtime_asset not in settings:
+        available = ", ".join(sorted(settings))
+        raise ValueError(
+            f"Runtime asset {runtime_asset!r} not found in {runtime_manifest_path}. "
+            f"Available: {available}"
+        )
+    runtime_settings = settings[runtime_asset]
+    if not runtime_settings["enabled"]:
+        raise ValueError(
+            f"Runtime asset {runtime_asset!r} is disabled in {runtime_manifest_path}."
+        )
+    return runtime_settings
+
+
+def load_runtime_artifact_paths(
+        runtime_manifest_path=RUNTIME_ACTIVE_PATH,
+        *,
+        asset=None,
+):
+    return load_runtime_asset_settings(
+        asset,
+        runtime_manifest_path=runtime_manifest_path,
+    )["artifacts"]

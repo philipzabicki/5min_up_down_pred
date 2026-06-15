@@ -1,7 +1,14 @@
 {
-  "artifacts": {
-    "model_meta_path": "data/models/BTC/20260611_211138/lgbm_meta_20260611_211138.json",
-    "trade_policy_path": "configs/runtime/trade_policy_project.json",
-    "indicator_history_requirements_path": "configs/runtime/indicator_history_requirements.json"
+  "assets": {
+    "ETH": {
+      "enabled": true,
+      "dataset_profile": "ETH",
+      "live_profile": "polymarket_eth_live",
+      "artifacts": {
+        "model_meta_path": "data/models/ETH/20260614_234129/lgbm_meta_20260614_234129.json",
+        "trade_policy_path": "configs/runtime/trade_policy_project.json",
+        "indicator_history_requirements_path": "data/runtime/ETH/indicator_history_requirements.json"
+      }
+    }
   }
 }

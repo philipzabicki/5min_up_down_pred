@@ -35,12 +35,12 @@ The default scripts are config-driven and generally run without CLI arguments.
 
 | File | Controls |
 | --- | --- |
-| `configs/active.json` | Active asset plus active indicator-fit and live profiles. Dataset and modeling profiles default to the active asset unless explicitly provided. |
+| `configs/active.json` | Offline modeling selector. `active_asset` chooses the asset being fetched, fitted, modeled, and trained. Dataset and modeling profiles default to that asset unless explicitly provided. |
 | `configs/datasets.json` | Historical data source, symbol, interval, market type, raw data directory, and base raw file name for each asset. |
 | `configs/indicator_fit.json` | Indicator search target, horizons, metric settings, population sizes, and indicator families. |
 | `configs/modeling.json` | Modeling dataset output paths, feature intervals, basis/premium features, volume profile config, feature selection, target weights, and LightGBM training switches. |
 | `configs/live.json` | Polymarket endpoints, paper/live mode, execution mode, exposure caps, order caps, bootstrap history, websocket settings, and live runtime behavior. |
-| `configs/runtime/active.json` | Active runtime artifact paths for the trained model metadata, trade policy config, and indicator history requirements. |
+| `configs/runtime/active.json` | Runtime asset map. Each `assets.<asset>` entry can be toggled with `enabled` and holds dataset/live profile names plus paths to generated artifacts such as model metadata and indicator history requirements. |
 | `configs/runtime/trade_policy_project.json` | Runtime expected-value policy, stake sizing, fee model, and submitted price behavior. |
 
 ## Setup
@@ -150,7 +150,7 @@ python train_lgbm.py
 
 Model artifacts are written under `data/models/{asset}/<timestamp>/`, including the LightGBM model text file, metadata JSON, feature importance CSV, cross-validation feature importance files, and optional out-of-fold predictions.
 
-8. Update `configs/runtime/active.json` so live code points to the intended model metadata, trade policy, and indicator history requirements.
+8. Update the matching `assets.<asset>` entry in `configs/runtime/active.json` so live code points to the intended model metadata, trade policy, and generated indicator history requirements artifact.
 
 ## Analysis And Audits
 
@@ -171,9 +171,9 @@ These scripts write reports under `data/analysis/` or `data/optuna/` depending o
 python run.py
 ```
 
-This starts live websocket processing, builds the latest features, loads the runtime model from `configs/runtime/active.json`, queries Polymarket market data, tracks positions, handles exits/redemption, and writes trade records under `data/live/trade/` plus console logs under `data/live/logs/`.
+This starts live websocket processing for every enabled asset in `configs/runtime/active.json`, builds the latest features, loads each asset's runtime model, queries Polymarket market data, tracks positions, handles exits/redemption, and writes trade records under `data/live/trade/` plus console logs under `data/live/logs/`.
 
-Real order submission is controlled by the active profile named in `configs/active.json` via `live_profile`. For dry runs, use `polymarket_paper_mode=true` in `configs/live.json` or set `polymarket_disable_order_submission=true`.
+Real order submission is controlled by the runtime asset's `live_profile` in `configs/runtime/active.json`. For dry runs, use `polymarket_paper_mode=true` in `configs/live.json` or set `polymarket_disable_order_submission=true`.
 
 ## Tests
 

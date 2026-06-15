@@ -1,0 +1,41 @@
+{
+  "best": {
+    "params": {
+      "ma_type": "VWMA_PTA",
+      "ma_source": "ohlc4",
+      "std_ma_type": "KAMA",
+      "std_source": "ohlc4",
+      "ma_period": 1954,
+      "std_ma_period": 87
+    },
+    "score": 8.866286433055713,
+    "abs_corr": 8.866286433055713
+  },
+  "population": {
+    "base_pop_size": 1024,
+    "adjusted_pop_size": 890
+  },
+  "proxy_target": {
+    "mode": "candle_up",
+    "horizon_minutes": 5,
+    "price_col": "Close",
+    "time_col": "Opened"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 10,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 1000,
+    "min_valid_segments": 9,
+    "recency_weighting_enabled": true,
+    "recency_weighting_mode": "linear",
+    "recency_weight_min": 1.0,
+    "recency_weight_max": 1.5,
+    "q_ext": 0.2,
+    "q_mid": 0.1
+  },
+  "fit_config_hash": "c206782593b2444c"
+}

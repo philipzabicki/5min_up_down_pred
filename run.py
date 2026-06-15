@@ -3,6 +3,8 @@ import json
 import math
 import os
 import re
+import subprocess
+import sys
 import threading
 import time
 from collections import deque
@@ -85,14 +87,16 @@ from utils.live import (
     interval_to_floor_rule,
     interval_to_timedelta,
     resolve_polymarket_closed_position_settlement,
+    send_telegram_message,
     setup_live_console_logging,
     upsert_records_csv,
     write_records_csv,
 )
 from utils.project_config import (
     load_dataset_profile,
+    load_enabled_runtime_asset_settings,
     load_live_profile,
-    load_runtime_artifact_paths,
+    load_runtime_asset_settings,
 )
 from utils.trading import (
     build_trade_intent,
@@ -184,6 +188,7 @@ from utils.trading import (
 
 load_repo_env()
 DEFAULT_MODEL_PREDICTION_THRESHOLD = 0.5
+RUNTIME_ASSET_ENV = "POLYMARKET_RUNTIME_ASSET"
 
 
 def normalize_live_market_type(value, field_name):
@@ -201,9 +206,25 @@ def _delay_ms_between(start, end):
     return float(max((end_ts - start_ts).total_seconds() * 1000.0, 0.0))
 
 
-LIVE_PROFILE = load_live_profile()
-DATASET_PROFILE = load_dataset_profile()
-RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
+_REQUESTED_RUNTIME_ASSET = str(os.environ.get(RUNTIME_ASSET_ENV, "") or "").strip()
+ENABLED_RUNTIME_ASSET_SETTINGS = load_enabled_runtime_asset_settings()
+MULTI_ASSET_PARENT = (
+        not _REQUESTED_RUNTIME_ASSET
+        and len(ENABLED_RUNTIME_ASSET_SETTINGS) > 1
+)
+if _REQUESTED_RUNTIME_ASSET:
+    RUNTIME_ASSET_SETTINGS = load_runtime_asset_settings(_REQUESTED_RUNTIME_ASSET)
+elif MULTI_ASSET_PARENT:
+    RUNTIME_ASSET_SETTINGS = next(iter(ENABLED_RUNTIME_ASSET_SETTINGS.values()))
+else:
+    RUNTIME_ASSET_SETTINGS = next(iter(ENABLED_RUNTIME_ASSET_SETTINGS.values()))
+RUNTIME_ASSET = str(RUNTIME_ASSET_SETTINGS["asset"]).strip().upper()
+DATASET_PROFILE = load_dataset_profile(RUNTIME_ASSET_SETTINGS["dataset_profile"])
+LIVE_PROFILE = load_live_profile(
+    RUNTIME_ASSET_SETTINGS["live_profile"],
+    dataset_profile_name=RUNTIME_ASSET_SETTINGS["dataset_profile"],
+)
+RUNTIME_ARTIFACT_PATHS = RUNTIME_ASSET_SETTINGS["artifacts"]
 
 SYMBOL = str(DATASET_PROFILE["symbol"]).strip().upper()
 INTERVAL = str(DATASET_PROFILE["interval"]).strip()
@@ -3374,7 +3395,7 @@ class PolymarketLiveTrader(LivePredictor):
         )
         self.trade_records_path = self.pm_cfg.trade_records_path
         self.trade_records_path.parent.mkdir(parents=True, exist_ok=True)
-        self.market_data_path = build_live_market_data_path()
+        self.market_data_path = build_live_market_data_path(asset=RUNTIME_ASSET)
         self.market_data_path.parent.mkdir(parents=True, exist_ok=True)
         self.trade_records_state_path = self.trade_records_path.with_suffix(
             ".state.json"
@@ -4351,6 +4372,7 @@ class PolymarketLiveTrader(LivePredictor):
             status = _submission_error_status_from_exception(exc)
             error_txt = str(exc)
 
+        exit_alert_record = None
         with self.records_lock:
             for rec in self.records:
                 if _safe_text(rec.get("pm_selected_token_id")) != asset:
@@ -4380,6 +4402,9 @@ class PolymarketLiveTrader(LivePredictor):
                 rec["pm_exit_order_response"] = response_txt
                 if status == submitted_status:
                     rec["pm_settlement_status"] = "exit_submitted"
+                    exit_alert_record = dict(rec)
+        if exit_alert_record is not None:
+            self._send_telegram_trade_alert(exit_alert_record, action="exit")
 
     def _collect_redeem_candidates(self, open_positions, *, log_decisions=True):
         candidates, diagnostics = collect_redeem_candidate_specs(
@@ -5744,6 +5769,59 @@ class PolymarketLiveTrader(LivePredictor):
         summary.update(latency_metrics)
         return summary
 
+    def _format_telegram_trade_alert(self, record, *, action):
+        action = str(action).strip().lower()
+        if action == "exit":
+            status = record.get("pm_exit_order_status")
+            price = record.get("pm_exit_price")
+            amount_label = "shares"
+            amount = record.get("pm_exit_shares")
+            pnl = _safe_float(record.get("pm_exit_candidate_pnl_usdc"))
+            pnl_part = f" | candidate_pnl_usdc={pnl:.2f}" if np.isfinite(pnl) else ""
+        else:
+            status = record.get("pm_order_status")
+            price = record.get("pm_submitted_price")
+            amount_label = "stake_usdc"
+            amount = record.get("submitted_stake_usdc")
+            if not np.isfinite(_safe_float(amount)):
+                amount = record.get("stake_usdc")
+            pnl_part = ""
+
+        price_value = _safe_float(price)
+        amount_value = _safe_float(amount)
+        proba_up = _safe_float(record.get("proba_up"))
+        bucket_start = record.get("bucket_start")
+        bucket_text = (
+            pd.Timestamp(bucket_start).isoformat()
+            if bucket_start is not None and pd.notna(bucket_start)
+            else "n/a"
+        )
+        price_text = "n/a" if not np.isfinite(price_value) else f"{price_value:.4f}"
+        amount_text = "n/a" if not np.isfinite(amount_value) else f"{amount_value:.4f}"
+        proba_text = "n/a" if not np.isfinite(proba_up) else f"{proba_up:.4f}"
+        return (
+            f"[trade] {RUNTIME_ASSET} {action} order submitted"
+            f" | side={record.get('trade_side', 'none')}"
+            f" | status={status}"
+            f" | {amount_label}={amount_text}"
+            f" | price={price_text}"
+            f" | proba_up={proba_text}"
+            f"{pnl_part}"
+            f" | bucket={bucket_text}"
+            f" | market={record.get('pm_market_slug', '')}"
+        )
+
+    def _send_telegram_trade_alert(self, record, *, action):
+        if action == "exit":
+            status = record.get("pm_exit_order_status")
+        else:
+            status = record.get("pm_order_status")
+        if not _is_polymarket_submitted_status(status):
+            return
+        send_telegram_message(
+            self._format_telegram_trade_alert(record, action=action)
+        )
+
     def _predict_next_bucket(self, volume_profile_values=None, delay_timing=None):
         minute_open = self.opened_candles[-1]
         minute_close = minute_open + pd.Timedelta(minutes=1)
@@ -5846,6 +5924,7 @@ class PolymarketLiveTrader(LivePredictor):
         )
         with self.records_lock:
             self.records.append(record)
+        self._send_telegram_trade_alert(record, action="entry")
         self.predicted_buckets.add(bucket_start)
 
         return self._build_prediction_summary(
@@ -6410,11 +6489,55 @@ class PolymarketLiveTrader(LivePredictor):
         self._run_all_websocket_targets_forever()
 
 
+def _terminate_runtime_asset_processes(processes):
+    for _, process in processes:
+        if process.poll() is None:
+            process.terminate()
+    for _, process in processes:
+        if process.poll() is None:
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+
+
+def _run_enabled_runtime_assets():
+    script_path = Path(__file__).resolve()
+    processes = []
+    assets = list(ENABLED_RUNTIME_ASSET_SETTINGS)
+    print(f"[runtime] launching enabled assets: {', '.join(assets)}")
+    for asset in assets:
+        env = os.environ.copy()
+        env[RUNTIME_ASSET_ENV] = asset
+        process = subprocess.Popen([sys.executable, str(script_path)], env=env)
+        processes.append((asset, process))
+        print(f"[runtime] launched {asset} pid={process.pid}")
+
+    try:
+        while processes:
+            for asset, process in list(processes):
+                return_code = process.poll()
+                if return_code is None:
+                    continue
+                processes.remove((asset, process))
+                print(f"[runtime] {asset} exited with code {return_code}")
+                if return_code:
+                    _terminate_runtime_asset_processes(processes)
+                    raise SystemExit(return_code)
+            time.sleep(1.0)
+    except KeyboardInterrupt:
+        _terminate_runtime_asset_processes(processes)
+        raise
+
+
 def main():
+    if MULTI_ASSET_PARENT:
+        _run_enabled_runtime_assets()
+        return
+
     setup_live_console_logging(
         f"run_{SYMBOL}_{INTERVAL}",
         run_started_at_utc=RUN_STARTED_AT_UTC,
-        telegram=True,
     )
     runner = PolymarketLiveTrader()
 

@@ -1,6 +1,8 @@
 import io
+import os
 import threading
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from utils.live import (
@@ -8,6 +10,7 @@ from utils.live import (
     _resolve_telegram_chat_id,
     build_live_console_log_path,
     resolve_polymarket_closed_position_settlement,
+    send_telegram_message,
 )
 
 
@@ -80,6 +83,33 @@ class LiveConsoleLoggingTests(unittest.TestCase):
             _resolve_telegram_chat_id("token", chat_id=" 123456 "),
             "123456",
         )
+
+    def test_send_telegram_message_posts_configured_chat(self):
+        calls = []
+
+        def fake_api_post(bot_token, method, payload, timeout):
+            calls.append((bot_token, method, payload, timeout))
+            return {"ok": True}
+
+        sent = send_telegram_message(
+            "trade",
+            bot_token="token",
+            chat_id="123456",
+            timeout=1.5,
+            api_post=fake_api_post,
+        )
+
+        self.assertTrue(sent)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][0], "token")
+        self.assertEqual(calls[0][1], "sendMessage")
+        self.assertEqual(calls[0][2]["chat_id"], "123456")
+        self.assertEqual(calls[0][2]["text"], "trade")
+        self.assertEqual(calls[0][3], 1.5)
+
+    def test_send_telegram_message_skips_without_bot_token(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertFalse(send_telegram_message("trade"))
 
 
 class PolymarketSettlementTests(unittest.TestCase):

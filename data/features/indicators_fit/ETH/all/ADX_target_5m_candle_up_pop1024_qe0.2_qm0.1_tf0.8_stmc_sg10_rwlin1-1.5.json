@@ -1,0 +1,43 @@
+{
+  "best": {
+    "params": {
+      "atr_period": 1266,
+      "posDM_period": 129,
+      "negDM_period": 138,
+      "adx_period": 21,
+      "ma_type_atr": "NWMA_BIW",
+      "ma_type_posDM": "KAMA",
+      "ma_type_negDM": "EMA",
+      "ma_type_adx": "LWMA"
+    },
+    "score": 4.378748896504789,
+    "abs_corr": 4.378748896504789
+  },
+  "population": {
+    "base_pop_size": 1024,
+    "adjusted_pop_size": 1490
+  },
+  "proxy_target": {
+    "mode": "candle_up",
+    "horizon_minutes": 5,
+    "price_col": "Close",
+    "time_col": "Opened"
+  },
+  "metric": {
+    "name": "extremes_vs_mid_ir_oof",
+    "segments_count": 10,
+    "train_frac": 0.8,
+    "gap": 2000,
+    "stat": "mean_clip",
+    "clip_q": 0.01,
+    "min_bucket_size": 1000,
+    "min_valid_segments": 9,
+    "recency_weighting_enabled": true,
+    "recency_weighting_mode": "linear",
+    "recency_weight_min": 1.0,
+    "recency_weight_max": 1.5,
+    "q_ext": 0.2,
+    "q_mid": 0.1
+  },
+  "fit_config_hash": "c206782593b2444c"
+}
