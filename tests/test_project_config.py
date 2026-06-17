@@ -7,7 +7,10 @@ from utils.project_config import (
     build_indicator_fit_config,
     format_asset_text,
     load_active_profile_names,
+    load_dataset_profile,
     load_enabled_runtime_asset_settings,
+    load_live_profile,
+    load_modeling_settings,
     load_modeling_profile,
     load_runtime_asset_settings,
     load_runtime_artifact_paths,
@@ -52,6 +55,64 @@ class RuntimeArtifactPathTests(unittest.TestCase):
         self.assertEqual(profile["output_dir"], "data/datasets/modeling/BTC")
         self.assertEqual(profile["fit_results_dir"], "data/features/indicators_fit/BTC/all")
         self.assertIn(profile["feature_selection"]["mode"], {"artifact", "none"})
+
+    def test_loads_modeling_settings_for_explicit_asset(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            active_config_path = _write_manifest(
+                tmpdir,
+                {
+                    "active_asset": "BTC",
+                    "indicator_fit_profile": "main_task_candle_up_5m",
+                    "live_profile": "polymarket_live",
+                },
+            )
+
+            settings = load_modeling_settings(
+                active_config_path=active_config_path,
+                asset="ETH",
+                dataset_profile_name="ETH",
+                modeling_profile_name="ETH",
+            )
+
+        self.assertEqual(settings["active_asset"], "ETH")
+        self.assertEqual(settings["symbol"], "ETHUSD")
+        self.assertEqual(
+            settings["fit_results_dir"],
+            Path("data/features/indicators_fit/ETH/all"),
+        )
+        self.assertEqual(
+            settings["modeling_output_dir"],
+            Path("data/datasets/modeling/ETH"),
+        )
+
+    def test_explicit_runtime_profiles_do_not_read_active_config(self):
+        missing_active_config = Path("does_not_exist_active_config.json")
+
+        dataset = load_dataset_profile(
+            "ETH",
+            active_config_path=missing_active_config,
+            asset="ETH",
+        )
+        live = load_live_profile(
+            "polymarket_eth_live",
+            active_config_path=missing_active_config,
+            dataset_profile_name="ETH",
+            dataset_asset="ETH",
+        )
+        modeling = load_modeling_settings(
+            active_config_path=missing_active_config,
+            asset="ETH",
+            dataset_profile_name="ETH",
+            modeling_profile_name="ETH",
+        )
+
+        self.assertEqual(dataset["symbol"], "ETHUSD")
+        self.assertEqual(live["symbol"], "ETHUSD")
+        self.assertEqual(modeling["active_asset"], "ETH")
+        self.assertEqual(
+            modeling["fit_results_dir"],
+            Path("data/features/indicators_fit/ETH/all"),
+        )
 
     def test_indicator_fit_config_passes_quantile_pairs(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -129,6 +190,7 @@ class RuntimeArtifactPathTests(unittest.TestCase):
         self.assertEqual(settings["asset"], "ETH")
         self.assertTrue(settings["enabled"])
         self.assertEqual(settings["dataset_profile"], "ETH")
+        self.assertEqual(settings["modeling_profile"], "ETH")
         self.assertEqual(settings["live_profile"], "polymarket_eth_live")
         self.assertEqual(
             settings["artifacts"]["model_meta_path"],
@@ -244,6 +306,7 @@ class RuntimeArtifactPathTests(unittest.TestCase):
             )
 
         self.assertEqual(list(settings), ["ETH"])
+        self.assertEqual(settings["ETH"]["modeling_profile"], "ETH")
         self.assertEqual(
             settings["ETH"]["artifacts"]["model_meta_path"],
             Path("eth_meta.json"),

@@ -219,10 +219,14 @@ elif MULTI_ASSET_PARENT:
 else:
     RUNTIME_ASSET_SETTINGS = next(iter(ENABLED_RUNTIME_ASSET_SETTINGS.values()))
 RUNTIME_ASSET = str(RUNTIME_ASSET_SETTINGS["asset"]).strip().upper()
-DATASET_PROFILE = load_dataset_profile(RUNTIME_ASSET_SETTINGS["dataset_profile"])
+DATASET_PROFILE = load_dataset_profile(
+    RUNTIME_ASSET_SETTINGS["dataset_profile"],
+    asset=RUNTIME_ASSET,
+)
 LIVE_PROFILE = load_live_profile(
     RUNTIME_ASSET_SETTINGS["live_profile"],
     dataset_profile_name=RUNTIME_ASSET_SETTINGS["dataset_profile"],
+    dataset_asset=RUNTIME_ASSET,
 )
 RUNTIME_ARTIFACT_PATHS = RUNTIME_ASSET_SETTINGS["artifacts"]
 
@@ -408,7 +412,11 @@ class IndicatorSpec:
         self.required_candles = required_candles
 
 
-MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
+MODELING_DATASET_SETTINGS = load_modeling_dataset_settings(
+    asset=RUNTIME_ASSET,
+    dataset_profile_name=RUNTIME_ASSET_SETTINGS["dataset_profile"],
+    modeling_profile_name=RUNTIME_ASSET_SETTINGS["modeling_profile"],
+)
 FIT_RESULTS_DIR = MODELING_DATASET_SETTINGS["fit_results_dir"]
 VOLUME_PROFILE_MODELING_STATE_PATH = resolve_volume_profile_modeling_state_path(
     MODELING_DATASET_SETTINGS["base_data_file"]

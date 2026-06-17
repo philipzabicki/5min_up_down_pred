@@ -320,14 +320,25 @@ def _exclude_features(feature_names, excluded_feature_names, *, source_label):
     return kept, removed
 
 
-def load_modeling_dataset_settings(config_path=MODELING_DATASET_CONFIG_FILE):
+def load_modeling_dataset_settings(
+        config_path=MODELING_DATASET_CONFIG_FILE,
+        *,
+        asset=None,
+        dataset_profile_name=None,
+        modeling_profile_name=None,
+):
     if Path(config_path) != MODELING_DATASET_CONFIG_FILE:
         raise ValueError(
             "Custom modeling config path overrides are no longer supported. "
             f"Expected: {MODELING_DATASET_CONFIG_FILE}"
         )
 
-    settings = load_modeling_settings(active_config_path=ACTIVE_PROFILE_CONFIG_FILE)
+    settings = load_modeling_settings(
+        active_config_path=ACTIVE_PROFILE_CONFIG_FILE,
+        asset=asset,
+        dataset_profile_name=dataset_profile_name,
+        modeling_profile_name=modeling_profile_name,
+    )
     excluded_feature_names = _normalize_optional_feature_names(
         list(settings.get("excluded_feature_names") or ()),
         source_label="modeling.feature_selection.excluded_feature_names",

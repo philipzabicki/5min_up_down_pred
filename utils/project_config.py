@@ -280,16 +280,34 @@ def load_active_profile_names(config_path=ACTIVE_CONFIG_PATH):
     }
 
 
-def load_dataset_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PATH):
-    active = load_active_profile_names(active_config_path)
-    active_asset = active["active_asset"]
+def load_dataset_profile(
+        profile_name=None,
+        *,
+        active_config_path=ACTIVE_CONFIG_PATH,
+        asset=None,
+):
+    active = None
     if profile_name is None:
+        active = load_active_profile_names(active_config_path)
+        active_asset = active["active_asset"]
         profile_name = active["dataset_profile"]
+    else:
+        profile_name = str(profile_name).strip()
+        if not profile_name:
+            raise ValueError("dataset profile name cannot be empty")
+        active_asset = (
+            normalize_asset_name(asset, source_label="dataset asset")
+            if asset is not None
+            else None
+        )
     profile = _load_named_profile(DATASETS_CONFIG_PATH, profile_name)
-    profile_asset = normalize_asset_name(profile.get("asset", active_asset))
-    if profile_name == active["dataset_profile"] and profile_asset != active_asset:
+    profile_asset = normalize_asset_name(
+        profile.get("asset", active_asset or profile_name),
+        source_label=f"dataset profile '{profile_name}'.asset",
+    )
+    if active_asset is not None and profile_asset != active_asset:
         raise ValueError(
-            f"Active asset {active_asset!r} does not match dataset profile "
+            f"Configured asset {active_asset!r} does not match dataset profile "
             f"{profile_name!r} asset={profile_asset!r}."
         )
     required_keys = (
@@ -334,11 +352,27 @@ def load_dataset_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_
     return profile
 
 
-def load_modeling_profile(profile_name=None, *, active_config_path=ACTIVE_CONFIG_PATH):
-    active = load_active_profile_names(active_config_path)
-    active_asset = active["active_asset"]
+def load_modeling_profile(
+        profile_name=None,
+        *,
+        active_config_path=ACTIVE_CONFIG_PATH,
+        asset=None,
+):
     if profile_name is None:
+        active = load_active_profile_names(active_config_path)
+        active_asset = active["active_asset"]
         profile_name = active["modeling_profile"]
+    else:
+        profile_name = str(profile_name).strip()
+        if not profile_name:
+            raise ValueError("modeling profile name cannot be empty")
+        if asset is None:
+            active_asset = load_active_profile_names(active_config_path)["active_asset"]
+        else:
+            active_asset = normalize_asset_name(
+                asset,
+                source_label="modeling asset",
+            )
     profile = _load_named_profile(MODELING_CONFIG_PATH, profile_name)
     feature_selection = profile.get("feature_selection")
     if not isinstance(feature_selection, dict):
@@ -465,6 +499,7 @@ def load_live_profile(
         *,
         active_config_path=ACTIVE_CONFIG_PATH,
         dataset_profile_name=None,
+        dataset_asset=None,
 ):
     if profile_name is None:
         profile_name = load_active_profile_names(active_config_path)["live_profile"]
@@ -472,6 +507,7 @@ def load_live_profile(
     dataset = load_dataset_profile(
         dataset_profile_name,
         active_config_path=active_config_path,
+        asset=dataset_asset,
     )
     for key in (
             "settlement_source",
@@ -531,10 +567,46 @@ def load_live_profile(
     return profile
 
 
-def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
-    active = load_active_profile_names(active_config_path)
-    dataset = load_dataset_profile(active_config_path=active_config_path)
-    modeling = load_modeling_profile(active_config_path=active_config_path)
+def load_modeling_settings(
+        *,
+        active_config_path=ACTIVE_CONFIG_PATH,
+        asset=None,
+        dataset_profile_name=None,
+        modeling_profile_name=None,
+):
+    if asset is None:
+        active = load_active_profile_names(active_config_path)
+        active_asset = active["active_asset"]
+        default_dataset_profile = active["dataset_profile"]
+        default_modeling_profile = active["modeling_profile"]
+    else:
+        active_asset = normalize_asset_name(asset, source_label="modeling asset")
+        default_dataset_profile = active_asset
+        default_modeling_profile = active_asset
+    dataset_profile = str(
+        dataset_profile_name
+        if dataset_profile_name is not None
+        else default_dataset_profile
+    ).strip()
+    modeling_profile = str(
+        modeling_profile_name
+        if modeling_profile_name is not None
+        else default_modeling_profile
+    ).strip()
+    if not dataset_profile:
+        raise ValueError("dataset profile name cannot be empty")
+    if not modeling_profile:
+        raise ValueError("modeling profile name cannot be empty")
+    dataset = load_dataset_profile(
+        dataset_profile,
+        active_config_path=active_config_path,
+        asset=active_asset,
+    )
+    modeling = load_modeling_profile(
+        modeling_profile,
+        active_config_path=active_config_path,
+        asset=active_asset,
+    )
     feature_selection = modeling["feature_selection"]
     selection_mode = str(feature_selection["mode"]).strip().lower()
     feature_subset_path = None
@@ -551,7 +623,7 @@ def load_modeling_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
             "modeling.feature_selection.excluded_feature_names must be a JSON array."
         )
     return {
-        "active_asset": active["active_asset"],
+        "active_asset": active_asset,
         "symbol": dataset["symbol"],
         "interval": dataset["interval"],
         "market": dataset["market"],
@@ -763,17 +835,21 @@ def _load_runtime_asset_entries(payload, *, runtime_manifest_path):
 def _build_runtime_asset_settings(asset, entry, *, source_label):
     enabled = _runtime_asset_enabled(entry, source_label=source_label)
     dataset_profile = str(entry.get("dataset_profile") or asset or "").strip()
+    modeling_profile = str(entry.get("modeling_profile") or dataset_profile).strip()
     live_profile = str(entry.get("live_profile") or "").strip() or None
     if not enabled:
         return {
             "asset": asset,
             "enabled": False,
             "dataset_profile": dataset_profile,
+            "modeling_profile": modeling_profile,
             "live_profile": live_profile,
             "artifacts": None,
         }
     if not dataset_profile:
         raise ValueError(f"Runtime manifest {source_label} must define dataset_profile.")
+    if not modeling_profile:
+        raise ValueError(f"Runtime manifest {source_label} must define modeling_profile.")
     artifacts = _normalize_runtime_artifacts(
         entry.get("artifacts"),
         asset,
@@ -783,6 +859,7 @@ def _build_runtime_asset_settings(asset, entry, *, source_label):
         "asset": asset,
         "enabled": enabled,
         "dataset_profile": dataset_profile,
+        "modeling_profile": modeling_profile,
         "live_profile": live_profile,
         "artifacts": artifacts,
     }
