@@ -419,7 +419,8 @@ MODELING_DATASET_SETTINGS = load_modeling_dataset_settings(
 )
 FIT_RESULTS_DIR = MODELING_DATASET_SETTINGS["fit_results_dir"]
 VOLUME_PROFILE_MODELING_STATE_PATH = resolve_volume_profile_modeling_state_path(
-    MODELING_DATASET_SETTINGS["base_data_file"]
+    MODELING_DATASET_SETTINGS["base_data_file"],
+    asset=RUNTIME_ASSET,
 )
 
 

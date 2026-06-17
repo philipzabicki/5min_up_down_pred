@@ -3,6 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from create_modeling_dataset import resolve_volume_profile_modeling_state_path
 from utils.project_config import (
     build_indicator_fit_config,
     format_asset_text,
@@ -112,6 +113,20 @@ class RuntimeArtifactPathTests(unittest.TestCase):
         self.assertEqual(
             modeling["fit_results_dir"],
             Path("data/features/indicators_fit/ETH/all"),
+        )
+
+    def test_volume_profile_modeling_state_path_uses_explicit_asset(self):
+        path = resolve_volume_profile_modeling_state_path(
+            "ETHUSD_INDEXVOL_UM_ETHUSDT1m.csv",
+            asset="ETH",
+        )
+
+        self.assertEqual(
+            path,
+            Path(
+                "data/features/state/volume_profile/modeling/ETH/"
+                "ETHUSD_INDEXVOL_UM_ETHUSDT_1m_vp_fixed_range_v3_modeling_end"
+            ),
         )
 
     def test_indicator_fit_config_passes_quantile_pairs(self):
