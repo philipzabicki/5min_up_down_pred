@@ -1,5 +1,5 @@
 {
-  "active_asset": "ETH",
+  "active_asset": "BTC",
   "indicator_fit_profile": "candle_up_5m_qe20_qm10_center",
   "live_profile": "polymarket_live"
 }
