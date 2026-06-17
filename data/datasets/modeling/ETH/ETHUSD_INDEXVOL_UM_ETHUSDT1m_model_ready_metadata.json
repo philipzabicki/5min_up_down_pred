@@ -2,16 +2,12 @@
   "basis_premium_feature_columns": [
     "futures_index_basis_change_5m",
     "futures_index_basis_change_1m",
-    "futures_index_basis_rel_1m",
     "futures_index_basis_rel_5m",
+    "futures_index_basis_rel_1m",
     "futures_index_basis_change_15m",
-    "futures_index_basis_rel_1h",
-    "futures_index_basis_abs_1m",
-    "futures_index_basis_change_30m",
-    "futures_index_basis_abs_5m",
     "futures_index_basis_change_3m",
-    "futures_index_basis_abs_1h",
-    "futures_index_basis_abs_15m"
+    "futures_index_basis_abs_1m",
+    "futures_index_basis_rel_1h"
   ],
   "basis_premium_features": {
     "enabled": true,
@@ -29,7 +25,7 @@
       "1d"
     ]
   },
-  "created_utc": "2026-06-14T18:13:35.777506+00:00",
+  "created_utc": "2026-06-17T19:48:53.028172+00:00",
   "feature_intervals": {
     "enabled": [
       "1m",

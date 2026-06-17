@@ -1,4 +1,6 @@
+import json
 import math
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +16,62 @@ from utils.data import (
     TARGET_WEIGHT_DECISION_VALUE,
     compute_target_weights_from_opened,
 )
+
+
+class PlotLgbmOneWayConfigTests(unittest.TestCase):
+    def test_default_model_artifact_path_uses_active_asset_models_dir(self):
+        with (
+            mock.patch.object(plot_lgbm_one_way, "MODEL_ARTIFACT_PATH", None),
+            mock.patch.object(
+                plot_lgbm_one_way,
+                "DEFAULT_MODEL_ARTIFACT_PATH",
+                Path("data/models/BTC"),
+            ),
+        ):
+            self.assertEqual(
+                plot_lgbm_one_way.resolve_configured_model_artifact_path(),
+                Path("data/models/BTC"),
+            )
+
+    def test_explicit_model_artifact_path_overrides_default(self):
+        with mock.patch.object(
+            plot_lgbm_one_way,
+            "MODEL_ARTIFACT_PATH",
+            "data/models/BTC/run/lgbm_meta.json",
+        ):
+            self.assertEqual(
+                plot_lgbm_one_way.resolve_configured_model_artifact_path(),
+                Path("data/models/BTC/run/lgbm_meta.json"),
+            )
+
+    def test_model_artifact_directory_can_be_active_asset_models_root(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            models_root = Path(tmpdir) / "data" / "models" / "BTC"
+            older_run = models_root / "20260601_000000"
+            newer_run = models_root / "20260602_000000"
+            older_run.mkdir(parents=True)
+            newer_run.mkdir(parents=True)
+            older_meta = older_run / "lgbm_meta_20260601_000000.json"
+            newer_meta = newer_run / "lgbm_meta_20260602_000000.json"
+            older_model = older_run / "old_model.txt"
+            newer_model = newer_run / "new_model.txt"
+            older_model.write_text("", encoding="utf-8")
+            newer_model.write_text("", encoding="utf-8")
+            older_meta.write_text(
+                json.dumps({"artifacts": {"final_model_path": str(older_model)}}),
+                encoding="utf-8",
+            )
+            newer_meta.write_text(
+                json.dumps({"artifacts": {"final_model_path": str(newer_model)}}),
+                encoding="utf-8",
+            )
+            os.utime(older_meta, (1, 1))
+            os.utime(newer_meta, (2, 2))
+
+            artifact = plot_lgbm_one_way.resolve_model_artifact(models_root)
+
+        self.assertEqual(artifact["meta_path"], newer_meta)
+        self.assertEqual(artifact["model_path"], newer_model)
 
 
 class PlotLgbmOneWayPlotAxisTests(unittest.TestCase):

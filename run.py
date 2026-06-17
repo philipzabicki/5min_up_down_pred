@@ -5822,7 +5822,12 @@ class PolymarketLiveTrader(LivePredictor):
             self._format_telegram_trade_alert(record, action=action)
         )
 
-    def _predict_next_bucket(self, volume_profile_values=None, delay_timing=None):
+    def _predict_next_bucket(
+            self,
+            volume_profile_values=None,
+            delay_timing=None,
+            market_future=None,
+    ):
         minute_open = self.opened_candles[-1]
         minute_close = minute_open + pd.Timedelta(minutes=1)
         bucket_start = self._bucket_start_for_latest_candle()
@@ -5833,7 +5838,8 @@ class PolymarketLiveTrader(LivePredictor):
             f"minute_open={minute_open.isoformat()}",
             flush=True,
         )
-        market_future = self._market_lookup_future_for_bucket(bucket_start)
+        if market_future is None:
+            market_future = self._market_lookup_future_for_bucket(bucket_start)
         latency_metrics = {}
         if delay_timing is not None:
             for key in (
@@ -6280,13 +6286,8 @@ class PolymarketLiveTrader(LivePredictor):
         if opened_from_ws > expected_next:
             self._sync_closed_candles_from_rest(stop_before_opened=opened_from_ws)
 
-    def _maybe_predict_closed_bucket(
-            self,
-            opened,
-            volume_profile_values,
-            *,
-            delay_timing=None,
-    ):
+    def _prediction_bucket_start_for_closed_opened(self, opened):
+        opened = pd.Timestamp(opened)
         bucket_start = opened.floor(f"{self.target_bucket_minutes}min")
         bucket_end = bucket_start + pd.Timedelta(minutes=self.target_bucket_minutes - 1)
         if opened != bucket_end:
@@ -6297,10 +6298,23 @@ class PolymarketLiveTrader(LivePredictor):
         )
         if next_bucket_start in self.predicted_buckets:
             return None
+        return next_bucket_start
+
+    def _maybe_predict_closed_bucket(
+            self,
+            opened,
+            volume_profile_values,
+            *,
+            delay_timing=None,
+            market_future=None,
+    ):
+        if self._prediction_bucket_start_for_closed_opened(opened) is None:
+            return None
 
         return self._predict_next_bucket(
             volume_profile_values=volume_profile_values,
             delay_timing=delay_timing,
+            market_future=market_future,
         )
 
     def _schedule_post_cycle_syncs(self, pred, resolved_now):
@@ -6450,6 +6464,15 @@ class PolymarketLiveTrader(LivePredictor):
                 if PRICE_SOURCE == "index":
                     self._maybe_sync_missing_candles(live_minute_opened)
 
+                market_future = None
+                prediction_bucket_start = self._prediction_bucket_start_for_closed_opened(
+                    opened
+                )
+                if prediction_bucket_start is not None:
+                    market_future = self._market_lookup_future_for_bucket(
+                        prediction_bucket_start
+                    )
+
                 feature_prep_started_perf = time.perf_counter()
                 volume_profile_values = self._prepare_volume_profile_features_for_latest_candle(
                     opened
@@ -6460,6 +6483,7 @@ class PolymarketLiveTrader(LivePredictor):
                     opened,
                     volume_profile_values,
                     delay_timing=delay_timing,
+                    market_future=market_future,
                 )
                 resolved_now = self._resolve_pending()
 
@@ -6504,12 +6528,14 @@ def _terminate_runtime_asset_processes(processes):
 def _run_enabled_runtime_assets():
     script_path = Path(__file__).resolve()
     processes = []
+    failed_assets = {}
     assets = list(ENABLED_RUNTIME_ASSET_SETTINGS)
     print(f"[runtime] launching enabled assets: {', '.join(assets)}")
     for asset in assets:
         env = os.environ.copy()
         env[RUNTIME_ASSET_ENV] = asset
-        process = subprocess.Popen([sys.executable, str(script_path)], env=env)
+        env["PYTHONUNBUFFERED"] = "1"
+        process = subprocess.Popen([sys.executable, "-u", str(script_path)], env=env)
         processes.append((asset, process))
         print(f"[runtime] launched {asset} pid={process.pid}")
 
@@ -6522,12 +6548,17 @@ def _run_enabled_runtime_assets():
                 processes.remove((asset, process))
                 print(f"[runtime] {asset} exited with code {return_code}")
                 if return_code:
-                    _terminate_runtime_asset_processes(processes)
-                    raise SystemExit(return_code)
+                    failed_assets[asset] = return_code
             time.sleep(1.0)
     except KeyboardInterrupt:
         _terminate_runtime_asset_processes(processes)
         raise
+
+    if failed_assets:
+        failed = ", ".join(
+            f"{asset}:{return_code}" for asset, return_code in failed_assets.items()
+        )
+        raise SystemExit(f"Runtime assets failed: {failed}")
 
 
 def main():

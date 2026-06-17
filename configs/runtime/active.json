@@ -1,11 +1,21 @@
 {
   "assets": {
+    "BTC": {
+      "enabled": true,
+      "dataset_profile": "BTC",
+      "live_profile": "polymarket_live",
+      "artifacts": {
+        "model_meta_path": "data/models/BTC/20260617_021956/lgbm_meta_20260617_021956.json",
+        "trade_policy_path": "configs/runtime/trade_policy_project.json",
+        "indicator_history_requirements_path": ""
+      }
+    },
     "ETH": {
       "enabled": true,
       "dataset_profile": "ETH",
       "live_profile": "polymarket_eth_live",
       "artifacts": {
-        "model_meta_path": "data/models/ETH/20260614_234129/lgbm_meta_20260614_234129.json",
+        "model_meta_path": "data/models/ETH/20260617_230441/lgbm_meta_20260617_230441.json",
         "trade_policy_path": "configs/runtime/trade_policy_project.json",
         "indicator_history_requirements_path": "data/runtime/ETH/indicator_history_requirements.json"
       }

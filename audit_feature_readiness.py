@@ -25,7 +25,10 @@ FUTURES_REST_KLINES_URL = "https://fapi.binance.com/fapi/v1/klines"
 
 META_PATH_ENV = "AUDIT_MODEL_META_PATH"
 REFERENCE_PATH_ENV = "AUDIT_REFERENCE_PATH"
-RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths()
+MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
+RUNTIME_ARTIFACT_PATHS = load_runtime_artifact_paths(
+    asset=MODELING_DATASET_SETTINGS["active_asset"]
+)
 RUNTIME_INDICATOR_HISTORY_REQUIREMENTS_PATH = Path(
     RUNTIME_ARTIFACT_PATHS["indicator_history_requirements_path"]
 )
@@ -44,7 +47,6 @@ USE_REST_BOOTSTRAP = True
 REST_BOOTSTRAP_EXTRA_CANDLES = 100_000
 REST_TIMEOUT_SEC = 20
 
-MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
 SYMBOL = str(
     MODELING_DATASET_SETTINGS.get("volume_symbol")
     or MODELING_DATASET_SETTINGS.get("symbol")
@@ -985,6 +987,11 @@ import time
 from collections import deque
 from pathlib import Path
 
+os.environ.setdefault(
+    "POLYMARKET_RUNTIME_ASSET",
+    str(MODELING_DATASET_SETTINGS["active_asset"]),
+)
+
 import numpy as np
 import pandas as pd
 
@@ -993,7 +1000,10 @@ from create_modeling_dataset import (
     concat_feature_frame,
     parse_fit_results,
 )
-from features.basis_premium_features import validate_basis_premium_feature_columns
+from features.basis_premium_features import (
+    add_basis_premium_features,
+    validate_basis_premium_feature_columns,
+)
 from features.candle_features import (
     RAW_OHLCV_COLS,
     SUPPORTED_CANDLE_FEATURE_COLS,
@@ -1006,6 +1016,7 @@ from features.candle_features import (
 from features.session_open_features import (
     add_session_open_features,
 )
+from features.feature_intervals import FEATURE_INTERVAL_TO_RULE
 from features.realized_volatility import add_realized_volatility_features
 from features.volume_profile_fixed_range import (
     FEATURE_VERSION as VP_FEATURE_VERSION,
@@ -1022,6 +1033,7 @@ from features.volume_profile_fixed_range import (
     validate_volume_profile_model_metadata,
 )
 from run import (
+    fetch_closed_ohlcv_range as fetch_live_closed_ohlcv_range,
     INDICATOR_HISTORY_REQUIREMENTS_PATH,
     INTERVAL,
     TRADE_POLICY_CONFIG_PATH,
@@ -1038,9 +1050,14 @@ from run import (
     load_model_and_meta,
     load_required_stable_window,
     parse_target_bucket_minutes,
+    _basis_premium_config,
+    _basis_premium_intervals_from_feature_cols,
 )
 from utils.data import (
+    load_modeling_dataset_artifact_metadata,
+    resolve_raw_dataset_input_path,
     resolve_modeling_dataset_parquet_path,
+    resolve_modeling_float_dtype_name,
     split_feature_subset,
 )
 
@@ -1057,12 +1074,13 @@ FEATURE_DROP_MAX_REL_DIFF_TOL = 1e-2
 # Runtime settings
 AUDIT_DAYS_BACK = DEFAULT_AUDIT_DAYS_BACK
 AUDIT_BOOTSTRAP_CANDLES = DEFAULT_BOOTSTRAP_CANDLES
-AUDIT_MAX_STEPS = 10_080
+AUDIT_MAX_STEPS = 20_160
 AUDIT_MAX_KEEP = AUDIT_BOOTSTRAP_CANDLES
 AUDIT_MODEL_META_PATH = MODEL_META_PATH
 AUDIT_PARQUET_PATH = None
 AUDIT_USE_ANCHOR_VP_STATE = True
 AUDIT_OVERWRITE_ANCHOR_VP_STATE = False
+AUDIT_USE_REST_LIVE_OHLCV_SOURCE = True
 AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY = True
 AUDIT_OUTPUT_DIR = None
 AUDIT_DRILLDOWN_FEATURE = None
@@ -1157,11 +1175,355 @@ def _load_model_feature_importance_frame(meta):
     return out
 
 
-def resolve_anchor_volume_profile_state_path(anchor_candle_opened):
+def _normalize_artifact_float_precision(raw_value, *, source_label):
+    if raw_value is None or not str(raw_value).strip():
+        raise ValueError(f"{source_label} is missing float_precision.")
+    try:
+        return resolve_modeling_float_dtype_name({"float_precision": raw_value})
+    except ValueError as exc:
+        raise ValueError(
+            f"{source_label} has unsupported float_precision={raw_value!r}."
+        ) from exc
+
+
+def _path_compare_key(path_value):
+    return str(Path(path_value).resolve(strict=False)).casefold()
+
+
+def validate_modeling_artifacts_for_audit(
+        *,
+        parquet_path,
+        model_meta_path,
+        model_meta,
+):
+    parquet_path = Path(parquet_path)
+    active_precision = resolve_modeling_float_dtype_name(MODELING_DATASET_SETTINGS)
+    dataset_meta, dataset_metadata_path = load_modeling_dataset_artifact_metadata(
+        parquet_path
+    )
+    dataset_precision = _normalize_artifact_float_precision(
+        dataset_meta.get("float_precision"),
+        source_label=f"modeling dataset metadata {dataset_metadata_path}",
+    )
+    if dataset_precision != active_precision:
+        raise ValueError(
+            "Modeling dataset artifact is stale for the active modeling config. "
+            f"active_float_precision={active_precision} "
+            f"dataset_float_precision={dataset_precision} "
+            f"parquet_path={parquet_path} metadata_path={dataset_metadata_path}. "
+            "Rebuild the modeling dataset before running live feature parity audit."
+        )
+
+    metadata_parquet_path = str(dataset_meta.get("parquet_path") or "").strip()
+    if metadata_parquet_path and (
+            _path_compare_key(metadata_parquet_path) != _path_compare_key(parquet_path)
+    ):
+        raise ValueError(
+            "Modeling dataset metadata points at a different parquet artifact. "
+            f"metadata_parquet_path={metadata_parquet_path} "
+            f"audit_parquet_path={parquet_path} metadata_path={dataset_metadata_path}."
+        )
+
+    model_data_path = str(model_meta.get("data_path") or "").strip()
+    if model_data_path and (
+            _path_compare_key(model_data_path) != _path_compare_key(parquet_path)
+    ):
+        raise ValueError(
+            "Model metadata was trained on a different dataset parquet. "
+            f"model_meta_path={model_meta_path} model_data_path={model_data_path} "
+            f"audit_parquet_path={parquet_path}."
+        )
+
+    numeric_precision = dict(model_meta.get("numeric_precision") or {})
+    model_config_precision_raw = numeric_precision.get("configured_float_precision")
+    if model_config_precision_raw not in (None, ""):
+        model_config_precision = _normalize_artifact_float_precision(
+            model_config_precision_raw,
+            source_label=f"model metadata {model_meta_path} numeric_precision",
+        )
+        if model_config_precision != active_precision:
+            raise ValueError(
+                "Model metadata float precision does not match active modeling config. "
+                f"model_meta_path={model_meta_path} "
+                f"model_configured_float_precision={model_config_precision} "
+                f"active_float_precision={active_precision}. "
+                "Retrain the model or switch to the matching modeling config."
+            )
+
+    model_parquet_precision_raw = numeric_precision.get("parquet_float_columns")
+    if model_parquet_precision_raw not in (None, ""):
+        model_parquet_precision = _normalize_artifact_float_precision(
+            model_parquet_precision_raw,
+            source_label=f"model metadata {model_meta_path} numeric_precision",
+        )
+        if model_parquet_precision != dataset_precision:
+            raise ValueError(
+                "Model metadata parquet precision does not match dataset metadata. "
+                f"model_meta_path={model_meta_path} "
+                f"model_parquet_float_columns={model_parquet_precision} "
+                f"dataset_float_precision={dataset_precision} "
+                f"dataset_metadata_path={dataset_metadata_path}. "
+                "Rebuild/retrain artifacts from one consistent modeling config."
+            )
+
+    return {
+        "active_float_precision": active_precision,
+        "dataset_float_precision": dataset_precision,
+        "dataset_metadata": dataset_meta,
+        "dataset_metadata_path": dataset_metadata_path,
+    }
+
+
+def _basis_premium_feature_columns(feature_columns):
+    parts = split_feature_subset(feature_columns, source_label="audit feature columns")
+    return tuple(parts["basis_premium_feature_cols"])
+
+
+def _basis_premium_dataset_futures_close_col(dataset_meta):
+    basis_meta = dataset_meta.get("basis_premium_features")
+    if not isinstance(basis_meta, dict):
+        raise ValueError(
+            "Model requires basis premium features but dataset metadata is missing "
+            "basis_premium_features. Rebuild the modeling dataset."
+        )
+    futures_close_col = str(basis_meta.get("futures_close_col") or "").strip()
+    if not futures_close_col:
+        raise ValueError(
+            "Model requires basis premium features but dataset metadata does not "
+            "record the resolved futures_close_col. Rebuild the modeling dataset."
+        )
+    return futures_close_col
+
+
+def _basis_premium_auxiliary_columns(feature_columns, dataset_meta):
+    if not _basis_premium_feature_columns(feature_columns):
+        return tuple()
+    futures_close_col = _basis_premium_dataset_futures_close_col(dataset_meta)
+    if futures_close_col in RAW_OHLCV_COLS or futures_close_col in feature_columns:
+        return tuple()
+    return (futures_close_col,)
+
+
+def _parquet_column_names(parquet_path):
+    import pyarrow.parquet as pq
+
+    return tuple(pq.ParquetFile(parquet_path).schema_arrow.names)
+
+
+def _split_parquet_and_raw_auxiliary_columns(parquet_path, auxiliary_columns):
+    available_columns = set(_parquet_column_names(parquet_path))
+    parquet_columns = []
+    raw_columns = []
+    for column_name in auxiliary_columns:
+        if column_name in available_columns:
+            parquet_columns.append(column_name)
+        else:
+            raw_columns.append(column_name)
+    return tuple(parquet_columns), tuple(raw_columns)
+
+
+def _merge_raw_auxiliary_columns(frame, auxiliary_columns):
+    auxiliary_columns = tuple(str(col).strip() for col in auxiliary_columns if str(col).strip())
+    if not auxiliary_columns:
+        return frame
+
+    raw_path = resolve_raw_dataset_input_path(MODELING_DATASET_SETTINGS)
+    try:
+        raw_frame = pd.read_csv(raw_path, usecols=["Opened", *auxiliary_columns])
+    except ValueError as exc:
+        raise ValueError(
+            "Raw dataset is missing auxiliary columns required by audit replay. "
+            f"raw_path={raw_path} columns={list(auxiliary_columns)}"
+        ) from exc
+
+    raw_frame["Opened"] = _ensure_utc_opened(raw_frame["Opened"])
+    for column_name in auxiliary_columns:
+        raw_frame[column_name] = pd.to_numeric(
+            raw_frame[column_name],
+            errors="coerce",
+        )
+    raw_frame = (
+        raw_frame.loc[:, ["Opened", *auxiliary_columns]]
+        .sort_values("Opened")
+        .drop_duplicates(subset=["Opened"])
+        .reset_index(drop=True)
+    )
+
+    out = frame.copy()
+    expected = out.loc[:, ["Opened"]].copy()
+    expected["Opened"] = _ensure_utc_opened(expected["Opened"])
+    expected["_audit_row_order"] = np.arange(len(expected), dtype=np.int64)
+    aligned = expected.merge(
+        raw_frame,
+        on="Opened",
+        how="left",
+        sort=False,
+        validate="one_to_one",
+    ).sort_values("_audit_row_order", kind="stable")
+
+    missing_mask = aligned.loc[:, list(auxiliary_columns)].isna().any(axis=1)
+    if bool(missing_mask.any()):
+        missing_preview = ", ".join(
+            aligned.loc[missing_mask, "Opened"].head(5).astype(str).tolist()
+        )
+        raise ValueError(
+            "Raw dataset does not cover auxiliary columns required by audit replay. "
+            f"raw_path={raw_path} columns={list(auxiliary_columns)} "
+            f"missing_rows={int(missing_mask.sum())} preview=[{missing_preview}]"
+        )
+
+    for column_name in auxiliary_columns:
+        out[column_name] = aligned[column_name].to_numpy(dtype=np.float64, copy=False)
+    return out
+
+
+def _required_live_source_columns(auxiliary_columns=()):
+    return list(
+        dict.fromkeys(
+            [
+                *RAW_OHLCV_COLS,
+                *(
+                    str(col).strip()
+                    for col in auxiliary_columns
+                    if str(col).strip()
+                ),
+            ]
+        )
+    )
+
+
+def _normalize_live_source_frame(frame, required_columns, *, source_label):
+    missing_columns = [
+        column_name for column_name in ["Opened", *required_columns]
+        if column_name not in frame.columns
+    ]
+    if missing_columns:
+        raise ValueError(
+            "Live OHLCV source is missing required columns. "
+            f"source={source_label} columns={missing_columns}"
+        )
+
+    out = frame.loc[:, ["Opened", *required_columns]].copy()
+    out["Opened"] = _ensure_utc_opened(out["Opened"])
+    for column_name in required_columns:
+        out[column_name] = pd.to_numeric(out[column_name], errors="coerce")
+    return (
+        out.sort_values("Opened")
+        .drop_duplicates(subset=["Opened"], keep="last")
+        .reset_index(drop=True)
+    )
+
+
+def _align_live_source_frame(frame, expected_opened, required_columns, *, source_label):
+    expected = pd.DataFrame({"Opened": _ensure_utc_opened(pd.Series(expected_opened))})
+    expected["_audit_row_order"] = np.arange(len(expected), dtype=np.int64)
+    source = _normalize_live_source_frame(
+        frame,
+        required_columns,
+        source_label=source_label,
+    )
+    aligned = expected.merge(
+        source,
+        on="Opened",
+        how="left",
+        sort=False,
+        validate="one_to_one",
+    ).sort_values("_audit_row_order", kind="stable")
+
+    missing_mask = aligned.loc[:, required_columns].isna().any(axis=1)
+    if bool(missing_mask.any()):
+        missing_preview = ", ".join(
+            aligned.loc[missing_mask, "Opened"].head(5).astype(str).tolist()
+        )
+        raise ValueError(
+            "Live OHLCV source does not cover the audit replay window. "
+            f"source={source_label} missing_rows={int(missing_mask.sum())} "
+            f"preview=[{missing_preview}]"
+        )
+
+    return aligned.loc[:, ["Opened", *required_columns]].reset_index(drop=True)
+
+
+def _load_raw_live_source_frame(expected_opened, required_columns):
+    raw_path = resolve_raw_dataset_input_path(MODELING_DATASET_SETTINGS)
+    try:
+        raw_frame = pd.read_csv(raw_path, usecols=["Opened", *required_columns])
+    except ValueError as exc:
+        raise ValueError(
+            "Raw dataset is missing columns required for live OHLCV replay. "
+            f"raw_path={raw_path} columns={required_columns}"
+        ) from exc
+
+    return _align_live_source_frame(
+        raw_frame,
+        expected_opened,
+        required_columns,
+        source_label=f"raw_csv:{raw_path}",
+    ), {
+        "live_ohlcv_source": "raw_csv",
+        "live_ohlcv_path": str(raw_path),
+    }
+
+
+def load_live_source_audit_frame(
+        *,
+        audit_window,
+        expected_opened,
+        auxiliary_columns=(),
+        use_rest=None,
+):
+    if use_rest is None:
+        use_rest = bool(AUDIT_USE_REST_LIVE_OHLCV_SOURCE)
+    required_columns = _required_live_source_columns(auxiliary_columns)
+    if use_rest:
+        try:
+            with requests.Session() as session:
+                rest_frame = fetch_live_closed_ohlcv_range(
+                    session,
+                    start_opened=audit_window.bootstrap_start,
+                    end_opened=audit_window.audit_end,
+                )
+            aligned = _align_live_source_frame(
+                rest_frame,
+                expected_opened,
+                required_columns,
+                source_label="live_rest_api",
+            )
+            return aligned, {
+                "live_ohlcv_source": "live_rest_api",
+                "live_ohlcv_path": "",
+            }
+        except Exception as exc:
+            print(
+                "[warn] live OHLCV REST replay source failed, fallback to raw CSV: "
+                f"{exc}"
+            )
+
+    frame, metadata = _load_raw_live_source_frame(expected_opened, required_columns)
+    if use_rest:
+        metadata["live_ohlcv_source"] = "raw_csv_fallback_after_rest_failure"
+    return frame, metadata
+
+
+def _state_path_token(value):
+    token = "".join(
+        ch.lower() if ch.isalnum() else "_"
+        for ch in str(value).strip()
+    ).strip("_")
+    return token or "source"
+
+
+def resolve_anchor_volume_profile_state_path(
+        anchor_candle_opened,
+        source_label="raw_live_source",
+):
     stamp = pd.Timestamp(anchor_candle_opened).strftime("%Y%m%d_%H%M")
     return (
             VP_AUDIT_ANCHOR_STATE_DIR
-            / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}_audit_anchor_{stamp}"
+            / (
+                f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}_audit_anchor_"
+                f"{_state_path_token(source_label)}_{stamp}"
+            )
     )
 
 
@@ -1190,8 +1552,7 @@ def _feature_group_map(feature_columns):
 
 
 def _ignored_basis_premium_feature_columns(feature_columns):
-    parts = split_feature_subset(feature_columns, source_label="audit feature columns")
-    return tuple(parts["basis_premium_feature_cols"])
+    return tuple()
 
 
 def _audited_feature_columns(feature_columns):
@@ -1396,6 +1757,13 @@ def _print_audit_console_summary(results, written_paths):
         f"max_abs_proba={_format_console_value(summary.get('max_proba_up_abs_diff'))} | "
         "rows_gt_tol="
         f"{_format_console_value(summary.get('rows_with_proba_diff_gt_tol'))}"
+    )
+    print(
+        "  live OHLCV source: "
+        f"{_format_console_value(summary.get('live_ohlcv_source'))} | "
+        f"rows={_format_console_value(summary.get('live_ohlcv_rows'))} | "
+        "max_abs_diff_vs_stored="
+        f"{_format_console_value(summary.get('live_ohlcv_vs_stored_max_abs_diff'))}"
     )
     print(
         "  business drift: "
@@ -2164,6 +2532,7 @@ def load_modeling_raw_history_frame(
         parquet_path,
         audit_end,
         history_start=None,
+        extra_columns=(),
 ):
     filters = []
     if history_start is not None:
@@ -2183,7 +2552,7 @@ def load_modeling_raw_history_frame(
     )
     frame = pd.read_parquet(
         parquet_path,
-        columns=["Opened", *RAW_OHLCV_COLS],
+        columns=list(dict.fromkeys(["Opened", *RAW_OHLCV_COLS, *extra_columns])),
         filters=filters,
     )
     frame["Opened"] = _ensure_utc_opened(frame["Opened"])
@@ -2199,13 +2568,17 @@ def build_current_recomputed_feature_history(
         *,
         raw_history_df,
         feature_columns,
+        basis_futures_close_col=None,
 ):
     feature_parts = split_feature_subset(
         feature_columns,
         source_label="audit feature columns",
     )
     recomputed_feature_columns = _audited_feature_columns(feature_columns)
-    feature_frame = raw_history_df.loc[:, ["Opened", *RAW_OHLCV_COLS]].copy()
+    base_columns = ["Opened", *RAW_OHLCV_COLS]
+    if basis_futures_close_col:
+        base_columns.append(str(basis_futures_close_col))
+    feature_frame = raw_history_df.loc[:, list(dict.fromkeys(base_columns))].copy()
 
     configured_rules = resolve_streak_interval_to_rule(
         MODELING_DATASET_SETTINGS.get("candle_streak_intervals", {})
@@ -2243,6 +2616,33 @@ def build_current_recomputed_feature_history(
 
     if feature_parts["realized_volatility_feature_cols"]:
         feature_frame = add_realized_volatility_features(feature_frame)
+
+    if feature_parts["basis_premium_feature_cols"]:
+        if not basis_futures_close_col:
+            raise ValueError(
+                "Cannot recompute basis premium features without futures_close_col."
+            )
+        basis_cfg = _basis_premium_config()
+        if not basis_cfg["enabled"]:
+            raise ValueError(
+                "Model requires basis premium features but "
+                "basis_premium_features.enabled is false."
+            )
+        basis_intervals = _basis_premium_intervals_from_feature_cols(
+            feature_parts["basis_premium_feature_cols"]
+        )
+        feature_frame = add_basis_premium_features(
+            feature_frame,
+            opened_col="Opened",
+            index_close_col=basis_cfg["index_close_col"],
+            futures_close_col=str(basis_futures_close_col),
+            interval_to_rule={
+                interval: FEATURE_INTERVAL_TO_RULE[interval]
+                for interval in basis_intervals
+            },
+            feature_cols=feature_parts["basis_premium_feature_cols"],
+            eps=basis_cfg["eps"],
+        )
 
     vp_cfg = normalize_volume_profile_config(
         MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
@@ -3335,14 +3735,35 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.basis_premium_feature_columns = tuple(
             feature_parts["basis_premium_feature_cols"]
         )
-        # The audit copies stored basis-premium features back into the candidate vector.
-        self.basis_premium_feature_columns = ()
-        self.basis_premium_cfg = {}
+        self.basis_premium_cfg = _basis_premium_config()
         self.basis_premium_interval_to_rule = {}
         self.basis_index_close_col = ""
         self.basis_index_ohlcv_idx = None
         self.basis_futures_close_col = ""
         self.basis_futures_close_np = None
+        if self.basis_premium_feature_columns:
+            if not self.basis_premium_cfg["enabled"]:
+                raise ValueError(
+                    "Model requires basis premium features but "
+                    "basis_premium_features.enabled is false."
+                )
+            self.basis_index_close_col = self.basis_premium_cfg["index_close_col"]
+            if self.basis_index_close_col not in OHLCV_COLS:
+                raise ValueError(
+                    "Pseudo-live basis premium audit requires index_close_col to be "
+                    f"one of raw OHLCV columns {OHLCV_COLS}; got "
+                    f"{self.basis_index_close_col!r}."
+                )
+            self.basis_index_ohlcv_idx = OHLCV_COLS.index(
+                self.basis_index_close_col
+            )
+            basis_intervals = _basis_premium_intervals_from_feature_cols(
+                self.basis_premium_feature_columns
+            )
+            self.basis_premium_interval_to_rule = {
+                interval: FEATURE_INTERVAL_TO_RULE[interval]
+                for interval in basis_intervals
+            }
         self.volume_profile_feature_columns = tuple(
             feature_parts["volume_profile_feature_cols"]
         )
@@ -3446,6 +3867,7 @@ class PseudoLiveAuditPredictor(LivePredictor):
             opened: (float(self.ohlcv_np[i, 0]), float(self.ohlcv_np[i, 3]))
             for i, opened in enumerate(self.opened_candles)
         }
+        self._initialize_basis_premium_state(bootstrap_df)
         self.records = []
         self.predicted_buckets = set()
         self.local_tz = None
@@ -3549,8 +3971,11 @@ def load_modeling_audit_frame(
         parquet_path,
         feature_columns,
         audit_window,
+        extra_columns=(),
 ):
-    columns = ["Opened", *RAW_OHLCV_COLS, *feature_columns]
+    columns = list(
+        dict.fromkeys(["Opened", *RAW_OHLCV_COLS, *feature_columns, *extra_columns])
+    )
     frame = pd.read_parquet(
         parquet_path,
         columns=columns,
@@ -3578,37 +4003,39 @@ def load_modeling_audit_frame(
 
 def load_anchor_volume_profile_history(
         *,
-        parquet_path,
         anchor_candle_opened,
 ):
     anchor_candle_opened = pd.Timestamp(anchor_candle_opened)
-    frame = pd.read_parquet(
-        parquet_path,
-        columns=["Opened", "High", "Low", "Volume"],
-        filters=[
-            (
-                "Opened",
-                "<=",
-                _naive_utc_timestamp(anchor_candle_opened),
-            ),
-        ],
+    raw_path = resolve_raw_dataset_input_path(MODELING_DATASET_SETTINGS)
+    frame = pd.read_csv(
+        raw_path,
+        usecols=["Opened", "High", "Low", "Volume"],
     )
     frame["Opened"] = _ensure_utc_opened(frame["Opened"])
     frame = (
-        frame.sort_values("Opened")
+        frame.loc[frame["Opened"] <= anchor_candle_opened]
+        .sort_values("Opened")
         .drop_duplicates(subset=["Opened"])
         .reset_index(drop=True)
     )
+    if frame.empty:
+        raise ValueError(
+            "Raw dataset does not contain volume profile history for audit anchor. "
+            f"raw_path={raw_path} anchor_opened={anchor_candle_opened.isoformat()}"
+        )
     return frame
 
 
 def build_or_load_anchor_volume_profile_state(
         *,
-        parquet_path,
         anchor_candle_opened,
         overwrite=False,
+        source_label="raw_live_source",
 ):
-    state_path = resolve_anchor_volume_profile_state_path(anchor_candle_opened)
+    state_path = resolve_anchor_volume_profile_state_path(
+        anchor_candle_opened,
+        source_label=source_label,
+    )
     vp_cfg = normalize_volume_profile_config(
         MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
     )
@@ -3633,7 +4060,6 @@ def build_or_load_anchor_volume_profile_state(
             )
 
     history_df = load_anchor_volume_profile_history(
-        parquet_path=parquet_path,
         anchor_candle_opened=anchor_candle_opened,
     )
     state = bootstrap_state_from_history(
@@ -3658,10 +4084,22 @@ def run_stored_modeling_vs_current_recompute_audit(
     )
 
     model, meta = load_model_and_meta(model_meta_path)
+    artifact_consistency = validate_modeling_artifacts_for_audit(
+        parquet_path=parquet_path,
+        model_meta_path=model_meta_path,
+        model_meta=meta,
+    )
     feature_importance_df = _load_model_feature_importance_frame(meta)
     feature_columns = list(meta.get("feature_columns", []))
     if not feature_columns:
         raise ValueError("Missing feature_columns in model metadata.")
+    basis_auxiliary_columns = _basis_premium_auxiliary_columns(
+        feature_columns,
+        artifact_consistency["dataset_metadata"],
+    )
+    basis_parquet_auxiliary_columns, basis_raw_auxiliary_columns = (
+        _split_parquet_and_raw_auxiliary_columns(parquet_path, basis_auxiliary_columns)
+    )
     validate_volume_profile_feature_columns(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
@@ -3693,6 +4131,11 @@ def run_stored_modeling_vs_current_recompute_audit(
         parquet_path=parquet_path,
         feature_columns=feature_columns,
         audit_window=audit_window,
+        extra_columns=basis_parquet_auxiliary_columns,
+    )
+    stored_audit_df = _merge_raw_auxiliary_columns(
+        stored_audit_df,
+        basis_raw_auxiliary_columns,
     )
     history_start, history_rows, history_total_rows = (
         resolve_recent_history_tail_window(
@@ -3712,10 +4155,18 @@ def run_stored_modeling_vs_current_recompute_audit(
         parquet_path=parquet_path,
         audit_end=audit_window.audit_end,
         history_start=history_start,
+        extra_columns=basis_parquet_auxiliary_columns,
+    )
+    raw_history_df = _merge_raw_auxiliary_columns(
+        raw_history_df,
+        basis_raw_auxiliary_columns,
     )
     recomputed_history_df = build_current_recomputed_feature_history(
         raw_history_df=raw_history_df,
         feature_columns=recomputed_feature_columns,
+        basis_futures_close_col=(
+            basis_auxiliary_columns[0] if basis_auxiliary_columns else None
+        ),
     )
     recomputed_audit_df = align_feature_frame_to_audit_rows(
         audit_df=stored_audit_df,
@@ -3771,6 +4222,12 @@ def run_stored_modeling_vs_current_recompute_audit(
                     "history_start": history_start.isoformat(),
                     "history_rows": int(history_rows),
                     "history_total_rows": int(history_total_rows),
+                    "artifact_dataset_metadata_path": str(
+                        artifact_consistency["dataset_metadata_path"]
+                    ),
+                    "basis_auxiliary_raw_columns": ", ".join(
+                        basis_raw_auxiliary_columns
+                    ),
                     "ignored_basis_premium_feature_count": len(
                         ignored_basis_feature_columns
                     ),
@@ -3822,18 +4279,29 @@ def run_live_modeling_feature_audit(
         )
         if AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY:
             print(
-                "[audit] indicator history requirements artifact contains unstable features; "
-                "continuing because audit override is enabled"
+                "[audit] unstable indicator summary override is enabled for this audit"
             )
         print(
             "[audit] inputs " f"model_meta={model_meta_path} " f"parquet={parquet_path}"
         )
 
     model, meta = load_model_and_meta(model_meta_path)
+    artifact_consistency = validate_modeling_artifacts_for_audit(
+        parquet_path=parquet_path,
+        model_meta_path=model_meta_path,
+        model_meta=meta,
+    )
     feature_importance_df = _load_model_feature_importance_frame(meta)
     feature_columns = list(meta.get("feature_columns", []))
     if not feature_columns:
         raise ValueError("Missing feature_columns in model metadata.")
+    basis_auxiliary_columns = _basis_premium_auxiliary_columns(
+        feature_columns,
+        artifact_consistency["dataset_metadata"],
+    )
+    basis_parquet_auxiliary_columns, basis_raw_auxiliary_columns = (
+        _split_parquet_and_raw_auxiliary_columns(parquet_path, basis_auxiliary_columns)
+    )
     validate_volume_profile_feature_columns(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
@@ -3894,6 +4362,11 @@ def run_live_modeling_feature_audit(
         parquet_path=parquet_path,
         feature_columns=feature_columns,
         audit_window=audit_window,
+        extra_columns=basis_parquet_auxiliary_columns,
+    )
+    modeling_frame = _merge_raw_auxiliary_columns(
+        modeling_frame,
+        basis_raw_auxiliary_columns,
     )
 
     if len(modeling_frame) != audit_window.bootstrap_rows + audit_window.audit_rows:
@@ -3903,14 +4376,58 @@ def run_live_modeling_feature_audit(
             f"got {len(modeling_frame)}."
         )
 
-    bootstrap_df = modeling_frame.iloc[: audit_window.bootstrap_rows].copy()
+    live_source_frame, live_source_metadata = load_live_source_audit_frame(
+        audit_window=audit_window,
+        expected_opened=modeling_frame["Opened"],
+        auxiliary_columns=basis_auxiliary_columns,
+    )
+    if len(live_source_frame) != len(modeling_frame):
+        raise RuntimeError(
+            "Unexpected live OHLCV source frame length. "
+            f"Expected {len(modeling_frame)}, got {len(live_source_frame)}."
+        )
+    if not live_source_frame["Opened"].equals(modeling_frame["Opened"]):
+        raise RuntimeError(
+            "Live OHLCV source timestamps are not aligned with modeling audit rows."
+        )
+    if progress_enabled:
+        print(
+            "[audit] live OHLCV source "
+            f"source={live_source_metadata['live_ohlcv_source']} "
+            f"rows={len(live_source_frame)}"
+        )
+
     audit_df = (
         modeling_frame.iloc[audit_window.bootstrap_rows:].copy().reset_index(drop=True)
     )
+    live_bootstrap_df = live_source_frame.iloc[
+        : audit_window.bootstrap_rows
+    ].copy()
+    live_audit_source_df = live_source_frame.iloc[
+        audit_window.bootstrap_rows:
+    ].copy().reset_index(drop=True)
     if audit_df.empty:
         raise RuntimeError("Audit dataframe is empty after splitting bootstrap rows.")
 
-    anchor_candle_opened = pd.Timestamp(bootstrap_df["Opened"].iloc[-1])
+    source_ohlcv_abs_diff = np.abs(
+        live_source_frame.loc[:, RAW_OHLCV_COLS].to_numpy(dtype=np.float64, copy=False)
+        - modeling_frame.loc[:, RAW_OHLCV_COLS].to_numpy(dtype=np.float64, copy=False)
+    )
+    finite_source_ohlcv_diff = source_ohlcv_abs_diff[
+        np.isfinite(source_ohlcv_abs_diff)
+    ]
+    source_ohlcv_max_abs_diff = (
+        float(np.max(finite_source_ohlcv_diff))
+        if finite_source_ohlcv_diff.size
+        else 0.0
+    )
+    source_ohlcv_mean_abs_diff = (
+        float(np.mean(finite_source_ohlcv_diff))
+        if finite_source_ohlcv_diff.size
+        else 0.0
+    )
+
+    anchor_candle_opened = pd.Timestamp(live_bootstrap_df["Opened"].iloc[-1])
     anchor_vp_state = None
     anchor_vp_state_path = None
     if use_anchor_vp_state:
@@ -3918,13 +4435,13 @@ def run_live_modeling_feature_audit(
             print(
                 "[audit] loading anchor vp state "
                 f"anchor_opened={anchor_candle_opened.isoformat()} "
-                f"overwrite={bool(overwrite_anchor_vp_state)}"
+                f"source=raw_csv overwrite={bool(overwrite_anchor_vp_state)}"
             )
         anchor_vp_state, anchor_vp_state_path = (
             build_or_load_anchor_volume_profile_state(
-                parquet_path=parquet_path,
                 anchor_candle_opened=anchor_candle_opened,
                 overwrite=overwrite_anchor_vp_state,
+                source_label="raw_csv",
             )
         )
         if progress_enabled:
@@ -3934,7 +4451,7 @@ def run_live_modeling_feature_audit(
             )
 
     predictor = PseudoLiveAuditPredictor(
-        bootstrap_df,
+        live_bootstrap_df,
         model_meta_path=model_meta_path,
         max_keep=max_keep,
         volume_profile_state=anchor_vp_state,
@@ -3957,13 +4474,20 @@ def run_live_modeling_feature_audit(
     live_vector_rows = []
     live_nonfinite_rows = []
 
-    ignored_basis_feature_indices = [
-        feature_columns.index(feature)
-        for feature in ignored_basis_feature_columns
-        if feature in feature_columns
-    ]
-    ohlcv_matrix = audit_df[list(RAW_OHLCV_COLS)].to_numpy(dtype=np.float64, copy=False)
-    opened_values = audit_df["Opened"].to_list()
+    basis_futures_close_values = None
+    if predictor.basis_premium_feature_columns:
+        if predictor.basis_futures_close_col not in live_audit_source_df.columns:
+            raise RuntimeError(
+                "Audit frame is missing basis futures close column required by "
+                f"pseudo-live replay: {predictor.basis_futures_close_col!r}."
+            )
+        basis_futures_close_values = live_audit_source_df[
+            predictor.basis_futures_close_col
+        ].to_numpy(dtype=np.float64, copy=False)
+    ohlcv_matrix = live_audit_source_df[
+        list(RAW_OHLCV_COLS)
+    ].to_numpy(dtype=np.float64, copy=False)
+    opened_values = live_audit_source_df["Opened"].to_list()
     loop_started_at = time.perf_counter()
     total_steps = len(opened_values)
     decision_steps = 0
@@ -3978,6 +4502,11 @@ def run_live_modeling_feature_audit(
         predictor._append_new_candle(
             pd.Timestamp(opened),
             tuple(float(v) for v in ohlcv_matrix[row_idx, :]),
+            basis_futures_close=(
+                None
+                if basis_futures_close_values is None
+                else basis_futures_close_values[row_idx]
+            ),
         )
         volume_profile_values = (
             predictor._prepare_volume_profile_features_for_latest_candle(opened)
@@ -3988,10 +4517,6 @@ def run_live_modeling_feature_audit(
         if is_decision_step:
             snapshot = predictor.build_feature_snapshot(volume_profile_values)
             live_vector = snapshot["vector"][0, :].astype(np.float64, copy=True)
-            if ignored_basis_feature_indices:
-                live_vector[ignored_basis_feature_indices] = audit_df.loc[
-                    row_idx, list(ignored_basis_feature_columns)
-                ].to_numpy(dtype=np.float64, copy=False)
             live_vector_rows.append(live_vector)
             nonfinite_row = ~np.isfinite(live_vector)
             live_nonfinite_rows.append(nonfinite_row)
@@ -4076,6 +4601,18 @@ def run_live_modeling_feature_audit(
                     "max_steps": audit_window.max_steps,
                     "max_keep": int(max_keep),
                     "required_stable_window": int(predictor.required_stable_window),
+                    "artifact_dataset_metadata_path": str(
+                        artifact_consistency["dataset_metadata_path"]
+                    ),
+                    "basis_auxiliary_raw_columns": ", ".join(
+                        basis_raw_auxiliary_columns
+                    ),
+                    "live_ohlcv_source": live_source_metadata["live_ohlcv_source"],
+                    "live_ohlcv_path": live_source_metadata["live_ohlcv_path"],
+                    "live_ohlcv_rows": len(live_source_frame),
+                    "live_ohlcv_vs_stored_max_abs_diff": source_ohlcv_max_abs_diff,
+                    "live_ohlcv_vs_stored_mean_abs_diff": source_ohlcv_mean_abs_diff,
+                    "volume_profile_anchor_source": "raw_csv",
                     "ignored_basis_premium_feature_count": len(
                         ignored_basis_feature_columns
                     ),
@@ -4116,6 +4653,8 @@ def run_live_modeling_feature_audit(
         "summary": live_report["summary"],
         "audit_window": audit_window,
         "modeling_frame": modeling_frame,
+        "live_source_frame": live_source_frame,
+        "live_source_metadata": live_source_metadata,
         "audit_df": decision_audit_df,
         "live_feature_frame": live_feature_frame,
         "step_summary_df": live_report["step_summary_df"],
@@ -4697,6 +5236,20 @@ def _build_live_feature_parity_summary_payload(
         "bootstrap_rows": _summary_int(live_summary, "bootstrap_rows"),
         "audit_rows_total_1m": _summary_int(live_summary, "audit_rows_total_1m"),
         "decision_rows": _summary_int(live_summary, "decision_row_count"),
+        "live_ohlcv_source": live_summary.get("live_ohlcv_source"),
+        "live_ohlcv_path": live_summary.get("live_ohlcv_path"),
+        "live_ohlcv_rows": _summary_int(live_summary, "live_ohlcv_rows"),
+        "live_ohlcv_vs_stored_max_abs_diff": _summary_float(
+            live_summary,
+            "live_ohlcv_vs_stored_max_abs_diff",
+        ),
+        "live_ohlcv_vs_stored_mean_abs_diff": _summary_float(
+            live_summary,
+            "live_ohlcv_vs_stored_mean_abs_diff",
+        ),
+        "volume_profile_anchor_source": live_summary.get(
+            "volume_profile_anchor_source"
+        ),
         "feature_count": _summary_int(live_summary, "feature_count"),
         "features_to_inspect": features_to_inspect_count,
         "features_to_inspect_by_severity": severity_counts,
@@ -5065,6 +5618,7 @@ __all__ = [
     "evaluate_feature_stability",
     "feature_drilldown",
     "load_modeling_audit_frame",
+    "load_live_source_audit_frame",
     "normalize_opened_to_utc_naive",
     "resolve_audit_window",
     "resolve_anchor_volume_profile_state_path",
@@ -5073,6 +5627,7 @@ __all__ = [
     "run_live_feature_parity_audit",
     "run_live_modeling_feature_audit",
     "save_audit_outputs",
+    "validate_modeling_artifacts_for_audit",
 ]
 
 

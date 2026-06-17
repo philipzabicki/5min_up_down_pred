@@ -673,6 +673,17 @@ def _normalize_runtime_artifacts(artifacts, asset, *, source_label):
             "Runtime manifest uses deprecated artifacts.trade_policy_runtime_config_path. "
             "Use artifacts.trade_policy_path as the single active trade policy path."
         )
+    indicator_requirements_path = str(
+        artifacts.get("indicator_history_requirements_path") or ""
+    ).strip()
+    if not indicator_requirements_path:
+        if asset is None:
+            raise ValueError(
+                "Missing required config key: indicator_history_requirements_path"
+            )
+        indicator_requirements_path = (
+            f"data/runtime/{normalize_asset_name(asset)}/indicator_history_requirements.json"
+        )
     return {
         "model_meta_path": _format_runtime_path(
             require_text(artifacts, "model_meta_path"),
@@ -685,7 +696,7 @@ def _normalize_runtime_artifacts(artifacts, asset, *, source_label):
             source_label=f"{source_label}.artifacts.trade_policy_path",
         ),
         "indicator_history_requirements_path": _format_runtime_path(
-            require_text(artifacts, "indicator_history_requirements_path"),
+            indicator_requirements_path,
             asset,
             source_label=(
                 f"{source_label}.artifacts.indicator_history_requirements_path"

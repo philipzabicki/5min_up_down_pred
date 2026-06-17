@@ -16,13 +16,14 @@ import pyarrow.parquet as pq
 from utils.config import coerce_path, path_to_portable_str
 from utils.data import TARGET_WEIGHT_COL, TARGET_WEIGHT_DECISION_VALUE
 from utils.optuna import make_utc_run_timestamp, sanitize_run_name
-from utils.project_config import active_asset_path, load_runtime_artifact_paths
+from utils.project_config import active_asset_path
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-# MODEL_ARTIFACT_PATH=None uses configs/runtime/active.json artifacts.model_meta_path.
+# MODEL_ARTIFACT_PATH=None uses the latest active-asset model under data/models/{asset}.
 MODEL_ARTIFACT_PATH = None
+DEFAULT_MODEL_ARTIFACT_PATH = active_asset_path("data/models/{asset}")
 DATA_PATH_OVERRIDE = None
 OUTPUT_ROOT = active_asset_path("data/analysis/model_one_way/{asset}")
 
@@ -128,6 +129,8 @@ def resolve_model_artifact(model_artifact):
 
     if artifact_path.is_dir():
         meta_candidates = list(artifact_path.glob("lgbm_meta_*.json"))
+        if not meta_candidates:
+            meta_candidates = list(artifact_path.glob("*/lgbm_meta_*.json"))
         if meta_candidates:
             artifact_path = max(
                 meta_candidates,
@@ -135,6 +138,8 @@ def resolve_model_artifact(model_artifact):
             )
         else:
             model_candidates = list(artifact_path.glob("lgbm_*.txt"))
+            if not model_candidates:
+                model_candidates = list(artifact_path.glob("*/lgbm_*.txt"))
             if not model_candidates:
                 raise FileNotFoundError(
                     f"No lgbm_meta_*.json or lgbm_*.txt found in {artifact_path}"
@@ -193,7 +198,7 @@ def resolve_model_artifact(model_artifact):
 def resolve_configured_model_artifact_path():
     if MODEL_ARTIFACT_PATH is not None:
         return Path(MODEL_ARTIFACT_PATH)
-    return load_runtime_artifact_paths()["model_meta_path"]
+    return Path(DEFAULT_MODEL_ARTIFACT_PATH)
 
 
 def resolve_data_path(meta):

@@ -167,6 +167,31 @@ class RuntimeArtifactPathTests(unittest.TestCase):
             Path("data/runtime/BTC/requirements.json"),
         )
 
+    def test_defaults_empty_indicator_history_requirements_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = _write_manifest(
+                tmpdir,
+                {
+                    "assets": {
+                        "BTC": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "data/models/BTC/meta.json",
+                                "trade_policy_path": "policy.json",
+                                "indicator_history_requirements_path": "",
+                            },
+                        }
+                    }
+                },
+            )
+
+            paths = load_runtime_artifact_paths(manifest_path, asset="BTC")
+
+        self.assertEqual(
+            paths["indicator_history_requirements_path"],
+            Path("data/runtime/BTC/indicator_history_requirements.json"),
+        )
+
     def test_loads_requested_runtime_asset(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = _write_manifest(

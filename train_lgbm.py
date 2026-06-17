@@ -79,25 +79,56 @@ def resolve_walk_forward_test_to_train_ratio():
 
 WF_TEST_TO_TRAIN_RATIO = resolve_walk_forward_test_to_train_ratio()
 
+
+def _resolve_artifact_float_precision(raw_value, *, source_label):
+    if raw_value is None or not str(raw_value).strip():
+        raise ValueError(f"{source_label} is missing float_precision.")
+    try:
+        return resolve_modeling_float_dtype_name({"float_precision": raw_value})
+    except ValueError as exc:
+        raise ValueError(
+            f"{source_label} has unsupported float_precision={raw_value!r}."
+        ) from exc
+
+
+def validate_training_dataset_precision(data_path, expected_float_precision):
+    dataset_metadata, metadata_path = load_modeling_dataset_artifact_metadata(data_path)
+    dataset_float_precision = _resolve_artifact_float_precision(
+        dataset_metadata.get("float_precision"),
+        source_label=f"modeling dataset metadata {metadata_path}",
+    )
+    expected_float_precision = resolve_modeling_float_dtype_name(
+        {"float_precision": expected_float_precision}
+    )
+    if dataset_float_precision != expected_float_precision:
+        raise ValueError(
+            "Modeling dataset artifact is stale for the active training config. "
+            f"configured_float_precision={expected_float_precision} "
+            f"dataset_float_precision={dataset_float_precision} "
+            f"data_path={data_path} metadata_path={metadata_path}. "
+            "Rebuild the modeling dataset before training."
+        )
+    return dataset_metadata, metadata_path, dataset_float_precision
+
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-        "learning_rate": 0.004387225197481959,
-        "num_leaves": 133,
-        "min_data_in_leaf": 720,
-        "max_depth": 206,
-        "feature_fraction": 0.8974595250202884,
-        "bagging_fraction": 0.79292032203349,
-        "bagging_freq": 20,
-        "lambda_l2": 11.605081849728947,
-        "lambda_l1": 6.882639835280196,
-        "min_sum_hessian_in_leaf": 7.72484450824706,
-        "min_gain_to_split": 0.3243665400449587,
-        "feature_fraction_bynode": 0.42688754866797657,
-        "path_smooth": 33.372266902988066,
-        "extra_trees": False,
-        "monotone_constraints_method": "basic",
-        "monotone_penalty": 1.2685005945295802
+      "learning_rate": 0.02082784518014535,
+      "num_leaves": 37,
+      "min_data_in_leaf": 103,
+      "max_depth": 169,
+      "feature_fraction": 0.37752257586311444,
+      "bagging_fraction": 0.6274488270891571,
+      "bagging_freq": 23,
+      "lambda_l2": 53.12614038557139,
+      "lambda_l1": 10.31812331923178,
+      "min_sum_hessian_in_leaf": 0.0061350132104521764,
+      "min_gain_to_split": 0.07525941090726794,
+      "feature_fraction_bynode": 0.7170577314073263,
+      "path_smooth": 1.124852812228145,
+      "extra_trees": False,
+      "monotone_constraints_method": "basic",
+      "monotone_penalty": 0.0
     }
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
@@ -725,6 +756,9 @@ def main():
     modeling_float_dtype = resolve_modeling_float_dtype(dataset_settings)
     modeling_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
     data_path = resolve_modeling_dataset_output_paths(dataset_settings)["parquet"]
+    _dataset_metadata, dataset_metadata_path, parquet_float_dtype_name = (
+        validate_training_dataset_precision(data_path, modeling_float_dtype_name)
+    )
     oof_output_paths = resolve_oof_prediction_output_paths(
         dataset_settings,
         preview_rows=OOF_PREVIEW_ROWS,
@@ -771,6 +805,7 @@ def main():
     print(
         "Numeric precision | "
         f"configured_float_precision={modeling_float_dtype_name} "
+        f"dataset_float_precision={parquet_float_dtype_name} "
         f"train_feature_matrix={modeling_float_dtype_name} "
         f"sample_weight={modeling_float_dtype_name}"
     )
@@ -987,7 +1022,8 @@ def main():
         ),
         "numeric_precision": {
             "configured_float_precision": modeling_float_dtype_name,
-            "parquet_float_columns": modeling_float_dtype_name,
+            "parquet_float_columns": parquet_float_dtype_name,
+            "dataset_metadata_path": path_to_portable_str(dataset_metadata_path),
             "train_feature_matrix": modeling_float_dtype_name,
             "sample_weight": modeling_float_dtype_name,
             "oof_prediction": modeling_float_dtype_name,

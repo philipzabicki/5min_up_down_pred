@@ -25,7 +25,7 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float32",
+      "float_precision": "float64",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -68,8 +68,8 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "none",
-        "artifact_path": "",
+        "mode": "artifact",
+        "artifact_path": "data/analysis/feature_selector/BTC/20260616_221810/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
@@ -104,7 +104,14 @@
           "BollingerBands_fit_3m_pop64_maper1081_masouhlc3_matypdema_stdmaper8_stdmatypema_stdmul13.190983_stdsouohlc4",
           "StochOsc_fit_720m_pop128_faskper744_slodmatypkama_slodper1496_slokmatyptrima_slokper1093_qe0.1_qm0.3_tf0.8_stmc_sg20",
           "BollingerBands_fit_60m_pop64_maper1532_masoulow_matypvwma_stdmaper13_stdmatypwma_stdmul10.549775_stdsouhlc3",
-          "ChaikinOsc_fit_5m_candle_up_pop128_fasmatyphma_fasper509_slomatypsma_sloper8_qe0.1_qm0.15_tf0.8_stmc_sg10"
+          "ChaikinOsc_fit_5m_candle_up_pop128_fasmatyphma_fasper509_slomatypsma_sloper8_qe0.1_qm0.15_tf0.8_stmc_sg10",
+          "ChaikinOsc_fit_7m_pop128_fasmatypdema_fasper645_slomatyplinreg_sloper586_qe0.2_qm0.2_tf0.8_stmc_sg15",
+          "ChaikinOsc_fit_1440m_pop128_fasmatypt3_fasper757_slomatypgma_sloper978_qe0.1_qm0.2_tf0.8_stmc_sg15",
+          "BollingerBands_fit_60m_pop128_maper1886_masouhlc3_matypt3_stdmaper27_stdmatypnwmaunif_stdmul5.843743_stdsouohlc4",
+          "ChaikinOsc_fit_240m_pop128_fasmatypkama_fasper687_slomatypkama_sloper121_qe0.1_qm0.3_tf0.8_stmc_sg20",
+          "ChaikinOsc_fit_5m_candle_up_pop128_fasmatypnwmaepan_fasper10_slomatypehma_sloper628_qe0.1_qm0.3_tf0.8_stmc_sg20",
+          "StochOsc_fit_4m_pop512_faskper601_slodmatypkama_slodper529_slokmatypkama_slokper41_qe0.2_qm0.25_tf0.8_stmd_sg20",
+          "KeltnerChannel_fit_2m_pop16_atrmatypnwmaepan_atrmul6.2753_atrper93_maper1786_matypmama_soulow"
         ]
       },
       "train_lgbm": {
@@ -377,7 +384,8 @@
           "vp_short_log_density_ratio_to_current_bin_minus_2": -1,
           "CDLBELTHOLD_1m": -1,
           "candle_signed_vol_4h_lag7": 1,
-          "CDLBELTHOLD_5m": -1
+          "CDLBELTHOLD_5m": -1,
+          "candle_signed_vol_1m_lag5": -1
         }
       }
     },
@@ -450,9 +458,11 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/ETH/20260614_180909/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/ETH/20260617_193745/recommended_features.json",
         "artifact_list_key": "final_feature_list",
-        "excluded_feature_names": []
+        "excluded_feature_names": [
+          "KeltnerChannel_fit_5m_candle_up_pop512_atrmatyptema_atrper1130_maper39_matyptrima_souhl2_qe0.1_qm0.15_tf0.8_stmc_sg10"
+        ]
       },
       "train_lgbm": {
         "train_default_model": false,
@@ -508,7 +518,25 @@
           "vp_short_log_density_ratio_to_current_bin_minus_6": -1,
           "candle_ret_co_5m_lag7": -1,
           "vp_medium_log_density_ratio_to_current_bin_plus_6": 1,
-          "candle_close_location_value_5m_lag6": -1
+          "candle_close_location_value_5m_lag6": -1,
+          "candle_wick_asym_15m_lag1": -1,
+          "KeltnerChannel_fit_5m_candle_up_pop768_atrmatyptema_atrper1153_maper26_matypt3_souohlc4_qe0.1_qm0.3_tf0.8_stmc_sg10": 1,
+          "candle_body_pressure_5m_lag7": -1,
+          "realized_volatility_15m": -1,
+          "candle_close_location_value_15m_lag2": -1,
+          "MACD_fit_5m_candle_up_pop512_fasmatypshmma_fasper84_fassouclose_sigmatypmama_sigper1251_slomatypsma_sloper1882_slosouclose_qe0.1_qm0.15_tf0.8_stmc_sg10": -1,
+          "realized_volatility_compression_expansion_1h_4h": 1,
+          "candle_range_ho_5m_lag1": -1,
+          "ADX_fit_5m_candle_up_pop512_adxper1583_atrper1215_matypadxfba_matypatrhma_matypnegdmkama_matypposdmkama_negdmper601_posdmper191_qe0.2_qm0.2_tf0.8_stmc_sg10": -1,
+          "candle_wick_asym_1d_lag3": 1,
+          "vp_short_log_density_ratio_to_current_bin_minus_8": -1,
+          "candle_wick_asym_1h_lag5": 1,
+          "vp_short_log_density_ratio_to_current_bin_plus_2": 1,
+          "CDLLONGLINE_1m": -1,
+          "candle_close_location_value_1h_lag5": -1,
+          "vp_short_log_density_ratio_to_current_bin_plus_7": 1,
+          "candle_wick_asym_15m_lag2": -1,
+          "MACD_fit_5m_candle_up_pop512_fasmatypnwmagauss_fasper290_fassouhlcc4_sigmatypnwmaepan_sigper19_slomatypnwmaunif_sloper41_slosouhl2_qe0.2_qm0.2_tf0.8_stmc_sg10": 1
         }
       }
     }

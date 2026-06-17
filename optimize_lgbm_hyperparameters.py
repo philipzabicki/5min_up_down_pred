@@ -58,27 +58,27 @@ FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
 FOLD_RECENCY_WEIGHT_MAX = 1.5
 
-MAX_N_ESTIMATORS = 3000
-EARLY_STOPPING_ROUNDS = 25
-PRUNE_REPORT_EVERY_N_ITER = 10
+MAX_N_ESTIMATORS = 4000
+EARLY_STOPPING_ROUNDS = 20
+PRUNE_REPORT_EVERY_N_ITER = 5
 
 SEED = 37
-LGBM_NUM_THREADS = 16
+LGBM_NUM_THREADS = 17
 OPTUNA_OPTIMIZE_N_JOBS = 1
 LGBM_DEVICE_TYPE = "gpu"
 LGBM_VERBOSITY = -1
 GPU_MAX_BIN_LIMIT = 63
 
 LGBM_OPTUNA_SEARCH_SPACE = {
-    "learning_rate": {"type": "float", "low": 0.0005, "high": 0.5, "log": True},
+    "learning_rate": {"type": "float", "low": 1e-5, "high": 0.5, "log": True},
     "num_leaves": {"type": "int", "low": 16, "high": 384},
-    "min_data_in_leaf": {"type": "int", "low": 2, "high": 8192, "log": True},
+    "min_data_in_leaf": {"type": "int", "low": 2, "high": 65_536, "log": False},
     "max_depth": {"type": "int", "low": 9, "high": 256},
     "feature_fraction": {"type": "float", "low": 0.01, "high": 1.0},
     "bagging_fraction": {"type": "float", "low": 0.01, "high": 1.0},
-    "bagging_freq": {"type": "int", "low": 0, "high": 25},
-    "lambda_l2": {"type": "float", "low": 0.0, "high": 100.0},
-    "lambda_l1": {"type": "float", "low": 0.0, "high": 100.0},
+    "bagging_freq": {"type": "int", "low": 0, "high": 32},
+    "lambda_l2": {"type": "float", "low": 1e-6, "high": 256.0, "log": True},
+    "lambda_l1": {"type": "float", "low": 1e-6, "high": 256.0, "log": True},
     "min_sum_hessian_in_leaf": {
         "type": "float",
         "low": 1e-5,
@@ -87,7 +87,7 @@ LGBM_OPTUNA_SEARCH_SPACE = {
     },
     "min_gain_to_split": {"type": "float", "low": 0.0, "high": 10.0},
     "feature_fraction_bynode": {"type": "float", "low": 0.01, "high": 1.0},
-    "path_smooth": {"type": "float", "low": 0.0, "high": 100.0},
+    "path_smooth": {"type": "float", "low": 1e-6, "high": 256.0, "log": True},
     "extra_trees": {"type": "categorical", "choices": [True, False]},
     "monotone_constraints_method": {
         "type": "categorical",
@@ -293,7 +293,7 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     }
 ]
 
-N_TRIALS = 50
+N_TRIALS = 15
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_BASE_METRIC = "binary_logloss"
 EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC

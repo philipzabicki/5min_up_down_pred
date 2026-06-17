@@ -1,29 +1,11 @@
 {
   "basis_premium_feature_columns": [
-    "futures_index_basis_rel_1m",
-    "futures_index_basis_abs_1m",
-    "futures_index_basis_change_1m",
-    "futures_index_basis_rel_3m",
-    "futures_index_basis_abs_3m",
-    "futures_index_basis_change_3m",
-    "futures_index_basis_rel_5m",
-    "futures_index_basis_abs_5m",
     "futures_index_basis_change_5m",
-    "futures_index_basis_rel_15m",
-    "futures_index_basis_abs_15m",
+    "futures_index_basis_change_1m",
+    "futures_index_basis_rel_1m",
+    "futures_index_basis_rel_5m",
     "futures_index_basis_change_15m",
-    "futures_index_basis_rel_30m",
-    "futures_index_basis_abs_30m",
-    "futures_index_basis_change_30m",
-    "futures_index_basis_rel_1h",
-    "futures_index_basis_abs_1h",
-    "futures_index_basis_change_1h",
-    "futures_index_basis_rel_4h",
-    "futures_index_basis_abs_4h",
-    "futures_index_basis_change_4h",
-    "futures_index_basis_rel_1d",
-    "futures_index_basis_abs_1d",
-    "futures_index_basis_change_1d"
+    "futures_index_basis_change_1h"
   ],
   "basis_premium_features": {
     "enabled": true,
@@ -41,7 +23,7 @@
       "1d"
     ]
   },
-  "created_utc": "2026-06-15T00:36:54.833444+00:00",
+  "created_utc": "2026-06-16T22:44:30.988682+00:00",
   "feature_intervals": {
     "enabled": [
       "1m",
@@ -54,7 +36,7 @@
       "1d"
     ]
   },
-  "float_precision": "float32",
+  "float_precision": "float64",
   "head_csv_path": "data\\datasets\\modeling\\BTC\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_head1000.csv",
   "parquet_path": "data\\datasets\\modeling\\BTC\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet",
   "tail_csv_path": "data\\datasets\\modeling\\BTC\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_tail1000.csv",

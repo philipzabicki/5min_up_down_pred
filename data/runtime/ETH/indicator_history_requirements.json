@@ -1,0 +1,18 @@
+{
+  "meta_path": "data\\models\\ETH\\20260617_230441\\lgbm_meta_20260617_230441.json",
+  "fit_results_dir": "data\\features\\indicators_fit\\ETH\\all",
+  "analysis_summary_path": "data\\analysis\\indicator_stability\\ETH\\summary.json",
+  "analysis_report_path": "data\\analysis\\indicator_stability\\ETH\\report.csv",
+  "unstable_feature_count": 0,
+  "global_required_stable_window": 11943,
+  "required_stable_window_by_feature": {
+    "BollingerBands_fit_5m_candle_up_pop768_maper40_masouhlcc4_matyptrima_stdmaper489_stdmatypwma_stdsouohlc4_qe0.1_qm0.3_tf0.8_stmc_sg10": 528,
+    "StochOsc_fit_5m_candle_up_pop512_faskper289_slodmatypwma_slodper54_slokmatypnwmaunif_slokper1446_qe0.2_qm0.2_tf0.8_stmc_sg10": 1787,
+    "ChaikinOsc_fit_5m_candle_up_pop1024_fasmatypdema_fasper9_slomatyplwma_sloper93_qe0.2_qm0.1_tf0.8_stmc_sg10": 93,
+    "BollingerBands_fit_5m_candle_up_pop512_maper1575_masouhlcc4_matypsma_stdmaper80_stdmatypkama_stdsouhl2_qe0.2_qm0.2_tf0.8_stmc_sg10": 2101,
+    "BollingerBands_fit_5m_candle_up_pop512_maper962_masoulow_matyprma_stdmaper103_stdmatypnwmagauss_stdsouohlc4_qe0.1_qm0.15_tf0.8_stmc_sg10": 11943,
+    "StochOsc_fit_5m_candle_up_pop1024_faskper823_slodmatypnwmaunif_slodper17_slokmatypnwmaunif_slokper1662_qe0.2_qm0.1_tf0.8_stmc_sg10": 2500,
+    "MACD_fit_5m_candle_up_pop512_fasmatypnwmagauss_fasper290_fassouhlcc4_sigmatypnwmaepan_sigper19_slomatypnwmaunif_sloper41_slosouhl2_qe0.2_qm0.2_tf0.8_stmc_sg10": 308,
+    "BollingerBands_fit_5m_candle_up_pop1024_maper1954_masouohlc4_matypvwmapta_stdmaper87_stdmatypkama_stdsouohlc4_qe0.2_qm0.1_tf0.8_stmc_sg10": 2487
+  }
+}
