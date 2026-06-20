@@ -3714,7 +3714,8 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.target_col = str(meta.get("target_col", "target_5m_candle_up"))
         self.target_bucket_minutes = parse_target_bucket_minutes(self.target_col)
         self.trade_policy_runtime = load_trade_policy_runtime_config(
-            TRADE_POLICY_CONFIG_PATH
+            TRADE_POLICY_CONFIG_PATH,
+            asset=MODELING_DATASET_SETTINGS["active_asset"],
         )
         self.live_bankroll_usdc = float(LIVE_INITIAL_BANKROLL_USDC)
 

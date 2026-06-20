@@ -40,8 +40,8 @@ The default scripts are config-driven and generally run without CLI arguments.
 | `configs/indicator_fit.json` | Indicator search target, horizons, metric settings, population sizes, and indicator families. |
 | `configs/modeling.json` | Modeling dataset output paths, feature intervals, basis/premium features, volume profile config, feature selection, target weights, and LightGBM training switches. |
 | `configs/live.json` | Polymarket endpoints, paper/live mode, execution mode, exposure caps, order caps, bootstrap history, websocket settings, and live runtime behavior. |
-| `configs/runtime/active.json` | Runtime asset map. Each `assets.<asset>` entry can be toggled with `enabled` and holds dataset/live profile names plus paths to generated artifacts such as model metadata and indicator history requirements. |
-| `configs/runtime/trade_policy_project.json` | Runtime expected-value policy, stake sizing, fee model, and submitted price behavior. |
+| `configs/runtime/active.json` | Runtime asset map. Each `assets.<asset>` entry can be toggled with `enabled` and holds dataset/live profile names plus paths to generated artifacts such as model metadata, trade policy, and indicator history requirements. |
+| `configs/runtime/trade_policy_project.json` | Runtime expected-value policy, stake sizing, fee model, extra buffer, and submitted price behavior, stored as per-asset entries in one JSON file. |
 
 ## Setup
 

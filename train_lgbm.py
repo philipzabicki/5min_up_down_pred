@@ -113,22 +113,22 @@ def validate_training_dataset_precision(data_path, expected_float_precision):
 # Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
 # Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
 LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.02082784518014535,
-      "num_leaves": 37,
-      "min_data_in_leaf": 103,
-      "max_depth": 169,
-      "feature_fraction": 0.37752257586311444,
-      "bagging_fraction": 0.6274488270891571,
-      "bagging_freq": 23,
-      "lambda_l2": 53.12614038557139,
-      "lambda_l1": 10.31812331923178,
-      "min_sum_hessian_in_leaf": 0.0061350132104521764,
-      "min_gain_to_split": 0.07525941090726794,
-      "feature_fraction_bynode": 0.7170577314073263,
-      "path_smooth": 1.124852812228145,
+      "learning_rate": 0.003395029882596675,
+      "num_leaves": 171,
+      "min_data_in_leaf": 5661,
+      "max_depth": 176,
+      "feature_fraction": 0.672056207538789,
+      "bagging_fraction": 0.8653821128720749,
+      "bagging_freq": 19,
+      "lambda_l2": 10.417085682028684,
+      "lambda_l1": 1.3534862331319992,
+      "min_sum_hessian_in_leaf": 0.03007168649377586,
+      "min_gain_to_split": 0.5171112104391531,
+      "feature_fraction_bynode": 0.7173489958572304,
+      "path_smooth": 30.034997255070344,
       "extra_trees": False,
       "monotone_constraints_method": "basic",
-      "monotone_penalty": 0.0
+      "monotone_penalty": 0.7275790716785062
     }
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,

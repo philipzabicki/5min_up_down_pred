@@ -69,7 +69,7 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/BTC/20260616_221810/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/BTC/20260620_020349/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
@@ -458,7 +458,7 @@
       },
       "feature_selection": {
         "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/ETH/20260617_193745/recommended_features.json",
+        "artifact_path": "data/analysis/feature_selector/ETH/20260619_180957/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "KeltnerChannel_fit_5m_candle_up_pop512_atrmatyptema_atrper1130_maper39_matyptrima_souhl2_qe0.1_qm0.15_tf0.8_stmc_sg10"
@@ -536,7 +536,15 @@
           "candle_close_location_value_1h_lag5": -1,
           "vp_short_log_density_ratio_to_current_bin_plus_7": 1,
           "candle_wick_asym_15m_lag2": -1,
-          "MACD_fit_5m_candle_up_pop512_fasmatypnwmagauss_fasper290_fassouhlcc4_sigmatypnwmaepan_sigper19_slomatypnwmaunif_sloper41_slosouhl2_qe0.2_qm0.2_tf0.8_stmc_sg10": 1
+          "MACD_fit_5m_candle_up_pop512_fasmatypnwmagauss_fasper290_fassouhlcc4_sigmatypnwmaepan_sigper19_slomatypnwmaunif_sloper41_slosouhl2_qe0.2_qm0.2_tf0.8_stmc_sg10": 1,
+          "BollingerBands_fit_5m_candle_up_pop768_maper40_masouhlcc4_matyptrima_stdmaper489_stdmatypwma_stdsouohlc4_qe0.1_qm0.3_tf0.8_stmc_sg10": 1,
+          "candle_ret_co_1m_lag5": -1,
+          "candle_ret_co_5m_lag2": -1,
+          "candle_wick_asym_5m_lag2": 1,
+          "candle_range_ho_1m_lag2": -1,
+          "ChaikinOsc_fit_5m_candle_up_pop512_fasmatypnwmabiw_fasper26_slomatypmama_sloper17_qe0.1_qm0.15_tf0.8_stmc_sg10": 1,
+          "candle_wick_asym_1d_lag6": 1,
+          "vp_medium_log_density_ratio_to_current_bin_plus_2": 1
         }
       }
     }

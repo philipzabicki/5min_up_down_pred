@@ -1,15 +1,34 @@
 {
-  "description": "Trade only positive EV opportunities, using return-multiple minimum executable stake sizing and current ask plus a small tick buffer capped by the live profile.",
-  "mode": "ev",
-  "submitted_price_mode": "entry_price_plus_ticks",
-  "submitted_price_slippage_ticks": 0,
-  "extra_buffer": 0.00013535545840842608,
-  "stake_multiplier": "return_multiple",
-  "fee_model": {
-    "rate": 0.072,
-    "exponent": 1.0,
-    "fee_round_decimals": 5,
-    "min_fee": 1e-05,
-    "source": "polymarket_fee_schedule_v2"
+  "assets": {
+    "BTC": {
+      "description": "Trade only positive EV opportunities, using return-multiple minimum executable stake sizing and current ask plus a small tick buffer capped by the live profile.",
+      "mode": "ev",
+      "submitted_price_mode": "entry_price_plus_ticks",
+      "submitted_price_slippage_ticks": 2,
+      "extra_buffer": 0.0,
+      "stake_multiplier": "return_multiple",
+      "fee_model": {
+        "rate": 0.072,
+        "exponent": 1.0,
+        "fee_round_decimals": 5,
+        "min_fee": 1e-05,
+        "source": "polymarket_fee_schedule_v2"
+      }
+    },
+    "ETH": {
+      "description": "Trade only positive EV opportunities, using return-multiple minimum executable stake sizing and current ask plus a small tick buffer capped by the live profile.",
+      "mode": "ev",
+      "submitted_price_mode": "entry_price_plus_ticks",
+      "submitted_price_slippage_ticks": 2,
+      "extra_buffer": 0.003093650680993582,
+      "stake_multiplier": "return_multiple",
+      "fee_model": {
+        "rate": 0.072,
+        "exponent": 1.0,
+        "fee_round_decimals": 5,
+        "min_fee": 1e-05,
+        "source": "polymarket_fee_schedule_v2"
+      }
+    }
   }
 }

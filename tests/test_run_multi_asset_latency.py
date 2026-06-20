@@ -130,7 +130,93 @@ class LiveMessageLatencyTests(unittest.TestCase):
         self.assertLess(events.index("market_lookup"), events.index("feature_prep"))
 
 
+class LiveStatsTests(unittest.TestCase):
+    def test_total_pnl_counts_only_closed_trades(self):
+        trader = PolymarketLiveTrader.__new__(PolymarketLiveTrader)
+        trader.records_lock = threading.Lock()
+        trader.prediction_threshold = 0.5
+        trader.records = [
+            {
+                "actual_up": 1,
+                "is_correct": 1,
+                "proba_up": 0.6,
+                "policy_decision": "buy_yes",
+                "pm_order_status": "submitted_fak",
+                "stake_usdc": 2.0,
+                "pm_settlement_status": "closed",
+                "trade_is_win": 1,
+                "pnl_usdc": 1.5,
+            },
+            {
+                "actual_up": 0,
+                "is_correct": 0,
+                "proba_up": 0.6,
+                "policy_decision": "no_trade",
+                "pm_order_status": "skipped",
+                "stake_usdc": 0.0,
+                "pm_settlement_status": "resolved_no_position",
+                "trade_is_win": None,
+                "pnl_usdc": 99.0,
+            },
+            {
+                "actual_up": 1,
+                "is_correct": 1,
+                "proba_up": 0.6,
+                "policy_decision": "buy_yes",
+                "pm_order_status": "submitted_fak",
+                "stake_usdc": 2.0,
+                "pm_settlement_status": "open",
+                "trade_is_win": 1,
+                "pnl_usdc": 88.0,
+            },
+        ]
+
+        stats = trader._stats()
+
+        self.assertEqual(stats["closed_trades"], 1)
+        self.assertEqual(stats["closed_trade_wins"], 1)
+        self.assertEqual(stats["total_pnl"], 1.5)
+
+
+class PolymarketOrderRetryTests(unittest.TestCase):
+    def test_retryable_order_submission_uses_single_short_retry(self):
+        class RetryableOrderError(Exception):
+            status_code = 425
+
+        class FakeClient:
+            def __init__(self):
+                self.calls = 0
+
+            def create_and_post_market_order(self, **kwargs):
+                self.calls += 1
+                raise RetryableOrderError("order manager not ready")
+
+        trader = PolymarketLiveTrader.__new__(PolymarketLiveTrader)
+        trader.pm_client = FakeClient()
+
+        with mock.patch.object(run.time, "sleep") as sleep_mock, mock.patch(
+            "builtins.print"
+        ):
+            with self.assertRaises(RetryableOrderError):
+                trader._create_and_post_market_order_with_retry(
+                    object(),
+                    object(),
+                    "FAK",
+                )
+
+        self.assertEqual(trader.pm_client.calls, 2)
+        sleep_mock.assert_called_once_with(
+            run.POLYMARKET_POST_ORDER_RETRY_INITIAL_DELAY_SEC
+        )
+        self.assertLessEqual(run.POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC, 0.10)
+
+
 class RuntimeAssetLauncherTests(unittest.TestCase):
+    def test_live_output_dirs_are_asset_scoped(self):
+        self.assertEqual(run.LIVE_ASSET_DIR, run.LIVE_ROOT_DIR / run.RUNTIME_ASSET)
+        self.assertEqual(run.LIVE_TRADE_DIR, run.LIVE_ASSET_DIR / "trade")
+        self.assertEqual(run.LIVE_LOGS_DIR, run.LIVE_ASSET_DIR / "logs")
+
     def test_launcher_keeps_remaining_assets_after_one_child_fails(self):
         class FakeProcess:
             def __init__(self, asset, polls):
@@ -183,6 +269,72 @@ class RuntimeAssetLauncherTests(unittest.TestCase):
         self.assertEqual(eth_env[run.RUNTIME_ASSET_ENV], "ETH")
         self.assertFalse(btc_process.terminated)
         self.assertFalse(eth_process.terminated)
+
+
+class RedeemConsoleLoggingTests(unittest.TestCase):
+    CONDITION_ID = "0x" + "12" * 32
+    TX_ID = "redeem-transaction-id-that-should-not-be-printed"
+
+    def _trader(self):
+        trader = PolymarketLiveTrader.__new__(PolymarketLiveTrader)
+        trader.records_lock = threading.Lock()
+        trader.records = [
+            {
+                "record_id": "bucket:2026-01-01T00:05:00+00:00",
+                "pm_condition_id": self.CONDITION_ID,
+                "pm_redeem_tx_id": self.TX_ID,
+                "pm_redeem_tx_state": "STATE_NEW",
+                "pm_redeem_error": "",
+                "bucket_start": pd.Timestamp("2026-01-01T00:05:00Z"),
+                "trade_side": "yes",
+                "entry_stake_usdc_orig": 10.0,
+                "shares_net": 12.5,
+                "pm_market_slug": "btc-updown-5m-1767225900",
+                "pm_settlement_status": "redeem_submitted",
+            }
+        ]
+        return trader
+
+    def test_redeem_targets_show_bet_context_without_full_condition_id(self):
+        trader = self._trader()
+
+        text = trader._format_redeem_targets([self.CONDITION_ID])
+
+        self.assertIn("bet=bucket:2026-01-01T00:05:00+00:00", text)
+        self.assertIn("side=yes", text)
+        self.assertIn("market=btc-updown-5m-1767225900", text)
+        self.assertIn("stake_usdc=10.0000", text)
+        self.assertIn("shares=12.5000", text)
+        self.assertNotIn(self.CONDITION_ID, text)
+
+    def test_redeem_poll_logs_only_state_change_with_bet_context(self):
+        trader = self._trader()
+
+        with mock.patch("builtins.print") as print_mock:
+            trader._update_redeem_transaction_state(
+                tx_id=self.TX_ID,
+                tx_hash="0xabc",
+                tx_state="STATE_NEW",
+                error="",
+            )
+        print_mock.assert_not_called()
+
+        with mock.patch("builtins.print") as print_mock:
+            trader._update_redeem_transaction_state(
+                tx_id=self.TX_ID,
+                tx_hash="0xabc",
+                tx_state="STATE_CONFIRMED",
+                error="",
+            )
+
+        print_mock.assert_called_once()
+        message = print_mock.call_args.args[0]
+        self.assertIn("[pm] redeem confirmed | state=STATE_CONFIRMED", message)
+        self.assertIn("bet=bucket:2026-01-01T00:05:00+00:00", message)
+        self.assertIn("side=yes", message)
+        self.assertNotIn("transactionID", message)
+        self.assertNotIn(self.TX_ID, message)
+        self.assertNotIn(self.CONDITION_ID, message)
 
 
 if __name__ == "__main__":

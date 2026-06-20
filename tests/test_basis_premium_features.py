@@ -246,9 +246,14 @@ class BasisPremiumFeatureTests(unittest.TestCase):
         predictor.basis_index_close_col = "Close"
         predictor.basis_index_ohlcv_idx = 3
         predictor.basis_futures_close_col = "UM_BTCUSDT_Close"
-        predictor.opened_candles = deque(
-            pd.date_range("2026-01-01 00:00:00", periods=6, freq="min", tz="UTC")
+        opened = pd.date_range(
+            "2026-01-01 00:00:00",
+            periods=6,
+            freq="min",
+            tz="UTC",
         )
+        predictor.opened_candles = deque(opened)
+        predictor.opened_ns_np = np.asarray([ts.value for ts in opened], dtype=np.int64)
         index_close = np.full(6, 100.0)
         predictor.ohlcv_np = np.column_stack(
             [
@@ -268,6 +273,126 @@ class BasisPremiumFeatureTests(unittest.TestCase):
 
         self.assertAlmostEqual(values["futures_index_basis_rel_1m"], 0.06)
         self.assertTrue(np.isnan(values["futures_index_basis_change_5m"]))
+
+    def test_live_basis_premium_latest_matches_full_frame(self):
+        predictor = object.__new__(LivePredictor)
+        feature_cols = (
+            "futures_index_basis_rel_1m",
+            "futures_index_basis_change_1m",
+            "futures_index_basis_rel_3m",
+            "futures_index_basis_abs_3m",
+            "futures_index_basis_change_3m",
+            "futures_index_basis_rel_5m",
+            "futures_index_basis_change_5m",
+        )
+        predictor.basis_premium_feature_columns = feature_cols
+        predictor.basis_premium_interval_to_rule = {
+            "1m": FEATURE_INTERVAL_TO_RULE["1m"],
+            "3m": FEATURE_INTERVAL_TO_RULE["3m"],
+            "5m": FEATURE_INTERVAL_TO_RULE["5m"],
+        }
+        predictor.basis_premium_cfg = {"eps": 1e-12}
+        predictor.basis_index_close_col = "Close"
+        predictor.basis_index_ohlcv_idx = 3
+        predictor.basis_futures_close_col = "UM_BTCUSDT_Close"
+
+        opened = pd.date_range(
+            "2026-01-01 00:00:00",
+            periods=11,
+            freq="min",
+            tz="UTC",
+        )
+        index_close = np.linspace(100.0, 110.0, len(opened))
+        futures_close = index_close + np.linspace(1.0, 2.0, len(opened))
+        predictor.opened_candles = deque(opened)
+        predictor.opened_ns_np = np.asarray([ts.value for ts in opened], dtype=np.int64)
+        predictor.ohlcv_np = np.column_stack(
+            [
+                index_close,
+                index_close,
+                index_close,
+                index_close,
+                np.ones(len(opened)),
+            ]
+        )
+        predictor.basis_futures_close_np = futures_close
+
+        full = add_basis_premium_features(
+            pd.DataFrame(
+                {
+                    "Opened": opened,
+                    "Close": index_close,
+                    "UM_BTCUSDT_Close": futures_close,
+                }
+            ),
+            opened_col="Opened",
+            index_close_col="Close",
+            futures_close_col="UM_BTCUSDT_Close",
+            interval_to_rule=predictor.basis_premium_interval_to_rule,
+            feature_cols=feature_cols,
+            eps=1e-12,
+        )
+        values = predictor._build_latest_basis_premium_features()
+
+        for feature_col in feature_cols:
+            self.assertAlmostEqual(values[feature_col], float(full[feature_col].iloc[-1]))
+
+    def test_live_basis_premium_hourly_partial_bucket_matches_full_frame(self):
+        predictor = object.__new__(LivePredictor)
+        feature_cols = (
+            "futures_index_basis_rel_1h",
+            "futures_index_basis_abs_1h",
+            "futures_index_basis_change_1h",
+        )
+        predictor.basis_premium_feature_columns = feature_cols
+        predictor.basis_premium_interval_to_rule = {
+            "1h": FEATURE_INTERVAL_TO_RULE["1h"],
+        }
+        predictor.basis_premium_cfg = {"eps": 1e-12}
+        predictor.basis_index_close_col = "Close"
+        predictor.basis_index_ohlcv_idx = 3
+        predictor.basis_futures_close_col = "UM_BTCUSDT_Close"
+
+        opened = pd.date_range(
+            "2026-01-01 00:00:00",
+            periods=125,
+            freq="min",
+            tz="UTC",
+        )
+        index_close = np.linspace(100.0, 224.0, len(opened))
+        futures_close = index_close * (1.0 + np.linspace(0.001, 0.003, len(opened)))
+        predictor.opened_candles = deque(opened)
+        predictor.opened_ns_np = np.asarray([ts.value for ts in opened], dtype=np.int64)
+        predictor.ohlcv_np = np.column_stack(
+            [
+                index_close,
+                index_close,
+                index_close,
+                index_close,
+                np.ones(len(opened)),
+            ]
+        )
+        predictor.basis_futures_close_np = futures_close
+
+        full = add_basis_premium_features(
+            pd.DataFrame(
+                {
+                    "Opened": opened,
+                    "Close": index_close,
+                    "UM_BTCUSDT_Close": futures_close,
+                }
+            ),
+            opened_col="Opened",
+            index_close_col="Close",
+            futures_close_col="UM_BTCUSDT_Close",
+            interval_to_rule=predictor.basis_premium_interval_to_rule,
+            feature_cols=feature_cols,
+            eps=1e-12,
+        )
+        values = predictor._build_latest_basis_premium_features()
+
+        for feature_col in feature_cols:
+            self.assertAlmostEqual(values[feature_col], float(full[feature_col].iloc[-1]))
 
     def test_hybrid_gap_repair_runs_on_both_ohlc_sets(self):
         raw_config = {

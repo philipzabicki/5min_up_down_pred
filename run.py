@@ -31,7 +31,6 @@ from features.KeltnerChannel import get_keltner_channel_values
 from features.MACD import get_macd_values
 from features.StochOsc import get_stochastic_oscillator_values
 from features.basis_premium_features import (
-    add_basis_premium_features,
     is_basis_premium_feature,
     resolve_futures_close_col,
     validate_basis_premium_feature_columns,
@@ -189,6 +188,7 @@ from utils.trading import (
 load_repo_env()
 DEFAULT_MODEL_PREDICTION_THRESHOLD = 0.5
 RUNTIME_ASSET_ENV = "POLYMARKET_RUNTIME_ASSET"
+_BASIS_PREMIUM_FEATURE_RE = re.compile(r"^futures_index_basis_(rel|abs|change)_(.+)$")
 
 
 def normalize_live_market_type(value, field_name):
@@ -259,7 +259,9 @@ POLYMARKET_MARKET_REQUEST_TIMEOUT_SEC = float(
     LIVE_PROFILE["polymarket_market_request_timeout_sec"]
 )
 LIVE_ROOT_DIR = Path("data/live")
-LIVE_TRADE_DIR = LIVE_ROOT_DIR / "trade"
+LIVE_ASSET_DIR = LIVE_ROOT_DIR / RUNTIME_ASSET
+LIVE_TRADE_DIR = LIVE_ASSET_DIR / "trade"
+LIVE_LOGS_DIR = LIVE_ASSET_DIR / "logs"
 RUN_STARTED_AT_UTC = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
 VOLUME_PROFILE_RUNTIME_STATE_PATH = (
         VP_RUNTIME_STATE_DIR / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}"
@@ -340,6 +342,23 @@ def _basis_premium_intervals_from_feature_cols(feature_cols):
             f"{unsupported}. Supported: {', '.join(FEATURE_INTERVAL_TO_RULE.keys())}"
         )
     return tuple(intervals)
+
+
+def _parse_basis_premium_feature_col(feature_col):
+    match = _BASIS_PREMIUM_FEATURE_RE.match(str(feature_col).strip())
+    if not match or match.group(2) not in FEATURE_INTERVAL_TO_RULE:
+        raise ValueError(f"Unsupported basis premium feature column: {feature_col!r}")
+    return match.group(1), match.group(2)
+
+
+def _basis_rel_value(index_close, futures_close, *, eps):
+    index_close = float(index_close)
+    futures_close = float(futures_close)
+    if not np.isfinite(index_close) or not np.isfinite(futures_close):
+        return float("nan")
+    if abs(index_close) <= float(eps):
+        return float("nan")
+    return float(futures_close / index_close - 1.0)
 
 
 def _auxiliary_ohlc_cols(market_type, symbol):
@@ -1259,7 +1278,8 @@ class LivePredictor:
         )
 
         self.trade_policy_runtime = load_trade_policy_runtime_config(
-            TRADE_POLICY_CONFIG_PATH
+            TRADE_POLICY_CONFIG_PATH,
+            asset=RUNTIME_ASSET,
         )
         self.live_bankroll_usdc = LIVE_INITIAL_BANKROLL_USDC
 
@@ -1547,29 +1567,128 @@ class LivePredictor:
                 f"{len(self.opened_candles)}."
             )
 
-        history_df = pd.DataFrame(
-            {
-                "Opened": tuple(self.opened_candles),
-                self.basis_index_close_col: self.ohlcv_np[
-                    :, self.basis_index_ohlcv_idx
-                ],
-                self.basis_futures_close_col: self.basis_futures_close_np,
-            }
-        )
-        feature_df = add_basis_premium_features(
-            history_df,
-            opened_col="Opened",
-            index_close_col=self.basis_index_close_col,
-            futures_close_col=self.basis_futures_close_col,
-            interval_to_rule=self.basis_premium_interval_to_rule,
-            feature_cols=self.basis_premium_feature_columns,
-            eps=self.basis_premium_cfg["eps"],
-        )
-        latest = feature_df.iloc[-1]
-        return {
-            feature_col: float(latest[feature_col])
+        eps = float(self.basis_premium_cfg["eps"])
+        feature_info = {
+            feature_col: _parse_basis_premium_feature_col(feature_col)
             for feature_col in self.basis_premium_feature_columns
         }
+        values = {}
+        for interval in self.basis_premium_interval_to_rule:
+            interval_feature_cols = [
+                feature_col
+                for feature_col, (_, feature_interval) in feature_info.items()
+                if feature_interval == interval
+            ]
+            if not interval_feature_cols:
+                continue
+            if interval == "1m":
+                current_rel = _basis_rel_value(
+                    self.ohlcv_np[-1, self.basis_index_ohlcv_idx],
+                    self.basis_futures_close_np[-1],
+                    eps=eps,
+                )
+                previous_rel = (
+                    _basis_rel_value(
+                        self.ohlcv_np[-2, self.basis_index_ohlcv_idx],
+                        self.basis_futures_close_np[-2],
+                        eps=eps,
+                    )
+                    if len(self.opened_candles) > 1
+                    else float("nan")
+                )
+            else:
+                current_rel, previous_rel = self._latest_interval_basis_rels(
+                    interval,
+                    eps=eps,
+                )
+            for feature_col in interval_feature_cols:
+                feature_type, _ = feature_info[feature_col]
+                if feature_type == "rel":
+                    values[feature_col] = float(current_rel)
+                elif feature_type == "abs":
+                    values[feature_col] = float(abs(current_rel))
+                else:
+                    values[feature_col] = float(current_rel - previous_rel)
+        return values
+
+    def _latest_interval_basis_rels(self, interval, *, eps):
+        rule = self.basis_premium_interval_to_rule[interval]
+        interval_delta = pd.Timedelta(rule)
+        one_minute = pd.Timedelta(minutes=1)
+        expected_count = int(interval_delta / pd.Timedelta(minutes=1))
+        if expected_count <= 1:
+            current_rel = _basis_rel_value(
+                self.ohlcv_np[-1, self.basis_index_ohlcv_idx],
+                self.basis_futures_close_np[-1],
+                eps=eps,
+            )
+            previous_rel = (
+                _basis_rel_value(
+                    self.ohlcv_np[-2, self.basis_index_ohlcv_idx],
+                    self.basis_futures_close_np[-2],
+                    eps=eps,
+                )
+                if len(self.opened_candles) > 1
+                else float("nan")
+            )
+            return current_rel, previous_rel
+
+        latest_opened = pd.Timestamp(self.opened_candles[-1])
+        bucket_start = latest_opened.floor(rule)
+        if bucket_start + interval_delta - one_minute > latest_opened:
+            bucket_start -= interval_delta
+
+        first_opened = pd.Timestamp(self.opened_candles[0])
+        rels = []
+        while (
+                len(rels) < 2
+                and bucket_start + interval_delta - one_minute >= first_opened
+        ):
+            event_idx = self._basis_interval_event_index(
+                bucket_start,
+                interval_delta=interval_delta,
+                expected_count=expected_count,
+            )
+            if event_idx is not None:
+                index_close = float(self.ohlcv_np[event_idx, self.basis_index_ohlcv_idx])
+                futures_close = float(self.basis_futures_close_np[event_idx])
+                if np.isfinite(index_close) and np.isfinite(futures_close):
+                    rels.append(_basis_rel_value(index_close, futures_close, eps=eps))
+            bucket_start -= interval_delta
+
+        if not rels:
+            return float("nan"), float("nan")
+        current_rel = rels[0]
+        previous_rel = rels[1] if len(rels) > 1 else float("nan")
+        return current_rel, previous_rel
+
+    def _basis_interval_event_index(
+            self,
+            bucket_start,
+            *,
+            interval_delta,
+            expected_count,
+    ):
+        event_opened = pd.Timestamp(bucket_start) + interval_delta - pd.Timedelta(
+            minutes=1
+        )
+        event_ns = event_opened.value
+        event_idx = int(np.searchsorted(self.opened_ns_np, event_ns, side="left"))
+        if (
+                event_idx >= self.opened_ns_np.shape[0]
+                or int(self.opened_ns_np[event_idx]) != event_ns
+        ):
+            return None
+
+        bucket_start_ns = pd.Timestamp(bucket_start).value
+        start_idx = int(
+            np.searchsorted(self.opened_ns_np, bucket_start_ns, side="left")
+        )
+        if start_idx > event_idx:
+            return None
+        if event_idx - start_idx + 1 != int(expected_count):
+            return None
+        return event_idx
 
     def _append_new_candle(self, opened, ohlcv, basis_futures_close=None):
         if self.basis_premium_feature_columns:
@@ -2578,9 +2697,9 @@ POLYMARKET_SUBMITTED_ORDER_STATUSES = frozenset(
 )
 POLYMARKET_RETRYABLE_SUBMISSION_STATUS = "submission_retryable_425"
 POLYMARKET_POST_ORDER_RETRYABLE_STATUS_CODES = frozenset({425})
-POLYMARKET_POST_ORDER_MAX_RETRIES = 3
-POLYMARKET_POST_ORDER_RETRY_INITIAL_DELAY_SEC = 0.25
-POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC = 1.0
+POLYMARKET_POST_ORDER_MAX_RETRIES = 1
+POLYMARKET_POST_ORDER_RETRY_INITIAL_DELAY_SEC = 0.10
+POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC = 0.10
 
 _PYCLOB_AUTH_TIME_OFFSET_SEC = 0.0
 
@@ -2880,6 +2999,64 @@ def _stable_record_id(record):
         return f"prediction:{prediction_time.isoformat()}"
 
     return ""
+
+
+def _short_identifier(value, *, head=10, tail=6):
+    text = _safe_text(value)
+    if not text:
+        return ""
+    if len(text) <= head + tail + 3:
+        return text
+    return f"{text[:head]}...{text[-tail:]}"
+
+
+def _timestamp_log_text(value):
+    text = _safe_text(value)
+    if not text:
+        return ""
+    try:
+        return pd.Timestamp(value).isoformat()
+    except (TypeError, ValueError):
+        return text
+
+
+def _format_redeem_bet_summary(record):
+    market_slug = _safe_text(record.get("pm_market_slug"))
+    record_id = _stable_record_id(record)
+    if record_id.startswith("external:"):
+        asset = _short_identifier(record_id[len("external:"):])
+        record_id = f"external:{asset}" if asset else "external"
+    if not record_id:
+        record_id = market_slug
+
+    parts = []
+    if record_id:
+        parts.append(record_id)
+
+    side = _safe_text(record.get("trade_side"))
+    if side:
+        parts.append(f"side={side}")
+
+    bucket_start = _timestamp_log_text(record.get("bucket_start"))
+    if bucket_start and not record_id.startswith("bucket:"):
+        parts.append(f"bucket={bucket_start}")
+
+    if market_slug and market_slug != record_id:
+        parts.append(f"market={market_slug}")
+
+    stake_usdc = _safe_float(record.get("entry_stake_usdc_orig"))
+    if not np.isfinite(stake_usdc):
+        stake_usdc = _safe_float(record.get("stake_usdc"))
+    if np.isfinite(stake_usdc):
+        parts.append(f"stake_usdc={stake_usdc:.4f}")
+
+    shares = _safe_float(record.get("shares_net"))
+    if not np.isfinite(shares):
+        shares = _safe_float(record.get("pm_position_size"))
+    if np.isfinite(shares):
+        parts.append(f"shares={shares:.4f}")
+
+    return " ".join(parts) if parts else "unknown"
 
 
 def _response_payload(response):
@@ -3735,6 +3912,37 @@ class PolymarketLiveTrader(LivePredictor):
             index_sets=POLYMARKET_BINARY_INDEX_SETS,
         )
 
+    def _format_redeem_targets(self, condition_ids):
+        target_conditions = []
+        for condition_id in condition_ids:
+            condition_id = _safe_text(condition_id)
+            if condition_id and condition_id not in target_conditions:
+                target_conditions.append(condition_id)
+
+        if not target_conditions:
+            return "bet=unknown"
+
+        summaries_by_condition = {}
+        for rec in self._records_snapshot():
+            condition_id = _safe_text(
+                rec.get("pm_condition_id") or rec.get("pm_redeem_condition_id")
+            )
+            if condition_id and condition_id not in summaries_by_condition:
+                summaries_by_condition[condition_id] = _format_redeem_bet_summary(rec)
+
+        descriptions = []
+        for condition_id in target_conditions:
+            descriptions.append(
+                summaries_by_condition.get(
+                    condition_id,
+                    f"unknown condition={_short_identifier(condition_id)}",
+                )
+            )
+
+        if len(descriptions) == 1:
+            return f"bet={descriptions[0]}"
+        return "bets=[" + "; ".join(descriptions) + "]"
+
     def _build_redeem_transactions(self, candidates):
         specs = build_redeem_transaction_specs(
             candidates,
@@ -3753,17 +3961,6 @@ class PolymarketLiveTrader(LivePredictor):
                     data=spec["data"],
                     value=spec["value"],
                 )
-            )
-            print(
-                "[pm] redeem tx built | "
-                f"conditionId={spec['conditionId']} "
-                f"collateralToken={spec['collateralToken']} "
-                f"ctfAddress={spec['ctfAddress']} "
-                f"targetAddress={spec['to']} "
-                f"indexSets={spec['indexSets']} "
-                f"relayerTxType={spec['relayerTxType']} "
-                f"signer={self.pm_signer_address} "
-                f"funder={self.pm_cfg.funder}"
             )
         condition_ids = [spec["conditionId"] for spec in specs]
         return transactions, condition_ids
@@ -3813,7 +4010,7 @@ class PolymarketLiveTrader(LivePredictor):
                 print(
                     "[pm] redeem skip | "
                     "reason=order_submission_disabled "
-                    f"conditionIds={condition_ids}"
+                    f"{self._format_redeem_targets(condition_ids)}"
                 )
                 return
             if not self._relayer_is_configured():
@@ -3845,12 +4042,9 @@ class PolymarketLiveTrader(LivePredictor):
 
             nonce = self._relayer_get_nonce()
             print(
-                "[pm] redeem nonce | "
-                f"relayerTxType={self.pm_cfg.relayer_tx_type} "
-                f"signer={self.pm_signer_address} "
-                f"funder={self.pm_cfg.funder} "
-                f"nonce={nonce} "
-                f"conditionIds={condition_ids}"
+                "[pm] redeem submit | "
+                f"count={len(transactions)} "
+                f"{self._format_redeem_targets(condition_ids)}"
             )
             tx_args = RelayerSafeTransactionArgs(
                 from_address=self.pm_signer_address,
@@ -3870,10 +4064,9 @@ class PolymarketLiveTrader(LivePredictor):
             tx_state = str(response.get("state", "") or "STATE_NEW")
             print(
                 "[pm] redeem submitted | "
-                f"transactionID={tx_id} "
-                f"transactionHash={tx_hash} "
                 f"state={tx_state} "
-                f"conditionIds={condition_ids}"
+                f"count={len(transactions)} "
+                f"{self._format_redeem_targets(condition_ids)}"
             )
             if not tx_id:
                 raise RuntimeError(f"relayer_submit_missing_transaction_id:{response}")
@@ -3894,11 +4087,14 @@ class PolymarketLiveTrader(LivePredictor):
                 ],
                 error=str(exc),
             )
+            error_condition_ids = [
+                str(item.get("conditionId", ""))
+                for item in candidates
+                if str(item.get("conditionId", ""))
+            ]
             print(
                 "[pm] redeem submit failed | "
-                f"relayerTxType={self.pm_cfg.relayer_tx_type} "
-                f"signer={self.pm_signer_address} "
-                f"funder={self.pm_cfg.funder} "
+                f"{self._format_redeem_targets(error_condition_ids)} "
                 f"error={exc}"
             )
         finally:
@@ -3945,10 +4141,24 @@ class PolymarketLiveTrader(LivePredictor):
         confirmed_at = (
             pd.Timestamp.now(tz="UTC") if tx_state == "STATE_CONFIRMED" else None
         )
+        affected_condition_ids = []
+        state_changed = False
+        error_changed = False
+        tx_state_text = _safe_text(tx_state)
+        error_text = _safe_text(error)
         with self.records_lock:
             for rec in self.records:
                 if _safe_text(rec.get("pm_redeem_tx_id")) != _safe_text(tx_id):
                     continue
+                condition_id = _safe_text(
+                    rec.get("pm_condition_id") or rec.get("pm_redeem_condition_id")
+                )
+                if condition_id:
+                    affected_condition_ids.append(condition_id)
+                previous_state = _safe_text(rec.get("pm_redeem_tx_state"))
+                previous_error = _safe_text(rec.get("pm_redeem_error"))
+                state_changed = state_changed or previous_state != tx_state_text
+                error_changed = error_changed or previous_error != error_text
                 rec["pm_redeem_tx_hash"] = tx_hash or rec.get("pm_redeem_tx_hash", "")
                 rec["pm_redeem_tx_state"] = tx_state
                 rec["pm_redeem_error"] = error
@@ -3957,12 +4167,21 @@ class PolymarketLiveTrader(LivePredictor):
                     rec["pm_settlement_status"] = "redeem_confirmed_waiting_close_sync"
                 elif tx_state in {"STATE_FAILED", "STATE_INVALID"}:
                     rec["pm_settlement_status"] = "redeem_failed"
+        if not affected_condition_ids or not (state_changed or error_changed):
+            return
+
+        if tx_state_text == "STATE_CONFIRMED":
+            event = "confirmed"
+        elif tx_state_text in {"STATE_FAILED", "STATE_INVALID"}:
+            event = "failed"
+        else:
+            event = "state"
+        error_part = f" error={error_text}" if error_text else ""
         print(
-            "[pm] redeem poll | "
-            f"transactionID={tx_id} "
-            f"transactionHash={tx_hash} "
-            f"state={tx_state} "
-            f"error={error}"
+            f"[pm] redeem {event} | "
+            f"state={tx_state_text or 'unknown'} "
+            f"{self._format_redeem_targets(affected_condition_ids)}"
+            f"{error_part}"
         )
 
     def _poll_redeem_transactions(self):
@@ -4426,25 +4645,19 @@ class PolymarketLiveTrader(LivePredictor):
             for diag in diagnostics:
                 reason = str(diag.get("reason", ""))
                 action = str(diag.get("action", ""))
-                if action == "candidate" or reason in {
-                    "redeem_already_confirmed",
-                    "redeem_already_pending",
-                    "redeem_tx_pending",
-                    "redeem_tx_state_unknown",
+                if action != "candidate" and reason not in {
                     "negative_risk_unsupported",
                     "invalid_condition_id",
-                    "not_redeemable",
                 }:
-                    print(
-                        "[pm] redeem decision | "
-                        f"action={action} "
-                        f"reason={reason} "
-                        f"conditionId={diag.get('conditionId', '')} "
-                        f"asset={diag.get('asset', '')} "
-                        f"redeemable={diag.get('redeemable', False)} "
-                        f"negativeRisk={diag.get('negativeRisk', False)} "
-                        f"requireRedeemable={self.pm_cfg.redeem_require_redeemable}"
-                    )
+                    continue
+                label = "candidate" if action == "candidate" else "skip"
+                print(
+                    f"[pm] redeem {label} | "
+                    f"reason={reason} "
+                    f"{self._format_redeem_targets([diag.get('conditionId', '')])} "
+                    f"redeemable={diag.get('redeemable', False)} "
+                    f"negativeRisk={diag.get('negativeRisk', False)}"
+                )
         return candidates
 
     def _poll_background_sync(self, *, reschedule_pending=True):
@@ -6054,7 +6267,7 @@ class PolymarketLiveTrader(LivePredictor):
             sum(
                 float(rec.get("pnl_usdc", 0.0) or 0.0)
                 for rec in records
-                if rec["actual_up"] is not None
+                if self._record_is_traded(rec)
             )
         )
         return {
@@ -6255,9 +6468,17 @@ class PolymarketLiveTrader(LivePredictor):
                 execution_fields.append(
                     ("feature_prep_ms", f"{pred['feature_prep_ms']:.0f}")
                 )
+            if np.isfinite(_safe_float(pred.get("feature_vector_ms", np.nan))):
+                execution_fields.append(
+                    ("feature_vector_ms", f"{pred['feature_vector_ms']:.0f}")
+                )
             if np.isfinite(_safe_float(pred.get("model_predict_ms", np.nan))):
                 execution_fields.append(
                     ("model_predict_ms", f"{pred['model_predict_ms']:.0f}")
+                )
+            if np.isfinite(_safe_float(pred.get("policy_compute_ms", np.nan))):
+                execution_fields.append(
+                    ("policy_compute_ms", f"{pred['policy_compute_ms']:.0f}")
                 )
             if np.isfinite(_safe_float(pred.get("market_lookup_ms", np.nan))):
                 execution_fields.append(
@@ -6578,6 +6799,7 @@ def main():
     setup_live_console_logging(
         f"run_{SYMBOL}_{INTERVAL}",
         run_started_at_utc=RUN_STARTED_AT_UTC,
+        logs_dir=LIVE_LOGS_DIR,
     )
     runner = PolymarketLiveTrader()
 

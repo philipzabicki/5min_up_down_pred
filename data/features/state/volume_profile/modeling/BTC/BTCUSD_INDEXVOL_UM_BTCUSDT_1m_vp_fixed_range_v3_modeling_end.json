@@ -109,7 +109,7 @@
     "long": {
       "bins": 695,
       "decay": 0.9999656319283308,
-      "global_scale": 0.005289969824873592,
+      "global_scale": 0.004776477002899648,
       "half_life_candles": 20168,
       "horizon_name": "long",
       "local_window": 63,
@@ -120,7 +120,7 @@
     "medium": {
       "bins": 635,
       "decay": 0.9998251547472132,
-      "global_scale": 0.2955394866968404,
+      "global_scale": 0.1757902969958626,
       "half_life_candles": 3964,
       "horizon_name": "medium",
       "local_window": 16,
@@ -131,7 +131,7 @@
     "short": {
       "bins": 2326,
       "decay": 0.9843700899058557,
-      "global_scale": 0.0012368695716135413,
+      "global_scale": 0.006168309663643294,
       "half_life_candles": 44,
       "horizon_name": "short",
       "local_window": 74,
@@ -140,7 +140,7 @@
       "step": 86
     }
   },
-  "last_candle_time": "2026-06-17T23:03:00",
+  "last_candle_time": "2026-06-20T00:34:00",
   "neighbor_bins": 9,
   "price_max": 200000.0,
   "price_min": 0.0,

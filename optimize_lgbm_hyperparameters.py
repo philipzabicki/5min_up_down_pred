@@ -58,9 +58,9 @@ FOLD_RECENCY_WEIGHTING_MODE = "linear"
 FOLD_RECENCY_WEIGHT_MIN = 1.0
 FOLD_RECENCY_WEIGHT_MAX = 1.5
 
-MAX_N_ESTIMATORS = 4000
-EARLY_STOPPING_ROUNDS = 20
-PRUNE_REPORT_EVERY_N_ITER = 5
+MAX_N_ESTIMATORS = 3000
+EARLY_STOPPING_ROUNDS = 50
+PRUNE_REPORT_EVERY_N_ITER = 25
 
 SEED = 37
 LGBM_NUM_THREADS = 17
@@ -290,7 +290,23 @@ OPTUNA_SEED_TRIAL_PARAMS = [
       "extra_trees": False,
       "monotone_constraints_method": "basic",
       "monotone_penalty": 0.7275790716785062
-    }
+    },
+    {'learning_rate': 0.024088705645360156,
+                           'num_leaves': 293,
+                           'min_data_in_leaf': 593,
+                           'max_depth': 36,
+                           'feature_fraction': 0.7462943585807115,
+                           'bagging_fraction': 0.9449047067638157,
+                           'bagging_freq': 20,
+                           'lambda_l2': 47.938956609916836,
+                           'lambda_l1': 3.001405482887809e-06,
+                           'min_sum_hessian_in_leaf': 0.2767343045706616,
+                           'min_gain_to_split': 0.027316624443315507,
+                           'feature_fraction_bynode': 0.4401437751701421,
+                           'path_smooth': 0.8872393402840444,
+                           'extra_trees': True,
+                           'monotone_constraints_method': 'intermediate',
+                           'monotone_penalty': 0.10230727438549692}
 ]
 
 N_TRIALS = 15

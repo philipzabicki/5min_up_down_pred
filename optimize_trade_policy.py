@@ -12,7 +12,13 @@ from utils.polymarket import (
     polymarket_taker_fee_fraction_of_notional,
     polymarket_taker_fee_usdc_from_notional,
 )
-from utils.project_config import load_live_profile, load_runtime_artifact_paths
+from utils.project_config import (
+    load_active_asset,
+    load_live_profile,
+    load_runtime_artifact_paths,
+    load_runtime_asset_settings,
+    normalize_asset_name,
+)
 from utils.trading import decide_trade_from_ev, load_trade_policy_runtime_config
 
 LIVE_DIR = Path("data/live")
@@ -22,11 +28,11 @@ OOF_PREDICTIONS_FALLBACK_PATH = Path(
 OUTPUT_DIR = Path("data/optuna/trade_policy_live")
 RUNTIME_CONFIG_FALLBACK_PATH = Path("configs/runtime/trade_policy_project.json")
 STUDY_NAME = "trade_policy_live_oof_live_prices_v1"
-N_TRIALS = 250
+N_TRIALS = 1_000
 SEED = 37
 TPE_STARTUP_TRIALS = 40
 EXTRA_BUFFER_BOUNDS = (0.0, 0.05)
-SUBMITTED_PRICE_SLIPPAGE_TICKS_BOUNDS = (0, 8)
+SUBMITTED_PRICE_SLIPPAGE_TICKS = 2
 TICK_SIZE_FALLBACK = 0.01
 ORDER_PRICE_CAP = None
 ORDER_PRICE_CAP_FALLBACK = 0.95
@@ -75,16 +81,25 @@ def _json_safe(value):
     return value
 
 
+def resolve_optimizer_asset():
+    return load_active_asset()
+
+
 def resolve_runtime_config_path():
+    asset = resolve_optimizer_asset()
     try:
-        return Path(load_runtime_artifact_paths()["trade_policy_path"])
+        return Path(load_runtime_artifact_paths(asset=asset)["trade_policy_path"])
     except Exception:
         return RUNTIME_CONFIG_FALLBACK_PATH
 
 
 def resolve_oof_path():
     try:
-        model_meta_path = Path(load_runtime_artifact_paths()["model_meta_path"])
+        model_meta_path = Path(
+            load_runtime_artifact_paths(asset=resolve_optimizer_asset())[
+                "model_meta_path"
+            ]
+        )
         model_meta = load_json_object(model_meta_path)
         oof_info = model_meta.get("oof_predictions")
         if isinstance(oof_info, dict) and oof_info.get("path"):
@@ -99,7 +114,14 @@ def resolve_order_price_cap():
         cap = float(ORDER_PRICE_CAP)
     else:
         try:
-            cap = float(load_live_profile()["polymarket_order_price_cap"])
+            runtime_settings = load_runtime_asset_settings(resolve_optimizer_asset())
+            cap = float(
+                load_live_profile(
+                    runtime_settings["live_profile"],
+                    dataset_profile_name=runtime_settings["dataset_profile"],
+                    dataset_asset=runtime_settings["asset"],
+                )["polymarket_order_price_cap"]
+            )
         except Exception:
             cap = ORDER_PRICE_CAP_FALLBACK
     if not math.isfinite(cap) or not (0.0 < cap < 1.0):
@@ -464,47 +486,31 @@ def replay_policy(backtest_frame, runtime_config, *, order_price_cap):
     }
 
 
-def build_trial_runtime_config(base_runtime_config, *, extra_buffer, slippage_ticks):
+def build_trial_runtime_config(base_runtime_config, *, extra_buffer):
     runtime = dict(base_runtime_config)
     runtime["extra_buffer"] = float(extra_buffer)
-    runtime["submitted_price_slippage_ticks"] = int(slippage_ticks)
+    runtime["submitted_price_slippage_ticks"] = int(SUBMITTED_PRICE_SLIPPAGE_TICKS)
     return runtime
 
 
 def enqueue_seed_trials(study, base_runtime_config):
     extra_buffer_low, extra_buffer_high = EXTRA_BUFFER_BOUNDS
-    slippage_ticks_low, slippage_ticks_high = SUBMITTED_PRICE_SLIPPAGE_TICKS_BOUNDS
     candidates = [
-        {
-            "extra_buffer": float(base_runtime_config["extra_buffer"]),
-            "submitted_price_slippage_ticks": int(
-                base_runtime_config.get("submitted_price_slippage_ticks", 0)
-            ),
-        },
-        {"extra_buffer": 0.0, "submitted_price_slippage_ticks": 0},
-        {"extra_buffer": 0.01, "submitted_price_slippage_ticks": 0},
-        {"extra_buffer": 0.01, "submitted_price_slippage_ticks": 2},
-        {"extra_buffer": 0.02, "submitted_price_slippage_ticks": 2},
+        float(base_runtime_config["extra_buffer"]),
+        0.0,
+        0.01,
+        0.02,
     ]
     seen = set()
     enqueued = 0
-    for params in candidates:
-        extra_buffer = float(params["extra_buffer"])
-        slippage_ticks = int(params["submitted_price_slippage_ticks"])
-        if not (
-                extra_buffer_low <= extra_buffer <= extra_buffer_high
-                and slippage_ticks_low <= slippage_ticks <= slippage_ticks_high
-        ):
+    for candidate in candidates:
+        extra_buffer = float(candidate)
+        if not (extra_buffer_low <= extra_buffer <= extra_buffer_high):
             continue
-        key = (round(extra_buffer, 12), slippage_ticks)
+        key = round(extra_buffer, 12)
         if key in seen:
             continue
-        study.enqueue_trial(
-            {
-                "extra_buffer": extra_buffer,
-                "submitted_price_slippage_ticks": slippage_ticks,
-            }
-        )
+        study.enqueue_trial({"extra_buffer": extra_buffer})
         seen.add(key)
         enqueued += 1
     return enqueued
@@ -516,9 +522,7 @@ def trial_report_row(trial):
         "trial_number": int(trial.number),
         "objective_score": float(trial.value),
         "extra_buffer": float(trial.params["extra_buffer"]),
-        "submitted_price_slippage_ticks": int(
-            trial.params["submitted_price_slippage_ticks"]
-        ),
+        "submitted_price_slippage_ticks": int(SUBMITTED_PRICE_SLIPPAGE_TICKS),
         **metrics,
     }
 
@@ -526,21 +530,64 @@ def trial_report_row(trial):
 def build_selected_runtime_payload(raw_runtime_payload, best_params):
     payload = dict(raw_runtime_payload)
     payload["extra_buffer"] = float(best_params["extra_buffer"])
-    payload["submitted_price_slippage_ticks"] = int(
-        best_params["submitted_price_slippage_ticks"]
-    )
+    payload["submitted_price_slippage_ticks"] = int(SUBMITTED_PRICE_SLIPPAGE_TICKS)
     return payload
+
+
+def select_asset_runtime_payload(raw_runtime_payload, asset):
+    if "assets" not in raw_runtime_payload:
+        return raw_runtime_payload
+
+    assets = raw_runtime_payload.get("assets")
+    if not isinstance(assets, dict) or not assets:
+        raise ValueError("Trade policy runtime payload has invalid assets object.")
+    runtime_asset = normalize_asset_name(asset, source_label="trade policy asset")
+    for raw_asset, payload in assets.items():
+        if normalize_asset_name(raw_asset, source_label="trade policy asset") == runtime_asset:
+            if not isinstance(payload, dict):
+                raise ValueError(
+                    f"Trade policy runtime payload assets.{runtime_asset} "
+                    "must be a JSON object."
+                )
+            return payload
+    available = ", ".join(sorted(str(key) for key in assets))
+    raise ValueError(
+        f"Trade policy runtime payload has no policy for asset {runtime_asset!r}. "
+        f"Available: {available}"
+    )
+
+
+def build_asset_runtime_payload(raw_runtime_payload, asset, selected_payload):
+    if "assets" not in raw_runtime_payload:
+        return selected_payload
+
+    assets = raw_runtime_payload.get("assets")
+    if not isinstance(assets, dict) or not assets:
+        raise ValueError("Trade policy runtime payload has invalid assets object.")
+    runtime_asset = normalize_asset_name(asset, source_label="trade policy asset")
+    updated_assets = dict(assets)
+    selected_key = None
+    for raw_asset in assets:
+        if normalize_asset_name(raw_asset, source_label="trade policy asset") == runtime_asset:
+            selected_key = raw_asset
+            break
+    if selected_key is None:
+        selected_key = runtime_asset
+
+    updated_assets[selected_key] = selected_payload
+    updated_payload = dict(raw_runtime_payload)
+    updated_payload["assets"] = updated_assets
+    return updated_payload
 
 
 def validate_optimizer_settings(*, n_trials):
     extra_buffer_low, extra_buffer_high = EXTRA_BUFFER_BOUNDS
-    slippage_ticks_low, slippage_ticks_high = SUBMITTED_PRICE_SLIPPAGE_TICKS_BOUNDS
     if int(n_trials) <= 0:
         raise ValueError("N_TRIALS must be > 0.")
     if extra_buffer_low < 0.0 or extra_buffer_low > extra_buffer_high:
         raise ValueError("Invalid EXTRA_BUFFER_BOUNDS.")
-    if slippage_ticks_low < 0 or slippage_ticks_low > slippage_ticks_high:
-        raise ValueError("Invalid SUBMITTED_PRICE_SLIPPAGE_TICKS_BOUNDS.")
+    if int(SUBMITTED_PRICE_SLIPPAGE_TICKS) < 0:
+        raise ValueError("SUBMITTED_PRICE_SLIPPAGE_TICKS must be >= 0.")
 
 
 def run_optimization(*, n_trials=None, save_runtime_config=None):
@@ -554,10 +601,17 @@ def run_optimization(*, n_trials=None, save_runtime_config=None):
     oof_path = resolve_oof_path()
     order_price_cap = resolve_order_price_cap()
     extra_buffer_low, extra_buffer_high = EXTRA_BUFFER_BOUNDS
-    slippage_ticks_low, slippage_ticks_high = SUBMITTED_PRICE_SLIPPAGE_TICKS_BOUNDS
 
+    optimizer_asset = resolve_optimizer_asset()
     raw_runtime_payload = load_json_object(runtime_config_path)
-    base_runtime_config = load_trade_policy_runtime_config(runtime_config_path)
+    raw_asset_runtime_payload = select_asset_runtime_payload(
+        raw_runtime_payload,
+        optimizer_asset,
+    )
+    base_runtime_config = load_trade_policy_runtime_config(
+        runtime_config_path,
+        asset=optimizer_asset,
+    )
     live_prices, live_price_summary = load_live_price_frame(LIVE_DIR)
     oof_predictions = load_oof_predictions(oof_path)
     backtest_frame = build_backtest_frame(oof_predictions, live_prices)
@@ -594,11 +648,6 @@ def run_optimization(*, n_trials=None, save_runtime_config=None):
                 float(extra_buffer_low),
                 float(extra_buffer_high),
             ),
-            slippage_ticks=trial.suggest_int(
-                "submitted_price_slippage_ticks",
-                int(slippage_ticks_low),
-                int(slippage_ticks_high),
-            ),
         )
         metrics = replay_policy(
             backtest_frame,
@@ -619,9 +668,18 @@ def run_optimization(*, n_trials=None, save_runtime_config=None):
         raise RuntimeError("No completed Optuna trials.")
     complete_trials.sort(key=lambda trial: float(trial.value), reverse=True)
     best_trial = complete_trials[0]
+    selected_params = dict(best_trial.params)
+    selected_params["submitted_price_slippage_ticks"] = int(
+        SUBMITTED_PRICE_SLIPPAGE_TICKS
+    )
     selected_payload = build_selected_runtime_payload(
-        raw_runtime_payload,
+        raw_asset_runtime_payload,
         best_trial.params,
+    )
+    selected_runtime_payload = build_asset_runtime_payload(
+        raw_runtime_payload,
+        optimizer_asset,
+        selected_payload,
     )
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -635,6 +693,7 @@ def run_optimization(*, n_trials=None, save_runtime_config=None):
         "study_name": str(STUDY_NAME),
         "runtime_config_path": runtime_config_path,
         "runtime_config_saved": bool(save_runtime_config),
+        "asset": optimizer_asset,
         "oof_path": oof_path,
         "live_price_summary": live_price_summary,
         "aligned_replay_rows": int(len(backtest_frame)),
@@ -646,13 +705,12 @@ def run_optimization(*, n_trials=None, save_runtime_config=None):
         "enqueued_seed_trials": int(enqueued_seed_trials),
         "search_space": {
             "extra_buffer": [float(extra_buffer_low), float(extra_buffer_high)],
-            "submitted_price_slippage_ticks": [
-                int(slippage_ticks_low),
-                int(slippage_ticks_high),
-            ],
+        },
+        "fixed_params": {
+            "submitted_price_slippage_ticks": int(SUBMITTED_PRICE_SLIPPAGE_TICKS),
         },
         "base_runtime_config": base_runtime_config,
-        "selected_params": dict(best_trial.params),
+        "selected_params": selected_params,
         "selected_metrics": best_trial.user_attrs["metrics"],
         "selected_runtime_payload": selected_payload,
         "top_trials": trial_rows[:20],
@@ -660,7 +718,7 @@ def run_optimization(*, n_trials=None, save_runtime_config=None):
     save_json(run_summary_path, run_summary)
 
     if save_runtime_config:
-        save_json(runtime_config_path, selected_payload)
+        save_json(runtime_config_path, selected_runtime_payload)
 
     metrics = best_trial.user_attrs["metrics"]
     print(
@@ -671,7 +729,7 @@ def run_optimization(*, n_trials=None, save_runtime_config=None):
         f"executed={metrics['executed']} "
         f"extra_buffer={float(best_trial.params['extra_buffer']):.6f} "
         "submitted_price_slippage_ticks="
-        f"{int(best_trial.params['submitted_price_slippage_ticks'])}"
+        f"{int(SUBMITTED_PRICE_SLIPPAGE_TICKS)}"
     )
     if save_runtime_config:
         print(f"saved runtime config | path={runtime_config_path}")

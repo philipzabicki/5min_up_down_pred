@@ -7,6 +7,7 @@ from utils.polymarket import (
     polymarket_taker_fee_fraction_of_notional,
     polymarket_taker_fee_usdc_from_notional,
 )
+from utils.project_config import normalize_asset_name
 
 EV_DECISION_EPS = 1e-12
 POLYMARKET_MARKET_BUY_AMOUNT_DECIMALS = 2
@@ -180,7 +181,50 @@ def normalize_stake_multiplier_config(value):
     return float(multiplier), "fixed"
 
 
-def load_trade_policy_runtime_config(config_path):
+def _select_trade_policy_payload(payload, config_path, *, asset=None):
+    if "assets" not in payload:
+        return payload
+
+    assets = payload.get("assets")
+    if not isinstance(assets, dict) or not assets:
+        raise ValueError(f"Trade policy config has invalid assets object: {config_path}")
+    if asset is None:
+        raise ValueError(
+            f"Trade policy config {config_path} contains per-asset policies; "
+            "pass asset=... to select one."
+        )
+
+    requested_asset = normalize_asset_name(asset, source_label="trade policy asset")
+    normalized_assets = {}
+    for raw_asset, raw_policy in assets.items():
+        policy_asset = normalize_asset_name(
+            raw_asset,
+            source_label=f"{config_path}.assets key",
+        )
+        if policy_asset in normalized_assets:
+            raise ValueError(
+                f"Trade policy config {config_path} defines duplicate asset "
+                f"after normalization: {policy_asset!r}."
+            )
+        normalized_assets[policy_asset] = raw_policy
+
+    if requested_asset not in normalized_assets:
+        available = ", ".join(sorted(normalized_assets))
+        raise ValueError(
+            f"Trade policy config {config_path} has no policy for asset "
+            f"{requested_asset!r}. Available: {available}"
+        )
+
+    selected = normalized_assets[requested_asset]
+    if not isinstance(selected, dict):
+        raise ValueError(
+            f"Trade policy config {config_path} assets.{requested_asset} "
+            "must be a JSON object."
+        )
+    return selected
+
+
+def load_trade_policy_runtime_config(config_path, *, asset=None):
     config_path = coerce_path(config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"Trade policy config not found: {config_path}")
@@ -188,6 +232,7 @@ def load_trade_policy_runtime_config(config_path):
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"Trade policy config must be a JSON object: {config_path}")
+    payload = _select_trade_policy_payload(payload, config_path, asset=asset)
 
     fee_model = payload.get("fee_model")
     if not isinstance(fee_model, dict):

@@ -50,6 +50,36 @@ class TradePolicyRuntimeConfigTests(unittest.TestCase):
         self.assertEqual(cfg["stake_multiplier"], 1.0)
         self.assertEqual(cfg["stake_multiplier_mode"], "return_multiple")
 
+    def test_loads_per_asset_policy(self):
+        payload = {
+            "assets": {
+                "BTC": _policy_payload(extra_buffer=0.01),
+                "ETH": _policy_payload(extra_buffer=0.02),
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "policy.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+
+            cfg = load_trade_policy_runtime_config(path, asset="ETH")
+
+        self.assertEqual(cfg["submitted_price_mode"], "entry_price_plus_ticks")
+        self.assertAlmostEqual(cfg["extra_buffer"], 0.02)
+
+    def test_per_asset_policy_requires_asset(self):
+        payload = {
+            "assets": {
+                "BTC": _policy_payload(extra_buffer=0.01),
+                "ETH": _policy_payload(extra_buffer=0.02),
+            }
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = Path(tmpdir) / "policy.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "pass asset"):
+                load_trade_policy_runtime_config(path)
+
     def test_rejects_negative_slippage_ticks(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             path = Path(tmpdir) / "policy.json"
