@@ -1,0 +1,86 @@
+{
+  "bin_size": 1.2327656088387606,
+  "bins": 81120,
+  "config_signature": "{\"bin_size\":1.2327656088387606,\"bins\":81120,\"distance_power\":0.29525874004362673,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":27},\"long\":{\"decay\":0.9999808360601945,\"half_life_candles\":36169,\"local_window\":56},\"medium\":{\"decay\":0.9997166602707053,\"half_life_candles\":2446,\"local_window\":33},\"short\":{\"decay\":0.9953588092664996,\"half_life_candles\":149,\"local_window\":79}},\"min_reaction_strength\":0.00025950472559896093,\"neighbor_bins\":12.360726018238429,\"neighbor_radius\":13,\"price_max\":100000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.29163105657861976}",
+  "distance_power": 0.29525874004362673,
+  "enabled": true,
+  "eps": 1e-12,
+  "feature_columns": [
+    "rp_short_support_below",
+    "rp_short_resistance_above",
+    "rp_short_support_above",
+    "rp_short_resistance_below",
+    "rp_short_imbalance",
+    "rp_short_support_center_dist",
+    "rp_short_resistance_center_dist",
+    "rp_medium_support_below",
+    "rp_medium_resistance_above",
+    "rp_medium_support_above",
+    "rp_medium_resistance_below",
+    "rp_medium_imbalance",
+    "rp_medium_support_center_dist",
+    "rp_medium_resistance_center_dist",
+    "rp_long_support_below",
+    "rp_long_resistance_above",
+    "rp_long_support_above",
+    "rp_long_resistance_below",
+    "rp_long_imbalance",
+    "rp_long_support_center_dist",
+    "rp_long_resistance_center_dist",
+    "rp_all_support_below",
+    "rp_all_resistance_above",
+    "rp_all_support_above",
+    "rp_all_resistance_below",
+    "rp_all_imbalance",
+    "rp_all_support_center_dist",
+    "rp_all_resistance_center_dist"
+  ],
+  "horizon_names": [
+    "short",
+    "medium",
+    "long",
+    "all"
+  ],
+  "horizons": {
+    "all": {
+      "bins": 81120,
+      "decay": 1.0,
+      "global_scale": 1.0,
+      "half_life_candles": null,
+      "horizon_name": "all",
+      "local_window": 27
+    },
+    "long": {
+      "bins": 81120,
+      "decay": 0.9999808360601945,
+      "global_scale": 0.013431337623047459,
+      "half_life_candles": 36169,
+      "horizon_name": "long",
+      "local_window": 56
+    },
+    "medium": {
+      "bins": 81120,
+      "decay": 0.9997166602707053,
+      "global_scale": 0.027719875638488992,
+      "half_life_candles": 2446,
+      "horizon_name": "medium",
+      "local_window": 33
+    },
+    "short": {
+      "bins": 81120,
+      "decay": 0.9953588092664996,
+      "global_scale": 0.1371881892373339,
+      "half_life_candles": 149,
+      "horizon_name": "short",
+      "local_window": 79
+    }
+  },
+  "last_candle_time": "2026-06-21T20:13:00",
+  "min_reaction_strength": 0.00025950472559896093,
+  "neighbor_bins": 12.360726018238429,
+  "neighbor_radius": 13,
+  "price_max": 100000.0,
+  "price_min": 0.0,
+  "version": "rp_fixed_grid_v1",
+  "wick_power": 0.29163105657861976
+}

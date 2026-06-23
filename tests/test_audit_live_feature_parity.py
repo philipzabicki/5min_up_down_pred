@@ -1,4 +1,5 @@
 import json
+import math
 import tempfile
 import unittest
 from pathlib import Path
@@ -92,6 +93,108 @@ class PseudoLiveAuditPredictorTests(unittest.TestCase):
         self.assertIsNotNone(predictor.basis_futures_close_np)
         self.assertEqual(len(predictor.opened_candles), 3)
         self.assertEqual(len(predictor.basis_futures_close_np), 3)
+
+    def test_reaction_profile_features_are_replayed_into_snapshot(self):
+        bootstrap_df = pd.DataFrame(
+            {
+                "Opened": pd.date_range(
+                    "2026-01-01 00:00:00",
+                    periods=2,
+                    freq="min",
+                    tz="UTC",
+                ),
+                "Open": [100.0, 101.0],
+                "High": [101.0, 103.0],
+                "Low": [99.0, 100.0],
+                "Close": [100.5, 102.5],
+                "Volume": [10.0, 11.0],
+            }
+        )
+        rp_cfg = {
+            "enabled": True,
+            "price_min": 0.0,
+            "price_max": 200.0,
+            "bin_size": 1.0,
+            "neighbor_bins": 3.0,
+            "eps": 1e-12,
+            "min_reaction_strength": 0.0,
+            "wick_power": 1.0,
+            "distance_power": 1.0,
+            "horizons": {
+                "short": {"local_window": 8, "half_life_candles": 2},
+                "medium": {"local_window": 8, "half_life_candles": 4},
+                "long": {"local_window": 8, "half_life_candles": 8},
+                "all": {"local_window": 8, "half_life_candles": None},
+            },
+        }
+        meta = {
+            "feature_columns": ["rp_short_support_below"],
+            "target_col": "target_5m_candle_up",
+            "reaction_profile_fixed_grid": rp_cfg,
+        }
+        requirements = {
+            "global_required_runtime_window": 1,
+            "global_required_stable_window": 1,
+            "stable_window_by_feature": {},
+            "runtime_window_by_feature": {},
+        }
+        active_settings = {
+            **audit.MODELING_DATASET_SETTINGS,
+            "volume_profile_fixed_range": {"enabled": False},
+            "reaction_profile_fixed_grid": rp_cfg,
+            "basis_premium_features": {"enabled": False},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            requirements_path = Path(tmpdir) / "requirements.json"
+            requirements_path.write_text(
+                json.dumps({"unstable_features": []}),
+                encoding="utf-8",
+            )
+            with (
+                mock.patch.object(audit, "MODELING_DATASET_SETTINGS", active_settings),
+                mock.patch.object(
+                    audit,
+                    "INDICATOR_HISTORY_REQUIREMENTS_PATH",
+                    requirements_path,
+                ),
+                mock.patch.object(
+                    audit,
+                    "load_model_and_meta",
+                    return_value=(object(), meta),
+                ),
+                mock.patch.object(
+                    audit,
+                    "load_trade_policy_runtime_config",
+                    return_value={},
+                ),
+                mock.patch.object(audit, "load_indicator_specs", return_value=[]),
+                mock.patch.object(
+                    audit,
+                    "load_indicator_history_requirements",
+                    return_value=requirements,
+                ),
+            ):
+                predictor = audit.PseudoLiveAuditPredictor(
+                    bootstrap_df,
+                    model_meta_path="unused.json",
+                    max_keep=10,
+                )
+
+        predictor._append_new_candle(
+            pd.Timestamp("2026-01-01 00:02:00", tz="UTC"),
+            (102.0, 104.0, 101.0, 103.5, 12.0),
+        )
+        reaction_values = predictor._prepare_reaction_profile_features_for_latest_candle(
+            pd.Timestamp("2026-01-01 00:02:00", tz="UTC"),
+        )
+        snapshot = predictor.build_feature_snapshot(
+            reaction_profile_values=reaction_values,
+        )
+
+        self.assertIn("rp_short_support_below", reaction_values)
+        self.assertTrue(math.isfinite(float(snapshot["vector"][0, 0])))
+        self.assertEqual(snapshot["nonfinite_feature_indices"], ())
 
 
 class LiveFeatureParityOutputTests(unittest.TestCase):
@@ -395,6 +498,30 @@ class LiveFeatureParityOutputTests(unittest.TestCase):
         self.assertNotIn("builder", result.columns)
         self.assertNotIn("group", result.columns)
         self.assertNotIn("net_pred_gap_reduction", result.columns)
+
+    def test_features_to_inspect_does_not_report_nan_diff_as_zero(self):
+        feature_summary_df = pd.DataFrame(
+            {
+                "feature": ["nan_diff_feature"],
+                "rows_pred_shift_gt_tol_if_fixed": [1],
+                "mean_abs_proba_shift_on_shift_rows_if_fixed": [0.01],
+                "max_abs_proba_shift_if_fixed": [0.02],
+                "rows_proba_diff_gt_tol_resolved_if_fixed": [0],
+                "rows_signal_mismatch_resolved_if_fixed": [0],
+                "max_abs_diff": [float("nan")],
+                "mean_abs_diff": [float("nan")],
+                "importance_gain": [1.0],
+            }
+        )
+
+        result = audit._build_features_to_inspect_df(
+            feature_summary_df,
+            decision_row_count=10,
+        )
+
+        self.assertEqual(result["feature"].tolist(), ["nan_diff_feature"])
+        self.assertTrue(math.isnan(float(result.loc[0, "max_feature_abs_diff"])))
+        self.assertTrue(math.isnan(float(result.loc[0, "mean_feature_abs_diff"])))
 
     def test_summary_payload_is_short_and_feature_focused(self):
         features_to_inspect_df = pd.DataFrame(

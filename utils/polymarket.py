@@ -413,14 +413,39 @@ def collect_redeem_candidates(
             diagnostics.append({**base_diag, "action": "skip", "reason": "untracked_condition"})
             continue
 
-        idempotency_reason = _redeem_idempotency_skip_reason(condition_records)
-        if idempotency_reason:
-            diagnostics.append({**base_diag, "action": "skip", "reason": idempotency_reason})
+        if not any(_record_is_locally_resolved(rec) for rec in condition_records):
+            diagnostics.append({**base_diag, "action": "skip", "reason": "unresolved_local_state"})
+            continue
+
+        winning_records = [
+            rec for rec in condition_records if _record_side_won_locally(rec)
+        ]
+        if not winning_records:
+            diagnostics.append(
+                {**base_diag, "action": "skip", "reason": "local_outcome_not_winning"}
+            )
             blocked_conditions.add(condition_id)
             continue
 
-        if not any(_record_is_locally_resolved(rec) for rec in condition_records):
-            diagnostics.append({**base_diag, "action": "skip", "reason": "unresolved_local_state"})
+        matching_winning_records = [
+            rec
+            for rec in winning_records
+            if _safe_text(rec.get("pm_selected_token_id")) == asset
+        ]
+        if not matching_winning_records:
+            diagnostics.append(
+                {
+                    **base_diag,
+                    "action": "skip",
+                    "reason": "position_asset_not_winning_record",
+                }
+            )
+            continue
+
+        idempotency_reason = _redeem_idempotency_skip_reason(matching_winning_records)
+        if idempotency_reason:
+            diagnostics.append({**base_diag, "action": "skip", "reason": idempotency_reason})
+            blocked_conditions.add(condition_id)
             continue
 
         if require_redeemable and not bool(pos.get("redeemable", False)):
@@ -456,6 +481,23 @@ def _record_is_locally_resolved(record):
         return int(actual_up) in {0, 1}
     except (TypeError, ValueError):
         return False
+
+
+def _record_side_won_locally(record):
+    actual_up = record.get("actual_up")
+    try:
+        actual = int(actual_up)
+    except (TypeError, ValueError):
+        return False
+    if actual not in {0, 1}:
+        return False
+
+    trade_side = _safe_text(record.get("trade_side")).lower()
+    if trade_side == "yes":
+        return actual == 1
+    if trade_side == "no":
+        return actual == 0
+    return False
 
 
 def _redeem_idempotency_skip_reason(records):

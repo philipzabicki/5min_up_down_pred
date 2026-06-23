@@ -25,7 +25,7 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float64",
+      "float_precision": "float32",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -34,31 +34,60 @@
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "step": 86,
-            "local_window": 74,
-            "sigma_divisor": 1.0029132426037255,
-            "min_sigma": 0.01168374082915439,
-            "half_life_candles": 44
+            "step": 133,
+            "local_window": 30,
+            "sigma_divisor": 0.010749146783007394,
+            "min_sigma": 0.2032187855100318,
+            "half_life_candles": 63
           },
           "medium": {
-            "step": 315,
-            "local_window": 16,
-            "sigma_divisor": 0.07924136667102884,
-            "min_sigma": 0.01954603115645541,
-            "half_life_candles": 3964
+            "step": 224,
+            "local_window": 62,
+            "sigma_divisor": 0.019826022589067502,
+            "min_sigma": 348.2091776108139,
+            "half_life_candles": 3410
           },
           "long": {
-            "step": 288,
-            "local_window": 63,
-            "sigma_divisor": 0.028597435780326995,
-            "min_sigma": 15.297784915081207,
-            "half_life_candles": 20168
+            "step": 290,
+            "local_window": 115,
+            "sigma_divisor": 0.25568458901646657,
+            "min_sigma": 0.3064296561084144,
+            "half_life_candles": 24319
           },
           "all": {
-            "step": 376,
-            "local_window": 111,
-            "sigma_divisor": 1.7113898148076392,
-            "min_sigma": 3.0986707819982775,
+            "step": 348,
+            "local_window": 114,
+            "sigma_divisor": 0.03249117103984035,
+            "min_sigma": 6.746143330352876,
+            "half_life_candles": null
+          }
+        }
+      },
+      "reaction_profile_fixed_grid": {
+        "enabled": true,
+        "price_min": 0.0,
+        "price_max": 2000000.0,
+        "bin_size": 88.13347937442842,
+        "neighbor_bins": 14.475523355248354,
+        "eps": 1e-12,
+        "min_reaction_strength": 7.776895291626223e-05,
+        "wick_power": 1.481640187824231,
+        "distance_power": 0.26262391136729163,
+        "horizons": {
+          "short": {
+            "local_window": 67,
+            "half_life_candles": 57
+          },
+          "medium": {
+            "local_window": 103,
+            "half_life_candles": 3702
+          },
+          "long": {
+            "local_window": 40,
+            "half_life_candles": 21450
+          },
+          "all": {
+            "local_window": 81,
             "half_life_candles": null
           }
         }
@@ -68,8 +97,8 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/BTC/20260620_020349/recommended_features.json",
+        "mode": "none",
+        "artifact_path": "",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
@@ -111,7 +140,9 @@
           "ChaikinOsc_fit_240m_pop128_fasmatypkama_fasper687_slomatypkama_sloper121_qe0.1_qm0.3_tf0.8_stmc_sg20",
           "ChaikinOsc_fit_5m_candle_up_pop128_fasmatypnwmaepan_fasper10_slomatypehma_sloper628_qe0.1_qm0.3_tf0.8_stmc_sg20",
           "StochOsc_fit_4m_pop512_faskper601_slodmatypkama_slodper529_slokmatypkama_slokper41_qe0.2_qm0.25_tf0.8_stmd_sg20",
-          "KeltnerChannel_fit_2m_pop16_atrmatypnwmaepan_atrmul6.2753_atrper93_maper1786_matypmama_soulow"
+          "KeltnerChannel_fit_2m_pop16_atrmatypnwmaepan_atrmul6.2753_atrper93_maper1786_matypmama_soulow",
+          "BollingerBands_fit_30m_pop16_maper2_masouclose_matypdema_stdmaper756_stdmatyplwma_stdmul0.66559_stdsouhl2",
+          "ChaikinOsc_fit_5m_pop16_fasmatyplwma_fasper4_slomatypmama_sloper730"
         ]
       },
       "train_lgbm": {
@@ -242,7 +273,7 @@
           "candle_body_pressure_5m_lag6": -1,
           "StochOsc_fit_6m_pop16_faskper390_slodmatypmama_slodper461_slokmatypfba_slokper1811": -1,
           "MACD_fit_240m_pop16_fasmatypnwmagauss_fasper943_fassouhigh_sigmatypnwmacos_sigper202_slomatypgma_sloper1704_slosoulow": -1,
-          "candle_close_location_value_15m_lag4": 1,
+          "candle_close_location_value_15m_lag4": -1,
           "candle_body_pressure_1h_lag5": -1,
           "candle_body_pressure_15m_lag3": -1,
           "candle_body_pressure_1m_lag7": -1,
@@ -385,7 +416,71 @@
           "CDLBELTHOLD_1m": -1,
           "candle_signed_vol_4h_lag7": 1,
           "CDLBELTHOLD_5m": -1,
-          "candle_signed_vol_1m_lag5": -1
+          "candle_signed_vol_1m_lag5": -1,
+          "MACD_fit_240m_pop64_fasmatypnwmaunif_fasper395_fassouopen_sigmatypnwmaunif_sigper1264_slomatypgma_sloper483_slosouhl2": -1,
+          "rp_long_resistance_above": 1,
+          "vp_medium_log_density_ratio_to_current_bin_plus_8": 1,
+          "ChaikinOsc_fit_2m_pop16_fasmatypfba_fasper76_slomatypnwmagauss_sloper26": -1,
+          "vp_short_log_density_ratio_to_current_bin_minus_7": -1,
+          "rp_short_resistance_below": -1,
+          "candle_body_pressure_1d_lag4": 1,
+          "candle_close_location_value_1m": -1,
+          "rp_medium_resistance_below": -1,
+          "candle_wick_asym_1d_lag4": 1,
+          "StochOsc_fit_240m_pop128_faskper372_slodmatyplwma_slodper1616_slokmatypt3_slokper1284": 1,
+          "candle_wick_asym_5m_lag6": -1,
+          "vp_long_log_density_ratio_to_current_bin_plus_9": 1,
+          "vp_all_log_density_ratio_to_current_bin_plus_2": 1,
+          "candle_body_pressure_30m_lag7": -1,
+          "candle_close_location_value_5m_lag1": -1,
+          "realized_volatility_1m": -1,
+          "ChaikinOsc_fit_5m_pop16_fasmatyplwma_fasper4_slomatypmama_sloper730": -1,
+          "rp_long_support_above": 1,
+          "rp_medium_support_above": 1,
+          "StochOsc_fit_7m_pop128_faskper689_slodmatyphma_slodper1423_slokmatyphma_slokper1617_qe0.1_qm0.1_tf0.8_stmc_sg15": -1,
+          "candle_close_location_value_1d_lag3": -1,
+          "ChaikinOsc_fit_1440m_pop128_fasmatypehma_fasper978_slomatyptema_sloper1624_qe0.2_qm0.2_tf0.8_stmc_sg15": -1,
+          "rp_long_resistance_center_dist": 1,
+          "vp_short_log_density_ratio_to_current_bin_minus_4": -1,
+          "candle_body_abs_open_5m_lag7": -1,
+          "vp_long_log_density_ratio_to_current_bin_minus_6": -1,
+          "vp_all_log_density_ratio_to_current_bin_minus_8": 1,
+          "candle_close_location_value_4h_lag4": 1,
+          "CDLGRAVESTONEDOJI_5m": 1,
+          "ChaikinOsc_fit_60m_pop128_fasmatypkama_fasper247_slomatyptrima_sloper648_qe0.1_qm0.1_tf0.8_stmc_sg15": -1,
+          "CDLCLOSINGMARUBOZU_5m": -1,
+          "vp_long_log_density_ratio_to_current_bin_minus_7": -1,
+          "candle_body_pressure_4h_lag4": 1,
+          "candle_close_location_value_1h_lag6": -1,
+          "ADX_fit_7m_pop128_adxper235_atrper1700_matypadxhma_matypatrsma_matypnegdmgma_matypposdmsma_negdmper474_posdmper1221_qe0.2_qm0.2_tf0.8_stmc_sg15": 1,
+          "realized_volatility_1h": -1,
+          "CDLHIKKAKE_1m": -1,
+          "rp_medium_imbalance": -1,
+          "MACD_fit_3m_pop128_fasmatyptrima_fasper359_fassouohlc4_sigmatypsma_sigper58_slomatypehma_sloper993_slosouhlcc4_qe0.1_qm0.2_tf0.8_stmc_sg15": 1,
+          "vp_long_local_above_below_volume_log_ratio": 1,
+          "rp_long_imbalance": -1,
+          "rp_short_support_above": 1,
+          "vp_long_log_density_ratio_to_current_bin_minus_5": -1,
+          "vov_1h": -1,
+          "candle_body_abs_open_1m_lag6": -1,
+          "rp_medium_support_below": -1,
+          "candle_signed_vol_5m_lag1": -1,
+          "ChaikinOsc_fit_60m_pop128_fasmatypt3_fasper685_slomatypt3_sloper1209": 1,
+          "CDLTAKURI_5m": -1,
+          "candle_wick_asym_15m_lag2": -1,
+          "candle_body_pressure_4h_lag5": 1,
+          "rp_medium_resistance_above": 1,
+          "candle_close_location_value_30m_lag5": -1,
+          "vp_long_log_density_ratio_to_current_bin_plus_8": 1,
+          "rp_short_support_center_dist": -1,
+          "BollingerBands_fit_5m_candle_up_pop128_maper130_masouhlc3_matyptrima_stdmaper1257_stdmatypkama_stdsouohlc4_qe0.1_qm0.3_tf0.8_stmc_sg20": 1,
+          "candle_up_down_vol_log_ratio_4h_lag5": 1,
+          "CDLDRAGONFLYDOJI_5m": -1,
+          "rp_medium_support_center_dist": -1,
+          "candle_body_pressure_1d_lag3": -1,
+          "vp_long_log_density_ratio_to_current_bin_minus_3": -1,
+          "ADX_fit_30m_pop16_adxper61_adxthr73.12672_atrper102_matypadxkama_matypatrtrima_matypnegdmlinreg_matypposdmdema_negdmper1879_posdmper1734": 1,
+          "ChaikinOsc_fit_1m_pop128_fasmatypnwmabiw_fasper38_slomatypdema_sloper1520": -1
         }
       }
     },
@@ -414,7 +509,7 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float64",
+      "float_precision": "float32",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -452,16 +547,46 @@
           }
         }
       },
+      "reaction_profile_fixed_grid": {
+        "enabled": true,
+        "price_min": 0.0,
+        "price_max": 100000.0,
+        "bin_size": 1.2327656088387606,
+        "neighbor_bins": 12.360726018238429,
+        "eps": 1e-12,
+        "min_reaction_strength": 0.00025950472559896093,
+        "wick_power": 0.29163105657861976,
+        "distance_power": 0.29525874004362673,
+        "horizons": {
+          "short": {
+            "local_window": 79,
+            "half_life_candles": 149
+          },
+          "medium": {
+            "local_window": 33,
+            "half_life_candles": 2446
+          },
+          "long": {
+            "local_window": 56,
+            "half_life_candles": 36169
+          },
+          "all": {
+            "local_window": 27,
+            "half_life_candles": null
+          }
+        }
+      },
       "drop_frozen_ohlc_blocks": {
         "enabled": false,
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/ETH/20260619_180957/recommended_features.json",
+        "mode": "none",
+        "artifact_path": "",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
-          "KeltnerChannel_fit_5m_candle_up_pop512_atrmatyptema_atrper1130_maper39_matyptrima_souhl2_qe0.1_qm0.15_tf0.8_stmc_sg10"
+          "KeltnerChannel_fit_5m_candle_up_pop512_atrmatyptema_atrper1130_maper39_matyptrima_souhl2_qe0.1_qm0.15_tf0.8_stmc_sg10",
+          "ChaikinOsc_fit_5m_candle_up_pop512_fasmatypnwmabiw_fasper26_slomatypmama_sloper17_qe0.1_qm0.15_tf0.8_stmc_sg10"
         ]
       },
       "train_lgbm": {
@@ -544,7 +669,51 @@
           "candle_range_ho_1m_lag2": -1,
           "ChaikinOsc_fit_5m_candle_up_pop512_fasmatypnwmabiw_fasper26_slomatypmama_sloper17_qe0.1_qm0.15_tf0.8_stmc_sg10": 1,
           "candle_wick_asym_1d_lag6": 1,
-          "vp_medium_log_density_ratio_to_current_bin_plus_2": 1
+          "vp_medium_log_density_ratio_to_current_bin_plus_2": 1,
+          "CDLBELTHOLD_5m": -1,
+          "vp_medium_log_density_ratio_to_current_bin_minus_3": -1,
+          "rp_medium_resistance_below": -1,
+          "candle_close_location_value_1m_lag1": -1,
+          "rp_long_support_above": 1,
+          "candle_ret_co_5m_lag3": -1,
+          "rp_all_support_above": -1,
+          "candle_body_pressure_30m_lag2": -1,
+          "candle_body_abs_open_5m_lag4": -1,
+          "vp_all_current_bin_volume_share_of_local_peak": -1,
+          "candle_body_abs_open_5m_lag6": -1,
+          "CDLBELTHOLD_1m": -1,
+          "candle_wick_asym_1m_lag7": -1,
+          "candle_wick_asym_1d_lag4": 1,
+          "candle_body_pressure_30m_lag6": -1,
+          "candle_close_location_value_1d_lag3": -1,
+          "realized_volatility_compression_expansion_5m_15m": 1,
+          "vp_medium_log_density_ratio_to_current_bin_plus_9": 1,
+          "realized_volatility_up_1m": -1,
+          "futures_index_basis_abs_1m": -1,
+          "candle_close_location_value_1m_lag6": -1,
+          "candle_wick_asym_4h_lag6": -1,
+          "CDLENGULFING_5m": -1,
+          "candle_close_location_value_15m_lag4": -1,
+          "candle_wick_asym_1h_lag4": -1,
+          "futures_index_basis_abs_1d": -1,
+          "candle_close_location_value_30m_lag3": -1,
+          "candle_close_location_value_4h_lag3": -1,
+          "candle_range_ho_5m_lag3": 1,
+          "vp_medium_log_density_ratio_to_current_bin_minus_5": -1,
+          "candle_close_location_value_30m_lag2": -1,
+          "candle_body_pressure_15m_lag4": -1,
+          "rp_medium_imbalance": -1,
+          "candle_close_location_value_1d_lag4": -1,
+          "candle_body_pressure_30m_lag7": 1,
+          "candle_wick_asym_4h_lag3": 1,
+          "realized_volatility_compression_expansion_1m_5m": -1,
+          "rp_medium_support_below": -1,
+          "candle_body_pressure_4h_lag5": 1,
+          "candle_wick_asym_4h_lag4": -1,
+          "rp_medium_support_center_dist": -1,
+          "rp_all_resistance_above": -1,
+          "candle_close_location_value_1h_lag3": -1,
+          "vp_long_log_density_ratio_to_current_bin_plus_7": 1
         }
       }
     }

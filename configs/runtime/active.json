@@ -6,7 +6,7 @@
       "modeling_profile": "BTC",
       "live_profile": "polymarket_live",
       "artifacts": {
-        "model_meta_path": "data/models/BTC/20260620_060120/lgbm_meta_20260620_060120.json",
+        "model_meta_path": "data/models/BTC/20260623_230123/lgbm_meta_20260623_230123.json",
         "trade_policy_path": "configs/runtime/trade_policy_project.json",
         "indicator_history_requirements_path": ""
       }
@@ -17,7 +17,7 @@
       "modeling_profile": "ETH",
       "live_profile": "polymarket_eth_live",
       "artifacts": {
-        "model_meta_path": "data/models/ETH/20260620_071443/lgbm_meta_20260620_071443.json",
+        "model_meta_path": "data/models/ETH/20260622_033228/lgbm_meta_20260622_033228.json",
         "trade_policy_path": "configs/runtime/trade_policy_project.json",
         "indicator_history_requirements_path": "data/runtime/ETH/indicator_history_requirements.json"
       }

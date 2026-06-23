@@ -53,6 +53,7 @@ class PredictionSchedulingTests(unittest.TestCase):
         result = predictor._maybe_predict_closed_bucket(
             pd.Timestamp("2026-01-01T00:04:00Z"),
             {"vp": 1.0},
+            {"rp": 2.0},
             delay_timing={"feature_prep_ms": 1.0},
             market_future=market_future,
         )
@@ -60,6 +61,7 @@ class PredictionSchedulingTests(unittest.TestCase):
         self.assertEqual(result, "predicted")
         self.assertIs(calls[0]["market_future"], market_future)
         self.assertEqual(calls[0]["volume_profile_values"], {"vp": 1.0})
+        self.assertEqual(calls[0]["reaction_profile_values"], {"rp": 2.0})
 
 
 class LiveMessageLatencyTests(unittest.TestCase):
@@ -101,9 +103,15 @@ class LiveMessageLatencyTests(unittest.TestCase):
             self.assertEqual(feature_opened, opened)
             return {"vp": 1.0}
 
+        def fake_reaction_feature_prep(feature_opened):
+            events.append("reaction_feature_prep")
+            self.assertEqual(feature_opened, opened)
+            return {"rp": 2.0}
+
         def fake_maybe_predict(
                 feature_opened,
                 volume_profile_values,
+                reaction_profile_values,
                 *,
                 delay_timing=None,
                 market_future=None,
@@ -111,11 +119,13 @@ class LiveMessageLatencyTests(unittest.TestCase):
             events.append("predict")
             self.assertEqual(feature_opened, opened)
             self.assertEqual(volume_profile_values, {"vp": 1.0})
+            self.assertEqual(reaction_profile_values, {"rp": 2.0})
             self.assertIs(market_future, expected_market_future)
             return None
 
         trader._market_lookup_future_for_bucket = fake_market_lookup
         trader._prepare_volume_profile_features_for_latest_candle = fake_feature_prep
+        trader._prepare_reaction_profile_features_for_latest_candle = fake_reaction_feature_prep
         trader._maybe_predict_closed_bucket = fake_maybe_predict
         trader._resolve_pending = lambda: 0
         trader._next_unpredicted_bucket_start = lambda: pd.Timestamp(
@@ -131,7 +141,44 @@ class LiveMessageLatencyTests(unittest.TestCase):
 
 
 class LiveStatsTests(unittest.TestCase):
-    def test_total_pnl_counts_only_closed_trades(self):
+    def test_resolve_pending_records_local_pnl_for_resolved_loser(self):
+        trader = PolymarketLiveTrader.__new__(PolymarketLiveTrader)
+        trader.records_lock = threading.Lock()
+        trader.records = [
+            {
+                "actual_up": None,
+                "is_correct": None,
+                "proba_up": 0.6,
+                "policy_decision": "buy_yes",
+                "pm_order_status": "submitted_fak",
+                "trade_side": "yes",
+                "stake_usdc": 2.5,
+                "filled_stake_usdc": 2.5,
+                "shares_net": 5.0,
+                "pm_settlement_status": "entry_submitted",
+            },
+        ]
+        trader._refresh_polymarket_markets = lambda pending_records: None
+
+        def fake_resolve(rec, *, resolved_at):
+            rec["actual_up"] = 0
+            rec["is_correct"] = 0
+            rec["resolved_at"] = resolved_at
+            return True
+
+        trader._resolve_record_outcome_from_settlement_truth = fake_resolve
+
+        resolved_now = trader._resolve_pending()
+
+        self.assertEqual(resolved_now, 1)
+        record = trader.records[0]
+        self.assertEqual(record["trade_is_win"], 0)
+        self.assertEqual(record["payout_usdc"], 0.0)
+        self.assertEqual(record["pnl_usdc"], -2.5)
+        self.assertEqual(record["pm_settlement_status"], "resolved_waiting_settlement")
+        self.assertEqual(record["pm_settlement_payout_source"], "local_outcome_shares")
+
+    def test_total_pnl_counts_known_trade_pnl_not_only_closed_sync(self):
         trader = PolymarketLiveTrader.__new__(PolymarketLiveTrader)
         trader.records_lock = threading.Lock()
         trader.prediction_threshold = 0.5
@@ -141,6 +188,7 @@ class LiveStatsTests(unittest.TestCase):
                 "is_correct": 1,
                 "proba_up": 0.6,
                 "policy_decision": "buy_yes",
+                "trade_side": "yes",
                 "pm_order_status": "submitted_fak",
                 "stake_usdc": 2.0,
                 "pm_settlement_status": "closed",
@@ -160,22 +208,42 @@ class LiveStatsTests(unittest.TestCase):
             },
             {
                 "actual_up": 1,
-                "is_correct": 1,
+                "is_correct": 0,
                 "proba_up": 0.6,
-                "policy_decision": "buy_yes",
+                "policy_decision": "buy_no",
+                "trade_side": "no",
                 "pm_order_status": "submitted_fak",
                 "stake_usdc": 2.0,
+                "pm_settlement_status": "resolved_waiting_settlement",
+                "trade_is_win": 0,
+                "pnl_usdc": -2.0,
+            },
+            {
+                "actual_up": None,
+                "is_correct": None,
+                "proba_up": 0.6,
+                "policy_decision": "buy_yes",
+                "trade_side": "yes",
+                "pm_order_status": "submitted_fak",
+                "stake_usdc": 3.0,
                 "pm_settlement_status": "open",
-                "trade_is_win": 1,
-                "pnl_usdc": 88.0,
+                "trade_is_win": None,
+                "pnl_usdc": None,
             },
         ]
 
         stats = trader._stats()
 
+        self.assertEqual(stats["known_trades"], 2)
+        self.assertEqual(stats["known_trade_wins"], 1)
         self.assertEqual(stats["closed_trades"], 1)
         self.assertEqual(stats["closed_trade_wins"], 1)
-        self.assertEqual(stats["total_pnl"], 1.5)
+        self.assertEqual(stats["settlement_pending_trades"], 1)
+        self.assertEqual(stats["open_trades"], 1)
+        self.assertEqual(stats["open_stake"], 3.0)
+        self.assertEqual(stats["closed_pnl"], 1.5)
+        self.assertEqual(stats["settlement_pending_pnl"], -2.0)
+        self.assertEqual(stats["total_pnl"], -0.5)
 
 
 class PolymarketOrderRetryTests(unittest.TestCase):

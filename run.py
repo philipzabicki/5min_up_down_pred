@@ -22,6 +22,7 @@ from websocket import WebSocketApp
 
 from create_modeling_dataset import (
     parse_fit_results,
+    resolve_reaction_profile_modeling_state_path,
     resolve_volume_profile_modeling_state_path,
 )
 from features.ADX import get_adx_values
@@ -59,6 +60,19 @@ from features.realized_volatility import (
 from features.session_open_features import (
     SUPPORTED_SESSION_OPEN_FEATURE_COLS,
     build_latest_session_open_feature_dict_fast,
+)
+from features.reaction_profile_fixed_grid import (
+    FEATURE_VERSION as RP_FEATURE_VERSION,
+    RUNTIME_STATE_DIR as RP_RUNTIME_STATE_DIR,
+    extract_features_from_state as extract_reaction_features_from_state,
+    is_reaction_profile_feature,
+    load_state as load_reaction_profile_state,
+    normalize_config as normalize_reaction_profile_config,
+    save_state as save_reaction_profile_state,
+    state_matches_config as reaction_profile_state_matches_config,
+    update_state_with_candle as update_reaction_profile_state_with_candle,
+    validate_reaction_profile_feature_columns,
+    validate_reaction_profile_model_metadata,
 )
 from features.volume_profile_fixed_range import (
     FEATURE_VERSION as VP_FEATURE_VERSION,
@@ -266,6 +280,9 @@ RUN_STARTED_AT_UTC = pd.Timestamp.now(tz="UTC").strftime("%Y%m%d_%H%M%S")
 VOLUME_PROFILE_RUNTIME_STATE_PATH = (
         VP_RUNTIME_STATE_DIR / f"{SYMBOL}_{INTERVAL}_{VP_FEATURE_VERSION}"
 )
+REACTION_PROFILE_RUNTIME_STATE_PATH = (
+        RP_RUNTIME_STATE_DIR / f"{SYMBOL}_{INTERVAL}_{RP_FEATURE_VERSION}"
+)
 
 DEFAULT_BOOTSTRAP_CANDLES = int(LIVE_PROFILE["default_bootstrap_candles"])
 DEFAULT_INDICATOR_HISTORY_MARGIN_RATIO = float(
@@ -438,6 +455,10 @@ MODELING_DATASET_SETTINGS = load_modeling_dataset_settings(
 )
 FIT_RESULTS_DIR = MODELING_DATASET_SETTINGS["fit_results_dir"]
 VOLUME_PROFILE_MODELING_STATE_PATH = resolve_volume_profile_modeling_state_path(
+    MODELING_DATASET_SETTINGS["base_data_file"],
+    asset=RUNTIME_ASSET,
+)
+REACTION_PROFILE_MODELING_STATE_PATH = resolve_reaction_profile_modeling_state_path(
     MODELING_DATASET_SETTINGS["base_data_file"],
     asset=RUNTIME_ASSET,
 )
@@ -985,6 +1006,10 @@ def load_indicator_specs(feature_columns, *, source_label=None):
         feature_columns,
         source_label=source_label,
     )
+    validate_reaction_profile_feature_columns(
+        feature_columns,
+        source_label=source_label,
+    )
     validate_basis_premium_feature_columns(
         feature_columns,
         source_label=source_label,
@@ -1000,6 +1025,7 @@ def load_indicator_specs(feature_columns, *, source_label=None):
                 col in BASE_FEATURE_COLS
                 or col.startswith(STREAK_FEATURE_PREFIX)
                 or is_volume_profile_feature(col)
+                or is_reaction_profile_feature(col)
                 or is_basis_premium_feature(col)
         ):
             continue
@@ -1256,6 +1282,10 @@ class LivePredictor:
             self.feature_columns,
             source_label=f"model metadata {self.model_meta_path}",
         )
+        validate_reaction_profile_feature_columns(
+            self.feature_columns,
+            source_label=f"model metadata {self.model_meta_path}",
+        )
         validate_basis_premium_feature_columns(
             self.feature_columns,
             source_label=f"model metadata {self.model_meta_path}",
@@ -1356,6 +1386,34 @@ class LivePredictor:
         self.volume_profile_save_pool = (
             ThreadPoolExecutor(max_workers=1) if self.volume_profile_enabled else None
         )
+        self.reaction_profile_feature_columns = tuple(
+            feature_parts["reaction_profile_feature_cols"]
+        )
+        self.reaction_profile_cfg = normalize_reaction_profile_config(
+            MODELING_DATASET_SETTINGS.get("reaction_profile_fixed_grid")
+        )
+        validate_reaction_profile_model_metadata(
+            meta,
+            feature_columns=self.reaction_profile_feature_columns,
+            cfg=self.reaction_profile_cfg,
+            source_label=f"model metadata {self.model_meta_path}",
+        )
+        if (
+                self.reaction_profile_feature_columns
+                and not self.reaction_profile_cfg["enabled"]
+        ):
+            raise ValueError(
+                "Model requires reaction profile features but reaction_profile_fixed_grid.enabled is false."
+            )
+        self.reaction_profile_enabled = bool(
+            self.reaction_profile_feature_columns
+            and self.reaction_profile_cfg["enabled"]
+        )
+        self.reaction_profile_state_path = REACTION_PROFILE_RUNTIME_STATE_PATH
+        self.reaction_profile_modeling_state_path = REACTION_PROFILE_MODELING_STATE_PATH
+        self.reaction_profile_save_pool = (
+            ThreadPoolExecutor(max_workers=1) if self.reaction_profile_enabled else None
+        )
 
         self.indicator_specs = load_indicator_specs(
             self.feature_columns,
@@ -1436,6 +1494,9 @@ class LivePredictor:
         self.volume_profile_state = None
         if self.volume_profile_enabled:
             self._initialize_volume_profile_state(bootstrap_df)
+        self.reaction_profile_state = None
+        if self.reaction_profile_enabled:
+            self._initialize_reaction_profile_state(bootstrap_df)
 
     def _resolve_indicator_window_len(self, feature_col):
         if not self.indicator_runtime_window_by_feature:
@@ -2287,6 +2348,253 @@ class LivePredictor:
         if persist:
             self._save_runtime_volume_profile_state_async()
 
+    def _reaction_profile_state_last_candle_timestamp(self, state):
+        raw_value = state.get("last_candle_time")
+        if not raw_value:
+            return None
+        ts = pd.Timestamp(raw_value)
+        if ts.tzinfo is None:
+            return ts.tz_localize("UTC")
+        return ts.tz_convert("UTC")
+
+    def _save_runtime_reaction_profile_state(self, log=False, context="state"):
+        paths = save_reaction_profile_state(
+            self.reaction_profile_state,
+            self.reaction_profile_state_path,
+        )
+        if log:
+            print(f"[rp] saved {context} -> {paths['npz']}")
+        return paths
+
+    def _snapshot_reaction_profile_state_for_save(self):
+        state = self.reaction_profile_state
+        if state is None:
+            raise RuntimeError("reaction profile state is not initialized")
+
+        snapshot = {
+            "enabled": bool(state["enabled"]),
+            "version": str(state["version"]),
+            "price_min": float(state["price_min"]),
+            "price_max": float(state["price_max"]),
+            "bin_size": float(state["bin_size"]),
+            "bins": int(state["bins"]),
+            "neighbor_bins": float(state["neighbor_bins"]),
+            "neighbor_radius": int(state["neighbor_radius"]),
+            "eps": float(state["eps"]),
+            "min_reaction_strength": float(state["min_reaction_strength"]),
+            "wick_power": float(state["wick_power"]),
+            "distance_power": float(state["distance_power"]),
+            "horizon_names": tuple(state["horizon_names"]),
+            "feature_columns": tuple(state["feature_columns"]),
+            "config_signature": str(state["config_signature"]),
+            "last_candle_time": state.get("last_candle_time"),
+            "horizons": {},
+        }
+        for horizon_name in state["horizon_names"]:
+            horizon_state = state["horizons"][horizon_name]
+            snapshot["horizons"][horizon_name] = {
+                "horizon_name": str(horizon_state["horizon_name"]),
+                "half_life_candles": horizon_state["half_life_candles"],
+                "decay": float(horizon_state["decay"]),
+                "bins": int(horizon_state["bins"]),
+                "local_window": int(horizon_state["local_window"]),
+                "global_scale": float(horizon_state["global_scale"]),
+                "support_profile": np.array(
+                    horizon_state["support_profile"], dtype=np.float64, copy=True
+                ),
+                "resistance_profile": np.array(
+                    horizon_state["resistance_profile"], dtype=np.float64, copy=True
+                ),
+            }
+        return snapshot
+
+    def _save_runtime_reaction_profile_state_async(self, log=False, context="state"):
+        if self.reaction_profile_state is None:
+            return None
+        save_pool = getattr(self, "reaction_profile_save_pool", None)
+        if save_pool is None:
+            return self._save_runtime_reaction_profile_state(
+                log=log,
+                context=context,
+            )
+
+        state_snapshot = self._snapshot_reaction_profile_state_for_save()
+        future = save_pool.submit(
+            save_reaction_profile_state,
+            state_snapshot,
+            self.reaction_profile_state_path,
+        )
+        if log:
+            def _log_saved(done_future, *, save_context=context):
+                try:
+                    paths = done_future.result()
+                except Exception as exc:
+                    print(f"[rp] async save failed ({save_context}): {exc}")
+                    return
+                print(f"[rp] saved {save_context} -> {paths['npz']}")
+
+            future.add_done_callback(_log_saved)
+        return future
+
+    def _load_required_modeling_reaction_profile_state(self, bootstrap_df):
+        history_last_opened = pd.Timestamp(bootstrap_df["Opened"].iloc[-1])
+        try:
+            state = load_reaction_profile_state(
+                self.reaction_profile_modeling_state_path
+            )
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "reaction profile live state initialization failed: missing modeling-end "
+                f"state {self.reaction_profile_modeling_state_path.with_suffix('.npz')}"
+            ) from exc
+
+        if not reaction_profile_state_matches_config(state, self.reaction_profile_cfg):
+            raise RuntimeError(
+                "reaction profile live state initialization failed: modeling-end state "
+                "config does not match active reaction_profile_fixed_grid config."
+            )
+
+        last_candle_ts = self._reaction_profile_state_last_candle_timestamp(state)
+        if last_candle_ts is None:
+            raise RuntimeError(
+                "reaction profile live state initialization failed: modeling-end state "
+                "is missing last_candle_time."
+            )
+        if last_candle_ts > history_last_opened:
+            raise RuntimeError(
+                "reaction profile modeling-end state is ahead of bootstrap history "
+                f"({last_candle_ts.isoformat()} > {history_last_opened.isoformat()})"
+            )
+        return state
+
+    def _sync_reaction_profile_state_with_history(self, history_df):
+        if not self.reaction_profile_enabled or history_df.empty:
+            return
+
+        sync_df = history_df.loc[:, ["Opened", "Open", "High", "Low", "Close"]].copy()
+        last_candle_ts = self._reaction_profile_state_last_candle_timestamp(
+            self.reaction_profile_state
+        )
+        if last_candle_ts is None:
+            raise RuntimeError(
+                "reaction profile state is missing last_candle_time. "
+                "Live RP requires a saved modeling-end state plus incremental catch-up."
+            )
+        first_history_opened = pd.Timestamp(sync_df["Opened"].iloc[0])
+        gap_start = last_candle_ts + INTERVAL_DELTA
+        gap_end = first_history_opened - INTERVAL_DELTA
+        if gap_start <= gap_end:
+            gap_df = fetch_closed_ohlcv_range(
+                self.session,
+                start_opened=gap_start,
+                end_opened=gap_end,
+            )
+            if gap_df.empty:
+                raise RuntimeError(
+                    "reaction profile catch-up gap is missing candles "
+                    f"from {gap_start.isoformat()} to {gap_end.isoformat()}"
+                )
+            gap_opened = gap_df["Opened"]
+            if (
+                    pd.Timestamp(gap_opened.iloc[0]) != gap_start
+                    or pd.Timestamp(gap_opened.iloc[-1]) != gap_end
+                    or not gap_opened.diff().iloc[1:].eq(INTERVAL_DELTA).all()
+            ):
+                raise RuntimeError(
+                    "reaction profile catch-up gap is not contiguous "
+                    f"for range {gap_start.isoformat()} -> {gap_end.isoformat()}"
+                )
+            sync_df = pd.concat(
+                [
+                    gap_df.loc[:, ["Opened", "Open", "High", "Low", "Close"]],
+                    sync_df,
+                ],
+                ignore_index=True,
+            )
+        sync_df = sync_df.loc[sync_df["Opened"] > last_candle_ts]
+
+        if sync_df.empty:
+            if not self.reaction_profile_state_path.with_suffix(".npz").exists():
+                self._save_runtime_reaction_profile_state(
+                    log=True,
+                    context="runtime state",
+                )
+            return
+
+        print(f"[rp] catch-up state with {len(sync_df)} candles")
+        open_np = sync_df["Open"].to_numpy(dtype=np.float64, copy=False)
+        high = sync_df["High"].to_numpy(dtype=np.float64, copy=False)
+        low = sync_df["Low"].to_numpy(dtype=np.float64, copy=False)
+        close = sync_df["Close"].to_numpy(dtype=np.float64, copy=False)
+
+        for row_idx in range(len(sync_df)):
+            update_reaction_profile_state_with_candle(
+                self.reaction_profile_state,
+                open=float(open_np[row_idx]),
+                high=float(high[row_idx]),
+                low=float(low[row_idx]),
+                close=float(close[row_idx]),
+            )
+
+        self.reaction_profile_state["last_candle_time"] = str(
+            pd.Timestamp(sync_df["Opened"].iloc[-1]).isoformat()
+        )
+        self._save_runtime_reaction_profile_state(log=True, context="runtime state")
+
+    def _initialize_reaction_profile_state(self, bootstrap_df):
+        self.reaction_profile_state = (
+            self._load_required_modeling_reaction_profile_state(bootstrap_df)
+        )
+        print(
+            "[rp] loaded modeling-end state -> "
+            f"{self.reaction_profile_modeling_state_path.with_suffix('.npz')}"
+        )
+        self._sync_reaction_profile_state_with_history(bootstrap_df)
+
+    def _extract_reaction_profile_features_for_latest_candle(self):
+        if not self.reaction_profile_enabled:
+            return {}
+        latest_ohlcv = self.ohlcv_np[-1, :]
+        return extract_reaction_features_from_state(
+            self.reaction_profile_state,
+            close=float(latest_ohlcv[3]),
+        )
+
+    def _prepare_reaction_profile_features_for_latest_candle(self, opened):
+        if not self.reaction_profile_enabled:
+            return {}
+
+        opened = pd.Timestamp(opened)
+        last_candle_ts = self._reaction_profile_state_last_candle_timestamp(
+            self.reaction_profile_state
+        )
+        if last_candle_ts is None or last_candle_ts < opened:
+            self._update_reaction_profile_state_for_latest_candle(opened)
+        elif last_candle_ts > opened:
+            raise RuntimeError(
+                "reaction profile state is ahead of the latest closed candle "
+                f"({last_candle_ts.isoformat()} > {opened.isoformat()})"
+            )
+
+        return self._extract_reaction_profile_features_for_latest_candle()
+
+    def _update_reaction_profile_state_for_latest_candle(self, opened, *, persist=True):
+        if not self.reaction_profile_enabled:
+            return
+        latest_ohlcv = self.ohlcv_np[-1, :]
+        update_reaction_profile_state_with_candle(
+            self.reaction_profile_state,
+            open=float(latest_ohlcv[0]),
+            high=float(latest_ohlcv[1]),
+            low=float(latest_ohlcv[2]),
+            close=float(latest_ohlcv[3]),
+        )
+        self.reaction_profile_state["last_candle_time"] = str(
+            pd.Timestamp(opened).isoformat()
+        )
+        if persist:
+            self._save_runtime_reaction_profile_state_async()
+
     def _sync_closed_candles_from_rest(self, stop_before_opened=None):
         if not self.opened_candles:
             return 0
@@ -2335,10 +2643,15 @@ class LivePredictor:
                 opened,
                 persist=False,
             )
+            self._update_reaction_profile_state_for_latest_candle(
+                opened,
+                persist=False,
+            )
             added += 1
 
         if added > 0:
             self._save_runtime_volume_profile_state_async()
+            self._save_runtime_reaction_profile_state_async()
             print(
                 "[sync] caught_up_closed_candles="
                 f"{added} first={catchup_df['Opened'].iloc[0].isoformat()} "
@@ -2357,7 +2670,11 @@ class LivePredictor:
             )
         return 0
 
-    def _build_feature_vector(self, volume_profile_values=None):
+    def _build_feature_vector(
+            self,
+            volume_profile_values=None,
+            reaction_profile_values=None,
+    ):
         latest_ohlcv = self.ohlcv_np[-1, :]
         opened_values = tuple(self.opened_candles)
         values = {
@@ -2416,6 +2733,8 @@ class LivePredictor:
 
         if volume_profile_values:
             values.update(volume_profile_values)
+        if reaction_profile_values:
+            values.update(reaction_profile_values)
 
         indicator_nan_cols = []
         indicator_full_history_scratch = None
@@ -3608,6 +3927,7 @@ class PolymarketLiveTrader(LivePredictor):
         self.pm_market_prefetch_bucket_start = None
         self.pm_market_prefetch_future = None
         self.pm_cash_balance_usdc = float("nan")
+        self.pm_account_start_cash_usdc = float("nan")
         self.pm_positions_value_usdc = float("nan")
         self.pm_last_account_sync_at = ""
         self.pm_last_account_sync_reason = ""
@@ -3788,6 +4108,11 @@ class PolymarketLiveTrader(LivePredictor):
         self.pm_cash_balance_usdc = (
             float(balance_usdc) if np.isfinite(balance_usdc) else float("nan")
         )
+        if (
+                np.isfinite(balance_usdc)
+                and not np.isfinite(self.pm_account_start_cash_usdc)
+        ):
+            self.pm_account_start_cash_usdc = float(balance_usdc)
         if sync_bankroll and np.isfinite(balance_usdc):
             self.live_bankroll_usdc = self._capped_trading_bankroll_usdc(balance_usdc)
             if np.isfinite(self.pm_cfg.max_bankroll_usdc) and float(
@@ -4775,6 +5100,22 @@ class PolymarketLiveTrader(LivePredictor):
                 if not asset:
                     continue
                 _backfill_record_analysis_fields(rec)
+                if (
+                        _is_polymarket_submitted_status(rec.get("pm_order_status"))
+                        and self._has_binary_flag(rec.get("actual_up"))
+                        and not np.isfinite(_safe_float(rec.get("pnl_usdc")))
+                ):
+                    if self._apply_local_outcome_pnl(rec):
+                        current_status = _safe_text(rec.get("pm_settlement_status"))
+                        if current_status not in {
+                            "closed",
+                            "exit_submitted",
+                            "redeem_submitted",
+                            "redeem_confirmed_waiting_close_sync",
+                        }:
+                            rec["pm_settlement_status"] = (
+                                "resolved_waiting_settlement"
+                            )
                 rec["pm_account_sync_at"] = sync_at
                 rec["pm_account_sync_reason"] = reason
                 rec["pm_account_cash_balance_usdc"] = (
@@ -5570,6 +5911,31 @@ class PolymarketLiveTrader(LivePredictor):
                 submitted_stake_usdc=attempted_stake_usdc,
             )
 
+    def _apply_local_outcome_pnl(self, rec):
+        settlement = resolve_polymarket_closed_position_settlement(
+            rec,
+            {},
+            prefer_data_api_pnl=False,
+        )
+        pnl_usdc = _safe_float(settlement.get("pnl_usdc"))
+        if not np.isfinite(pnl_usdc):
+            return False
+
+        payout_usdc = _safe_float(settlement.get("payout_usdc"))
+        stake_usdc = _safe_float(settlement.get("stake_usdc"))
+        shares_net = _safe_float(settlement.get("shares_net"))
+
+        if np.isfinite(stake_usdc):
+            rec["stake_usdc"] = float(stake_usdc)
+        if np.isfinite(shares_net):
+            rec["shares_net"] = float(shares_net)
+        if np.isfinite(payout_usdc):
+            rec["payout_usdc"] = float(payout_usdc)
+        rec["pnl_usdc"] = float(pnl_usdc)
+        rec["trade_is_win"] = settlement["trade_is_win"]
+        rec["pm_settlement_payout_source"] = "local_outcome_shares"
+        return True
+
     def _resolve_pending(self):
         if not self.records:
             return 0
@@ -5597,6 +5963,7 @@ class PolymarketLiveTrader(LivePredictor):
                 rec["bankroll_after_resolve"] = None
 
                 if _is_polymarket_submitted_status(rec.get("pm_order_status")):
+                    self._apply_local_outcome_pnl(rec)
                     rec["pm_settlement_status"] = "resolved_waiting_settlement"
                 else:
                     rec["pm_settlement_status"] = (
@@ -6047,6 +6414,7 @@ class PolymarketLiveTrader(LivePredictor):
     def _predict_next_bucket(
             self,
             volume_profile_values=None,
+            reaction_profile_values=None,
             delay_timing=None,
             market_future=None,
     ):
@@ -6076,18 +6444,24 @@ class PolymarketLiveTrader(LivePredictor):
             ):
                 if key in delay_timing:
                     latency_metrics[key] = delay_timing[key]
-        if volume_profile_values is None:
+        if volume_profile_values is None or reaction_profile_values is None:
             feature_prep_started_perf = time.perf_counter()
-            volume_profile_values = self._prepare_volume_profile_features_for_latest_candle(
-                minute_open
-            )
+            if volume_profile_values is None:
+                volume_profile_values = self._prepare_volume_profile_features_for_latest_candle(
+                    minute_open
+                )
+            if reaction_profile_values is None:
+                reaction_profile_values = self._prepare_reaction_profile_features_for_latest_candle(
+                    minute_open
+                )
             latency_metrics["feature_prep_ms"] = _elapsed_ms(feature_prep_started_perf)
         else:
             latency_metrics.setdefault("feature_prep_ms", np.nan)
 
         feature_vector_started_perf = time.perf_counter()
         feature_vector = self._build_feature_vector(
-            volume_profile_values=volume_profile_values
+            volume_profile_values=volume_profile_values,
+            reaction_profile_values=reaction_profile_values,
         )
         latency_metrics["feature_vector_ms"] = _elapsed_ms(feature_vector_started_perf)
         model_predict_started_perf = time.perf_counter()
@@ -6181,7 +6555,14 @@ class PolymarketLiveTrader(LivePredictor):
         return (
                 _safe_text(record.get("pm_settlement_status")) == "closed"
                 and self._has_binary_flag(record.get("trade_is_win"))
-                and record.get("pnl_usdc") is not None
+                and np.isfinite(_safe_float(record.get("pnl_usdc")))
+        )
+
+    def _record_has_known_trade_pnl(self, record):
+        return (
+                _safe_text(record.get("trade_side")) in {"yes", "no"}
+                and self._has_binary_flag(record.get("trade_is_win"))
+                and np.isfinite(_safe_float(record.get("pnl_usdc")))
         )
 
     def _format_rate(self, value):
@@ -6246,9 +6627,25 @@ class PolymarketLiveTrader(LivePredictor):
             if _safe_text(rec.get("pm_order_status"))
             == POLYMARKET_RETRYABLE_SUBMISSION_STATUS
         )
-        closed_trades = sum(1 for rec in records if self._record_is_traded(rec))
+        known_trade_records = [
+            rec for rec in records if self._record_has_known_trade_pnl(rec)
+        ]
+        closed_trade_records = [rec for rec in records if self._record_is_traded(rec)]
+        settlement_pending_records = [
+            rec for rec in known_trade_records if not self._record_is_traded(rec)
+        ]
+        open_trade_records = [
+            rec
+            for rec in records
+            if _safe_text(rec.get("trade_side")) in {"yes", "no"}
+            and _is_polymarket_submitted_status(rec.get("pm_order_status"))
+            and not self._has_binary_flag(rec.get("actual_up"))
+        ]
+        known_trades = len(known_trade_records)
+        known_trade_wins = sum(int(rec["trade_is_win"]) for rec in known_trade_records)
+        closed_trades = len(closed_trade_records)
         closed_trade_wins = sum(
-            int(rec["trade_is_win"]) for rec in records if self._record_is_traded(rec)
+            int(rec["trade_is_win"]) for rec in closed_trade_records
         )
         win_rate_policy_resolved = (
             float(policy_resolved_wins / policy_resolved)
@@ -6263,11 +6660,31 @@ class PolymarketLiveTrader(LivePredictor):
             if closed_trades
             else float("nan")
         )
+        win_rate_known_trade = (
+            float(known_trade_wins / known_trades)
+            if known_trades
+            else float("nan")
+        )
         total_pnl = float(
             sum(
-                float(rec.get("pnl_usdc", 0.0) or 0.0)
-                for rec in records
-                if self._record_is_traded(rec)
+                float(_safe_float(rec.get("pnl_usdc")))
+                for rec in known_trade_records
+            )
+        )
+        closed_pnl = float(
+            sum(float(_safe_float(rec.get("pnl_usdc"))) for rec in closed_trade_records)
+        )
+        settlement_pending_pnl = float(
+            sum(
+                float(_safe_float(rec.get("pnl_usdc")))
+                for rec in settlement_pending_records
+            )
+        )
+        open_stake = float(
+            sum(
+                float(_safe_float(rec.get("stake_usdc")))
+                for rec in open_trade_records
+                if np.isfinite(_safe_float(rec.get("stake_usdc")))
             )
         )
         return {
@@ -6285,11 +6702,20 @@ class PolymarketLiveTrader(LivePredictor):
             "order_submitted": order_submitted,
             "order_filled": order_filled,
             "order_failed_425": order_failed_425,
+            "known_trades": known_trades,
+            "known_trade_wins": known_trade_wins,
+            "known_trade_losses": known_trades - known_trade_wins,
+            "win_rate_known_trade": win_rate_known_trade,
             "closed_trades": closed_trades,
             "closed_trade_wins": closed_trade_wins,
             "closed_trade_losses": closed_trades - closed_trade_wins,
             "win_rate_closed_trade": win_rate_closed_trade,
             "total_pnl": total_pnl,
+            "closed_pnl": closed_pnl,
+            "settlement_pending_trades": len(settlement_pending_records),
+            "settlement_pending_pnl": settlement_pending_pnl,
+            "open_trades": len(open_trade_records),
+            "open_stake": open_stake,
         }
 
     def _save_records(self):
@@ -6356,6 +6782,7 @@ class PolymarketLiveTrader(LivePredictor):
         closed_trade_win_rate_txt = self._format_rate(
             stats["win_rate_closed_trade"]
         )
+        known_trade_win_rate_txt = self._format_rate(stats["win_rate_known_trade"])
         ts = (
             str(pred["decision_local"])
             if pred is not None
@@ -6395,10 +6822,28 @@ class PolymarketLiveTrader(LivePredictor):
         self._print_log_fields(
             "trades",
             [
+                ("known", stats["known_trades"]),
+                ("known_wins", stats["known_trade_wins"]),
+                ("known_losses", stats["known_trade_losses"]),
+                ("known_win_rate", known_trade_win_rate_txt),
                 ("closed", stats["closed_trades"]),
-                ("wins", stats["closed_trade_wins"]),
-                ("losses", stats["closed_trade_losses"]),
-                ("win_rate", closed_trade_win_rate_txt),
+                ("closed_wins", stats["closed_trade_wins"]),
+                ("closed_losses", stats["closed_trade_losses"]),
+                ("closed_win_rate", closed_trade_win_rate_txt),
+                ("waiting_settlement", stats["settlement_pending_trades"]),
+                ("open", stats["open_trades"]),
+            ],
+        )
+        self._print_log_fields(
+            "pnl",
+            [
+                ("outcome_pnl", f"{stats['total_pnl']:.2f}"),
+                ("closed_pnl", f"{stats['closed_pnl']:.2f}"),
+                (
+                    "waiting_settlement_pnl",
+                    f"{stats['settlement_pending_pnl']:.2f}",
+                ),
+                ("open_stake", f"{stats['open_stake']:.2f}"),
             ],
         )
         if pred is not None:
@@ -6495,14 +6940,34 @@ class PolymarketLiveTrader(LivePredictor):
                     [("pm_order_error", pred["pm_order_error"])],
                 )
         account_fields = []
-        account_fields.append(("total_pnl", f"{stats['total_pnl']:.2f}"))
-        account_fields.append(("bankroll", f"{self.live_bankroll_usdc:.2f}"))
         if np.isfinite(self.pm_cash_balance_usdc):
-            account_fields.append(("cash_balance", f"{self.pm_cash_balance_usdc:.2f}"))
+            account_fields.append(("account_cash", f"{self.pm_cash_balance_usdc:.2f}"))
+        account_start_cash = getattr(
+            self,
+            "pm_account_start_cash_usdc",
+            float("nan"),
+        )
+        if np.isfinite(account_start_cash):
+            account_fields.append(
+                ("account_cash_start", f"{account_start_cash:.2f}")
+            )
+        if (
+                np.isfinite(self.pm_cash_balance_usdc)
+                and np.isfinite(account_start_cash)
+        ):
+            cash_delta = self.pm_cash_balance_usdc - account_start_cash
+            account_fields.append(("account_cash_delta", f"{cash_delta:.2f}"))
+            account_fields.append(
+                (
+                    "cash_delta_minus_outcome_pnl",
+                    f"{cash_delta - stats['total_pnl']:.2f}",
+                )
+            )
         if np.isfinite(self.pm_positions_value_usdc):
             account_fields.append(
-                ("positions_value", f"{self.pm_positions_value_usdc:.2f}")
+                ("global_positions_value", f"{self.pm_positions_value_usdc:.2f}")
             )
+        account_fields.append(("sizing_cash", f"{self.live_bankroll_usdc:.2f}"))
         self._print_log_fields("account", account_fields)
         if pred is not None:
             self._print_indicator_nan_status()
@@ -6534,6 +6999,7 @@ class PolymarketLiveTrader(LivePredictor):
             self,
             opened,
             volume_profile_values,
+            reaction_profile_values,
             *,
             delay_timing=None,
             market_future=None,
@@ -6543,6 +7009,7 @@ class PolymarketLiveTrader(LivePredictor):
 
         return self._predict_next_bucket(
             volume_profile_values=volume_profile_values,
+            reaction_profile_values=reaction_profile_values,
             delay_timing=delay_timing,
             market_future=market_future,
         )
@@ -6621,6 +7088,7 @@ class PolymarketLiveTrader(LivePredictor):
             f"volume_symbol={VOLUME_SYMBOL} volume_market={VOLUME_MARKET} "
             f"price_source={PRICE_SOURCE} volume_source={VOLUME_SOURCE} "
             f"basis_features={len(self.basis_premium_feature_columns)} "
+            f"reaction_features={len(self.reaction_profile_feature_columns)} "
             f"series_slug={self.pm_cfg.series_slug} "
             f"market_slug_prefix={self.pm_cfg.market_slug_prefix} "
             f"settlement_source={self.settlement_source} "
@@ -6707,11 +7175,15 @@ class PolymarketLiveTrader(LivePredictor):
                 volume_profile_values = self._prepare_volume_profile_features_for_latest_candle(
                     opened
                 )
+                reaction_profile_values = self._prepare_reaction_profile_features_for_latest_candle(
+                    opened
+                )
                 delay_timing = {} if ws_timing is None else dict(ws_timing)
                 delay_timing["feature_prep_ms"] = _elapsed_ms(feature_prep_started_perf)
                 pred = self._maybe_predict_closed_bucket(
                     opened,
                     volume_profile_values,
+                    reaction_profile_values,
                     delay_timing=delay_timing,
                     market_future=market_future,
                 )

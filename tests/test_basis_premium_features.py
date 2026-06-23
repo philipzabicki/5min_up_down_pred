@@ -544,6 +544,7 @@ class BasisPremiumFeatureTests(unittest.TestCase):
                 "excluded_feature_names": (),
                 "float_precision": "float64",
                 "volume_profile_fixed_range": {"enabled": False},
+                "reaction_profile_fixed_grid": {"enabled": False},
                 "drop_frozen_ohlc_blocks": {"enabled": False, "min_block_len": 3},
                 "train_lgbm": {},
             }

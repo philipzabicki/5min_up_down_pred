@@ -21,6 +21,8 @@ def _record(condition_id=CONDITION_ID, **overrides):
     rec = {
         "pm_mode": "live",
         "pm_condition_id": condition_id,
+        "pm_selected_token_id": "123",
+        "trade_side": "yes",
         "resolved_at": "2026-05-04T12:00:00+00:00",
         "actual_up": 1,
         "pm_settlement_status": "resolved_waiting_settlement",
@@ -109,11 +111,14 @@ class RedeemCandidateTests(unittest.TestCase):
 
     def test_dedupe_condition_id(self):
         positions = [
-            _position(asset="111"),
-            _position(asset="222"),
-            _position(condition_id=ALT_CONDITION_ID, asset="333"),
+            _position(asset="123"),
+            _position(asset="123"),
+            _position(condition_id=ALT_CONDITION_ID, asset="456"),
         ]
-        records = [_record(), _record(condition_id=ALT_CONDITION_ID)]
+        records = [
+            _record(),
+            _record(condition_id=ALT_CONDITION_ID, pm_selected_token_id="456"),
+        ]
 
         candidates, diagnostics = collect_redeem_candidates(
             positions,
@@ -126,7 +131,10 @@ class RedeemCandidateTests(unittest.TestCase):
         self.assertIn("duplicate_condition_id", {d["reason"] for d in diagnostics})
 
     def test_skip_pending_and_confirmed(self):
-        positions = [_position(), _position(condition_id=ALT_CONDITION_ID)]
+        positions = [
+            _position(),
+            _position(condition_id=ALT_CONDITION_ID, asset="456"),
+        ]
         records = [
             _record(
                 pm_redeem_tx_id="tx-pending",
@@ -135,6 +143,7 @@ class RedeemCandidateTests(unittest.TestCase):
             ),
             _record(
                 condition_id=ALT_CONDITION_ID,
+                pm_selected_token_id="456",
                 pm_redeem_tx_id="tx-confirmed",
                 pm_redeem_tx_state="STATE_CONFIRMED",
                 pm_settlement_status="redeem_confirmed_waiting_close_sync",
@@ -154,7 +163,10 @@ class RedeemCandidateTests(unittest.TestCase):
         self.assertIn("redeem_already_confirmed", reasons)
 
     def test_retry_failed_and_invalid(self):
-        positions = [_position(), _position(condition_id=ALT_CONDITION_ID)]
+        positions = [
+            _position(),
+            _position(condition_id=ALT_CONDITION_ID, asset="456"),
+        ]
         records = [
             _record(
                 pm_redeem_tx_id="tx-failed",
@@ -163,6 +175,7 @@ class RedeemCandidateTests(unittest.TestCase):
             ),
             _record(
                 condition_id=ALT_CONDITION_ID,
+                pm_selected_token_id="456",
                 pm_redeem_tx_id="tx-invalid",
                 pm_redeem_tx_state="STATE_INVALID",
                 pm_settlement_status="redeem_failed",
@@ -177,6 +190,36 @@ class RedeemCandidateTests(unittest.TestCase):
         )
 
         self.assertEqual({c["conditionId"] for c in candidates}, {CONDITION_ID, ALT_CONDITION_ID})
+
+    def test_skip_losing_local_outcome_even_when_position_is_redeemable(self):
+        candidates, diagnostics = collect_redeem_candidates(
+            [_position(asset="123", redeemable=True)],
+            [_record(actual_up=0, trade_side="yes", pm_selected_token_id="123")],
+            market_slug_prefix=MARKET_PREFIX,
+            require_redeemable=True,
+        )
+
+        self.assertEqual(candidates, [])
+        self.assertIn("local_outcome_not_winning", {d["reason"] for d in diagnostics})
+
+    def test_asset_mismatch_does_not_block_matching_winning_position(self):
+        positions = [
+            _position(asset="losing-token"),
+            _position(asset="123"),
+        ]
+
+        candidates, diagnostics = collect_redeem_candidates(
+            positions,
+            [_record(actual_up=1, trade_side="yes", pm_selected_token_id="123")],
+            market_slug_prefix=MARKET_PREFIX,
+            require_redeemable=True,
+        )
+
+        self.assertEqual([c["asset"] for c in candidates], ["123"])
+        self.assertIn(
+            "position_asset_not_winning_record",
+            {d["reason"] for d in diagnostics},
+        )
 
     def test_require_redeemable(self):
         candidates, diagnostics = collect_redeem_candidates(

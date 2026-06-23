@@ -28,6 +28,14 @@ from features.realized_volatility import (
     add_realized_volatility_features,
 )
 from features.session_open_features import add_session_open_features
+from features.reaction_profile_fixed_grid import (
+    FEATURE_VERSION as RP_FEATURE_VERSION,
+    MODELING_STATE_DIR as RP_MODELING_STATE_DIR,
+    build_reaction_profile_features,
+    get_feature_columns as get_reaction_profile_feature_columns,
+    normalize_config as normalize_reaction_profile_config,
+    save_state as save_reaction_profile_state,
+)
 from features.volume_profile_fixed_range import (
     FEATURE_VERSION as VP_FEATURE_VERSION,
     MODELING_STATE_DIR as VP_MODELING_STATE_DIR,
@@ -485,6 +493,26 @@ def resolve_volume_profile_modeling_state_path(base_data_file, asset=None):
     )
 
 
+def resolve_reaction_profile_modeling_state_path(base_data_file, asset=None):
+    if asset is None:
+        asset = load_modeling_dataset_settings().get("active_asset")
+    stem = Path(base_data_file).stem
+    match = BASE_DATA_FILE_SYMBOL_INTERVAL_RE.match(stem)
+    if not match:
+        raise ValueError(
+            "Could not derive symbol/interval for reaction profile modeling state from "
+            f"base_data_file={base_data_file!r}. Expected e.g. BTCUSDT1m.csv"
+        )
+    symbol = match.group("symbol")
+    interval = match.group("interval")
+    state_dir = RP_MODELING_STATE_DIR
+    if asset:
+        state_dir = state_dir / str(asset).strip().upper()
+    return (
+            state_dir / f"{symbol}_{interval}_{RP_FEATURE_VERSION}_modeling_end"
+    )
+
+
 def add_indicator_values(df, ohlcv_np, configs, float_dtype=np.float64):
     feature_values = {}
     for cfg in configs:
@@ -546,6 +574,10 @@ def build_dataset_from_settings(settings):
     vp_normalized_cfg = normalize_volume_profile_config(vp_cfg)
     vp_enabled = bool(vp_normalized_cfg["enabled"])
     vp_feature_cols = tuple(vp_normalized_cfg["feature_columns"])
+    rp_cfg = settings.get("reaction_profile_fixed_grid")
+    rp_normalized_cfg = normalize_reaction_profile_config(rp_cfg)
+    rp_enabled = bool(rp_normalized_cfg["enabled"])
+    rp_feature_cols = tuple(rp_normalized_cfg["feature_columns"])
     basis_enabled = bool(basis_cfg["enabled"])
     configured_basis_feature_cols = basis_premium_feature_columns(basis_intervals)
     float_dtype = resolve_modeling_float_dtype(settings)
@@ -574,6 +606,23 @@ def build_dataset_from_settings(settings):
             raise ValueError(
                 "Feature subset references unsupported volume profile features. "
                 f"Missing_count={len(missing_vp_features)} preview=[{preview}]"
+            )
+    if feature_subset_parts and feature_subset_parts["reaction_profile_feature_cols"]:
+        if not rp_enabled:
+            raise ValueError(
+                "Feature subset references reaction profile features but "
+                "reaction_profile_fixed_grid.enabled is false."
+            )
+        missing_rp_features = [
+            col
+            for col in feature_subset_parts["reaction_profile_feature_cols"]
+            if col not in set(rp_feature_cols)
+        ]
+        if missing_rp_features:
+            preview = ", ".join(missing_rp_features[:10])
+            raise ValueError(
+                "Feature subset references unsupported reaction profile features. "
+                f"Missing_count={len(missing_rp_features)} preview=[{preview}]"
             )
     selected_basis_feature_cols = (
         feature_subset_parts["basis_premium_feature_cols"]
@@ -819,6 +868,35 @@ def build_dataset_from_settings(settings):
         print(f"[vp] saved modeling-end state -> {saved_paths['npz']}")
     else:
         print("skipping fixed-range volume profile features (disabled)")
+    if rp_enabled:
+        expected_rp_cols = get_reaction_profile_feature_columns(rp_normalized_cfg)
+        print(
+            "adding fixed-grid reaction profile features "
+            f"({len(expected_rp_cols)} cols)"
+        )
+        rp_features_df, rp_state = build_reaction_profile_features(df, rp_normalized_cfg)
+        rp_feature_frame = pd.DataFrame(
+            {
+                feature_col: rp_features_df[feature_col].to_numpy(
+                    dtype=float_dtype, copy=False
+                )
+                for feature_col in expected_rp_cols
+            },
+            index=df.index,
+        )
+        df = concat_feature_frame(
+            df,
+            rp_feature_frame,
+            context="Reaction profile features",
+        )
+        rp_state_path = resolve_reaction_profile_modeling_state_path(
+            base_data_file,
+            asset=settings.get("active_asset"),
+        )
+        saved_paths = save_reaction_profile_state(rp_state, rp_state_path)
+        print(f"[rp] saved modeling-end state -> {saved_paths['npz']}")
+    else:
+        print("skipping fixed-grid reaction profile features (disabled)")
     ohlcv_cols = infer_ohlcv_columns(df)
     ohlcv_np = df[ohlcv_cols].to_numpy(dtype=np.float64, copy=True)
     print(f"adding {len(configs)} indicator configs from {fit_results_dir}")
@@ -871,6 +949,8 @@ def build_dataset_from_settings(settings):
         )
         if vp_enabled:
             keep_cols.extend(col for col in vp_feature_cols if col not in keep_cols)
+        if rp_enabled:
+            keep_cols.extend(col for col in rp_feature_cols if col not in keep_cols)
         keep_cols.extend(
             col
             for col in (TARGET_COL, TARGET_WEIGHT_COL)
@@ -940,6 +1020,15 @@ def build_dataset_from_settings(settings):
                 ),
                 "volume_profile_fixed_range": (
                     vp_normalized_cfg if vp_enabled else None
+                ),
+                "reaction_profile_feature_version": (
+                    RP_FEATURE_VERSION if rp_enabled else None
+                ),
+                "reaction_profile_feature_columns": (
+                    list(rp_feature_cols) if rp_enabled else []
+                ),
+                "reaction_profile_fixed_grid": (
+                    rp_normalized_cfg if rp_enabled else None
                 ),
             },
             indent=2,

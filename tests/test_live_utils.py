@@ -156,6 +156,22 @@ class PolymarketSettlementTests(unittest.TestCase):
         self.assertAlmostEqual(settlement["pnl_usdc"], -2.65)
         self.assertEqual(settlement["payout_source"], "settlement_outcome_shares")
 
+    def test_local_outcome_settlement_without_closed_position(self):
+        settlement = resolve_polymarket_closed_position_settlement(
+            {
+                "trade_side": "yes",
+                "actual_up": 1,
+                "filled_stake_usdc": 2.5,
+                "shares_net": 5.0,
+            },
+            {},
+        )
+
+        self.assertEqual(settlement["trade_is_win"], 1)
+        self.assertAlmostEqual(settlement["payout_usdc"], 5.0)
+        self.assertAlmostEqual(settlement["pnl_usdc"], 2.5)
+        self.assertEqual(settlement["payout_source"], "settlement_outcome_shares")
+
     def test_exit_order_keeps_data_api_realized_pnl(self):
         settlement = resolve_polymarket_closed_position_settlement(
             {

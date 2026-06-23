@@ -11,6 +11,13 @@ from features.candle_features import (
     RAW_OHLCV_COLS,
 )
 from features.session_open_features import add_session_open_features
+from features.reaction_profile_fixed_grid import (
+    FEATURE_VERSION as RP_FEATURE_VERSION,
+    is_reaction_profile_feature,
+    normalize_config as normalize_reaction_profile_config,
+    validate_reaction_profile_dataset_metadata,
+    validate_reaction_profile_feature_columns,
+)
 from features.volume_profile_fixed_range import (
     is_volume_profile_feature,
     normalize_config as normalize_volume_profile_config,
@@ -558,8 +565,15 @@ def load_walk_forward_training_frame(
         x.columns,
         source_label=f"modeling dataset features at {data_path}",
     )
+    validate_reaction_profile_feature_columns(
+        x.columns,
+        source_label=f"modeling dataset features at {data_path}",
+    )
     volume_profile_feature_columns = tuple(
         col for col in x.columns if is_volume_profile_feature(col)
+    )
+    reaction_profile_feature_columns = tuple(
+        col for col in x.columns if is_reaction_profile_feature(col)
     )
     if volume_profile_feature_columns:
         dataset_metadata, metadata_path = load_modeling_dataset_artifact_metadata(
@@ -569,6 +583,16 @@ def load_walk_forward_training_frame(
             dataset_metadata,
             feature_columns=volume_profile_feature_columns,
             cfg=load_modeling_dataset_settings().get("volume_profile_fixed_range"),
+            source_label=f"modeling dataset metadata {metadata_path}",
+        )
+    if reaction_profile_feature_columns:
+        dataset_metadata, metadata_path = load_modeling_dataset_artifact_metadata(
+            data_path
+        )
+        validate_reaction_profile_dataset_metadata(
+            dataset_metadata,
+            feature_columns=reaction_profile_feature_columns,
+            cfg=load_modeling_dataset_settings().get("reaction_profile_fixed_grid"),
             source_label=f"modeling dataset metadata {metadata_path}",
         )
 
@@ -752,6 +776,9 @@ def main():
     dataset_settings = load_modeling_dataset_settings()
     normalized_volume_profile_cfg = normalize_volume_profile_config(
         dataset_settings.get("volume_profile_fixed_range")
+    )
+    normalized_reaction_profile_cfg = normalize_reaction_profile_config(
+        dataset_settings.get("reaction_profile_fixed_grid")
     )
     modeling_float_dtype = resolve_modeling_float_dtype(dataset_settings)
     modeling_float_dtype_name = resolve_modeling_float_dtype_name(dataset_settings)
@@ -1033,6 +1060,19 @@ def main():
         "volume_profile_fixed_range": (
             normalized_volume_profile_cfg
             if any(is_volume_profile_feature(col) for col in x_full.columns)
+            else None
+        ),
+        "reaction_profile_feature_version": (
+            RP_FEATURE_VERSION
+            if any(is_reaction_profile_feature(col) for col in x_full.columns)
+            else None
+        ),
+        "reaction_profile_feature_columns": [
+            col for col in x_full.columns if is_reaction_profile_feature(col)
+        ],
+        "reaction_profile_fixed_grid": (
+            normalized_reaction_profile_cfg
+            if any(is_reaction_profile_feature(col) for col in x_full.columns)
             else None
         ),
         "model_hyperparameters": {

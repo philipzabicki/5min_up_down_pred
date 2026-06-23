@@ -23,6 +23,10 @@ from features.session_open_features import (
     SUPPORTED_SESSION_OPEN_FEATURE_COLS,
     is_session_open_feature,
 )
+from features.reaction_profile_fixed_grid import is_reaction_profile_feature
+from features.reaction_profile_fixed_grid import (
+    validate_reaction_profile_feature_columns,
+)
 from features.volume_profile_fixed_range import is_volume_profile_feature
 from features.volume_profile_fixed_range import validate_volume_profile_feature_columns
 from utils.collections import dedupe_ordered as _dedupe_ordered
@@ -258,6 +262,10 @@ def _normalize_feature_names(features, source_path):
         normalized,
         source_label=f"feature subset {source_path}",
     )
+    validate_reaction_profile_feature_columns(
+        normalized,
+        source_label=f"feature subset {source_path}",
+    )
     validate_basis_premium_feature_columns(
         normalized,
         source_label=f"feature subset {source_path}",
@@ -365,6 +373,7 @@ def load_modeling_dataset_settings(
         "candle_streak_intervals": dict(settings["candle_streak_intervals"]),
         "feature_intervals": dict(settings.get("feature_intervals") or {}),
         "basis_premium_features": dict(settings.get("basis_premium_features") or {}),
+        "reaction_profile_fixed_grid": settings.get("reaction_profile_fixed_grid"),
         "feature_subset_path": settings.get("feature_subset_path"),
         "feature_subset_list_key": settings.get("feature_subset_list_key"),
         "excluded_feature_names": excluded_feature_names,
@@ -623,6 +632,10 @@ def split_feature_subset(feature_names, *, source_label="feature columns"):
         feature_names,
         source_label=source_label,
     )
+    validate_reaction_profile_feature_columns(
+        feature_names,
+        source_label=source_label,
+    )
     validate_basis_premium_feature_columns(
         feature_names,
         source_label=source_label,
@@ -636,6 +649,7 @@ def split_feature_subset(feature_names, *, source_label="feature columns"):
     basis_premium_feature_cols = []
     indicator_feature_cols = []
     volume_profile_feature_cols = []
+    reaction_profile_feature_cols = []
     unclassified_feature_cols = []
 
     candle_feature_set = set(SUPPORTED_CANDLE_FEATURE_COLS)
@@ -665,6 +679,9 @@ def split_feature_subset(feature_names, *, source_label="feature columns"):
         if is_volume_profile_feature(feature_name):
             volume_profile_feature_cols.append(feature_name)
             continue
+        if is_reaction_profile_feature(feature_name):
+            reaction_profile_feature_cols.append(feature_name)
+            continue
         if is_basis_premium_feature(feature_name):
             basis_premium_feature_cols.append(feature_name)
             continue
@@ -683,6 +700,7 @@ def split_feature_subset(feature_names, *, source_label="feature columns"):
         "basis_premium_feature_cols": tuple(basis_premium_feature_cols),
         "indicator_feature_cols": tuple(indicator_feature_cols),
         "volume_profile_feature_cols": tuple(volume_profile_feature_cols),
+        "reaction_profile_feature_cols": tuple(reaction_profile_feature_cols),
         "unclassified_feature_cols": tuple(unclassified_feature_cols),
     }
 

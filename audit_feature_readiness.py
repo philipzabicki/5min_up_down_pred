@@ -1018,13 +1018,27 @@ from features.session_open_features import (
 )
 from features.feature_intervals import FEATURE_INTERVAL_TO_RULE
 from features.realized_volatility import add_realized_volatility_features
+from features.reaction_profile_fixed_grid import (
+    FEATURE_VERSION as RP_FEATURE_VERSION,
+    AUDIT_ANCHOR_STATE_DIR as RP_AUDIT_ANCHOR_STATE_DIR,
+    PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR as RP_PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR,
+    PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR as RP_PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR,
+    build_reaction_profile_features,
+    bootstrap_state_from_history as bootstrap_reaction_profile_state_from_history,
+    load_state as load_reaction_profile_state,
+    normalize_config as normalize_reaction_profile_config,
+    save_state as save_reaction_profile_state,
+    state_matches_config as reaction_profile_state_matches_config,
+    validate_reaction_profile_feature_columns,
+    validate_reaction_profile_model_metadata,
+)
 from features.volume_profile_fixed_range import (
     FEATURE_VERSION as VP_FEATURE_VERSION,
     AUDIT_ANCHOR_STATE_DIR as VP_AUDIT_ANCHOR_STATE_DIR,
     PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR as VP_PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR,
     PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR as VP_PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR,
     build_volume_profile_features,
-    bootstrap_state_from_history,
+    bootstrap_state_from_history as bootstrap_volume_profile_state_from_history,
     load_state as load_volume_profile_state,
     normalize_config as normalize_volume_profile_config,
     save_state as save_volume_profile_state,
@@ -1080,6 +1094,8 @@ AUDIT_MODEL_META_PATH = MODEL_META_PATH
 AUDIT_PARQUET_PATH = None
 AUDIT_USE_ANCHOR_VP_STATE = True
 AUDIT_OVERWRITE_ANCHOR_VP_STATE = False
+AUDIT_USE_ANCHOR_RP_STATE = True
+AUDIT_OVERWRITE_ANCHOR_RP_STATE = False
 AUDIT_USE_REST_LIVE_OHLCV_SOURCE = True
 AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY = True
 AUDIT_OUTPUT_DIR = None
@@ -1157,6 +1173,10 @@ def _load_model_feature_importance_frame(meta):
     if not required_cols.issubset(frame.columns):
         return None
     validate_volume_profile_feature_columns(
+        frame["feature"].tolist(),
+        source_label=f"feature importance artifact {path}",
+    )
+    validate_reaction_profile_feature_columns(
         frame["feature"].tolist(),
         source_label=f"feature importance artifact {path}",
     )
@@ -1527,6 +1547,20 @@ def resolve_anchor_volume_profile_state_path(
     )
 
 
+def resolve_anchor_reaction_profile_state_path(
+        anchor_candle_opened,
+        source_label="raw_live_source",
+):
+    stamp = pd.Timestamp(anchor_candle_opened).strftime("%Y%m%d_%H%M")
+    return (
+            RP_AUDIT_ANCHOR_STATE_DIR
+            / (
+                f"{SYMBOL}_{INTERVAL}_{RP_FEATURE_VERSION}_audit_anchor_"
+                f"{_state_path_token(source_label)}_{stamp}"
+            )
+    )
+
+
 def _feature_group_map(feature_columns):
     parts = split_feature_subset(feature_columns, source_label="audit feature columns")
     group_by_feature = {}
@@ -1546,6 +1580,8 @@ def _feature_group_map(feature_columns):
         group_by_feature[feature] = "indicator"
     for feature in parts["volume_profile_feature_cols"]:
         group_by_feature[feature] = "volume_profile"
+    for feature in parts["reaction_profile_feature_cols"]:
+        group_by_feature[feature] = "reaction_profile"
     for feature in parts["unclassified_feature_cols"]:
         group_by_feature[feature] = "unclassified"
     return group_by_feature
@@ -1987,6 +2023,17 @@ def _feature_builder_frame(feature_columns):
                     "builder_family": "volume_profile",
                     "builder_name": "build_volume_profile_features",
                     "builder_source": "volume_profile_fixed_range",
+                }
+            )
+            continue
+
+        if feature in feature_parts["reaction_profile_feature_cols"]:
+            records.append(
+                {
+                    "feature": feature,
+                    "builder_family": "reaction_profile",
+                    "builder_name": "build_reaction_profile_features",
+                    "builder_source": "reaction_profile_fixed_grid",
                 }
             )
             continue
@@ -2647,6 +2694,9 @@ def build_current_recomputed_feature_history(
     vp_cfg = normalize_volume_profile_config(
         MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
     )
+    rp_cfg = normalize_reaction_profile_config(
+        MODELING_DATASET_SETTINGS.get("reaction_profile_fixed_grid")
+    )
     if feature_parts["volume_profile_feature_cols"]:
         if not vp_cfg["enabled"]:
             raise ValueError(
@@ -2666,6 +2716,30 @@ def build_current_recomputed_feature_history(
             feature_frame,
             vp_feature_frame,
             context="Current recompute volume profile features",
+        )
+
+    if feature_parts["reaction_profile_feature_cols"]:
+        if not rp_cfg["enabled"]:
+            raise ValueError(
+                "Reaction profile features requested but disabled in modeling config."
+            )
+        rp_features_df, _rp_state = build_reaction_profile_features(
+            feature_frame,
+            rp_cfg,
+        )
+        rp_feature_frame = pd.DataFrame(
+            {
+                feature_col: rp_features_df[feature_col].to_numpy(
+                    dtype=np.float64, copy=False
+                )
+                for feature_col in feature_parts["reaction_profile_feature_cols"]
+            },
+            index=feature_frame.index,
+        )
+        feature_frame = concat_feature_frame(
+            feature_frame,
+            rp_feature_frame,
+            context="Current recompute reaction profile features",
         )
 
     if feature_parts["indicator_feature_cols"]:
@@ -3687,6 +3761,7 @@ class PseudoLiveAuditPredictor(LivePredictor):
             model_meta_path=MODEL_META_PATH,
             max_keep=DEFAULT_MAX_KEEP,
             volume_profile_state=None,
+            reaction_profile_state=None,
             allow_unstable_indicator_summary=AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY,
     ):
         self.model, meta = load_model_and_meta(model_meta_path)
@@ -3694,6 +3769,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
         if not self.feature_columns:
             raise ValueError("Missing feature_columns in model metadata.")
         validate_volume_profile_feature_columns(
+            self.feature_columns,
+            source_label=f"model metadata {model_meta_path}",
+        )
+        validate_reaction_profile_feature_columns(
             self.feature_columns,
             source_label=f"model metadata {model_meta_path}",
         )
@@ -3791,6 +3870,33 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.volume_profile_state_source_path = None
         self.volume_profile_save_pool = None
 
+        self.reaction_profile_feature_columns = tuple(
+            feature_parts["reaction_profile_feature_cols"]
+        )
+        self.reaction_profile_cfg = normalize_reaction_profile_config(
+            MODELING_DATASET_SETTINGS.get("reaction_profile_fixed_grid")
+        )
+        validate_reaction_profile_model_metadata(
+            meta,
+            feature_columns=self.reaction_profile_feature_columns,
+            cfg=self.reaction_profile_cfg,
+            source_label=f"model metadata {model_meta_path}",
+        )
+        self.reaction_profile_enabled = bool(
+            self.reaction_profile_feature_columns
+            and self.reaction_profile_cfg["enabled"]
+        )
+        self.reaction_profile_state_path = (
+                RP_PSEUDO_LIVE_AUDIT_RUNTIME_STATE_DIR
+                / f"{SYMBOL}_{INTERVAL}_{RP_FEATURE_VERSION}"
+        )
+        self.reaction_profile_modeling_state_path = (
+                RP_PSEUDO_LIVE_AUDIT_MODELING_STATE_DIR
+                / f"{SYMBOL}_{INTERVAL}_{RP_FEATURE_VERSION}_modeling_end"
+        )
+        self.reaction_profile_state_source_path = None
+        self.reaction_profile_save_pool = None
+
         self.indicator_specs = load_indicator_specs(
             self.feature_columns,
             source_label=f"model metadata {model_meta_path}",
@@ -3886,12 +3992,27 @@ class PseudoLiveAuditPredictor(LivePredictor):
             if volume_profile_state is not None:
                 self.volume_profile_state = copy.deepcopy(volume_profile_state)
             else:
-                self.volume_profile_state = bootstrap_state_from_history(
+                self.volume_profile_state = bootstrap_volume_profile_state_from_history(
                     bootstrap_df.loc[:, ["Opened", "High", "Low", "Volume"]],
                     self.volume_profile_cfg,
                 )
 
+        self.reaction_profile_state = None
+        if self.reaction_profile_enabled:
+            if reaction_profile_state is not None:
+                self.reaction_profile_state = copy.deepcopy(reaction_profile_state)
+            else:
+                self.reaction_profile_state = (
+                    bootstrap_reaction_profile_state_from_history(
+                        bootstrap_df.loc[:, ["Opened", "Open", "High", "Low", "Close"]],
+                        self.reaction_profile_cfg,
+                    )
+                )
+
     def _save_runtime_volume_profile_state(self, log=False, context="state"):
+        return None
+
+    def _save_runtime_reaction_profile_state(self, log=False, context="state"):
         return None
 
     def evaluate_policy_decision(
@@ -3908,8 +4029,15 @@ class PseudoLiveAuditPredictor(LivePredictor):
         finally:
             self.live_bankroll_usdc = prev_bankroll
 
-    def build_feature_snapshot(self, volume_profile_values=None):
-        vector = self._build_feature_vector(volume_profile_values=volume_profile_values)
+    def build_feature_snapshot(
+            self,
+            volume_profile_values=None,
+            reaction_profile_values=None,
+    ):
+        vector = self._build_feature_vector(
+            volume_profile_values=volume_profile_values,
+            reaction_profile_values=reaction_profile_values,
+        )
         nonfinite_feature_indices = tuple(
             int(idx) for idx in np.flatnonzero(~np.isfinite(vector[0, :]))
         )
@@ -4027,6 +4155,31 @@ def load_anchor_volume_profile_history(
     return frame
 
 
+def load_anchor_reaction_profile_history(
+        *,
+        anchor_candle_opened,
+):
+    anchor_candle_opened = pd.Timestamp(anchor_candle_opened)
+    raw_path = resolve_raw_dataset_input_path(MODELING_DATASET_SETTINGS)
+    frame = pd.read_csv(
+        raw_path,
+        usecols=["Opened", "Open", "High", "Low", "Close"],
+    )
+    frame["Opened"] = _ensure_utc_opened(frame["Opened"])
+    frame = (
+        frame.loc[frame["Opened"] <= anchor_candle_opened]
+        .sort_values("Opened")
+        .drop_duplicates(subset=["Opened"])
+        .reset_index(drop=True)
+    )
+    if frame.empty:
+        raise ValueError(
+            "Raw dataset does not contain reaction profile history for audit anchor. "
+            f"raw_path={raw_path} anchor_opened={anchor_candle_opened.isoformat()}"
+        )
+    return frame
+
+
 def build_or_load_anchor_volume_profile_state(
         *,
         anchor_candle_opened,
@@ -4063,12 +4216,56 @@ def build_or_load_anchor_volume_profile_state(
     history_df = load_anchor_volume_profile_history(
         anchor_candle_opened=anchor_candle_opened,
     )
-    state = bootstrap_state_from_history(
+    state = bootstrap_volume_profile_state_from_history(
         history_df.loc[:, ["Opened", "High", "Low", "Volume"]],
         vp_cfg,
     )
     save_volume_profile_state(state, state_path)
     return load_volume_profile_state(state_path), state_path
+
+
+def build_or_load_anchor_reaction_profile_state(
+        *,
+        anchor_candle_opened,
+        overwrite=False,
+        source_label="raw_live_source",
+):
+    state_path = resolve_anchor_reaction_profile_state_path(
+        anchor_candle_opened,
+        source_label=source_label,
+    )
+    rp_cfg = normalize_reaction_profile_config(
+        MODELING_DATASET_SETTINGS.get("reaction_profile_fixed_grid")
+    )
+    if (
+            not overwrite
+            and state_path.with_suffix(".npz").exists()
+            and state_path.with_suffix(".json").exists()
+    ):
+        try:
+            state = load_reaction_profile_state(state_path)
+        except (FileNotFoundError, ValueError, KeyError) as exc:
+            print(
+                "[audit] existing anchor rp state is unreadable; rebuilding "
+                f"path={state_path.with_suffix('.npz')} error={exc}"
+            )
+        else:
+            if reaction_profile_state_matches_config(state, rp_cfg):
+                return state, state_path
+            print(
+                "[audit] existing anchor rp state config mismatch; rebuilding "
+                f"path={state_path.with_suffix('.npz')}"
+            )
+
+    history_df = load_anchor_reaction_profile_history(
+        anchor_candle_opened=anchor_candle_opened,
+    )
+    state = bootstrap_reaction_profile_state_from_history(
+        history_df.loc[:, ["Opened", "Open", "High", "Low", "Close"]],
+        rp_cfg,
+    )
+    save_reaction_profile_state(state, state_path)
+    return load_reaction_profile_state(state_path), state_path
 
 
 def run_stored_modeling_vs_current_recompute_audit(
@@ -4105,6 +4302,10 @@ def run_stored_modeling_vs_current_recompute_audit(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
     )
+    validate_reaction_profile_feature_columns(
+        feature_columns,
+        source_label=f"model metadata {model_meta_path}",
+    )
     validate_basis_premium_feature_columns(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
@@ -4119,6 +4320,18 @@ def run_stored_modeling_vs_current_recompute_audit(
         cfg=normalize_volume_profile_config(
             MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
         ),
+        source_label=f"model metadata {model_meta_path}",
+    )
+    validate_reaction_profile_model_metadata(
+        meta,
+        feature_columns=feature_columns,
+        cfg=normalize_reaction_profile_config(
+            MODELING_DATASET_SETTINGS.get("reaction_profile_fixed_grid")
+        ),
+        source_label=f"model metadata {model_meta_path}",
+    )
+    feature_parts = split_feature_subset(
+        feature_columns,
         source_label=f"model metadata {model_meta_path}",
     )
 
@@ -4262,6 +4475,8 @@ def run_live_modeling_feature_audit(
         parquet_path=None,
         use_anchor_vp_state=True,
         overwrite_anchor_vp_state=False,
+        use_anchor_rp_state=True,
+        overwrite_anchor_rp_state=False,
 ):
     model_meta_path = Path(model_meta_path)
     parquet_path = (
@@ -4307,6 +4522,10 @@ def run_live_modeling_feature_audit(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
     )
+    validate_reaction_profile_feature_columns(
+        feature_columns,
+        source_label=f"model metadata {model_meta_path}",
+    )
     validate_basis_premium_feature_columns(
         feature_columns,
         source_label=f"model metadata {model_meta_path}",
@@ -4320,6 +4539,18 @@ def run_live_modeling_feature_audit(
         cfg=normalize_volume_profile_config(
             MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
         ),
+        source_label=f"model metadata {model_meta_path}",
+    )
+    validate_reaction_profile_model_metadata(
+        meta,
+        feature_columns=feature_columns,
+        cfg=normalize_reaction_profile_config(
+            MODELING_DATASET_SETTINGS.get("reaction_profile_fixed_grid")
+        ),
+        source_label=f"model metadata {model_meta_path}",
+    )
+    feature_parts = split_feature_subset(
+        feature_columns,
         source_label=f"model metadata {model_meta_path}",
     )
 
@@ -4431,7 +4662,7 @@ def run_live_modeling_feature_audit(
     anchor_candle_opened = pd.Timestamp(live_bootstrap_df["Opened"].iloc[-1])
     anchor_vp_state = None
     anchor_vp_state_path = None
-    if use_anchor_vp_state:
+    if use_anchor_vp_state and feature_parts["volume_profile_feature_cols"]:
         if progress_enabled:
             print(
                 "[audit] loading anchor vp state "
@@ -4451,11 +4682,34 @@ def run_live_modeling_feature_audit(
                 f"path={anchor_vp_state_path.with_suffix('.npz')}"
             )
 
+    anchor_rp_state = None
+    anchor_rp_state_path = None
+    if use_anchor_rp_state and feature_parts["reaction_profile_feature_cols"]:
+        if progress_enabled:
+            print(
+                "[audit] loading anchor rp state "
+                f"anchor_opened={anchor_candle_opened.isoformat()} "
+                f"source=raw_csv overwrite={bool(overwrite_anchor_rp_state)}"
+            )
+        anchor_rp_state, anchor_rp_state_path = (
+            build_or_load_anchor_reaction_profile_state(
+                anchor_candle_opened=anchor_candle_opened,
+                overwrite=overwrite_anchor_rp_state,
+                source_label="raw_csv",
+            )
+        )
+        if progress_enabled:
+            print(
+                "[audit] anchor rp state ready "
+                f"path={anchor_rp_state_path.with_suffix('.npz')}"
+            )
+
     predictor = PseudoLiveAuditPredictor(
         live_bootstrap_df,
         model_meta_path=model_meta_path,
         max_keep=max_keep,
         volume_profile_state=anchor_vp_state,
+        reaction_profile_state=anchor_rp_state,
     )
     predictor.model = model
     if progress_enabled:
@@ -4512,11 +4766,17 @@ def run_live_modeling_feature_audit(
         volume_profile_values = (
             predictor._prepare_volume_profile_features_for_latest_candle(opened)
         )
+        reaction_profile_values = (
+            predictor._prepare_reaction_profile_features_for_latest_candle(opened)
+        )
         is_decision_step = _is_live_decision_opened(
             opened, predictor.target_bucket_minutes
         )
         if is_decision_step:
-            snapshot = predictor.build_feature_snapshot(volume_profile_values)
+            snapshot = predictor.build_feature_snapshot(
+                volume_profile_values=volume_profile_values,
+                reaction_profile_values=reaction_profile_values,
+            )
             live_vector = snapshot["vector"][0, :].astype(np.float64, copy=True)
             live_vector_rows.append(live_vector)
             nonfinite_row = ~np.isfinite(live_vector)
@@ -4613,7 +4873,9 @@ def run_live_modeling_feature_audit(
                     "live_ohlcv_rows": len(live_source_frame),
                     "live_ohlcv_vs_stored_max_abs_diff": source_ohlcv_max_abs_diff,
                     "live_ohlcv_vs_stored_mean_abs_diff": source_ohlcv_mean_abs_diff,
-                    "volume_profile_anchor_source": "raw_csv",
+                    "volume_profile_anchor_source": (
+                        None if anchor_vp_state_path is None else "raw_csv"
+                    ),
                     "ignored_basis_premium_feature_count": len(
                         ignored_basis_feature_columns
                     ),
@@ -4625,6 +4887,15 @@ def run_live_modeling_feature_audit(
                         None
                         if anchor_vp_state_path is None
                         else str(anchor_vp_state_path.with_suffix(".npz"))
+                    ),
+                    "reaction_profile_anchor_source": (
+                        None if anchor_rp_state_path is None else "raw_csv"
+                    ),
+                    "use_anchor_rp_state": bool(use_anchor_rp_state),
+                    "anchor_rp_state_path": (
+                        None
+                        if anchor_rp_state_path is None
+                        else str(anchor_rp_state_path.with_suffix(".npz"))
                     ),
                     "report_type": "pseudo_live_vs_stored_modeling_decision_only",
                 }
@@ -4969,13 +5240,19 @@ def _build_features_to_inspect_df(
         "mean_abs_diff": 0.0,
         "importance_gain": 0.0,
     }
+    preserve_nan_numeric_columns = {"max_abs_diff", "mean_abs_diff"}
     for column_name, default_value in numeric_defaults.items():
+        column_was_present = column_name in export_df.columns
         if column_name not in export_df.columns:
             export_df[column_name] = default_value
-        export_df[column_name] = pd.to_numeric(
+        numeric_values = pd.to_numeric(
             export_df[column_name],
             errors="coerce",
-        ).fillna(default_value)
+        )
+        if column_was_present and column_name in preserve_nan_numeric_columns:
+            export_df[column_name] = numeric_values
+        else:
+            export_df[column_name] = numeric_values.fillna(default_value)
 
     if "feature" not in export_df.columns:
         export_df["feature"] = ""
@@ -5250,6 +5527,9 @@ def _build_live_feature_parity_summary_payload(
         ),
         "volume_profile_anchor_source": live_summary.get(
             "volume_profile_anchor_source"
+        ),
+        "reaction_profile_anchor_source": live_summary.get(
+            "reaction_profile_anchor_source"
         ),
         "feature_count": _summary_int(live_summary, "feature_count"),
         "features_to_inspect": features_to_inspect_count,
@@ -5581,6 +5861,8 @@ def run_live_feature_parity_audit():
         parquet_path=AUDIT_PARQUET_PATH,
         use_anchor_vp_state=AUDIT_USE_ANCHOR_VP_STATE,
         overwrite_anchor_vp_state=AUDIT_OVERWRITE_ANCHOR_VP_STATE,
+        use_anchor_rp_state=AUDIT_USE_ANCHOR_RP_STATE,
+        overwrite_anchor_rp_state=AUDIT_OVERWRITE_ANCHOR_RP_STATE,
     )
     output_dir = _optional_path(AUDIT_OUTPUT_DIR) or _default_output_dir()
     if AUDIT_PROGRESS_ENABLED:
@@ -5613,6 +5895,7 @@ __all__ = [
     "IndicatorSpec",
     "PseudoLiveAuditPredictor",
     "VALUE_BUILDERS",
+    "build_or_load_anchor_reaction_profile_state",
     "build_or_load_anchor_volume_profile_state",
     "build_live_drift_reason_report",
     "estimate_required_candles",
@@ -5622,6 +5905,7 @@ __all__ = [
     "load_live_source_audit_frame",
     "normalize_opened_to_utc_naive",
     "resolve_audit_window",
+    "resolve_anchor_reaction_profile_state_path",
     "resolve_anchor_volume_profile_state_path",
     "run_feature_readiness_audit",
     "run_indicator_stability_audit",

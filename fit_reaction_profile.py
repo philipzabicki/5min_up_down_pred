@@ -1,4 +1,4 @@
-import json
+﻿import json
 import faulthandler
 import warnings
 from datetime import datetime, timezone
@@ -10,9 +10,9 @@ import optuna
 import pandas as pd
 
 from features.candle_features import RAW_OHLCV_COLS
-from features.volume_profile_fixed_range import (
-    build_volume_profile_feature_matrix_from_arrays,
-    normalize_config as normalize_volume_profile_config,
+from features.reaction_profile_fixed_grid import (
+    build_reaction_profile_feature_matrix_from_arrays,
+    normalize_config as normalize_reaction_profile_config,
 )
 from train_lgbm import (
     WF_TEST_TO_TRAIN_RATIO as DEFAULT_WF_TEST_TO_TRAIN_RATIO,
@@ -89,158 +89,51 @@ LGBM_DEFAULT_PARAMS = {
     "extra_trees": False,
 }
 
-# Edit these ranges directly. Only keys listed here are optimized by Optuna.
-# These ranges were widened after comparing the best regions from the broader
-# v7/v8 searches with the later conservative pass. The goal is to reopen
-# truncated edges without going back to the original fully loose space.
-VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
-    "neighbor_bins": {"type": "int", "low": 1, "high": 10},
-    "short_step": {"type": "int", "low": 1, "high": 400, "log": False},
-    "medium_step": {"type": "int", "low": 1, "high": 400, "log": False},
-    "long_step": {"type": "int", "low": 1, "high": 400, "log": False},
-    "all_step": {"type": "int", "low": 1, "high": 400, "log": False},
+REACTION_PROFILE_OPTUNA_SEARCH_SPACE = {
+    "bin_size": {"type": "float", "low": 0.5, "high": 100.0, "log": True},
+    "neighbor_bins": {"type": "float", "low": 0.0, "high": 16.0, "log": False},
     "short_local_window": {"type": "int", "low": 1, "high": 128, "log": False},
     "medium_local_window": {"type": "int", "low": 1, "high": 128, "log": False},
     "long_local_window": {"type": "int", "low": 1, "high": 128, "log": False},
     "all_local_window": {"type": "int", "low": 1, "high": 128, "log": False},
-    "short_sigma_divisor": {
-        "type": "float",
-        "low": 0.01,
-        "high": 100.0,
-        "log": True,
-    },
-    "medium_sigma_divisor": {
-        "type": "float",
-        "low": 0.01,
-        "high": 100.0,
-        "log": True,
-    },
-    "long_sigma_divisor": {
-        "type": "float",
-        "low": 0.01,
-        "high": 100.0,
-        "log": True,
-    },
-    "all_sigma_divisor": {
-        "type": "float",
-        "low": 0.01,
-        "high": 100.0,
-        "log": True,
-    },
-    "short_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
-    "medium_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
-    "long_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
-    "all_min_sigma": {"type": "float", "low": 0.01, "high": 384.0, "log": True},
     "short_half_life_candles": {
         "type": "int",
         "low": 10,
-        "high": 4_320,
+        "high": 2400,
         "log": True,
     },
     "medium_half_life_candles": {
         "type": "int",
-        "low": 2_400,
-        "high": 20_160,
+        "low": 2401,
+        "high": 14400,
         "log": True,
     },
     "long_half_life_candles": {
         "type": "int",
-        "low": 14_400,
-        "high": 86_400,
+        "low": 14401,
+        "high": 86400,
         "log": True,
     },
+    "min_reaction_strength": {"type": "float", "low": 0.0, "high": 0.001, "log": False},
+    "wick_power": {"type": "float", "low": 0.25, "high": 4.0, "log": True},
+    "distance_power": {"type": "float", "low": 0.25, "high": 4.0, "log": True},
 }
 
-# Seed trials are injected before optimization starts.
 OPTUNA_SEED_TRIAL_PARAMS = [
     {
-        "neighbor_bins": 9,
-        "short_step": 42,
-        "medium_step": 42,
-        "long_step": 42,
-        "all_step": 42,
-        "short_local_window": 77,
-        "medium_local_window": 77,
-        "long_local_window": 77,
-        "all_local_window": 77,
-        "short_sigma_divisor": 8.250626386620294,
-        "medium_sigma_divisor": 8.250626386620294,
-        "long_sigma_divisor": 8.250626386620294,
-        "all_sigma_divisor": 8.250626386620294,
-        "short_min_sigma": 247.31082044719778,
-        "medium_min_sigma": 247.31082044719778,
-        "long_min_sigma": 247.31082044719778,
-        "all_min_sigma": 247.31082044719778,
-        "short_half_life_candles": 67,
-        "medium_half_life_candles": 5415,
-        "long_half_life_candles": 19529,
-    },
-    {
-        "neighbor_bins": 10,
-        "short_step": 237,
-        "medium_step": 18,
-        "long_step": 1,
-        "all_step": 7,
-        "short_local_window": 25,
-        "medium_local_window": 26,
-        "long_local_window": 2,
-        "all_local_window": 58,
-        "short_sigma_divisor": 0.014876093927097048,
-        "medium_sigma_divisor": 0.09483896606781557,
-        "long_sigma_divisor": 0.4441954152605454,
-        "all_sigma_divisor": 11.631250402780816,
-        "short_min_sigma": 0.02916405796066006,
-        "medium_min_sigma": 56.79702039837823,
-        "long_min_sigma": 57.418582556758615,
-        "all_min_sigma": 0.26790315308836143,
-        "short_half_life_candles": 79,
-        "medium_half_life_candles": 4650,
-        "long_half_life_candles": 28696
-    },
-    {
-    "neighbor_bins": 9,
-    "short_step": 86,
-    "medium_step": 315,
-    "long_step": 288,
-    "all_step": 376,
-    "short_local_window": 74,
-    "medium_local_window": 16,
-    "long_local_window": 63,
-    "all_local_window": 111,
-    "short_sigma_divisor": 1.0029132426037255,
-    "medium_sigma_divisor": 0.07924136667102884,
-    "long_sigma_divisor": 0.028597435780326995,
-    "all_sigma_divisor": 1.7113898148076392,
-    "short_min_sigma": 0.01168374082915439,
-    "medium_min_sigma": 0.01954603115645541,
-    "long_min_sigma": 15.297784915081207,
-    "all_min_sigma": 3.0986707819982775,
-    "short_half_life_candles": 44,
-    "medium_half_life_candles": 3964,
-    "long_half_life_candles": 20168
-  },
-  {
-    "neighbor_bins": 6,
-    "short_step": 4,
-    "medium_step": 11,
-    "long_step": 204,
-    "all_step": 95,
-    "short_local_window": 14,
-    "medium_local_window": 53,
-    "long_local_window": 74,
-    "all_local_window": 76,
-    "short_sigma_divisor": 12.189791385442385,
-    "medium_sigma_divisor": 0.6269864180875891,
-    "long_sigma_divisor": 0.6216916580549584,
-    "all_sigma_divisor": 10.439536064643525,
-    "short_min_sigma": 2.0586087292004347,
-    "medium_min_sigma": 0.010666568802238761,
-    "long_min_sigma": 102.0164935037031,
-    "all_min_sigma": 381.8478732374323,
-    "short_half_life_candles": 145,
-    "medium_half_life_candles": 2509,
-    "long_half_life_candles": 32302
-  }
+    "bin_size": 88.13347937442842,
+    "neighbor_bins": 14.475523355248354,
+    "short_local_window": 67,
+    "medium_local_window": 103,
+    "long_local_window": 40,
+    "all_local_window": 81,
+    "short_half_life_candles": 57,
+    "medium_half_life_candles": 3702,
+    "long_half_life_candles": 21450,
+    "min_reaction_strength": 7.776895291626223e-05,
+    "wick_power": 1.481640187824231,
+    "distance_power": 0.26262391136729163
+    }
 ]
 
 N_TRIALS = 500
@@ -253,24 +146,24 @@ EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC
 CV_OBJECTIVE_IS_HIGHER_BETTER = False
 CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
-DEFAULT_STUDY_NAME_PREFIX = "volume_profile_binary_logloss_mean_std"
+DEFAULT_STUDY_NAME_PREFIX = "reaction_profile_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
-STUDY_NAME = "volume_profile_binary_logloss_mean_std_20260613_183734"
+STUDY_NAME = "reaction_profile_binary_logloss_mean_std_20260620_230533"
 STORAGE = (
         "sqlite:///"
-        + active_asset_path("data/optuna/databases/{asset}/volume_profile.db").as_posix()
+        + active_asset_path("data/optuna/databases/{asset}/reaction_profile.db").as_posix()
 )
-ARTIFACT_OUTPUT_DIR = active_asset_path("data/optuna/volume_profile/{asset}")
-BEST_RESULT_STEM = "volume_profile_best_binary_logloss_mean_std"
-TRIALS_CSV_STEM = "volume_profile_trials_binary_logloss_mean_std"
-NATIVE_CRASH_LOG_PATH = ARTIFACT_OUTPUT_DIR / "volume_profile_native_crash.log"
+ARTIFACT_OUTPUT_DIR = active_asset_path("data/optuna/reaction_profile/{asset}")
+BEST_RESULT_STEM = "reaction_profile_best_binary_logloss_mean_std"
+TRIALS_CSV_STEM = "reaction_profile_trials_binary_logloss_mean_std"
+NATIVE_CRASH_LOG_PATH = ARTIFACT_OUTPUT_DIR / "reaction_profile_native_crash.log"
 
 
 def enable_native_crash_log():
     NATIVE_CRASH_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     crash_log_file = NATIVE_CRASH_LOG_PATH.open("a", encoding="utf-8")
     crash_log_file.write(
-        f"\n=== fit_volume_profile start {datetime.now(timezone.utc).isoformat()} ===\n"
+        f"\n=== fit_reaction_profile start {datetime.now(timezone.utc).isoformat()} ===\n"
     )
     crash_log_file.flush()
     faulthandler.enable(file=crash_log_file, all_threads=True)
@@ -379,9 +272,10 @@ def load_base_ohlcv_frame(data_path):
         "rows_after": int(filtered_rows),
         "rows_removed": int(rows_after_target_notna - filtered_rows),
     }
+    open_np = df["Open"].to_numpy(dtype=np.float64, copy=False)
     high_np = df["High"].to_numpy(dtype=np.float64, copy=False)
     low_np = df["Low"].to_numpy(dtype=np.float64, copy=False)
-    volume_np = df["Volume"].to_numpy(dtype=np.float64, copy=False)
+    close_np = df["Close"].to_numpy(dtype=np.float64, copy=False)
 
     print(
         f"load raw data | raw_rows={raw_rows} rows_after_target_notna={rows_after_target_notna}"
@@ -398,9 +292,10 @@ def load_base_ohlcv_frame(data_path):
     return {
         "df": df,
         "keep_mask": keep_mask,
+        "open_np": open_np,
         "high_np": high_np,
         "low_np": low_np,
-        "volume_np": volume_np,
+        "close_np": close_np,
         "y_filtered": y_filtered.astype(np.float32, copy=False),
         "raw_rows": raw_rows,
         "rows_after_target_notna": rows_after_target_notna,
@@ -749,17 +644,16 @@ class ObjectiveAlignedLightGBMPruningCallback:
             raise optuna.TrialPruned(f"Trial was pruned at iteration {env.iteration}.")
 
 
-def get_supported_volume_profile_param_names(normalized_base):
-    param_names = {"neighbor_bins"}
+def get_supported_reaction_profile_param_names(normalized_base):
+    param_names = {
+        "bin_size",
+        "neighbor_bins",
+        "min_reaction_strength",
+        "wick_power",
+        "distance_power",
+    }
     for horizon_name in normalized_base["horizon_names"]:
-        param_names.update(
-            {
-                f"{horizon_name}_step",
-                f"{horizon_name}_local_window",
-                f"{horizon_name}_sigma_divisor",
-                f"{horizon_name}_min_sigma",
-            }
-        )
+        param_names.add(f"{horizon_name}_local_window")
         if normalized_base["horizons"][horizon_name]["half_life_candles"] is not None:
             param_names.add(f"{horizon_name}_half_life_candles")
     return param_names
@@ -813,13 +707,13 @@ def validate_optuna_search_spec(name, spec):
         raise ValueError(f"Float search space requires high >= low for {name!r}.")
 
 
-def validate_volume_profile_search_space(normalized_base, search_space):
-    supported_param_names = get_supported_volume_profile_param_names(normalized_base)
+def validate_reaction_profile_search_space(normalized_base, search_space):
+    supported_param_names = get_supported_reaction_profile_param_names(normalized_base)
     search_space_names = set(search_space)
     unknown_names = sorted(search_space_names - supported_param_names)
     if unknown_names:
         raise ValueError(
-            "Unsupported volume profile Optuna search params: "
+            "Unsupported reaction profile Optuna search params: "
             f"{unknown_names}. Supported={sorted(supported_param_names)}"
         )
 
@@ -895,11 +789,11 @@ def validate_seed_trial_params(seed_params, search_space):
 
 
 def enqueue_seed_trials(study, seed_trial_params, normalized_base, search_space):
-    validate_volume_profile_search_space(normalized_base, search_space)
+    validate_reaction_profile_search_space(normalized_base, search_space)
 
     for seed_index, params in enumerate(seed_trial_params, start=1):
         validate_seed_trial_params(params, search_space)
-        build_volume_profile_config_from_params(normalized_base, params)
+        build_reaction_profile_config_from_params(normalized_base, params)
         study.enqueue_trial(
             params=params,
             user_attrs={"seed_trial_index": int(seed_index)},
@@ -907,26 +801,37 @@ def enqueue_seed_trials(study, seed_trial_params, normalized_base, search_space)
         )
 
 
-def suggest_volume_profile_config(trial, base_config, search_space):
-    normalized_base = normalize_volume_profile_config(base_config)
-    validate_volume_profile_search_space(normalized_base, search_space)
+def suggest_reaction_profile_config(trial, base_config, search_space):
+    normalized_base = normalize_reaction_profile_config(base_config)
+    validate_reaction_profile_search_space(normalized_base, search_space)
     params = {
         name: suggest_value_from_spec(trial, name, spec)
         for name, spec in search_space.items()
     }
-    return build_volume_profile_config_from_params(normalized_base, params)
+    return build_reaction_profile_config_from_params(normalized_base, params)
 
 
-def build_volume_profile_config_from_params(base_config, params):
-    normalized_base = normalize_volume_profile_config(base_config)
+def build_reaction_profile_config_from_params(base_config, params):
+    normalized_base = normalize_reaction_profile_config(base_config)
     config = {
         "enabled": True,
         "price_min": float(normalized_base["price_min"]),
         "price_max": float(normalized_base["price_max"]),
-        "neighbor_bins": int(
+        "bin_size": float(params.get("bin_size", normalized_base["bin_size"])),
+        "neighbor_bins": float(
             params.get("neighbor_bins", normalized_base["neighbor_bins"])
         ),
         "eps": float(normalized_base["eps"]),
+        "min_reaction_strength": float(
+            params.get(
+                "min_reaction_strength",
+                normalized_base["min_reaction_strength"],
+            )
+        ),
+        "wick_power": float(params.get("wick_power", normalized_base["wick_power"])),
+        "distance_power": float(
+            params.get("distance_power", normalized_base["distance_power"])
+        ),
         "horizons": {},
     }
 
@@ -940,29 +845,16 @@ def build_volume_profile_config_from_params(base_config, params):
                 params.get(f"{horizon_name}_half_life_candles", base_half_life)
             )
         config["horizons"][horizon_name] = {
-            "step": int(params.get(f"{horizon_name}_step", base_horizon["step"])),
             "local_window": int(
                 params.get(
                     f"{horizon_name}_local_window",
                     base_horizon["local_window"],
                 )
             ),
-            "sigma_divisor": float(
-                params.get(
-                    f"{horizon_name}_sigma_divisor",
-                    base_horizon["sigma_divisor"],
-                )
-            ),
-            "min_sigma": float(
-                params.get(
-                    f"{horizon_name}_min_sigma",
-                    base_horizon["min_sigma"],
-                )
-            ),
             "half_life_candles": half_life,
         }
 
-    return normalize_volume_profile_config(config)
+    return normalize_reaction_profile_config(config)
 
 
 def _drop_none_fields(mapping):
@@ -992,24 +884,23 @@ def _numeric_subset(source, *, int_keys=(), float_keys=()):
     return out
 
 
-def build_editable_volume_profile_config(cfg):
-    normalized = normalize_volume_profile_config(cfg)
+def build_editable_reaction_profile_config(cfg):
+    normalized = normalize_reaction_profile_config(cfg)
     return {
         "enabled": bool(normalized["enabled"]),
         "price_min": float(normalized["price_min"]),
         "price_max": float(normalized["price_max"]),
-        "neighbor_bins": int(normalized["neighbor_bins"]),
+        "bin_size": float(normalized["bin_size"]),
+        "neighbor_bins": float(normalized["neighbor_bins"]),
         "eps": float(normalized["eps"]),
+        "min_reaction_strength": float(normalized["min_reaction_strength"]),
+        "wick_power": float(normalized["wick_power"]),
+        "distance_power": float(normalized["distance_power"]),
         "horizons": {
             horizon_name: {
-                "step": int(normalized["horizons"][horizon_name]["step"]),
                 "local_window": int(
                     normalized["horizons"][horizon_name]["local_window"]
                 ),
-                "sigma_divisor": float(
-                    normalized["horizons"][horizon_name]["sigma_divisor"]
-                ),
-                "min_sigma": float(normalized["horizons"][horizon_name]["min_sigma"]),
                 "half_life_candles": normalized["horizons"][horizon_name][
                     "half_life_candles"
                 ],
@@ -1019,15 +910,15 @@ def build_editable_volume_profile_config(cfg):
     }
 
 
-def build_volume_profile_derived_summary(cfg):
-    normalized = normalize_volume_profile_config(cfg)
+def build_reaction_profile_derived_summary(cfg):
+    normalized = normalize_reaction_profile_config(cfg)
     return {
         "version": str(normalized["version"]),
         "feature_count": int(len(normalized["feature_columns"])),
-        "features_per_horizon": int((2 * normalized["neighbor_bins"]) + 3),
+        "features_per_horizon": 7,
+        "bins": int(normalized["bins"]),
         "horizons": {
             horizon_name: {
-                "bins": int(normalized["horizons"][horizon_name]["bins"]),
                 "decay": float(normalized["horizons"][horizon_name]["decay"]),
             }
             for horizon_name in normalized["horizon_names"]
@@ -1035,7 +926,7 @@ def build_volume_profile_derived_summary(cfg):
     }
 
 
-def compact_volume_profile_artifact_payload(payload):
+def compact_reaction_profile_artifact_payload(payload):
     cv_objective = payload.get("cv_objective") or {}
     base_metric = str(
         cv_objective.get("base_metric", CV_OBJECTIVE_BASE_METRIC)
@@ -1047,8 +938,8 @@ def compact_volume_profile_artifact_payload(payload):
     best_trial = payload.get("best_trial") or {}
     objective_name = cv_objective.get("name")
     objective_key = f"objective_{objective_name}" if objective_name else None
-    best_cfg = best_trial.get("volume_profile_fixed_range")
-    base_cfg = payload.get("base_volume_profile_fixed_range")
+    best_cfg = best_trial.get("reaction_profile_fixed_grid")
+    base_cfg = payload.get("base_reaction_profile_fixed_grid")
     objective_value = _first_present(best_trial, "objective_value", objective_key)
     if objective_value is None:
         objective_value = next(
@@ -1123,7 +1014,7 @@ def compact_volume_profile_artifact_payload(payload):
     )
     if "feature_count" not in compact_best_trial and best_cfg is not None:
         compact_best_trial["feature_count"] = int(
-            len(normalize_volume_profile_config(best_cfg)["feature_columns"])
+            len(normalize_reaction_profile_config(best_cfg)["feature_columns"])
         )
 
     return _drop_none_fields(
@@ -1134,13 +1025,13 @@ def compact_volume_profile_artifact_payload(payload):
             "run_timestamp_utc": payload.get("run_timestamp_utc"),
             "best_trial": compact_best_trial,
             "best_params_flat": dict(best_trial.get("params") or {}),
-            "best_volume_profile_fixed_range": (
-                build_editable_volume_profile_config(best_cfg)
+            "best_reaction_profile_fixed_grid": (
+                build_editable_reaction_profile_config(best_cfg)
                 if best_cfg is not None
                 else None
             ),
-            "best_volume_profile_derived": (
-                build_volume_profile_derived_summary(best_cfg)
+            "best_reaction_profile_derived": (
+                build_reaction_profile_derived_summary(best_cfg)
                 if best_cfg is not None
                 else None
             ),
@@ -1179,8 +1070,8 @@ def compact_volume_profile_artifact_payload(payload):
                         ),
                         float_keys=("walk_forward_test_to_train_ratio",),
                     ),
-                    "volume_profile_optuna_search_space": payload.get(
-                        "volume_profile_optuna_search_space"
+                    "reaction_profile_optuna_search_space": payload.get(
+                        "reaction_profile_optuna_search_space"
                     ),
                     "optuna_seed_trial_count": int(
                         len(payload.get("optuna_seed_trial_params") or ())
@@ -1188,8 +1079,8 @@ def compact_volume_profile_artifact_payload(payload):
                 }
             ),
             "lgbm_params": payload.get("lgbm_params"),
-            "base_volume_profile_fixed_range": (
-                build_editable_volume_profile_config(base_cfg)
+            "base_reaction_profile_fixed_grid": (
+                build_editable_reaction_profile_config(base_cfg)
                 if base_cfg is not None
                 else None
             ),
@@ -1231,23 +1122,25 @@ def is_lgbm_gpu_enabled():
 
 
 def build_filtered_training_arrays(
+        open_np,
         high_np,
         low_np,
-        volume_np,
+        close_np,
         keep_mask,
         y_filtered,
         sample_weight_filtered,
-        normalized_vp_config,
+        normalized_rp_config,
 ):
-    x_np, _ = build_volume_profile_feature_matrix_from_arrays(
+    x_np, _ = build_reaction_profile_feature_matrix_from_arrays(
+        open_=open_np,
         high=high_np,
         low=low_np,
-        volume=volume_np,
-        cfg=normalized_vp_config,
+        close=close_np,
+        cfg=normalized_rp_config,
         keep_mask=keep_mask,
     )
     if is_lgbm_gpu_enabled():
-        # LightGBM GPU can hard-crash on this Windows setup when fed the VP
+        # LightGBM GPU can hard-crash on this Windows setup when fed the RP
         # matrix as float64, so keep the GPU training matrix explicitly float32.
         x_np = np.ascontiguousarray(x_np, dtype=np.float32)
     y_np = y_filtered
@@ -1256,7 +1149,7 @@ def build_filtered_training_arrays(
     if x_np.shape[0] == 0:
         raise ValueError("No rows left in filtered training matrix.")
     if x_np.shape[1] == 0:
-        raise ValueError("No features left after volume profile build.")
+        raise ValueError("No features left after reaction profile build.")
     validate_sample_weight_array(sample_weight_np)
 
     y_unique = np.unique(y_np)
@@ -1405,27 +1298,28 @@ def make_objective(
         folds,
         fold_indices,
         fold_weight_by_id,
-        base_vp_config,
+        base_rp_config,
         search_space,
 ):
     def objective(trial):
-        normalized_vp_config = None
+        normalized_rp_config = None
         x_np = None
 
         try:
-            normalized_vp_config = suggest_volume_profile_config(
+            normalized_rp_config = suggest_reaction_profile_config(
                 trial=trial,
-                base_config=base_vp_config,
+                base_config=base_rp_config,
                 search_space=search_space,
             )
             x_np, y_np, sample_weight_np = build_filtered_training_arrays(
+                open_np=base_data["open_np"],
                 high_np=base_data["high_np"],
                 low_np=base_data["low_np"],
-                volume_np=base_data["volume_np"],
+                close_np=base_data["close_np"],
                 keep_mask=base_data["keep_mask"],
                 y_filtered=base_data["y_filtered"],
                 sample_weight_filtered=base_data["sample_weight_filtered"],
-                normalized_vp_config=normalized_vp_config,
+                normalized_rp_config=normalized_rp_config,
             )
             cv_result = run_lightgbm_cv(
                 x_np=x_np,
@@ -1434,7 +1328,7 @@ def make_objective(
                 folds=folds,
                 fold_indices=fold_indices,
                 fold_weight_by_id=fold_weight_by_id,
-                feature_names=normalized_vp_config["feature_columns"],
+                feature_names=normalized_rp_config["feature_columns"],
                 trial=trial,
                 return_cvbooster=False,
             )
@@ -1460,17 +1354,17 @@ def make_objective(
             trial.set_user_attr("feature_count", int(x_np.shape[1]))
             trial.set_user_attr(
                 "config_signature",
-                str(normalized_vp_config["config_signature"]),
+                str(normalized_rp_config["config_signature"]),
             )
             return cv_result["objective_value"]
         except (lgb.basic.LightGBMError, OSError) as e:
             trial.set_user_attr("trial_status", "crash_penalty")
             trial.set_user_attr("crash_type", type(e).__name__)
             trial.set_user_attr("crash_message", str(e)[:1000])
-            if normalized_vp_config is not None:
+            if normalized_rp_config is not None:
                 trial.set_user_attr(
                     "config_signature",
-                    str(normalized_vp_config["config_signature"]),
+                    str(normalized_rp_config["config_signature"]),
                 )
             if x_np is not None:
                 trial.set_user_attr("feature_count", int(x_np.shape[1]))
@@ -1502,10 +1396,10 @@ def run_optuna_optimization():
     )
 
     dataset_settings = load_modeling_dataset_settings()
-    base_vp_config = dataset_settings.get("volume_profile_fixed_range") or {}
-    normalized_base_vp_config = normalize_volume_profile_config(base_vp_config)
+    base_rp_config = dataset_settings.get("reaction_profile_fixed_grid") or {}
+    normalized_base_rp_config = normalize_reaction_profile_config(base_rp_config)
     monotone_constraint_summary = summarize_lgbm_monotone_constraints(
-        normalized_base_vp_config["feature_columns"]
+        normalized_base_rp_config["feature_columns"]
     )
 
     base_data = load_base_ohlcv_frame(BASE_DATA_PATH)
@@ -1553,26 +1447,25 @@ def run_optuna_optimization():
     )
     print(
         "start optimize | "
-        f"base_volume_profile_feature_count={len(normalized_base_vp_config['feature_columns'])} "
+        f"base_reaction_profile_feature_count={len(normalized_base_rp_config['feature_columns'])} "
         f"row_filter_min_weight={MIN_SAMPLE_WEIGHT:.2f} "
-        f"neighbor_bins={normalized_base_vp_config['neighbor_bins']}"
+        f"bin_size={normalized_base_rp_config['bin_size']:.6f} "
+        f"neighbor_bins={normalized_base_rp_config['neighbor_bins']:.6f}"
     )
     print(
         "start optimize | horizon_params="
         + "; ".join(
             (
-                f"{horizon_name}:step={normalized_base_vp_config['horizons'][horizon_name]['step']},"
-                f"local_window={normalized_base_vp_config['horizons'][horizon_name]['local_window']},"
-                f"sigma_divisor={normalized_base_vp_config['horizons'][horizon_name]['sigma_divisor']:.6f},"
-                f"min_sigma={normalized_base_vp_config['horizons'][horizon_name]['min_sigma']:.6f},"
-                f"half_life={normalized_base_vp_config['horizons'][horizon_name]['half_life_candles']}"
+                f"{horizon_name}:"
+                f"local_window={normalized_base_rp_config['horizons'][horizon_name]['local_window']},"
+                f"half_life={normalized_base_rp_config['horizons'][horizon_name]['half_life_candles']}"
             )
-            for horizon_name in normalized_base_vp_config["horizon_names"]
+            for horizon_name in normalized_base_rp_config["horizon_names"]
         )
     )
     print(
         "start optimize | "
-        f"search_params={sorted(VOLUME_PROFILE_OPTUNA_SEARCH_SPACE)} "
+        f"search_params={sorted(REACTION_PROFILE_OPTUNA_SEARCH_SPACE)} "
         f"seed_trials_configured={len(OPTUNA_SEED_TRIAL_PARAMS)}"
     )
     print(
@@ -1599,8 +1492,8 @@ def run_optuna_optimization():
     enqueue_seed_trials(
         study=study,
         seed_trial_params=OPTUNA_SEED_TRIAL_PARAMS,
-        normalized_base=normalized_base_vp_config,
-        search_space=VOLUME_PROFILE_OPTUNA_SEARCH_SPACE,
+        normalized_base=normalized_base_rp_config,
+        search_space=REACTION_PROFILE_OPTUNA_SEARCH_SPACE,
     )
 
     study.optimize(
@@ -1609,8 +1502,8 @@ def run_optuna_optimization():
             folds=folds,
             fold_indices=fold_indices,
             fold_weight_by_id=fold_weight_by_id,
-            base_vp_config=base_vp_config,
-            search_space=VOLUME_PROFILE_OPTUNA_SEARCH_SPACE,
+            base_rp_config=base_rp_config,
+            search_space=REACTION_PROFILE_OPTUNA_SEARCH_SPACE,
         ),
         n_trials=N_TRIALS,
         timeout=TIMEOUT_SECONDS,
@@ -1621,8 +1514,8 @@ def run_optuna_optimization():
     )
 
     best_trial = get_best_successful_trial(study)
-    best_normalized_vp_config = build_volume_profile_config_from_params(
-        base_config=base_vp_config,
+    best_normalized_rp_config = build_reaction_profile_config_from_params(
+        base_config=base_rp_config,
         params=best_trial.params,
     )
 
@@ -1642,9 +1535,9 @@ def run_optuna_optimization():
         "rows_after_target_notna": int(base_data["rows_after_target_notna"]),
         "decision_row_filter": base_data["row_filter_info"],
         "feature_set": {
-            "mode": "volume_profile_fixed_range_only",
-            "base_feature_count": len(normalized_base_vp_config["feature_columns"]),
-            "best_feature_count": len(best_normalized_vp_config["feature_columns"]),
+            "mode": "reaction_profile_fixed_grid_only",
+            "base_feature_count": len(normalized_base_rp_config["feature_columns"]),
+            "best_feature_count": len(best_normalized_rp_config["feature_columns"]),
         },
         "study_name": study_name,
         "study_name_source": study_name_source,
@@ -1678,11 +1571,11 @@ def run_optuna_optimization():
             "std_penalty": float(CV_STD_PENALTY),
         },
         "lgbm_params": make_lgbm_cv_params(
-            feature_names=normalized_base_vp_config["feature_columns"]
+            feature_names=normalized_base_rp_config["feature_columns"]
         ),
         "monotone_constraints": monotone_constraint_summary,
-        "base_volume_profile_fixed_range": normalized_base_vp_config,
-        "volume_profile_optuna_search_space": VOLUME_PROFILE_OPTUNA_SEARCH_SPACE,
+        "base_reaction_profile_fixed_grid": normalized_base_rp_config,
+        "reaction_profile_optuna_search_space": REACTION_PROFILE_OPTUNA_SEARCH_SPACE,
         "optuna_seed_trial_params": OPTUNA_SEED_TRIAL_PARAMS,
         "best_trial": {
             "number": int(best_trial.number),
@@ -1699,14 +1592,14 @@ def run_optuna_optimization():
             "best_iteration": int(best_trial.user_attrs.get("best_iteration")),
             "feature_count": int(best_trial.user_attrs.get("feature_count")),
             "params": best_trial.params,
-            "volume_profile_fixed_range": best_normalized_vp_config,
+            "reaction_profile_fixed_grid": best_normalized_rp_config,
         },
         "artifacts": {
             "best_result_path": str(best_result_path),
             "trials_csv_path": str(trials_csv_path),
         },
     }
-    payload = compact_volume_profile_artifact_payload(payload)
+    payload = compact_reaction_profile_artifact_payload(payload)
 
     best_result_path.parent.mkdir(parents=True, exist_ok=True)
     best_result_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")

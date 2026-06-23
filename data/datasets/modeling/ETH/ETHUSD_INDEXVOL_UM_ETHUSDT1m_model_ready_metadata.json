@@ -5,9 +5,16 @@
     "futures_index_basis_rel_5m",
     "futures_index_basis_rel_1m",
     "futures_index_basis_change_15m",
-    "futures_index_basis_change_3m",
     "futures_index_basis_abs_5m",
-    "futures_index_basis_abs_1m"
+    "futures_index_basis_abs_1m",
+    "futures_index_basis_change_3m",
+    "futures_index_basis_rel_1h",
+    "futures_index_basis_abs_1d",
+    "futures_index_basis_change_1h",
+    "futures_index_basis_abs_15m",
+    "futures_index_basis_abs_1h",
+    "futures_index_basis_rel_1d",
+    "futures_index_basis_rel_4h"
   ],
   "basis_premium_features": {
     "enabled": true,
@@ -25,7 +32,7 @@
       "1d"
     ]
   },
-  "created_utc": "2026-06-20T04:52:37.619779+00:00",
+  "created_utc": "2026-06-21T22:21:32.409810+00:00",
   "feature_intervals": {
     "enabled": [
       "1m",
@@ -41,6 +48,132 @@
   "float_precision": "float64",
   "head_csv_path": "data\\datasets\\modeling\\ETH\\ETHUSD_INDEXVOL_UM_ETHUSDT1m_model_ready_head1000.csv",
   "parquet_path": "data\\datasets\\modeling\\ETH\\ETHUSD_INDEXVOL_UM_ETHUSDT1m_model_ready.parquet",
+  "reaction_profile_feature_columns": [
+    "rp_short_support_below",
+    "rp_short_resistance_above",
+    "rp_short_support_above",
+    "rp_short_resistance_below",
+    "rp_short_imbalance",
+    "rp_short_support_center_dist",
+    "rp_short_resistance_center_dist",
+    "rp_medium_support_below",
+    "rp_medium_resistance_above",
+    "rp_medium_support_above",
+    "rp_medium_resistance_below",
+    "rp_medium_imbalance",
+    "rp_medium_support_center_dist",
+    "rp_medium_resistance_center_dist",
+    "rp_long_support_below",
+    "rp_long_resistance_above",
+    "rp_long_support_above",
+    "rp_long_resistance_below",
+    "rp_long_imbalance",
+    "rp_long_support_center_dist",
+    "rp_long_resistance_center_dist",
+    "rp_all_support_below",
+    "rp_all_resistance_above",
+    "rp_all_support_above",
+    "rp_all_resistance_below",
+    "rp_all_imbalance",
+    "rp_all_support_center_dist",
+    "rp_all_resistance_center_dist"
+  ],
+  "reaction_profile_feature_version": "rp_fixed_grid_v1",
+  "reaction_profile_fixed_grid": {
+    "bin_size": 1.2327656088387606,
+    "bins": 81120,
+    "config_signature": "{\"bin_size\":1.2327656088387606,\"bins\":81120,\"distance_power\":0.29525874004362673,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":27},\"long\":{\"decay\":0.9999808360601945,\"half_life_candles\":36169,\"local_window\":56},\"medium\":{\"decay\":0.9997166602707053,\"half_life_candles\":2446,\"local_window\":33},\"short\":{\"decay\":0.9953588092664996,\"half_life_candles\":149,\"local_window\":79}},\"min_reaction_strength\":0.00025950472559896093,\"neighbor_bins\":12.360726018238429,\"neighbor_radius\":13,\"price_max\":100000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.29163105657861976}",
+    "decays": [
+      0.9953588092664996,
+      0.9997166602707053,
+      0.9999808360601945,
+      1.0
+    ],
+    "distance_power": 0.29525874004362673,
+    "enabled": true,
+    "eps": 1e-12,
+    "feature_columns": [
+      "rp_short_support_below",
+      "rp_short_resistance_above",
+      "rp_short_support_above",
+      "rp_short_resistance_below",
+      "rp_short_imbalance",
+      "rp_short_support_center_dist",
+      "rp_short_resistance_center_dist",
+      "rp_medium_support_below",
+      "rp_medium_resistance_above",
+      "rp_medium_support_above",
+      "rp_medium_resistance_below",
+      "rp_medium_imbalance",
+      "rp_medium_support_center_dist",
+      "rp_medium_resistance_center_dist",
+      "rp_long_support_below",
+      "rp_long_resistance_above",
+      "rp_long_support_above",
+      "rp_long_resistance_below",
+      "rp_long_imbalance",
+      "rp_long_support_center_dist",
+      "rp_long_resistance_center_dist",
+      "rp_all_support_below",
+      "rp_all_resistance_above",
+      "rp_all_support_above",
+      "rp_all_resistance_below",
+      "rp_all_imbalance",
+      "rp_all_support_center_dist",
+      "rp_all_resistance_center_dist"
+    ],
+    "half_lives": [
+      149,
+      2446,
+      36169,
+      null
+    ],
+    "horizon_local_windows": [
+      79,
+      33,
+      56,
+      27
+    ],
+    "horizon_names": [
+      "short",
+      "medium",
+      "long",
+      "all"
+    ],
+    "horizons": {
+      "all": {
+        "decay": 1.0,
+        "half_life_candles": null,
+        "horizon_name": "all",
+        "local_window": 27
+      },
+      "long": {
+        "decay": 0.9999808360601945,
+        "half_life_candles": 36169,
+        "horizon_name": "long",
+        "local_window": 56
+      },
+      "medium": {
+        "decay": 0.9997166602707053,
+        "half_life_candles": 2446,
+        "horizon_name": "medium",
+        "local_window": 33
+      },
+      "short": {
+        "decay": 0.9953588092664996,
+        "half_life_candles": 149,
+        "horizon_name": "short",
+        "local_window": 79
+      }
+    },
+    "min_reaction_strength": 0.00025950472559896093,
+    "neighbor_bins": 12.360726018238429,
+    "neighbor_radius": 13,
+    "price_max": 100000.0,
+    "price_min": 0.0,
+    "version": "rp_fixed_grid_v1",
+    "wick_power": 0.29163105657861976
+  },
   "tail_csv_path": "data\\datasets\\modeling\\ETH\\ETHUSD_INDEXVOL_UM_ETHUSDT1m_model_ready_tail1000.csv",
   "volume_profile_feature_columns": [
     "vp_short_log_density_ratio_to_current_bin_minus_9",

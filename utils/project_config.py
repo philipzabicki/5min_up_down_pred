@@ -646,6 +646,7 @@ def load_modeling_settings(
         "excluded_feature_names": tuple(str(value) for value in excluded_feature_names),
         "float_precision": require_text(modeling, "float_precision"),
         "volume_profile_fixed_range": modeling.get("volume_profile_fixed_range"),
+        "reaction_profile_fixed_grid": modeling.get("reaction_profile_fixed_grid"),
         "drop_frozen_ohlc_blocks": modeling.get("drop_frozen_ohlc_blocks"),
         "train_lgbm": dict(modeling["train_lgbm"]),
     }
