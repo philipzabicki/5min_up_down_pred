@@ -53,7 +53,7 @@
     "long": {
       "bins": 22694,
       "decay": 0.9999676859682373,
-      "global_scale": 0.0027596377930226455,
+      "global_scale": 0.0021777633980205623,
       "half_life_candles": 21450,
       "horizon_name": "long",
       "local_window": 40
@@ -61,7 +61,7 @@
     "medium": {
       "bins": 22694,
       "decay": 0.999812781660291,
-      "global_scale": 0.6615104097146162,
+      "global_scale": 0.1677477368833886,
       "half_life_candles": 3702,
       "horizon_name": "medium",
       "local_window": 103
@@ -69,13 +69,13 @@
     "short": {
       "bins": 22694,
       "decay": 0.9879131629461064,
-      "global_scale": 0.42172836523082163,
+      "global_scale": 0.9759724175221802,
       "half_life_candles": 57,
       "horizon_name": "short",
       "local_window": 67
     }
   },
-  "last_candle_time": "2026-06-23T07:43:00",
+  "last_candle_time": "2026-06-28T09:51:00",
   "min_reaction_strength": 7.776895291626223e-05,
   "neighbor_bins": 14.475523355248354,
   "neighbor_radius": 15,

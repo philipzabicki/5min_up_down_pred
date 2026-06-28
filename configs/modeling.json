@@ -25,7 +25,7 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float32",
+      "float_precision": "float64",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -97,8 +97,8 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "none",
-        "artifact_path": "",
+        "mode": "artifact",
+        "artifact_path": "data/analysis/feature_selector/BTC/20260625_215328/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
@@ -480,7 +480,25 @@
           "candle_body_pressure_1d_lag3": -1,
           "vp_long_log_density_ratio_to_current_bin_minus_3": -1,
           "ADX_fit_30m_pop16_adxper61_adxthr73.12672_atrper102_matypadxkama_matypatrtrima_matypnegdmlinreg_matypposdmdema_negdmper1879_posdmper1734": 1,
-          "ChaikinOsc_fit_1m_pop128_fasmatypnwmabiw_fasper38_slomatypdema_sloper1520": -1
+          "ChaikinOsc_fit_1m_pop128_fasmatypnwmabiw_fasper38_slomatypdema_sloper1520": -1,
+          "vp_long_log_density_ratio_to_current_bin_plus_7": 1,
+          "candle_signed_vol_1m_lag1": -1,
+          "MACD_fit_240m_pop128_fasmatypnwmaunif_fasper701_fassouopen_sigmatypt3_sigper234_slomatypnwmagauss_sloper1013_slosouhlc3_qe0.1_qm0.2_tf0.8_stmc_sg15": -1,
+          "vp_all_current_bin_volume_share_of_local_peak": 1,
+          "candle_range_ho_5m_lag5": -1,
+          "rp_long_support_center_dist": -1,
+          "candle_wick_asym_15m_lag4": 1,
+          "rp_medium_resistance_center_dist": 1,
+          "vp_all_local_above_below_volume_log_ratio": -1,
+          "vp_medium_log_density_ratio_to_current_bin_minus_2": -1,
+          "ChaikinOsc_fit_4m_pop16_fasmatypahma_fasper413_slomatypnwmagauss_sloper593": 1,
+          "candle_close_location_value_1h_lag3": -1,
+          "candle_close_location_value_1d_lag4": -1,
+          "vp_all_log_density_ratio_to_current_bin_plus_3": 1,
+          "realized_volatility_compression_expansion_1m_5m": -1,
+          "candle_body_pressure_4h_lag1": -1,
+          "CDLLONGLINE_5m": -1,
+          "StochOsc_fit_2m_pop64_faskper91_slodmatypdema_slodper434_slokmatypkama_slokper1360": -1
         }
       }
     },
@@ -509,7 +527,7 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float32",
+      "float_precision": "float64",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
@@ -581,12 +599,16 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "none",
-        "artifact_path": "",
+        "mode": "artifact",
+        "artifact_path": "data/analysis/feature_selector/ETH/20260627_185750/recommended_features.json",
         "artifact_list_key": "final_feature_list",
         "excluded_feature_names": [
           "KeltnerChannel_fit_5m_candle_up_pop512_atrmatyptema_atrper1130_maper39_matyptrima_souhl2_qe0.1_qm0.15_tf0.8_stmc_sg10",
-          "ChaikinOsc_fit_5m_candle_up_pop512_fasmatypnwmabiw_fasper26_slomatypmama_sloper17_qe0.1_qm0.15_tf0.8_stmc_sg10"
+          "ChaikinOsc_fit_5m_candle_up_pop512_fasmatypnwmabiw_fasper26_slomatypmama_sloper17_qe0.1_qm0.15_tf0.8_stmc_sg10",
+          "BollingerBands_fit_5m_candle_up_pop512_maper1575_masouhlcc4_matypsma_stdmaper80_stdmatypkama_stdsouhl2_qe0.2_qm0.2_tf0.8_stmc_sg10",
+          "BollingerBands_fit_5m_candle_up_pop1024_maper1954_masouohlc4_matypvwmapta_stdmaper87_stdmatypkama_stdsouohlc4_qe0.2_qm0.1_tf0.8_stmc_sg10",
+          "BollingerBands_fit_5m_candle_up_pop512_maper962_masoulow_matyprma_stdmaper103_stdmatypnwmagauss_stdsouohlc4_qe0.1_qm0.15_tf0.8_stmc_sg10",
+          "ChaikinOsc_fit_5m_candle_up_pop768_fasmatypmama_fasper58_slomatypnwmabiw_sloper26_qe0.1_qm0.3_tf0.8_stmc_sg10"
         ]
       },
       "train_lgbm": {
@@ -713,7 +735,17 @@
           "rp_medium_support_center_dist": -1,
           "rp_all_resistance_above": -1,
           "candle_close_location_value_1h_lag3": -1,
-          "vp_long_log_density_ratio_to_current_bin_plus_7": 1
+          "vp_long_log_density_ratio_to_current_bin_plus_7": 1,
+          "candle_ret_co_1m_lag1": -1,
+          "candle_body_pressure_30m_lag4": -1,
+          "candle_close_location_value_4h_lag6": 1,
+          "candle_wick_asym_1h_lag3": 1,
+          "candle_body_pressure_30m_lag5": -1,
+          "vp_long_log_density_ratio_to_current_bin_plus_4": 1,
+          "vp_short_log_density_ratio_to_current_bin_plus_8": 1,
+          "candle_close_location_value_30m_lag5": -1,
+          "candle_wick_asym_1m_lag4": -1,
+          "rp_short_resistance_below": -1
         }
       }
     }

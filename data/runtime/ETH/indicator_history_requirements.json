@@ -1,21 +1,14 @@
 {
-  "meta_path": "data\\models\\ETH\\20260622_033228\\lgbm_meta_20260622_033228.json",
+  "meta_path": "data\\models\\ETH\\20260628_124710\\lgbm_meta_20260628_124710.json",
   "fit_results_dir": "data\\features\\indicators_fit\\ETH\\all",
   "analysis_summary_path": "data\\analysis\\indicator_stability\\ETH\\summary.json",
   "analysis_report_path": "data\\analysis\\indicator_stability\\ETH\\report.csv",
   "unstable_feature_count": 0,
-  "global_required_stable_window": 10502,
+  "global_required_stable_window": 5646,
   "required_stable_window_by_feature": {
-    "BollingerBands_fit_5m_candle_up_pop512_maper962_masoulow_matyprma_stdmaper103_stdmatypnwmagauss_stdsouohlc4_qe0.1_qm0.15_tf0.8_stmc_sg10": 10502,
-    "BollingerBands_fit_5m_candle_up_pop512_maper1575_masouhlcc4_matypsma_stdmaper80_stdmatypkama_stdsouhl2_qe0.2_qm0.2_tf0.8_stmc_sg10": 2128,
-    "MACD_fit_5m_candle_up_pop1024_fasmatyprma_fasper27_fassouopen_sigmatypnwmatria_sigper327_slomatyplinreg_sloper48_slosouhlcc4_qe0.2_qm0.1_tf0.8_stmc_sg10": 546,
     "StochOsc_fit_5m_candle_up_pop512_faskper289_slodmatypwma_slodper54_slokmatypnwmaunif_slokper1446_qe0.2_qm0.2_tf0.8_stmc_sg10": 1787,
-    "BollingerBands_fit_5m_candle_up_pop768_maper40_masouhlcc4_matyptrima_stdmaper489_stdmatypwma_stdsouohlc4_qe0.1_qm0.3_tf0.8_stmc_sg10": 528,
+    "StochOsc_fit_5m_candle_up_pop1024_faskper823_slodmatypnwmaunif_slodper17_slokmatypnwmaunif_slokper1662_qe0.2_qm0.1_tf0.8_stmc_sg10": 2500,
     "ChaikinOsc_fit_5m_candle_up_pop1024_fasmatypdema_fasper9_slomatyplwma_sloper93_qe0.2_qm0.1_tf0.8_stmc_sg10": 93,
-    "ADX_fit_5m_candle_up_pop1024_adxper21_atrper1266_matypadxlwma_matypatrnwmabiw_matypnegdmema_matypposdmkama_negdmper138_posdmper129_qe0.2_qm0.1_tf0.8_stmc_sg10": 2502,
-    "ADX_fit_5m_candle_up_pop512_adxper1583_atrper1215_matypadxfba_matypatrhma_matypnegdmkama_matypposdmkama_negdmper601_posdmper191_qe0.2_qm0.2_tf0.8_stmc_sg10": 4866,
-    "ChaikinOsc_fit_5m_candle_up_pop512_fasmatypnwmabiw_fasper26_slomatypmama_sloper17_qe0.1_qm0.15_tf0.8_stmc_sg10": 99,
-    "ChaikinOsc_fit_5m_candle_up_pop512_fasmatyplwma_fasper87_slomatyptema_sloper14_qe0.2_qm0.2_tf0.8_stmc_sg10": 150,
-    "StochOsc_fit_5m_candle_up_pop1024_faskper823_slodmatypnwmaunif_slodper17_slokmatypnwmaunif_slokper1662_qe0.2_qm0.1_tf0.8_stmc_sg10": 2500
+    "ADX_fit_5m_candle_up_pop512_adxper1583_atrper1215_matypadxfba_matypatrhma_matypnegdmkama_matypposdmkama_negdmper601_posdmper191_qe0.2_qm0.2_tf0.8_stmc_sg10": 5646
   }
 }
