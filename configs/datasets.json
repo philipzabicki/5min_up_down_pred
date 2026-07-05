@@ -19,9 +19,9 @@
       "raw_ohlcv_repair": {
         "enabled": true,
         "mode": "monte_carlo_histogram",
-        "histogram_bins": 1000,
+        "histogram_bins": 256,
         "gap_min_block_len": 3,
-        "volume_range_bins": 1000,
+        "volume_range_bins": 256,
         "random_seed": 37,
         "bridge_weight_power": 1.5,
         "save_gap_charts": true,
@@ -50,9 +50,9 @@
       "raw_ohlcv_repair": {
         "enabled": true,
         "mode": "monte_carlo_histogram",
-        "histogram_bins": 1000,
+        "histogram_bins": 256,
         "gap_min_block_len": 3,
-        "volume_range_bins": 1000,
+        "volume_range_bins": 256,
         "random_seed": 37,
         "bridge_weight_power": 1.5,
         "save_gap_charts": true,
@@ -61,6 +61,37 @@
       },
       "raw_data_dir": "data/datasets/raw/{asset}",
       "base_data_file": "ETHUSD_INDEXVOL_UM_ETHUSDT1m.csv"
+    },
+    "SOL": {
+      "asset": "SOL",
+      "symbol": "SOLUSD",
+      "interval": "1m",
+      "market": "cm",
+      "source": "vision",
+      "price_source": "index",
+      "volume_source": "trade",
+      "volume_symbol": "SOLUSDT",
+      "volume_market": "um",
+      "intervals": [
+        "1m"
+      ],
+      "start_date": "",
+      "end_date": "",
+      "quiet": false,
+      "raw_ohlcv_repair": {
+        "enabled": true,
+        "mode": "monte_carlo_histogram",
+        "histogram_bins": 256,
+        "gap_min_block_len": 3,
+        "volume_range_bins": 256,
+        "random_seed": 37,
+        "bridge_weight_power": 1.5,
+        "save_gap_charts": true,
+        "gap_chart_context_before": 50,
+        "gap_chart_context_after": 50
+      },
+      "raw_data_dir": "data/datasets/raw/{asset}",
+      "base_data_file": "SOLUSD_INDEXVOL_UM_SOLUSDT1m.csv"
     }
   }
 }

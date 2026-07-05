@@ -466,10 +466,10 @@ class BasisPremiumFeatureTests(unittest.TestCase):
         original_builder = raw_ohlcv_repair._build_distribution_samplers
         fitted_return_means = []
 
-        def record_sampler_fit(df, gap_mask, histogram_bins, rng):
+        def record_sampler_fit(df, gap_mask, histogram_bins, rng, *args, **kwargs):
             base = df.loc[~gap_mask, ["Open", "Close"]].copy()
             fitted_return_means.append(float((base["Close"] - base["Open"]).mean()))
-            return original_builder(df, gap_mask, histogram_bins, rng)
+            return original_builder(df, gap_mask, histogram_bins, rng, *args, **kwargs)
 
         with mock.patch(
                 "data.raw_ohlcv_repair._build_distribution_samplers",

@@ -9,11 +9,13 @@ _INSERTED_GAP_VOLUME_SENTINEL = -1.0
 DEFAULT_RAW_OHLCV_REPAIR_CONFIG = {
     "enabled": True,
     "mode": "monte_carlo_histogram",
-    "histogram_bins": 100,
+    "histogram_bins": 256,
     "gap_min_block_len": 3,
-    "volume_range_bins": 1000,
+    "volume_range_bins": 256,
     "random_seed": 42,
     "bridge_weight_power": 2.0,
+    "clip_lower_q": 0.001,
+    "clip_upper_q": 0.999,
     "save_gap_charts": True,
     "gap_chart_context_before": 8,
     "gap_chart_context_after": 8,
@@ -63,6 +65,19 @@ class HistogramSampler:
         if not np.isfinite(left) or not np.isfinite(right) or right <= left:
             return left
         return float(self._rng.uniform(left, right))
+
+
+def _clip_by_quantiles(values, lower_q, upper_q):
+    arr = np.asarray(values, dtype=np.float64)
+    clean = arr[np.isfinite(arr)]
+    if clean.size == 0 or (float(lower_q) <= 0.0 and float(upper_q) >= 1.0):
+        return arr
+
+    lower = float(np.quantile(clean, float(lower_q)))
+    upper = float(np.quantile(clean, float(upper_q)))
+    if not np.isfinite(lower) or not np.isfinite(upper) or upper < lower:
+        return arr
+    return np.clip(arr, lower, upper)
 
 
 class VolumeRangeMeanMap:
@@ -207,6 +222,25 @@ def normalize_raw_ohlcv_repair_config(raw_config):
             f"got: {bridge_weight_power}"
         )
 
+    clip_lower_q = float(
+        raw_config.get(
+            "clip_lower_q",
+            DEFAULT_RAW_OHLCV_REPAIR_CONFIG["clip_lower_q"],
+        )
+    )
+    clip_upper_q = float(
+        raw_config.get(
+            "clip_upper_q",
+            DEFAULT_RAW_OHLCV_REPAIR_CONFIG["clip_upper_q"],
+        )
+    )
+    if not (0.0 <= clip_lower_q < clip_upper_q <= 1.0):
+        raise ValueError(
+            "raw_ohlcv_repair clipping quantiles must satisfy "
+            f"0 <= clip_lower_q < clip_upper_q <= 1, got: "
+            f"{clip_lower_q}, {clip_upper_q}"
+        )
+
     gap_chart_context_before = int(
         raw_config.get(
             "gap_chart_context_before",
@@ -241,6 +275,8 @@ def normalize_raw_ohlcv_repair_config(raw_config):
         "volume_range_bins": volume_range_bins,
         "random_seed": random_seed,
         "bridge_weight_power": bridge_weight_power,
+        "clip_lower_q": clip_lower_q,
+        "clip_upper_q": clip_upper_q,
         "save_gap_charts": bool(
             raw_config.get(
                 "save_gap_charts",
@@ -356,7 +392,14 @@ def _detect_gap_blocks(df, min_block_len):
     return gap_mask, blocks
 
 
-def _build_distribution_samplers(df, gap_mask, histogram_bins, rng):
+def _build_distribution_samplers(
+        df,
+        gap_mask,
+        histogram_bins,
+        rng,
+        clip_lower_q,
+        clip_upper_q,
+):
     base = df.loc[~gap_mask, PRICE_COLS].copy()
     if base.empty:
         base = df.loc[:, PRICE_COLS].copy()
@@ -370,12 +413,41 @@ def _build_distribution_samplers(df, gap_mask, histogram_bins, rng):
     low_arr = base["Low"].to_numpy(dtype=np.float64, copy=False)
     close_arr = base["Close"].to_numpy(dtype=np.float64, copy=False)
 
-    returns = close_arr - open_arr
+    valid_price_mask = (
+            np.isfinite(open_arr)
+            & np.isfinite(high_arr)
+            & np.isfinite(low_arr)
+            & np.isfinite(close_arr)
+            & (open_arr > 0.0)
+            & (high_arr > 0.0)
+            & (low_arr > 0.0)
+            & (close_arr > 0.0)
+    )
+    open_arr = open_arr[valid_price_mask]
+    high_arr = high_arr[valid_price_mask]
+    low_arr = low_arr[valid_price_mask]
+    close_arr = close_arr[valid_price_mask]
+
+    returns = _clip_by_quantiles(
+        np.log(close_arr / open_arr),
+        clip_lower_q,
+        clip_upper_q,
+    )
     bullish_mask = close_arr >= open_arr
     bearish_mask = ~bullish_mask
 
-    high_wick = np.maximum(high_arr - np.maximum(open_arr, close_arr), 0.0)
-    low_wick = np.maximum(np.minimum(open_arr, close_arr) - low_arr, 0.0)
+    body_high = np.maximum(open_arr, close_arr)
+    body_low = np.minimum(open_arr, close_arr)
+    high_wick = _clip_by_quantiles(
+        np.maximum(high_arr / body_high - 1.0, 0.0),
+        clip_lower_q,
+        clip_upper_q,
+    )
+    low_wick = _clip_by_quantiles(
+        np.maximum(body_low / low_arr - 1.0, 0.0),
+        clip_lower_q,
+        clip_upper_q,
+    )
 
     if not bullish_mask.any():
         bullish_mask = np.ones_like(bullish_mask, dtype=bool)
@@ -452,6 +524,18 @@ def _simulate_gap_prices(df, blocks, samplers, bridge_weight_power):
 
         has_right_anchor = end + 1 < len(out)
         right_anchor_open = float(out.at[end + 1, "Open"]) if has_right_anchor else None
+        if not np.isfinite(left_anchor_close) or left_anchor_close <= 0.0:
+            raise ValueError(
+                "Cannot repair gap with non-positive left anchor close: "
+                f"{left_anchor_close}"
+            )
+        if has_right_anchor and (
+                not np.isfinite(right_anchor_open) or right_anchor_open <= 0.0
+        ):
+            raise ValueError(
+                "Cannot bridge gap to non-positive right anchor open: "
+                f"{right_anchor_open}"
+            )
 
         raw_returns = np.asarray(
             [samplers["returns"].sample() for _ in range(block_len)],
@@ -459,7 +543,9 @@ def _simulate_gap_prices(df, blocks, samplers, bridge_weight_power):
         )
         raw_return_sum = float(raw_returns.sum())
         target_return_sum = (
-            float(right_anchor_open - left_anchor_close) if has_right_anchor else None
+            float(np.log(right_anchor_open / left_anchor_close))
+            if has_right_anchor
+            else None
         )
         adjusted_returns, bridge_correction_total = _bridge_returns(
             raw_returns,
@@ -483,7 +569,12 @@ def _simulate_gap_prices(df, blocks, samplers, bridge_weight_power):
         prev_close = left_anchor_close
         for offset, row_idx in enumerate(range(start, end + 1)):
             open_price = prev_close
-            close_price = open_price + float(adjusted_returns[offset])
+            close_price = open_price * float(np.exp(adjusted_returns[offset]))
+            if not np.isfinite(close_price) or close_price <= 0.0:
+                raise ValueError(
+                    "Monte Carlo repair produced non-positive close price: "
+                    f"{close_price}"
+                )
             is_bullish = close_price >= open_price
             high_wick = (
                 samplers["high_bull"].sample()
@@ -498,8 +589,8 @@ def _simulate_gap_prices(df, blocks, samplers, bridge_weight_power):
 
             body_high = max(open_price, close_price)
             body_low = min(open_price, close_price)
-            high_price = body_high + max(float(high_wick), 0.0)
-            low_price = body_low - max(float(low_wick), 0.0)
+            high_price = body_high * (1.0 + max(float(high_wick), 0.0))
+            low_price = body_low / (1.0 + max(float(low_wick), 0.0))
 
             out.at[row_idx, "Open"] = float(open_price)
             out.at[row_idx, "Close"] = float(close_price)
@@ -534,11 +625,23 @@ def _simulate_gap_prices(df, blocks, samplers, bridge_weight_power):
     return out, repaired_rows, gap_records
 
 
-def _fill_invalid_volume(df, invalid_mask, range_bins):
+def _fill_invalid_volume(
+        df,
+        invalid_mask,
+        range_bins,
+        clip_lower_q,
+        clip_upper_q,
+):
     out = df.copy()
-    candle_ranges = out["High"].to_numpy(dtype=np.float64, copy=False) - out[
-        "Low"
-    ].to_numpy(dtype=np.float64, copy=False)
+    high_arr = out["High"].to_numpy(dtype=np.float64, copy=False)
+    low_arr = out["Low"].to_numpy(dtype=np.float64, copy=False)
+    close_arr = out["Close"].to_numpy(dtype=np.float64, copy=False)
+    candle_ranges = np.divide(
+        high_arr - low_arr,
+        close_arr,
+        out=np.full(len(out), np.nan, dtype=np.float64),
+        where=close_arr > 0.0,
+    )
     volumes = out["Volume"].to_numpy(dtype=np.float64, copy=True)
     original_valid_mask = (
             np.isfinite(candle_ranges)
@@ -570,7 +673,11 @@ def _fill_invalid_volume(df, invalid_mask, range_bins):
         }
 
     volume_map = VolumeRangeMeanMap(
-        candle_ranges=candle_ranges[original_valid_mask],
+        candle_ranges=_clip_by_quantiles(
+            candle_ranges[original_valid_mask],
+            clip_lower_q,
+            clip_upper_q,
+        ),
         volumes=volumes[original_valid_mask],
         bins=range_bins,
     )
@@ -616,6 +723,17 @@ def _round_ohlcv_values(df, price_decimals=None, volume_decimals=None):
         out["Volume"] = rounded_volume
 
     return out, {"rounding_applied": bool(changed)}
+
+
+def _enforce_ohlc_bounds(df):
+    out = df.copy()
+    if out.empty:
+        return out
+    body_high = out.loc[:, ["Open", "Close"]].max(axis=1)
+    body_low = out.loc[:, ["Open", "Close"]].min(axis=1)
+    out["High"] = np.maximum(out["High"], body_high)
+    out["Low"] = np.minimum(out["Low"], body_low)
+    return out
 
 
 def _sanitize_path_token(text):
@@ -852,6 +970,8 @@ def repair_raw_ohlcv_frame(
         "volume_range_bins": int(config["volume_range_bins"]),
         "random_seed": config["random_seed"],
         "bridge_weight_power": float(config["bridge_weight_power"]),
+        "clip_lower_q": float(config["clip_lower_q"]),
+        "clip_upper_q": float(config["clip_upper_q"]),
         "rows_after_cleanup": len(prepared),
         "rows_after_repair": len(prepared),
         "missing_intervals_inserted": 0,
@@ -899,6 +1019,8 @@ def repair_raw_ohlcv_frame(
                 gap_mask=gap_mask,
                 histogram_bins=config["histogram_bins"],
                 rng=rng,
+                clip_lower_q=config["clip_lower_q"],
+                clip_upper_q=config["clip_upper_q"],
             )
             repaired, repaired_rows, gap_records = _simulate_gap_prices(
                 expanded,
@@ -919,6 +1041,8 @@ def repair_raw_ohlcv_frame(
             repaired,
             invalid_mask=invalid_volume_mask,
             range_bins=config["volume_range_bins"],
+            clip_lower_q=config["clip_lower_q"],
+            clip_upper_q=config["clip_upper_q"],
         )
         summary.update(volume_summary)
 
@@ -932,6 +1056,7 @@ def repair_raw_ohlcv_frame(
         price_decimals=price_decimals,
         volume_decimals=volume_decimals,
     )
+    repaired = _enforce_ohlc_bounds(repaired)
 
     summary.update(
         {

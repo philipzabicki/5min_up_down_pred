@@ -866,32 +866,28 @@ def _build_runtime_asset_settings(asset, entry, *, source_label):
     }
 
 
-def _load_runtime_asset_settings_map(runtime_manifest_path):
+def _load_runtime_asset_entries_from_manifest(runtime_manifest_path):
     payload = load_json_object(runtime_manifest_path)
-    entries = _load_runtime_asset_entries(
+    return _load_runtime_asset_entries(
         payload,
         runtime_manifest_path=runtime_manifest_path,
     )
-    return {
-        runtime_asset: _build_runtime_asset_settings(
-            runtime_asset,
-            entry,
-            source_label=f"{runtime_manifest_path}.assets.{runtime_asset}",
-        )
-        for runtime_asset, entry in entries.items()
-    }
 
 
 def load_enabled_runtime_asset_settings(
         *,
         runtime_manifest_path=RUNTIME_ACTIVE_PATH,
 ):
-    settings = _load_runtime_asset_settings_map(runtime_manifest_path)
-    enabled = {
-        runtime_asset: runtime_settings
-        for runtime_asset, runtime_settings in settings.items()
-        if runtime_settings["enabled"]
-    }
+    entries = _load_runtime_asset_entries_from_manifest(runtime_manifest_path)
+    enabled = {}
+    for runtime_asset, entry in entries.items():
+        source_label = f"{runtime_manifest_path}.assets.{runtime_asset}"
+        if _runtime_asset_enabled(entry, source_label=source_label):
+            enabled[runtime_asset] = _build_runtime_asset_settings(
+                runtime_asset,
+                entry,
+                source_label=source_label,
+            )
     if not enabled:
         raise ValueError(
             f"Runtime manifest {runtime_manifest_path} has no enabled assets."
@@ -904,20 +900,25 @@ def load_runtime_asset_settings(
         *,
         runtime_manifest_path=RUNTIME_ACTIVE_PATH,
 ):
-    settings = _load_runtime_asset_settings_map(runtime_manifest_path)
+    entries = _load_runtime_asset_entries_from_manifest(runtime_manifest_path)
     if asset is None:
-        enabled = {
-            runtime_asset: runtime_settings
-            for runtime_asset, runtime_settings in settings.items()
-            if runtime_settings["enabled"]
-        }
-        if len(enabled) == 1:
-            return next(iter(enabled.values()))
-        if not enabled:
+        enabled_assets = []
+        for runtime_asset, entry in entries.items():
+            source_label = f"{runtime_manifest_path}.assets.{runtime_asset}"
+            if _runtime_asset_enabled(entry, source_label=source_label):
+                enabled_assets.append(runtime_asset)
+        if len(enabled_assets) == 1:
+            runtime_asset = enabled_assets[0]
+            return _build_runtime_asset_settings(
+                runtime_asset,
+                entries[runtime_asset],
+                source_label=f"{runtime_manifest_path}.assets.{runtime_asset}",
+            )
+        if not enabled_assets:
             raise ValueError(
                 f"Runtime manifest {runtime_manifest_path} has no enabled assets."
             )
-        available = ", ".join(sorted(enabled))
+        available = ", ".join(sorted(enabled_assets))
         raise ValueError(
             f"Runtime manifest {runtime_manifest_path} defines multiple enabled "
             f"assets: {available}. Use load_enabled_runtime_asset_settings() to "
@@ -925,13 +926,17 @@ def load_runtime_asset_settings(
         )
 
     runtime_asset = normalize_asset_name(asset, source_label="runtime asset")
-    if runtime_asset not in settings:
-        available = ", ".join(sorted(settings))
+    if runtime_asset not in entries:
+        available = ", ".join(sorted(entries))
         raise ValueError(
             f"Runtime asset {runtime_asset!r} not found in {runtime_manifest_path}. "
             f"Available: {available}"
         )
-    runtime_settings = settings[runtime_asset]
+    runtime_settings = _build_runtime_asset_settings(
+        runtime_asset,
+        entries[runtime_asset],
+        source_label=f"{runtime_manifest_path}.assets.{runtime_asset}",
+    )
     if not runtime_settings["enabled"]:
         raise ValueError(
             f"Runtime asset {runtime_asset!r} is disabled in {runtime_manifest_path}."

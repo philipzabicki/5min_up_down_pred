@@ -9,11 +9,12 @@ from utils.project_config import normalize_asset_name
 
 
 # Edit this tuple when the final pre-live fit should cover a different asset set.
-ASSETS = ("BTC", "ETH")
+ASSETS = ("BTC", "ETH", "SOL")
 
 PIPELINE_STEPS = (
     "fetch_data.py",
     "create_modeling_dataset.py",
+    "select_features.py",
     "train_lgbm.py",
     "audit_feature_readiness.py",
     "plot_lgbm_one_way.py",
@@ -21,8 +22,15 @@ PIPELINE_STEPS = (
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 ACTIVE_CONFIG_PATH = PROJECT_ROOT / "configs" / "active.json"
+MODELING_CONFIG_PATH = PROJECT_ROOT / "configs" / "modeling.json"
 RUNTIME_ACTIVE_CONFIG_PATH = PROJECT_ROOT / "configs" / "runtime" / "active.json"
+CREATE_MODELING_DATASET_STEP = "create_modeling_dataset.py"
+SELECT_FEATURES_STEP = "select_features.py"
 TRAIN_STEP = "train_lgbm.py"
+FEATURE_SELECTOR_ARTIFACT_NAME = "recommended_features.json"
+FEATURE_SELECTOR_LIST_KEY = "final_feature_list"
+FEATURE_SELECTOR_FLOAT_PRECISION = "float64"
+FEATURE_SELECTOR_INPUT_FLOAT_PRECISION = "float32"
 
 
 class PipelineStepError(RuntimeError):
@@ -86,6 +94,20 @@ def load_runtime_config():
     return payload
 
 
+def load_modeling_config():
+    payload = json.loads(MODELING_CONFIG_PATH.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Modeling config must be a JSON object: {MODELING_CONFIG_PATH}")
+    return payload
+
+
+def write_modeling_config(payload):
+    MODELING_CONFIG_PATH.write_text(
+        json.dumps(payload, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
 def write_runtime_config(payload):
     RUNTIME_ACTIVE_CONFIG_PATH.write_text(
         json.dumps(payload, indent=2) + "\n",
@@ -114,6 +136,27 @@ def find_runtime_asset_key(payload, asset):
     return matching_keys[0]
 
 
+def find_modeling_profile_key(payload, asset):
+    profiles = payload.get("profiles")
+    if not isinstance(profiles, dict):
+        raise ValueError(
+            f"Modeling config must define a profiles object: {MODELING_CONFIG_PATH}"
+        )
+
+    matching_keys = [
+        raw_key
+        for raw_key in profiles
+        if normalize_asset_name(raw_key, source_label="modeling profile") == asset
+    ]
+    if len(matching_keys) != 1:
+        available = ", ".join(sorted(str(key) for key in profiles))
+        raise ValueError(
+            f"Modeling config must define exactly one profile for {asset}. "
+            f"Available: {available}"
+        )
+    return matching_keys[0]
+
+
 def portable_repo_path(path):
     path = Path(path).resolve()
     try:
@@ -127,6 +170,13 @@ def list_model_meta_paths(asset):
     if not model_root.exists():
         return []
     return list(model_root.glob("*/lgbm_meta_*.json"))
+
+
+def list_feature_selector_artifact_paths(asset):
+    output_root = PROJECT_ROOT / "data" / "analysis" / "feature_selector" / asset
+    if not output_root.exists():
+        return []
+    return list(output_root.glob(f"*/{FEATURE_SELECTOR_ARTIFACT_NAME}"))
 
 
 def validate_model_meta_asset(meta_path, asset):
@@ -154,6 +204,19 @@ def validate_model_meta_asset(meta_path, asset):
         )
 
 
+def validate_feature_selector_artifact(artifact_path):
+    payload = json.loads(Path(artifact_path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Feature selector artifact must be a JSON object: {artifact_path}")
+
+    features = payload.get(FEATURE_SELECTOR_LIST_KEY)
+    if not isinstance(features, list) or not features:
+        raise ValueError(
+            f"Feature selector artifact must define a non-empty "
+            f"{FEATURE_SELECTOR_LIST_KEY} list: {artifact_path}"
+        )
+
+
 def resolve_trained_model_meta_path(asset, previous_paths, step_started_at):
     candidates = list_model_meta_paths(asset)
     if not candidates:
@@ -177,6 +240,85 @@ def resolve_trained_model_meta_path(asset, previous_paths, step_started_at):
     return meta_path
 
 
+def resolve_feature_selector_artifact_path(asset, previous_paths, step_started_at):
+    candidates = list_feature_selector_artifact_paths(asset)
+    if not candidates:
+        raise FileNotFoundError(
+            f"No feature selector artifact found under data/analysis/feature_selector/{asset}"
+        )
+
+    previous_paths = {Path(path).resolve() for path in previous_paths}
+    fresh_candidates = [
+        path for path in candidates if Path(path).resolve() not in previous_paths
+    ]
+    if not fresh_candidates:
+        fresh_candidates = [
+            path for path in candidates if path.stat().st_mtime >= step_started_at - 1.0
+        ]
+    if not fresh_candidates:
+        raise FileNotFoundError(
+            f"{SELECT_FEATURES_STEP} did not create a new "
+            f"{FEATURE_SELECTOR_ARTIFACT_NAME} for {asset}"
+        )
+
+    artifact_path = max(fresh_candidates, key=lambda path: path.stat().st_mtime)
+    validate_feature_selector_artifact(artifact_path)
+    return artifact_path
+
+
+def update_modeling_feature_selection(asset, artifact_path):
+    payload = load_modeling_config()
+    profile_key = find_modeling_profile_key(payload, asset)
+    profile = payload["profiles"][profile_key]
+    if not isinstance(profile, dict):
+        raise ValueError(f"Modeling config profiles.{profile_key} must be a JSON object")
+
+    feature_selection = profile.get("feature_selection")
+    if not isinstance(feature_selection, dict):
+        raise ValueError(
+            f"Modeling config profiles.{profile_key}.feature_selection must be a JSON object"
+        )
+
+    feature_selection["mode"] = "artifact"
+    feature_selection["artifact_path"] = portable_repo_path(artifact_path)
+    if not str(feature_selection.get("artifact_list_key", "") or "").strip():
+        feature_selection["artifact_list_key"] = FEATURE_SELECTOR_LIST_KEY
+    profile["float_precision"] = FEATURE_SELECTOR_FLOAT_PRECISION
+    write_modeling_config(payload)
+    print(
+        f"[PIPELINE][{asset}] modeling feature_selection={feature_selection['artifact_path']} "
+        f"float_precision={profile['float_precision']}",
+        flush=True,
+    )
+
+
+def reset_modeling_feature_selection_for_selector_input(asset):
+    payload = load_modeling_config()
+    profile_key = find_modeling_profile_key(payload, asset)
+    profile = payload["profiles"][profile_key]
+    if not isinstance(profile, dict):
+        raise ValueError(f"Modeling config profiles.{profile_key} must be a JSON object")
+
+    feature_selection = profile.get("feature_selection")
+    if not isinstance(feature_selection, dict):
+        raise ValueError(
+            f"Modeling config profiles.{profile_key}.feature_selection must be a JSON object"
+        )
+
+    feature_selection["mode"] = "none"
+    feature_selection["artifact_path"] = ""
+    if not str(feature_selection.get("artifact_list_key", "") or "").strip():
+        feature_selection["artifact_list_key"] = FEATURE_SELECTOR_LIST_KEY
+    profile["float_precision"] = FEATURE_SELECTOR_INPUT_FLOAT_PRECISION
+    write_modeling_config(payload)
+    print(
+        f"[PIPELINE][{asset}] modeling feature_selection=none "
+        f"float_precision={profile['float_precision']} for "
+        f"{SELECT_FEATURES_STEP} input dataset",
+        flush=True,
+    )
+
+
 def update_runtime_model_meta_path(asset, meta_path):
     payload = load_runtime_config()
     asset_key = find_runtime_asset_key(payload, asset)
@@ -196,6 +338,35 @@ def update_runtime_model_meta_path(asset, meta_path):
         f"[PIPELINE][{asset}] runtime model_meta_path={artifacts['model_meta_path']}",
         flush=True,
     )
+
+
+def should_run_post_selector_dataset_refresh(steps, step_index):
+    next_step_index = step_index + 1
+    if next_step_index >= len(steps):
+        return True
+    next_script_name, _ = steps[next_step_index]
+    return next_script_name != CREATE_MODELING_DATASET_STEP
+
+
+def should_reset_feature_selection_before_dataset(steps, step_index):
+    script_name, _ = steps[step_index]
+    if script_name != CREATE_MODELING_DATASET_STEP:
+        return False
+    return any(
+        later_script_name == SELECT_FEATURES_STEP
+        for later_script_name, _ in steps[step_index + 1:]
+    )
+
+
+def run_post_selector_dataset_refresh(asset):
+    script_path = PROJECT_ROOT / CREATE_MODELING_DATASET_STEP
+    if not script_path.is_file():
+        raise FileNotFoundError(f"Missing pipeline step: {script_path}")
+    print(
+        f"[PIPELINE][{asset}] refresh dataset after {SELECT_FEATURES_STEP}",
+        flush=True,
+    )
+    run_step(asset, CREATE_MODELING_DATASET_STEP, script_path)
 
 
 def run_step(asset, script_name, script_path):
@@ -231,12 +402,19 @@ def run_pipeline():
     for asset in assets:
         set_active_asset(asset)
         print(f"\n[PIPELINE] active_asset={asset}", flush=True)
-        for script_name, script_path in steps:
+        for step_index, (script_name, script_path) in enumerate(steps):
             previous_meta_paths = ()
+            previous_feature_selector_paths = ()
             step_started_at = None
             if script_name == TRAIN_STEP:
                 previous_meta_paths = list_model_meta_paths(asset)
                 step_started_at = time.time()
+            elif script_name == SELECT_FEATURES_STEP:
+                previous_feature_selector_paths = list_feature_selector_artifact_paths(asset)
+                step_started_at = time.time()
+
+            if should_reset_feature_selection_before_dataset(steps, step_index):
+                reset_modeling_feature_selection_for_selector_input(asset)
 
             run_step(asset, script_name, script_path)
 
@@ -247,6 +425,15 @@ def run_pipeline():
                     step_started_at,
                 )
                 update_runtime_model_meta_path(asset, meta_path)
+            elif script_name == SELECT_FEATURES_STEP:
+                artifact_path = resolve_feature_selector_artifact_path(
+                    asset,
+                    previous_feature_selector_paths,
+                    step_started_at,
+                )
+                update_modeling_feature_selection(asset, artifact_path)
+                if should_run_post_selector_dataset_refresh(steps, step_index):
+                    run_post_selector_dataset_refresh(asset)
 
 
 def main():

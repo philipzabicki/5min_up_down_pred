@@ -221,16 +221,15 @@ def _delay_ms_between(start, end):
 
 
 _REQUESTED_RUNTIME_ASSET = str(os.environ.get(RUNTIME_ASSET_ENV, "") or "").strip()
-ENABLED_RUNTIME_ASSET_SETTINGS = load_enabled_runtime_asset_settings()
-MULTI_ASSET_PARENT = (
-        not _REQUESTED_RUNTIME_ASSET
-        and len(ENABLED_RUNTIME_ASSET_SETTINGS) > 1
-)
 if _REQUESTED_RUNTIME_ASSET:
     RUNTIME_ASSET_SETTINGS = load_runtime_asset_settings(_REQUESTED_RUNTIME_ASSET)
-elif MULTI_ASSET_PARENT:
-    RUNTIME_ASSET_SETTINGS = next(iter(ENABLED_RUNTIME_ASSET_SETTINGS.values()))
+    ENABLED_RUNTIME_ASSET_SETTINGS = {
+        str(RUNTIME_ASSET_SETTINGS["asset"]).strip().upper(): RUNTIME_ASSET_SETTINGS,
+    }
+    MULTI_ASSET_PARENT = False
 else:
+    ENABLED_RUNTIME_ASSET_SETTINGS = load_enabled_runtime_asset_settings()
+    MULTI_ASSET_PARENT = len(ENABLED_RUNTIME_ASSET_SETTINGS) > 1
     RUNTIME_ASSET_SETTINGS = next(iter(ENABLED_RUNTIME_ASSET_SETTINGS.values()))
 RUNTIME_ASSET = str(RUNTIME_ASSET_SETTINGS["asset"]).strip().upper()
 DATASET_PROFILE = load_dataset_profile(

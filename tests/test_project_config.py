@@ -312,6 +312,41 @@ class RuntimeArtifactPathTests(unittest.TestCase):
         self.assertEqual(paths["model_meta_path"], Path("data/models/ETH/meta.json"))
         self.assertEqual(paths["trade_policy_path"], Path("policy_eth.json"))
 
+    def test_loads_requested_runtime_asset_when_other_enabled_asset_is_incomplete(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = _write_manifest(
+                tmpdir,
+                {
+                    "assets": {
+                        "BTC": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "data/models/BTC/meta.json",
+                                "trade_policy_path": "policy_btc.json",
+                                "indicator_history_requirements_path": "",
+                            },
+                        },
+                        "SOL": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "",
+                                "trade_policy_path": "policy_sol.json",
+                                "indicator_history_requirements_path": "",
+                            },
+                        },
+                    }
+                },
+            )
+
+            paths = load_runtime_artifact_paths(manifest_path, asset="BTC")
+
+        self.assertEqual(paths["model_meta_path"], Path("data/models/BTC/meta.json"))
+        self.assertEqual(paths["trade_policy_path"], Path("policy_btc.json"))
+        self.assertEqual(
+            paths["indicator_history_requirements_path"],
+            Path("data/runtime/BTC/indicator_history_requirements.json"),
+        )
+
     def test_loads_enabled_runtime_asset_settings(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             manifest_path = _write_manifest(
@@ -343,6 +378,37 @@ class RuntimeArtifactPathTests(unittest.TestCase):
             settings["ETH"]["artifacts"]["model_meta_path"],
             Path("eth_meta.json"),
         )
+
+    def test_load_enabled_runtime_asset_settings_rejects_incomplete_enabled_asset(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            manifest_path = _write_manifest(
+                tmpdir,
+                {
+                    "assets": {
+                        "BTC": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "btc_meta.json",
+                                "trade_policy_path": "btc_policy.json",
+                                "indicator_history_requirements_path": "",
+                            },
+                        },
+                        "SOL": {
+                            "enabled": True,
+                            "artifacts": {
+                                "model_meta_path": "",
+                                "trade_policy_path": "sol_policy.json",
+                                "indicator_history_requirements_path": "",
+                            },
+                        },
+                    }
+                },
+            )
+
+            with self.assertRaisesRegex(ValueError, "model_meta_path"):
+                load_enabled_runtime_asset_settings(
+                    runtime_manifest_path=manifest_path,
+                )
 
     def test_requires_asset_for_single_asset_helper_when_multiple_enabled(self):
         with tempfile.TemporaryDirectory() as tmpdir:
