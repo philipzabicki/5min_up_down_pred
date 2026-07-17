@@ -156,10 +156,46 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "extra_trees": False,
         "monotone_constraints_method": "basic",
         "monotone_penalty": 0.0
+    },
+    {
+      "learning_rate": 0.010359207511138706,
+      "num_leaves": 123,
+      "min_data_in_leaf": 538,
+      "max_depth": 235,
+      "feature_fraction": 0.4780720561071157,
+      "bagging_fraction": 0.7920329190336631,
+      "bagging_freq": 30,
+      "lambda_l2": 18.71100306474183,
+      "lambda_l1": 0.6075241738473287,
+      "min_sum_hessian_in_leaf": 17.954363998937563,
+      "min_gain_to_split": 0.4145763373683114,
+      "feature_fraction_bynode": 0.34935430094257613,
+      "path_smooth": 10.789252442760326,
+      "extra_trees": False,
+      "monotone_constraints_method": "basic",
+      "monotone_penalty": 1.910687006461619
+    },
+    {
+      "learning_rate": 0.011641269911233033,
+      "num_leaves": 133,
+      "min_data_in_leaf": 18904,
+      "max_depth": 147,
+      "feature_fraction": 0.6243114825884231,
+      "bagging_fraction": 0.6019042189022837,
+      "bagging_freq": 19,
+      "lambda_l2": 101.41218578680486,
+      "lambda_l1": 0.016325749579723284,
+      "min_sum_hessian_in_leaf": 0.007892459841420908,
+      "min_gain_to_split": 0.42142096106419863,
+      "feature_fraction_bynode": 0.7376496338389407,
+      "path_smooth": 17.646168508838166,
+      "extra_trees": False,
+      "monotone_constraints_method": "advanced",
+      "monotone_penalty": 3.5420216700734732
     }
 ]
 
-N_TRIALS = 5
+N_TRIALS = 25
 TIMEOUT_SECONDS = None
 CV_OBJECTIVE_BASE_METRIC = "binary_logloss"
 EARLY_STOPPING_METRIC = CV_OBJECTIVE_BASE_METRIC

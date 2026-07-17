@@ -5,11 +5,13 @@
     "futures_index_basis_rel_5m",
     "futures_index_basis_rel_1m",
     "futures_index_basis_change_15m",
-    "futures_index_basis_rel_1d",
     "futures_index_basis_rel_1h",
-    "futures_index_basis_abs_5m",
     "futures_index_basis_change_3m",
-    "futures_index_basis_abs_1m"
+    "futures_index_basis_abs_5m",
+    "futures_index_basis_abs_1m",
+    "futures_index_basis_rel_1d",
+    "futures_index_basis_rel_30m",
+    "futures_index_basis_change_1h"
   ],
   "basis_premium_features": {
     "enabled": true,
@@ -27,7 +29,7 @@
       "1d"
     ]
   },
-  "created_utc": "2026-07-04T05:01:40.037769+00:00",
+  "created_utc": "2026-07-16T09:43:16.820819+00:00",
   "feature_intervals": {
     "enabled": [
       "1m",
@@ -75,16 +77,16 @@
   ],
   "reaction_profile_feature_version": "rp_fixed_grid_v1",
   "reaction_profile_fixed_grid": {
-    "bin_size": 1.2327656088387606,
-    "bins": 81120,
-    "config_signature": "{\"bin_size\":1.2327656088387606,\"bins\":81120,\"distance_power\":0.29525874004362673,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":27},\"long\":{\"decay\":0.9999808360601945,\"half_life_candles\":36169,\"local_window\":56},\"medium\":{\"decay\":0.9997166602707053,\"half_life_candles\":2446,\"local_window\":33},\"short\":{\"decay\":0.9953588092664996,\"half_life_candles\":149,\"local_window\":79}},\"min_reaction_strength\":0.00025950472559896093,\"neighbor_bins\":12.360726018238429,\"neighbor_radius\":13,\"price_max\":100000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.29163105657861976}",
+    "bin_size": 1.2081904613623673,
+    "bins": 8278,
+    "config_signature": "{\"bin_size\":1.2081904613623673,\"bins\":8278,\"distance_power\":0.5796921961790233,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":15},\"long\":{\"decay\":0.9999891052874048,\"half_life_candles\":63622,\"local_window\":13},\"medium\":{\"decay\":0.9997490730585549,\"half_life_candles\":2762,\"local_window\":4},\"short\":{\"decay\":0.9964517091890619,\"half_life_candles\":195,\"local_window\":121}},\"min_reaction_strength\":0.00017827130852795205,\"neighbor_bins\":13.480199641231318,\"neighbor_radius\":14,\"price_max\":10000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.37777878317928487}",
     "decays": [
-      0.9953588092664996,
-      0.9997166602707053,
-      0.9999808360601945,
+      0.9964517091890619,
+      0.9997490730585549,
+      0.9999891052874048,
       1.0
     ],
-    "distance_power": 0.29525874004362673,
+    "distance_power": 0.5796921961790233,
     "enabled": true,
     "eps": 1e-12,
     "feature_columns": [
@@ -118,16 +120,16 @@
       "rp_all_resistance_center_dist"
     ],
     "half_lives": [
-      149,
-      2446,
-      36169,
+      195,
+      2762,
+      63622,
       null
     ],
     "horizon_local_windows": [
-      79,
-      33,
-      56,
-      27
+      121,
+      4,
+      13,
+      15
     ],
     "horizon_names": [
       "short",
@@ -140,34 +142,34 @@
         "decay": 1.0,
         "half_life_candles": null,
         "horizon_name": "all",
-        "local_window": 27
+        "local_window": 15
       },
       "long": {
-        "decay": 0.9999808360601945,
-        "half_life_candles": 36169,
+        "decay": 0.9999891052874048,
+        "half_life_candles": 63622,
         "horizon_name": "long",
-        "local_window": 56
+        "local_window": 13
       },
       "medium": {
-        "decay": 0.9997166602707053,
-        "half_life_candles": 2446,
+        "decay": 0.9997490730585549,
+        "half_life_candles": 2762,
         "horizon_name": "medium",
-        "local_window": 33
+        "local_window": 4
       },
       "short": {
-        "decay": 0.9953588092664996,
-        "half_life_candles": 149,
+        "decay": 0.9964517091890619,
+        "half_life_candles": 195,
         "horizon_name": "short",
-        "local_window": 79
+        "local_window": 121
       }
     },
-    "min_reaction_strength": 0.00025950472559896093,
-    "neighbor_bins": 12.360726018238429,
-    "neighbor_radius": 13,
-    "price_max": 100000.0,
+    "min_reaction_strength": 0.00017827130852795205,
+    "neighbor_bins": 13.480199641231318,
+    "neighbor_radius": 14,
+    "price_max": 10000.0,
     "price_min": 0.0,
     "version": "rp_fixed_grid_v1",
-    "wick_power": 0.29163105657861976
+    "wick_power": 0.37777878317928487
   },
   "tail_csv_path": "data\\datasets\\modeling\\ETH\\ETHUSD_INDEXVOL_UM_ETHUSDT1m_model_ready_tail1000.csv",
   "volume_profile_feature_columns": [

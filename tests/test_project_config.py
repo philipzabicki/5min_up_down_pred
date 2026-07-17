@@ -8,6 +8,7 @@ from create_modeling_dataset import (
     resolve_volume_profile_modeling_state_path,
 )
 from utils.project_config import (
+    _normalize_train_lgbm_config,
     build_indicator_fit_config,
     format_asset_text,
     load_active_profile_names,
@@ -28,6 +29,27 @@ def _write_manifest(tmpdir, payload):
 
 
 class RuntimeArtifactPathTests(unittest.TestCase):
+    def test_normalizes_per_asset_lgbm_hyperparameters(self):
+        btc = _normalize_train_lgbm_config(
+            {"optuna_best_params": {"learning_rate": 0.01, "num_leaves": 31}},
+            profile_name="BTC",
+        )
+        eth = _normalize_train_lgbm_config(
+            {"optuna_best_params": {"learning_rate": 0.02, "num_leaves": 63}},
+            profile_name="ETH",
+        )
+
+        self.assertEqual(btc["optuna_best_params"]["learning_rate"], 0.01)
+        self.assertEqual(eth["optuna_best_params"]["learning_rate"], 0.02)
+        self.assertNotEqual(btc["optuna_best_params"], eth["optuna_best_params"])
+
+    def test_rejects_non_object_lgbm_hyperparameters(self):
+        with self.assertRaisesRegex(ValueError, "optuna_best_params"):
+            _normalize_train_lgbm_config(
+                {"optuna_best_params": []},
+                profile_name="BTC",
+            )
+
     def test_modeling_profile_defaults_to_active_asset(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             active_config_path = _write_manifest(

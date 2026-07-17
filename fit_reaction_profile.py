@@ -120,23 +120,39 @@ REACTION_PROFILE_OPTUNA_SEARCH_SPACE = {
 }
 
 OPTUNA_SEED_TRIAL_PARAMS = [
+    # configs/modeling.json BTC/SOL
     {
-    "bin_size": 88.13347937442842,
-    "neighbor_bins": 14.475523355248354,
-    "short_local_window": 67,
-    "medium_local_window": 103,
-    "long_local_window": 40,
-    "all_local_window": 81,
-    "short_half_life_candles": 57,
-    "medium_half_life_candles": 3702,
-    "long_half_life_candles": 21450,
-    "min_reaction_strength": 7.776895291626223e-05,
-    "wick_power": 1.481640187824231,
-    "distance_power": 0.26262391136729163
-    }
+        "bin_size": 88.13347937442842,
+        "neighbor_bins": 14.475523355248354,
+        "short_local_window": 67,
+        "medium_local_window": 103,
+        "long_local_window": 40,
+        "all_local_window": 81,
+        "short_half_life_candles": 57,
+        "medium_half_life_candles": 3702,
+        "long_half_life_candles": 21450,
+        "min_reaction_strength": 7.776895291626223e-05,
+        "wick_power": 1.481640187824231,
+        "distance_power": 0.26262391136729163,
+    },
+    # configs/modeling.json ETH; same params as reaction_profile ETH artifact 20260621_053839.
+    {
+        "bin_size": 1.2327656088387606,
+        "neighbor_bins": 12.360726018238429,
+        "short_local_window": 79,
+        "medium_local_window": 33,
+        "long_local_window": 56,
+        "all_local_window": 27,
+        "short_half_life_candles": 149,
+        "medium_half_life_candles": 2446,
+        "long_half_life_candles": 36169,
+        "min_reaction_strength": 0.00025950472559896093,
+        "wick_power": 0.29163105657861976,
+        "distance_power": 0.29525874004362673,
+    },
 ]
 
-N_TRIALS = 500
+N_TRIALS = 100
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
@@ -148,7 +164,7 @@ CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
 DEFAULT_STUDY_NAME_PREFIX = "reaction_profile_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
-STUDY_NAME = "reaction_profile_binary_logloss_mean_std_20260620_230533"
+STUDY_NAME = None
 STORAGE = (
         "sqlite:///"
         + active_asset_path("data/optuna/databases/{asset}/reaction_profile.db").as_posix()

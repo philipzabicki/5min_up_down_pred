@@ -1,5 +1,9 @@
+import hashlib
 import json
 import faulthandler
+import multiprocessing as mp
+import queue
+import traceback
 import warnings
 from datetime import datetime, timezone
 from pathlib import Path
@@ -33,7 +37,6 @@ from utils.metrics import (
     make_lightgbm_binary_balanced_accuracy_eval,
     make_lightgbm_binary_brier_eval,
     make_lightgbm_binary_logloss_eval,
-    weighted_balanced_accuracy_score,
     weighted_binary_logloss,
 )
 from utils.optuna import (
@@ -68,6 +71,7 @@ PRUNE_REPORT_EVERY_N_ITER = 10
 LGBM_NUM_THREADS = 16
 OPTUNA_OPTIMIZE_N_JOBS = 1
 LGBM_DEVICE_TYPE = "gpu"
+ISOLATE_GPU_CV_IN_SUBPROCESS = True
 LGBM_VERBOSITY = -1
 GPU_MAX_BIN_LIMIT = 63
 LGBM_GPU_USE_DP = True
@@ -153,6 +157,52 @@ VOLUME_PROFILE_OPTUNA_SEARCH_SPACE = {
 
 # Seed trials are injected before optimization starts.
 OPTUNA_SEED_TRIAL_PARAMS = [
+    # configs/modeling.json BTC/SOL
+    {
+        "neighbor_bins": 9,
+        "short_step": 133,
+        "medium_step": 224,
+        "long_step": 290,
+        "all_step": 348,
+        "short_local_window": 30,
+        "medium_local_window": 62,
+        "long_local_window": 115,
+        "all_local_window": 114,
+        "short_sigma_divisor": 0.010749146783007394,
+        "medium_sigma_divisor": 0.019826022589067502,
+        "long_sigma_divisor": 0.25568458901646657,
+        "all_sigma_divisor": 0.03249117103984035,
+        "short_min_sigma": 0.2032187855100318,
+        "medium_min_sigma": 348.2091776108139,
+        "long_min_sigma": 0.3064296561084144,
+        "all_min_sigma": 6.746143330352876,
+        "short_half_life_candles": 63,
+        "medium_half_life_candles": 3410,
+        "long_half_life_candles": 24319,
+    },
+    # configs/modeling.json ETH
+    {
+        "neighbor_bins": 9,
+        "short_step": 4,
+        "medium_step": 11,
+        "long_step": 204,
+        "all_step": 95,
+        "short_local_window": 14,
+        "medium_local_window": 53,
+        "long_local_window": 74,
+        "all_local_window": 76,
+        "short_sigma_divisor": 12.189791385442385,
+        "medium_sigma_divisor": 0.6269864180875891,
+        "long_sigma_divisor": 0.6216916580549584,
+        "all_sigma_divisor": 10.439536064643525,
+        "short_min_sigma": 2.0586087292004347,
+        "medium_min_sigma": 0.010666568802238761,
+        "long_min_sigma": 102.0164935037031,
+        "all_min_sigma": 381.8478732374323,
+        "short_half_life_candles": 145,
+        "medium_half_life_candles": 2509,
+        "long_half_life_candles": 32302,
+    },
     {
         "neighbor_bins": 9,
         "short_step": 42,
@@ -197,6 +247,7 @@ OPTUNA_SEED_TRIAL_PARAMS = [
         "medium_half_life_candles": 4650,
         "long_half_life_candles": 28696
     },
+    # BTC artifact: volume_profile_best_binary_logloss_mean_std_20260606_071434.
     {
     "neighbor_bins": 9,
     "short_step": 86,
@@ -219,6 +270,7 @@ OPTUNA_SEED_TRIAL_PARAMS = [
     "medium_half_life_candles": 3964,
     "long_half_life_candles": 20168
   },
+  # ETH artifact: volume_profile_best_binary_logloss_mean_std_20260614_040940.
   {
     "neighbor_bins": 6,
     "short_step": 4,
@@ -243,7 +295,7 @@ OPTUNA_SEED_TRIAL_PARAMS = [
   }
 ]
 
-N_TRIALS = 500
+N_TRIALS = 100
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True
 TPE_STARTUP_TRIALS = int(N_TRIALS * 0.1)
@@ -255,7 +307,7 @@ CV_STD_PENALTY = 0.75
 CRASH_PENALTY = float("inf")
 DEFAULT_STUDY_NAME_PREFIX = "volume_profile_binary_logloss_mean_std"
 # Leave empty for a fresh timestamped study. Set only to continue an existing one.
-STUDY_NAME = "volume_profile_binary_logloss_mean_std_20260613_183734"
+STUDY_NAME = None
 STORAGE = (
         "sqlite:///"
         + active_asset_path("data/optuna/databases/{asset}/volume_profile.db").as_posix()
@@ -604,64 +656,95 @@ def summarize_cv_fold_scores(fold_scores, folds, fold_weight_by_id, std_penalty)
     }
 
 
-def score_cv_objective_metric(y_true, y_pred_proba, sample_weight):
-    y_true_arr = np.asarray(y_true, dtype=np.float64)
-    y_pred_arr = np.asarray(y_pred_proba, dtype=np.float64)
-    sample_weight_arr = np.asarray(sample_weight, dtype=np.float64)
-    if CV_OBJECTIVE_BASE_METRIC == "balanced_accuracy":
-        return float(
-            weighted_balanced_accuracy_score(
-                y_true=y_true_arr,
-                y_pred_proba=y_pred_arr,
-                sample_weight=sample_weight_arr,
-            )
-        )
-    if CV_OBJECTIVE_BASE_METRIC == "binary_logloss":
-        return float(
-            weighted_binary_logloss(
-                y_true=y_true_arr,
-                y_pred_proba=y_pred_arr,
-                sample_weight=sample_weight_arr,
-            )
-        )
-    raise ValueError(
-        "Per-fold rescoring supports CV_OBJECTIVE_BASE_METRIC in "
-        "{'balanced_accuracy', 'binary_logloss'}."
-    )
+def make_fold_metric_name(metric_name, fold_id):
+    return f"{metric_name}_fold_{int(fold_id)}"
 
 
-def compute_cv_fold_scores_at_iteration(
-        cvbooster,
-        x_np,
-        y_np,
-        sample_weight_np,
-        folds,
-        best_iteration,
-):
-    boosters = getattr(cvbooster, "boosters", None)
-    if boosters is None:
-        raise ValueError("cvbooster is missing boosters.")
-    if len(boosters) != len(folds):
-        raise ValueError(
-            f"cvbooster fold count mismatch: {len(boosters)} != {len(folds)}"
+def make_fold_metric_signature(y_values, sample_weight_values):
+    y_arr = np.ascontiguousarray(np.asarray(y_values, dtype=np.float64).ravel())
+    digest = hashlib.blake2b(digest_size=16)
+    digest.update(np.asarray(y_arr.shape, dtype=np.int64).tobytes())
+    digest.update(y_arr.tobytes())
+    if sample_weight_values is None:
+        digest.update(np.asarray([-1], dtype=np.int64).tobytes())
+    else:
+        weight_arr = np.ascontiguousarray(
+            np.asarray(sample_weight_values, dtype=np.float64).ravel()
         )
+        digest.update(np.asarray(weight_arr.shape, dtype=np.int64).tobytes())
+        digest.update(weight_arr.tobytes())
+    return digest.hexdigest()
 
-    fold_scores = []
-    for booster, fold in zip(boosters, folds):
+
+def build_fold_metric_signatures(folds, y_np, sample_weight_np):
+    signatures = {}
+    for fold in folds:
         valid_start = int(fold["test_start"])
         valid_end = int(fold["test_end"])
-        y_pred_proba = booster.predict(
-            x_np[valid_start:valid_end],
-            num_iteration=int(best_iteration),
+        signature = make_fold_metric_signature(
+            y_np[valid_start:valid_end],
+            sample_weight_np[valid_start:valid_end],
         )
-        fold_scores.append(
-            score_cv_objective_metric(
-                y_true=y_np[valid_start:valid_end],
-                y_pred_proba=y_pred_proba,
-                sample_weight=sample_weight_np[valid_start:valid_end],
+        if signature in signatures:
+            raise ValueError(
+                "Duplicate validation fold signature for fold metric extraction: "
+                f"{signatures[signature]} and {fold['fold_id']}."
             )
-        )
+        signatures[signature] = int(fold["fold_id"])
+    return signatures
 
+
+def make_lightgbm_binary_logloss_eval_with_fold_metrics(
+        metric_name,
+        fold_metric_signatures,
+):
+    metric_name = str(metric_name).strip() or "binary_logloss"
+    dataset_fold_ids = {}
+
+    def resolve_fold_id(train_data):
+        dataset_key = id(train_data)
+        if dataset_key in dataset_fold_ids:
+            return dataset_fold_ids[dataset_key]
+
+        signature = make_fold_metric_signature(
+            train_data.get_label(),
+            train_data.get_weight(),
+        )
+        if signature not in fold_metric_signatures:
+            raise ValueError("Could not match LightGBM validation fold signature.")
+
+        fold_id = int(fold_metric_signatures[signature])
+        dataset_fold_ids[dataset_key] = fold_id
+        return fold_id
+
+    def _eval(preds, train_data):
+        score = weighted_binary_logloss(
+            y_true=train_data.get_label(),
+            y_pred_proba=preds,
+            sample_weight=train_data.get_weight(),
+        )
+        fold_id = resolve_fold_id(train_data)
+        return [
+            (metric_name, score, False),
+            (make_fold_metric_name(metric_name, fold_id), score, False),
+        ]
+
+    return _eval
+
+
+def extract_cv_fold_scores_from_results(cv_results, folds, metric_name, best_index):
+    fold_scores = []
+    for fold in folds:
+        key = f"valid {make_fold_metric_name(metric_name, fold['fold_id'])}-mean"
+        if key not in cv_results:
+            raise KeyError(f"Missing LightGBM CV fold metric: {key}")
+        metric_series = np.asarray(cv_results[key], dtype=np.float64)
+        if best_index >= metric_series.shape[0]:
+            raise ValueError(
+                f"Fold metric {key} has only {metric_series.shape[0]} iterations; "
+                f"cannot read index {best_index}."
+            )
+        fold_scores.append(float(metric_series[best_index]))
     return np.asarray(fold_scores, dtype=np.float64)
 
 
@@ -1305,7 +1388,15 @@ def run_lightgbm_cv(
             )
         )
 
-    need_cvbooster = bool(return_cvbooster) or is_nontrivial_fold_recency_weighting_enabled()
+    use_fold_metrics = is_nontrivial_fold_recency_weighting_enabled()
+    primary_metric_eval = make_lightgbm_binary_logloss_eval(CV_OBJECTIVE_BASE_METRIC)
+    if use_fold_metrics:
+        primary_metric_eval = make_lightgbm_binary_logloss_eval_with_fold_metrics(
+            CV_OBJECTIVE_BASE_METRIC,
+            build_fold_metric_signatures(folds, y_np, sample_weight_np),
+        )
+
+    need_cvbooster = bool(return_cvbooster)
     cv_results = lgb.cv(
         params=make_lgbm_cv_params(feature_names=feature_names),
         train_set=train_set,
@@ -1313,7 +1404,7 @@ def run_lightgbm_cv(
         stratified=False,
         shuffle=False,
         feval=[
-            make_lightgbm_binary_logloss_eval(CV_OBJECTIVE_BASE_METRIC),
+            primary_metric_eval,
             make_lightgbm_binary_balanced_accuracy_eval("balanced_accuracy"),
             make_lightgbm_binary_brier_eval("brier_score"),
         ],
@@ -1341,17 +1432,12 @@ def run_lightgbm_cv(
     best_iteration = int(best_index + 1)
 
     result = {"best_iteration": best_iteration}
-    if need_cvbooster:
-        # LightGBM CV exposes only aggregated per-iteration metrics, so recency
-        # weighting is applied by rescoring each fold at the chosen iteration.
-        cvbooster = cv_results["cvbooster"]
-        fold_scores = compute_cv_fold_scores_at_iteration(
-            cvbooster=cvbooster,
-            x_np=x_np,
-            y_np=y_np,
-            sample_weight_np=sample_weight_np,
+    if use_fold_metrics:
+        fold_scores = extract_cv_fold_scores_from_results(
+            cv_results=cv_results,
             folds=folds,
-            best_iteration=best_iteration,
+            metric_name=CV_OBJECTIVE_BASE_METRIC,
+            best_index=best_index,
         )
         result.update(
             summarize_cv_fold_scores(
@@ -1361,8 +1447,6 @@ def run_lightgbm_cv(
                 std_penalty=CV_STD_PENALTY,
             )
         )
-        if return_cvbooster:
-            result["cvbooster"] = cvbooster
     else:
         result.update(
             {
@@ -1375,7 +1459,114 @@ def run_lightgbm_cv(
                 "objective_value": float(objective_series[best_index]),
             }
         )
+    if return_cvbooster:
+        result["cvbooster"] = cv_results["cvbooster"]
     return result
+
+
+class LightGBMChildProcessError(OSError):
+    pass
+
+
+def should_isolate_lightgbm_cv():
+    return bool(ISOLATE_GPU_CV_IN_SUBPROCESS) and is_lgbm_gpu_enabled()
+
+
+def _run_lightgbm_cv_child(result_queue, payload):
+    try:
+        result_queue.put(
+            {
+                "status": "ok",
+                "result": run_lightgbm_cv(**payload),
+            }
+        )
+    except BaseException as exc:
+        result_queue.put(
+            {
+                "status": "error",
+                "error_type": type(exc).__name__,
+                "error_message": str(exc),
+                "traceback": traceback.format_exc(),
+            }
+        )
+
+
+def run_lightgbm_cv_for_objective(
+        x_np,
+        y_np,
+        sample_weight_np,
+        folds,
+        fold_indices,
+        fold_weight_by_id,
+        feature_names,
+        trial=None,
+        return_cvbooster=False,
+):
+    if not should_isolate_lightgbm_cv():
+        return run_lightgbm_cv(
+            x_np=x_np,
+            y_np=y_np,
+            sample_weight_np=sample_weight_np,
+            folds=folds,
+            fold_indices=fold_indices,
+            fold_weight_by_id=fold_weight_by_id,
+            feature_names=feature_names,
+            trial=trial,
+            return_cvbooster=return_cvbooster,
+        )
+
+    if return_cvbooster:
+        raise ValueError("Isolated LightGBM CV does not support return_cvbooster=True.")
+
+    payload = {
+        "x_np": x_np,
+        "y_np": y_np,
+        "sample_weight_np": sample_weight_np,
+        "folds": folds,
+        "fold_indices": fold_indices,
+        "fold_weight_by_id": fold_weight_by_id,
+        "feature_names": feature_names,
+        "trial": None,
+        "return_cvbooster": False,
+    }
+    ctx = mp.get_context("spawn")
+    result_queue = ctx.Queue(maxsize=1)
+    process = ctx.Process(target=_run_lightgbm_cv_child, args=(result_queue, payload))
+    process.start()
+    process.join()
+
+    child_result = None
+    try:
+        child_result = result_queue.get_nowait()
+    except queue.Empty:
+        child_result = None
+    finally:
+        result_queue.close()
+        result_queue.join_thread()
+
+    if process.exitcode != 0:
+        details = ""
+        if child_result is not None and child_result.get("status") == "error":
+            details = (
+                f" child_error={child_result.get('error_type')}: "
+                f"{child_result.get('error_message')}"
+            )
+        raise LightGBMChildProcessError(
+            f"LightGBM GPU CV child exited with code {process.exitcode}.{details}"
+        )
+
+    if child_result is None:
+        raise LightGBMChildProcessError(
+            "LightGBM GPU CV child exited without returning a result."
+        )
+
+    if child_result.get("status") == "ok":
+        return child_result["result"]
+
+    raise LightGBMChildProcessError(
+        "LightGBM GPU CV child raised "
+        f"{child_result.get('error_type')}: {child_result.get('error_message')}"
+    )
 
 
 def get_best_successful_trial(study):
@@ -1427,7 +1618,7 @@ def make_objective(
                 sample_weight_filtered=base_data["sample_weight_filtered"],
                 normalized_vp_config=normalized_vp_config,
             )
-            cv_result = run_lightgbm_cv(
+            cv_result = run_lightgbm_cv_for_objective(
                 x_np=x_np,
                 y_np=y_np,
                 sample_weight_np=sample_weight_np,

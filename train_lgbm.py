@@ -84,7 +84,14 @@ def resolve_walk_forward_test_to_train_ratio():
     return float(train_lgbm_settings["walk_forward_test_to_train_ratio"])
 
 
+def resolve_lgbm_optuna_best_params():
+    settings = load_modeling_dataset_settings()
+    train_lgbm_settings = settings.get("train_lgbm") or {}
+    return dict(train_lgbm_settings["optuna_best_params"])
+
+
 WF_TEST_TO_TRAIN_RATIO = resolve_walk_forward_test_to_train_ratio()
+LGBM_OPTUNA_BEST_PARAMS = resolve_lgbm_optuna_best_params()
 
 
 def _resolve_artifact_float_precision(raw_value, *, source_label):
@@ -117,26 +124,6 @@ def validate_training_dataset_precision(data_path, expected_float_precision):
         )
     return dataset_metadata, metadata_path, dataset_float_precision
 
-# Wklej tutaj najlepsze parametry z optimize_generic_lgbm_optuna.py.
-# Zostaw pusty dict, aby używać domyślnych parametrów LightGBM.s
-LGBM_OPTUNA_BEST_PARAMS = {
-      "learning_rate": 0.003395029882596675,
-      "num_leaves": 171,
-      "min_data_in_leaf": 5661,
-      "max_depth": 176,
-      "feature_fraction": 0.672056207538789,
-      "bagging_fraction": 0.8653821128720749,
-      "bagging_freq": 19,
-      "lambda_l2": 10.417085682028684,
-      "lambda_l1": 1.3534862331319992,
-      "min_sum_hessian_in_leaf": 0.03007168649377586,
-      "min_gain_to_split": 0.5171112104391531,
-      "feature_fraction_bynode": 0.7173489958572304,
-      "path_smooth": 30.034997255070344,
-      "extra_trees": False,
-      "monotone_constraints_method": "basic",
-      "monotone_penalty": 0.7275790716785062
-    }
 LGBM_DEFAULT_PARAMS = {
     "learning_rate": 0.1,
     "num_leaves": 31,

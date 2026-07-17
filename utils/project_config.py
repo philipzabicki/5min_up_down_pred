@@ -88,6 +88,16 @@ def _normalize_lgbm_monotone_constraints(raw_config, *, source_label):
     return normalized
 
 
+def _normalize_lgbm_hyperparameters(raw_config, *, source_label):
+    if raw_config is None:
+        return {}
+    if not isinstance(raw_config, dict):
+        raise ValueError(
+            f"{source_label}.optuna_best_params must be a JSON object."
+        )
+    return dict(raw_config)
+
+
 def _normalize_train_lgbm_config(raw_config, *, profile_name):
     if raw_config is None:
         raw_config = {}
@@ -117,6 +127,10 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
             raw_config,
             "save_oof_predictions",
             default=True,
+            source_label=source_label,
+        ),
+        "optuna_best_params": _normalize_lgbm_hyperparameters(
+            raw_config.get("optuna_best_params"),
             source_label=source_label,
         ),
         "monotone_constraints": _normalize_lgbm_monotone_constraints(

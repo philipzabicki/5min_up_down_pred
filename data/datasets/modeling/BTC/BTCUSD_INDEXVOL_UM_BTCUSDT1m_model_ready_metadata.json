@@ -2,16 +2,11 @@
   "basis_premium_feature_columns": [
     "futures_index_basis_change_5m",
     "futures_index_basis_change_1m",
-    "futures_index_basis_change_15m",
     "futures_index_basis_change_1h",
     "futures_index_basis_rel_5m",
+    "futures_index_basis_change_15m",
     "futures_index_basis_rel_1m",
-    "futures_index_basis_change_3m",
-    "futures_index_basis_abs_5m",
-    "futures_index_basis_abs_1m",
-    "futures_index_basis_abs_1h",
-    "futures_index_basis_change_1d",
-    "futures_index_basis_abs_15m"
+    "futures_index_basis_rel_1d"
   ],
   "basis_premium_features": {
     "enabled": true,
@@ -29,7 +24,7 @@
       "1d"
     ]
   },
-  "created_utc": "2026-07-04T02:49:19.589552+00:00",
+  "created_utc": "2026-07-16T08:02:14.635337+00:00",
   "feature_intervals": {
     "enabled": [
       "1m",
@@ -77,16 +72,16 @@
   ],
   "reaction_profile_feature_version": "rp_fixed_grid_v1",
   "reaction_profile_fixed_grid": {
-    "bin_size": 88.13347937442842,
-    "bins": 22694,
-    "config_signature": "{\"bin_size\":88.13347937442842,\"bins\":22694,\"distance_power\":0.26262391136729163,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":81},\"long\":{\"decay\":0.9999676859682373,\"half_life_candles\":21450,\"local_window\":40},\"medium\":{\"decay\":0.999812781660291,\"half_life_candles\":3702,\"local_window\":103},\"short\":{\"decay\":0.9879131629461064,\"half_life_candles\":57,\"local_window\":67}},\"min_reaction_strength\":7.776895291626223e-05,\"neighbor_bins\":14.475523355248354,\"neighbor_radius\":15,\"price_max\":2000000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":1.481640187824231}",
+    "bin_size": 96.16620796588107,
+    "bins": 2081,
+    "config_signature": "{\"bin_size\":96.16620796588107,\"bins\":2081,\"distance_power\":0.3641270433024373,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":57},\"long\":{\"decay\":0.9999853785994778,\"half_life_candles\":47406,\"local_window\":47},\"medium\":{\"decay\":0.9998422638798478,\"half_life_candles\":4394,\"local_window\":118},\"short\":{\"decay\":0.9887012472906053,\"half_life_candles\":61,\"local_window\":57}},\"min_reaction_strength\":1.2953691950225968e-06,\"neighbor_bins\":14.425566580679018,\"neighbor_radius\":15,\"price_max\":200000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.9894758020102287}",
     "decays": [
-      0.9879131629461064,
-      0.999812781660291,
-      0.9999676859682373,
+      0.9887012472906053,
+      0.9998422638798478,
+      0.9999853785994778,
       1.0
     ],
-    "distance_power": 0.26262391136729163,
+    "distance_power": 0.3641270433024373,
     "enabled": true,
     "eps": 1e-12,
     "feature_columns": [
@@ -120,16 +115,16 @@
       "rp_all_resistance_center_dist"
     ],
     "half_lives": [
-      57,
-      3702,
-      21450,
+      61,
+      4394,
+      47406,
       null
     ],
     "horizon_local_windows": [
-      67,
-      103,
-      40,
-      81
+      57,
+      118,
+      47,
+      57
     ],
     "horizon_names": [
       "short",
@@ -142,34 +137,34 @@
         "decay": 1.0,
         "half_life_candles": null,
         "horizon_name": "all",
-        "local_window": 81
+        "local_window": 57
       },
       "long": {
-        "decay": 0.9999676859682373,
-        "half_life_candles": 21450,
+        "decay": 0.9999853785994778,
+        "half_life_candles": 47406,
         "horizon_name": "long",
-        "local_window": 40
+        "local_window": 47
       },
       "medium": {
-        "decay": 0.999812781660291,
-        "half_life_candles": 3702,
+        "decay": 0.9998422638798478,
+        "half_life_candles": 4394,
         "horizon_name": "medium",
-        "local_window": 103
+        "local_window": 118
       },
       "short": {
-        "decay": 0.9879131629461064,
-        "half_life_candles": 57,
+        "decay": 0.9887012472906053,
+        "half_life_candles": 61,
         "horizon_name": "short",
-        "local_window": 67
+        "local_window": 57
       }
     },
-    "min_reaction_strength": 7.776895291626223e-05,
-    "neighbor_bins": 14.475523355248354,
+    "min_reaction_strength": 1.2953691950225968e-06,
+    "neighbor_bins": 14.425566580679018,
     "neighbor_radius": 15,
-    "price_max": 2000000.0,
+    "price_max": 200000.0,
     "price_min": 0.0,
     "version": "rp_fixed_grid_v1",
-    "wick_power": 1.481640187824231
+    "wick_power": 0.9894758020102287
   },
   "tail_csv_path": "data\\datasets\\modeling\\BTC\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_tail1000.csv",
   "volume_profile_feature_columns": [
