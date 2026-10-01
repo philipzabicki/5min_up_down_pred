@@ -1,16 +1,17 @@
 {
-  "meta_path": "data\\models\\ETH\\20260716_120224\\lgbm_meta_20260716_120224.json",
+  "meta_path": "data\\models\\ETH\\20260807_181931\\lgbm_meta_20260807_181931.json",
   "fit_results_dir": "data\\features\\indicators_fit\\ETH\\all",
   "analysis_summary_path": "data\\analysis\\indicator_stability\\ETH\\summary.json",
   "analysis_report_path": "data\\analysis\\indicator_stability\\ETH\\report.csv",
   "unstable_feature_count": 0,
-  "global_required_stable_window": 2779,
+  "global_required_stable_window": 5789,
   "required_stable_window_by_feature": {
     "StochOsc_fit_5m_candle_up_pop512_faskper289_slodmatypwma_slodper54_slokmatypnwmaunif_slokper1446_qe0.2_qm0.2_tf0.8_stmc_sg10": 1787,
-    "ChaikinOsc_fit_5m_candle_up_pop1024_fasmatypdema_fasper9_slomatyplwma_sloper93_qe0.2_qm0.1_tf0.8_stmc_sg10": 93,
-    "BollingerBands_fit_5m_candle_up_pop768_maper40_masouhlcc4_matyptrima_stdmaper489_stdmatypwma_stdsouohlc4_qe0.1_qm0.3_tf0.8_stmc_sg10": 528,
-    "ADX_fit_5m_candle_up_pop1024_adxper21_atrper1266_matypadxlwma_matypatrnwmabiw_matypnegdmema_matypposdmkama_negdmper138_posdmper129_qe0.2_qm0.1_tf0.8_stmc_sg10": 2779,
-    "MACD_fit_5m_candle_up_pop1024_fasmatyprma_fasper27_fassouopen_sigmatypnwmatria_sigper327_slomatyplinreg_sloper48_slosouhlcc4_qe0.2_qm0.1_tf0.8_stmc_sg10": 517,
-    "StochOsc_fit_5m_candle_up_pop1024_faskper823_slodmatypnwmaunif_slodper17_slokmatypnwmaunif_slokper1662_qe0.2_qm0.1_tf0.8_stmc_sg10": 2500
+    "ChaikinOsc_fit_5m_candle_up_pop512_fasmatyplwma_fasper87_slomatyptema_sloper14_qe0.2_qm0.2_tf0.8_stmc_sg10": 121,
+    "StochOsc_fit_5m_candle_up_pop1024_faskper823_slodmatypnwmaunif_slodper17_slokmatypnwmaunif_slokper1662_qe0.2_qm0.1_tf0.8_stmc_sg10": 2500,
+    "ADX_fit_5m_candle_up_pop1024_adxper21_atrper1266_matypadxlwma_matypatrnwmabiw_matypnegdmema_matypposdmkama_negdmper138_posdmper129_qe0.2_qm0.1_tf0.8_stmc_sg10": 2913,
+    "MACD_fit_5m_candle_up_pop1024_fasmatyprma_fasper27_fassouopen_sigmatypnwmatria_sigper327_slomatyplinreg_sloper48_slosouhlcc4_qe0.2_qm0.1_tf0.8_stmc_sg10": 569,
+    "ADX_fit_5m_candle_up_pop512_adxper1583_atrper1215_matypadxfba_matypatrhma_matypnegdmkama_matypposdmkama_negdmper601_posdmper191_qe0.2_qm0.2_tf0.8_stmc_sg10": 5789,
+    "ADX_fit_5m_candle_up_pop512_adxper65_atrper44_matypadxahma_matypatrsma_matypnegdmfba_matypposdmnwmacos_negdmper360_posdmper702_qe0.1_qm0.15_tf0.8_stmc_sg10": 1440
   }
 }

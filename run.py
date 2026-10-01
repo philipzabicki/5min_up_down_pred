@@ -175,6 +175,9 @@ from utils.live import (
 )
 from utils.config import load_repo_env
 from utils.polymarket import (
+    parse_json_listish,
+    resolve_polymarket_actual_up_from_market_payload,
+    resolve_polymarket_up_down_tokens,
     DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
     DEFAULT_POLYMARKET_MIN_FEE_USDC,
     normalize_polymarket_fee_model,
@@ -485,25 +488,6 @@ def normalize_live_source_selection(price_source, volume_source):
     return normalized_price_source, normalized_volume_source
 
 
-def parse_json_listish(value):
-    if value is None:
-        return []
-    if isinstance(value, list):
-        return value
-    if isinstance(value, tuple):
-        return list(value)
-    if isinstance(value, str):
-        text = value.strip()
-        if not text:
-            return []
-        try:
-            parsed = json.loads(text)
-        except Exception:
-            return [part.strip() for part in text.split(",") if part.strip()]
-        return parsed if isinstance(parsed, list) else [parsed]
-    return [value]
-
-
 def resolve_polymarket_market_slug(bucket_start, market_slug=""):
     market_slug_text = str(market_slug or "").strip()
     if market_slug_text:
@@ -519,56 +503,6 @@ def fetch_polymarket_market_by_slug(session, market_slug):
     )
     response.raise_for_status()
     return response.json()
-
-
-def resolve_polymarket_actual_up_from_market_payload(market_payload):
-    if not isinstance(market_payload, dict):
-        return None
-
-    resolution_status = (
-        str(market_payload.get("umaResolutionStatus", "") or "").strip().lower()
-    )
-    winning_outcome = (
-        str(market_payload.get("winning_outcome", "") or "").strip().lower()
-    )
-    if winning_outcome in {"up", "yes"}:
-        return 1
-    if winning_outcome in {"down", "no"}:
-        return 0
-
-    outcomes = [
-        str(item).strip() for item in parse_json_listish(market_payload.get("outcomes"))
-    ]
-    if len(outcomes) != 2:
-        return None
-
-    outcome_prices = []
-    for item in parse_json_listish(market_payload.get("outcomePrices")):
-        try:
-            outcome_prices.append(float(item))
-        except (TypeError, ValueError):
-            return None
-
-    if len(outcome_prices) != len(outcomes):
-        return None
-
-    winning_idx = None
-    for idx, price in enumerate(outcome_prices):
-        if abs(price - 1.0) <= 1e-9:
-            winning_idx = idx
-            break
-    if winning_idx is None:
-        max_price = max(outcome_prices)
-        if resolution_status != "resolved" or outcome_prices.count(max_price) != 1:
-            return None
-        winning_idx = int(np.argmax(np.asarray(outcome_prices, dtype=np.float64)))
-
-    winning_label = outcomes[winning_idx].lower()
-    if winning_label in {"up", "yes"}:
-        return 1
-    if winning_label in {"down", "no"}:
-        return 0
-    return None
 
 
 def resolve_record_accuracy_from_side(record, actual_up=None):
@@ -5472,25 +5406,9 @@ class PolymarketLiveTrader(LivePredictor):
         market_slug = self._market_slug_for_bucket(bucket_start)
         market = self._get_json(self.pm_cfg.gamma_host, f"/markets/slug/{market_slug}")
 
-        outcomes = [str(x).strip() for x in _parse_json_list(market.get("outcomes"))]
-        token_ids = [
-            str(x).strip() for x in _parse_json_list(market.get("clobTokenIds"))
-        ]
-        if len(outcomes) != len(token_ids):
-            raise ValueError(
-                f"Outcome/token length mismatch for market={market_slug}: "
-                f"outcomes={len(outcomes)} token_ids={len(token_ids)}"
-            )
-
-        token_by_outcome = {
-            outcome.lower(): token_id for outcome, token_id in zip(outcomes, token_ids)
-        }
-        up_token_id = token_by_outcome.get("up", "")
-        down_token_id = token_by_outcome.get("down", "")
-        if not up_token_id or not down_token_id:
-            raise ValueError(
-                f"Expected Up/Down outcomes for market={market_slug}, got={outcomes}"
-            )
+        token_by_outcome = resolve_polymarket_up_down_tokens(market)
+        up_token_id = token_by_outcome["up"]
+        down_token_id = token_by_outcome["down"]
 
         up_book_future = self.pm_io_pool.submit(
             self._fetch_order_book_summary, up_token_id

@@ -96,6 +96,10 @@ data/simulations/*
 
 data/analysis/nan_debug/
 
+# Historical provider files, API caches and generated model provenance.
+data/raw/polymarket/
+data/datasets/polymarket/
+
 # Generated models
 data/models/*
 !data/models/.gitkeep

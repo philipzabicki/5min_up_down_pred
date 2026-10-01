@@ -1,14 +1,17 @@
 {
-  "meta_path": "data\\models\\SOL\\20260716_140941\\lgbm_meta_20260716_140941.json",
+  "meta_path": "data\\models\\SOL\\20260807_201205\\lgbm_meta_20260807_201205.json",
   "fit_results_dir": "data\\features\\indicators_fit\\SOL\\all",
   "analysis_summary_path": "data\\analysis\\indicator_stability\\SOL\\summary.json",
   "analysis_report_path": "data\\analysis\\indicator_stability\\SOL\\report.csv",
   "unstable_feature_count": 0,
-  "global_required_stable_window": 15619,
+  "global_required_stable_window": 17035,
   "required_stable_window_by_feature": {
+    "ChaikinOsc_fit_5m_candle_up_pop768_fasmatypkama_fasper878_slomatypfba_sloper541_qe0.1_qm0.3_tf0.8_stmc_sg10": 3476,
     "StochOsc_fit_5m_candle_up_pop1024_faskper88_slodmatypwma_slodper141_slokmatypnwmaepan_slokper1755_qe0.2_qm0.1_tf0.8_stmc_sg10": 1982,
-    "ChaikinOsc_fit_5m_candle_up_pop768_fasmatypkama_fasper878_slomatypfba_sloper541_qe0.1_qm0.3_tf0.8_stmc_sg10": 3051,
-    "StochOsc_fit_5m_candle_up_pop512_faskper486_slodmatyptrima_slodper719_slokmatypmama_slokper443_qe0.1_qm0.15_tf0.8_stmc_sg10": 1256,
-    "BollingerBands_fit_5m_candle_up_pop512_maper324_masouopen_matypehma_stdmaper1855_stdmatypt3_stdsoulow_qe0.1_qm0.15_tf0.8_stmc_sg10": 15619
+    "StochOsc_fit_5m_candle_up_pop768_faskper195_slodmatypsma_slodper1659_slokmatypnwmaepan_slokper71_qe0.1_qm0.3_tf0.8_stmc_sg10": 1923,
+    "KeltnerChannel_fit_5m_candle_up_pop512_atrmatypmama_atrper10_maper472_matypehma_souhigh_qe0.2_qm0.2_tf0.8_stmc_sg10": 3155,
+    "BollingerBands_fit_5m_candle_up_pop512_maper324_masouopen_matypehma_stdmaper1855_stdmatypt3_stdsoulow_qe0.1_qm0.15_tf0.8_stmc_sg10": 17035,
+    "MACD_fit_5m_candle_up_pop768_fasmatypfba_fasper745_fassouohlc4_sigmatyptema_sigper1299_slomatypehma_sloper7_slosouhigh_qe0.1_qm0.3_tf0.8_stmc_sg10": 11007,
+    "MACD_fit_5m_candle_up_pop1024_fasmatyphma_fasper2_fassoulow_sigmatypfba_sigper1266_slomatyphma_sloper1357_slosouhlc3_qe0.2_qm0.1_tf0.8_stmc_sg10": 6235
   }
 }

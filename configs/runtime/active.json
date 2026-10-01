@@ -6,7 +6,7 @@
       "modeling_profile": "BTC",
       "live_profile": "polymarket_live",
       "artifacts": {
-        "model_meta_path": "data/models/BTC/20260716_101918/lgbm_meta_20260716_101918.json",
+        "model_meta_path": "data/models/BTC/20260807_162140/lgbm_meta_20260807_162140.json",
         "trade_policy_path": "configs/runtime/trade_policy_project.json",
         "indicator_history_requirements_path": ""
       }
@@ -17,7 +17,7 @@
       "modeling_profile": "ETH",
       "live_profile": "polymarket_eth_live",
       "artifacts": {
-        "model_meta_path": "data/models/ETH/20260716_120224/lgbm_meta_20260716_120224.json",
+        "model_meta_path": "data/models/ETH/20260807_181931/lgbm_meta_20260807_181931.json",
         "trade_policy_path": "configs/runtime/trade_policy_project.json",
         "indicator_history_requirements_path": "data/runtime/ETH/indicator_history_requirements.json"
       }
@@ -28,7 +28,7 @@
       "modeling_profile": "SOL",
       "live_profile": "polymarket_sol_live",
       "artifacts": {
-        "model_meta_path": "data/models/SOL/20260716_140941/lgbm_meta_20260716_140941.json",
+        "model_meta_path": "data/models/SOL/20260807_201205/lgbm_meta_20260807_201205.json",
         "trade_policy_path": "configs/runtime/trade_policy_project.json",
         "indicator_history_requirements_path": ""
       }

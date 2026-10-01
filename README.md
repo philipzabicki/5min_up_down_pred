@@ -13,6 +13,22 @@ This repository is research and automation tooling. It can connect to live marke
 - Exports model metadata, feature importance, out-of-fold predictions, and audit artifacts.
 - Runs live Binance websocket inference and can optionally place Polymarket orders using an expected-value trade policy.
 
+## Historical Polymarket settlement and execution research
+
+The architecture separates **long-history predictive modeling**, **shorter-history Polymarket settlement/execution calibration**, and **economic entry and sizing policy**. Historical quotes are execution inputs, never probability-model features; the existing training target remains unchanged.
+
+Run `python build_polymarket_history.py` from the repository root. Editable constants at the top select pinned free Hugging Face revisions, BTC paths, latency scenarios (0/1/2 seconds), maximum forward quote delay, and a bounded historical model refit. This script downloads/caches public data and runs research only. It writes no runtime trading configuration.
+
+- `data/raw/polymarket/`: provider originals, resumable downloads, manifests with checksums, cached official Gamma metadata.
+- `data/datasets/polymarket/BTC/`: canonical markets, batch-normalized quotes, provenance-bearing OOS predictions, counterfactual policy datasets, and separate secondary token snapshots.
+- `data/analysis/polymarket/BTC/`: quality/settlement audits, chronological calibration diagnostics, walk-forward baseline comparisons, trade ledgers and bankroll paths. Policy search requires the quality gate to pass first.
+
+Kacho's outcome is inferred from the last bid, so official resolved metadata supplies settlement truth. Its ask top size constrains execution; deeper ask VWAP is unavailable. Obadiaha remains separate until overlapping token/outcome/quote validation succeeds. The pinned revisions currently have no common BTC 5m markets.
+
+Legacy OOF uses evaluation-fold early stopping and lacks row-level provenance. The experiment therefore generates deterministic predictions from past-only train/validation folds using ten predeclared existing causal features and fixed LightGBM parameters. This is a probability-model benchmark, not a recreation of the retrospectively selected deployed model. The live EV/sizing benchmark reuses `decide_trade_from_ev` and `build_trade_intent` with raw OOS probabilities and historical market fees; other policies use past-selected calibration. Stakes are locked until official resolution. Snapshot sizes establish recorded capacity, not guaranteed fills; exchange book age and actual redemption delay are unavailable.
+
+See [the data and timing contract](docs/polymarket_history_contract.md) and [the first BTC experiment](docs/polymarket_btc_experiment.md). Reproduce focused validation with `python -m unittest discover -s tests -p test_polymarket_history.py`.
+
 ## Repository Layout
 
 | Path | Purpose |

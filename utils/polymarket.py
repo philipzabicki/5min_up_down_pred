@@ -1,3 +1,4 @@
+import json
 import math
 import os
 import re
@@ -514,3 +515,80 @@ def _redeem_idempotency_skip_reason(records):
         if tx_id and tx_state not in {"STATE_FAILED", "STATE_INVALID"}:
             return "redeem_tx_state_unknown"
     return ""
+
+
+def parse_json_listish(value):
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return list(value)
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return []
+        try:
+            parsed = json.loads(text)
+        except Exception:
+            return [part.strip() for part in text.split(",") if part.strip()]
+        return parsed if isinstance(parsed, list) else [parsed]
+    return [value]
+
+
+def resolve_polymarket_actual_up_from_market_payload(market_payload):
+    if not isinstance(market_payload, dict):
+        return None
+
+    resolution_status = (
+        str(market_payload.get("umaResolutionStatus", "") or "").strip().lower()
+    )
+    winning_outcome = (
+        str(market_payload.get("winning_outcome", "") or "").strip().lower()
+    )
+    if winning_outcome in {"up", "yes"}:
+        return 1
+    if winning_outcome in {"down", "no"}:
+        return 0
+
+    outcomes = [
+        str(item).strip() for item in parse_json_listish(market_payload.get("outcomes"))
+    ]
+    if len(outcomes) != 2:
+        return None
+
+    outcome_prices = []
+    for item in parse_json_listish(market_payload.get("outcomePrices")):
+        try:
+            outcome_prices.append(float(item))
+        except (TypeError, ValueError):
+            return None
+
+    if len(outcome_prices) != len(outcomes):
+        return None
+
+    winning_idx = None
+    for idx, price in enumerate(outcome_prices):
+        if abs(price - 1.0) <= 1e-9:
+            winning_idx = idx
+            break
+    if winning_idx is None:
+        max_price = max(outcome_prices)
+        if resolution_status != "resolved" or outcome_prices.count(max_price) != 1:
+            return None
+        winning_idx = outcome_prices.index(max_price)
+
+    winning_label = outcomes[winning_idx].lower()
+    if winning_label in {"up", "yes"}:
+        return 1
+    if winning_label in {"down", "no"}:
+        return 0
+    return None
+
+
+def resolve_polymarket_up_down_tokens(payload):
+    labels = [str(x).strip().lower() for x in parse_json_listish(payload.get("outcomes"))]
+    tokens = [str(x).strip() for x in parse_json_listish(payload.get("clobTokenIds"))]
+    if len(labels) != 2 or len(tokens) != 2 or set(labels) != {"up", "down"} or not all(tokens) or tokens[0] == tokens[1]:
+        raise ValueError("Ambiguous UP/DOWN token mapping")
+    return dict(zip(labels, tokens))

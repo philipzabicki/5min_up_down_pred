@@ -5,12 +5,19 @@
     "futures_index_basis_rel_5m",
     "futures_index_basis_rel_1m",
     "futures_index_basis_rel_3m",
-    "futures_index_basis_rel_4h",
     "futures_index_basis_rel_15m",
-    "futures_index_basis_abs_5m",
-    "futures_index_basis_change_15m",
+    "futures_index_basis_rel_4h",
+    "futures_index_basis_abs_1m",
     "futures_index_basis_rel_1h",
-    "futures_index_basis_rel_30m"
+    "futures_index_basis_rel_30m",
+    "futures_index_basis_change_15m",
+    "futures_index_basis_abs_5m",
+    "futures_index_basis_change_30m",
+    "futures_index_basis_change_3m",
+    "futures_index_basis_change_4h",
+    "futures_index_basis_rel_1d",
+    "futures_index_basis_abs_1d",
+    "futures_index_basis_abs_3m"
   ],
   "basis_premium_features": {
     "enabled": true,
@@ -28,7 +35,7 @@
       "1d"
     ]
   },
-  "created_utc": "2026-07-16T11:55:29.404678+00:00",
+  "created_utc": "2026-08-07T18:08:24.458271+00:00",
   "feature_intervals": {
     "enabled": [
       "1m",
