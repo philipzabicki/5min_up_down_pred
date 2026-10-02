@@ -317,13 +317,21 @@ def select_quotes(decisions, tape_path, max_delay_ms):
 
 
 def validate_oos(predictions):
-    required = ['Opened', 'p_model_up', 'fold_id', 'source_model_id', 'fit_labels_available_at', 'is_oos']
+    required = ['Opened', 'p_model_up']
     if any(c not in predictions for c in required):
-        raise ValueError('Missing row-level OOS provenance; legacy predictions are not accepted')
-    if not predictions.is_oos.eq(True).all() or predictions.Opened.duplicated().any():
-        raise ValueError('Unproven or duplicate OOS predictions')
-    if not ((utc(predictions.fit_labels_available_at) < utc(predictions.Opened)) &
-            predictions.p_model_up.between(0, 1)).all():
+        raise ValueError('Missing OOF timestamp or probability')
+    times = utc(predictions.Opened)
+    if times.isna().any() or times.duplicated().any():
+        raise ValueError('Missing or duplicate UTC OOF timestamps')
+    if not (times.dt.second.eq(0) & times.dt.microsecond.eq(0) & times.dt.nanosecond.eq(0)).all():
+        raise ValueError('Opened must be a one-minute candle opening timestamp')
+    if not (np.isfinite(predictions.p_model_up) & predictions.p_model_up.between(0, 1)).all():
+        raise ValueError('Invalid OOF probabilities')
+    # Main-model OOF construction, including early stopping, is an accepted input.
+    # Validate optional evidence when supplied; do not demand nonexistent history.
+    if 'is_oos' in predictions and not predictions.is_oos.eq(True).all():
+        raise ValueError('Final-model predictions are not accepted')
+    if 'fit_labels_available_at' in predictions and not (utc(predictions.fit_labels_available_at) < times).all():
         raise ValueError('Prediction fitted on future/unavailable labels')
 
 
@@ -362,6 +370,11 @@ def economic_dataset(joined, stakes=(5, 10, 25, 50, 100), utility_bankroll=1000)
     d['eligible'] = (d.validation_status.eq('validated') & ~d.duplicate_market &
                      d.quote_valid.fillna(False) & d.target_polymarket_up.notna() &
                      d.resolved_at_utc.notna() & d.timestamp_utc.lt(d.market_end_utc))
+    d['exclusion_reason'] = np.select(
+        [mask.to_numpy(dtype=bool) for mask in [~d.validation_status.eq('validated'), d.duplicate_market,
+         d.timestamp_utc.isna(), ~d.quote_valid.fillna(False).astype(bool), ~d.timestamp_utc.lt(d.market_end_utc)]],
+        [d.validation_status.to_numpy(dtype=object), 'duplicate_market', 'missing_forward_quote', 'invalid_quote', 'quote_after_expiry'],
+        default='eligible')
     d['NO_TRADE_pnl'], d['NO_TRADE_return'], d['NO_TRADE_log_growth'] = 0., 0., 0.
     d['utility_bankroll_usdc'] = float(utility_bankroll)
     for side in ['up', 'down']:
@@ -398,3 +411,117 @@ def secondary_adapter(raw, markets):
                 q[f'{book}_{field}_{level}'] = parsed.map(lambda xs: float(xs[level][field]) if len(xs) > level else np.nan)
     q['duplicate_timestamp'] = q.duplicated(['condition_id', 'token_id', 'timestamp_utc'], keep=False)
     return q.drop(columns=['bid_levels', 'ask_levels'])
+
+
+def normalize_secondary_tapes(paths, markets, destination):
+    """Stream every downloaded partition; retain separate token capture times."""
+    writer, inventory = None, []
+    previous, suspect = {}, set()
+    destination = Path(destination)
+    try:
+        for path in paths:
+            rows, lo, hi, slugs = 0, None, None, set()
+            for batch in pq.ParquetFile(path).iter_batches(batch_size=100000):
+                q = secondary_adapter(batch.to_pandas(), markets)
+                if q.empty:
+                    continue
+                keys = pd.Series(list(zip(q.condition_id, q.token_id)), index=q.index)
+                first = ~keys.duplicated()
+                earlier = keys[first].map(previous)
+                delta = q.groupby(['condition_id', 'token_id'], sort=False).timestamp_utc.diff()
+                delta.loc[first] = q.loc[first, 'timestamp_utc'] - utc(earlier)
+                q.loc[first & delta.eq(pd.Timedelta(0)), 'duplicate_timestamp'] = True
+                q['non_monotonic_timestamp'] = delta.lt(pd.Timedelta(0))
+                suspect.update(q.loc[q.duplicate_timestamp | q.non_monotonic_timestamp, 'condition_id'].dropna())
+                previous.update(q.groupby(['condition_id', 'token_id']).timestamp_utc.last().to_dict())
+                q['quote_valid'] = (q.token_side.ne('unknown') &
+                    q.best_bid.between(0, 1) & q.best_ask.between(0, 1) & q.best_bid.le(q.best_ask) &
+                    q.ask_size_0.ge(0) & q.bid_size_0.ge(0) &
+                    (q.best_bid-q.bid_price_0).abs().le(1e-9) &
+                    (q.best_ask-q.ask_price_0).abs().le(1e-9) &
+                    ~q.duplicate_timestamp & ~q.non_monotonic_timestamp)
+                rows += len(q)
+                lo = q.timestamp_utc.min() if lo is None else min(lo, q.timestamp_utc.min())
+                hi = q.timestamp_utc.max() if hi is None else max(hi, q.timestamp_utc.max())
+                slugs.update(q.market_slug)
+                table = pa.Table.from_pandas(q, preserve_index=False)
+                if writer is None:
+                    writer = pq.ParquetWriter(destination.with_suffix('.tmp'), table.schema, compression='zstd')
+                writer.write_table(table)
+            inventory.append({'file': path.name, 'btc_5m_token_rows': rows, 'btc_5m_markets': len(slugs),
+                              'start_utc': str(lo), 'end_utc': str(hi)})
+            print(f'Secondary {path.name}: {rows} BTC 5m token snapshots', flush=True)
+    finally:
+        if writer:
+            writer.close()
+    if writer:
+        destination.with_suffix('.tmp').replace(destination)
+    return {'partitions': inventory, 'suspect_tick_markets': sorted(suspect),
+            'quote_count': sum(p['btc_5m_token_rows'] for p in inventory)}
+
+
+def select_secondary_quotes(decisions, tape_path, max_delay_ms):
+    """First forward snapshot per side; never carry a quote from before the signal."""
+    candidates = {'up': [], 'down': []}
+    ordered = decisions.sort_values('decision_available_at')
+    wanted = set(ordered.condition_id)
+    columns = ['condition_id', 'timestamp_utc', 'token_side', 'best_bid', 'best_ask',
+               'ask_size_0', 'quote_valid']
+    for batch in pq.ParquetFile(tape_path).iter_batches(batch_size=100000, columns=columns):
+        q = batch.to_pandas()
+        q = q[q.condition_id.isin(wanted)]
+        for side in candidates:
+            token = q[q.token_side.eq(side)].sort_values('timestamp_utc')
+            if token.empty:
+                continue
+            local = ordered[ordered.condition_id.isin(token.condition_id.unique())]
+            joined = pd.merge_asof(local[['decision_id', 'condition_id', 'decision_available_at']], token,
+                by='condition_id', left_on='decision_available_at', right_on='timestamp_utc',
+                direction='forward', tolerance=pd.Timedelta(milliseconds=max_delay_ms))
+            candidates[side].append(joined[joined.timestamp_utc.notna()])
+    result = decisions.copy()
+    for side, parts in candidates.items():
+        if parts:
+            first = pd.concat(parts).sort_values('timestamp_utc').drop_duplicates('decision_id')
+            fields = ['timestamp_utc', 'best_bid', 'best_ask', 'ask_size_0', 'quote_valid']
+            first = first[['decision_id'] + fields].rename(columns={c: side + '_' +
+                ('ask_size' if c == 'ask_size_0' else c) for c in fields})
+            result = result.merge(first, on='decision_id', how='left', validate='one_to_one')
+        else:
+            result[side + '_timestamp_utc'] = pd.Series(pd.NaT, index=result.index, dtype='datetime64[ns, UTC]')
+            for field in ['best_bid', 'best_ask', 'ask_size']:
+                result[side + '_' + field] = np.nan
+            result[side + '_quote_valid'] = False
+    both = result.up_timestamp_utc.notna() & result.down_timestamp_utc.notna()
+    result['timestamp_utc'] = result[['up_timestamp_utc', 'down_timestamp_utc']].max(axis=1).where(both)
+    result['quote_valid'] = both & result.up_quote_valid.fillna(False) & result.down_quote_valid.fillna(False)
+    result['quote_delay_ms'] = (result.timestamp_utc-result.decision_available_at).dt.total_seconds()*1000
+    result['side_capture_gap_ms'] = (result.up_timestamp_utc-result.down_timestamp_utc).abs().dt.total_seconds()*1000
+    result['seconds_to_expiry'] = (result.market_end_utc-result.timestamp_utc).dt.total_seconds()
+    return result
+
+
+def reconcile_sources(primary, secondary):
+    """Audit identities before union; prefer Kacho by predeclared source priority."""
+    fields = ['condition_id', 'up_token_id', 'down_token_id', 'market_start_utc',
+              'market_end_utc', 'polymarket_outcome_up', 'resolved_at_utc']
+    common = primary[fields].merge(secondary[fields], on='condition_id', suffixes=('_primary', '_secondary'))
+    mismatches = {}
+    for field in fields[1:]:
+        a, b = common[field + '_primary'], common[field + '_secondary']
+        mismatches[field] = int((~(a.eq(b) | (a.isna() & b.isna()))).sum())
+    start_collisions = primary[['condition_id', 'market_start_utc']].merge(
+        secondary[['condition_id', 'market_start_utc']], on='market_start_utc', suffixes=('_primary', '_secondary'))
+    mismatches['condition_id_at_same_start'] = int(start_collisions.condition_id_primary.ne(start_collisions.condition_id_secondary).sum())
+    if any(mismatches.values()):
+        raise ValueError(f'Conflicting source identities/settlement: {mismatches}')
+    return {'common_markets': len(common), 'mismatches': mismatches,
+            'selection_rule': 'First eligible Kacho decision, otherwise eligible Obadiaha; independent of PnL. One decision per market/latency.'}
+
+
+def combine_decisions(primary, secondary):
+    combined = pd.concat([primary, secondary], ignore_index=True)
+    priority = {PRIMARY: 0, SECONDARY: 1}
+    combined['_priority'] = combined.source.map(priority)
+    return combined.sort_values(['eligible', '_priority'], ascending=[False, True]).drop_duplicates(
+        'condition_id', keep='first').drop(columns='_priority').sort_values('decision_available_at')

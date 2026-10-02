@@ -12,7 +12,9 @@ from sklearn.metrics import brier_score_loss, log_loss
 
 from utils.polymarket import polymarket_taker_fee_fraction_of_notional
 from utils.polymarket_history import fee_model, payoff, write_json
-from utils.trading import build_trade_intent, decide_trade_from_ev, decide_trade_from_model_direction
+from utils.trading import (build_trade_intent, decide_trade_from_ev, decide_trade_from_model_direction,
+                          load_trade_policy_runtime_config, _minimum_executable_stake_usdc)
+from utils.project_config import load_runtime_artifact_paths, load_runtime_asset_settings, load_live_profile
 
 INITIAL_BANKROLL = 100.0
 MIN_ISOTONIC_ROWS = 1000
@@ -126,7 +128,8 @@ def policy_action(row, probability, cash, equity, config, live_config, exposure=
         kwargs['fee_yes'] = prices['up'] / (1-fractions['up']) - prices['up']
         kwargs['fee_no'] = prices['down'] / (1-fractions['down']) - prices['down']
     if config['kind'] == 'live' and live_config['mode'] == 'model_direction_min_stake':
-        decision = decide_trade_from_model_direction(**kwargs, threshold=live_config.get('threshold', .5))
+        decision = decide_trade_from_model_direction(**kwargs, threshold=live_config.get('threshold', .5),
+            **{k: live_config[k] for k in ['min_decision_margin', 'min_decision_margin_up', 'min_decision_margin_down'] if k in live_config})
     else:
         decision = decide_trade_from_ev(**kwargs)
     if decision['decision'] == 'no_trade':
@@ -143,7 +146,7 @@ def policy_action(row, probability, cash, equity, config, live_config, exposure=
         intent = build_trade_intent(policy_result=decision, bankroll=cash, stake_multiplier=1 if multiplier == 'return_multiple' else multiplier,
                                     fee_model=fees, order_min_size=row.order_min_size,
                                     external_stake_cap_usdc=max(0, live_config.get('max_exposure_usdc', 100) - exposure),
-                                    stake_multiplier_mode='return_multiple' if multiplier == 'return_multiple' else 'fixed',
+                                    stake_multiplier_mode=live_config.get('stake_multiplier_mode', 'return_multiple' if multiplier == 'return_multiple' else 'fixed'),
                                     initial_bankroll=INITIAL_BANKROLL, return_multiple_balance=cash)
         if intent['decision'] == 'no_trade':
             return None
@@ -169,23 +172,39 @@ def policy_action(row, probability, cash, equity, config, live_config, exposure=
 def backtest(data, config, live_config, initial_bankroll=INITIAL_BANKROLL):
     cash, locked, equity = initial_bankroll, 0., initial_bankroll
     pending, path, trades, seen = [], [], [], set()
-    sequence = 0
+    sequence, realized_pnl, unable_minimum = 0, 0., 0
+
+    def snapshot(timestamp, event, cash_flow=0., cannot_order=False):
+        return {'timestamp_utc': timestamp, 'bankroll': cash + locked,
+                'cost_basis_equity': cash + locked, 'cash': cash, 'exposure': locked,
+                'open_position_cost': locked, 'open_position_market_value': np.nan if pending else 0.,
+                'mark_to_market_equity': np.nan if pending else cash,
+                'realized_pnl': realized_pnl, 'cash_flow': cash_flow,
+                'cannot_place_minimum_order': cannot_order, 'event': event}
 
     def settle(until):
-        nonlocal cash, locked, equity
+        nonlocal cash, locked, equity, realized_pnl
         while pending and pending[0][0] <= until:
             timestamp, _, stake, payout = heapq.heappop(pending)
             cash += payout
             locked -= stake
+            locked = max(0., locked) if pending else 0.
+            realized_pnl += payout - stake
             equity = cash + locked
-            path.append({'timestamp_utc': timestamp, 'bankroll': equity, 'cash': cash, 'exposure': locked, 'event': 'settlement'})
+            path.append(snapshot(timestamp, 'settlement', payout))
 
-    for row in data.sort_values('decision_available_at').itertuples():
-        settle(row.decision_available_at)
+    ordered = data.assign(execution_at=data[['decision_available_at', 'timestamp_utc']].max(axis=1))
+    for row in ordered.sort_values('execution_at').itertuples():
+        settle(row.execution_at)
         if row.condition_id in seen:
             continue
-        probability = getattr(row, 'p_model_up', row.p_calibrated) if config['kind'] == 'live' else row.p_calibrated
-        action = policy_action(row, probability, cash, equity, config, live_config, locked)
+        active = next(c for c in BASELINES if c['name'] == row.selected_policy) if config['kind'] == 'selected' else config
+        probability = getattr(row, 'p_model_up', row.p_calibrated) if active['kind'] == 'live' else row.p_calibrated
+        minimums = [_minimum_executable_stake_usdc(entry_price=getattr(row, side + '_best_ask'),
+                    fee_model=fee_model(row), order_min_size=row.order_min_size) for side in ['up', 'down']]
+        cannot_order = not any(np.isfinite(stake) and stake > 0 and stake <= cash for stake in minimums)
+        unable_minimum += int(cannot_order)
+        action = policy_action(row, probability, cash, equity, active, live_config, locked)
         if action:
             stake = action['stake']
             outcome = row.target_polymarket_up if action['side'] == 'up' else 1-row.target_polymarket_up
@@ -197,16 +216,26 @@ def backtest(data, config, live_config, initial_bankroll=INITIAL_BANKROLL):
             heapq.heappush(pending, (max(row.resolved_at_utc, row.market_end_utc), sequence, stake, stake + action['pnl']))
             seen.add(row.condition_id)
             trades.append(dict(action, condition_id=row.condition_id, timestamp_utc=row.timestamp_utc,
-                               decision_available_at=row.decision_available_at, probability=row.p_calibrated,
+                               decision_available_at=row.decision_available_at, probability=probability,
+                               policy_name=active.get('name', active['kind']),
+                               fold_id=getattr(row, 'evaluation_fold', None),
+                               source=getattr(row, 'source', None),
+                               settlement_available_at=max(row.resolved_at_utc, row.market_end_utc),
+                               p_model_up=getattr(row, 'p_model_up', probability), p_calibrated=row.p_calibrated,
                                seconds_to_expiry=row.seconds_to_expiry, quote_delay_ms=row.quote_delay_ms))
-        path.append({'timestamp_utc': row.decision_available_at, 'bankroll': equity,
-                     'cash': cash, 'exposure': locked, 'event': 'decision'})
+        path.append(snapshot(row.execution_at, 'decision', -action['stake'] if action else 0., cannot_order))
     settle(pd.Timestamp.max.tz_localize('UTC'))
     tr = pd.DataFrame(trades)
     curve = pd.DataFrame(path)
     balances = np.r_[initial_bankroll, curve.bankroll.to_numpy() if len(curve) else []]
     drawdown = balances / np.maximum.accumulate(balances) - 1
-    summary = {'net_pnl': equity-initial_bankroll, 'return_multiple': equity/initial_bankroll,
+    if cash < -1e-8 or not np.isclose(cash - initial_bankroll, realized_pnl):
+        raise AssertionError('Portfolio cash/PnL conservation broken')
+    summary = {'initial_bankroll': initial_bankroll, 'final_balance': cash,
+               'net_pnl': equity-initial_bankroll, 'return_multiple': equity/initial_bankroll,
+               'realized_pnl': realized_pnl, 'final_open_position_cost': locked,
+               'drawdown_valuation': 'cash plus open-position cost; not mark-to-market',
+               'minimum_order_unaffordable_decisions': unable_minimum,
                'log_growth': float(np.log(equity/initial_bankroll)) if equity > 0 else None,
                'max_drawdown': float(-drawdown.min()), 'number_trades': len(tr),
                'fraction_markets_traded': len(seen)/max(data.condition_id.nunique(), 1),
@@ -237,17 +266,22 @@ def backtest(data, config, live_config, initial_bankroll=INITIAL_BANKROLL):
 def evaluate_walk_forward(data, destination):
     destination = Path(destination)
     destination.mkdir(parents=True, exist_ok=True)
-    live_config = json.loads(Path('configs/runtime/trade_policy_project.json').read_text())['assets']['BTC']
-    live_profile = json.loads(Path('configs/live.json').read_text())['profiles']['polymarket_live']
+    runtime = load_runtime_asset_settings('BTC')
+    artifacts = load_runtime_artifact_paths(asset='BTC')
+    live_config = load_trade_policy_runtime_config(artifacts['trade_policy_path'], asset='BTC')
+    live_profile = load_live_profile(runtime['live_profile'], dataset_asset='BTC')
+    live_config['threshold'] = json.loads(Path(artifacts['model_meta_path']).read_text())['prediction_threshold']
     live_config.update({key: live_profile['polymarket_' + key] for key in
                         ['no_trade_last_seconds', 'order_price_cap', 'max_exposure_usdc']})
-    reports = []
+    reports, future_blocks = [], []
     for fold, past, future in chronological_splits(data):
         # Inner calibration training -> policy selection. Outer future stays untouched.
         cutoff = past.decision_available_at.iloc[int(len(past)*.6)]
         calibration_past = past[past.resolved_at_utc < cutoff]
         selection = past[past.decision_available_at >= cutoff].copy()
-        choices = ['none', 'platt'] + (['isotonic'] if len(calibration_past) >= MIN_ISOTONIC_ROWS else [])
+        choices = ['none']
+        if len(calibration_past) >= 100 and calibration_past.target_polymarket_up.nunique() == 2:
+            choices += ['platt'] + (['isotonic'] if len(calibration_past) >= MIN_ISOTONIC_ROWS else [])
         calibration_selection = {}
         for method in choices:
             model = fit_calibrator(calibration_past, method, selection.decision_available_at.min())
@@ -268,14 +302,10 @@ def evaluate_walk_forward(data, destination):
                 model = fitted
         future = future.copy()
         future['p_calibrated'] = calibrate(model, future.p_model_up)
+        future['evaluation_fold'] = fold
+        future['selected_policy'] = selected_policy['name']
+        future_blocks.append(future)
         future.to_parquet(destination / f'fold_{fold}_calibrated.parquet', index=False)
-        results = {}
-        for config in BASELINES:
-            summary, trades, path = backtest(future, config, live_config)
-            stem = f'fold_{fold}_{config["name"]}'
-            trades.to_parquet(destination / (stem + '_trades.parquet'), index=False)
-            path.to_parquet(destination / (stem + '_bankroll.parquet'), index=False)
-            results[config['name']] = summary
         report = {'fold': fold, 'calibration_train_rows': len(calibration_past), 'selection_rows': len(selection),
                   'past_rows': len(past), 'evaluation_rows': len(future),
                   'evaluation_start_utc': str(future.decision_available_at.min()),
@@ -283,21 +313,26 @@ def evaluate_walk_forward(data, destination):
                   'calibration_labels_available_before': str(past.resolved_at_utc.max()),
                   'selected_calibration': selected_method, 'selected_policy': selected_policy['name'],
                   'selection_calibration': calibration_selection, 'future_calibration': calibration_future,
-                  'policy_selection': selection_results, 'future_baselines': results,
-                  'selected_policy_future': results[selected_policy['name']],
+                  'policy_selection': selection_results,
                   'live_replication_limits': 'Same EV/direction and build_trade_intent sizing; historical feeSchedule, ask and observed size. Current tick slippage is an order limit, not an assumed fill. No live withdrawal cap, redeem delays or actual fills reconstructed.',
-                  'bankroll_contract': 'Each outer fold/variant starts with $100; stake locked until official resolution. Cost basis equity, no invented mark-to-market.'}
+                  'bankroll_contract': 'One continuous $100 portfolio per variant/scenario across all outer folds; settlement available at max(official resolution, expiry), no redemption delay. Cost basis equity is not mark-to-market.'}
         write_json(destination / f'fold_{fold}_report.json', report)
         reports.append(report)
         print(f'Policy fold {fold}: {len(future)} future markets, selected {selected_policy["name"]}', flush=True)
-    result = {'folds': reports, 'aggregate_baselines': {}}
-    for config in BASELINES:
+    continuous = pd.concat(future_blocks, ignore_index=True)
+    result = {'folds': reports, 'continuous_baselines': {},
+              'evaluation_rows': len(continuous),
+              'evaluation_start_utc': str(continuous.decision_available_at.min()),
+              'evaluation_end_utc': str(continuous.decision_available_at.max()),
+              'evaluation_source_coverage': {source: {'rows': len(g),
+                  'start_utc': str(g.decision_available_at.min()), 'end_utc': str(g.decision_available_at.max())}
+                  for source, g in continuous.groupby('source')},
+              'live_config': live_config}
+    for config in BASELINES + [{'name': 'past_selected_policy', 'kind': 'selected'}]:
         name = config['name']
-        parts = [r['future_baselines'][name] for r in reports]
-        result['aggregate_baselines'][name] = {
-            'sum_pnl_independent_fold_bankrolls': sum(p['net_pnl'] for p in parts),
-            'sum_trades': sum(p['number_trades'] for p in parts),
-            'mean_return_multiple': float(np.mean([p['return_multiple'] for p in parts])),
-            'sum_log_growth': sum(p['log_growth'] for p in parts if p['log_growth'] is not None)}
+        summary, trades, path = backtest(continuous, config, live_config)
+        trades.to_parquet(destination / (name + '_trades.parquet'), index=False)
+        path.to_parquet(destination / (name + '_bankroll.parquet'), index=False)
+        result['continuous_baselines'][name] = summary
     write_json(destination / 'walk_forward.json', result)
     return result
