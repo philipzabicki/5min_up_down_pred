@@ -516,7 +516,7 @@ Paired differences, left minus right; negative favours the model added on the le
 | 2 | market_plus_oof | market_only | [-5.279514116031017e-05, 3.447720497159215e-05] | [-2.461873763717588e-05, 1.685132163525363e-05] | 9407 | 3 |
 | 2 | market_plus_oof_context | market_plus_oof | [-0.000378426351194226, 0.00027527217297007366] | [-0.00018368878043910494, 0.000140034981070546] | 9407 | 3 |
 
-Interpretation: the point log-loss changes from adding OOF are small at every source latency; all paired 95% block-bootstrap intervals include zero. This sample therefore does not establish incremental settlement-prediction value from the source OOF beyond the contemporaneous Kacho book. Raw OOF alone also scores worse than the normalized-mid and market-only baselines here. This is retrospective evidence, not a prospective guarantee.
+Interpretation: at 0s, the paired Brier interval for market_plus_oof minus market_only excludes zero and favors adding OOF, while the log-loss interval includes zero. At 1s and 2s, both metric intervals include zero. The small 0s Brier improvement does not establish profitability or rule out predictive value on the Binance target. This sample does not establish stable incremental settlement-prediction value beyond the contemporaneous Kacho book. Raw OOF alone also scores worse than the normalized-mid and market-only baselines here. This is retrospective evidence, not a prospective guarantee.
 
 Inner-fold log-loss selection and outer-fold scores are stored fold by fold. Fixed probability calibration bins and market price/spread/direction/source disagreement subgroup tables are diagnostic and do not determine a new rule. AUC is secondary.
 
@@ -594,3 +594,222 @@ python -m unittest discover -s tests -p test_polymarket_adaptation.py
 ```
 
 All variants are research only. Live settings and run.py are unchanged.
+
+<!-- BTC_OOF_TARGET_AUDIT_START -->
+# BTC OOF target, czas i latencja: audyt
+
+Fingerprint audytu: `8fe7f63dc4d0318de138bfd850305edd963a93220c755e00b33cbaf79578d7b5`; reprodukcja: `python audit_btc_oof.py`.
+
+## Tabela 1. Identyczne 9 407 okien BTC 5m: Binance i settlement Polymarket
+
+| Target | UP | Prior rows | Prior UP | Model log loss (95% CI) | Prior log loss | Model Brier (95% CI) | Prior Brier | AUC (95% CI) | Accuracy |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Binance | 0.5015 | 6270 | 0.5029 | 0.690812 [0.689570, 0.691824] | 0.693146 | 0.248837 [0.248220, 0.249339] | 0.249999 | 0.5368 [0.5289, 0.5450] | 0.5260 |
+| Polymarket | 0.5008 | 6269 | 0.5053 | 0.692584 [0.691700, 0.693338] | 0.693187 | 0.249717 [0.249279, 0.250092] | 0.250020 | 0.5238 [0.5178, 0.5306] | 0.5165 |
+
+Różnica etykiet (Polymarket − Binance), przy tych samych predykcjach; ujemny wynik poprawia scoring Polymarket:
+
+| Zgodne etykiety | Niezgodne | Niezgodne % | Δ log loss / okno (95% CI) | Suma Δ log loss | Δ Brier / okno (95% CI) | Suma Δ Brier |
+| --- | --- | --- | --- | --- | --- | --- |
+| 9002 | 405 | 4.31% | 0.001772 [0.000972, 0.002607] | 16.668836 | 0.000880 [0.000482, 0.001295] | 8.279729 |
+
+Przejścia etykiet; pewność oznacza średnie |p−0,5|:
+
+| Przejście | N | Udział | Śr. p(UP) | Mediana p(UP) | Pewność | Suma Δ log loss | Suma Δ Brier |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Binance UP -> Polymarket DOWN | 206 | 2.19% | 0.5079 | 0.5075 | 0.0281 | 6.575227 | 3.267234 |
+| Binance DOWN -> Polymarket UP | 199 | 2.12% | 0.4874 | 0.4884 | 0.0312 | 10.093609 | 5.012495 |
+
+Wszystkie 9 407 prawdopodobieństw są identyczne dla obu targetów; wagi treningowe są stałe (0.4625) w fazie wejścia, więc wyniki ważone i nieważone na tej próbie są równe.
+
+Rozkład p(UP):
+
+| Min | P10 | P25 | Mediana | P75 | P90 | P95 | P99 | Max |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0.3775 | 0.4581 | 0.4798 | 0.5026 | 0.5252 | 0.5447 | 0.5580 | 0.5808 | 0.6227 |
+
+Kalibracja (błąd = średnie p(UP) − zaobserwowany udział UP):
+
+| Target | Bin p(UP) | N | Średnie p | Observed UP | Błąd |
+| --- | --- | --- | --- | --- | --- |
+| Binance | (-0.001, 0.4] | 14 | 0.3899 | 0.2857 | 0.1042 |
+| Binance | (0.4, 0.45] | 614 | 0.4357 | 0.4267 | 0.0090 |
+| Binance | (0.45, 0.5] | 3804 | 0.4799 | 0.4824 | -0.0025 |
+| Binance | (0.5, 0.55] | 4253 | 0.5213 | 0.5168 | 0.0045 |
+| Binance | (0.55, 0.6] | 710 | 0.5643 | 0.5817 | -0.0174 |
+| Binance | (0.6, 1.0] | 12 | 0.6073 | 0.5000 | 0.1073 |
+| Polymarket | (-0.001, 0.4] | 14 | 0.3899 | 0.3571 | 0.0328 |
+| Polymarket | (0.4, 0.45] | 614 | 0.4357 | 0.4642 | -0.0285 |
+| Polymarket | (0.45, 0.5] | 3804 | 0.4799 | 0.4869 | -0.0070 |
+| Polymarket | (0.5, 0.55] | 4253 | 0.5213 | 0.5088 | 0.0125 |
+| Polymarket | (0.55, 0.6] | 710 | 0.5643 | 0.5648 | -0.0005 |
+| Polymarket | (0.6, 1.0] | 12 | 0.6073 | 0.3333 | 0.2740 |
+
+
+| Target | ECE | MCE |
+| --- | --- | --- |
+| Binance | 0.0052 | 0.1073 |
+| Polymarket | 0.0107 | 0.2740 |
+
+## Tabela 2. Jakość na celu Binance w czasie i według fazy wejścia
+
+| Zakres | N | UP unweighted | UP weighted | LL unweighted (95% CI) | LL weighted | Brier unweighted | Brier weighted | AUC unweighted | AUC weighted | Accuracy unweighted | Accuracy weighted |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| all OOF minutes | 1660030 | 0.5013 | 0.5014 | 0.690447 [0.690255, 0.690701] | 0.690433 | 0.2487 | 0.2486 | 0.5410 | 0.5411 | 0.5287 | 0.5287 |
+| live entry phase 4 | 332006 | 0.5016 | 0.5016 | 0.690404 [0.690103, 0.690693] | 0.690404 | 0.2486 | 0.2486 | 0.5412 | 0.5412 | 0.5289 | 0.5289 |
+| Kacho available range, all phases | 78501 | 0.5010 | 0.5013 | 0.690648 [0.690091, 0.691261] | 0.690658 | 0.2488 | 0.2488 | 0.5399 | 0.5393 | 0.5275 | 0.5271 |
+| Kacho available range, phase 4 | 15701 | 0.5021 | 0.5021 | 0.690677 [0.689899, 0.691474] | 0.690677 | 0.2488 | 0.2488 | 0.5383 | 0.5383 | 0.5264 | 0.5264 |
+| 9407 market-value rows, Binance target | 9407 | 0.5015 | 0.5015 | 0.690812 [0.689543, 0.691823] | 0.690812 | 0.2488 | 0.2488 | 0.5368 | 0.5368 | 0.5260 | 0.5260 |
+
+Historia kwartalna oraz 12 ostatnich miesięcy (wyniki punktowe; pełne fazy i kolumny w `temporal_metrics.csv`). 2026Q4 i październik 2026 są częściowe. Główne przedziały powyżej używają 3-dniowego sparowanego bootstrapu blokowego, który zachowuje zależność sąsiednich targetów.
+
+| Okres | Data | Zakres | N | LL unweighted | Prior LL | LL weighted | Brier unweighted | Brier weighted | AUC unweighted | AUC weighted | Acc unweighted | Acc weighted |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| month | 2025-11 | all_minutes | 43200 | 0.691514 | 0.693180 | 0.691344 | 0.249185 | 0.249101 | 0.5325 | 0.5340 | 0.5229 | 0.5232 |
+| month | 2025-11 | live_entry | 8640 | 0.690996 | 0.693178 | 0.690996 | 0.248928 | 0.248928 | 0.5371 | 0.5371 | 0.5240 | 0.5240 |
+| month | 2025-12 | all_minutes | 44640 | 0.691698 | 0.693136 | 0.691321 | 0.249276 | 0.249088 | 0.5308 | 0.5342 | 0.5238 | 0.5257 |
+| month | 2025-12 | live_entry | 8928 | 0.690548 | 0.693123 | 0.690548 | 0.248703 | 0.248703 | 0.5409 | 0.5409 | 0.5295 | 0.5295 |
+| month | 2026-01 | all_minutes | 44640 | 0.690659 | 0.693167 | 0.690551 | 0.248758 | 0.248705 | 0.5412 | 0.5417 | 0.5272 | 0.5278 |
+| month | 2026-01 | live_entry | 8928 | 0.690331 | 0.693154 | 0.690331 | 0.248596 | 0.248596 | 0.5426 | 0.5426 | 0.5289 | 0.5289 |
+| month | 2026-02 | all_minutes | 40320 | 0.691179 | 0.693140 | 0.691047 | 0.249018 | 0.248952 | 0.5346 | 0.5365 | 0.5232 | 0.5261 |
+| month | 2026-02 | live_entry | 8064 | 0.690778 | 0.693127 | 0.690778 | 0.248817 | 0.248817 | 0.5400 | 0.5400 | 0.5320 | 0.5320 |
+| month | 2026-03 | all_minutes | 44640 | 0.690647 | 0.693171 | 0.690761 | 0.248753 | 0.248810 | 0.5417 | 0.5405 | 0.5289 | 0.5292 |
+| month | 2026-03 | live_entry | 8928 | 0.690994 | 0.693166 | 0.690994 | 0.248927 | 0.248927 | 0.5381 | 0.5381 | 0.5299 | 0.5299 |
+| month | 2026-04 | all_minutes | 43200 | 0.690566 | 0.693126 | 0.690664 | 0.248713 | 0.248763 | 0.5399 | 0.5385 | 0.5268 | 0.5251 |
+| month | 2026-04 | live_entry | 8640 | 0.690865 | 0.693112 | 0.690865 | 0.248864 | 0.248864 | 0.5356 | 0.5356 | 0.5216 | 0.5216 |
+| month | 2026-05 | all_minutes | 44640 | 0.691191 | 0.693152 | 0.691009 | 0.249024 | 0.248933 | 0.5351 | 0.5368 | 0.5250 | 0.5263 |
+| month | 2026-05 | live_entry | 8928 | 0.690635 | 0.693148 | 0.690635 | 0.248747 | 0.248747 | 0.5403 | 0.5403 | 0.5290 | 0.5290 |
+| month | 2026-06 | all_minutes | 43200 | 0.691465 | 0.693202 | 0.691519 | 0.249160 | 0.249187 | 0.5346 | 0.5343 | 0.5222 | 0.5225 |
+| month | 2026-06 | live_entry | 8640 | 0.691632 | 0.693202 | 0.691632 | 0.249243 | 0.249243 | 0.5336 | 0.5336 | 0.5231 | 0.5231 |
+| month | 2026-07 | all_minutes | 44640 | 0.691817 | 0.693181 | 0.691673 | 0.249336 | 0.249264 | 0.5298 | 0.5309 | 0.5209 | 0.5210 |
+| month | 2026-07 | live_entry | 8928 | 0.691377 | 0.693163 | 0.691377 | 0.249117 | 0.249117 | 0.5332 | 0.5332 | 0.5213 | 0.5213 |
+| month | 2026-08 | all_minutes | 44640 | 0.691455 | 0.693158 | 0.691547 | 0.249155 | 0.249201 | 0.5330 | 0.5321 | 0.5217 | 0.5213 |
+| month | 2026-08 | live_entry | 8928 | 0.691736 | 0.693178 | 0.691736 | 0.249296 | 0.249296 | 0.5303 | 0.5303 | 0.5205 | 0.5205 |
+| month | 2026-09 | all_minutes | 43200 | 0.691645 | 0.693164 | 0.691296 | 0.249250 | 0.249077 | 0.5305 | 0.5332 | 0.5204 | 0.5214 |
+| month | 2026-09 | live_entry | 8640 | 0.690583 | 0.693150 | 0.690583 | 0.248722 | 0.248722 | 0.5386 | 0.5386 | 0.5236 | 0.5236 |
+| month | 2026-10 | all_minutes | 1433 | 0.695446 | 0.693044 | 0.694568 | 0.251143 | 0.250705 | 0.4984 | 0.5082 | 0.5045 | 0.5157 |
+| month | 2026-10 | live_entry | 286 | 0.692768 | 0.693068 | 0.692768 | 0.249806 | 0.249806 | 0.5277 | 0.5277 | 0.5385 | 0.5385 |
+| quarter | 2023Q3 | all_minutes | 80357 | 0.688612 | 0.693160 | 0.688708 | 0.247738 | 0.247786 | 0.5560 | 0.5551 | 0.5430 | 0.5417 |
+| quarter | 2023Q3 | live_entry | 16072 | 0.688905 | 0.693161 | 0.688905 | 0.247885 | 0.247885 | 0.5532 | 0.5532 | 0.5389 | 0.5389 |
+| quarter | 2023Q4 | all_minutes | 132480 | 0.688618 | 0.693102 | 0.689023 | 0.247744 | 0.247945 | 0.5541 | 0.5517 | 0.5395 | 0.5377 |
+| quarter | 2023Q4 | live_entry | 26496 | 0.689851 | 0.693127 | 0.689851 | 0.248356 | 0.248356 | 0.5468 | 0.5468 | 0.5340 | 0.5340 |
+| quarter | 2024Q1 | all_minutes | 131040 | 0.690082 | 0.693087 | 0.690365 | 0.248473 | 0.248614 | 0.5442 | 0.5421 | 0.5303 | 0.5287 |
+| quarter | 2024Q1 | live_entry | 26208 | 0.690944 | 0.693112 | 0.690944 | 0.248902 | 0.248902 | 0.5378 | 0.5378 | 0.5253 | 0.5253 |
+| quarter | 2024Q2 | all_minutes | 131040 | 0.689155 | 0.693119 | 0.689362 | 0.248010 | 0.248114 | 0.5515 | 0.5499 | 0.5375 | 0.5364 |
+| quarter | 2024Q2 | live_entry | 26208 | 0.689785 | 0.693118 | 0.689785 | 0.248325 | 0.248325 | 0.5466 | 0.5466 | 0.5341 | 0.5341 |
+| quarter | 2024Q3 | all_minutes | 132480 | 0.689239 | 0.693119 | 0.689166 | 0.248055 | 0.248019 | 0.5492 | 0.5497 | 0.5345 | 0.5347 |
+| quarter | 2024Q3 | live_entry | 26496 | 0.689017 | 0.693120 | 0.689017 | 0.247945 | 0.247945 | 0.5506 | 0.5506 | 0.5352 | 0.5352 |
+| quarter | 2024Q4 | all_minutes | 132480 | 0.690366 | 0.693173 | 0.690217 | 0.248615 | 0.248542 | 0.5408 | 0.5417 | 0.5277 | 0.5285 |
+| quarter | 2024Q4 | live_entry | 26496 | 0.689913 | 0.693148 | 0.689913 | 0.248391 | 0.248391 | 0.5435 | 0.5435 | 0.5302 | 0.5302 |
+| quarter | 2025Q1 | all_minutes | 129600 | 0.690830 | 0.693159 | 0.690770 | 0.248844 | 0.248815 | 0.5379 | 0.5382 | 0.5264 | 0.5261 |
+| quarter | 2025Q1 | live_entry | 25920 | 0.690649 | 0.693169 | 0.690649 | 0.248755 | 0.248755 | 0.5388 | 0.5388 | 0.5255 | 0.5255 |
+| quarter | 2025Q2 | all_minutes | 131040 | 0.691110 | 0.693152 | 0.690770 | 0.248984 | 0.248815 | 0.5353 | 0.5381 | 0.5247 | 0.5272 |
+| quarter | 2025Q2 | live_entry | 26208 | 0.690073 | 0.693149 | 0.690073 | 0.248468 | 0.248468 | 0.5437 | 0.5437 | 0.5324 | 0.5324 |
+| quarter | 2025Q3 | all_minutes | 132480 | 0.691922 | 0.693183 | 0.691833 | 0.249389 | 0.249344 | 0.5282 | 0.5290 | 0.5195 | 0.5197 |
+| quarter | 2025Q3 | live_entry | 26496 | 0.691651 | 0.693162 | 0.691651 | 0.249253 | 0.249253 | 0.5308 | 0.5308 | 0.5200 | 0.5200 |
+| quarter | 2025Q4 | all_minutes | 132480 | 0.691581 | 0.693168 | 0.691352 | 0.249218 | 0.249104 | 0.5322 | 0.5344 | 0.5234 | 0.5246 |
+| quarter | 2025Q4 | live_entry | 26496 | 0.690882 | 0.693159 | 0.690882 | 0.248870 | 0.248870 | 0.5388 | 0.5388 | 0.5270 | 0.5270 |
+| quarter | 2026Q1 | all_minutes | 129600 | 0.690817 | 0.693161 | 0.690778 | 0.248837 | 0.248818 | 0.5393 | 0.5395 | 0.5265 | 0.5277 |
+| quarter | 2026Q1 | live_entry | 25920 | 0.690699 | 0.693149 | 0.690699 | 0.248779 | 0.248779 | 0.5401 | 0.5401 | 0.5302 | 0.5302 |
+| quarter | 2026Q2 | all_minutes | 131040 | 0.691075 | 0.693160 | 0.691064 | 0.248966 | 0.248961 | 0.5365 | 0.5365 | 0.5246 | 0.5246 |
+| quarter | 2026Q2 | live_entry | 26208 | 0.691040 | 0.693153 | 0.691040 | 0.248949 | 0.248949 | 0.5365 | 0.5365 | 0.5246 | 0.5246 |
+| quarter | 2026Q3 | all_minutes | 132480 | 0.691639 | 0.693169 | 0.691508 | 0.249247 | 0.249182 | 0.5312 | 0.5321 | 0.5210 | 0.5212 |
+| quarter | 2026Q3 | live_entry | 26496 | 0.691239 | 0.693165 | 0.691239 | 0.249049 | 0.249049 | 0.5340 | 0.5340 | 0.5218 | 0.5218 |
+| quarter | 2026Q4 | all_minutes | 1433 | 0.695446 | 0.693044 | 0.694568 | 0.251143 | 0.250705 | 0.4984 | 0.5082 | 0.5045 | 0.5157 |
+| quarter | 2026Q4 | live_entry | 286 | 0.692768 | 0.693068 | 0.692768 | 0.249806 | 0.249806 | 0.5277 | 0.5277 | 0.5385 | 0.5385 |
+
+Foldy modelu głównego; metryki ważone zgodnie z treningiem:
+
+| Fold | OOF N | Zakres UTC | LL | Brier | AUC | Accuracy | OOF w Kacho | Wspólne 9 407 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | 166003 | 2023-08-06 04:43:00+00:00 – 2023-11-29 11:25:00+00:00 | 0.688825 | 0.247846 | 0.5534 | 0.539694 | 0 | 0 |
+| 1 | 166003 | 2023-11-29 11:26:00+00:00 – 2024-03-23 18:08:00+00:00 | 0.690115 | 0.248489 | 0.5440 | 0.530400 | 0 | 0 |
+| 2 | 166003 | 2024-03-23 18:09:00+00:00 – 2024-07-17 00:51:00+00:00 | 0.689604 | 0.248234 | 0.5481 | 0.534720 | 0 | 0 |
+| 3 | 166003 | 2024-07-17 00:52:00+00:00 – 2024-11-09 07:34:00+00:00 | 0.688981 | 0.247927 | 0.5507 | 0.535848 | 0 | 0 |
+| 4 | 166003 | 2024-11-09 07:35:00+00:00 – 2025-03-04 14:17:00+00:00 | 0.690885 | 0.248873 | 0.5371 | 0.524915 | 0 | 0 |
+| 5 | 166003 | 2025-03-04 14:18:00+00:00 – 2025-06-27 21:00:00+00:00 | 0.690738 | 0.248799 | 0.5384 | 0.527006 | 0 | 0 |
+| 6 | 166003 | 2025-06-27 21:01:00+00:00 – 2025-10-21 03:43:00+00:00 | 0.691696 | 0.249276 | 0.5306 | 0.521184 | 0 | 0 |
+| 7 | 166003 | 2025-10-21 03:44:00+00:00 – 2026-02-13 10:26:00+00:00 | 0.691047 | 0.248952 | 0.5371 | 0.525819 | 0 | 0 |
+| 8 | 166003 | 2026-02-13 10:27:00+00:00 – 2026-06-08 17:09:00+00:00 | 0.690972 | 0.248915 | 0.5372 | 0.525899 | 78501 | 9407 |
+| 9 | 166003 | 2026-06-08 17:10:00+00:00 – 2026-10-01 23:52:00+00:00 | 0.691465 | 0.249161 | 0.5329 | 0.521969 | 0 | 0 |
+
+Wynik według wieku modelu od ostatniego wiersza treningowego:
+
+| Wiek | N | LL unweighted | LL weighted | Brier | AUC |
+| --- | --- | --- | --- | --- | --- |
+| 0-7 days | 100800 | 0.689856 | 0.689922 | 0.248361 | 0.5450 |
+| 7-30 days | 331200 | 0.690552 | 0.690502 | 0.248705 | 0.5410 |
+| 30-60 days | 432000 | 0.690224 | 0.690178 | 0.248543 | 0.5427 |
+| 60-90 days | 432000 | 0.690471 | 0.690528 | 0.248666 | 0.5407 |
+| 90+ days | 364030 | 0.690751 | 0.690700 | 0.248806 | 0.5382 |
+
+## Tabela 3. Zmierzone etapy live BTC
+
+| Run | Etap | Wszystkie: n; med/p90/p95/p99 | Pierwsza decyzja | Po pierwszej decyzji |
+| --- | --- | --- | --- | --- |
+| 20260620_052109 | price_event_from_minute_open_ms | n=527; 4.00/12.00/14.00/17.74 ms | n=1; 10.00/10.00/10.00/10.00 ms | n=526; 4.00/12.00/14.00/17.75 ms |
+| 20260620_052109 | volume_event_from_minute_open_ms | n=527; 191.00/648.40/865.40/1540.12 ms | n=1; 624.00/624.00/624.00/624.00 ms | n=526; 191.00/649.00/866.00/1540.50 ms |
+| 20260620_052109 | price_received_from_minute_open_ms | n=527; 123.12/130.58/133.18/140.13 ms | n=1; 129.18/129.18/129.18/129.18 ms | n=526; 123.12/130.59/133.18/140.14 ms |
+| 20260620_052109 | volume_received_from_minute_open_ms | n=527; 318.94/773.06/996.59/1667.34 ms | n=1; 753.84/753.84/753.84/753.84 ms | n=526; 318.75/773.30/997.42/1667.70 ms |
+| 20260620_052109 | both_required_inputs_ready_from_minute_open_ms | n=527; 321.38/773.06/996.59/1667.34 ms | n=1; 753.84/753.84/753.84/753.84 ms | n=526; 320.16/773.30/997.42/1667.70 ms |
+| 20260620_052109 | feature_preparation_ms | n=527; 0.43/0.62/0.66/1.01 ms | n=1; 0.62/0.62/0.62/0.62 ms | n=526; 0.43/0.62/0.66/1.01 ms |
+| 20260620_052109 | feature_vector_construction_ms | n=527; 31.02/44.20/45.66/49.53 ms | n=1; 65.44/65.44/65.44/65.44 ms | n=526; 31.02/44.14/45.57/48.91 ms |
+| 20260620_052109 | model_inference_ms | n=527; 1.36/1.55/1.75/2.51 ms | n=1; 1.75/1.75/1.75/1.75 ms | n=526; 1.36/1.55/1.75/2.51 ms |
+| 20260620_052109 | signal_ready_from_window_start_ms_wall_clock | n=527; 357.02/811.41/1033.15/1702.06 ms | n=1; 827.12/827.12/827.12/827.12 ms | n=526; 356.41/808.42/1033.51/1702.38 ms |
+| 20260620_052109 | prefetched_quote_snapshot_age_at_use_ms | n=512; 1497.47/1911.29/2044.23/2335.88 ms | n=1; 1916.70/1916.70/1916.70/1916.70 ms | n=511; 1497.20/1909.50/2044.28/2335.93 ms |
+| 20260620_052109 | quote_snapshot_lookup_or_refetch_ms | n=527; 0.07/0.11/0.13/53.06 ms | n=1; 0.08/0.08/0.08/0.08 ms | n=526; 0.07/0.11/0.13/53.07 ms |
+| 20260620_052109 | policy_decision_computation_ms | n=526; 0.09/0.14/0.17/0.21 ms | n=1; 0.12/0.12/0.12/0.12 ms | n=525; 0.09/0.15/0.17/0.21 ms |
+| 20260620_052109 | decision_ready_from_window_start_ms_wall_clock | n=526; 357.50/812.28/1033.73/1780.79 ms | n=1; 827.38/827.38/827.38/827.38 ms | n=525; 357.24/808.72/1034.09/1780.87 ms |
+| 20260620_052109 | submit_call_including_response_ms | n=111; 403.15/520.59/631.26/1001.86 ms | n=0; n/a/n/a/n/a/n/a ms | n=111; 403.15/520.59/631.26/1001.86 ms |
+| 20260620_052109 | execution_stage_including_lookup_policy_and_submission_ms | n=527; 0.21/405.18/448.60/818.19 ms | n=1; 0.22/0.22/0.22/0.22 ms | n=526; 0.21/405.21/448.87/818.27 ms |
+| 20260620_052109 | cycle_complete_from_window_start_ms_wall_clock | n=527; 475.28/973.71/1270.76/1791.68 ms | n=1; 827.41/827.41/827.41/827.41 ms | n=526; 474.71/973.81/1271.28/1791.80 ms |
+
+W source-latency 1 s i 2 s oraz dodatkowych opóźnieniach wykonania +1 s/+2 s z market_value użyto scenariuszy wrażliwości. Source-latency 0 s jest najbliższym scenariuszem operacyjnym, ale nie dokładnym pomiarem: historyczna gotowość sygnału ma opóźnienie wall-clock i kwotowania Kacho są próbkowane co sekundę. Te dane nie rozróżniają wykonania po 100 i 300 ms.
+
+### Jawne przykłady mapowania targetu
+
+| Przypadek | Opened UTC | Świeca wejściowa UTC | Cena początkowa UTC | Cena końcowa UTC | Cechy dostępne od | Okno Polymarket UTC | Binance zapis / odtworzony | Settlement PM | p(UP) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ordinary_aligned_window | 2026-04-15 17:04:00+00:00 | [2026-04-15T17:04:00+00:00, 2026-04-15T17:05:00+00:00) | 2026-04-15 17:05:00+00:00 = 74081.66 | 2026-04-15 17:10:00+00:00 = 74060.84 | 2026-04-15 17:05:00+00:00 | [2026-04-15 17:05:00+00:00, 2026-04-15 17:10:00+00:00) | 0.0 / 0.0 | 0.0 | 0.5330 |
+| utc_day_boundary | 2026-04-15 23:59:00+00:00 | [2026-04-15T23:59:00+00:00, 2026-04-16T00:00:00+00:00) | 2026-04-16 00:00:00+00:00 = 74827.93 | 2026-04-16 00:05:00+00:00 = 74675.71 | 2026-04-16 00:00:00+00:00 | [2026-04-16 00:00:00+00:00, 2026-04-16 00:05:00+00:00) | 0.0 / 0.0 | 0.0 | 0.5373 |
+| binance_up_polymarket_down | 2026-04-15 21:44:00+00:00 | [2026-04-15T21:44:00+00:00, 2026-04-15T21:45:00+00:00) | 2026-04-15 21:45:00+00:00 = 74763.78 | 2026-04-15 21:50:00+00:00 = 74764.55 | 2026-04-15 21:45:00+00:00 | [2026-04-15 21:45:00+00:00, 2026-04-15 21:50:00+00:00) | 1.0 / 1.0 | 0.0 | 0.4183 |
+| binance_down_polymarket_up | 2026-04-16 01:54:00+00:00 | [2026-04-16T01:54:00+00:00, 2026-04-16T01:55:00+00:00) | 2026-04-16 01:55:00+00:00 = 74674.3 | 2026-04-16 02:00:00+00:00 = 74673.92 | 2026-04-16 01:55:00+00:00 | [2026-04-16 01:55:00+00:00, 2026-04-16 02:00:00+00:00) | 0.0 / 0.0 | 1.0 | 0.4627 |
+
+## Ustalenia audytu
+
+- OOF: `D:\Cloud\filips19\github\5min_up_down_pred\data\datasets\modeling\BTC\BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet`; SHA256 `51ea42bf9527b470340deab8a2578e61320ade34f4d42bca9646b7d9bc8c15fd`; kolumna `oof_pred_proba_up`; 1,660,030 predykcji od 2023-08-06 04:43:00+00:00 do 2026-10-01 23:52:00+00:00.
+- Metadane: `D:\Cloud\filips19\github\5min_up_down_pred\data\models\BTC\20261002_041540\lgbm_meta_20261002_041540.json`; target `target_5m_candle_up`; powiązanie OOF w metadanych i manifest zgodne: True / True; foldy odtworzono z zapisanych zakresów wierszy.
+- Wagi: `target_5m_weight`; faza wejścia minuta % 5 = 4 ma wagę 0.4625, pozostałe fazy po 0.134375; średnia waga OOF 0.2.
+- OOF mapuje się ciągle na pozycje model-ready 1660030–3320059 (True); etykiet t+5 w model-ready jest 3,320,069; poprawne etykiety po ostatnim OOF: 9.
+- Reprodukcja metryk CV zgodna do 1e-10: True. Raport treningowy to średnia arytmetyczna metryk foldów ważonych osobno; zagregowany wynik puli OOF jest raportowany oddzielnie.
+- Target: dokładny lookup `Opened + 5 min`; Close przyszłej świecy ≥ Close bieżącej oznacza UP, remisy UP. Luki minutowe w źródle: 0; brak dokładnego endpointu t+5: 5 (0 wewnątrz historii). Braki są pomijane, bez przesuwania o pięć wierszy.
+- Zgodność historycznego źródła treningowego: The model metadata stores output path, target, variant, counts, weights, and fold row ranges, but not a training-input content hash or OOF row-level fold column. This audit verifies all OOF timestamps, base OHLCV, targets, and weights against the current saved modeling input and reconstructs fold IDs from stored ranges; it cannot cryptographically prove the historical training input contents.
+- Ostatni eksperyment Polymarket: przy źródłowym opóźnieniu 0 s przedział Brier dla market_plus_oof − market_only wyklucza zero, a log loss obejmuje zero; przy 1 s i 2 s oba przedziały obejmują zero. Mała poprawa Brier nie potwierdza rentowności ani nie obala predykcyjności względem celu Binance.
+- Ceny: proxy treningowe to BTCUSD Coin-M index Close, a settlement jest oficjalnym wynikiem Polymarket. Cache Chainlink ma 1426 raportów z zakresu 2026-03-21 18:51:45+00:00–2026-03-21 21:26:57+00:00; pokrycie Kacho: False. Brak pokrycia nie pozwala rozłożyć różnic na proxy źródła ceny kontra sampling settlementu.
+- OOF `Opened` bez strefy został zinterpretowany jako UTC zgodnie z kontraktem; czasy Polymarket są UTC, a ceny to close świec 1m przy granicach otwarcia i wygaśnięcia. Live czeka na zamkniętą świecę Binance (flaga kline `x=true`); target nie korzysta z niezakończonego close.
+- Live: 1 szczegółowa sesja (20260620_052109); logowane połączenia WS: 2, reconnect/disconnect: 0; model sesji zgodny z aktualnym modelem: False. Próby zleceń: 111; dodatni filled stake zapisany dla 89, wartość fillu brak dla 0. Lookup źródła: {'prefetched_snapshot': 512, 'stale_prefetch_refetch': 13, 'missing': 1, 'future_error_refetch': 1}. Brak osobnych znaczników request send, accept/ack i fill time; brak czasu startu procesu/modelu.
+- Czas etapu feature/inference/policy/lookup/submit/execution pochodzi z monotonicznego perf_counter; opóźnienia granicy okna i gotowości sygnału porównują czas Binance/UTC z zegarem hosta bez telemetrii synchronizacji. Submit obejmuje synchroniczne wywołanie i odpowiedź, nie dowodzi fillu. Wiek snapshotu aplikacji nie mierzy wieku feedu CLOB. Nie sumowano etapów.
+- Wiersz `Pierwsza decyzja` rozdziela tylko pierwszą predykcję od kolejnych, nie mierzy ładowania modelu/cold startu. Nie znaleziono reconnectów. Dodatkowe +1 s/+2 s po obserwacji quote nie są zmierzonym czasem live.
+
+## Główny następny eksperyment
+
+**Zbadać źródło ceny i semantykę settlementu na tych samych oknach BTC 5m.** Na identycznych 9 407 oknach Polymarket ma gorszy log loss o 0.001772; sparowany 3-dniowy bootstrap dla PM−Binance daje log loss [0.000972, 0.002607] i Brier [0.000482, 0.001295]. Etykiety różnią się w 405 oknach (4.31%); na pełnym OOF model na celu Binance przewyższa wcześniejszy baseline. Dokładne granice czasu są zgodne, ale lokalny cache Chainlink nie pokrywa okresu Kacho, więc brak danych do oddzielenia źródła ceny od samplingu settlementu.
+
+Kryterium: Pozyskać równoczesne referencyjne ceny oracle i ich czasy obserwacji dla 9 407 okien; odtworzyć oficjalne settlementy ze zgodnością wszystkich dostępnych przypadków, a rozbieżności przypisać do proxy ceny, momentu samplingu lub reguły rozstrzygnięcia. Następnie ocenić niezmienione OOF na tych targetach sparowanym bootstrapem 3-dniowych bloków. Nie szukać przesunięcia po AUC.
+
+Testy celowane: `python -m unittest discover -s tests -p test_btc_oof_target_audit.py`. Reprodukcja audytu: `python audit_btc_oof.py` (bez argumentów CLI; nie uruchamia treningu).
+
+Pliki wynikowe: `audit.json`, `report.md`, `same_9407_oof_target_comparison.parquet`, `temporal_metrics.csv`, `fold_metrics.csv`, `training_metric_reproduction.csv`, `model_age_metrics.csv`, `market_value_calibration.csv`, `target_examples.csv`, `live_latency_stage_metrics.csv`.
+
+Reprodukcja raportu treningowego — średnia arytmetyczna 10 foldów, każdy liczony z wagami:
+
+| Metryka | Raport mean | Odtworzona mean | Raport std | Odtworzona std | Δ mean | Δ std |
+| --- | --- | --- | --- | --- | --- | --- |
+| accuracy | 0.528745 | 0.528745 | 0.005884 | 0.005884 | 0.000000000000 | 0.000000000000 |
+| balanced_accuracy | 0.528789 | 0.528789 | 0.005835 | 0.005835 | 0.000000000000 | 0.000000000000 |
+| precision | 0.529313 | 0.529313 | 0.009484 | 0.009484 | 0.000000000000 | 0.000000000000 |
+| recall | 0.547345 | 0.547345 | 0.019582 | 0.019582 | 0.000000000000 | 0.000000000000 |
+| f1 | 0.537883 | 0.537883 | 0.008422 | 0.008422 | 0.000000000000 | 0.000000000000 |
+| brier_score | 0.248647 | 0.248647 | 0.000475 | 0.000475 | -0.000000000000 | 0.000000000000 |
+| binary_logloss | 0.690433 | 0.690433 | 0.000954 | 0.000954 | 0.000000000000 | -0.000000000000 |
+<!-- BTC_OOF_TARGET_AUDIT_END -->
