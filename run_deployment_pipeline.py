@@ -9,7 +9,7 @@ from utils.project_config import normalize_asset_name
 
 
 # Edit this tuple when the final pre-live fit should cover a different asset set.
-ASSETS = ("BTC", "ETH", "SOL")
+ASSETS = ("BTC",)
 
 PIPELINE_STEPS = (
     "fetch_data.py",
