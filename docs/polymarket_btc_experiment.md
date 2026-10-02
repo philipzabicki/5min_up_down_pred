@@ -471,4 +471,126 @@ python -m unittest discover -s tests -p test_polymarket_adaptation.py
 python -m unittest discover -s tests
 ```
 
-Set EXPERIMENT_MODE near the top of build_polymarket_history.py to rebuild_history only to rebuild the original ingestion experiment. The default loss_diagnosis preserves source artifacts. No variant was deployed to live.
+Set EXPERIMENT_MODE near the top of build_polymarket_history.py to `rebuild_history` to rebuild the original ingestion experiment or `loss_diagnosis` to reproduce the preserved loss analysis. The default `market_value` experiment preserves source artifacts. No variant was deployed to live.
+
+## Incremental Polymarket information value
+
+Question: does the unchanged BTC OOF improve official settlement prediction and after-cost returns beyond the Kacho book? This is a retrospective walk-forward on previously analyzed history.
+
+Fingerprint: `8d9688a07f0f7719df84da7d0a2b13e79104e3c3a79d494175376b0e302c93fe`; parent source experiment: `efa1bf384fc6a2dcfaa691b9cffa3a10a7237037834c28133fc2ce24f7511378`. Full models, paired bootstrap, calibration bins, fold scores, fixed-$5 trade ledgers and portfolio paths: `data/analysis/polymarket/BTC/runs/8d9688a07f0f7719`.
+Common sample: 15,677 eligible Kacho markets; 9,407 markets per latency receive outer-fold predictions after chronological warmup. Obadiaha excluded because stored levels do not confirm full-book best prices. At each source latency, quote features use the first recorded Kacho tick at or after prediction availability, with no lookahead; quote/book observation, second-layer calculation, and zero-delay execution start at that tick. Additional execution quotes are first observations at +1s/+2s. Direction and ask limit stay fixed from the observation.
+Market-only and market-plus-OOF models use identical L2 logistic families, C grid, inner/outer market partitions, and label availability rules. Scaling fits the training data within each fold. Market inputs: four best prices, four best-level quantities (shares), mids, spreads, bid/ask sums, normalized mid estimator, log sizes and bid/ask size imbalances. Bid aggregate USD depth is not substituted for best-level shares. No future quotes, outcomes, IDs or target disagreement enter features.
+OOF variants report raw OOF and the existing Platt calibration. MARKET_ONLY, MARKET_PLUS_OOF and MARKET_PLUS_OOF_CONTEXT are the primary comparisons. `market_mid` is the normalized-mid benchmark, not a guaranteed fair price.
+
+Prediction quality on identical markets within each source-availability scenario:
+
+| OOF availability s | Variant | Markets | Log loss | Brier | AUC |
+| --- | --- | --- | --- | --- | --- |
+| 0 | market_mid | 9407 | 0.688060 | 0.247488 | 0.5461 |
+| 0 | oof_raw | 9407 | 0.692584 | 0.249717 | 0.5238 |
+| 0 | oof_platt | 9407 | 0.692322 | 0.249588 | 0.5238 |
+| 0 | market_only | 9407 | 0.688384 | 0.247547 | 0.5444 |
+| 0 | market_plus_oof | 9407 | 0.688291 | 0.247498 | 0.5460 |
+| 0 | market_plus_oof_context | 9407 | 0.688116 | 0.247417 | 0.5473 |
+| 1 | market_mid | 9407 | 0.687182 | 0.247054 | 0.5532 |
+| 1 | oof_raw | 9407 | 0.692584 | 0.249717 | 0.5238 |
+| 1 | oof_platt | 9407 | 0.692322 | 0.249588 | 0.5238 |
+| 1 | market_only | 9407 | 0.687555 | 0.247251 | 0.5523 |
+| 1 | market_plus_oof | 9407 | 0.687531 | 0.247239 | 0.5524 |
+| 1 | market_plus_oof_context | 9407 | 0.687326 | 0.247138 | 0.5534 |
+| 2 | market_mid | 9407 | 0.685306 | 0.246125 | 0.5662 |
+| 2 | oof_raw | 9407 | 0.692584 | 0.249717 | 0.5238 |
+| 2 | oof_platt | 9407 | 0.692322 | 0.249588 | 0.5238 |
+| 2 | market_only | 9407 | 0.685234 | 0.246094 | 0.5669 |
+| 2 | market_plus_oof | 9407 | 0.685229 | 0.246092 | 0.5668 |
+| 2 | market_plus_oof_context | 9407 | 0.685101 | 0.246032 | 0.5670 |
+
+Paired differences, left minus right; negative favours the model added on the left. The same three-calendar-day blocks and market IDs are resampled in 2,000 replicates:
+
+| OOF availability s | Left | Right | Log-loss delta 95% | Brier delta 95% | Markets | Block days |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | market_plus_oof | market_only | [-0.00021946511500148648, 4.4958035673172995e-06] | [-0.00011059252683346395, -2.085259589365582e-06] | 9407 | 3 |
+| 0 | market_plus_oof_context | market_plus_oof | [-0.0004522281558297674, 0.0002181216775943628] | [-0.00021562594550270746, 0.00011501553703231507] | 9407 | 3 |
+| 1 | market_plus_oof | market_only | [-7.861589010312481e-05, 1.494245571704869e-05] | [-3.816220510080922e-05, 6.940870326068169e-06] | 9407 | 3 |
+| 1 | market_plus_oof_context | market_plus_oof | [-0.000538019655745486, 0.00020878859667539478] | [-0.0002670792420180113, 0.00010591117017178376] | 9407 | 3 |
+| 2 | market_plus_oof | market_only | [-5.279514116031017e-05, 3.447720497159215e-05] | [-2.461873763717588e-05, 1.685132163525363e-05] | 9407 | 3 |
+| 2 | market_plus_oof_context | market_plus_oof | [-0.000378426351194226, 0.00027527217297007366] | [-0.00018368878043910494, 0.000140034981070546] | 9407 | 3 |
+
+Interpretation: the point log-loss changes from adding OOF are small at every source latency; all paired 95% block-bootstrap intervals include zero. This sample therefore does not establish incremental settlement-prediction value from the source OOF beyond the contemporaneous Kacho book. Raw OOF alone also scores worse than the normalized-mid and market-only baselines here. This is retrospective evidence, not a prospective guarantee.
+
+Inner-fold log-loss selection and outer-fold scores are stored fold by fold. Fixed probability calibration bins and market price/spread/direction/source disagreement subgroup tables are diagnostic and do not determine a new rule. AUC is secondary.
+
+Fixed $5 economics; these compare the same entry calculation across probabilities. Independent funding has no $100 balance or drawdown:
+
+| OOF latency s | Extra exec s | Variant | A bets | A PnL | A expected | A PnL/turnover | B bets | B final USD | B DD | A rejection reasons |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | 0 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 0 | 0 | oof_raw | 4243 | -544.60 | 1657.97 | -2.57% | 123 | 4.05 | 96.81% | {"observed_liquidity": 559, "executed": 4243, "no_positive_expected_pnl": 4605} |
+| 0 | 0 | oof_platt | 3453 | -830.83 | 1374.83 | -4.81% | 162 | 4.66 | 96.05% | {"observed_liquidity": 490, "no_positive_expected_pnl": 5464, "executed": 3453} |
+| 0 | 0 | market_only | 239 | -32.61 | 10.32 | -2.73% | 239 | 67.39 | 71.14% | {"no_positive_expected_pnl": 9070, "executed": 239, "observed_liquidity": 98} |
+| 0 | 0 | market_plus_oof | 366 | -62.96 | 15.64 | -3.44% | 366 | 37.04 | 88.82% | {"no_positive_expected_pnl": 8876, "executed": 366, "observed_liquidity": 165} |
+| 0 | 0 | market_plus_oof_context | 955 | 21.45 | 77.08 | 0.45% | 955 | 121.45 | 69.95% | {"no_positive_expected_pnl": 8250, "executed": 955, "observed_liquidity": 202} |
+| 0 | 1 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 0 | 1 | oof_raw | 2947 | -382.77 | 1278.75 | -2.60% | 265 | 1.17 | 99.18% | {"observed_liquidity": 559, "execution_price_above_observed_limit": 1087, "no_positive_expected_pnl": 4605, "executed": 2947, "insufficient_execution_ask_liquidity": 209} |
+| 0 | 1 | oof_platt | 2377 | -737.07 | 1031.60 | -6.20% | 231 | 3.04 | 97.82% | {"observed_liquidity": 490, "no_positive_expected_pnl": 5464, "executed": 2377, "execution_price_above_observed_limit": 894, "insufficient_execution_ask_liquidity": 182} |
+| 0 | 1 | market_only | 188 | -32.87 | 20.25 | -3.50% | 188 | 67.13 | 58.25% | {"no_positive_expected_pnl": 9070, "executed": 188, "observed_liquidity": 98, "execution_price_above_observed_limit": 41, "insufficient_execution_ask_liquidity": 10} |
+| 0 | 1 | market_plus_oof | 247 | -5.67 | 30.03 | -0.46% | 247 | 94.33 | 46.06% | {"no_positive_expected_pnl": 8876, "executed": 247, "observed_liquidity": 165, "execution_price_above_observed_limit": 102, "insufficient_execution_ask_liquidity": 17} |
+| 0 | 1 | market_plus_oof_context | 635 | 31.98 | 90.20 | 1.01% | 635 | 131.98 | 48.96% | {"no_positive_expected_pnl": 8250, "execution_price_above_observed_limit": 279, "executed": 635, "insufficient_execution_ask_liquidity": 41, "observed_liquidity": 202} |
+| 0 | 2 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 0 | 2 | oof_raw | 2411 | -604.64 | 1245.13 | -5.02% | 230 | 4.00 | 96.71% | {"observed_liquidity": 559, "execution_price_above_observed_limit": 1635, "no_positive_expected_pnl": 4605, "executed": 2411, "insufficient_execution_ask_liquidity": 197} |
+| 0 | 2 | oof_platt | 1897 | -916.14 | 985.40 | -9.66% | 169 | 4.18 | 96.50% | {"observed_liquidity": 490, "no_positive_expected_pnl": 5464, "executed": 1897, "execution_price_above_observed_limit": 1391, "insufficient_execution_ask_liquidity": 165} |
+| 0 | 2 | market_only | 172 | -36.53 | 33.74 | -4.25% | 172 | 63.47 | 56.95% | {"no_positive_expected_pnl": 9070, "executed": 172, "observed_liquidity": 98, "execution_price_above_observed_limit": 62, "insufficient_execution_ask_liquidity": 5} |
+| 0 | 2 | market_plus_oof | 232 | -7.40 | 45.14 | -0.64% | 232 | 92.60 | 40.94% | {"no_positive_expected_pnl": 8876, "executed": 232, "observed_liquidity": 165, "execution_price_above_observed_limit": 121, "insufficient_execution_ask_liquidity": 13} |
+| 0 | 2 | market_plus_oof_context | 563 | 75.76 | 129.13 | 2.69% | 563 | 175.76 | 39.53% | {"no_positive_expected_pnl": 8250, "execution_price_above_observed_limit": 357, "executed": 563, "observed_liquidity": 202, "insufficient_execution_ask_liquidity": 35} |
+| 1 | 0 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 1 | 0 | oof_raw | 4678 | -814.46 | 1968.26 | -3.48% | 224 | 2.75 | 98.12% | {"executed": 4678, "no_positive_expected_pnl": 4292, "observed_liquidity": 437} |
+| 1 | 0 | oof_platt | 4031 | -1136.19 | 1713.03 | -5.64% | 349 | 3.26 | 97.70% | {"no_positive_expected_pnl": 4988, "executed": 4031, "observed_liquidity": 388} |
+| 1 | 0 | market_only | 1987 | -291.19 | 136.78 | -2.93% | 1247 | 0.34 | 99.83% | {"no_positive_expected_pnl": 7179, "executed": 1987, "observed_liquidity": 241} |
+| 1 | 0 | market_plus_oof | 1985 | -357.57 | 136.82 | -3.60% | 1254 | 1.75 | 99.12% | {"no_positive_expected_pnl": 7185, "executed": 1985, "observed_liquidity": 237} |
+| 1 | 0 | market_plus_oof_context | 2080 | -419.85 | 176.75 | -4.04% | 412 | 3.03 | 98.31% | {"executed": 2080, "no_positive_expected_pnl": 7006, "observed_liquidity": 321} |
+| 1 | 1 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 1 | 1 | oof_raw | 3251 | -721.61 | 1676.70 | -4.44% | 373 | 4.79 | 96.66% | {"executed": 3251, "no_positive_expected_pnl": 4292, "insufficient_execution_ask_liquidity": 253, "execution_price_above_observed_limit": 1174, "observed_liquidity": 437} |
+| 1 | 1 | oof_platt | 2774 | -1091.28 | 1470.20 | -7.87% | 272 | 0.10 | 99.94% | {"no_positive_expected_pnl": 4988, "executed": 2774, "insufficient_execution_ask_liquidity": 216, "execution_price_above_observed_limit": 1041, "observed_liquidity": 388} |
+| 1 | 1 | market_only | 1338 | -208.78 | 168.46 | -3.12% | 711 | 3.92 | 98.13% | {"no_positive_expected_pnl": 7179, "executed": 1338, "execution_price_above_observed_limit": 602, "observed_liquidity": 241, "insufficient_execution_ask_liquidity": 47} |
+| 1 | 1 | market_plus_oof | 1341 | -294.68 | 169.26 | -4.39% | 708 | 4.08 | 98.05% | {"no_positive_expected_pnl": 7185, "executed": 1341, "execution_price_above_observed_limit": 596, "observed_liquidity": 237, "insufficient_execution_ask_liquidity": 48} |
+| 1 | 1 | market_plus_oof_context | 1398 | -280.58 | 200.05 | -4.01% | 356 | 3.51 | 98.18% | {"executed": 1398, "no_positive_expected_pnl": 7006, "execution_price_above_observed_limit": 621, "observed_liquidity": 321, "insufficient_execution_ask_liquidity": 61} |
+| 1 | 2 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 1 | 2 | oof_raw | 2781 | -599.69 | 1663.76 | -4.31% | 254 | 4.44 | 96.88% | {"execution_price_above_observed_limit": 1692, "no_positive_expected_pnl": 4292, "executed": 2781, "observed_liquidity": 437, "insufficient_execution_ask_liquidity": 205} |
+| 1 | 2 | oof_platt | 2347 | -909.92 | 1432.81 | -7.75% | 207 | 3.13 | 97.85% | {"no_positive_expected_pnl": 4988, "executed": 2347, "execution_price_above_observed_limit": 1489, "observed_liquidity": 388, "insufficient_execution_ask_liquidity": 195} |
+| 1 | 2 | market_only | 1253 | -303.57 | 257.69 | -4.85% | 590 | 1.70 | 98.81% | {"no_positive_expected_pnl": 7179, "executed": 1253, "execution_price_above_observed_limit": 699, "observed_liquidity": 241, "insufficient_execution_ask_liquidity": 35} |
+| 1 | 2 | market_plus_oof | 1253 | -381.40 | 263.33 | -6.09% | 592 | 4.08 | 97.14% | {"no_positive_expected_pnl": 7185, "executed": 1253, "execution_price_above_observed_limit": 697, "observed_liquidity": 237, "insufficient_execution_ask_liquidity": 35} |
+| 1 | 2 | market_plus_oof_context | 1303 | -392.34 | 288.25 | -6.02% | 253 | 2.96 | 97.78% | {"executed": 1303, "no_positive_expected_pnl": 7006, "execution_price_above_observed_limit": 735, "observed_liquidity": 321, "insufficient_execution_ask_liquidity": 42} |
+| 2 | 0 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 2 | 0 | oof_raw | 4957 | -987.01 | 2363.46 | -3.98% | 460 | 4.41 | 97.33% | {"executed": 4957, "no_positive_expected_pnl": 3984, "observed_liquidity": 466} |
+| 2 | 0 | oof_platt | 4416 | -1349.02 | 2138.91 | -6.11% | 186 | 2.20 | 98.65% | {"no_positive_expected_pnl": 4547, "executed": 4416, "observed_liquidity": 444} |
+| 2 | 0 | market_only | 963 | -66.90 | 49.47 | -1.39% | 602 | 4.10 | 97.23% | {"no_positive_expected_pnl": 8304, "observed_liquidity": 140, "executed": 963} |
+| 2 | 0 | market_plus_oof | 961 | -97.39 | 50.32 | -2.03% | 566 | 2.69 | 98.23% | {"no_positive_expected_pnl": 8303, "observed_liquidity": 143, "executed": 961} |
+| 2 | 0 | market_plus_oof_context | 1470 | -143.52 | 110.45 | -1.95% | 920 | 1.08 | 99.48% | {"no_positive_expected_pnl": 7761, "observed_liquidity": 176, "executed": 1470} |
+| 2 | 1 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 2 | 1 | oof_raw | 3669 | -861.01 | 2063.57 | -4.69% | 314 | 1.11 | 99.27% | {"execution_price_above_observed_limit": 1068, "executed": 3669, "no_positive_expected_pnl": 3984, "observed_liquidity": 466, "insufficient_execution_ask_liquidity": 220} |
+| 2 | 1 | oof_platt | 3202 | -1119.43 | 1859.83 | -6.99% | 263 | 3.18 | 98.04% | {"no_positive_expected_pnl": 4547, "executed": 3202, "execution_price_above_observed_limit": 990, "observed_liquidity": 444, "insufficient_execution_ask_liquidity": 224} |
+| 2 | 1 | market_only | 682 | -119.55 | 77.64 | -3.51% | 404 | 0.56 | 99.52% | {"no_positive_expected_pnl": 8304, "observed_liquidity": 140, "executed": 682, "execution_price_above_observed_limit": 256, "insufficient_execution_ask_liquidity": 25} |
+| 2 | 1 | market_plus_oof | 682 | -165.99 | 77.30 | -4.87% | 344 | 3.40 | 96.96% | {"no_positive_expected_pnl": 8303, "observed_liquidity": 143, "executed": 682, "execution_price_above_observed_limit": 255, "insufficient_execution_ask_liquidity": 24} |
+| 2 | 1 | market_plus_oof_context | 1035 | -169.07 | 137.60 | -3.27% | 633 | 2.98 | 98.24% | {"no_positive_expected_pnl": 7761, "observed_liquidity": 176, "executed": 1035, "execution_price_above_observed_limit": 399, "insufficient_execution_ask_liquidity": 36} |
+| 2 | 2 | market_mid | 0 | 0.00 | 0.00 | n/a | 0 | 100.00 | 0.00% | {"no_positive_expected_pnl": 9407} |
+| 2 | 2 | oof_raw | 3088 | -614.80 | 2020.69 | -3.98% | 293 | 4.86 | 96.66% | {"executed": 3088, "no_positive_expected_pnl": 3984, "execution_price_above_observed_limit": 1655, "observed_liquidity": 466, "insufficient_execution_ask_liquidity": 214} |
+| 2 | 2 | oof_platt | 2676 | -712.18 | 1804.75 | -5.32% | 374 | 4.63 | 96.74% | {"no_positive_expected_pnl": 4547, "executed": 2676, "execution_price_above_observed_limit": 1536, "observed_liquidity": 444, "insufficient_execution_ask_liquidity": 204} |
+| 2 | 2 | market_only | 624 | -47.42 | 121.84 | -1.52% | 569 | 0.62 | 99.63% | {"no_positive_expected_pnl": 8304, "observed_liquidity": 140, "execution_price_above_observed_limit": 320, "executed": 624, "insufficient_execution_ask_liquidity": 19} |
+| 2 | 2 | market_plus_oof | 621 | -79.53 | 121.20 | -2.56% | 383 | 2.71 | 98.41% | {"no_positive_expected_pnl": 8303, "observed_liquidity": 143, "execution_price_above_observed_limit": 321, "executed": 621, "insufficient_execution_ask_liquidity": 19} |
+| 2 | 2 | market_plus_oof_context | 930 | -123.71 | 199.60 | -2.66% | 579 | 2.66 | 98.85% | {"no_positive_expected_pnl": 7761, "observed_liquidity": 176, "executed": 930, "execution_price_above_observed_limit": 504, "insufficient_execution_ask_liquidity": 36} |
+
+Economic comparison: adding OOF improved fixed-stake PnL/turnover in 2 of 9 paired latency/delay comparisons, with improvements confined to source latency 0s and execution delays +1s/+2s. The context-augmented model finished above $100 at all three execution delays for source latency 0s (yes) and at another source latency (no); that pattern is latency-sensitive and its paired score intervals include zero.
+At execution delays, the model chooses side and limit from the initial quote only. A later ask above that limit, missing forward quote, invalid book, insufficient current top ask shares, minimum-order failure or portfolio cash shortage rejects the order. The observed top ask size is not carried forward. Market/sample recording frequency does not establish exchange-book age.
+The 100 USD portfolio carries locked capital and official settlement across all folds. Drawdown is based on cash plus locked cost, not mark-to-market. Independent fixed-stake results continue after hypothetical bankroll exhaustion and are not a feasible 100 USD portfolio. Aggregate and per-fold trade counts, fees, expected/realized PnL and hit rates are saved in JSON; full quote-level rejection details are in the Parquet ledgers.
+Obadiaha remains excluded from this price-conditioned experiment. Its raw source, earlier audit and findings remain preserved.
+
+Reproduction (pinned local caches; no source retraining):
+
+```powershell
+python build_polymarket_history.py
+python -m unittest discover -s tests -p test_polymarket_market_value.py
+python -m unittest discover -s tests -p test_polymarket_history.py
+python -m unittest discover -s tests -p test_polymarket_adaptation.py
+```
+
+All variants are research only. Live settings and run.py are unchanged.

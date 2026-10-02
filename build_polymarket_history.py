@@ -25,8 +25,8 @@ LATENCY_SCENARIOS_SECONDS = (0, 1, 2)
 MAX_QUOTE_DELAY_MS = 2000
 OOF_PROBABILITY_COLUMN = 'oof_pred_proba_up'
 SCHEMA_VERSION = 3
-# The loss investigation reuses the last complete manifest and immutable local caches.
-EXPERIMENT_MODE = 'loss_diagnosis'  # 'rebuild_history' runs source ingestion instead.
+# The market-value experiment reuses the last complete manifest and immutable local caches.
+EXPERIMENT_MODE = 'market_value'  # Alternatives: 'loss_diagnosis', 'rebuild_history'.
 
 
 def ranges(times, step=pd.Timedelta(minutes=5)):
@@ -295,7 +295,10 @@ def main():
 
 
 if __name__ == '__main__':
-    if EXPERIMENT_MODE == 'loss_diagnosis':
+    if EXPERIMENT_MODE == 'market_value':
+        from utils.polymarket_market_value import run_market_value_experiment
+        run_market_value_experiment()
+    elif EXPERIMENT_MODE == 'loss_diagnosis':
         from utils.polymarket_diagnostics import run_loss_diagnosis
         run_loss_diagnosis()
     elif EXPERIMENT_MODE == 'rebuild_history':
