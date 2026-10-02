@@ -402,6 +402,9 @@ def secondary_adapter(raw, markets):
     q = q.merge(ids, left_on='market_id', right_on='market_slug', how='left', suffixes=('_vendor', ''))
     q['token_side'] = np.select([q.token_id.eq(q.up_token_id), q.token_id.eq(q.down_token_id)], ['up', 'down'], default='unknown')
     q['source'] = SECONDARY
+    # Raw partitions preserve at most ten levels in expensive-to-cheap order.
+    # Sorting those levels cannot establish the top of the original full book.
+    q['best_prices_scope'] = 'stored_levels_only_full_book_unknown'
     # Preserve numeric L2 columns, never raw JSON in policy tables.
     for book in ['bid', 'ask']:
         parsed = q[book + '_levels'].map(lambda text: sorted(json.loads(text),
@@ -498,6 +501,7 @@ def select_secondary_quotes(decisions, tape_path, max_delay_ms):
     result['quote_delay_ms'] = (result.timestamp_utc-result.decision_available_at).dt.total_seconds()*1000
     result['side_capture_gap_ms'] = (result.up_timestamp_utc-result.down_timestamp_utc).abs().dt.total_seconds()*1000
     result['seconds_to_expiry'] = (result.market_end_utc-result.timestamp_utc).dt.total_seconds()
+    result['best_prices_scope'] = 'stored_levels_only_full_book_unknown'
     return result
 
 

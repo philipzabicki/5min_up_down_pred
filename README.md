@@ -17,7 +17,7 @@ This repository is research and automation tooling. It can connect to live marke
 
 The architecture separates **long-history predictive modeling**, **shorter-history Polymarket settlement/execution calibration**, and **economic entry and sizing policy**. Historical quotes are execution inputs, never probability-model features; the existing training target remains unchanged.
 
-Run `python build_polymarket_history.py` from the repository root. Editable constants select latency scenarios (0/1/2 seconds) and maximum forward quote delay. The script resolves current BTC OOF through project settings, discovers and pins published source revisions, and inspects all orderbook partitions. It runs research without retraining or writing runtime trading configuration.
+Run `python build_polymarket_history.py` from the repository root. The default `EXPERIMENT_MODE='loss_diagnosis'` verifies pinned local caches, reproduces the previous portfolios, audits losses and compares raw OOF, simple calibration and a small past-only contextual settlement correction. It preserves the original results and writes a fingerprinted research run. Set the editable constant to `rebuild_history` for source discovery/ingestion; latency scenarios (0/1/2 seconds) and maximum forward quote delay are also file constants. Neither mode retrains the source BTC model or writes runtime trading configuration.
 
 - `data/raw/polymarket/`: provider originals, resumable downloads, manifests with checksums, cached official Gamma metadata.
 - `data/datasets/polymarket/BTC/runs/`: canonical markets, batch-normalized quotes, OOF-based counterfactual policy datasets and separate secondary token snapshots, keyed by input/code fingerprint.
@@ -27,7 +27,7 @@ Kacho's outcome is inferred from the last bid, so official resolved metadata sup
 
 The experiment uses the supplied current main-model OOF, accepting its existing early stopping as a retrospective experiment assumption. The ten-feature substitute model is removed from the active pipeline. Live entry EV/sizing reuses `decide_trade_from_ev` and `build_trade_intent` with raw OOF and historical market fees; other policies use past-selected calibration. Each baseline and the past-selected policy strategy has one continuous $100 portfolio across evaluation folds, independently for each latency. Stakes are locked until official settlement; additional redemption delay is assumed zero. Drawdown uses cash plus open-position cost, explicitly not mark-to-market. Snapshot sizes establish recorded capacity, not guaranteed fills.
 
-See [the data and timing contract](docs/polymarket_history_contract.md) and [the first BTC experiment](docs/polymarket_btc_experiment.md). Reproduce focused validation with `python -m unittest discover -s tests -p test_polymarket_history.py`.
+See [the data and timing contract](docs/polymarket_history_contract.md) and [the BTC experiment and loss diagnosis](docs/polymarket_btc_experiment.md). Reproduce focused validation with `python -m unittest discover -s tests -p test_polymarket_history.py` and `python -m unittest discover -s tests -p test_polymarket_adaptation.py`.
 
 ## Repository Layout
 

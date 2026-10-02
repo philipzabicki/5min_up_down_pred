@@ -25,6 +25,8 @@ LATENCY_SCENARIOS_SECONDS = (0, 1, 2)
 MAX_QUOTE_DELAY_MS = 2000
 OOF_PROBABILITY_COLUMN = 'oof_pred_proba_up'
 SCHEMA_VERSION = 3
+# The loss investigation reuses the last complete manifest and immutable local caches.
+EXPERIMENT_MODE = 'loss_diagnosis'  # 'rebuild_history' runs source ingestion instead.
 
 
 def ranges(times, step=pd.Timedelta(minutes=5)):
@@ -293,11 +295,17 @@ def main():
 
 
 if __name__ == '__main__':
-    try:
-        main()
-    except (FileNotFoundError, ValueError, RequestException) as error:
-        write_json(REPORTS / 'evaluation.json', {'status': 'blocked', 'reason': str(error)})
-        Path('docs/polymarket_btc_experiment.md').write_text(
-            '# BTC historical Polymarket experiment\n\nExecution blocked: ' + str(error) +
-            '\n\nNo substitute model or simulated result was produced.\n', encoding='utf-8')
-        raise
+    if EXPERIMENT_MODE == 'loss_diagnosis':
+        from utils.polymarket_diagnostics import run_loss_diagnosis
+        run_loss_diagnosis()
+    elif EXPERIMENT_MODE == 'rebuild_history':
+        try:
+            main()
+        except (FileNotFoundError, ValueError, RequestException) as error:
+            write_json(REPORTS / 'evaluation.json', {'status': 'blocked', 'reason': str(error)})
+            Path('docs/polymarket_btc_experiment.md').write_text(
+                '# BTC historical Polymarket experiment\n\nExecution blocked: ' + str(error) +
+                '\n\nNo substitute model or simulated result was produced.\n', encoding='utf-8')
+            raise
+    else:
+        raise ValueError('Unknown EXPERIMENT_MODE')

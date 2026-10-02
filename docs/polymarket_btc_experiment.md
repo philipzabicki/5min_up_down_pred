@@ -202,3 +202,273 @@ Sources: [Kacho dataset](https://huggingface.co/datasets/kachoio/polymarket-5-mi
 All 117 continuous portfolios pass cash-flow/PnL reconciliation, no-debt, settlement, uniqueness, probability and observed-liquidity checks. Final open-position cost is exactly zero. Code/configuration and OOF content hashes match the executed fingerprint. Details: `data/analysis/polymarket/BTC/economic_audit.json`.
 
 For every eligible Obadiaha entry in all three latency scenarios, both recorded best asks are 0.90; the observed side capture gap is zero. All independent-source policies make zero trades and finish at $100. This reflects the quoted economics, not evidence of profitable predictive trading. Its missing forward quotes are excluded under the unchanged 2s tolerance, not filled from another model or interpolated.
+
+## Loss diagnosis and settlement adaptation
+
+Retrospective walk-forward on previously analyzed history. Source BTC model/OOF, features and live configuration are unchanged.
+
+Parent fingerprint: `efa1bf384fc6a2dcfaa691b9cffa3a10a7237037834c28133fc2ce24f7511378`. Research fingerprint: `778123ea808b982d7dfb02ecea5b55dce72cd693fc584f8e95656044455f7587`.
+Artifacts: `data/analysis/polymarket/BTC/runs/778123ea808b982d`. All 117 original portfolios reproduced on original fold coverage; original outputs retained.
+
+14-trade baseline: turnover $140.00, fees $5.957, official PnL $-93.207, expected PnL $31.830; realized minus expected $-125.037. Hit rate 14.29%; ROI -66.58%.
+Same bets without fees: $-91.190; fee payout effect $2.017. Same bets with Binance labels (diagnostic only): $-93.207; mismatches 0. These effects overlap and are not additive causes.
+
+Confirmed proximal cause: cheap-side selections with near-0.5 model probabilities win much less often than claimed. Fees do not explain the bulk of the loss; all 14 official labels equal the independently recomputed Binance proxy. This identifies a conditional prediction/selection failure, not its fundamental causal origin. Market-price information, source timing, actual fills and exchange book age are not reconstructable.
+
+Independent raw audit: 12433 executed ledger rows, 3260 distinct quotes; 1789 unique markets checked directly against official JSON, vendor token identities and original OOF closes. Direction, token ordering, seconds units, boundary, +5m target and ask execution checks pass.
+Complete per-trade fields and independent evidence are in `audit_14_trades.csv`, `official_oof_audit.csv` and `kacho_entry_windows.parquet`. Windows after entry are audit evidence only; no execution was moved to a later price.
+
+Obadiaha: Stored tail of 10 levels is consistent with truncation before sorting. The adapter correctly sorts stored levels; the true full-book best ask is not recoverable. Real wide full books versus collector truncation cannot be proven without full responses/collector code. Treat these prices as stored-limit snapshots, not verified exchange top-of-book.
+Official SDK buy-price traversal reverses the supplied levels: [SDK source](https://github.com/Polymarket/py-clob-client/blob/main/py_clob_client/order_builder/builder.py). Stored ask arrays descend from the expensive tail; the exact collector implementation/full response is unavailable. Do not assert that 0.90 is the full-book best ask or infer profitability from zero trades. Original stored-price results are retained; research does not invent missing better levels.
+Fees use saved per-market metadata and five-decimal rounding: [official fee documentation](https://docs.polymarket.com/trading/fees). Current documentation is not evidence of historical fee-change timing.
+
+All 14 trades: identity and UTC timing:
+
+| Audit row | condition_id | market_slug | Opened | decision_available_at | timestamp_utc | execution_at | settlement_available_at | source |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0x527a56fe3723ea35eccd9673c701df6efb3853350568dec7b90954c4e5efcd54 | btc-updown-5m-1776105900 | 2026-04-13 18:44:00+00:00 | 2026-04-13 18:45:02+00:00 | 2026-04-13 18:45:02+00:00 | 2026-04-13 18:45:02+00:00 | 2026-04-13 18:50:21+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 2 | 0x0346af8fb9d8d6b4f3e617c4a4283671bfbfaaab79b4b14e117d6245d0f40923 | btc-updown-5m-1776107700 | 2026-04-13 19:14:00+00:00 | 2026-04-13 19:15:02+00:00 | 2026-04-13 19:15:02+00:00 | 2026-04-13 19:15:02+00:00 | 2026-04-13 19:20:23+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 3 | 0x3e18212058ffb3274f4a380dc4b36b0e51314dd2c1bd1a48d4445f5686fcc575 | btc-updown-5m-1776108000 | 2026-04-13 19:19:00+00:00 | 2026-04-13 19:20:02+00:00 | 2026-04-13 19:20:02+00:00 | 2026-04-13 19:20:02+00:00 | 2026-04-13 19:25:21+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 4 | 0xd55d3ba063d67c9679b484a3aabad332543f1e35e9054866c86050c3ac6591ba | btc-updown-5m-1776109200 | 2026-04-13 19:39:00+00:00 | 2026-04-13 19:40:02+00:00 | 2026-04-13 19:40:02+00:00 | 2026-04-13 19:40:02+00:00 | 2026-04-13 19:45:21+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 5 | 0x685afc1296835ec45fd0e0dd8680c4f8539a36c334b5661b1d1eaee1f15616e1 | btc-updown-5m-1776118500 | 2026-04-13 22:14:00+00:00 | 2026-04-13 22:15:02+00:00 | 2026-04-13 22:15:02+00:00 | 2026-04-13 22:15:02+00:00 | 2026-04-13 22:20:19+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 6 | 0x04e513de2c84d4fcad4b16d625a758d9330b2671704b53426b30ce3d55a88123 | btc-updown-5m-1776118800 | 2026-04-13 22:19:00+00:00 | 2026-04-13 22:20:02+00:00 | 2026-04-13 22:20:02+00:00 | 2026-04-13 22:20:02+00:00 | 2026-04-13 22:25:17+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 7 | 0xe0d2e599042a372eb147080f51bbfe473b8a501aadef85f849a5c4772a10832f | btc-updown-5m-1776119400 | 2026-04-13 22:29:00+00:00 | 2026-04-13 22:30:02+00:00 | 2026-04-13 22:30:02+00:00 | 2026-04-13 22:30:02+00:00 | 2026-04-13 22:35:19+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 8 | 0x2f09b49429fb94f14b522a06b89eedcca986046db1d40065e1fd04e37ae377f0 | btc-updown-5m-1776119700 | 2026-04-13 22:34:00+00:00 | 2026-04-13 22:35:02+00:00 | 2026-04-13 22:35:02+00:00 | 2026-04-13 22:35:02+00:00 | 2026-04-13 22:40:21+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 9 | 0x3d994e825c088aba3b27e34d83e025f3976335db8a433ad21a63cbd6f2007363 | btc-updown-5m-1776120300 | 2026-04-13 22:44:00+00:00 | 2026-04-13 22:45:02+00:00 | 2026-04-13 22:45:02+00:00 | 2026-04-13 22:45:02+00:00 | 2026-04-13 22:50:21+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 10 | 0x54a7c7e2d839f4feb216dd3711accb14dbebf75056f6d3d25c0cdbe29e6386cc | btc-updown-5m-1776129600 | 2026-04-14 01:19:00+00:00 | 2026-04-14 01:20:02+00:00 | 2026-04-14 01:20:02+00:00 | 2026-04-14 01:20:02+00:00 | 2026-04-14 01:25:23+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 11 | 0x55f422272ae24581d2814e0e77481fa195014f7cff44b5301702a42f00b37715 | btc-updown-5m-1776135000 | 2026-04-14 02:49:00+00:00 | 2026-04-14 02:50:02+00:00 | 2026-04-14 02:50:02+00:00 | 2026-04-14 02:50:02+00:00 | 2026-04-14 02:55:23+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 12 | 0x36900f86c98243fc4ad0e18e2037297a4ffb291fd4343ed0a2c8819c1a279ddd | btc-updown-5m-1776135600 | 2026-04-14 02:59:00+00:00 | 2026-04-14 03:00:02+00:00 | 2026-04-14 03:00:02+00:00 | 2026-04-14 03:00:02+00:00 | 2026-04-14 03:05:23+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 13 | 0x2c5933bb526705c74d262d107a0c05e56123daa1981a77f8081543e1a06c1430 | btc-updown-5m-1776136200 | 2026-04-14 03:09:00+00:00 | 2026-04-14 03:10:02+00:00 | 2026-04-14 03:10:02+00:00 | 2026-04-14 03:10:02+00:00 | 2026-04-14 03:15:21+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+| 14 | 0xaabdb60cb095e738c80e9a27b63ac6cf8949b83cae0c3f3734934f57d51e0661 | btc-updown-5m-1776137100 | 2026-04-14 03:24:00+00:00 | 2026-04-14 03:25:02+00:00 | 2026-04-14 03:25:02+00:00 | 2026-04-14 03:25:02+00:00 | 2026-04-14 03:30:27+00:00 | kachoio/polymarket-5-minute-crypto-up-down-markets |
+
+All 14 trades: purchase-side probabilities and economics (fees are included in stake):
+
+| Audit row | side | p_model_up | p_calibrated | p_side | up_best_bid | up_best_ask | down_best_bid | down_best_ask | up_ask_size | down_ask_size | stake | fee | shares | target_binance_proxy_up | target_polymarket_up | expected_pnl | pnl | realized_minus_expected |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | down | 0.501849 | 0.501951 | 0.498049 | 0.580000 | 0.590000 | 0.410000 | 0.420000 | 52.110000 | 127.970000 | 10 | 0.406000 | 22.842857 | 0.000000 | 0.000000 | 1.376865 | 12.842857 | 11.465992 |
+| 2 | down | 0.490860 | 0.496842 | 0.503158 | 0.610000 | 0.640000 | 0.360000 | 0.390000 | 250.220000 | 201.000000 | 10 | 0.427000 | 24.546154 | 1.000000 | 1.000000 | 2.350582 | -10.000000 | -12.350582 |
+| 3 | up | 0.503368 | 0.502657 | 0.502657 | 0.390000 | 0.400000 | 0.600000 | 0.610000 | 1255.400000 | 486.800000 | 10 | 0.420000 | 23.950000 | 1.000000 | 1.000000 | 2.038638 | 13.950000 | 11.911362 |
+| 4 | up | 0.489357 | 0.496144 | 0.496144 | 0.380000 | 0.390000 | 0.610000 | 0.620000 | 302.680000 | 105.490000 | 10 | 0.427000 | 24.546154 | 0.000000 | 0.000000 | 2.178419 | -10.000000 | -12.178419 |
+| 5 | down | 0.439920 | 0.473055 | 0.526945 | 0.600000 | 0.610000 | 0.390000 | 0.400000 | 839.620000 | 38.670000 | 10 | 0.420000 | 23.950000 | 1.000000 | 1.000000 | 2.620342 | -10.000000 | -12.620342 |
+| 6 | down | 0.485473 | 0.494337 | 0.505663 | 0.580000 | 0.620000 | 0.380000 | 0.420000 | 50.000000 | 165.900000 | 10 | 0.406000 | 22.842857 | 1.000000 | 1.000000 | 1.550786 | -10.000000 | -11.550786 |
+| 7 | down | 0.491939 | 0.497344 | 0.502656 | 0.660000 | 0.670000 | 0.330000 | 0.340000 | 240.240000 | 50.000000 | 10 | 0.462000 | 28.052941 | 1.000000 | 1.000000 | 4.100976 | -10.000000 | -14.100976 |
+| 8 | up | 0.447152 | 0.476451 | 0.476451 | 0.370000 | 0.380000 | 0.620000 | 0.630000 | 235.900000 | 125.810000 | 10 | 0.434000 | 25.173684 | 0.000000 | 0.000000 | 1.994034 | -10.000000 | -11.994034 |
+| 9 | down | 0.460235 | 0.482575 | 0.517425 | 0.600000 | 0.610000 | 0.390000 | 0.400000 | 45.320000 | 345.670000 | 10 | 0.420000 | 23.950000 | 1.000000 | 1.000000 | 2.392326 | -10.000000 | -12.392326 |
+| 10 | up | 0.491827 | 0.497292 | 0.497292 | 0.350000 | 0.360000 | 0.640000 | 0.650000 | 225.520000 | 313.870000 | 10 | 0.448000 | 26.533333 | 0.000000 | 0.000000 | 3.194815 | -10.000000 | -13.194815 |
+| 11 | up | 0.510019 | 0.505749 | 0.505749 | 0.400000 | 0.410000 | 0.590000 | 0.600000 | 106.730000 | 71.350000 | 10 | 0.413000 | 23.382927 | 0.000000 | 0.000000 | 1.825897 | -10.000000 | -11.825897 |
+| 12 | up | 0.481898 | 0.492674 | 0.492674 | 0.380000 | 0.420000 | 0.580000 | 0.620000 | 82.340000 | 16.540000 | 10 | 0.406000 | 22.842857 | 0.000000 | 0.000000 | 1.254082 | -10.000000 | -11.254082 |
+| 13 | up | 0.480054 | 0.491816 | 0.491816 | 0.370000 | 0.380000 | 0.620000 | 0.630000 | 85.170000 | 25.040000 | 10 | 0.434000 | 25.173684 | 0.000000 | 0.000000 | 2.380809 | -10.000000 | -12.380809 |
+| 14 | down | 0.498981 | 0.500618 | 0.499382 | 0.620000 | 0.630000 | 0.370000 | 0.380000 | 589.000000 | 215.980000 | 10 | 0.434000 | 25.173684 | 1.000000 | 1.000000 | 2.571289 | -10.000000 | -12.571289 |
+
+Source configuration audit: {"feature_subset": true, "hyperparameters": true, "constraints": true, "training_settings": true, "volume_profile": true, "precision": true}; 64 current main-model features. Volume-profile comparison ignores derived metadata fields; none were changed.
+
+Architecture: unchanged main OOF -> official settlement correction -> economic entry/sizing. Context uses only 30-minute volatility and last closed-minute return, with mandatory original logit offset. Correction strength and one-dimensional calibrator are chosen in the earlier inner block. Polymarket prices enter economics only. No Chainlink features or future price moves are used.
+All layers use labels available at max(official resolution, expiry), strictly before fitting. Three chronological outer folds share one $100 portfolio per variant/latency. The quality rule uses observed spreads with multiplier chosen from 0/0.5/1 on past fixed-stake signal ROI; no-trade is selected when no supported positive past ROI exists. This remains a block policy selector, not a fully contextual decision model.
+Common latency coverage: 15677 eligible markets with complete past context. Identical market IDs/fold boundaries in all latencies; calibration availability can differ by scenario.
+
+Declared advantage versus observed return (full-period independent bets, 2s):
+
+| Probability edge | Bets | Mean p_success | Hit rate | ROI |
+| --- | --- | --- | --- | --- |
+| (0.05, 0.1] | 773 | 0.500 | 0.404 | -5.98% |
+| (0.1, 0.2] | 422 | 0.506 | 0.303 | -18.21% |
+| (0.2, inf] | 20 | 0.521 | 0.200 | -29.55% |
+
+
+Findings from the completed run:
+
+- The original 14-trade policy stops placing $10 bets because remaining cash is $6.79, not because a minimum order is unaffordable. Decision counts: {"insufficient_liquidity": 5, "no_positive_edge": 8502, "executed": 14, "insufficient_cash": 1446}. This is not successful risk control.
+- Full-period independent fixed-$10 / edge .05: 1215 bets, PnL $-1289.86, turnover $12150.00, ROI -10.62%, hit rate 36.54%; expected PnL $2977.78. Same-bet no-fee PnL $-806.62; Binance-only diagnostic $-1180.53. The signal still loses when bankroll stopping is removed.
+- Common latency coverage comprises {"kachoio/polymarket-5-minute-crypto-up-down-markets": 15677}; native eligible counts {'0': 16674, '1': 16618, '2': 16611}. Obadiaha has no common entry across 0/1/2s: the intersections of the forward 2s windows require exactly the start+2s timestamp, while captures have fractional seconds. Thus the matched comparison evaluates 9407 Kacho markets, starting 2026-04-15 17:05:02+00:00, rather than the original combined April 13 start. Different coverage is not attributed to latency or adaptation.
+- Context improves point-estimate log loss from 0.692584 (raw) / 0.692322 (simple) to 0.691665. Paired 3-day bootstrap intervals: {"context_minus_raw": [-0.0015195984513429166, -0.0002028651982527287], "context_minus_simple": [-0.0010137089946508076, -0.0002122265443873996], "method": "paired three-day moving-block bootstrap; lower log loss is better"}. A small probability-score improvement does not establish economic improvement.
+- On common 2s markets, fixed-$10 / edge .05 finishes at raw: $2.69 / simple: $9.79 / context: $4.27. Sizing comparisons use these same probabilities and decision times; they change survival and which bets are affordable. Fraction .01 makes zero trades at 1/2s, and only one profitable bet at 0s; this is insufficient evidence of signal quality.
+- Live adds fee fraction to ask, while research break-even is ask/(1-fee_fraction). At 2s, additive entry rejects 3506 otherwise exact-positive signals, and accepts 0 exact-nonpositive signals. The corrected research rule trades more but also loses; the original formula is conservative, not the primary loss cause.
+- The spread margin and past selector do not establish profitable trading. No-trade preserves capital; context-selected quality at 1s also loses. No active traded portfolio provides supported positive profit across scenarios. The existing one-dimensional calibrator and the block selector are not a full contextual decision model.
+- Context choice is motivated by measured heterogeneity: at 2s, proxy/official mismatch is 7.28% for 30m volatility .0001-.00025 (3,175 markets), versus 2.16% above .001 (648). After a last-minute return above .0005, official UP occurs about 47% (1,701 markets); raw probabilities remain around .50. These retrospective associations motivate a small regularized correction, not causal claims or manually chosen trade exceptions.
+- Frozen raw-entry diagnostics keep directions, quotes and $10 stakes fixed: calibration changes expected PnL and prediction scores, but realized PnL necessarily remains identical. They are in comparison.json/frozen_raw_entries and distinguish probability correction from reselection. All portfolio probability/sizing combinations are then evaluated separately.
+- Recomputed success-probability buckets fix the old ledger summary grouping by p_UP for DOWN. This changes diagnostic bins only; all original balances/transactions reproduce. Rejection instrumentation separates no edge, cash, minimum order, locked funds and observed liquidity. Obadiaha prices are now explicitly scoped to stored levels with unknown full-book completeness; no unavailable top was fabricated.
+- The 787,628 raw BTC snapshots include 635,555 arrays exactly 0.99..0.90 and 505,552 captures before market start. Adapter sorting is correct for stored levels. Collector truncation is strongly suggested by the expensive ten-level tails even later in the market, but absent full responses/collector code prevents proving the true contemporaneous top or repairing lost levels.
+- Focused historical contracts: 34/34; new adaptation contracts: 7/7. Full suite: 177/178, with the previously documented unchanged optimizer mismatch (configured slippage 2 ticks, test expects 3). No live/optimizer setting was changed to conceal that failure.
+- No separate performance-rules file was present in the repository or parent instructions. Raw Parquet audits stream batches of 100,000 rows and context features use vectorized closed-candle operations.
+
+Probability quality on all common evaluation markets:
+
+| Latency s | Probability | Log loss | Brier |
+| --- | --- | --- | --- |
+| 0 | raw | 0.692584 | 0.249717 |
+| 0 | simple | 0.692322 | 0.249588 |
+| 0 | context | 0.691665 | 0.249261 |
+| 1 | raw | 0.692584 | 0.249717 |
+| 1 | simple | 0.692322 | 0.249588 |
+| 1 | context | 0.691665 | 0.249261 |
+| 2 | raw | 0.692584 | 0.249717 |
+| 2 | simple | 0.692322 | 0.249588 |
+| 2 | context | 0.691665 | 0.249261 |
+
+Continuous portfolio comparison (drawdown is cost basis, not mark-to-market):
+
+| Latency s | Probability / policy | Final USD | PnL / turnover | Trades | DD | Decision reasons |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | raw/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 0 | raw/current_live_ev | 0.66 | -11.14% | 370 | 99.38% | {"no_positive_edge": 6803, "executed": 370, "insufficient_liquidity": 17, "minimum_order_unaffordable": 2214, "locked_capital": 3} |
+| 0 | raw/fixed_5 | 4.05 | -15.60% | 123 | 96.81% | {"insufficient_liquidity": 16, "executed": 123, "no_positive_edge": 4605, "locked_capital": 1, "insufficient_cash": 4662} |
+| 0 | raw/fixed_10_edge_02 | 6.87 | -19.40% | 48 | 94.65% | {"no_positive_edge": 7003, "executed": 48, "insufficient_liquidity": 18, "locked_capital": 1, "insufficient_cash": 2337} |
+| 0 | raw/fixed_10_edge_05 | 1.14 | -16.48% | 60 | 99.14% | {"no_positive_edge": 8489, "executed": 60, "insufficient_liquidity": 25, "locked_capital": 1, "insufficient_cash": 832} |
+| 0 | raw/fraction_01 | 104.88 | 488.25% | 1 | -0.00% | {"minimum_order": 4750, "no_positive_edge": 4605, "insufficient_liquidity": 51, "executed": 1} |
+| 0 | raw/fraction_05 | 29.14 | -10.48% | 203 | 77.52% | {"insufficient_liquidity": 100, "executed": 203, "no_positive_edge": 4605, "minimum_order": 4499} |
+| 0 | raw/full_kelly | 2.48 | -15.72% | 134 | 97.89% | {"minimum_order": 4668, "no_positive_edge": 4605, "executed": 134} |
+| 0 | raw/half_kelly | 5.83 | -15.62% | 178 | 94.63% | {"minimum_order": 4624, "no_positive_edge": 4605, "executed": 178} |
+| 0 | raw/quarter_kelly | 14.64 | -21.91% | 147 | 85.36% | {"minimum_order": 4655, "no_positive_edge": 4605, "executed": 147} |
+| 0 | raw/capped_kelly | 28.88 | -12.14% | 195 | 74.81% | {"minimum_order": 4607, "no_positive_edge": 4605, "executed": 195} |
+| 0 | raw/kelly_edge_02 | 5.83 | -15.62% | 178 | 94.63% | {"no_positive_edge": 7003, "executed": 178, "minimum_order": 2226} |
+| 0 | raw/live_exact_fee_research | 0.16 | -8.90% | 450 | 99.86% | {"insufficient_liquidity": 11, "executed": 450, "no_positive_edge": 4605, "minimum_order_unaffordable": 4341} |
+| 0 | raw/quality_margin_1 | 9.57 | -15.87% | 57 | 92.14% | {"no_positive_edge": 8489, "executed": 57, "insufficient_liquidity": 17, "quote_quality_margin": 231, "locked_capital": 1, "insufficient_cash": 612} |
+| 0 | raw/past_selected_quality | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 0 | simple/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 0 | simple/current_live_ev | 1.28 | -4.32% | 1007 | 99.18% | {"no_positive_edge": 7647, "executed": 1007, "insufficient_liquidity": 88, "minimum_order_unaffordable": 664, "locked_capital": 1} |
+| 0 | simple/fixed_5 | 4.66 | -11.77% | 162 | 96.05% | {"insufficient_liquidity": 16, "no_positive_edge": 5464, "executed": 162, "locked_capital": 1, "insufficient_cash": 3764} |
+| 0 | simple/fixed_10_edge_02 | 7.62 | -7.76% | 119 | 94.76% | {"no_positive_edge": 7688, "executed": 119, "insufficient_liquidity": 31, "locked_capital": 1, "insufficient_cash": 1568} |
+| 0 | simple/fixed_10_edge_05 | 1.41 | -26.65% | 37 | 98.59% | {"no_positive_edge": 8627, "executed": 37, "insufficient_liquidity": 11, "insufficient_cash": 732} |
+| 0 | simple/fraction_01 | 104.88 | 488.25% | 1 | -0.00% | {"minimum_order": 3901, "no_positive_edge": 5464, "insufficient_liquidity": 41, "executed": 1} |
+| 0 | simple/fraction_05 | 28.98 | -12.08% | 185 | 75.00% | {"insufficient_liquidity": 88, "no_positive_edge": 5464, "executed": 185, "minimum_order": 3670} |
+| 0 | simple/full_kelly | 3.98 | -23.01% | 93 | 96.09% | {"minimum_order": 3850, "no_positive_edge": 5464, "executed": 93} |
+| 0 | simple/half_kelly | 7.47 | -22.95% | 135 | 92.53% | {"minimum_order": 3808, "no_positive_edge": 5464, "executed": 135} |
+| 0 | simple/quarter_kelly | 17.06 | -22.12% | 146 | 82.94% | {"minimum_order": 3797, "no_positive_edge": 5464, "executed": 146} |
+| 0 | simple/capped_kelly | 28.87 | -10.05% | 237 | 72.48% | {"minimum_order": 3706, "no_positive_edge": 5464, "executed": 237} |
+| 0 | simple/kelly_edge_02 | 7.47 | -22.95% | 135 | 92.53% | {"no_positive_edge": 7688, "minimum_order": 1584, "executed": 135} |
+| 0 | simple/live_exact_fee_research | 0.11 | -6.51% | 640 | 99.90% | {"insufficient_liquidity": 30, "no_positive_edge": 5464, "executed": 640, "minimum_order_unaffordable": 3271, "locked_capital": 2} |
+| 0 | simple/quality_margin_1 | 4.27 | -31.91% | 30 | 96.41% | {"no_positive_edge": 8627, "executed": 30, "quote_quality_margin": 158, "insufficient_liquidity": 6, "insufficient_cash": 586} |
+| 0 | simple/past_selected_quality | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 0 | context/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 0 | context/current_live_ev | 0.48 | -4.03% | 1069 | 99.59% | {"no_positive_edge": 7490, "executed": 1069, "insufficient_liquidity": 86, "minimum_order_unaffordable": 762} |
+| 0 | context/fixed_5 | 1.50 | -5.41% | 364 | 98.84% | {"no_positive_edge": 5308, "executed": 364, "insufficient_liquidity": 34, "locked_capital": 2, "insufficient_cash": 3699} |
+| 0 | context/fixed_10_edge_02 | 2.09 | -4.92% | 199 | 98.78% | {"no_positive_edge": 7573, "executed": 199, "insufficient_liquidity": 62, "locked_capital": 2, "insufficient_cash": 1571} |
+| 0 | context/fixed_10_edge_05 | 6.84 | -20.70% | 45 | 95.10% | {"no_positive_edge": 8611, "executed": 45, "insufficient_liquidity": 11, "insufficient_cash": 740} |
+| 0 | context/fraction_01 | 104.88 | 488.25% | 1 | -0.00% | {"no_positive_edge": 5308, "minimum_order": 4051, "insufficient_liquidity": 47, "executed": 1} |
+| 0 | context/fraction_05 | 29.45 | -8.76% | 229 | 76.59% | {"no_positive_edge": 5308, "executed": 229, "insufficient_liquidity": 89, "minimum_order": 3781} |
+| 0 | context/full_kelly | 3.28 | -15.00% | 141 | 97.12% | {"no_positive_edge": 5308, "executed": 141, "minimum_order": 3958} |
+| 0 | context/half_kelly | 7.87 | -13.36% | 212 | 92.63% | {"no_positive_edge": 5308, "executed": 212, "minimum_order": 3887} |
+| 0 | context/quarter_kelly | 18.22 | -18.20% | 176 | 82.48% | {"no_positive_edge": 5308, "minimum_order": 3923, "executed": 176} |
+| 0 | context/capped_kelly | 29.17 | -8.10% | 275 | 75.77% | {"no_positive_edge": 5308, "executed": 275, "minimum_order": 3824} |
+| 0 | context/kelly_edge_02 | 7.87 | -13.36% | 212 | 92.63% | {"no_positive_edge": 7573, "executed": 212, "minimum_order": 1622} |
+| 0 | context/live_exact_fee_research | 0.02 | -3.79% | 1083 | 99.98% | {"no_positive_edge": 5308, "executed": 1083, "insufficient_liquidity": 57, "minimum_order_unaffordable": 2959} |
+| 0 | context/quality_margin_1 | 8.73 | -17.90% | 51 | 93.70% | {"no_positive_edge": 8611, "executed": 51, "quote_quality_margin": 161, "insufficient_liquidity": 13, "locked_capital": 1, "insufficient_cash": 570} |
+| 0 | context/past_selected_quality | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 1 | raw/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 1 | raw/current_live_ev | 0.36 | -9.42% | 447 | 99.65% | {"no_positive_edge": 6484, "executed": 447, "insufficient_liquidity": 7, "locked_capital": 2, "minimum_order_unaffordable": 2467} |
+| 1 | raw/fixed_5 | 2.75 | -8.68% | 224 | 98.12% | {"executed": 224, "no_positive_edge": 4292, "insufficient_liquidity": 16, "locked_capital": 2, "insufficient_cash": 4873} |
+| 1 | raw/fixed_10_edge_02 | 3.93 | -4.51% | 213 | 97.39% | {"no_positive_edge": 6681, "executed": 213, "insufficient_liquidity": 26, "locked_capital": 2, "insufficient_cash": 2485} |
+| 1 | raw/fixed_10_edge_05 | 6.76 | -27.42% | 34 | 93.43% | {"no_positive_edge": 8266, "executed": 34, "insufficient_liquidity": 7, "insufficient_cash": 1100} |
+| 1 | raw/fraction_01 | 100.00 | n/a | 0 | -0.00% | {"minimum_order": 5076, "no_positive_edge": 4292, "insufficient_liquidity": 39} |
+| 1 | raw/fraction_05 | 26.44 | -8.89% | 179 | 81.33% | {"executed": 179, "no_positive_edge": 4292, "insufficient_liquidity": 62, "minimum_order": 4874} |
+| 1 | raw/full_kelly | 3.42 | -20.96% | 96 | 96.71% | {"minimum_order": 5019, "no_positive_edge": 4292, "executed": 96} |
+| 1 | raw/half_kelly | 6.05 | -27.62% | 98 | 94.35% | {"minimum_order": 5017, "no_positive_edge": 4292, "executed": 98} |
+| 1 | raw/quarter_kelly | 15.69 | -31.38% | 99 | 84.34% | {"minimum_order": 5016, "no_positive_edge": 4292, "executed": 99} |
+| 1 | raw/capped_kelly | 27.27 | -8.51% | 237 | 78.70% | {"minimum_order": 4878, "no_positive_edge": 4292, "executed": 237} |
+| 1 | raw/kelly_edge_02 | 6.05 | -27.62% | 98 | 94.35% | {"no_positive_edge": 6681, "executed": 98, "minimum_order": 2628} |
+| 1 | raw/live_exact_fee_research | 0.03 | -8.24% | 486 | 99.98% | {"executed": 486, "no_positive_edge": 4292, "insufficient_liquidity": 11, "locked_capital": 1, "minimum_order_unaffordable": 4617} |
+| 1 | raw/quality_margin_1 | 0.78 | -23.07% | 43 | 99.36% | {"no_positive_edge": 8266, "executed": 43, "insufficient_liquidity": 6, "quote_quality_margin": 261, "insufficient_cash": 831} |
+| 1 | raw/past_selected_quality | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 1 | simple/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 1 | simple/current_live_ev | 0.32 | -8.01% | 551 | 99.72% | {"no_positive_edge": 7195, "executed": 551, "insufficient_liquidity": 12, "minimum_order_unaffordable": 1647, "locked_capital": 2} |
+| 1 | simple/fixed_5 | 3.26 | -5.54% | 349 | 97.70% | {"no_positive_edge": 4988, "executed": 349, "insufficient_liquidity": 20, "locked_capital": 2, "insufficient_cash": 4048} |
+| 1 | simple/fixed_10_edge_02 | 3.61 | -12.85% | 75 | 97.36% | {"no_positive_edge": 7238, "executed": 75, "insufficient_liquidity": 12, "insufficient_cash": 2082} |
+| 1 | simple/fixed_10_edge_05 | 5.84 | -36.22% | 26 | 94.16% | {"no_positive_edge": 8400, "executed": 26, "insufficient_liquidity": 5, "insufficient_cash": 976} |
+| 1 | simple/fraction_01 | 100.00 | n/a | 0 | -0.00% | {"no_positive_edge": 4988, "minimum_order": 4387, "insufficient_liquidity": 32} |
+| 1 | simple/fraction_05 | 26.63 | -9.14% | 193 | 81.77% | {"no_positive_edge": 4988, "executed": 193, "insufficient_liquidity": 56, "minimum_order": 4170} |
+| 1 | simple/full_kelly | 3.33 | -22.34% | 96 | 96.67% | {"no_positive_edge": 4988, "executed": 96, "minimum_order": 4323} |
+| 1 | simple/half_kelly | 8.16 | -27.25% | 96 | 91.84% | {"no_positive_edge": 4988, "executed": 96, "minimum_order": 4323} |
+| 1 | simple/quarter_kelly | 15.78 | -30.80% | 103 | 84.22% | {"no_positive_edge": 4988, "minimum_order": 4316, "executed": 103} |
+| 1 | simple/capped_kelly | 26.61 | -16.38% | 130 | 79.21% | {"no_positive_edge": 4988, "executed": 130, "minimum_order": 4289} |
+| 1 | simple/kelly_edge_02 | 8.16 | -27.25% | 96 | 91.84% | {"no_positive_edge": 7238, "executed": 96, "minimum_order": 2073} |
+| 1 | simple/live_exact_fee_research | 0.59 | -6.87% | 603 | 99.54% | {"no_positive_edge": 4988, "executed": 603, "insufficient_liquidity": 11, "minimum_order_unaffordable": 3805} |
+| 1 | simple/quality_margin_1 | 3.05 | -26.20% | 37 | 96.95% | {"no_positive_edge": 8400, "executed": 37, "insufficient_liquidity": 4, "quote_quality_margin": 204, "insufficient_cash": 762} |
+| 1 | simple/past_selected_quality | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 1 | context/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 1 | context/current_live_ev | 0.08 | -6.94% | 618 | 99.94% | {"no_positive_edge": 7065, "executed": 618, "insufficient_liquidity": 10, "locked_capital": 2, "minimum_order_unaffordable": 1712} |
+| 1 | context/fixed_5 | 2.91 | -4.65% | 418 | 98.06% | {"no_positive_edge": 4879, "executed": 418, "insufficient_liquidity": 22, "insufficient_cash": 4088} |
+| 1 | context/fixed_10_edge_02 | 1.95 | -5.64% | 174 | 98.99% | {"no_positive_edge": 7148, "executed": 174, "insufficient_liquidity": 20, "locked_capital": 1, "insufficient_cash": 2064} |
+| 1 | context/fixed_10_edge_05 | 3.15 | -34.59% | 28 | 96.85% | {"no_positive_edge": 8358, "executed": 28, "insufficient_liquidity": 4, "insufficient_cash": 1017} |
+| 1 | context/fraction_01 | 100.00 | n/a | 0 | -0.00% | {"no_positive_edge": 4879, "minimum_order": 4496, "insufficient_liquidity": 32} |
+| 1 | context/fraction_05 | 27.14 | -4.75% | 355 | 81.95% | {"no_positive_edge": 4879, "executed": 355, "insufficient_liquidity": 59, "minimum_order": 4114} |
+| 1 | context/full_kelly | 3.36 | -16.46% | 118 | 97.14% | {"no_positive_edge": 4879, "executed": 118, "minimum_order": 4410} |
+| 1 | context/half_kelly | 8.39 | -21.99% | 113 | 91.99% | {"no_positive_edge": 4879, "executed": 113, "minimum_order": 4415} |
+| 1 | context/quarter_kelly | 20.04 | -30.35% | 107 | 79.96% | {"no_positive_edge": 4879, "minimum_order": 4421, "executed": 107} |
+| 1 | context/capped_kelly | 26.86 | -11.09% | 162 | 83.60% | {"no_positive_edge": 4879, "executed": 162, "minimum_order": 4366} |
+| 1 | context/kelly_edge_02 | 8.39 | -21.99% | 113 | 91.99% | {"no_positive_edge": 7148, "executed": 113, "minimum_order": 2146} |
+| 1 | context/live_exact_fee_research | 0.09 | -3.36% | 1218 | 99.93% | {"no_positive_edge": 4879, "executed": 1218, "insufficient_liquidity": 26, "minimum_order_unaffordable": 3284} |
+| 1 | context/quality_margin_1 | 9.00 | -25.28% | 36 | 91.00% | {"no_positive_edge": 8358, "quote_quality_margin": 228, "executed": 36, "insufficient_liquidity": 5, "insufficient_cash": 780} |
+| 1 | context/past_selected_quality | 9.00 | -25.28% | 36 | 91.00% | {"no_positive_edge": 2815, "quote_quality_margin": 79, "executed": 36, "insufficient_liquidity": 5, "insufficient_cash": 201, "policy_no_trade": 6271} |
+| 2 | raw/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 2 | raw/current_live_ev | 0.24 | -5.61% | 763 | 99.77% | {"no_positive_edge": 6063, "executed": 763, "insufficient_liquidity": 25, "locked_capital": 3, "minimum_order_unaffordable": 2553} |
+| 2 | raw/fixed_5 | 4.41 | -4.16% | 460 | 97.33% | {"executed": 460, "no_positive_edge": 3984, "insufficient_liquidity": 24, "locked_capital": 1, "insufficient_cash": 4938} |
+| 2 | raw/fixed_10_edge_02 | 4.24 | -3.49% | 274 | 97.88% | {"no_positive_edge": 6210, "executed": 274, "insufficient_liquidity": 39, "locked_capital": 1, "insufficient_cash": 2883} |
+| 2 | raw/fixed_10_edge_05 | 2.69 | -11.06% | 88 | 98.39% | {"no_positive_edge": 7887, "executed": 88, "insufficient_liquidity": 18, "insufficient_cash": 1414} |
+| 2 | raw/fraction_01 | 100.00 | n/a | 0 | -0.00% | {"minimum_order": 5376, "no_positive_edge": 3984, "insufficient_liquidity": 47} |
+| 2 | raw/fraction_05 | 29.77 | -4.97% | 357 | 85.08% | {"executed": 357, "no_positive_edge": 3984, "insufficient_liquidity": 93, "minimum_order": 4973} |
+| 2 | raw/full_kelly | 2.21 | -12.55% | 159 | 98.01% | {"minimum_order": 5264, "no_positive_edge": 3984, "executed": 159} |
+| 2 | raw/half_kelly | 6.23 | -7.16% | 320 | 95.54% | {"minimum_order": 5103, "no_positive_edge": 3984, "executed": 320} |
+| 2 | raw/quarter_kelly | 15.01 | -15.07% | 200 | 86.72% | {"minimum_order": 5223, "no_positive_edge": 3984, "executed": 200} |
+| 2 | raw/capped_kelly | 29.24 | -5.07% | 421 | 76.18% | {"minimum_order": 5002, "no_positive_edge": 3984, "executed": 421} |
+| 2 | raw/kelly_edge_02 | 6.23 | -7.16% | 320 | 95.54% | {"no_positive_edge": 6210, "executed": 320, "minimum_order": 2877} |
+| 2 | raw/live_exact_fee_research | 0.10 | -7.58% | 536 | 99.92% | {"executed": 536, "no_positive_edge": 3984, "insufficient_liquidity": 16, "minimum_order_unaffordable": 4869, "locked_capital": 2} |
+| 2 | raw/quality_margin_1 | 6.95 | -14.54% | 64 | 95.00% | {"no_positive_edge": 7887, "executed": 64, "insufficient_liquidity": 15, "quote_quality_margin": 356, "insufficient_cash": 1085} |
+| 2 | raw/past_selected_quality | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 2 | simple/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 2 | simple/current_live_ev | 1.00 | -6.01% | 706 | 99.24% | {"no_positive_edge": 6648, "executed": 706, "insufficient_liquidity": 24, "locked_capital": 2, "minimum_order_unaffordable": 2027} |
+| 2 | simple/fixed_5 | 2.20 | -10.52% | 186 | 98.65% | {"no_positive_edge": 4547, "executed": 186, "insufficient_liquidity": 18, "insufficient_cash": 4656} |
+| 2 | simple/fixed_10_edge_02 | 1.02 | -2.04% | 486 | 99.58% | {"no_positive_edge": 6686, "executed": 486, "insufficient_liquidity": 67, "insufficient_cash": 2168} |
+| 2 | simple/fixed_10_edge_05 | 9.79 | -10.87% | 83 | 94.14% | {"no_positive_edge": 8014, "executed": 83, "insufficient_liquidity": 18, "locked_capital": 2, "insufficient_cash": 1290} |
+| 2 | simple/fraction_01 | 100.00 | n/a | 0 | -0.00% | {"no_positive_edge": 4547, "minimum_order": 4816, "insufficient_liquidity": 44} |
+| 2 | simple/fraction_05 | 29.93 | -6.75% | 295 | 83.74% | {"no_positive_edge": 4547, "executed": 295, "insufficient_liquidity": 87, "minimum_order": 4478} |
+| 2 | simple/full_kelly | 2.71 | -7.51% | 227 | 98.32% | {"no_positive_edge": 4547, "minimum_order": 4633, "executed": 227} |
+| 2 | simple/half_kelly | 7.60 | -9.03% | 263 | 94.44% | {"no_positive_edge": 4547, "minimum_order": 4597, "executed": 263} |
+| 2 | simple/quarter_kelly | 20.97 | -11.99% | 235 | 84.17% | {"no_positive_edge": 4547, "minimum_order": 4625, "executed": 235} |
+| 2 | simple/capped_kelly | 29.98 | -5.04% | 431 | 76.53% | {"no_positive_edge": 4547, "minimum_order": 4429, "executed": 431} |
+| 2 | simple/kelly_edge_02 | 7.60 | -9.03% | 263 | 94.44% | {"no_positive_edge": 6686, "executed": 263, "minimum_order": 2458} |
+| 2 | simple/live_exact_fee_research | 0.04 | -7.25% | 580 | 99.97% | {"no_positive_edge": 4547, "executed": 580, "insufficient_liquidity": 18, "locked_capital": 3, "minimum_order_unaffordable": 4259} |
+| 2 | simple/quality_margin_1 | 4.08 | -18.10% | 53 | 97.00% | {"no_positive_edge": 8014, "quote_quality_margin": 304, "executed": 53, "insufficient_liquidity": 8, "insufficient_cash": 1028} |
+| 2 | simple/past_selected_quality | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 2 | context/no_trade | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+| 2 | context/current_live_ev | 0.95 | -6.07% | 700 | 99.28% | {"no_positive_edge": 6510, "executed": 700, "insufficient_liquidity": 21, "minimum_order_unaffordable": 2176} |
+| 2 | context/fixed_5 | 2.80 | -2.97% | 655 | 98.01% | {"no_positive_edge": 4445, "executed": 655, "insufficient_liquidity": 42, "locked_capital": 1, "insufficient_cash": 4264} |
+| 2 | context/fixed_10_edge_02 | 1.16 | -3.29% | 300 | 99.54% | {"no_positive_edge": 6580, "executed": 300, "insufficient_liquidity": 44, "locked_capital": 1, "insufficient_cash": 2482} |
+| 2 | context/fixed_10_edge_05 | 4.27 | -12.12% | 79 | 97.24% | {"no_positive_edge": 7996, "executed": 79, "insufficient_liquidity": 14, "insufficient_cash": 1318} |
+| 2 | context/fraction_01 | 100.00 | n/a | 0 | -0.00% | {"no_positive_edge": 4445, "minimum_order": 4917, "insufficient_liquidity": 45} |
+| 2 | context/fraction_05 | 28.99 | -6.35% | 349 | 79.32% | {"no_positive_edge": 4445, "executed": 349, "insufficient_liquidity": 89, "minimum_order": 4524} |
+| 2 | context/full_kelly | 2.94 | -5.85% | 265 | 98.27% | {"no_positive_edge": 4445, "minimum_order": 4697, "executed": 265} |
+| 2 | context/half_kelly | 7.75 | -8.50% | 278 | 94.70% | {"no_positive_edge": 4445, "minimum_order": 4684, "executed": 278} |
+| 2 | context/quarter_kelly | 21.19 | -12.17% | 243 | 81.10% | {"no_positive_edge": 4445, "minimum_order": 4719, "executed": 243} |
+| 2 | context/capped_kelly | 29.25 | -5.16% | 386 | 81.77% | {"no_positive_edge": 4445, "minimum_order": 4576, "executed": 386} |
+| 2 | context/kelly_edge_02 | 7.75 | -8.50% | 278 | 94.70% | {"no_positive_edge": 6580, "executed": 278, "minimum_order": 2549} |
+| 2 | context/live_exact_fee_research | 0.09 | -4.11% | 1030 | 99.92% | {"no_positive_edge": 4445, "executed": 1030, "insufficient_liquidity": 27, "locked_capital": 3, "minimum_order_unaffordable": 3902} |
+| 2 | context/quality_margin_1 | 3.74 | -18.51% | 52 | 97.03% | {"no_positive_edge": 7996, "quote_quality_margin": 311, "insufficient_liquidity": 9, "executed": 52, "insufficient_cash": 1039} |
+| 2 | context/past_selected_quality | 100.00 | n/a | 0 | -0.00% | {"policy_no_trade": 9407} |
+
+Independent fixed-$10 signal diagnostics (no bankroll stopping; not a feasible $100 portfolio):
+
+| Latency s | Probability | Bets | PnL USD | ROI | 3-day bootstrap 95% |
+| --- | --- | --- | --- | --- | --- |
+| 0 | raw/independent_signal | 713 | -846.12 | -11.87% | [-0.17816507667908246, -0.028546325280441046] |
+| 0 | simple/independent_signal | 610 | -1254.48 | -20.57% | [-0.2708597749075688, -0.10220795831425328] |
+| 0 | context/independent_signal | 622 | -1112.83 | -17.89% | [-0.2510603939354254, -0.07625348869166258] |
+| 1 | raw/independent_signal | 961 | -634.16 | -6.60% | [-0.12364901439733102, 0.012660220793899762] |
+| 1 | simple/independent_signal | 849 | -1111.94 | -13.10% | [-0.210512910140519, -0.04519166903899036] |
+| 1 | context/independent_signal | 888 | -1015.92 | -11.44% | [-0.18819750759646484, -0.026385172186877127] |
+| 2 | raw/independent_signal | 1253 | -1021.28 | -8.15% | [-0.14985346195736385, -0.00835873887078806] |
+| 2 | simple/independent_signal | 1155 | -1256.95 | -10.88% | [-0.17995375657557874, -0.05020926558500961] |
+| 2 | context/independent_signal | 1181 | -1005.71 | -8.52% | [-0.14431815461647138, -0.02415402186693689] |
+
+Attribution, reliability bins on eligible markets and selected purchased-side probabilities, price/probability/edge/source/time/latency groups, original independent-source summaries, fold results and rejection counts are stored in diagnosis.json/comparison.json. Raw p_UP groups are explicitly raw-direction diagnostics; p_side groups are success probabilities (DOWN uses 1-p_UP).
+Bootstrap intervals use three-day moving blocks with zero-trade days, conditional on executed bets. They do not simulate new policy selection or bankroll paths. Small traded-day counts and source non-overlap limit generalization. Sizing changes capital survival and observed samples; same-bet fee/label effects and signal diagnostics must not be added as independent effects.
+
+Reproduction (uses verified pinned local caches; no downloads or source retraining):
+
+```powershell
+python build_polymarket_history.py
+python -m unittest discover -s tests -p test_polymarket_history.py
+python -m unittest discover -s tests -p test_polymarket_adaptation.py
+python -m unittest discover -s tests
+```
+
+Set EXPERIMENT_MODE near the top of build_polymarket_history.py to rebuild_history only to rebuild the original ingestion experiment. The default loss_diagnosis preserves source artifacts. No variant was deployed to live.

@@ -1,6 +1,7 @@
 """Chronological calibration and economic policies, independent of data ingestion."""
 import heapq
 import json
+from collections import Counter
 from pathlib import Path
 
 import numpy as np
@@ -88,11 +89,14 @@ def chronological_splits(data, folds=3):
         yield fold, past, future
 
 
-def optimal_kelly_stake(p, price, fees, bankroll, ask_size, minimum_shares):
+def optimal_kelly_stake(p, price, fees, bankroll, ask_size, minimum_shares, return_reason=False):
     """Numerically maximize actual binary net payoff with existing rounded fee math."""
+    def result(stake, reason):
+        return (stake, reason) if return_reason else stake
+
     cap = min(bankroll * .999, ask_size * price)
     if not np.isfinite(cap) or cap <= 0:
-        return 0.
+        return result(0., 'insufficient_liquidity')
 
     def objective(stake):
         win = payoff(stake, price, 1, fees, ask_size)
@@ -100,31 +104,38 @@ def optimal_kelly_stake(p, price, fees, bankroll, ask_size, minimum_shares):
             return np.inf
         return -(p * np.log1p(win['pnl'] / bankroll) + (1-p) * np.log1p(-stake / bankroll))
 
-    result = minimize_scalar(objective, bounds=(.00001, cap), method='bounded')
-    candidate = float(result.x)
+    optimum = minimize_scalar(objective, bounds=(.00001, cap), method='bounded')
+    candidate = float(optimum.x)
     won = payoff(candidate, price, 1, fees, ask_size)
-    if not won or won['shares'] < minimum_shares or objective(candidate) >= 0:
-        return 0.
-    return candidate
+    if not won:
+        return result(0., 'insufficient_liquidity')
+    if won['shares'] < minimum_shares:
+        return result(0., 'minimum_order')
+    if objective(candidate) >= 0:
+        return result(0., 'no_positive_log_growth')
+    return result(candidate, 'sized')
 
 
-def policy_action(row, probability, cash, equity, config, live_config, exposure=0):
-    if config['kind'] == 'none' or cash <= 0:
-        return None
+def policy_action(row, probability, cash, equity, config, live_config, exposure=0, return_reason=False):
+    def reject(reason):
+        return (None, reason) if return_reason else None
+
+    if config['kind'] == 'none':
+        return reject('policy_no_trade')
     fees = fee_model(row)
     prices = {'up': row.up_best_ask, 'down': row.down_best_ask}
     sizes = {'up': row.up_ask_size, 'down': row.down_ask_size}
     if any(not np.isfinite(x) or not 0 < x < 1 for x in prices.values()):
-        return None
+        return reject('invalid_price')
     fractions = {side: polymarket_taker_fee_fraction_of_notional(price, fees) for side, price in prices.items()}
     kwargs = dict(proba_up=probability, ask_yes=prices['up'], ask_no=prices['down'],
                   fee_yes=fractions['up'], fee_no=fractions['down'],
                   extra_buffer=live_config['extra_buffer'] if config['kind'] == 'live' else config.get('edge', 0))
-    if config['kind'] != 'live':
+    if config['kind'] != 'live' or config.get('exact_fee_entry', False):
         # Live deducts fees from gross stake; its economic break-even probability
         # is ask/(1-fee_fraction), rather than ask + fee_fraction.
         if any(value >= 1 for value in fractions.values()):
-            return None
+            return reject('invalid_fee')
         kwargs['fee_yes'] = prices['up'] / (1-fractions['up']) - prices['up']
         kwargs['fee_no'] = prices['down'] / (1-fractions['down']) - prices['down']
     if config['kind'] == 'live' and live_config['mode'] == 'model_direction_min_stake':
@@ -133,14 +144,24 @@ def policy_action(row, probability, cash, equity, config, live_config, exposure=
     else:
         decision = decide_trade_from_ev(**kwargs)
     if decision['decision'] == 'no_trade':
-        return None
+        return reject('no_positive_edge')
     side = 'up' if decision['decision'] == 'buy_yes' else 'down'
     price, available = prices[side], sizes[side]
     if config['kind'] == 'live' and (row.seconds_to_expiry <= live_config.get('no_trade_last_seconds', 20)
                                     or price > live_config.get('order_price_cap', .95)):
-        return None
+        return reject('live_price_or_expiry_limit')
+    if config.get('quality_margin', 0):
+        # A sampled cached book has unknown exchange age. Use only observed spread,
+        # never later snapshots, as a conservative execution uncertainty margin.
+        spread = max(row.up_best_ask-row.up_best_bid, row.down_best_ask-row.down_best_bid)
+        margin = config['quality_margin'] * spread
+        p_side = probability if side == 'up' else 1-probability
+        if p_side - price / (1-fractions[side]) <= config.get('edge', 0) + margin:
+            return reject('quote_quality_margin')
     if not np.isfinite(available) or available <= 0:
-        return None
+        return reject('insufficient_liquidity')
+    if cash <= 0:
+        return reject('locked_capital' if exposure > 0 else 'no_cash')
     if config['kind'] == 'live':
         multiplier = live_config['stake_multiplier']
         intent = build_trade_intent(policy_result=decision, bankroll=cash, stake_multiplier=1 if multiplier == 'return_multiple' else multiplier,
@@ -149,7 +170,14 @@ def policy_action(row, probability, cash, equity, config, live_config, exposure=
                                     stake_multiplier_mode=live_config.get('stake_multiplier_mode', 'return_multiple' if multiplier == 'return_multiple' else 'fixed'),
                                     initial_bankroll=INITIAL_BANKROLL, return_multiple_balance=cash)
         if intent['decision'] == 'no_trade':
-            return None
+            if intent['final_reason'] == 'stake_above_bankroll':
+                required = intent['effective_stake_usdc']
+                if exposure > 0 and required <= equity:
+                    return reject('locked_capital')
+                return reject('minimum_order_unaffordable' if intent['required_stake_usdc'] > cash else 'insufficient_cash')
+            if intent['final_reason'] == 'shares_below_order_min':
+                return reject('minimum_order')
+            return reject('live_'+intent['final_reason'])
         stake = intent['bet_usdc']
     elif config['kind'] == 'fixed':
         stake = config['stake']
@@ -157,22 +185,43 @@ def policy_action(row, probability, cash, equity, config, live_config, exposure=
         stake = equity * config['fraction']
     else:
         p = probability if side == 'up' else 1 - probability
-        stake = optimal_kelly_stake(p, price, fees, equity, available, row.order_min_size) * config['fraction']
+        optimum, sizing_reason = optimal_kelly_stake(p, price, fees, equity, available, row.order_min_size, True)
+        if optimum <= 0:
+            return reject(sizing_reason)
+        stake = optimum * config['fraction']
         stake = min(stake, equity * config.get('cap_fraction', 1))
     stake = round(stake, 2)
-    if stake <= 0 or stake > cash:
-        return None
+    if stake <= 0:
+        minimum = _minimum_executable_stake_usdc(entry_price=price, fee_model=fees, order_min_size=row.order_min_size)
+        if minimum > available*price:
+            return reject('insufficient_liquidity')
+        return reject('sizing_zero')
+    if stake > cash:
+        return reject('locked_capital' if exposure > 0 and stake <= equity else 'insufficient_cash')
     result = payoff(stake, price, 1, fees, available)
-    if result is None or result['shares'] < row.order_min_size:
-        return None
-    return dict(side=side, stake=stake, price=price, shares=result['shares'], fee=result['fee'],
-                edge=decision['ev_yes'] if side == 'up' else decision['ev_no'])
+    if result is None:
+        return reject('insufficient_liquidity')
+    if result['shares'] < row.order_min_size:
+        return reject('minimum_order')
+    p_side = probability if side == 'up' else 1-probability
+    expected = p_side * result['shares'] - stake
+    if config.get('exact_fee_entry', False) and expected <= 0:
+        return reject('nonpositive_exact_expected_pnl')
+    action = dict(side=side, stake=stake, price=price, shares=result['shares'], fee=result['fee'],
+                  edge=decision['ev_yes'] if side == 'up' else decision['ev_no'],
+                  p_side=p_side, expected_pnl=expected,
+                  break_even_probability=stake/result['shares'],
+                  probability_edge=p_side-stake/result['shares'])
+    return (action, 'executed') if return_reason else action
 
 
-def backtest(data, config, live_config, initial_bankroll=INITIAL_BANKROLL):
+def backtest(data, config, live_config, initial_bankroll=INITIAL_BANKROLL, independent_funding=False):
+    if independent_funding and config['kind'] != 'fixed':
+        raise ValueError('Independent funding is fixed-stake signal diagnostics only')
     cash, locked, equity = initial_bankroll, 0., initial_bankroll
     pending, path, trades, seen = [], [], [], set()
     sequence, realized_pnl, unable_minimum = 0, 0., 0
+    rejection_reasons = Counter()
 
     def snapshot(timestamp, event, cash_flow=0., cannot_order=False):
         return {'timestamp_utc': timestamp, 'bankroll': cash + locked,
@@ -199,12 +248,20 @@ def backtest(data, config, live_config, initial_bankroll=INITIAL_BANKROLL):
         if row.condition_id in seen:
             continue
         active = next(c for c in BASELINES if c['name'] == row.selected_policy) if config['kind'] == 'selected' else config
-        probability = getattr(row, 'p_model_up', row.p_calibrated) if active['kind'] == 'live' else row.p_calibrated
+        if getattr(row, 'research_quality_selected', False) and config['kind'] == 'selected':
+            active = dict(active, quality_margin=row.selected_quality_margin, exact_fee_entry=True,
+                          adapted_probability=True)
+        probability = (getattr(row, 'p_model_up', row.p_calibrated)
+                       if active['kind'] == 'live' and not active.get('adapted_probability', False)
+                       else row.p_calibrated)
         minimums = [_minimum_executable_stake_usdc(entry_price=getattr(row, side + '_best_ask'),
                     fee_model=fee_model(row), order_min_size=row.order_min_size) for side in ['up', 'down']]
         cannot_order = not any(np.isfinite(stake) and stake > 0 and stake <= cash for stake in minimums)
         unable_minimum += int(cannot_order)
-        action = policy_action(row, probability, cash, equity, active, live_config, locked)
+        action, reason = policy_action(row, probability, initial_bankroll if independent_funding else cash,
+                                       initial_bankroll if independent_funding else equity,
+                                       active, live_config, 0 if independent_funding else locked, return_reason=True)
+        rejection_reasons[reason] += 1
         if action:
             stake = action['stake']
             outcome = row.target_polymarket_up if action['side'] == 'up' else 1-row.target_polymarket_up
@@ -223,13 +280,14 @@ def backtest(data, config, live_config, initial_bankroll=INITIAL_BANKROLL):
                                settlement_available_at=max(row.resolved_at_utc, row.market_end_utc),
                                p_model_up=getattr(row, 'p_model_up', probability), p_calibrated=row.p_calibrated,
                                seconds_to_expiry=row.seconds_to_expiry, quote_delay_ms=row.quote_delay_ms))
-        path.append(snapshot(row.execution_at, 'decision', -action['stake'] if action else 0., cannot_order))
+        path.append(dict(snapshot(row.execution_at, 'decision', -action['stake'] if action else 0., cannot_order),
+                         rejection_reason=reason))
     settle(pd.Timestamp.max.tz_localize('UTC'))
     tr = pd.DataFrame(trades)
     curve = pd.DataFrame(path)
     balances = np.r_[initial_bankroll, curve.bankroll.to_numpy() if len(curve) else []]
     drawdown = balances / np.maximum.accumulate(balances) - 1
-    if cash < -1e-8 or not np.isclose(cash - initial_bankroll, realized_pnl):
+    if (cash < -1e-8 and not independent_funding) or not np.isclose(cash - initial_bankroll, realized_pnl):
         raise AssertionError('Portfolio cash/PnL conservation broken')
     summary = {'initial_bankroll': initial_bankroll, 'final_balance': cash,
                'net_pnl': equity-initial_bankroll, 'return_multiple': equity/initial_bankroll,
@@ -250,9 +308,19 @@ def backtest(data, config, live_config, initial_bankroll=INITIAL_BANKROLL):
                'worst_trade': float(tr.pnl.min()) if len(tr) else None,
                'max_exposure': float(curve.exposure.max()) if len(curve) else 0.,
                'execution_rejections_or_no_trade': len(data)-len(tr)}
+    summary.update(rejection_reasons=dict(rejection_reasons),
+                   funding='independent bets; not a feasible $100 portfolio' if independent_funding else 'continuous $100 portfolio',
+                   fees=float(tr.fee.sum()) if len(tr) else 0.,
+                   expected_pnl=float(tr.expected_pnl.sum()) if len(tr) else 0.,
+                   pnl_per_turnover=float(tr.pnl.sum()/tr.stake.sum()) if len(tr) else None,
+                   negative_expected_pnl_trades=int(tr.expected_pnl.le(0).sum()) if len(tr) else 0)
+    if independent_funding:
+        summary.update(initial_bankroll=None, final_balance=None, return_multiple=None,
+                       log_growth=None, max_drawdown=None,
+                       minimum_order_unaffordable_decisions=None)
     buckets = {}
     if len(tr):
-        boundaries = {'price': [0, .2, .4, .6, .8, 1], 'probability': [0, .4, .5, .6, 1],
+        boundaries = {'price': [0, .2, .4, .6, .8, 1], 'p_side': [0, .4, .5, .6, 1],
                       'edge': [-np.inf, 0, .01, .02, .05, .1, np.inf],
                       'seconds_to_expiry': [0, 60, 120, 240, 300],
                       'quote_delay_ms': [-.01, 0, 500, 1000, 2000, np.inf]}
