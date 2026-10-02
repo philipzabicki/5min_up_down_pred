@@ -109,6 +109,7 @@
         "mode": "artifact",
         "artifact_path": "data/analysis/feature_selector/BTC/20261002_015708/recommended_features.json",
         "artifact_list_key": "final_feature_list",
+        "excluded_feature_names_enabled": true,
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
           "MACD_fit_240m_pop16_fasmatypvwmapta_fasper945_fassouhl2_sigmatypfba_sigper1045_slomatypnwmabiw_sloper1384_slosouhl2",
@@ -163,6 +164,7 @@
       "train_lgbm": {
         "train_default_model": false,
         "save_oof_predictions": true,
+        "monotone_constraints_enabled": true,
         "walk_forward_test_to_train_ratio": 0.1,
         "optuna_best_params": {
           "learning_rate": 0.003395029882596675,
@@ -677,6 +679,7 @@
         "mode": "artifact",
         "artifact_path": "data/analysis/feature_selector/ETH/20260807_160729/recommended_features.json",
         "artifact_list_key": "final_feature_list",
+        "excluded_feature_names_enabled": true,
         "excluded_feature_names": [
           "KeltnerChannel_fit_5m_candle_up_pop512_atrmatyptema_atrper1130_maper39_matyptrima_souhl2_qe0.1_qm0.15_tf0.8_stmc_sg10",
           "ChaikinOsc_fit_5m_candle_up_pop512_fasmatypnwmabiw_fasper26_slomatypmama_sloper17_qe0.1_qm0.15_tf0.8_stmc_sg10",
@@ -690,6 +693,7 @@
       "train_lgbm": {
         "train_default_model": false,
         "save_oof_predictions": true,
+        "monotone_constraints_enabled": true,
         "walk_forward_test_to_train_ratio": 0.1,
         "optuna_best_params": {
           "learning_rate": 0.010359207511138706,
@@ -981,6 +985,7 @@
         "mode": "artifact",
         "artifact_path": "data/analysis/feature_selector/SOL/20260807_180643/recommended_features.json",
         "artifact_list_key": "final_feature_list",
+        "excluded_feature_names_enabled": true,
         "excluded_feature_names": [
           "ChaikinOsc_fit_5m_candle_up_pop1024_fasmatypehma_fasper267_slomatypshmma_sloper5_qe0.2_qm0.1_tf0.8_stmc_sg10",
           "ADX_fit_5m_candle_up_pop512_adxper57_atrper637_matypadxehma_matypatrhma_matypnegdmehma_matypposdmfba_negdmper631_posdmper1052_qe0.2_qm0.2_tf0.8_stmc_sg10",
@@ -990,6 +995,7 @@
       "train_lgbm": {
         "train_default_model": false,
         "save_oof_predictions": true,
+        "monotone_constraints_enabled": true,
         "walk_forward_test_to_train_ratio": 0.1,
         "optuna_best_params": {
           "learning_rate": 0.011641269911233033,

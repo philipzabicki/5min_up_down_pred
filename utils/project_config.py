@@ -116,6 +116,12 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
             f"{source_label}.walk_forward_test_to_train_ratio must be in (0, 1), "
             f"got: {raw_walk_forward_ratio!r}"
         )
+    monotone_constraints_enabled = _require_bool_or_default(
+        raw_config,
+        "monotone_constraints_enabled",
+        default=True,
+        source_label=source_label,
+    )
     return {
         "train_default_model": _require_bool_or_default(
             raw_config,
@@ -133,9 +139,14 @@ def _normalize_train_lgbm_config(raw_config, *, profile_name):
             raw_config.get("optuna_best_params"),
             source_label=source_label,
         ),
-        "monotone_constraints": _normalize_lgbm_monotone_constraints(
-            raw_config.get("monotone_constraints"),
-            source_label=source_label,
+        "monotone_constraints_enabled": monotone_constraints_enabled,
+        "monotone_constraints": (
+            _normalize_lgbm_monotone_constraints(
+                raw_config.get("monotone_constraints"),
+                source_label=source_label,
+            )
+            if monotone_constraints_enabled
+            else {}
         ),
         "walk_forward_test_to_train_ratio": walk_forward_ratio,
     }
@@ -424,6 +435,12 @@ def load_modeling_profile(
         profile.get("basis_premium_features") or {}
     )
     feature_selection = dict(feature_selection)
+    feature_selection["excluded_feature_names_enabled"] = _require_bool_or_default(
+        feature_selection,
+        "excluded_feature_names_enabled",
+        default=True,
+        source_label="modeling.feature_selection",
+    )
     if str(feature_selection.get("artifact_path", "") or "").strip():
         feature_selection["artifact_path"] = format_asset_text(
             feature_selection["artifact_path"],
@@ -636,6 +653,8 @@ def load_modeling_settings(
         raise ValueError(
             "modeling.feature_selection.excluded_feature_names must be a JSON array."
         )
+    if not feature_selection["excluded_feature_names_enabled"]:
+        excluded_feature_names = []
     return {
         "active_asset": active_asset,
         "symbol": dataset["symbol"],

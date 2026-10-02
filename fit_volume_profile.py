@@ -295,6 +295,31 @@ OPTUNA_SEED_TRIAL_PARAMS = [
   }
 ]
 
+
+def append_profile_config_seed_trial_params():
+    profile_config = MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
+    if not isinstance(profile_config, dict):
+        return
+
+    params = {"neighbor_bins": profile_config["neighbor_bins"]}
+    for horizon_name, horizon_config in (profile_config.get("horizons") or {}).items():
+        for parameter_name in (
+            "step",
+            "local_window",
+            "sigma_divisor",
+            "min_sigma",
+            "half_life_candles",
+        ):
+            value = horizon_config.get(parameter_name)
+            if value is not None:
+                params[f"{horizon_name}_{parameter_name}"] = value
+
+    if params not in OPTUNA_SEED_TRIAL_PARAMS:
+        OPTUNA_SEED_TRIAL_PARAMS.append(params)
+
+
+append_profile_config_seed_trial_params()
+
 N_TRIALS = 500
 TIMEOUT_SECONDS = None
 LOAD_IF_EXISTS = True

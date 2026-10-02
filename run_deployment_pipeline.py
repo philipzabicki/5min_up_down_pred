@@ -27,6 +27,20 @@ RUNTIME_ACTIVE_CONFIG_PATH = PROJECT_ROOT / "configs" / "runtime" / "active.json
 CREATE_MODELING_DATASET_STEP = "create_modeling_dataset.py"
 SELECT_FEATURES_STEP = "select_features.py"
 TRAIN_STEP = "train_lgbm.py"
+FIT_PROFILE_STEPS = {
+    "fit_reaction_profile.py": {
+        "artifact_dir": "data/optuna/reaction_profile/{asset}",
+        "artifact_stem": "reaction_profile_best_binary_logloss_mean_std",
+        "artifact_config_key": "best_reaction_profile_fixed_grid",
+        "modeling_config_key": "reaction_profile_fixed_grid",
+    },
+    "fit_volume_profile.py": {
+        "artifact_dir": "data/optuna/volume_profile/{asset}",
+        "artifact_stem": "volume_profile_best_binary_logloss_mean_std",
+        "artifact_config_key": "best_volume_profile_fixed_range",
+        "modeling_config_key": "volume_profile_fixed_range",
+    },
+}
 FEATURE_SELECTOR_ARTIFACT_NAME = "recommended_features.json"
 FEATURE_SELECTOR_LIST_KEY = "final_feature_list"
 FEATURE_SELECTOR_FLOAT_PRECISION = "float64"
@@ -179,6 +193,14 @@ def list_feature_selector_artifact_paths(asset):
     return list(output_root.glob(f"*/{FEATURE_SELECTOR_ARTIFACT_NAME}"))
 
 
+def list_fit_profile_artifact_paths(asset, script_name):
+    step_config = FIT_PROFILE_STEPS[script_name]
+    output_root = PROJECT_ROOT / step_config["artifact_dir"].format(asset=asset)
+    if not output_root.exists():
+        return []
+    return list(output_root.glob(f"{step_config['artifact_stem']}_*.json"))
+
+
 def validate_model_meta_asset(meta_path, asset):
     payload = json.loads(Path(meta_path).read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
@@ -264,6 +286,65 @@ def resolve_feature_selector_artifact_path(asset, previous_paths, step_started_a
     artifact_path = max(fresh_candidates, key=lambda path: path.stat().st_mtime)
     validate_feature_selector_artifact(artifact_path)
     return artifact_path
+
+
+def resolve_fit_profile_artifact_path(
+        asset,
+        script_name,
+        previous_paths,
+        step_started_at,
+):
+    candidates = list_fit_profile_artifact_paths(asset, script_name)
+    if not candidates:
+        raise FileNotFoundError(
+            f"No best-result artifact found for {script_name} and {asset}"
+        )
+
+    previous_paths = {Path(path).resolve() for path in previous_paths}
+    fresh_candidates = [
+        path for path in candidates if Path(path).resolve() not in previous_paths
+    ]
+    if not fresh_candidates:
+        fresh_candidates = [
+            path for path in candidates if path.stat().st_mtime >= step_started_at - 1.0
+        ]
+    if not fresh_candidates:
+        raise FileNotFoundError(
+            f"{script_name} did not create a new best-result artifact for {asset}"
+        )
+
+    artifact_path = max(fresh_candidates, key=lambda path: path.stat().st_mtime)
+    step_config = FIT_PROFILE_STEPS[script_name]
+    payload = json.loads(artifact_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Fit artifact must be a JSON object: {artifact_path}")
+    best_config = payload.get(step_config["artifact_config_key"])
+    if not isinstance(best_config, dict):
+        raise ValueError(
+            f"Fit artifact is missing {step_config['artifact_config_key']}: "
+            f"{artifact_path}"
+        )
+    return artifact_path
+
+
+def update_modeling_profile_from_fit(asset, script_name, artifact_path):
+    step_config = FIT_PROFILE_STEPS[script_name]
+    artifact_payload = json.loads(Path(artifact_path).read_text(encoding="utf-8"))
+    best_config = artifact_payload[step_config["artifact_config_key"]]
+
+    payload = load_modeling_config()
+    profile_key = find_modeling_profile_key(payload, asset)
+    profile = payload["profiles"][profile_key]
+    if not isinstance(profile, dict):
+        raise ValueError(f"Modeling config profiles.{profile_key} must be a JSON object")
+
+    profile[step_config["modeling_config_key"]] = best_config
+    write_modeling_config(payload)
+    print(
+        f"[PIPELINE][{asset}] modeling {step_config['modeling_config_key']} "
+        f"updated from {portable_repo_path(artifact_path)}",
+        flush=True,
+    )
 
 
 def update_modeling_feature_selection(asset, artifact_path):
@@ -405,12 +486,19 @@ def run_pipeline():
         for step_index, (script_name, script_path) in enumerate(steps):
             previous_meta_paths = ()
             previous_feature_selector_paths = ()
+            previous_fit_profile_paths = ()
             step_started_at = None
             if script_name == TRAIN_STEP:
                 previous_meta_paths = list_model_meta_paths(asset)
                 step_started_at = time.time()
             elif script_name == SELECT_FEATURES_STEP:
                 previous_feature_selector_paths = list_feature_selector_artifact_paths(asset)
+                step_started_at = time.time()
+            elif script_name in FIT_PROFILE_STEPS:
+                previous_fit_profile_paths = list_fit_profile_artifact_paths(
+                    asset,
+                    script_name,
+                )
                 step_started_at = time.time()
 
             if should_reset_feature_selection_before_dataset(steps, step_index):
@@ -434,6 +522,14 @@ def run_pipeline():
                 update_modeling_feature_selection(asset, artifact_path)
                 if should_run_post_selector_dataset_refresh(steps, step_index):
                     run_post_selector_dataset_refresh(asset)
+            elif script_name in FIT_PROFILE_STEPS:
+                artifact_path = resolve_fit_profile_artifact_path(
+                    asset,
+                    script_name,
+                    previous_fit_profile_paths,
+                    step_started_at,
+                )
+                update_modeling_profile_from_fit(asset, script_name, artifact_path)
 
 
 def main():
