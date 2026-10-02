@@ -813,3 +813,75 @@ Reprodukcja raportu treningowego — średnia arytmetyczna 10 foldów, każdy li
 | brier_score | 0.248647 | 0.248647 | 0.000475 | 0.000475 | -0.000000000000 | 0.000000000000 |
 | binary_logloss | 0.690433 | 0.690433 | 0.000954 | 0.000954 | 0.000000000000 | -0.000000000000 |
 <!-- BTC_OOF_TARGET_AUDIT_END -->
+
+<!-- BTC_TARGET_COMPARISON_405f872ed45bed9ca79c285c83e8086cff0b758a3a4c9e8648258fff2e793788 -->
+## Controlled BTC target comparison — 405f872ed45bed9c
+
+Run fingerprint: `405f872ed45bed9ca79c285c83e8086cff0b758a3a4c9e8648258fff2e793788`. Reproduction: `python run_btc_target_comparison.py`.
+
+Retrospective research only. It started from the exact 15,677 validated Kacho BTC 5m windows, used the active 64-feature selection artifact, and scored 9,407 outer test rows (the audited reference count is 9,407). The main BTC model, OOF, modeling configuration, `run.py`, and live artifacts were not changed.
+
+### Coverage and training controls
+
+- Rows: 15,677 validated common windows; no additional rows were excluded by exact joins; 9,407 outer test rows; active feature matrix 15,677 × 64 before outer splitting.
+- Feature alignment: exact `Opened`; exact Binance close endpoint `Opened + 5 minutes`; Binance label available at `Opened + 6 minutes`; Polymarket label available at `max(resolved_at_utc, market_end_utc)`. No nearest-match or later feature fill.
+- Common feature/target/quote exclusions after the existing 15,677-row Kacho validity filter: `{"included": 15677}`.
+- B/P shared training IDs, ordered 64 features, weights, seed and selected hyperparameters/tree count within every fold. Configuration selection used only earlier inner validation and mean B/P log loss; no outer-test early stopping.
+
+### Direct predictors on the official Polymarket result
+
+| Model | Log loss | Brier | AUC | Accuracy |
+| --- | ---: | ---: | ---: | ---: |
+| target_B | 0.692871 | 0.249857 | 0.5261 | 0.5154 |
+| target_P | 0.692913 | 0.249879 | 0.5236 | 0.5156 |
+| source_OOF_raw | 0.692584 | 0.249717 | 0.5238 | 0.5165 |
+| source_OOF_Platt | 0.692322 | 0.249588 | 0.5238 | 0.5181 |
+| prior_B | 0.693158 | 0.250005 | 0.4985 | 0.5008 |
+| prior_P | 0.693195 | 0.250024 | 0.4985 | 0.5008 |
+
+P−B on official Polymarket labels: log-loss difference +0.000042 (paired 3-day block 95% CI -0.000912 to +0.001193); Brier difference +0.000022 (95% CI -0.000451 to +0.000594). Positive means P is worse.
+
+Outer-fold log loss against the official Polymarket target:
+
+| Fold | B | P | Main OOF | Prior B | Prior P |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 0 | 0.693459 | 0.693818 | 0.693436 | 0.693056 | 0.693000 |
+| 1 | 0.692213 | 0.693097 | 0.692416 | 0.693244 | 0.693381 |
+| 2 | 0.692941 | 0.691824 | 0.691899 | 0.693173 | 0.693206 |
+
+Fold-level direct scores and calibration bins are in the run artifacts. Label agreement/disagreement is an ex-post diagnostic only.
+
+### Incremental value over the book
+
+The second layer used 6,271 shared rows from folds 1–2. Fold 0 was omitted because no earlier B/P out-of-sample predictions existed to train the layer.
+
+| Variant | Log loss | Brier | AUC |
+| --- | ---: | ---: | ---: |
+| MARKET_ONLY | 0.689554 | 0.247603 | 0.5452 |
+| MARKET_PLUS_B | 0.689511 | 0.247580 | 0.5466 |
+| MARKET_PLUS_P | 0.689570 | 0.247614 | 0.5451 |
+| MARKET_PLUS_SOURCE_OOF | 0.689441 | 0.247543 | 0.5471 |
+Paired block intervals are in `value_over_market.json`.
+
+### Fixed-$5 economics
+
+The economics use the same observed-book positive-EV entry rule, exact market fee schedule, minimum order size and observed top ask liquidity. Each snapshot latency and execution delay has an independent $5-bet diagnostic and a separate continuous $100 portfolio; no deposits or resets. The 1/2-second cases are sensitivities, not measured live latency.
+
+Primary snapshot: earliest recorded quote (0 s), an optimistic approximation. Delayed execution freezes side and observed ask limit at that quote; later quotes may reject execution but cannot change the decision.
+
+| Model | Exec delay | Independent bets: trades / turnover / fees / PnL / PnL-turnover | $100 portfolio: trades / turnover / fees / PnL / final / max DD |
+| --- | ---: | --- | --- |
+| target_B | 0s | 4875 / $24375.00 / $883.31 / $-790.22 / -0.032419243669000314 | 129 / $645.00 / $22.90 / $-96.30 / $3.70 / 96.95% |
+| target_B | 1s | 3466 / $17330.00 / $631.79 / $-772.38 / -0.044568703975660255 | 289 / $1445.00 / $51.56 / $-96.68 / $3.32 / 97.28% |
+| target_B | 2s | 2908 / $14540.00 / $535.95 / $-738.52 / -0.05079207923399451 | 265 / $1325.00 / $47.43 / $-96.63 / $3.37 / 97.18% |
+| target_P | 0s | 4335 / $21675.00 / $795.71 / $-1058.81 / -0.04884956232776721 | 398 / $1990.00 / $70.79 / $-99.46 / $0.54 / 99.60% |
+| target_P | 1s | 3114 / $15570.00 / $575.13 / $-896.69 / -0.05759076990717734 | 284 / $1420.00 / $50.76 / $-98.63 / $1.37 / 99.20% |
+| target_P | 2s | 2623 / $13115.00 / $488.73 / $-866.35 / -0.06605818679336564 | 230 / $1150.00 / $41.16 / $-95.58 / $4.42 / 96.85% |
+
+Full rejection reasons and per-fold economics are in `economics/economics.json`; drawdown is based on cash plus open-position cost, not mark-to-market.
+
+### Snapshot-age audit
+
+The old session's ~1.5 s field measures time from application `fetched_at` (after the REST market/book snapshot fetch completes) until the cached payload is consumed. It is not the age of the exchange book's last change, a last-price timestamp, or feed delay. Current code schedules prefetch about 1.2 s before a bucket and accepts the cached payload up to 2.5 s old; above that it refetches. Thus 1.5 s is an older application snapshot still within the configured cache limit, while exchange freshness remains unknown. The 2026-06-20 run is the only detailed BTC live session found and used a different model fingerprint; no newer runtime logs are available for comparison.
+
+All results are retrospective and do not authorize live deployment.
