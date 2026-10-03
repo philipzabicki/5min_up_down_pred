@@ -1,11 +1,29 @@
 {
   "basis_premium_feature_columns": [
-    "futures_index_basis_change_5m",
+    "futures_index_basis_rel_1m",
+    "futures_index_basis_abs_1m",
     "futures_index_basis_change_1m",
-    "futures_index_basis_change_1h",
-    "futures_index_basis_change_15m",
+    "futures_index_basis_rel_3m",
+    "futures_index_basis_abs_3m",
+    "futures_index_basis_change_3m",
     "futures_index_basis_rel_5m",
-    "futures_index_basis_rel_1d"
+    "futures_index_basis_abs_5m",
+    "futures_index_basis_change_5m",
+    "futures_index_basis_rel_15m",
+    "futures_index_basis_abs_15m",
+    "futures_index_basis_change_15m",
+    "futures_index_basis_rel_30m",
+    "futures_index_basis_abs_30m",
+    "futures_index_basis_change_30m",
+    "futures_index_basis_rel_1h",
+    "futures_index_basis_abs_1h",
+    "futures_index_basis_change_1h",
+    "futures_index_basis_rel_4h",
+    "futures_index_basis_abs_4h",
+    "futures_index_basis_change_4h",
+    "futures_index_basis_rel_1d",
+    "futures_index_basis_abs_1d",
+    "futures_index_basis_change_1d"
   ],
   "basis_premium_features": {
     "enabled": true,
@@ -23,7 +41,7 @@
       "1d"
     ]
   },
-  "created_utc": "2026-10-02T01:58:40.591795+00:00",
+  "created_utc": "2026-10-02T23:27:10.897222+00:00",
   "feature_intervals": {
     "enabled": [
       "1m",
@@ -36,7 +54,7 @@
       "1d"
     ]
   },
-  "float_precision": "float64",
+  "float_precision": "float32",
   "head_csv_path": "data\\datasets\\modeling\\BTC\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_head1000.csv",
   "parquet_path": "data\\datasets\\modeling\\BTC\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet",
   "reaction_profile_feature_columns": [
@@ -71,16 +89,16 @@
   ],
   "reaction_profile_feature_version": "rp_fixed_grid_v1",
   "reaction_profile_fixed_grid": {
-    "bin_size": 60.44430134269045,
-    "bins": 3310,
-    "config_signature": "{\"bin_size\":60.44430134269045,\"bins\":3310,\"distance_power\":0.2547793095443065,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":60},\"long\":{\"decay\":0.9999900281437984,\"half_life_candles\":69510,\"local_window\":59},\"medium\":{\"decay\":0.9997957936341728,\"half_life_candles\":3394,\"local_window\":93},\"short\":{\"decay\":0.9879131629461064,\"half_life_candles\":57,\"local_window\":6}},\"min_reaction_strength\":3.1239000955994415e-05,\"neighbor_bins\":14.40179041398185,\"neighbor_radius\":15,\"price_max\":200000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.969407212401052}",
+    "bin_size": 62.670642288384926,
+    "bins": 3193,
+    "config_signature": "{\"bin_size\":62.670642288384926,\"bins\":3193,\"distance_power\":0.31935892679571165,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":80},\"long\":{\"decay\":0.9999890788524048,\"half_life_candles\":63468,\"local_window\":15},\"medium\":{\"decay\":0.9997322046500691,\"half_life_candles\":2588,\"local_window\":110},\"short\":{\"decay\":0.993990761347791,\"half_life_candles\":115,\"local_window\":52}},\"min_reaction_strength\":6.607132402853657e-05,\"neighbor_bins\":10.592470742262856,\"neighbor_radius\":11,\"price_max\":200000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.7575907713926173}",
     "decays": [
-      0.9879131629461064,
-      0.9997957936341728,
-      0.9999900281437984,
+      0.993990761347791,
+      0.9997322046500691,
+      0.9999890788524048,
       1.0
     ],
-    "distance_power": 0.2547793095443065,
+    "distance_power": 0.31935892679571165,
     "enabled": true,
     "eps": 1e-12,
     "feature_columns": [
@@ -114,16 +132,16 @@
       "rp_all_resistance_center_dist"
     ],
     "half_lives": [
-      57,
-      3394,
-      69510,
+      115,
+      2588,
+      63468,
       null
     ],
     "horizon_local_windows": [
-      6,
-      93,
-      59,
-      60
+      52,
+      110,
+      15,
+      80
     ],
     "horizon_names": [
       "short",
@@ -136,38 +154,37 @@
         "decay": 1.0,
         "half_life_candles": null,
         "horizon_name": "all",
-        "local_window": 60
+        "local_window": 80
       },
       "long": {
-        "decay": 0.9999900281437984,
-        "half_life_candles": 69510,
+        "decay": 0.9999890788524048,
+        "half_life_candles": 63468,
         "horizon_name": "long",
-        "local_window": 59
+        "local_window": 15
       },
       "medium": {
-        "decay": 0.9997957936341728,
-        "half_life_candles": 3394,
+        "decay": 0.9997322046500691,
+        "half_life_candles": 2588,
         "horizon_name": "medium",
-        "local_window": 93
+        "local_window": 110
       },
       "short": {
-        "decay": 0.9879131629461064,
-        "half_life_candles": 57,
+        "decay": 0.993990761347791,
+        "half_life_candles": 115,
         "horizon_name": "short",
-        "local_window": 6
+        "local_window": 52
       }
     },
-    "min_reaction_strength": 3.1239000955994415e-05,
-    "neighbor_bins": 14.40179041398185,
-    "neighbor_radius": 15,
+    "min_reaction_strength": 6.607132402853657e-05,
+    "neighbor_bins": 10.592470742262856,
+    "neighbor_radius": 11,
     "price_max": 200000.0,
     "price_min": 0.0,
     "version": "rp_fixed_grid_v1",
-    "wick_power": 0.969407212401052
+    "wick_power": 0.7575907713926173
   },
   "tail_csv_path": "data\\datasets\\modeling\\BTC\\BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_tail1000.csv",
   "volume_profile_feature_columns": [
-    "vp_short_log_density_ratio_to_current_bin_minus_10",
     "vp_short_log_density_ratio_to_current_bin_minus_9",
     "vp_short_log_density_ratio_to_current_bin_minus_8",
     "vp_short_log_density_ratio_to_current_bin_minus_7",
@@ -186,11 +203,9 @@
     "vp_short_log_density_ratio_to_current_bin_plus_7",
     "vp_short_log_density_ratio_to_current_bin_plus_8",
     "vp_short_log_density_ratio_to_current_bin_plus_9",
-    "vp_short_log_density_ratio_to_current_bin_plus_10",
     "vp_short_local_above_below_volume_log_ratio",
     "vp_short_current_bin_volume_share_of_local_window",
     "vp_short_current_bin_volume_share_of_local_peak",
-    "vp_medium_log_density_ratio_to_current_bin_minus_10",
     "vp_medium_log_density_ratio_to_current_bin_minus_9",
     "vp_medium_log_density_ratio_to_current_bin_minus_8",
     "vp_medium_log_density_ratio_to_current_bin_minus_7",
@@ -209,11 +224,9 @@
     "vp_medium_log_density_ratio_to_current_bin_plus_7",
     "vp_medium_log_density_ratio_to_current_bin_plus_8",
     "vp_medium_log_density_ratio_to_current_bin_plus_9",
-    "vp_medium_log_density_ratio_to_current_bin_plus_10",
     "vp_medium_local_above_below_volume_log_ratio",
     "vp_medium_current_bin_volume_share_of_local_window",
     "vp_medium_current_bin_volume_share_of_local_peak",
-    "vp_long_log_density_ratio_to_current_bin_minus_10",
     "vp_long_log_density_ratio_to_current_bin_minus_9",
     "vp_long_log_density_ratio_to_current_bin_minus_8",
     "vp_long_log_density_ratio_to_current_bin_minus_7",
@@ -232,11 +245,9 @@
     "vp_long_log_density_ratio_to_current_bin_plus_7",
     "vp_long_log_density_ratio_to_current_bin_plus_8",
     "vp_long_log_density_ratio_to_current_bin_plus_9",
-    "vp_long_log_density_ratio_to_current_bin_plus_10",
     "vp_long_local_above_below_volume_log_ratio",
     "vp_long_current_bin_volume_share_of_local_window",
     "vp_long_current_bin_volume_share_of_local_peak",
-    "vp_all_log_density_ratio_to_current_bin_minus_10",
     "vp_all_log_density_ratio_to_current_bin_minus_9",
     "vp_all_log_density_ratio_to_current_bin_minus_8",
     "vp_all_log_density_ratio_to_current_bin_minus_7",
@@ -255,24 +266,22 @@
     "vp_all_log_density_ratio_to_current_bin_plus_7",
     "vp_all_log_density_ratio_to_current_bin_plus_8",
     "vp_all_log_density_ratio_to_current_bin_plus_9",
-    "vp_all_log_density_ratio_to_current_bin_plus_10",
     "vp_all_local_above_below_volume_log_ratio",
     "vp_all_current_bin_volume_share_of_local_window",
     "vp_all_current_bin_volume_share_of_local_peak"
   ],
   "volume_profile_feature_version": "vp_fixed_range_v3",
   "volume_profile_fixed_range": {
-    "config_signature": "{\"enabled\":true,\"eps\":1e-06,\"feature_columns\":[\"vp_short_log_density_ratio_to_current_bin_minus_10\",\"vp_short_log_density_ratio_to_current_bin_minus_9\",\"vp_short_log_density_ratio_to_current_bin_minus_8\",\"vp_short_log_density_ratio_to_current_bin_minus_7\",\"vp_short_log_density_ratio_to_current_bin_minus_6\",\"vp_short_log_density_ratio_to_current_bin_minus_5\",\"vp_short_log_density_ratio_to_current_bin_minus_4\",\"vp_short_log_density_ratio_to_current_bin_minus_3\",\"vp_short_log_density_ratio_to_current_bin_minus_2\",\"vp_short_log_density_ratio_to_current_bin_minus_1\",\"vp_short_log_density_ratio_to_current_bin_plus_1\",\"vp_short_log_density_ratio_to_current_bin_plus_2\",\"vp_short_log_density_ratio_to_current_bin_plus_3\",\"vp_short_log_density_ratio_to_current_bin_plus_4\",\"vp_short_log_density_ratio_to_current_bin_plus_5\",\"vp_short_log_density_ratio_to_current_bin_plus_6\",\"vp_short_log_density_ratio_to_current_bin_plus_7\",\"vp_short_log_density_ratio_to_current_bin_plus_8\",\"vp_short_log_density_ratio_to_current_bin_plus_9\",\"vp_short_log_density_ratio_to_current_bin_plus_10\",\"vp_short_local_above_below_volume_log_ratio\",\"vp_short_current_bin_volume_share_of_local_window\",\"vp_short_current_bin_volume_share_of_local_peak\",\"vp_medium_log_density_ratio_to_current_bin_minus_10\",\"vp_medium_log_density_ratio_to_current_bin_minus_9\",\"vp_medium_log_density_ratio_to_current_bin_minus_8\",\"vp_medium_log_density_ratio_to_current_bin_minus_7\",\"vp_medium_log_density_ratio_to_current_bin_minus_6\",\"vp_medium_log_density_ratio_to_current_bin_minus_5\",\"vp_medium_log_density_ratio_to_current_bin_minus_4\",\"vp_medium_log_density_ratio_to_current_bin_minus_3\",\"vp_medium_log_density_ratio_to_current_bin_minus_2\",\"vp_medium_log_density_ratio_to_current_bin_minus_1\",\"vp_medium_log_density_ratio_to_current_bin_plus_1\",\"vp_medium_log_density_ratio_to_current_bin_plus_2\",\"vp_medium_log_density_ratio_to_current_bin_plus_3\",\"vp_medium_log_density_ratio_to_current_bin_plus_4\",\"vp_medium_log_density_ratio_to_current_bin_plus_5\",\"vp_medium_log_density_ratio_to_current_bin_plus_6\",\"vp_medium_log_density_ratio_to_current_bin_plus_7\",\"vp_medium_log_density_ratio_to_current_bin_plus_8\",\"vp_medium_log_density_ratio_to_current_bin_plus_9\",\"vp_medium_log_density_ratio_to_current_bin_plus_10\",\"vp_medium_local_above_below_volume_log_ratio\",\"vp_medium_current_bin_volume_share_of_local_window\",\"vp_medium_current_bin_volume_share_of_local_peak\",\"vp_long_log_density_ratio_to_current_bin_minus_10\",\"vp_long_log_density_ratio_to_current_bin_minus_9\",\"vp_long_log_density_ratio_to_current_bin_minus_8\",\"vp_long_log_density_ratio_to_current_bin_minus_7\",\"vp_long_log_density_ratio_to_current_bin_minus_6\",\"vp_long_log_density_ratio_to_current_bin_minus_5\",\"vp_long_log_density_ratio_to_current_bin_minus_4\",\"vp_long_log_density_ratio_to_current_bin_minus_3\",\"vp_long_log_density_ratio_to_current_bin_minus_2\",\"vp_long_log_density_ratio_to_current_bin_minus_1\",\"vp_long_log_density_ratio_to_current_bin_plus_1\",\"vp_long_log_density_ratio_to_current_bin_plus_2\",\"vp_long_log_density_ratio_to_current_bin_plus_3\",\"vp_long_log_density_ratio_to_current_bin_plus_4\",\"vp_long_log_density_ratio_to_current_bin_plus_5\",\"vp_long_log_density_ratio_to_current_bin_plus_6\",\"vp_long_log_density_ratio_to_current_bin_plus_7\",\"vp_long_log_density_ratio_to_current_bin_plus_8\",\"vp_long_log_density_ratio_to_current_bin_plus_9\",\"vp_long_log_density_ratio_to_current_bin_plus_10\",\"vp_long_local_above_below_volume_log_ratio\",\"vp_long_current_bin_volume_share_of_local_window\",\"vp_long_current_bin_volume_share_of_local_peak\",\"vp_all_log_density_ratio_to_current_bin_minus_10\",\"vp_all_log_density_ratio_to_current_bin_minus_9\",\"vp_all_log_density_ratio_to_current_bin_minus_8\",\"vp_all_log_density_ratio_to_current_bin_minus_7\",\"vp_all_log_density_ratio_to_current_bin_minus_6\",\"vp_all_log_density_ratio_to_current_bin_minus_5\",\"vp_all_log_density_ratio_to_current_bin_minus_4\",\"vp_all_log_density_ratio_to_current_bin_minus_3\",\"vp_all_log_density_ratio_to_current_bin_minus_2\",\"vp_all_log_density_ratio_to_current_bin_minus_1\",\"vp_all_log_density_ratio_to_current_bin_plus_1\",\"vp_all_log_density_ratio_to_current_bin_plus_2\",\"vp_all_log_density_ratio_to_current_bin_plus_3\",\"vp_all_log_density_ratio_to_current_bin_plus_4\",\"vp_all_log_density_ratio_to_current_bin_plus_5\",\"vp_all_log_density_ratio_to_current_bin_plus_6\",\"vp_all_log_density_ratio_to_current_bin_plus_7\",\"vp_all_log_density_ratio_to_current_bin_plus_8\",\"vp_all_log_density_ratio_to_current_bin_plus_9\",\"vp_all_log_density_ratio_to_current_bin_plus_10\",\"vp_all_local_above_below_volume_log_ratio\",\"vp_all_current_bin_volume_share_of_local_window\",\"vp_all_current_bin_volume_share_of_local_peak\"],\"horizons\":{\"all\":{\"bins\":1137,\"decay\":1.0,\"half_life_candles\":null,\"local_window\":120,\"min_sigma\":19.6336146728695,\"sigma_divisor\":0.03132174404584052,\"step\":176},\"long\":{\"bins\":747,\"decay\":0.9999718019035923,\"half_life_candles\":24581,\"local_window\":53,\"min_sigma\":0.30202161283369666,\"sigma_divisor\":55.3592202758579,\"step\":268},\"medium\":{\"bins\":5556,\"decay\":0.9997518577953928,\"half_life_candles\":2793,\"local_window\":25,\"min_sigma\":3.8833255626766703,\"sigma_divisor\":0.16625053689548464,\"step\":36},\"short\":{\"bins\":1667,\"decay\":0.9943345751258,\"half_life_candles\":122,\"local_window\":44,\"min_sigma\":0.017790781749004347,\"sigma_divisor\":0.08629824875017542,\"step\":120}},\"neighbor_bins\":10,\"price_max\":200000.0,\"price_min\":0.0,\"version\":\"vp_fixed_range_v3\"}",
+    "config_signature": "{\"enabled\":true,\"eps\":1e-06,\"feature_columns\":[\"vp_short_log_density_ratio_to_current_bin_minus_9\",\"vp_short_log_density_ratio_to_current_bin_minus_8\",\"vp_short_log_density_ratio_to_current_bin_minus_7\",\"vp_short_log_density_ratio_to_current_bin_minus_6\",\"vp_short_log_density_ratio_to_current_bin_minus_5\",\"vp_short_log_density_ratio_to_current_bin_minus_4\",\"vp_short_log_density_ratio_to_current_bin_minus_3\",\"vp_short_log_density_ratio_to_current_bin_minus_2\",\"vp_short_log_density_ratio_to_current_bin_minus_1\",\"vp_short_log_density_ratio_to_current_bin_plus_1\",\"vp_short_log_density_ratio_to_current_bin_plus_2\",\"vp_short_log_density_ratio_to_current_bin_plus_3\",\"vp_short_log_density_ratio_to_current_bin_plus_4\",\"vp_short_log_density_ratio_to_current_bin_plus_5\",\"vp_short_log_density_ratio_to_current_bin_plus_6\",\"vp_short_log_density_ratio_to_current_bin_plus_7\",\"vp_short_log_density_ratio_to_current_bin_plus_8\",\"vp_short_log_density_ratio_to_current_bin_plus_9\",\"vp_short_local_above_below_volume_log_ratio\",\"vp_short_current_bin_volume_share_of_local_window\",\"vp_short_current_bin_volume_share_of_local_peak\",\"vp_medium_log_density_ratio_to_current_bin_minus_9\",\"vp_medium_log_density_ratio_to_current_bin_minus_8\",\"vp_medium_log_density_ratio_to_current_bin_minus_7\",\"vp_medium_log_density_ratio_to_current_bin_minus_6\",\"vp_medium_log_density_ratio_to_current_bin_minus_5\",\"vp_medium_log_density_ratio_to_current_bin_minus_4\",\"vp_medium_log_density_ratio_to_current_bin_minus_3\",\"vp_medium_log_density_ratio_to_current_bin_minus_2\",\"vp_medium_log_density_ratio_to_current_bin_minus_1\",\"vp_medium_log_density_ratio_to_current_bin_plus_1\",\"vp_medium_log_density_ratio_to_current_bin_plus_2\",\"vp_medium_log_density_ratio_to_current_bin_plus_3\",\"vp_medium_log_density_ratio_to_current_bin_plus_4\",\"vp_medium_log_density_ratio_to_current_bin_plus_5\",\"vp_medium_log_density_ratio_to_current_bin_plus_6\",\"vp_medium_log_density_ratio_to_current_bin_plus_7\",\"vp_medium_log_density_ratio_to_current_bin_plus_8\",\"vp_medium_log_density_ratio_to_current_bin_plus_9\",\"vp_medium_local_above_below_volume_log_ratio\",\"vp_medium_current_bin_volume_share_of_local_window\",\"vp_medium_current_bin_volume_share_of_local_peak\",\"vp_long_log_density_ratio_to_current_bin_minus_9\",\"vp_long_log_density_ratio_to_current_bin_minus_8\",\"vp_long_log_density_ratio_to_current_bin_minus_7\",\"vp_long_log_density_ratio_to_current_bin_minus_6\",\"vp_long_log_density_ratio_to_current_bin_minus_5\",\"vp_long_log_density_ratio_to_current_bin_minus_4\",\"vp_long_log_density_ratio_to_current_bin_minus_3\",\"vp_long_log_density_ratio_to_current_bin_minus_2\",\"vp_long_log_density_ratio_to_current_bin_minus_1\",\"vp_long_log_density_ratio_to_current_bin_plus_1\",\"vp_long_log_density_ratio_to_current_bin_plus_2\",\"vp_long_log_density_ratio_to_current_bin_plus_3\",\"vp_long_log_density_ratio_to_current_bin_plus_4\",\"vp_long_log_density_ratio_to_current_bin_plus_5\",\"vp_long_log_density_ratio_to_current_bin_plus_6\",\"vp_long_log_density_ratio_to_current_bin_plus_7\",\"vp_long_log_density_ratio_to_current_bin_plus_8\",\"vp_long_log_density_ratio_to_current_bin_plus_9\",\"vp_long_local_above_below_volume_log_ratio\",\"vp_long_current_bin_volume_share_of_local_window\",\"vp_long_current_bin_volume_share_of_local_peak\",\"vp_all_log_density_ratio_to_current_bin_minus_9\",\"vp_all_log_density_ratio_to_current_bin_minus_8\",\"vp_all_log_density_ratio_to_current_bin_minus_7\",\"vp_all_log_density_ratio_to_current_bin_minus_6\",\"vp_all_log_density_ratio_to_current_bin_minus_5\",\"vp_all_log_density_ratio_to_current_bin_minus_4\",\"vp_all_log_density_ratio_to_current_bin_minus_3\",\"vp_all_log_density_ratio_to_current_bin_minus_2\",\"vp_all_log_density_ratio_to_current_bin_minus_1\",\"vp_all_log_density_ratio_to_current_bin_plus_1\",\"vp_all_log_density_ratio_to_current_bin_plus_2\",\"vp_all_log_density_ratio_to_current_bin_plus_3\",\"vp_all_log_density_ratio_to_current_bin_plus_4\",\"vp_all_log_density_ratio_to_current_bin_plus_5\",\"vp_all_log_density_ratio_to_current_bin_plus_6\",\"vp_all_log_density_ratio_to_current_bin_plus_7\",\"vp_all_log_density_ratio_to_current_bin_plus_8\",\"vp_all_log_density_ratio_to_current_bin_plus_9\",\"vp_all_local_above_below_volume_log_ratio\",\"vp_all_current_bin_volume_share_of_local_window\",\"vp_all_current_bin_volume_share_of_local_peak\"],\"horizons\":{\"all\":{\"bins\":678,\"decay\":1.0,\"half_life_candles\":null,\"local_window\":114,\"min_sigma\":82.78950295178102,\"sigma_divisor\":0.014845885950688833,\"step\":295},\"long\":{\"bins\":511,\"decay\":0.9999642566629131,\"half_life_candles\":19392,\"local_window\":78,\"min_sigma\":0.11478201228719195,\"sigma_divisor\":1.3399496106030355,\"step\":392},\"medium\":{\"bins\":948,\"decay\":0.9998735674276822,\"half_life_candles\":5482,\"local_window\":12,\"min_sigma\":23.605590898252963,\"sigma_divisor\":0.2029959468008574,\"step\":211},\"short\":{\"bins\":2151,\"decay\":0.981440677658594,\"half_life_candles\":37,\"local_window\":36,\"min_sigma\":33.41385719892172,\"sigma_divisor\":0.01825034846507341,\"step\":93}},\"neighbor_bins\":9,\"price_max\":200000.0,\"price_min\":0.0,\"version\":\"vp_fixed_range_v3\"}",
     "decays": [
-      0.9943345751258,
-      0.9997518577953928,
-      0.9999718019035923,
+      0.981440677658594,
+      0.9998735674276822,
+      0.9999642566629131,
       1.0
     ],
     "enabled": true,
     "eps": 1e-06,
     "feature_columns": [
-      "vp_short_log_density_ratio_to_current_bin_minus_10",
       "vp_short_log_density_ratio_to_current_bin_minus_9",
       "vp_short_log_density_ratio_to_current_bin_minus_8",
       "vp_short_log_density_ratio_to_current_bin_minus_7",
@@ -291,11 +300,9 @@
       "vp_short_log_density_ratio_to_current_bin_plus_7",
       "vp_short_log_density_ratio_to_current_bin_plus_8",
       "vp_short_log_density_ratio_to_current_bin_plus_9",
-      "vp_short_log_density_ratio_to_current_bin_plus_10",
       "vp_short_local_above_below_volume_log_ratio",
       "vp_short_current_bin_volume_share_of_local_window",
       "vp_short_current_bin_volume_share_of_local_peak",
-      "vp_medium_log_density_ratio_to_current_bin_minus_10",
       "vp_medium_log_density_ratio_to_current_bin_minus_9",
       "vp_medium_log_density_ratio_to_current_bin_minus_8",
       "vp_medium_log_density_ratio_to_current_bin_minus_7",
@@ -314,11 +321,9 @@
       "vp_medium_log_density_ratio_to_current_bin_plus_7",
       "vp_medium_log_density_ratio_to_current_bin_plus_8",
       "vp_medium_log_density_ratio_to_current_bin_plus_9",
-      "vp_medium_log_density_ratio_to_current_bin_plus_10",
       "vp_medium_local_above_below_volume_log_ratio",
       "vp_medium_current_bin_volume_share_of_local_window",
       "vp_medium_current_bin_volume_share_of_local_peak",
-      "vp_long_log_density_ratio_to_current_bin_minus_10",
       "vp_long_log_density_ratio_to_current_bin_minus_9",
       "vp_long_log_density_ratio_to_current_bin_minus_8",
       "vp_long_log_density_ratio_to_current_bin_minus_7",
@@ -337,11 +342,9 @@
       "vp_long_log_density_ratio_to_current_bin_plus_7",
       "vp_long_log_density_ratio_to_current_bin_plus_8",
       "vp_long_log_density_ratio_to_current_bin_plus_9",
-      "vp_long_log_density_ratio_to_current_bin_plus_10",
       "vp_long_local_above_below_volume_log_ratio",
       "vp_long_current_bin_volume_share_of_local_window",
       "vp_long_current_bin_volume_share_of_local_peak",
-      "vp_all_log_density_ratio_to_current_bin_minus_10",
       "vp_all_log_density_ratio_to_current_bin_minus_9",
       "vp_all_log_density_ratio_to_current_bin_minus_8",
       "vp_all_log_density_ratio_to_current_bin_minus_7",
@@ -360,34 +363,33 @@
       "vp_all_log_density_ratio_to_current_bin_plus_7",
       "vp_all_log_density_ratio_to_current_bin_plus_8",
       "vp_all_log_density_ratio_to_current_bin_plus_9",
-      "vp_all_log_density_ratio_to_current_bin_plus_10",
       "vp_all_local_above_below_volume_log_ratio",
       "vp_all_current_bin_volume_share_of_local_window",
       "vp_all_current_bin_volume_share_of_local_peak"
     ],
     "half_lives": [
-      122,
-      2793,
-      24581,
+      37,
+      5482,
+      19392,
       null
     ],
     "horizon_bins": [
-      1667,
-      5556,
-      747,
-      1137
+      2151,
+      948,
+      511,
+      678
     ],
     "horizon_local_windows": [
-      44,
-      25,
-      53,
-      120
+      36,
+      12,
+      78,
+      114
     ],
     "horizon_min_sigmas": [
-      0.017790781749004347,
-      3.8833255626766703,
-      0.30202161283369666,
-      19.6336146728695
+      33.41385719892172,
+      23.605590898252963,
+      0.11478201228719195,
+      82.78950295178102
     ],
     "horizon_names": [
       "short",
@@ -397,73 +399,73 @@
     ],
     "horizon_offsets": [
       0,
-      1667,
-      7223,
-      7970
+      2151,
+      3099,
+      3610
     ],
     "horizon_sigma_divisors": [
-      0.08629824875017542,
-      0.16625053689548464,
-      55.3592202758579,
-      0.03132174404584052
+      0.01825034846507341,
+      0.2029959468008574,
+      1.3399496106030355,
+      0.014845885950688833
     ],
     "horizon_steps": [
-      120,
-      36,
-      268,
-      176
+      93,
+      211,
+      392,
+      295
     ],
     "horizons": {
       "all": {
-        "bins": 1137,
+        "bins": 678,
         "decay": 1.0,
         "half_life_candles": null,
         "horizon_name": "all",
-        "local_window": 120,
-        "min_sigma": 19.6336146728695,
-        "offset": 7970,
-        "sigma_divisor": 0.03132174404584052,
-        "step": 176
+        "local_window": 114,
+        "min_sigma": 82.78950295178102,
+        "offset": 3610,
+        "sigma_divisor": 0.014845885950688833,
+        "step": 295
       },
       "long": {
-        "bins": 747,
-        "decay": 0.9999718019035923,
-        "half_life_candles": 24581,
+        "bins": 511,
+        "decay": 0.9999642566629131,
+        "half_life_candles": 19392,
         "horizon_name": "long",
-        "local_window": 53,
-        "min_sigma": 0.30202161283369666,
-        "offset": 7223,
-        "sigma_divisor": 55.3592202758579,
-        "step": 268
+        "local_window": 78,
+        "min_sigma": 0.11478201228719195,
+        "offset": 3099,
+        "sigma_divisor": 1.3399496106030355,
+        "step": 392
       },
       "medium": {
-        "bins": 5556,
-        "decay": 0.9997518577953928,
-        "half_life_candles": 2793,
+        "bins": 948,
+        "decay": 0.9998735674276822,
+        "half_life_candles": 5482,
         "horizon_name": "medium",
-        "local_window": 25,
-        "min_sigma": 3.8833255626766703,
-        "offset": 1667,
-        "sigma_divisor": 0.16625053689548464,
-        "step": 36
+        "local_window": 12,
+        "min_sigma": 23.605590898252963,
+        "offset": 2151,
+        "sigma_divisor": 0.2029959468008574,
+        "step": 211
       },
       "short": {
-        "bins": 1667,
-        "decay": 0.9943345751258,
-        "half_life_candles": 122,
+        "bins": 2151,
+        "decay": 0.981440677658594,
+        "half_life_candles": 37,
         "horizon_name": "short",
-        "local_window": 44,
-        "min_sigma": 0.017790781749004347,
+        "local_window": 36,
+        "min_sigma": 33.41385719892172,
         "offset": 0,
-        "sigma_divisor": 0.08629824875017542,
-        "step": 120
+        "sigma_divisor": 0.01825034846507341,
+        "step": 93
       }
     },
-    "max_bins": 5556,
-    "neighbor_bins": 10,
+    "max_bins": 2151,
+    "neighbor_bins": 9,
     "price_max": 200000.0,
     "price_min": 0.0,
-    "total_bins": 9107,
+    "total_bins": 4288,
     "version": "vp_fixed_range_v3"
   }
 }

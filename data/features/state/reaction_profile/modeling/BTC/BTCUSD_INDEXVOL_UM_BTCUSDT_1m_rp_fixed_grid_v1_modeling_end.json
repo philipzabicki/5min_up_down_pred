@@ -1,8 +1,8 @@
 {
-  "bin_size": 60.44430134269045,
-  "bins": 3310,
-  "config_signature": "{\"bin_size\":60.44430134269045,\"bins\":3310,\"distance_power\":0.2547793095443065,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":60},\"long\":{\"decay\":0.9999900281437984,\"half_life_candles\":69510,\"local_window\":59},\"medium\":{\"decay\":0.9997957936341728,\"half_life_candles\":3394,\"local_window\":93},\"short\":{\"decay\":0.9879131629461064,\"half_life_candles\":57,\"local_window\":6}},\"min_reaction_strength\":3.1239000955994415e-05,\"neighbor_bins\":14.40179041398185,\"neighbor_radius\":15,\"price_max\":200000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.969407212401052}",
-  "distance_power": 0.2547793095443065,
+  "bin_size": 62.670642288384926,
+  "bins": 3193,
+  "config_signature": "{\"bin_size\":62.670642288384926,\"bins\":3193,\"distance_power\":0.31935892679571165,\"enabled\":true,\"eps\":1e-12,\"feature_columns\":[\"rp_short_support_below\",\"rp_short_resistance_above\",\"rp_short_support_above\",\"rp_short_resistance_below\",\"rp_short_imbalance\",\"rp_short_support_center_dist\",\"rp_short_resistance_center_dist\",\"rp_medium_support_below\",\"rp_medium_resistance_above\",\"rp_medium_support_above\",\"rp_medium_resistance_below\",\"rp_medium_imbalance\",\"rp_medium_support_center_dist\",\"rp_medium_resistance_center_dist\",\"rp_long_support_below\",\"rp_long_resistance_above\",\"rp_long_support_above\",\"rp_long_resistance_below\",\"rp_long_imbalance\",\"rp_long_support_center_dist\",\"rp_long_resistance_center_dist\",\"rp_all_support_below\",\"rp_all_resistance_above\",\"rp_all_support_above\",\"rp_all_resistance_below\",\"rp_all_imbalance\",\"rp_all_support_center_dist\",\"rp_all_resistance_center_dist\"],\"horizons\":{\"all\":{\"decay\":1.0,\"half_life_candles\":null,\"local_window\":80},\"long\":{\"decay\":0.9999890788524048,\"half_life_candles\":63468,\"local_window\":15},\"medium\":{\"decay\":0.9997322046500691,\"half_life_candles\":2588,\"local_window\":110},\"short\":{\"decay\":0.993990761347791,\"half_life_candles\":115,\"local_window\":52}},\"min_reaction_strength\":6.607132402853657e-05,\"neighbor_bins\":10.592470742262856,\"neighbor_radius\":11,\"price_max\":200000.0,\"price_min\":0.0,\"version\":\"rp_fixed_grid_v1\",\"wick_power\":0.7575907713926173}",
+  "distance_power": 0.31935892679571165,
   "enabled": true,
   "eps": 1e-12,
   "feature_columns": [
@@ -43,44 +43,44 @@
   ],
   "horizons": {
     "all": {
-      "bins": 3310,
+      "bins": 3193,
       "decay": 1.0,
       "global_scale": 1.0,
       "half_life_candles": null,
       "horizon_name": "all",
-      "local_window": 60
+      "local_window": 80
     },
     "long": {
-      "bins": 3310,
-      "decay": 0.9999900281437984,
-      "global_scale": 0.004184236097969592,
-      "half_life_candles": 69510,
+      "bins": 3193,
+      "decay": 0.9999890788524048,
+      "global_scale": 0.17690609383357517,
+      "half_life_candles": 63468,
       "horizon_name": "long",
-      "local_window": 59
+      "local_window": 15
     },
     "medium": {
-      "bins": 3310,
-      "decay": 0.9997957936341728,
-      "global_scale": 0.3372613066694751,
-      "half_life_candles": 3394,
+      "bins": 3193,
+      "decay": 0.9997322046500691,
+      "global_scale": 0.005013812107657989,
+      "half_life_candles": 2588,
       "horizon_name": "medium",
-      "local_window": 93
+      "local_window": 110
     },
     "short": {
-      "bins": 3310,
-      "decay": 0.9879131629461064,
-      "global_scale": 0.00162746485624715,
-      "half_life_candles": 57,
+      "bins": 3193,
+      "decay": 0.993990761347791,
+      "global_scale": 0.02977891050751416,
+      "half_life_candles": 115,
       "horizon_name": "short",
-      "local_window": 6
+      "local_window": 52
     }
   },
-  "last_candle_time": "2026-10-02T00:06:00",
-  "min_reaction_strength": 3.1239000955994415e-05,
-  "neighbor_bins": 14.40179041398185,
-  "neighbor_radius": 15,
+  "last_candle_time": "2026-10-02T18:00:00",
+  "min_reaction_strength": 6.607132402853657e-05,
+  "neighbor_bins": 10.592470742262856,
+  "neighbor_radius": 11,
   "price_max": 200000.0,
   "price_min": 0.0,
   "version": "rp_fixed_grid_v1",
-  "wick_power": 0.969407212401052
+  "wick_power": 0.7575907713926173
 }

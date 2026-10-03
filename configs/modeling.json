@@ -34,40 +34,40 @@
         "futures_close_col": "",
         "eps": 1e-12
       },
-      "float_precision": "float64",
+      "float_precision": "float32",
       "volume_profile_fixed_range": {
         "enabled": true,
         "price_min": 0.0,
         "price_max": 200000.0,
-        "neighbor_bins": 10,
+        "neighbor_bins": 9,
         "eps": 1e-06,
         "horizons": {
           "short": {
-            "step": 120,
-            "local_window": 44,
-            "sigma_divisor": 0.08629824875017542,
-            "min_sigma": 0.017790781749004347,
-            "half_life_candles": 122
+            "step": 93,
+            "local_window": 36,
+            "sigma_divisor": 0.01825034846507341,
+            "min_sigma": 33.41385719892172,
+            "half_life_candles": 37
           },
           "medium": {
-            "step": 36,
-            "local_window": 25,
-            "sigma_divisor": 0.16625053689548464,
-            "min_sigma": 3.8833255626766703,
-            "half_life_candles": 2793
+            "step": 211,
+            "local_window": 12,
+            "sigma_divisor": 0.2029959468008574,
+            "min_sigma": 23.605590898252963,
+            "half_life_candles": 5482
           },
           "long": {
-            "step": 268,
-            "local_window": 53,
-            "sigma_divisor": 55.3592202758579,
-            "min_sigma": 0.30202161283369666,
-            "half_life_candles": 24581
+            "step": 392,
+            "local_window": 78,
+            "sigma_divisor": 1.3399496106030355,
+            "min_sigma": 0.11478201228719195,
+            "half_life_candles": 19392
           },
           "all": {
-            "step": 176,
-            "local_window": 120,
-            "sigma_divisor": 0.03132174404584052,
-            "min_sigma": 19.6336146728695,
+            "step": 295,
+            "local_window": 114,
+            "sigma_divisor": 0.014845885950688833,
+            "min_sigma": 82.78950295178102,
             "half_life_candles": null
           }
         }
@@ -76,27 +76,27 @@
         "enabled": true,
         "price_min": 0.0,
         "price_max": 200000.0,
-        "bin_size": 60.44430134269045,
-        "neighbor_bins": 14.40179041398185,
+        "bin_size": 62.670642288384926,
+        "neighbor_bins": 10.592470742262856,
         "eps": 1e-12,
-        "min_reaction_strength": 3.1239000955994415e-05,
-        "wick_power": 0.969407212401052,
-        "distance_power": 0.2547793095443065,
+        "min_reaction_strength": 6.607132402853657e-05,
+        "wick_power": 0.7575907713926173,
+        "distance_power": 0.31935892679571165,
         "horizons": {
           "short": {
-            "local_window": 6,
-            "half_life_candles": 57
+            "local_window": 52,
+            "half_life_candles": 115
           },
           "medium": {
-            "local_window": 93,
-            "half_life_candles": 3394
+            "local_window": 110,
+            "half_life_candles": 2588
           },
           "long": {
-            "local_window": 59,
-            "half_life_candles": 69510
+            "local_window": 15,
+            "half_life_candles": 63468
           },
           "all": {
-            "local_window": 60,
+            "local_window": 80,
             "half_life_candles": null
           }
         }
@@ -106,10 +106,10 @@
         "min_block_len": 3
       },
       "feature_selection": {
-        "mode": "artifact",
-        "artifact_path": "data/analysis/feature_selector/BTC/20261002_015708/recommended_features.json",
+        "mode": "none",
+        "artifact_path": "",
         "artifact_list_key": "final_feature_list",
-        "excluded_feature_names_enabled": true,
+        "excluded_feature_names_enabled": false,
         "excluded_feature_names": [
           "StochOsc_fit_1m_pop128_faskper2_slodmatypsma_slodper1221_slokmatypmgd_slokper1_qe0.1_qm0.3_tf0.8_stmc_sg20",
           "MACD_fit_240m_pop16_fasmatypvwmapta_fasper945_fassouhl2_sigmatypfba_sigper1045_slomatypnwmabiw_sloper1384_slosouhl2",
@@ -164,7 +164,7 @@
       "train_lgbm": {
         "train_default_model": false,
         "save_oof_predictions": true,
-        "monotone_constraints_enabled": true,
+        "monotone_constraints_enabled": false,
         "walk_forward_test_to_train_ratio": 0.1,
         "optuna_best_params": {
           "learning_rate": 0.003395029882596675,

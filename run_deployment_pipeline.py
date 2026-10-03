@@ -13,6 +13,8 @@ ASSETS = ("BTC",)
 
 PIPELINE_STEPS = (
     "fetch_data.py",
+    "fit_volume_profile.py",
+    "fit_reaction_profile.py",
     "create_modeling_dataset.py",
     "select_features.py",
     "train_lgbm.py",
