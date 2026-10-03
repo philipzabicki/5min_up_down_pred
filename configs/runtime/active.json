@@ -8,7 +8,7 @@
       "artifacts": {
         "model_meta_path": "data/models/BTC/20261003_043549/lgbm_meta_20261003_043549.json",
         "trade_policy_path": "configs/runtime/trade_policy_project.json",
-        "indicator_history_requirements_path": ""
+        "indicator_history_requirements_path": "data/runtime/BTC/indicator_history_requirements_20261004.json"
       }
     },
     "ETH": {

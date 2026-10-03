@@ -36,8 +36,16 @@ from utils.polymarket_market_value import decide_at_observed_book, market_featur
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/btc_shadow_protocol_20261003.json"
+PROTOCOL_PATH = ROOT / "configs/btc_shadow_protocol_20261004.json"
 CONFIG = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
+SOURCE_MODEL_MANIFEST_PATH = ROOT / CONFIG.get(
+    "source_model_manifest_path",
+    "docs/btc_new_model_manifest_20261003.json",
+)
+FEATURE_SOURCE_MANIFEST_PATH = ROOT / CONFIG.get(
+    "feature_source_manifest_path",
+    SOURCE_MODEL_MANIFEST_PATH,
+)
 MODEL_WEIGHTS_PATH = ROOT / CONFIG["model_weights_path"]
 MODEL_META_PATH = ROOT / CONFIG["model_meta_path"]
 OUTPUT_DIR = ROOT / CONFIG["output_directory"]
@@ -67,7 +75,7 @@ def _canonical_json_sha256(value) -> str:
 
 def _artifact_hashes():
     manifest = json.loads(
-        (ROOT / "docs/btc_new_model_manifest_20261003.json").read_text(encoding="utf-8")
+        FEATURE_SOURCE_MANIFEST_PATH.read_text(encoding="utf-8")
     )
     feature_source_paths = []
     for relative_path, expected_hash in manifest["live_parity"]["feature_source_sha256"].items():
@@ -89,7 +97,8 @@ def _artifact_hashes():
         MODEL_WEIGHTS_PATH,
         MODEL_META_PATH,
         _source_model_path(MODEL_META_PATH),
-        ROOT / "docs/btc_new_model_manifest_20261003.json",
+        SOURCE_MODEL_MANIFEST_PATH,
+        FEATURE_SOURCE_MANIFEST_PATH,
         ROOT / live_runtime.INDICATOR_HISTORY_REQUIREMENTS_PATH,
         ROOT / "data/datasets/modeling/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_metadata.json",
         raw_dataset,

@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from collections import deque
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import numpy as np
@@ -11,9 +12,95 @@ import pandas as pd
 
 import audit_feature_readiness as audit
 import run as live_runtime
+from features.ChaikinOsc import get_chaikin_oscillator_values
+from features.live_indicator_runtime import (
+    IndicatorFullHistoryScratch,
+    IndicatorWindowScratch,
+    get_chaikin_oscillator_latest_value_live,
+)
 
 
 class PseudoLiveAuditPredictorTests(unittest.TestCase):
+    def test_live_feature_parameter_override_requires_expected_fitted_value(self):
+        spec = SimpleNamespace(
+            feature_col="chaikin_feature",
+            params={"slow_ma_type": "GMA", "slow_period": 60},
+        )
+        requirements = {
+            "payload": {
+                "live_feature_param_overrides": {
+                    "chaikin_feature": {
+                        "parameter": "slow_ma_type",
+                        "expected": "GMA",
+                        "replacement": "SMA",
+                    }
+                }
+            }
+        }
+
+        live_runtime.apply_live_feature_parameter_overrides([spec], requirements)
+
+        self.assertEqual(spec.params["slow_ma_type"], "SMA")
+        self.assertEqual(spec.params["slow_period"], 60)
+
+        spec.params["slow_ma_type"] = "EMA"
+        with self.assertRaisesRegex(ValueError, "does not match the fitted feature"):
+            live_runtime.apply_live_feature_parameter_overrides([spec], requirements)
+
+    def test_chaikin_live_feature_matches_full_history_after_semantics_override(self):
+        count = 5_000
+        steps = np.arange(count, dtype=np.float64)
+        center = 1_000.0 + 0.03 * steps + 3.0 * np.sin(steps / 31.0)
+        high = center + 2.0
+        low = center - 2.0
+        close = high - 0.05
+        close[:10] = low[:10] + 0.05
+        ohlcv = np.column_stack(
+            (center, high, low, close, 100.0 + 20.0 * np.sin(steps / 17.0) ** 2)
+        )
+        original_params = {
+            "fast_period": 20,
+            "slow_period": 60,
+            "fast_ma_type": "T3",
+            "slow_ma_type": "GMA",
+        }
+        stored_value = float(
+            get_chaikin_oscillator_values(original_params, ohlcv)[-1]
+        )
+        scratch = IndicatorWindowScratch(
+            IndicatorFullHistoryScratch(ohlcv),
+            window_len=1_000,
+        )
+        current_live_value = get_chaikin_oscillator_latest_value_live(
+            original_params,
+            scratch,
+        )
+        spec = SimpleNamespace(
+            feature_col="chaikin_feature",
+            params=dict(original_params),
+        )
+        live_runtime.apply_live_feature_parameter_overrides(
+            [spec],
+            {
+                "payload": {
+                    "live_feature_param_overrides": {
+                        "chaikin_feature": {
+                            "parameter": "slow_ma_type",
+                            "expected": "GMA",
+                            "replacement": "SMA",
+                        }
+                    }
+                }
+            },
+        )
+        fixed_live_value = get_chaikin_oscillator_latest_value_live(
+            spec.params,
+            scratch,
+        )
+
+        self.assertGreater(abs(current_live_value - stored_value), 1.0)
+        self.assertLess(abs(fixed_live_value - stored_value), 1e-6)
+
     def test_indicator_runtime_uses_global_retained_history(self):
         predictor = audit.LivePredictor.__new__(audit.LivePredictor)
         predictor.required_stable_window = 21936
@@ -245,6 +332,13 @@ class PseudoLiveAuditPredictorTests(unittest.TestCase):
 
         self.assertEqual(report["summary"]["rows_with_proba_diff_gt_tol"], 1)
         self.assertEqual(report["summary"]["rows_with_signal_mismatch"], 0)
+        self.assertEqual(report["summary"]["feature_parity"]["status"], "measured")
+        self.assertEqual(report["summary"]["prediction_parity"]["status"], "measured")
+        self.assertEqual(
+            report["summary"]["decision_parity"]["status"],
+            "not_verified_missing_quotes",
+        )
+        self.assertEqual(report["summary"]["decision_parity"]["verified_rows"], 0)
         drift = report["step_summary_df"].iloc[1]
         self.assertEqual(drift["worst_feature"], "indicator_macd")
         self.assertGreater(drift["proba_up_abs_diff"], audit.PREDICTION_DIFF_TOL)
@@ -955,6 +1049,12 @@ class LiveFeatureParityOutputTests(unittest.TestCase):
         )
         self.assertEqual(summary["features_to_inspect"], 1)
         self.assertEqual(summary["top_features"][0]["feature"], "drift_feature")
+        self.assertEqual(summary["feature_parity"]["status"], "measured")
+        self.assertEqual(summary["prediction_parity"]["status"], "measured")
+        self.assertEqual(
+            summary["decision_parity"]["status"],
+            "not_verified_missing_quotes",
+        )
 
 
 if __name__ == "__main__":

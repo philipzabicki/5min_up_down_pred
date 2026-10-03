@@ -1058,6 +1058,7 @@ from run import (
     SYMBOL,
     LivePredictor,
     interval_to_timedelta,
+    apply_live_feature_parameter_overrides,
     load_indicator_history_requirements,
     load_trade_policy_runtime_config,
     load_indicator_specs,
@@ -2961,6 +2962,7 @@ def build_matrix_comparison_report(
             "signal_mismatch": (
                     (candidate_pred >= 0.5) != (reference_pred >= 0.5)
             ).astype(np.int8),
+            "decision_parity_status": "not_verified_missing_quotes",
         }
     )
     step_summary_df = pd.concat(
@@ -3197,6 +3199,32 @@ def build_matrix_comparison_report(
     summary_payload = {
         "decision_row_count": len(audit_df),
         "feature_count": len(feature_columns),
+        "feature_parity": {
+            "status": "measured",
+            "rows": len(audit_df),
+            "max_abs_diff": float(step_summary_df["feature_max_abs_diff"].max()),
+            "max_rel_diff": float(step_summary_df["feature_max_rel_diff"].max()),
+            "rows_with_finite_status_mismatch": int(
+                (step_summary_df["finite_status_mismatch_count"] > 0).sum()
+            ),
+        },
+        "prediction_parity": {
+            "status": "measured",
+            "rows": len(audit_df),
+            "probability_abs_diff_tolerance": float(PREDICTION_DIFF_TOL),
+            "max_probability_abs_diff": float(
+                step_summary_df["proba_up_abs_diff"].max()
+            ),
+            "rows_above_tolerance": int(
+                (step_summary_df["proba_up_abs_diff"] > PREDICTION_DIFF_TOL).sum()
+            ),
+            "direction_mismatch_rows": int(step_summary_df["signal_mismatch"].sum()),
+        },
+        "decision_parity": {
+            "status": "not_verified_missing_quotes",
+            "verified_rows": 0,
+            "reason": "Historical quote inputs are not present in the feature audit.",
+        },
         f"rows_with_{candidate_label}_nonfinite": int(
             (step_summary_df[f"{candidate_label}_nonfinite_count"] > 0).sum()
         ),
@@ -3941,6 +3969,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
             INDICATOR_HISTORY_REQUIREMENTS_PATH,
             indicator_specs=requirements_indicator_specs,
             allow_unstable=allow_unstable_indicator_summary,
+        )
+        apply_live_feature_parameter_overrides(
+            self.indicator_specs,
+            self.indicator_history_requirements,
         )
         self.required_stable_window = int(
             self.indicator_history_requirements["global_required_runtime_window"]
@@ -5343,6 +5375,7 @@ ROWS_TO_INSPECT_COLUMNS = [
     "up_down_prediction_flipped",
     "business_decision_changed",
     "policy_decision_changed",
+    "decision_parity_status",
     "top_feature",
     "top_feature_pred_shift",
     "top_feature_live_value",
@@ -5406,6 +5439,10 @@ def _build_rows_to_inspect_df(step_summary_df, *, top_k=None):
             "up_down_prediction_flipped": up_down_flipped,
             "business_decision_changed": business_changed,
             "policy_decision_changed": policy_changed,
+            "decision_parity_status": frame.get(
+                "decision_parity_status",
+                pd.Series("not_verified_missing_quotes", index=frame.index),
+            ),
             "top_feature": top_feature,
             "top_feature_pred_shift": top_feature_shift,
             "top_feature_live_value": pd.to_numeric(
@@ -5532,6 +5569,26 @@ def _build_live_feature_parity_summary_payload(
             "reaction_profile_anchor_source"
         ),
         "feature_count": _summary_int(live_summary, "feature_count"),
+        "feature_parity": live_summary.get("feature_parity", {
+            "status": "measured",
+            "rows": _summary_int(live_summary, "decision_row_count"),
+        }),
+        "prediction_parity": live_summary.get("prediction_parity", {
+            "status": "measured",
+            "rows": _summary_int(live_summary, "decision_row_count"),
+            "probability_abs_diff_tolerance": PREDICTION_DIFF_TOL,
+            "max_probability_abs_diff": _summary_float(
+                live_summary,
+                "max_proba_up_abs_diff",
+            ),
+            "rows_above_tolerance": proba_drift_rows,
+            "direction_mismatch_rows": signal_mismatch_rows,
+        }),
+        "decision_parity": live_summary.get("decision_parity", {
+            "status": "not_verified_missing_quotes",
+            "verified_rows": 0,
+            "reason": "Historical quote inputs are not present in the feature audit.",
+        }),
         "features_to_inspect": features_to_inspect_count,
         "features_to_inspect_by_severity": severity_counts,
         "proba_drift_rows": proba_drift_rows,

@@ -1003,6 +1003,44 @@ def load_indicator_specs(feature_columns, *, source_label=None):
     return specs
 
 
+def apply_live_feature_parameter_overrides(indicator_specs, requirements):
+    payload = requirements.get("payload", requirements)
+    overrides = payload.get("live_feature_param_overrides", {})
+    if not isinstance(overrides, dict):
+        raise ValueError("Live feature parameter overrides must be a JSON object.")
+
+    specs_by_feature = {spec.feature_col: spec for spec in indicator_specs}
+    unknown_features = sorted(set(overrides) - set(specs_by_feature))
+    if unknown_features:
+        raise ValueError(
+            "Live feature parameter override refers to a feature absent from the model: "
+            f"{unknown_features[:10]}"
+        )
+
+    for feature_col, override in overrides.items():
+        if not isinstance(override, dict):
+            raise ValueError(
+                f"Live feature parameter override must be an object: {feature_col}"
+            )
+        parameter = str(override.get("parameter", "")).strip()
+        expected = str(override.get("expected", "")).strip()
+        replacement = str(override.get("replacement", "")).strip()
+        spec = specs_by_feature[feature_col]
+        if not parameter or not expected or not replacement:
+            raise ValueError(
+                "Live feature parameter override requires parameter, expected, and "
+                f"replacement values: {feature_col}"
+            )
+        if spec.params.get(parameter) != expected:
+            raise ValueError(
+                "Live feature parameter override does not match the fitted feature "
+                f"configuration: {feature_col}.{parameter}="
+                f"{spec.params.get(parameter)!r}, expected {expected!r}"
+            )
+        spec.params = {**spec.params, parameter: replacement}
+    return indicator_specs
+
+
 def _rest_kline_params(
         source,
         market_type,
@@ -1385,6 +1423,10 @@ class LivePredictor:
         self.indicator_history_requirements = load_indicator_history_requirements(
             INDICATOR_HISTORY_REQUIREMENTS_PATH,
             indicator_specs=self.indicator_specs,
+        )
+        apply_live_feature_parameter_overrides(
+            self.indicator_specs,
+            self.indicator_history_requirements,
         )
         self.required_stable_window = int(
             self.indicator_history_requirements["global_required_runtime_window"]

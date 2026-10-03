@@ -35,12 +35,29 @@ class BtcShadowTests(unittest.TestCase):
         self.assertEqual(config["portfolio"]["initial_virtual_usd"], 100.0)
         self.assertEqual(config["portfolio"]["fixed_hypothetical_stake_usd"], 5.0)
         self.assertEqual(
-            config["predeclared_evaluation"]["minimum_observation_days"],
+            config["predeclared_evaluation"]["checkpoint_hours"],
+            [48, 168, 720],
+        )
+        self.assertTrue(config["predeclared_evaluation"]["no_automatic_extension"])
+        previous = json.loads(
+            (shadow.ROOT / "configs/btc_shadow_protocol_20261003.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        self.assertEqual(
+            previous["predeclared_evaluation"]["minimum_observation_days"],
             730,
         )
         self.assertEqual(
-            config["predeclared_evaluation"]["minimum_market_plus_btc_hypothetical_trades"],
-            100,
+            previous["predeclared_evaluation"]["extension_cap_days_after_start"],
+            1095,
+        )
+        self.assertEqual(config["model_meta_path"], previous["model_meta_path"])
+        self.assertEqual(config["model_weights_path"], previous["model_weights_path"])
+        self.assertEqual(config["portfolio"], previous["portfolio"])
+        self.assertEqual(
+            config["execution_assumption"],
+            previous["execution_assumption"],
         )
         self.assertFalse(config["execution_assumption"]["actual_fill_known"])
         self.assertFalse(config["execution_assumption"]["actual_fee_known"])
