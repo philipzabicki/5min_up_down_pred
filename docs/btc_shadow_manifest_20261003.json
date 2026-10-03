@@ -1,7 +1,7 @@
 {
   "session_id": "btc_new_model_shadow_v1_20261003",
   "status": "running",
-  "status_observed_at_utc": "2026-10-03T20:22:29.942049+00:00",
+  "status_observed_at_utc": "2026-10-03T20:28:34.167401+00:00",
   "started_at_utc": "2026-10-03T20:17:55.654795+00:00",
   "formal_review_at_utc": "2028-10-02T20:17:55.654795+00:00",
   "extension_cap_at_utc": "2029-10-02T20:17:55.654795+00:00",
@@ -85,8 +85,8 @@
     ]
   },
   "first_future_decision_status": "recorded",
-  "btc_catchup_latest_opened_utc": "2026-10-03T20:21:00+00:00",
-  "decision_rows_at_observation": 3,
+  "btc_catchup_latest_opened_utc": "2026-10-03T20:27:00+00:00",
+  "decision_rows_at_observation": 6,
   "resume_command": "python run_btc_shadow.py",
   "sqlite_path": "data/analysis/polymarket/BTC/shadow_20261003/shadow.sqlite3",
   "stdout_log_path": "data/analysis/polymarket/BTC/shadow_20261003/collector.stdout.log",
@@ -204,5 +204,25 @@
     "data/features/indicators_fit/BTC/all/StochOsc_target_6m_ahead_ret_pop128_q0.1_unstable.json": "7613539fc875904a197496b48f81e50e891105df9a3b16f4cbdd0140671ee272",
     "data/features/indicators_fit/BTC/all/StochOsc_target_6m_ahead_ret_pop16_q0.2.json": "0b51f90c8b12fff2839af68b09364e4a9426014fd68d6c1606f19859a304473c",
     "data/features/indicators_fit/BTC/all/StochOsc_target_720m_ahead_ret_pop64_q0.05.json": "97008f6ad9ad3094705e1749219ae21db27e6e4ec69045b4ab11edb41a050936"
-  }
+  },
+  "market_windows_at_observation": 2,
+  "settlement_rows_at_observation": 0,
+  "variant_status_at_observation": {
+    "market_only": {
+      "hypothetical_trade_decisions": 0,
+      "latest_decision": "no_trade",
+      "latest_market_start_utc": "2026-10-03T20:25:00+00:00"
+    },
+    "market_plus_btc": {
+      "hypothetical_trade_decisions": 0,
+      "latest_decision": "no_trade",
+      "latest_market_start_utc": "2026-10-03T20:25:00+00:00"
+    },
+    "btc_platt": {
+      "hypothetical_trade_decisions": 2,
+      "latest_decision": "hypothetical_trade",
+      "latest_market_start_utc": "2026-10-03T20:25:00+00:00"
+    }
+  },
+  "process_alive_at_observation": true
 }
