@@ -2,6 +2,7 @@ import json
 import math
 import tempfile
 import unittest
+from collections import deque
 from pathlib import Path
 from unittest import mock
 
@@ -9,9 +10,200 @@ import numpy as np
 import pandas as pd
 
 import audit_feature_readiness as audit
+import run as live_runtime
 
 
 class PseudoLiveAuditPredictorTests(unittest.TestCase):
+    def test_indicator_runtime_uses_global_retained_history(self):
+        predictor = audit.LivePredictor.__new__(audit.LivePredictor)
+        predictor.required_stable_window = 21936
+        predictor.indicator_runtime_window_by_feature = {
+            "short_recursive_indicator": 7166,
+            "long_recursive_indicator": 18000,
+        }
+
+        self.assertEqual(
+            predictor._resolve_indicator_window_len("short_recursive_indicator"),
+            21936,
+        )
+        self.assertEqual(
+            predictor._resolve_indicator_window_len("long_recursive_indicator"),
+            21936,
+        )
+
+    def test_restart_from_retained_candles_reproduces_indicators_predictions_and_decisions(self):
+        class Spec:
+            feature_col = "recursive_indicator"
+            params = None
+
+            @staticmethod
+            def latest_builder(_params, scratch):
+                # A history-dependent feature makes a restart from the same
+                # retained candles observable without relying on external state.
+                return float(np.mean(scratch.get_adl()[-5:]))
+
+        def predictor_from(frame):
+            predictor = audit.LivePredictor.__new__(audit.LivePredictor)
+            opened = pd.to_datetime(frame["Opened"], utc=True)
+            predictor.opened_candles = deque(pd.Timestamp(value) for value in opened)
+            predictor.opened_ns_np = opened.astype("int64").to_numpy()
+            predictor.ohlcv_np = frame[["Open", "High", "Low", "Close", "Volume"]].to_numpy(
+                dtype=np.float64,
+                copy=True,
+            )
+            predictor.candle_open_close = {
+                pd.Timestamp(row.Opened): (float(row.Open), float(row.Close))
+                for row in frame.itertuples(index=False)
+            }
+            predictor.max_keep = 8
+            predictor.required_stable_window = 8
+            predictor.indicator_runtime_window_by_feature = {"recursive_indicator": 2}
+            predictor.indicator_specs = [Spec()]
+            predictor.feature_columns = ["Close", "recursive_indicator"]
+            predictor.candle_derived_feature_columns = ()
+            predictor.candle_pattern_feature_columns = ()
+            predictor.streak_interval_to_rule = {}
+            predictor.session_feature_columns = ()
+            predictor.realized_volatility_state = None
+            predictor.latest_realized_volatility_values = {}
+            predictor.basis_premium_feature_columns = ()
+            predictor.last_indicator_nan_cols = []
+            return predictor
+
+        opened = pd.date_range("2026-01-01T00:00:00Z", periods=12, freq="min")
+        close = np.linspace(100.0, 111.0, len(opened))
+        history = pd.DataFrame(
+            {
+                "Opened": opened,
+                "Open": close - 0.2,
+                "High": close + 0.5,
+                "Low": close - 0.5,
+                "Close": close,
+                "Volume": np.linspace(10.0, 21.0, len(opened)),
+            }
+        )
+
+        continuous = predictor_from(history.iloc[:8].copy())
+        for row in history.iloc[8:10].itertuples(index=False):
+            continuous._append_new_candle(
+                row.Opened,
+                (row.Open, row.High, row.Low, row.Close, row.Volume),
+            )
+
+        restarted = predictor_from(
+            pd.DataFrame(
+                {
+                    "Opened": list(continuous.opened_candles),
+                    "Open": continuous.ohlcv_np[:, 0],
+                    "High": continuous.ohlcv_np[:, 1],
+                    "Low": continuous.ohlcv_np[:, 2],
+                    "Close": continuous.ohlcv_np[:, 3],
+                    "Volume": continuous.ohlcv_np[:, 4],
+                }
+            )
+        )
+
+        for row in history.iloc[10:].itertuples(index=False):
+            candle = (row.Open, row.High, row.Low, row.Close, row.Volume)
+            continuous._append_new_candle(row.Opened, candle)
+            restarted._append_new_candle(row.Opened, candle)
+            live_vector = continuous._build_feature_vector()
+            restart_vector = restarted._build_feature_vector()
+            np.testing.assert_array_equal(live_vector, restart_vector)
+
+            live_probability = 1.0 / (1.0 + np.exp(-live_vector[0, 1]))
+            restart_probability = 1.0 / (1.0 + np.exp(-restart_vector[0, 1]))
+            self.assertEqual(live_probability, restart_probability)
+            self.assertEqual(live_probability >= 0.5, restart_probability >= 0.5)
+
+    def test_rest_catchup_rejects_missing_candle_without_mutating_runtime_state(self):
+        predictor = audit.LivePredictor.__new__(audit.LivePredictor)
+        last_opened = pd.Timestamp("2026-01-01T00:00:00Z")
+        predictor.opened_candles = deque([last_opened])
+        predictor.ohlcv_np = np.array([[100.0, 101.0, 99.0, 100.5, 10.0]])
+        predictor.opened_ns_np = np.array([last_opened.value], dtype=np.int64)
+        predictor.candle_open_close = {last_opened: (100.0, 100.5)}
+        predictor.basis_premium_feature_columns = ()
+        predictor.realized_volatility_state = None
+        predictor.max_keep = 10
+        predictor.session = object()
+        predictor.volume_profile_enabled = False
+        predictor.reaction_profile_enabled = False
+        predictor._save_runtime_volume_profile_state_async = lambda: None
+        predictor._save_runtime_reaction_profile_state_async = lambda: None
+
+        missing_row = pd.DataFrame(
+            {
+                "Opened": pd.to_datetime(
+                    ["2026-01-01T00:01:00Z", "2026-01-01T00:03:00Z"]
+                ),
+                "Open": [100.5, 100.7],
+                "High": [101.0, 101.2],
+                "Low": [100.0, 100.2],
+                "Close": [100.6, 100.8],
+                "Volume": [11.0, 13.0],
+            }
+        )
+
+        with mock.patch.object(
+                live_runtime,
+                "fetch_closed_ohlcv_range",
+                return_value=missing_row,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "missing or out-of-order candle"):
+                predictor._sync_closed_candles_from_rest(
+                    stop_before_opened=pd.Timestamp("2026-01-01T00:04:00Z")
+                )
+
+        self.assertEqual(list(predictor.opened_candles), [last_opened])
+        self.assertEqual(predictor.ohlcv_np.shape, (1, 5))
+
+    def test_rest_catchup_appends_a_complete_gap_in_order(self):
+        predictor = audit.LivePredictor.__new__(audit.LivePredictor)
+        last_opened = pd.Timestamp("2026-01-01T00:00:00Z")
+        predictor.opened_candles = deque([last_opened])
+        predictor.ohlcv_np = np.array([[100.0, 101.0, 99.0, 100.5, 10.0]])
+        predictor.opened_ns_np = np.array([last_opened.value], dtype=np.int64)
+        predictor.candle_open_close = {last_opened: (100.0, 100.5)}
+        predictor.basis_premium_feature_columns = ()
+        predictor.realized_volatility_state = None
+        predictor.max_keep = 10
+        predictor.session = object()
+        predictor.volume_profile_enabled = False
+        predictor.reaction_profile_enabled = False
+        predictor._save_runtime_volume_profile_state_async = lambda: None
+        predictor._save_runtime_reaction_profile_state_async = lambda: None
+        catchup = pd.DataFrame(
+            {
+                "Opened": pd.date_range(
+                    "2026-01-01T00:01:00Z",
+                    periods=3,
+                    freq="min",
+                ),
+                "Open": [100.5, 100.6, 100.7],
+                "High": [101.0, 101.1, 101.2],
+                "Low": [100.0, 100.1, 100.2],
+                "Close": [100.6, 100.7, 100.8],
+                "Volume": [11.0, 12.0, 13.0],
+            }
+        )
+
+        with mock.patch.object(
+                live_runtime,
+                "fetch_closed_ohlcv_range",
+                return_value=catchup,
+        ):
+            added = predictor._sync_closed_candles_from_rest(
+                stop_before_opened=pd.Timestamp("2026-01-01T00:04:00Z")
+            )
+
+        self.assertEqual(added, 3)
+        self.assertEqual(
+            list(predictor.opened_candles),
+            [last_opened, *list(catchup.Opened)],
+        )
+        self.assertEqual(predictor.ohlcv_np.shape, (4, 5))
+
     def test_matrix_audit_flags_small_finite_indicator_drift(self):
         class Model:
             @staticmethod

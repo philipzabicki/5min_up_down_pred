@@ -1172,6 +1172,36 @@ def fetch_historical_ohlcv(session, candles):
     return out.tail(int(candles)).reset_index(drop=True)
 
 
+def validate_closed_ohlcv_catchup(frame, start_opened, end_opened=None):
+    """Require a REST catch-up response to cover its requested closed candles."""
+    start = pd.Timestamp(start_opened)
+    if start.tzinfo is None:
+        start = start.tz_localize("UTC")
+    else:
+        start = start.tz_convert("UTC")
+    end = None if end_opened is None else pd.Timestamp(end_opened)
+    if end is not None:
+        end = end.tz_localize("UTC") if end.tzinfo is None else end.tz_convert("UTC")
+
+    opened = pd.to_datetime(frame["Opened"], utc=True, errors="coerce")
+    if opened.isna().any() or opened.duplicated().any():
+        raise RuntimeError("REST catch-up has invalid or duplicate candle timestamps.")
+    if opened.empty or opened.iloc[0] != start:
+        actual = "empty" if opened.empty else opened.iloc[0].isoformat()
+        raise RuntimeError(
+            "REST catch-up does not start at the expected candle "
+            f"({start.isoformat()}); first={actual}."
+        )
+    if not opened.diff().iloc[1:].eq(INTERVAL_DELTA).all():
+        raise RuntimeError("REST catch-up contains a missing or out-of-order candle.")
+    if end is not None and opened.iloc[-1] != end:
+        raise RuntimeError(
+            "REST catch-up does not reach the requested candle "
+            f"({end.isoformat()}); last={opened.iloc[-1].isoformat()}."
+        )
+    return opened
+
+
 def fetch_closed_ohlcv_range(session, start_opened, end_opened=None, limit=1000):
     price_df = _fetch_single_source_closed_ohlcv_range(
         session,
@@ -1432,14 +1462,10 @@ class LivePredictor:
             self._initialize_reaction_profile_state(bootstrap_df)
 
     def _resolve_indicator_window_len(self, feature_col):
-        if not self.indicator_runtime_window_by_feature:
-            return int(self.required_stable_window)
-        return int(
-            self.indicator_runtime_window_by_feature.get(
-                feature_col,
-                self.required_stable_window,
-            )
-        )
+        # The per-feature windows bound a stability check, but resetting a
+        # recursive indicator at those cutoffs changes its live value. Use the
+        # same complete retained history for every indicator instead.
+        return int(self.required_stable_window)
 
     def _slice_indicator_ohlcv_window(self, feature_col):
         window_len = max(2, int(self._resolve_indicator_window_len(feature_col)))
@@ -2545,7 +2571,18 @@ class LivePredictor:
             end_opened=end_opened,
         )
         if catchup_df.empty:
+            if end_opened is not None:
+                raise RuntimeError(
+                    "REST catch-up returned no candles for the requested gap "
+                    f"{start_opened.isoformat()} -> {end_opened.isoformat()}"
+                )
             return 0
+
+        validate_closed_ohlcv_catchup(
+            catchup_df,
+            start_opened=start_opened,
+            end_opened=end_opened,
+        )
 
         basis_futures_close_values = None
         if self.basis_premium_feature_columns:
