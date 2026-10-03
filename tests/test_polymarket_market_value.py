@@ -101,6 +101,16 @@ class MarketValueContractsTests(unittest.TestCase):
         self.assertEqual(set(result['by_evaluation_fold']), {'0', '1', '2'})
         self.assertTrue(path.cost_basis_equity.dropna().between(0, 110).all())
 
+    def test_open_position_cash_stays_locked_until_market_resolution(self):
+        data = pd.DataFrame([market_row(i, target_polymarket_up=1) for i in range(3)])
+
+        result, trades, _ = simulate_fixed_policy(data, 'p_model_up', bankroll=5.)
+
+        self.assertEqual(list(trades.condition_id), ['condition-0', 'condition-2'])
+        self.assertEqual(result['rejection_reasons']['insufficient_cash'], 1)
+        self.assertEqual(result['ending_locked_cost'], 0.)
+        self.assertEqual(result['ending_open_positions'], 0)
+
     def test_observed_ask_size_and_minimum_order_are_enforced(self):
         row = pd.Series(market_row(up_ask_size=.1))
         decision, reasons = decide_at_observed_book(row, .9)
@@ -110,6 +120,28 @@ class MarketValueContractsTests(unittest.TestCase):
         decision, reasons = decide_at_observed_book(row, .9)
         self.assertIsNone(decision)
         self.assertIn('observed_minimum_order', reasons)
+
+    def test_expected_pnl_buffer_preserves_cash_when_edge_is_too_small(self):
+        row = pd.Series(market_row(p_model_up=.6))
+        decision, reasons = decide_at_observed_book(row, .6)
+        self.assertFalse(reasons)
+        self.assertIsNotNone(decision)
+        self.assertGreater(decision[0], 0.)
+
+        buffer = decision[0] + .01
+        result, trades, _ = simulate_fixed_policy(
+            pd.DataFrame([row]),
+            'p_model_up',
+            bankroll=100.,
+            min_expected_pnl=buffer,
+        )
+
+        self.assertTrue(trades.empty)
+        self.assertEqual(result['rejection_reasons']['expected_pnl_below_buffer'], 1)
+        self.assertEqual(result['ending_available_cash'], 100.)
+        self.assertEqual(result['ending_locked_cost'], 0.)
+        self.assertEqual(result['ending_open_positions'], 0)
+        self.assertEqual(result['final_balance'], 100.)
 
 
 if __name__ == '__main__':

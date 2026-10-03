@@ -1,0 +1,529 @@
+{
+  "status": "complete",
+  "experiment": "BTC new model comparison vs predecessor and Polymarket",
+  "fingerprint": "d794ac2dea5a25a2199b137e9080e6365335dae18614d030edaadf2c61b7ca42",
+  "manifest": "docs/btc_new_model_manifest_20261003.json",
+  "report": "docs/btc_new_model_evaluation_20261003.md",
+  "reproduce": "python run_btc_new_model_comparison.py",
+  "execution": "offline only; no active trader, orders, redeems or messages",
+  "inputs": {
+    "old_model_id": "20261002_041540",
+    "new_model_id": "20261003_043549",
+    "inputs_sha256": {
+      "data/datasets/modeling/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet": "b607de19a17200755d8263b1e24f4d3576cb6cb97c944304586fad25fe0412f3",
+      "data/datasets/modeling/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_oof_predictions.parquet": "1162b7e672db9d7ddba5b021a32e6012b5b09966da76e3232030d3d89e6cd1f9",
+      "data/models/BTC/20261002_041540/lgbm_meta_20261002_041540.json": "e3d6bc2d3fe52cbc651b7b2bb203c74660d7f45319e4baca661502600c58231a",
+      "data/models/BTC/20261003_043549/lgbm_meta_20261003_043549.json": "52d740e9a4966845ce72586e8333ecbd48e93a99edebf75e9a945f286cb40ab9",
+      "data/models/BTC/20261002_041540/lgbm_20261002_041540.txt": "3e3e55bb7900b20a0a464cc2820d011ecce3f1e79ddc0d6e27ef5f4a353be818",
+      "data/models/BTC/20261003_043549/lgbm_20261003_043549.txt": "2143b1f2b9a94bf7499996d8bfa07f8913fa0a2bbacf21e05138aed04c780407",
+      "data/analysis/feature_selector/BTC/20261003_015912/recommended_features.json": "a242c6e5317ab77790053d650631d0de8a457ad91576db4472ee2f8c56b65ea2",
+      "configs/modeling.json": "54708f9e778a3c53165141d1f4dcfc0aa23c16d3b9e151855369110a7bfcfc74",
+      "configs/runtime/active.json": "514873d33b16ed9274d4d179a18792f55382da7d78ec609156ad9ce1a92c9b43",
+      "data/analysis/polymarket/BTC/runs/8d9688a07f0f7719/common_latency_0s.parquet": "8a217f172a4bb644a47705c852f72442efc2bce1c10c1e538814df454ca073e2",
+      "data/analysis/polymarket/BTC/runs/8d9688a07f0f7719/latency_0s/out_of_fold_probabilities.parquet": "4a3d5e17ff05289d9801d92ae50a9ae8d964de66688bbaca0b213d4774edbd05",
+      "data/analysis/polymarket/BTC/runs/8d9688a07f0f7719/market_value.json": "b402a097d39bf8bb51b20194c7948b81e0c38c92971cfccd8fd2fc8a014f7009",
+      "data/analysis/polymarket/BTC/runs/8d9688a07f0f7719/inputs.json": "f3df6370bb8e65ea202bbaabad114d0e505b53a4a50c22614721e48b841f25f1",
+      "data/datasets/polymarket/BTC/runs/efa1bf384fc6a2dc/quotes.parquet": "2e07a4d0941a13182137ef49d9e7f6886b67e00d2a2ea3db08889955c85484d4",
+      "data/datasets/polymarket/BTC/runs/efa1bf384fc6a2dc/markets.parquet": "c642ab77fc800504c4472423efef33f73938e1f00f0e467012296df287c746c9",
+      "data/datasets/modeling/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready_metadata.json": "b01ea05e9acf679a92c2cc0b76e7e199115f67a085026ed742aff35c8dbe3590",
+      "data/features/indicators_fit/BTC/all/fit_indicators_applied_config.json": "daf470e0ded7570de3a30d0c0e8cb07749ab9620628e780ad3f2a9f3fdd8b130",
+      "data/optuna/volume_profile/BTC/volume_profile_best_binary_logloss_mean_std_20261002_180354.json": "f1614b8889673f249914fe3e2b85d834cc40345bc3c790065600bd16c7c84bbf",
+      "data/optuna/volume_profile/BTC/volume_profile_trials_binary_logloss_mean_std_20261002_180354.csv": "8236b23f828eb31a4459c315e89fa5b64656aa52937be8cb000ee796bacb876e",
+      "data/optuna/reaction_profile/BTC/reaction_profile_best_binary_logloss_mean_std_20261002_203021.json": "95353b81f1caba80cf07d01282b00056654b8e123f6b39adcfbb8eabfce3a628",
+      "data/optuna/reaction_profile/BTC/reaction_profile_trials_binary_logloss_mean_std_20261002_203021.csv": "97733c9a8a5796276bb32f910456994d058b34bcb97801ea85413a1d327a7687",
+      "data/optuna/lgbm/BTC/lgbm_generic_optuna_best_mean_std_20260717_120022.json": "bc8c2d4b3130fa2a42662903838d0d5e974265bf3766f064c2223e0afffce151",
+      "data/optuna/lgbm/BTC/lgbm_generic_optuna_trials_mean_std_20260717_120022.csv": "1da82e3ebc87ec986b47fa6babc815df0b535825a09244c72124ac56e1e701ec",
+      "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv": "0a97ce5f4c2d57f6788e112c432b55b41e71be246efc5cc37cb12e8b26e2a1d9",
+      "utils/polymarket_market_value.py": "d108db99744fd5c03c00fcf1d924e94a9c209a361e250f48cceaf04b0541007f",
+      "utils/polymarket_policy.py": "467601b7365fb4a19ea780282d61b92c38c65bd885fd2965c17ba96f3c8c4be8",
+      "utils/polymarket_history.py": "eea3683a4449ee4d5956b48d6b0b41d67f24626a4962fc2491f5cab4d975ae93",
+      "utils/data.py": "180012e9f4f8ca3f7d090278607ead1fd972537f0c66d879d9df45a50e620067",
+      "audit_feature_readiness.py": "f502e9b573807659b6221b5fa7c6526b92319936db2cd54b9367e4e016831592",
+      "run.py": "eea2bc48fd17a0005feea216333493d185053c40bd3db8f0b3f5185e72dd3d7f",
+      "select_features.py": "0abb15383422dd3459c2ba8165de08299b04e0077e7b47183d605b5fa0cd6023",
+      "fit_volume_profile.py": "84f6d18d306d16411b0722e327ee9544270f87a22604aab3175f1dc2fd28528a",
+      "fit_indicators.py": "6ad2d1b05b6a45dee33e7567cccb8a5118ba8667b1f227d6f1e06ae572a105a9",
+      "features/common_utils.py": "0963767b26be5c61152b7b18d192d257816b8daa469fa1203882877f55a841b9",
+      "run_btc_new_model_comparison.py": "148cf78c3dc3f65eb1f84e5bc2ae89f043aa1334f43ad9a0b507823a57c83491"
+    },
+    "decision_contract": {
+      "market_join": "exact UTC Opened to market ID and market_start_utc; no row-position join",
+      "quote_selection": "existing first-forward Kacho snapshot at 0s OOF latency; max 2s tolerance",
+      "quality_target": "official Polymarket outcome",
+      "auxiliary_target": "exact saved target_5m_candle_up / Binance proxy"
+    },
+    "market_model": {
+      "family": "StandardScaler + L2 LogisticRegression",
+      "features": "17 contemporaneous Kacho book price and top-size features",
+      "C_grid": [
+        0.01,
+        0.1,
+        1.0,
+        10.0
+      ],
+      "outer": "three later chronological 20% blocks after 40% warm-up"
+    },
+    "bootstrap": {
+      "block_days": 3,
+      "replications": 2000,
+      "seed": 20261003
+    },
+    "portfolio": {
+      "initial_usdc": 100.0,
+      "fixed_stake_usdc": 5.0,
+      "expected_pnl_buffer_usdc": 0.25,
+      "execution_delays_s": [
+        0,
+        1,
+        2
+      ],
+      "settlement": "max(official resolution, market end); no additional redemption delay"
+    },
+    "fingerprint": "d794ac2dea5a25a2199b137e9080e6365335dae18614d030edaadf2c61b7ca42",
+    "output_directory": "data/analysis/polymarket/BTC/new_model_comparison/runs/d794ac2dea5a25a2"
+  },
+  "model": {
+    "old_model_id": "20261002_041540",
+    "new_model_id": "20261003_043549",
+    "target": "target_5m_candle_up",
+    "old_feature_count": 64,
+    "new_feature_count": 256,
+    "feature_source_count": 256,
+    "new_oof_rows": 1660570,
+    "new_oof_start": "2023-08-06T13:43:00+00:00",
+    "new_oof_end": "2026-10-02T17:52:00+00:00",
+    "new_oof_sha256": "1162b7e672db9d7ddba5b021a32e6012b5b09966da76e3232030d3d89e6cd1f9",
+    "old_oof_original_sha256_recorded_in_previous_report": "51ea42bf9527b470340deab8a2578e61320ade34f4d42bca9646b7d9bc8c15fd",
+    "old_oof_original_file_present": false,
+    "old_market_probabilities_preserved_in": "data/analysis/polymarket/BTC/runs/8d9688a07f0f7719/common_latency_0s.parquet",
+    "active_run.py_model_meta_path": "data/models/BTC/20261003_043549/lgbm_meta_20261003_043549.json"
+  },
+  "join_counts": {
+    "common_rows_before_oof_join": 15677,
+    "new_oof_rows_before_join": 1660570,
+    "exact_timestamp_matches": 15677,
+    "common_rows_without_new_oof": 0,
+    "new_oof_rows_without_common_market": 1644893,
+    "new_target_matches_binance_proxy": 15677,
+    "source_market_exclusions": {
+      "source_market_rows": 15682,
+      "common_market_rows": 15677,
+      "excluded_market_rows": 5,
+      "excluded_reason_counts": {
+        "missing_resolution_time": 2,
+        "first_valid_quote_after_2s_tolerance": 3
+      },
+      "max_excluded_valid_quote_delay_s": 70.0
+    }
+  },
+  "target_disagreement": {
+    "main_rows": 9407,
+    "main_disagreements": 405,
+    "main_rate": 0.043053045604337196,
+    "wide_rows": 15677,
+    "wide_disagreements": 691,
+    "wide_rate": 0.04407731070995726
+  },
+  "training_audit": {
+    "market_evaluation_model_fold": 8,
+    "evaluation_fold_best_iteration": 1326,
+    "final_model_n_estimators": 1528,
+    "final_iteration_is_mean_of_fold_best_iterations": true,
+    "evaluation_fold_rows": 166057,
+    "latest_training_label_available_before_market_evaluation": "2026-02-14T02:44:00+00:00",
+    "first_market_decision": "2026-04-15T17:05:00+00:00",
+    "days_between_training_label_and_market_evaluation": 60.59791666666667,
+    "early_stopping_uses_same_fold_test": true,
+    "lgbm_optuna_study_timestamp_range_recorded": false,
+    "lgbm_optuna_params_match_saved_trial": true,
+    "selector_and_profile_validation_include_common_period": true
+  },
+  "training_selection_audit": {
+    "evaluation_opened_start": "2026-04-15T17:04:00+00:00",
+    "evaluation_opened_end": "2026-05-18T10:29:00+00:00",
+    "lgbm_optuna": {
+      "rows": 3208133,
+      "n_splits": 10,
+      "test_to_train_ratio": 0.1,
+      "evaluation_validation_overlaps": [
+        {
+          "fold_id": 9,
+          "train_start": "2023-03-08T22:27:00+00:00",
+          "train_end": "2026-03-26T20:46:00+00:00",
+          "validation_start": "2026-03-26T20:47:00+00:00",
+          "validation_end": "2026-07-16T06:12:00+00:00",
+          "evaluation_overlap_start": "2026-04-15T17:04:00+00:00",
+          "evaluation_overlap_end": "2026-05-18T10:29:00+00:00",
+          "evaluation_overlap_rows": 47126
+        }
+      ],
+      "evaluation_in_validation": true,
+      "created_utc": "2026-07-17T14:36:42.778515+00:00",
+      "study_name": "lgbm_generic_binary_logloss_mean_std_20260717_120022",
+      "best_trial": 1,
+      "trials_requested": 25,
+      "saved_rows_after_target_notna": 3208133,
+      "best_params_match_new_model_metadata": true,
+      "input_timestamp_range_recorded": false,
+      "saved_input_row_filter_enabled": false,
+      "cv_fold_recency_weighting": {
+        "enabled": true,
+        "active": true,
+        "mode": "linear",
+        "min_weight": 1.0,
+        "max_weight": 1.5,
+        "std_score_aggregation": "unweighted",
+        "fold_weights": [
+          {
+            "fold_id": 0,
+            "weight": 1.0
+          },
+          {
+            "fold_id": 1,
+            "weight": 1.0555555555555556
+          },
+          {
+            "fold_id": 2,
+            "weight": 1.1111111111111112
+          },
+          {
+            "fold_id": 3,
+            "weight": 1.1666666666666667
+          },
+          {
+            "fold_id": 4,
+            "weight": 1.2222222222222223
+          },
+          {
+            "fold_id": 5,
+            "weight": 1.2777777777777777
+          },
+          {
+            "fold_id": 6,
+            "weight": 1.3333333333333333
+          },
+          {
+            "fold_id": 7,
+            "weight": 1.3888888888888888
+          },
+          {
+            "fold_id": 8,
+            "weight": 1.4444444444444444
+          },
+          {
+            "fold_id": 9,
+            "weight": 1.5
+          }
+        ]
+      }
+    },
+    "feature_selector": {
+      "rows": 664229,
+      "n_splits": 10,
+      "test_to_train_ratio": 0.1,
+      "evaluation_validation_overlaps": [
+        {
+          "fold_id": 8,
+          "train_start": "2022-12-18T22:14:00+00:00",
+          "train_end": "2026-02-14T01:59:00+00:00",
+          "validation_start": "2026-02-14T02:04:00+00:00",
+          "validation_end": "2026-06-09T09:34:00+00:00",
+          "evaluation_overlap_start": "2026-04-15T17:04:00+00:00",
+          "evaluation_overlap_end": "2026-05-18T10:29:00+00:00",
+          "evaluation_overlap_rows": 9426
+        }
+      ],
+      "evaluation_in_validation": true,
+      "created_utc": "2026-10-03T01:59:12.272386+00:00",
+      "ranking_method": "prescreen_used_folds_recency_weighted_mean_gain_then_permutation_recency_weighted_delta_logloss",
+      "input_feature_count": 886,
+      "recommended_feature_count": 256,
+      "row_filter_min_weight": 0.4625
+    },
+    "volume_profile_optuna": {
+      "rows": 664229,
+      "n_splits": 10,
+      "test_to_train_ratio": 0.1,
+      "evaluation_validation_overlaps": [
+        {
+          "fold_id": 8,
+          "train_start": "2022-12-18T22:14:00+00:00",
+          "train_end": "2026-02-14T01:59:00+00:00",
+          "validation_start": "2026-02-14T02:04:00+00:00",
+          "validation_end": "2026-06-09T09:34:00+00:00",
+          "evaluation_overlap_start": "2026-04-15T17:04:00+00:00",
+          "evaluation_overlap_end": "2026-05-18T10:29:00+00:00",
+          "evaluation_overlap_rows": 9426
+        }
+      ],
+      "evaluation_in_validation": true,
+      "created_utc": "2026-10-02T20:30:19.277153+00:00",
+      "best_trial": 205,
+      "trials_requested": 500,
+      "objective": {
+        "name": "cv_binary_logloss_weighted_mean_plus_std_penalty",
+        "base_metric": "binary_logloss",
+        "base_score": "cv_binary_logloss_weighted_mean",
+        "aggregation": "cv_binary_logloss_weighted_mean + std_penalty * cv_std",
+        "std_penalty": 0.75
+      },
+      "best_trial_objective_value": 0.6927372188015701,
+      "best_trial_feature_count": 84,
+      "fold_recency_weighting": {
+        "enabled": true,
+        "active": true,
+        "mode": "linear",
+        "std_score_aggregation": "unweighted",
+        "min_weight": 1.0,
+        "max_weight": 1.5,
+        "fold_count": 10,
+        "first_fold_weight": 1.0,
+        "last_fold_weight": 1.5
+      },
+      "best_config_matches_new_model_metadata": true
+    },
+    "reaction_profile_optuna": {
+      "rows": 664229,
+      "n_splits": 10,
+      "test_to_train_ratio": 0.1,
+      "evaluation_validation_overlaps": [
+        {
+          "fold_id": 8,
+          "train_start": "2022-12-18T22:14:00+00:00",
+          "train_end": "2026-02-14T01:59:00+00:00",
+          "validation_start": "2026-02-14T02:04:00+00:00",
+          "validation_end": "2026-06-09T09:34:00+00:00",
+          "evaluation_overlap_start": "2026-04-15T17:04:00+00:00",
+          "evaluation_overlap_end": "2026-05-18T10:29:00+00:00",
+          "evaluation_overlap_rows": 9426
+        }
+      ],
+      "evaluation_in_validation": true,
+      "created_utc": "2026-10-02T23:22:22.804757+00:00",
+      "best_trial": 98,
+      "trials_requested": 500,
+      "objective": {
+        "name": "cv_binary_logloss_weighted_mean_plus_std_penalty",
+        "base_metric": "binary_logloss",
+        "base_score": "cv_binary_logloss_weighted_mean",
+        "aggregation": "cv_binary_logloss_weighted_mean + std_penalty * cv_std",
+        "std_penalty": 0.75
+      },
+      "best_trial_objective_value": 0.692799237293765,
+      "best_trial_feature_count": 28,
+      "fold_recency_weighting": {
+        "enabled": true,
+        "active": true,
+        "mode": "linear",
+        "std_score_aggregation": "unweighted",
+        "min_weight": 1.0,
+        "max_weight": 1.5,
+        "fold_count": 10,
+        "first_fold_weight": 1.0,
+        "last_fold_weight": 1.5
+      },
+      "best_config_matches_new_model_metadata": true
+    },
+    "indicator_fit": {
+      "source_start": "2020-06-09T09:33:00+00:00",
+      "source_end": "2026-10-02T18:00:00+00:00",
+      "frozen_ohlc_rows_removed": 0,
+      "target_horizons_minutes": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        15,
+        30,
+        60,
+        240,
+        720,
+        1440
+      ],
+      "target_price_column": "Close",
+      "metric": "extremes_vs_mid_ir_oof",
+      "metric_segments_count": 20,
+      "metric_train_fraction_per_segment": 0.8,
+      "metric_gap_rows": 2000,
+      "minimum_valid_segments": 19,
+      "evaluation_overlapping_segments": [
+        {
+          "segment_id": 18,
+          "segment_start": "2026-02-14T02:46:00+00:00",
+          "segment_end": "2026-06-09T10:22:00+00:00",
+          "calibration_start": "2026-02-14T02:46:00+00:00",
+          "calibration_end": "2026-05-17T08:50:00+00:00",
+          "metric_validation_start": "2026-05-18T18:11:00+00:00",
+          "metric_validation_end": "2026-06-09T10:22:00+00:00",
+          "evaluation_rows_in_calibration_prefix": 45587,
+          "evaluation_rows_in_metric_gap": 1539,
+          "evaluation_rows_in_metric_validation": 0
+        }
+      ]
+    }
+  },
+  "config_audit": {
+    "volume_profile_matches_metadata": true,
+    "reaction_profile_matches_metadata": true,
+    "manual_exclusion_flag": false,
+    "manual_exclusion_names_present_but_disabled": 48,
+    "training_config_snapshot_present": false,
+    "training_config_path_present": false
+  },
+  "quote_audit": {
+    "source": "Kacho first-forward saved book snapshot",
+    "rows": 15677,
+    "delay_ms_min": 0.0,
+    "delay_ms_p50": 0.0,
+    "delay_ms_p95": 0.0,
+    "delay_ms_max": 0.0,
+    "quote_timestamp_at_or_after_model_decision": true,
+    "official_settlement_sources": [
+      "official_gamma"
+    ],
+    "quote_sources": [
+      "kachoio/polymarket-5-minute-crypto-up-down-markets"
+    ]
+  },
+  "live_parity": {
+    "audit_start": "2026-10-01T18:00:00",
+    "audit_end": "2026-10-02T17:59:00",
+    "bootstrap_rows": 21936,
+    "audit_rows_total_1m": 1440,
+    "decision_rows": 288,
+    "required_stable_window": 21936,
+    "live_ohlcv_source": "raw_csv",
+    "live_ohlcv_path": "data\\datasets\\raw\\BTC\\BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv",
+    "live_ohlcv_rows": 23376,
+    "live_ohlcv_vs_stored_max_abs_diff": 0.0,
+    "volume_profile_anchor_source": "raw_csv",
+    "reaction_profile_anchor_source": "raw_csv",
+    "use_anchor_vp_state": true,
+    "use_anchor_rp_state": true,
+    "feature_count": 256,
+    "rows_with_live_nonfinite": 0,
+    "rows_with_stored_nonfinite": 0,
+    "rows_with_finite_status_mismatch": 0,
+    "rows_with_signal_mismatch": 0,
+    "rows_with_business_decision_mismatch": 0,
+    "max_feature_abs_diff": 1.684305879074003,
+    "mean_feature_abs_diff": 0.0006347548165808957,
+    "max_proba_up_abs_diff": 4.467985129441576e-05,
+    "mean_proba_up_abs_diff": 1.5513837255005472e-07,
+    "rows_with_proba_diff_gt_tol": 1,
+    "probability_diff_tolerance": 1e-06,
+    "feature_order_matches_model_metadata": true,
+    "feature_order_sha256": "7bf5ee7d9031d0a5415cdd5422c4992b561a7a3cead6f36c54a20782036fce35",
+    "live_nonfinite_values": 0,
+    "stored_nonfinite_values": 0,
+    "finite_status_mismatch_values": 0,
+    "largest_probability_gap_above_tolerance": {
+      "Opened": "2026-10-01T22:44:00+00:00",
+      "proba_up_abs_diff": 4.467985129441576e-05,
+      "feature_max_abs_diff": 0.04453340092095459,
+      "feature_mean_abs_diff": 0.0007153027389967333,
+      "worst_feature": "ChaikinOsc_fit_1440m_pop128_fasmatypt3_fasper757_slomatypgma_sloper978_qe0.1_qm0.2_tf0.8_stmc_sg15",
+      "live_proba_up": 0.4560699286801085,
+      "stored_proba_up": 0.45602524882881407,
+      "signal_mismatch": 0,
+      "business_decision_mismatch": 0
+    },
+    "feature_source_file_count": 84,
+    "feature_source_sha256": {
+      "data/features/indicators_fit/BTC/all/ADX_target_15m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "526368f96439dfcf478dba5a36618a8399cce8ecb884e312f2c05096c5e40bd0",
+      "data/features/indicators_fit/BTC/all/ADX_target_1m_ahead_ret_pop128_qe0.2_qm0.2_tf0.8_stmc_sg15.json": "de0f12dce49376ba88996299d134f1f99176a37ed9b82ab31da47fb83e5dee1d",
+      "data/features/indicators_fit/BTC/all/ADX_target_1m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20.json": "9aeddb46672bc0f471b81440f39eb8e21fb473fd34cd33edd089d8b6dead510f",
+      "data/features/indicators_fit/BTC/all/ADX_target_240m_ahead_ret_pop64_q0.25.json": "a3643a4d9241916109db424a233e00f069aa61bee2af631a428b6c6171ea41a5",
+      "data/features/indicators_fit/BTC/all/ADX_target_2m_ahead_ret_pop128_qe0.1_qm0.2_tf0.8_stmc_sg15.json": "8bc608e46e7ba4526c57b63e0ab15c1198a145b63d942b821cf26962fd6a347f",
+      "data/features/indicators_fit/BTC/all/ADX_target_2m_ahead_ret_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "2ae2bec285b451824e7102a0efd60bf9ac6c2975b09ada1696e72e268c03349e",
+      "data/features/indicators_fit/BTC/all/ADX_target_30m_ahead_ret_pop128_qe0.2_qm0.2_tf0.8_stmc_sg15.json": "aa4e96d8cba00a32ed9425582b2c0a39f201e84b29cdd159435c22234cb96245",
+      "data/features/indicators_fit/BTC/all/ADX_target_30m_ahead_ret_pop16_q0.2.json": "5b26e28e46343f1844a8354adf8a6ac5fbd5999065e2d7a5aa9189c470640f32",
+      "data/features/indicators_fit/BTC/all/ADX_target_3m_ahead_ret_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "7f5f81de651c8ad6ea60af4061ec891d65f40006894af04f10e0b053d415ebdb",
+      "data/features/indicators_fit/BTC/all/ADX_target_3m_ahead_ret_pop16_q0.1.json": "fbd7ce544ff35d1f47a7cd1ae3635b2c35dc050241028a1cabf60920d2d55309",
+      "data/features/indicators_fit/BTC/all/ADX_target_4m_ahead_ret_pop128.json": "0d95fffdd1b08ec7bfbfffa01a826b5b43f929aa3f345f370fbe2ad1e8b38355",
+      "data/features/indicators_fit/BTC/all/ADX_target_4m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "c991d32e10be1e732355477283632f54593737c446a36556ecb63841e0187756",
+      "data/features/indicators_fit/BTC/all/ADX_target_5m_ahead_ret_pop128_q0.2.json": "41e5bb1ef928762fc8280b65ca1844db402c8e77d8e407262f074f910c4f6afc",
+      "data/features/indicators_fit/BTC/all/ADX_target_5m_ahead_ret_pop128_qe0.2_qm0.2_tf0.8_stmc_sg15.json": "2d3c1b65348e6ae9eaf75c0b3c759345cb9dcbcd74503a2a8e0c57b8b388d7ea",
+      "data/features/indicators_fit/BTC/all/ADX_target_5m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "6096638209204d92a08042d818bcc491739108bbaf9fc7bc10c9b93bbcb32ccc",
+      "data/features/indicators_fit/BTC/all/ADX_target_5m_candle_up_pop512_qe0.2_qm0.2_tf0.8_stmc_sg10_rwlin1-1.5.json": "beabb8a471cf8accf8890a6f6753d25ae3c0701c68965fe652aa9c4acd64457a",
+      "data/features/indicators_fit/BTC/all/ADX_target_60m_ahead_ret_pop64_q0.25.json": "1b5022760049a5c280d72d685d36ff56764b58f3766d63b3ff4dcdff8190667f",
+      "data/features/indicators_fit/BTC/all/ADX_target_6m_ahead_ret_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "6936557ab24cae4d8cb1521980fa6d69a7f3a64c1f108f2a1d06cb9cf3a66c17",
+      "data/features/indicators_fit/BTC/all/ADX_target_6m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "269d3055fae6686150602493b825d5a9dee1a8fc7377f54fec2ecd4622527d84",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_15m_ahead_ret_pop128_qe0.2_qm0.2_tf0.8_stmc_sg15.json": "52c150aae6bb267d7c4a4a8c6810269592472e5123890980497c9a51ebb08f69",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_15m_ahead_ret_pop16_q0.1.json": "46debff956b4529c6546100f0124f37a4e4d936980dfa288ab580ca57f40adb1",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_1m_ahead_ret_pop128.json": "24e18af9423923929ee912a9784bd53dc0253cdd82ed16749843507b627defb3",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_1m_ahead_ret_pop128_qe0.1_qm0.2_tf0.8_stmc_sg15.json": "ff8ee1d0cf80ba3cd2b22502a8887d3e36eb5017ef45a19852f0e570f8b3187e",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_1m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "a1fd353a3e03e4c6521157a9de4805ebea885486c9f8fa4a6ddb7975f4a4d564",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_30m_ahead_ret_pop16_q0.2.json": "e1c02c9dbe52d7f313caf1efd7999d2ccbb47edf78bda02566c3dfbf708d5417",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_5m_ahead_ret_pop64_q0.25.json": "06c79b9487e7d551a7342c3137cf9f3b7dbf13ae5bd30afd4bb6875980c33680",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_5m_candle_up_pop512_qe0.2_qm0.2_tf0.8_stmc_sg10_rwlin1-1.5.json": "115f1b16dfcdf14ae16db8659d143e6135ab39309466a8db5fc4f99c2f43cda0",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_60m_ahead_ret_pop128_q0.2.json": "49046cf629aede9fa4b2c08c694ad553ba5c2909a33967fadd95e09d21215c0c",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_60m_ahead_ret_pop16_q0.2.json": "76d55f8c09159d9280f1511e70fd7ab22ef425c63ed6c1ad4d3cf47de075c92c",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_720m_ahead_ret_pop64_q0.05.json": "4d5a8d29cdeb82d805603af3ccd82a7b7620c96643f0b9789d0ad7909746bc4e",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_7m_ahead_ret_pop128.json": "0dade1b27870bab051e4c5686a0268d3de8f43f31272410d96abfc5cf83eeec6",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_7m_ahead_ret_pop16_q0.2.json": "2871e1f7099db14e7aba06c6f28414367e05c6bf018a8d6f200a030f60e727f2",
+      "data/features/indicators_fit/BTC/all/BollingerBands_target_7m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "506c422edd4cee2980e07f934976a94df8aac91f8b45ee7193250c5fae35fe7a",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_1440m_ahead_ret_pop128.json": "a991c6e11a6a32743c702f335bbc815fccecec5d7cf66c44b5007a9cf1f138d5",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_1440m_ahead_ret_pop128_qe0.1_qm0.2_tf0.8_stmc_sg15.json": "0021c192a175a8dc3f4ab75ba850b0b19cfb0ce2a53208846b5bf2d5eb0f0c05",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_1440m_ahead_ret_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "e045e0c0aed0493d3b871689678868a505e1cbef6d6f0692b7544a66228b435f",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_1m_ahead_ret_pop64_q0.25.json": "19a5d62d9e52ca4e00cca72a19d188c0934bbe767087dd6a42b69e8c5d309746",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_240m_ahead_ret_pop16_q0.1.json": "48cba2613e1feb16f2e33cfe1ed1096f35c83150d6e6b63545c0b8130af2b174",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_2m_ahead_ret_pop16_q0.1.json": "9ee703c2871011af1fc21790ba1f4082f296158c023d1e6cd9251741a5ce7a3c",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_4m_ahead_ret_pop128_q0.2.json": "68c3981980380c5873cec9fa3c6377d0ec046fad1e1725c5ad4c6d962fe5e397",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_4m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20.json": "ab4bc883fb5847976a6bb8b287e59d99df83b2598eca1b0960a563e01db68907",
+      "data/features/indicators_fit/BTC/all/ChaikinOsc_target_5m_candle_up_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "5d2f4159467fb60846d1cd0d510f7ce7e8e4e73266fe777e04651029755b3f00",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_15m_ahead_ret_pop16_q0.1.json": "e9d230da503594ca52f592ffc5d9209a210d21d5cdd041b5a610f8af240dc967",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_1m_ahead_ret_pop16_q0.1.json": "70f911fd50fc8f5d6304124e02b25c41fba6742ecc44b81abd2dce44e21e11a2",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_1m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "6e1269edec272e0e36aabda29342e98f00aea5e9c3cf3b6c0f295c9bea176597",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_1m_ahead_ret_pop64_q0.15.json": "162ca9228cfeb3252cfbca7268dc1ec1749b4a602fbe90346b1cd1533a8a1a19",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_2m_ahead_ret_pop16_q0.1.json": "18c36296db4f8dd2a166a9b0505e7685ab8d28af756de667e56d83937b6c36d0",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_30m_ahead_ret_pop128_q0.2_unstable.json": "35619d3eb0edee2bf557bd00316a43ace8303a9e3055e2b1eb45f4edccbda2e6",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_5m_ahead_ret_pop16_q0.1.json": "03516fa4c63304e57e017dbdb29f9af1aa7ceb86dfc4369729e1021cd07def34",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_5m_candle_up_pop1024_qe0.15_qm0.25_tf0.8_stmc_sg20.json": "93804558e5d73d566e6643ce25c3d6b61c1787a39be592e87261f48e004466c7",
+      "data/features/indicators_fit/BTC/all/KeltnerChannel_target_6m_ahead_ret_pop128_qe0.1_qm0.2_tf0.8_stmc_sg15.json": "e2be9d0e0e4b064428d0486bae54255865dda39e38bcc7c3a35bdbb635bdeee5",
+      "data/features/indicators_fit/BTC/all/MACD_target_15m_ahead_ret_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "34595bd98b62a127a91e1f261ca467388cbc94eca0da21ea1607199237547cef",
+      "data/features/indicators_fit/BTC/all/MACD_target_1m_ahead_ret_pop128_qe0.2_qm0.2_tf0.8_stmc_sg15.json": "796e3af24adfb6b0f87b4417631908c172e74bd8942480e77f7fee05a6ff52f5",
+      "data/features/indicators_fit/BTC/all/MACD_target_1m_ahead_ret_pop16_q0.1.json": "8951fc4e214f87285011d9142f6573ccc4de65f19243cf6a8c7d174ffd1680e6",
+      "data/features/indicators_fit/BTC/all/MACD_target_240m_ahead_ret_pop16_q0.1.json": "a37097e83bf04a1238e78425c00d062e44e0410c634034b2272be672722c39a1",
+      "data/features/indicators_fit/BTC/all/MACD_target_240m_ahead_ret_pop16_q0.2.json": "593f7a8208f36e432d84ce71ad411637026f270df3a6b577cc0cf8db20c923f4",
+      "data/features/indicators_fit/BTC/all/MACD_target_240m_ahead_ret_pop64_q0.05.json": "9a2f55fd0cce2155de2d58b330c3c6e79d79e610b141f5f2f5b6825cb7aa188c",
+      "data/features/indicators_fit/BTC/all/MACD_target_2m_ahead_ret_pop128.json": "9abd8c747d66346dff05b342b296a42e80e3de60f1eef0033c8f9888e6b58201",
+      "data/features/indicators_fit/BTC/all/MACD_target_2m_ahead_ret_pop128_q0.2.json": "680664c1f59518ffba0408ab959227f4c7756876132a5779912640126980c3fd",
+      "data/features/indicators_fit/BTC/all/MACD_target_3m_ahead_ret_pop128_q0.2_unstable.json": "3452df24cb10e93cb79736c61c9e343e8756fed7d1699371e7bb9378dac77296",
+      "data/features/indicators_fit/BTC/all/MACD_target_3m_ahead_ret_pop16_q0.1.json": "0e71d2aaaa804b1ddbc722b552df134994cf639dc3a5763d82f5788ecffddb1f",
+      "data/features/indicators_fit/BTC/all/MACD_target_4m_ahead_ret_pop16_q0.1.json": "15cc9cb8878695289ff8b3e460e14e0c71892ba01a5992a24c3f393dabaf8371",
+      "data/features/indicators_fit/BTC/all/MACD_target_4m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20.json": "4d5a3dee726632b351e1eabde9001b969ab672c2f752470cc078acb838a12588",
+      "data/features/indicators_fit/BTC/all/MACD_target_5m_ahead_ret_pop16_q0.1.json": "d81a2ce6b4e5a20fedbcdc930fe232b1f258862591186a7933ad098ca2e72441",
+      "data/features/indicators_fit/BTC/all/MACD_target_5m_ahead_ret_pop64_q0.25.json": "39f7f9a5fd29fde4684f609e000170d1d5479e271838db1145a4f7b63680ac90",
+      "data/features/indicators_fit/BTC/all/MACD_target_5m_candle_up_pop512_qe0.2_qm0.2_tf0.8_stmc_sg10_rwlin1-1.5.json": "d27ca4a97f75b0140aaeb130c6c713b22fc782bb1dbac94017702f6cfbf6084c",
+      "data/features/indicators_fit/BTC/all/MACD_target_6m_ahead_ret_pop16_q0.1.json": "13353e04fe2dfc47915450b89d961251337e9e71df95a3dbd483be0beecc1e0e",
+      "data/features/indicators_fit/BTC/all/MACD_target_6m_ahead_ret_pop16_q0.2.json": "394cb62207111dd8a464e4b2ffc5d08dae968e89ebf740eebb371d81e2cdeb6f",
+      "data/features/indicators_fit/BTC/all/MACD_target_720m_ahead_ret_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "909bcf6399933570a22a30f064aa3e75fbec892d7081ad26c3352ab89b59f8f3",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_15m_ahead_ret_pop16_q0.1.json": "f5d000199f634a26f7d37a7f3d5d49969ebc06f43a44150ce67c9d6fdf993333",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_15m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "9b81e441821015f39d13dcfca3b5f723844eb8b96f1a215a3687c60387439160",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_1m_ahead_ret_pop128.json": "da80f424cd51a62d43a857d4cb240066827fe33c68d372055861cd05a7803b07",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_1m_ahead_ret_pop512_qe0.2_qm0.25_tf0.8_stmd_sg20_unstable_prev.json": "87a4d39d038ff74781da7ae74583a9660086193be3668b4c055c9058bd1112ed",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_2m_ahead_ret_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "b80ed7ce52a2d3b4072940202ec3ad4a30d60600f211ad95f3bd9f5de024f9a9",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_3m_ahead_ret_pop128_qe0.1_qm0.3_tf0.8_stmc_sg20.json": "16bdfee260511387e7bef5b003c6444aad43f3b01df1ff2227c6a90c5dc0659a",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_3m_ahead_ret_pop16_q0.1.json": "99f157881e6be62b82d0b4e3a33cb6885b854a34da240f3c9ab65377057c4e07",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_3m_ahead_ret_pop64_q0.15.json": "e05bc25b3ffbe127c3a9f1004a598970a642c4941713a83623ce50e5faed75d3",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_4m_ahead_ret_pop64_q0.25.json": "f22ec548c9205e9c01b5ede52f483cda23235508ad47a4d8545c4c9d4d05dfe7",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_5m_ahead_ret_pop128_q0.1_unstable.json": "f8a5533fc8f99f65222afd236e656e19360407b0a8268345cc7e610aa30f15bb",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_5m_candle_up_pop128_qe0.1_qm0.15_tf0.8_stmc_sg10_rwlin1-1.5.json": "9f5a804daa57b12f8d5f47599b01c2546b2519463b0394c612e5790ea3b51f0c",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_60m_ahead_ret_pop64_q0.15.json": "9bca532c0da3638ba6c2f0eb7a50b1ced4744285a6ef8fbb85174dd6921181bc",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_6m_ahead_ret_pop128_q0.1_unstable.json": "7613539fc875904a197496b48f81e50e891105df9a3b16f4cbdd0140671ee272",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_6m_ahead_ret_pop16_q0.2.json": "0b51f90c8b12fff2839af68b09364e4a9426014fd68d6c1606f19859a304473c",
+      "data/features/indicators_fit/BTC/all/StochOsc_target_720m_ahead_ret_pop64_q0.05.json": "97008f6ad9ad3094705e1749219ae21db27e6e4ec69045b4ab11edb41a050936"
+    },
+    "anchor_vp_state_path": "data\\features\\state\\volume_profile\\audit_anchor\\BTCUSD_1m_vp_fixed_range_v3_audit_anchor_raw_csv_20261001_1759.npz",
+    "anchor_rp_state_path": "data\\features\\state\\reaction_profile\\audit_anchor\\BTCUSD_1m_rp_fixed_grid_v1_audit_anchor_raw_csv_20261001_1759.npz"
+  },
+  "verdict": {
+    "new_vs_old": "lower log loss and Brier, but lower accuracy; retrospective development result",
+    "incremental_information": "small lower log loss and Brier; development-only evidence",
+    "portfolio": "no robust incremental profitable value: at 1 s MARKET_ONLY ends at $105.24, MARKET_ONLY + new BTC at $100.24, and calibrated new BTC alone at $2.11"
+  }
+}

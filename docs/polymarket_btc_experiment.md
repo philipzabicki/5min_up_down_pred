@@ -885,3 +885,13 @@ Full rejection reasons and per-fold economics are in `economics/economics.json`;
 The old session's ~1.5 s field measures time from application `fetched_at` (after the REST market/book snapshot fetch completes) until the cached payload is consumed. It is not the age of the exchange book's last change, a last-price timestamp, or feed delay. Current code schedules prefetch about 1.2 s before a bucket and accepts the cached payload up to 2.5 s old; above that it refetches. Thus 1.5 s is an older application snapshot still within the configured cache limit, while exchange freshness remains unknown. The 2026-06-20 run is the only detailed BTC live session found and used a different model fingerprint; no newer runtime logs are available for comparison.
 
 All results are retrospective and do not authorize live deployment.
+
+## BTC model 20261003 status
+
+The retrospective comparison of BTC model `20261003_043549` against `20261002_041540` is documented in [the full report](btc_new_model_evaluation_20261003.md) and [its input-hash manifest](btc_new_model_manifest_20261003.json). Reproduce the analysis with `python run_btc_new_model_comparison.py`.
+
+On 9,407 shared official Polymarket outcomes, the new model had slightly lower log loss and Brier score than the previous model, but lower accuracy. MARKET_ONLY remained better than raw BTC. Adding the new BTC prediction to MARKET_ONLY produced only a small retrospective reduction in both losses; feature selection, profile tuning, and the model's fold-8 iteration choice included the scored period, so these results are development evidence rather than an independent test.
+
+In the $100 replay with a one-second execution delay, MARKET_ONLY ended at $105.24, MARKET_ONLY plus new BTC at $100.24, and calibrated new BTC alone at $2.11. The evidence does not establish profitable incremental value after costs. The recommended next step is non-trading shadow evaluation on future markets with a frozen model and policy, while recording quote age, order acknowledgements, fills, and actual fees.
+
+The one-day local pseudo-live replay used no REST source or active trader. It matched feature order and missing-value status and produced no signal-direction mismatches; one of 288 decisions exceeded the probability-difference tolerance. See the report for the discrepancy and replay window.

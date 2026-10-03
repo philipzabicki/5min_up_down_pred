@@ -5,12 +5,126 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 
 import audit_feature_readiness as audit
 
 
 class PseudoLiveAuditPredictorTests(unittest.TestCase):
+    def test_matrix_audit_flags_small_finite_indicator_drift(self):
+        class Model:
+            @staticmethod
+            def predict(matrix):
+                return np.clip(matrix[:, 0], 0.0, 1.0)
+
+        audit_df = pd.DataFrame(
+            {
+                "Opened": pd.date_range(
+                    "2026-01-01 00:00:00", periods=2, freq="min", tz="UTC"
+                ),
+                "Open": [0.5, 0.5],
+                "High": [0.5, 0.5],
+                "Low": [0.5, 0.5],
+                "Close": [0.5, 0.5],
+                "Volume": [1.0, 1.0],
+            }
+        )
+        feature_builder_frame = pd.DataFrame(
+            {
+                "feature": ["indicator_macd"],
+                "builder_family": ["indicator"],
+                "builder_name": ["MACD"],
+                "builder_source": ["fixture"],
+            }
+        )
+
+        report = audit.build_matrix_comparison_report(
+            candidate_label="live",
+            reference_label="stored",
+            candidate_matrix=np.array([[0.5], [0.5001]]),
+            reference_matrix=np.array([[0.5], [0.5]]),
+            audit_df=audit_df,
+            feature_columns=["indicator_macd"],
+            feature_group_by_name={"indicator_macd": "indicator"},
+            feature_builder_frame=feature_builder_frame,
+            model=Model(),
+        )
+
+        self.assertEqual(report["summary"]["rows_with_proba_diff_gt_tol"], 1)
+        self.assertEqual(report["summary"]["rows_with_signal_mismatch"], 0)
+        drift = report["step_summary_df"].iloc[1]
+        self.assertEqual(drift["worst_feature"], "indicator_macd")
+        self.assertGreater(drift["proba_up_abs_diff"], audit.PREDICTION_DIFF_TOL)
+
+    def test_snapshot_preserves_model_feature_order_and_missing_values(self):
+        bootstrap_df = pd.DataFrame(
+            {
+                "Opened": pd.date_range(
+                    "2026-01-01 00:00:00", periods=2, freq="min", tz="UTC"
+                ),
+                "Open": [100.0, 101.0],
+                "High": [101.0, 102.0],
+                "Low": [99.0, 100.0],
+                "Close": [100.5, 101.5],
+                "Volume": [10.0, 11.0],
+            }
+        )
+        feature_columns = ["Close", "Open", "not_available_live"]
+        meta = {
+            "feature_columns": feature_columns,
+            "target_col": "target_5m_candle_up",
+        }
+        requirements = {
+            "global_required_runtime_window": 1,
+            "global_required_stable_window": 1,
+            "stable_window_by_feature": {},
+            "runtime_window_by_feature": {},
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            requirements_path = Path(tmpdir) / "requirements.json"
+            requirements_path.write_text(
+                json.dumps({"unstable_features": []}), encoding="utf-8"
+            )
+            with (
+                mock.patch.object(
+                    audit,
+                    "INDICATOR_HISTORY_REQUIREMENTS_PATH",
+                    requirements_path,
+                ),
+                mock.patch.object(
+                    audit,
+                    "load_model_and_meta",
+                    return_value=(object(), meta),
+                ),
+                mock.patch.object(
+                    audit,
+                    "load_trade_policy_runtime_config",
+                    return_value={},
+                ),
+                mock.patch.object(audit, "load_indicator_specs", return_value=[]),
+                mock.patch.object(
+                    audit,
+                    "load_indicator_history_requirements",
+                    return_value=requirements,
+                ),
+            ):
+                predictor = audit.PseudoLiveAuditPredictor(
+                    bootstrap_df,
+                    model_meta_path="unused.json",
+                    max_keep=10,
+                )
+
+        snapshot = predictor.build_feature_snapshot()
+        vector = snapshot["vector"][0]
+
+        self.assertEqual(predictor.feature_columns, feature_columns)
+        self.assertEqual(vector[0], 101.5)
+        self.assertEqual(vector[1], 101.0)
+        self.assertTrue(pd.isna(vector[2]))
+        self.assertEqual(snapshot["nonfinite_feature_indices"], (2,))
+
     def test_basis_premium_features_are_replayed_from_futures_close(self):
         bootstrap_df = pd.DataFrame(
             {

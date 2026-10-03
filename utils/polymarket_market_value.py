@@ -284,10 +284,11 @@ def walk_forward_models(frames, destination):
     return results
 
 
-def decide_at_observed_book(row, probability):
+def decide_at_observed_book(row, probability, min_expected_pnl=0.0):
     """Select side and immutable ask limit using only the book at observation time."""
     choices=[]
     positive_but_unfilled=[]
+    below_buffer=False
     fees=fee_model(row)
     for side, p in [('up', probability), ('down', 1-probability)]:
         price=getattr(row,side+'_best_ask')
@@ -296,7 +297,8 @@ def decide_at_observed_book(row, probability):
         if not result:
             continue
         ev=p*result['shares']-FIXED_STAKE
-        if ev<=0:
+        if ev<=min_expected_pnl:
+            below_buffer |= ev>0
             continue
         if result['shares']<row.order_min_size:
             positive_but_unfilled.append('observed_minimum_order')
@@ -306,8 +308,13 @@ def decide_at_observed_book(row, probability):
             continue
         if ev>0:
             choices.append((ev,side,price,result,p))
-    return (max(choices,key=lambda x:x[0]),[]) if choices else (None,
-        positive_but_unfilled if positive_but_unfilled else ['no_positive_expected_pnl'])
+    if choices:
+        return max(choices,key=lambda x:x[0]),[]
+    if positive_but_unfilled:
+        return None,positive_but_unfilled
+    if below_buffer:
+        return None,['expected_pnl_below_buffer']
+    return None,['no_positive_expected_pnl']
 
 
 def _execution_quotes(data, quote_path, delay):
@@ -325,8 +332,11 @@ def _execution_quotes(data, quote_path, delay):
     return future
 
 
-def simulate_fixed_policy(data, probability_column, execution_delay=0, bankroll=None, future_quotes=None):
+def simulate_fixed_policy(data, probability_column, execution_delay=0, bankroll=None, future_quotes=None,
+                          min_expected_pnl=0.0):
     """Freeze side/limit at observation; recheck later ask, capacity, cash and settlement."""
+    if min_expected_pnl < 0:
+        raise ValueError('min_expected_pnl must be non-negative')
     ordered=data.sort_values('market_start_utc').reset_index(drop=True)
     cash=bankroll
     locked=0.
@@ -354,7 +364,8 @@ def simulate_fixed_policy(data, probability_column, execution_delay=0, bankroll=
                               cost_basis_equity=cash+locked))
 
     for row in ordered.itertuples():
-        observed,observed_rejections=decide_at_observed_book(row,getattr(row,probability_column))
+        observed,observed_rejections=decide_at_observed_book(
+            row,getattr(row,probability_column),min_expected_pnl)
         if observed is None:
             for reason in observed_rejections:
                 reject(reason)
@@ -428,6 +439,8 @@ def simulate_fixed_policy(data, probability_column, execution_delay=0, bankroll=
         independent_funding=bankroll is None,execution_delay_s=execution_delay)
     summary.update(initial_bankroll=bankroll,final_balance=cash,max_drawdown=None if cash is None else max_dd,
                    drawdown_basis='cash + locked cost; not mark-to-market')
+    summary.update(ending_available_cash=cash,ending_locked_cost=locked,
+                   ending_open_positions=len(pending),minimum_expected_pnl=min_expected_pnl)
     return summary,trades,pd.DataFrame(curve)
 
 
