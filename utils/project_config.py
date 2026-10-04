@@ -508,11 +508,11 @@ def load_indicator_fit_profile(
     profile["proxy_target_mode"] = str(
         profile.get("proxy_target_mode", "ahead_ret")
     ).strip().lower()
-    if profile["proxy_target_mode"] not in {"ahead_ret", "candle_up"}:
+    if profile["proxy_target_mode"] not in {"ahead_ret", "candle_up", "preopen_v1"}:
         raise ValueError(
             f"Indicator-fit profile '{profile_name}' has unsupported "
             f"proxy_target_mode={profile['proxy_target_mode']!r}. "
-            "Expected 'ahead_ret' or 'candle_up'."
+            "Expected 'ahead_ret', 'candle_up', or 'preopen_v1'."
         )
     profile["proxy_target_time_col"] = str(
         profile.get("proxy_target_time_col", "Opened")
@@ -706,15 +706,37 @@ def load_fetch_settings(*, active_config_path=ACTIVE_CONFIG_PATH):
     }
 
 
-def build_indicator_fit_config(*, active_config_path=ACTIVE_CONFIG_PATH):
+def build_indicator_fit_config(
+        *,
+        active_config_path=ACTIVE_CONFIG_PATH,
+        asset=None,
+        dataset_profile_name=None,
+        indicator_fit_profile_name=None,
+):
     active = load_active_profile_names(active_config_path)
-    dataset = load_dataset_profile(active_config_path=active_config_path)
-    fit = load_indicator_fit_profile(active_config_path=active_config_path)
+    active_asset = normalize_asset_name(
+        active["active_asset"] if asset is None else asset,
+        source_label="indicator-fit asset",
+    )
+    dataset = load_dataset_profile(
+        dataset_profile_name,
+        active_config_path=active_config_path,
+        asset=active_asset,
+    )
+    fit_profile_name = (
+        active["indicator_fit_profile"]
+        if indicator_fit_profile_name is None
+        else str(indicator_fit_profile_name).strip()
+    )
+    fit = load_indicator_fit_profile(
+        fit_profile_name,
+        active_config_path=active_config_path,
+    )
     metric = dict(fit["metric"])
     metric_recency_weighting = dict(metric.get("recency_weighting") or {})
     return {
         "pairs": {
-            f"{active['active_asset']}_{active['indicator_fit_profile']}": {
+            f"{active_asset}_{fit_profile_name}": {
                 "proxy_target_horizonts": list(fit["proxy_target_horizonts"]),
                 "proxy_target_price_col": str(fit["proxy_target_price_col"]),
                 "proxy_target_mode": str(fit["proxy_target_mode"]),

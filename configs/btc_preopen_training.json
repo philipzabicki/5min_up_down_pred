@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "profiles": {
+    "nightly_v1": {
+      "contract_path": "configs/btc_preopen_v1.json",
+      "dataset_profile": "BTC",
+      "modeling_profile": "BTC",
+      "indicator_fit_profile": "candle_up_5m_qe20_qm10_center",
+      "prediction_compute_budget_seconds": 45,
+      "runtime_budget_seconds": 43200,
+      "stage_runtime_budgets_seconds": {
+        "indicators": 21600,
+        "reaction_profile": 2700,
+        "volume_profile": 2700,
+        "target_weights": 7200,
+        "feature_selection": 1800,
+        "model_tuning_and_fit": 2700,
+        "calibration_evaluation_bundle": 900
+      },
+      "threads": 4,
+      "seed": 20261004,
+      "compute_backend": "gpu",
+      "indicator_fit": {
+        "population_size": 64,
+        "generations": 8,
+        "workers": 4
+      },
+      "reaction_profile_trials": 24,
+      "volume_profile_trials": 24,
+      "target_weight_candidates": 16,
+      "feature_selection": {
+        "max_sweep_evaluations": 60,
+        "max_refinement_rounds": 3,
+        "permutation_feature_fraction": 0.25,
+        "permutation_repeats": 1
+      },
+      "model_trials": 40,
+      "minimum_successful_trials": 5,
+      "maximum_estimators": 500,
+      "early_stopping_rounds": 50,
+      "output_dir": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1"
+    }
+  }
+}

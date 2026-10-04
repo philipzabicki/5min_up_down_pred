@@ -8,9 +8,12 @@ from features.btc_preopen_contract import (
     TARGET_AVAILABLE_COL,
     TARGET_COL,
     TARGET_END_PRICE_COL,
+    RETURN_TARGET_COL,
     TARGET_START_COL,
     TARGET_START_PRICE_COL,
     build_preopen_contract_frame,
+    build_preopen_return_target,
+    preopen_decision_mask,
     purge_unavailable_training_rows,
     scheduled_market_start_for_opened,
 )
@@ -48,6 +51,10 @@ class BtcPreopenContractTests(unittest.TestCase):
         self.assertEqual(row[TARGET_START_PRICE_COL], 105.0)
         self.assertEqual(row[TARGET_END_PRICE_COL], 109.5)
         self.assertEqual(row[TARGET_COL], 1.0)
+        self.assertAlmostEqual(
+            build_preopen_return_target(build_preopen_contract_frame(frame))[3],
+            109.5 / 105.0 - 1.0,
+        )
         self.assertEqual(
             row[TARGET_AVAILABLE_COL], pd.Timestamp("2026-06-01 16:50", tz="UTC")
         )
@@ -71,6 +78,19 @@ class BtcPreopenContractTests(unittest.TestCase):
         self.assertFalse(
             indexed.loc[pd.Timestamp("2026-06-01 16:44", tz="UTC"), DECISION_COL]
         )
+        self.assertTrue(preopen_decision_mask(frame)[3])
+
+    def test_prediction_compute_budget_must_finish_before_market_start(self):
+        candles_frame = candles("2026-06-01 16:40", 12)
+        on_time = build_preopen_contract_frame(
+            candles_frame, prediction_compute_budget_seconds=59.0
+        )
+        late = build_preopen_contract_frame(
+            candles_frame, prediction_compute_budget_seconds=60.0
+        )
+        self.assertTrue(on_time.loc[3, DECISION_COL])
+        self.assertFalse(late.loc[3, DECISION_COL])
+        self.assertFalse(preopen_decision_mask(late)[3])
 
     def test_window_crosses_hour_and_utc_day_boundary(self):
         frame = candles("2026-12-31 23:56", 12)

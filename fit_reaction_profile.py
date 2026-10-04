@@ -1401,6 +1401,7 @@ def make_objective(
                 "config_signature",
                 str(normalized_rp_config["config_signature"]),
             )
+            trial.set_user_attr("normalized_config", normalized_rp_config)
             return cv_result["objective_value"]
         except (lgb.basic.LightGBMError, OSError) as e:
             trial.set_user_attr("trial_status", "crash_penalty")

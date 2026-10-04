@@ -1251,7 +1251,14 @@ def build_fold_ranking(fold_gain_series, fold_used_series):
     return fold_df["feature"].tolist()
 
 
-def run_feature_prescreen(x, y, sample_weight, folds, fold_weight_by_id):
+def _check_deadline(deadline_monotonic, stage):
+    if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+        raise TimeoutError(f"Feature-selection runtime budget expired during {stage}.")
+
+
+def run_feature_prescreen(
+        x, y, sample_weight, folds, fold_weight_by_id, *, deadline_monotonic=None
+):
     feature_order = list(x.columns)
     fold_gain_table = pd.DataFrame(index=feature_order)
     fold_split_table = pd.DataFrame(index=feature_order)
@@ -1266,6 +1273,7 @@ def run_feature_prescreen(x, y, sample_weight, folds, fold_weight_by_id):
     )
 
     for fold_pos, fold in enumerate(folds, start=1):
+        _check_deadline(deadline_monotonic, "gain prescreen")
         fold_id = int(fold["fold_id"])
         train_idx = fold["train_idx"]
         valid_idx = fold["valid_idx"]
@@ -1292,6 +1300,7 @@ def run_feature_prescreen(x, y, sample_weight, folds, fold_weight_by_id):
         seed_split_series = []
         best_iterations = []
         for seed in RANDOM_SEEDS:
+            _check_deadline(deadline_monotonic, "gain prescreen model fits")
             model = make_estimator(seed)
             fit_model(
                 model=model,
@@ -1422,6 +1431,8 @@ def run_permutation_reranking(
         folds,
         fold_weight_by_id,
         ranking_df,
+        *,
+        deadline_monotonic=None,
 ):
     if int(PERMUTATION_N_REPEATS) <= 0:
         raise ValueError("PERMUTATION_N_REPEATS must be > 0.")
@@ -1448,6 +1459,7 @@ def run_permutation_reranking(
     candidate_feature_set = set(candidate_features)
 
     for fold_pos, fold in enumerate(folds, start=1):
+        _check_deadline(deadline_monotonic, "permutation reranking")
         fold_id = int(fold["fold_id"])
         train_idx = fold["train_idx"]
         valid_idx = fold["valid_idx"]
@@ -1474,6 +1486,7 @@ def run_permutation_reranking(
         seed_feature_deltas = {feature: [] for feature in candidate_features}
 
         for seed in RANDOM_SEEDS:
+            _check_deadline(deadline_monotonic, "permutation baseline fits")
             model = make_estimator(seed)
             fit_model(
                 model=model,
@@ -1495,6 +1508,7 @@ def run_permutation_reranking(
 
             x_valid_work = x_valid.copy()
             for feature in candidate_features:
+                _check_deadline(deadline_monotonic, "permutation feature scoring")
                 feature_pos = candidate_positions.get(feature)
                 if feature_pos is None:
                     seed_feature_deltas[feature].append(0.0)
@@ -1567,6 +1581,8 @@ def run_feature_ranking(
         prescreen_fold_weight_by_id,
         permutation_folds,
         permutation_fold_weight_by_id,
+        *,
+        deadline_monotonic=None,
 ):
     ranking_df, fold_rankings, fold_metadata = run_feature_prescreen(
         x=x,
@@ -1574,6 +1590,7 @@ def run_feature_ranking(
         sample_weight=sample_weight,
         folds=prescreen_folds,
         fold_weight_by_id=prescreen_fold_weight_by_id,
+        deadline_monotonic=deadline_monotonic,
     )
     ranking_df = run_permutation_reranking(
         x=x,
@@ -1582,6 +1599,7 @@ def run_feature_ranking(
         folds=permutation_folds,
         fold_weight_by_id=permutation_fold_weight_by_id,
         ranking_df=ranking_df,
+        deadline_monotonic=deadline_monotonic,
     )
     ranking_df = sort_feature_table_final(ranking_df)
     ranking_df.insert(0, "rank", np.arange(1, len(ranking_df) + 1, dtype=np.int32))
@@ -1654,6 +1672,8 @@ def score_topk_subset(
         global_feature_order,
         k,
         phase,
+        *,
+        deadline_monotonic=None,
 ):
     k = int(k)
     if k <= 0:
@@ -1667,6 +1687,7 @@ def score_topk_subset(
     fold_seed_scores = {}
 
     for fold in folds:
+        _check_deadline(deadline_monotonic, "top-k fold scoring")
         fold_id = int(fold["fold_id"])
         train_idx = fold["train_idx"]
         valid_idx = fold["valid_idx"]
@@ -1683,6 +1704,7 @@ def score_topk_subset(
         seed_scores = []
         seed_best_iterations = []
         for seed in RANDOM_SEEDS:
+            _check_deadline(deadline_monotonic, "top-k model fits")
             model = make_estimator(seed)
             fit_model(
                 model=model,
@@ -1829,6 +1851,8 @@ def run_topk_sweep(
         folds,
         fold_weight_by_id,
         global_feature_order,
+        *,
+        deadline_monotonic=None,
 ):
     pool_size = len(global_feature_order)
     coarse_ks = build_coarse_k_grid(pool_size)
@@ -1848,6 +1872,7 @@ def run_topk_sweep(
     print(f"topk | coarse_grid={coarse_ks}")
 
     for k in coarse_ks:
+        _check_deadline(deadline_monotonic, "coarse top-k sweep")
         row = score_topk_subset(
             x=x,
             y=y,
@@ -1857,6 +1882,7 @@ def run_topk_sweep(
             global_feature_order=global_feature_order,
             k=k,
             phase="coarse",
+            deadline_monotonic=deadline_monotonic,
         )
         rows.append(row)
         print(
@@ -1889,6 +1915,7 @@ def run_topk_sweep(
         refinement_rounds_completed = round_idx
         print(f"topk | refine_round={round_idx} candidates={candidates}")
         for k in candidates:
+            _check_deadline(deadline_monotonic, "top-k refinement sweep")
             row = score_topk_subset(
                 x=x,
                 y=y,
@@ -1898,6 +1925,7 @@ def run_topk_sweep(
                 global_feature_order=global_feature_order,
                 k=k,
                 phase=f"refine_round_{round_idx}",
+                deadline_monotonic=deadline_monotonic,
             )
             rows.append(row)
             refined_ks.append(int(k))

@@ -2,6 +2,7 @@ import hashlib
 import json
 import time
 from multiprocessing import Pool
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,7 @@ from pymoo.core.mixed import (
     MixedVariableSampling,
 )
 from pymoo.core.mixed import MixedVariableGA
+from pymoo.core.callback import Callback
 from pymoo.core.variable import Binary, Choice, Integer, Real
 from pymoo.operators.crossover.sbx import SBX
 from pymoo.operators.crossover.ux import UX
@@ -24,6 +26,13 @@ from pymoo.termination.default import DefaultSingleObjectiveTermination
 from utils.config import coerce_path
 from utils.data import compute_binary_close_target_from_opened
 from utils.data import drop_frozen_ohlc_blocks
+from features.btc_preopen_contract import (
+    TARGET_AVAILABLE_COL as PREOPEN_TARGET_AVAILABLE_COL,
+    TARGET_COL as PREOPEN_TARGET_COL,
+    build_preopen_contract_frame,
+    build_preopen_return_target,
+    preopen_decision_mask,
+)
 
 try:
     from pymoo.core.problem import StarmapParallelization
@@ -72,7 +81,7 @@ DEFAULT_METRIC_RECENCY_WEIGHT_MIN = 1.0
 DEFAULT_METRIC_RECENCY_WEIGHT_MAX = 1.5
 DEFAULT_PROXY_TARGET_MODE = "ahead_ret"
 DEFAULT_PROXY_TARGET_TIME_COL = "Opened"
-SUPPORTED_PROXY_TARGET_MODES = frozenset({"ahead_ret", "candle_up"})
+SUPPORTED_PROXY_TARGET_MODES = frozenset({"ahead_ret", "candle_up", "preopen_v1"})
 
 SELECTION_METRIC_NAME = DEFAULT_METRIC_NAME
 
@@ -198,6 +207,10 @@ def _build_proxy_target_col_name(horizon_minutes, target_mode):
         return f"target_{horizon}m_ahead_ret"
     if target_mode == "candle_up":
         return f"target_{horizon}m_candle_up"
+    if target_mode == "preopen_v1":
+        if horizon != 5:
+            raise ValueError("preopen_v1 indicator target requires a five-minute window")
+        return "target_5m_preopen_v1"
     raise ValueError(f"Unsupported proxy_target_mode: {target_mode}")
 
 
@@ -223,6 +236,16 @@ def _build_proxy_target_np_candle_up(opened_values, close_values, horizon_minute
         close_values=close_values,
         horizon_minutes=int(horizon_minutes),
     )
+
+
+def _build_proxy_target_np_preopen_v1(
+        df, *, prediction_compute_budget_seconds=0.0
+):
+    contract = build_preopen_contract_frame(
+        df[["Opened", "Open", "Close"]],
+        prediction_compute_budget_seconds=prediction_compute_budget_seconds,
+    )
+    return build_preopen_return_target(contract), contract
 
 
 def _format_float_token(value):
@@ -544,9 +567,34 @@ def run_indicator_ga(
         pop_size,
         interval,
         metric_config,
+        *,
+        generation_budget=None,
+        deadline_monotonic=None,
+        worker_count=None,
+        random_seed=None,
 ):
+    class StopAtDeadline(Callback):
+        def notify(self, algorithm):
+            if (
+                deadline_monotonic is not None
+                and time.perf_counter() >= float(deadline_monotonic)
+            ):
+                algorithm.termination.terminate()
+
+    workers = int(CPU_CORES_COUNT if worker_count is None else worker_count)
+    termination = TERMINATION
+    if generation_budget is not None:
+        generation_budget = int(generation_budget)
+        if generation_budget < 1:
+            raise ValueError("generation_budget must be at least one")
+        termination = DefaultSingleObjectiveTermination(
+            xtol=1e-6,
+            ftol=1e-6,
+            period=min(10, generation_budget),
+            n_max_gen=generation_budget,
+        )
     with Pool(
-            CPU_CORES_COUNT,
+            workers,
             initializer=INITIALIZER_MAP[ind_name],
             initargs=(
                     ohlcv_np,
@@ -582,7 +630,11 @@ def run_indicator_ga(
             problem,
             algorithm,
             save_history=False,
-            termination=TERMINATION,
+            termination=termination,
+            callback=(
+                StopAtDeadline() if deadline_monotonic is not None else Callback()
+            ),
+            seed=random_seed,
             verbose=True,
         )
 
@@ -591,20 +643,51 @@ def run_indicator_ga(
             "params": to_serializable_params(res.X),
             "score": score,
             "abs_corr": score,
+            "generations_completed": max(0, int(res.algorithm.n_gen) - 1),
+            "evaluations_completed": int(res.algorithm.evaluator.n_eval),
+            "deadline_reached": bool(
+                deadline_monotonic is not None
+                and time.perf_counter() >= float(deadline_monotonic)
+            ),
         }
         return best
 
 
-def main():
-    cfg = build_indicator_fit_config()
+def main(
+        *,
+        config=None,
+        results_root=None,
+        generation_budget=None,
+        deadline_monotonic=None,
+        worker_count=None,
+        write_applied_config=None,
+):
+    cfg = build_indicator_fit_config() if config is None else config
     active_asset = load_active_asset()
+    if generation_budget is not None:
+        cfg = json.loads(json.dumps(cfg))
+        cfg["run_budget"] = {
+            "generation_budget": int(generation_budget),
+            "worker_count": int(worker_count or CPU_CORES_COUNT),
+            "seed": cfg.get("run_budget", {}).get("seed"),
+            "population_size": int(
+                cfg.get("run_budget", {}).get("population_size", 0)
+            ),
+            "minimum_generations": int(
+                cfg.get("run_budget", {}).get("minimum_generations", 1)
+            ),
+        }
+    if write_applied_config is None:
+        write_applied_config = config is None
     config_hash = _fit_config_hash(cfg)
-    results_dir = FIT_RESULTS_ROOT / config_hash
+    fit_root = Path(FIT_RESULTS_ROOT if results_root is None else results_root)
+    results_dir = fit_root / config_hash
     results_dir.mkdir(parents=True, exist_ok=True)
-    (results_dir / "fit_indicators_applied_config.json").write_text(
-        json.dumps(cfg, indent=2),
-        encoding="utf-8",
-    )
+    if write_applied_config:
+        (results_dir / "fit_indicators_applied_config.json").write_text(
+            json.dumps(cfg, indent=2),
+            encoding="utf-8",
+        )
     print(
         "fit results dir: "
         f"{results_dir} (config_hash={config_hash}, "
@@ -614,6 +697,9 @@ def main():
     )
 
     for pair, pair_cfg in cfg["pairs"].items():
+        run_budget = dict(cfg.get("run_budget") or {})
+        if int(run_budget.get("population_size", 0)) > 0:
+            pair_cfg["base_pop_size"] = int(run_budget["population_size"])
         for interval, interval_cfg in pair_cfg["intervals"].items():
             data_path = coerce_path(interval_cfg["data_path"])
             data_file = interval_cfg.get("data_file", "dataset.csv")
@@ -659,7 +745,7 @@ def main():
                 errors="coerce",
             ).to_numpy(dtype=np.float64, copy=False)
             proxy_target_time_col = None
-            if proxy_target_mode == "candle_up":
+            if proxy_target_mode in {"candle_up", "preopen_v1"}:
                 proxy_target_time_col = _resolve_existing_column_name(
                     df,
                     proxy_target_time_col_raw,
@@ -703,12 +789,39 @@ def main():
                         price_np=proxy_price_np,
                         horizon_minutes=int(horizon_minutes),
                     )
-                else:
+                elif proxy_target_mode == "candle_up":
                     target_np = _build_proxy_target_np_candle_up(
                         opened_values=df[proxy_target_time_col],
                         close_values=df[proxy_target_price_col],
                         horizon_minutes=int(horizon_minutes),
                     )
+                else:
+                    target_np, preopen_contract = _build_proxy_target_np_preopen_v1(
+                        df,
+                        prediction_compute_budget_seconds=float(
+                            interval_cfg.get("prediction_compute_budget_seconds", 0.0)
+                        ),
+                    )
+                    opened_utc = pd.to_datetime(
+                        df[proxy_target_time_col], utc=True, errors="raise"
+                    )
+                    label_available = pd.to_datetime(
+                        preopen_contract[PREOPEN_TARGET_AVAILABLE_COL],
+                        utc=True,
+                        errors="raise",
+                    )
+                    decision_mask = preopen_decision_mask(preopen_contract)
+                    target_np[~decision_mask] = np.nan
+                    fit_start = interval_cfg.get("target_fit_start_utc")
+                    fit_label_end = interval_cfg.get(
+                        "target_label_available_through_utc"
+                    )
+                    if fit_start is not None:
+                        target_np[opened_utc.lt(pd.Timestamp(fit_start)).to_numpy()] = np.nan
+                    if fit_label_end is not None:
+                        target_np[
+                            label_available.ge(pd.Timestamp(fit_label_end)).to_numpy()
+                        ] = np.nan
                 finite_target_count = int(np.isfinite(target_np).sum())
                 if finite_target_count < 3:
                     raise ValueError(
@@ -734,10 +847,38 @@ def main():
                         )
 
                         if out_json.exists():
-                            print(
-                                f"[{interval} {ind_name} {target_col}] {out_json.name} exists - skipping."
+                            try:
+                                saved = json.loads(out_json.read_text(encoding="utf-8"))
+                            except (OSError, json.JSONDecodeError):
+                                saved = None
+                            minimum_generations = int(
+                                run_budget.get("minimum_generations", 1)
                             )
-                            continue
+                            if (
+                                isinstance(saved, dict)
+                                and saved.get("fit_config_hash") == config_hash
+                                and isinstance(saved.get("best"), dict)
+                                and saved["best"].get("params")
+                                and int(
+                                    saved["best"].get("generations_completed", 0)
+                                )
+                                >= minimum_generations
+                            ):
+                                print(
+                                    f"[{interval} {ind_name} {target_col}] "
+                                    f"{out_json.name} already fitted; skipping."
+                                )
+                                continue
+                            out_json.unlink(missing_ok=True)
+
+                        if (
+                            deadline_monotonic is not None
+                            and time.perf_counter() >= float(deadline_monotonic)
+                        ):
+                            raise TimeoutError(
+                                "Shared pre-open runtime budget expired before the "
+                                f"next indicator fit ({ind_name}, {target_col})."
+                            )
 
                         best = run_indicator_ga(
                             ind_name=ind_name,
@@ -746,7 +887,15 @@ def main():
                             pop_size=pop_size,
                             interval=f"{interval}|{target_col}|{_metric_filename_suffix(metric_config)}",
                             metric_config=metric_config,
+                            generation_budget=run_budget.get("generation_budget"),
+                            deadline_monotonic=deadline_monotonic,
+                            worker_count=worker_count,
+                            random_seed=run_budget.get("seed"),
                         )
+                        if int(best["generations_completed"]) < 1:
+                            raise RuntimeError(
+                                f"Indicator fit {ind_name} completed no usable generations."
+                            )
 
                         payload = {
                             "best": best,
@@ -757,15 +906,23 @@ def main():
                             "proxy_target": {
                                 "mode": proxy_target_mode,
                                 "horizon_minutes": int(horizon_minutes),
-                                "price_col": proxy_target_price_col,
-                                "time_col": proxy_target_time_col,
+                                "name": (
+                                    PREOPEN_TARGET_COL
+                                    if proxy_target_mode == "preopen_v1"
+                                    else target_col
+                                ),
+                                "fit_label_available_through_utc": interval_cfg.get(
+                                    "target_label_available_through_utc"
+                                ),
                             },
-                            "metric": dict(metric_config),
+                            "metric_name": metric_config["name"],
                             "fit_config_hash": config_hash,
                         }
-                        out_json.write_text(
+                        temporary = out_json.with_suffix(out_json.suffix + ".tmp")
+                        temporary.write_text(
                             json.dumps(payload, indent=2), encoding="utf-8"
                         )
+                        temporary.replace(out_json)
                         print(
                             f"[{interval} {ind_name} {target_col}] saved -> {out_json}"
                         )

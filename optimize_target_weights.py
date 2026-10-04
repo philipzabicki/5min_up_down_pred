@@ -2,6 +2,7 @@ import json
 from bisect import bisect_left
 from datetime import datetime, timezone
 from pathlib import Path
+import time
 
 import lightgbm as lgb
 import numpy as np
@@ -3033,9 +3034,13 @@ def run_proxy_weight_search_for_subset(
         fold_weight_by_id,
         param_overrides,
         float_dtype,
+        deadline_monotonic=None,
 ):
     search_rows = []
     search_fold_frames = []
+
+    if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+        raise TimeoutError("Target-weight search deadline expired before its baseline OOF fit")
 
     baseline_result = evaluate_strategy(
         x=x,
@@ -3082,6 +3087,8 @@ def run_proxy_weight_search_for_subset(
             break
 
         for decision_weight in pending_weights:
+            if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+                raise TimeoutError("Target-weight search deadline expired between candidate fits")
             weight_config = build_weight_config(decision_weight)
             weighted_result = evaluate_strategy(
                 x=x,

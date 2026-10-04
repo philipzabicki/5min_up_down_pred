@@ -28,6 +28,18 @@ from features.realized_volatility import (
     add_realized_volatility_features,
 )
 from features.session_open_features import add_session_open_features
+from features.btc_preopen_contract import (
+    CONTRACT_VERSION as PREOPEN_CONTRACT_VERSION,
+    DECISION_COL as PREOPEN_DECISION_COL,
+    FEATURE_AVAILABLE_COL as PREOPEN_FEATURE_AVAILABLE_COL,
+    RETURN_TARGET_COL as PREOPEN_RETURN_TARGET_COL,
+    TARGET_AVAILABLE_COL as PREOPEN_TARGET_AVAILABLE_COL,
+    TARGET_COL as PREOPEN_TARGET_COL,
+    TARGET_END_COL as PREOPEN_TARGET_END_COL,
+    TARGET_START_COL as PREOPEN_TARGET_START_COL,
+    build_preopen_contract_frame,
+    build_preopen_target_weights,
+)
 from features.reaction_profile_fixed_grid import (
     FEATURE_VERSION as RP_FEATURE_VERSION,
     MODELING_STATE_DIR as RP_MODELING_STATE_DIR,
@@ -76,7 +88,7 @@ PARAM_NAME_PART_RE = re.compile(r"[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+")
 
 FIT_RESULT_BASE_RE = re.compile(
     r"^(?P<indicator>ADX|BollingerBands|ChaikinOsc|KeltnerChannel|MACD|StochOsc)"
-    r"_target_(?P<horizon>\d+m)_(?P<target_mode>ahead_ret|candle_up)"
+    r"_target_(?P<horizon>\d+m)_(?P<target_mode>ahead_ret|candle_up|preopen_v1)"
     r"_pop(?P<pop>\d+)(?:_.*)?$"
 )
 BASE_DATA_FILE_SYMBOL_INTERVAL_RE = re.compile(
@@ -91,7 +103,7 @@ def write_parquet_atomically(df, output_path):
     if temp_path.exists():
         temp_path.unlink()
     try:
-        df.to_parquet(temp_path, index=False)
+        df.to_parquet(temp_path, index=False, compression="zstd")
         validate_parquet_magic_bytes(temp_path)
         temp_path.replace(output_path)
     finally:
@@ -228,8 +240,62 @@ def concat_feature_frame(df, feature_frame, context):
     return pd.concat([df, feature_frame], axis=1)
 
 
-def build_target(df, float_dtype=np.float64):
+def build_target(df, float_dtype=np.float64, *, preopen_config=None):
     require_columns(df, [TARGET_TIME_COL, TARGET_PRICE_COL])
+
+    if preopen_config is not None:
+        if not isinstance(preopen_config, dict):
+            raise ValueError("preopen_target settings must be an object")
+        contract = build_preopen_contract_frame(
+            df[[TARGET_TIME_COL, "Open", "Close"]],
+            prediction_compute_budget_seconds=float(
+                preopen_config.get("prediction_compute_budget_seconds", 0.0)
+            ),
+        )
+        target_frame = pd.DataFrame(
+            {
+                PREOPEN_TARGET_COL: contract[PREOPEN_TARGET_COL].to_numpy(
+                    dtype=float_dtype, copy=False
+                ),
+                TARGET_WEIGHT_COL: build_preopen_target_weights(
+                    contract[TARGET_TIME_COL],
+                    decision_mask=contract[PREOPEN_DECISION_COL].to_numpy(
+                        dtype=np.bool_, copy=False
+                    ),
+                ).astype(float_dtype, copy=False),
+                PREOPEN_FEATURE_AVAILABLE_COL: contract[
+                    PREOPEN_FEATURE_AVAILABLE_COL
+                ].to_numpy(copy=False),
+                PREOPEN_TARGET_START_COL: contract[
+                    PREOPEN_TARGET_START_COL
+                ].to_numpy(copy=False),
+                PREOPEN_TARGET_END_COL: contract[PREOPEN_TARGET_END_COL].to_numpy(
+                    copy=False
+                ),
+                PREOPEN_TARGET_AVAILABLE_COL: contract[
+                    PREOPEN_TARGET_AVAILABLE_COL
+                ].to_numpy(copy=False),
+                "nominal_decision_at": contract["nominal_decision_at"].to_numpy(
+                    copy=False
+                ),
+                "nominal_prediction_available_at": contract[
+                    "nominal_prediction_available_at"
+                ].to_numpy(copy=False),
+                "actual_prediction_available_at": contract[
+                    "actual_prediction_available_at"
+                ].to_numpy(copy=False),
+                "prediction_deadline_at": contract[
+                    "prediction_deadline_at"
+                ].to_numpy(copy=False),
+                PREOPEN_DECISION_COL: contract[PREOPEN_DECISION_COL].to_numpy(
+                    dtype=np.bool_, copy=False
+                ),
+            },
+            index=df.index,
+        )
+        return concat_feature_frame(
+            df, target_frame, context=f"{PREOPEN_CONTRACT_VERSION} target"
+        )
 
     opened = pd.to_datetime(df[TARGET_TIME_COL], errors="raise")
     has_default_index = (
@@ -414,7 +480,7 @@ def parse_fit_results(fit_dir):
             )
             or DEFAULT_FIT_TARGET_MODE
         ).strip().lower()
-        if target_mode not in {"ahead_ret", "candle_up"}:
+        if target_mode not in {"ahead_ret", "candle_up", "preopen_v1"}:
             raise ValueError(
                 f"Unsupported target_mode '{target_mode}' in fit result {json_path.name}"
             )
@@ -864,6 +930,12 @@ def build_dataset_from_settings(settings):
             base_data_file,
             asset=settings.get("active_asset"),
         )
+        if settings.get("profile_state_dir"):
+            vp_state_path = (
+                Path(settings["profile_state_dir"])
+                / "volume_profile"
+                / vp_state_path.name
+            )
         saved_paths = save_volume_profile_state(vp_state, vp_state_path)
         print(f"[vp] saved modeling-end state -> {saved_paths['npz']}")
     else:
@@ -893,6 +965,12 @@ def build_dataset_from_settings(settings):
             base_data_file,
             asset=settings.get("active_asset"),
         )
+        if settings.get("profile_state_dir"):
+            rp_state_path = (
+                Path(settings["profile_state_dir"])
+                / "reaction_profile"
+                / rp_state_path.name
+            )
         saved_paths = save_reaction_profile_state(rp_state, rp_state_path)
         print(f"[rp] saved modeling-end state -> {saved_paths['npz']}")
     else:
@@ -903,14 +981,36 @@ def build_dataset_from_settings(settings):
     df = add_indicator_values(df, ohlcv_np, configs, float_dtype=float_dtype)
     del ohlcv_np
 
-    df = build_target(df, float_dtype=float_dtype)
-    df, dropped_pseudo_targets = drop_pseudo_targets(df, TARGET_COL)
+    preopen_config = settings.get("preopen_target")
+    target_col = PREOPEN_TARGET_COL if preopen_config is not None else TARGET_COL
+    df = build_target(
+        df,
+        float_dtype=float_dtype,
+        preopen_config=preopen_config,
+    )
+    df, dropped_pseudo_targets = drop_pseudo_targets(df, target_col)
     protected_cols = {
         TARGET_TIME_COL,
-        TARGET_COL,
+        target_col,
         TARGET_WEIGHT_COL,
         *ohlcv_cols,
     }
+    preopen_metadata_cols = (
+        [
+            PREOPEN_FEATURE_AVAILABLE_COL,
+            PREOPEN_TARGET_START_COL,
+            PREOPEN_TARGET_END_COL,
+            PREOPEN_TARGET_AVAILABLE_COL,
+            "nominal_decision_at",
+            "nominal_prediction_available_at",
+            "actual_prediction_available_at",
+            "prediction_deadline_at",
+            PREOPEN_DECISION_COL,
+        ]
+        if preopen_config is not None
+        else []
+    )
+    protected_cols.update(preopen_metadata_cols)
     droppable_basis_aux_cols = [
         col
         for col in basis_auxiliary_raw_cols
@@ -953,7 +1053,7 @@ def build_dataset_from_settings(settings):
             keep_cols.extend(col for col in rp_feature_cols if col not in keep_cols)
         keep_cols.extend(
             col
-            for col in (TARGET_COL, TARGET_WEIGHT_COL)
+            for col in (target_col, TARGET_WEIGHT_COL, *preopen_metadata_cols)
             if col in df.columns and col not in keep_cols
         )
         dropped_unselected_cols = [
@@ -1030,6 +1130,22 @@ def build_dataset_from_settings(settings):
                 "reaction_profile_fixed_grid": (
                     rp_normalized_cfg if rp_enabled else None
                 ),
+                "preopen_contract": (
+                    {
+                        "version": PREOPEN_CONTRACT_VERSION,
+                        "target_col": PREOPEN_TARGET_COL,
+                        "target_source": "Binance COIN-M BTCUSD index price proxy",
+                        "proxy_of_official_settlement": True,
+                        "decision_col": PREOPEN_DECISION_COL,
+                        "feature_available_at_col": PREOPEN_FEATURE_AVAILABLE_COL,
+                        "target_start_at_col": PREOPEN_TARGET_START_COL,
+                        "target_end_at_col": PREOPEN_TARGET_END_COL,
+                        "target_label_available_at_col": PREOPEN_TARGET_AVAILABLE_COL,
+                        "return_target_col": PREOPEN_RETURN_TARGET_COL,
+                    }
+                    if preopen_config is not None
+                    else None
+                ),
             },
             indent=2,
             sort_keys=True,
@@ -1039,13 +1155,19 @@ def build_dataset_from_settings(settings):
     df.head(preview_rows).to_csv(output_head_csv, index=False)
     df.tail(preview_rows).to_csv(output_tail_csv, index=False)
 
-    class_counts = df[TARGET_COL].value_counts(dropna=False).sort_index().to_dict()
+    class_counts = df[target_col].value_counts(dropna=False).sort_index().to_dict()
     weight_summary = summarize_target_weights(df[TARGET_WEIGHT_COL].to_numpy())
-    print(f"target column added: {TARGET_COL} (h={TARGET_HORIZON_MINUTES}m)")
-    print(
-        f"target weight column added: {TARGET_WEIGHT_COL} "
-        f"(minute%5==4 -> {TARGET_WEIGHT_DECISION_VALUE}, else {TARGET_WEIGHT_OTHER_VALUE})"
-    )
+    print(f"target column added: {target_col}")
+    if preopen_config is None:
+        print(
+            f"target weight column added: {TARGET_WEIGHT_COL} "
+            f"(minute%5==4 -> {TARGET_WEIGHT_DECISION_VALUE}, else {TARGET_WEIGHT_OTHER_VALUE})"
+        )
+    else:
+        print(
+            f"target weight column added: {TARGET_WEIGHT_COL} "
+            f"(decision={TARGET_WEIGHT_DECISION_VALUE}, auxiliary={TARGET_WEIGHT_OTHER_VALUE})"
+        )
     print(f"dropped pseudo-target columns: {dropped_pseudo_targets}")
     print(f"target class counts: {class_counts}")
     print(f"target weight summary: {weight_summary}")

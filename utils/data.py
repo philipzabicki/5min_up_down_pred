@@ -65,10 +65,14 @@ def compute_decision_mask_from_opened(
         opened_values,
         minute_modulo=TARGET_WEIGHT_MINUTE_MODULO,
         minute_remainder=TARGET_WEIGHT_MINUTE_REMAINDER,
+        market_start_offset_minutes=0,
 ):
     opened_index = pd.DatetimeIndex(pd.to_datetime(opened_values, errors="raise"))
-    opened_minute = opened_index.minute.to_numpy(dtype=np.int16, copy=False)
-    return (opened_minute % int(minute_modulo)) == int(minute_remainder)
+    offset = int(market_start_offset_minutes)
+    if offset < 0:
+        raise ValueError("market_start_offset_minutes must be >= 0")
+    market_start = opened_index + pd.Timedelta(minutes=offset)
+    return (market_start.minute.to_numpy(dtype=np.int16, copy=False) % int(minute_modulo)) == int(minute_remainder)
 
 
 def compute_target_weights_from_opened(opened_values, dtype=np.float64):
