@@ -965,7 +965,8 @@ def fit_model(
     callbacks = []
     if EARLY_STOPPING_ROUNDS is not None and EARLY_STOPPING_ROUNDS > 0:
         fit_kwargs["eval_set"] = [(x_valid, y_valid)]
-        fit_kwargs["eval_sample_weight"] = [w_valid]
+        if w_valid is not None:
+            fit_kwargs["eval_sample_weight"] = [w_valid]
         fit_kwargs["eval_metric"] = resolve_eval_metric()
         callbacks.append(
             lgb.early_stopping(
@@ -1257,7 +1258,9 @@ def _check_deadline(deadline_monotonic, stage):
 
 
 def run_feature_prescreen(
-        x, y, sample_weight, folds, fold_weight_by_id, *, deadline_monotonic=None
+        x, y, sample_weight, folds, fold_weight_by_id, *,
+        evaluation_sample_weight=None, unweighted_evaluation=False,
+        deadline_monotonic=None
 ):
     feature_order = list(x.columns)
     fold_gain_table = pd.DataFrame(index=feature_order)
@@ -1265,7 +1268,9 @@ def run_feature_prescreen(
     fold_used_table = pd.DataFrame(index=feature_order)
     fold_rankings = {}
     fold_metadata = []
-    fold_weight_array = resolve_fold_weight_array(folds, fold_weight_by_id)
+    if evaluation_sample_weight is None and not unweighted_evaluation:
+        evaluation_sample_weight = sample_weight
+    completed_folds = []
 
     print(
         f"ranking | prescreen start features={len(feature_order)} "
@@ -1273,7 +1278,8 @@ def run_feature_prescreen(
     )
 
     for fold_pos, fold in enumerate(folds, start=1):
-        _check_deadline(deadline_monotonic, "gain prescreen")
+        if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+            break
         fold_id = int(fold["fold_id"])
         train_idx = fold["train_idx"]
         valid_idx = fold["valid_idx"]
@@ -1289,7 +1295,10 @@ def run_feature_prescreen(
         y_train = y.iloc[train_idx]
         y_valid = y.iloc[valid_idx]
         w_train = sample_weight.iloc[train_idx].to_numpy(dtype=np.float32, copy=False)
-        w_valid = sample_weight.iloc[valid_idx].to_numpy(dtype=np.float32, copy=False)
+        w_valid = (
+            None if unweighted_evaluation
+            else evaluation_sample_weight.iloc[valid_idx].to_numpy(dtype=np.float32, copy=False)
+        )
 
         x_train, x_valid, dropped_all_nan = prepare_fold_features(
             x_train_raw,
@@ -1300,7 +1309,8 @@ def run_feature_prescreen(
         seed_split_series = []
         best_iterations = []
         for seed in RANDOM_SEEDS:
-            _check_deadline(deadline_monotonic, "gain prescreen model fits")
+            if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+                break
             model = make_estimator(seed)
             fit_model(
                 model=model,
@@ -1315,6 +1325,8 @@ def run_feature_prescreen(
             seed_gain_series.append(importance_series(model, feature_order, "gain"))
             seed_split_series.append(importance_series(model, feature_order, "split"))
 
+        if not seed_gain_series:
+            break
         gain_frame = pd.concat(seed_gain_series, axis=1)
         split_frame = pd.concat(seed_split_series, axis=1)
         fold_gain_mean = gain_frame.mean(axis=1)
@@ -1335,6 +1347,7 @@ def run_feature_prescreen(
                 "mean_best_iteration": float(np.mean(best_iterations)),
             }
         )
+        completed_folds.append(fold)
         print(
             f"ranking | prescreen fold={fold_pos}/{len(folds)} done "
             f"mean_best_iteration={int(np.round(np.mean(best_iterations)))} "
@@ -1342,6 +1355,16 @@ def run_feature_prescreen(
             f"dropped_all_nan={len(dropped_all_nan)}"
         )
 
+    minimum_completed_folds = min(int(MIN_NONZERO_IMPORTANCE_FOLDS), len(folds))
+    if len(completed_folds) < minimum_completed_folds:
+        raise TimeoutError(
+            f"Gain prescreen completed {len(completed_folds)} folds; "
+            f"requires {minimum_completed_folds} before timeout"
+        )
+    fold_weight_array = np.asarray(
+        [float(fold_weight_by_id.loc[int(fold["fold_id"])]) for fold in completed_folds],
+        dtype=np.float64,
+    )
     ranking_df = pd.DataFrame(
         {
             "feature": feature_order,
@@ -1432,6 +1455,8 @@ def run_permutation_reranking(
         fold_weight_by_id,
         ranking_df,
         *,
+        evaluation_sample_weight=None,
+        unweighted_evaluation=False,
         deadline_monotonic=None,
 ):
     if int(PERMUTATION_N_REPEATS) <= 0:
@@ -1445,7 +1470,8 @@ def run_permutation_reranking(
     ranking_df["permutation_fold_deltas_json"] = pd.Series(
         [np.nan] * len(ranking_df), index=ranking_df.index, dtype=object
     )
-    fold_weight_array = resolve_fold_weight_array(folds, fold_weight_by_id)
+    if evaluation_sample_weight is None and not unweighted_evaluation:
+        evaluation_sample_weight = sample_weight
 
     candidate_features = ranking_df.loc[
         ranking_df["prescreen_candidate"], "feature"
@@ -1457,9 +1483,11 @@ def run_permutation_reranking(
     feature_to_idx = {feature: idx for idx, feature in enumerate(x.columns)}
     fold_deltas_by_feature = {feature: [] for feature in candidate_features}
     candidate_feature_set = set(candidate_features)
+    completed_folds = []
 
     for fold_pos, fold in enumerate(folds, start=1):
-        _check_deadline(deadline_monotonic, "permutation reranking")
+        if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+            break
         fold_id = int(fold["fold_id"])
         train_idx = fold["train_idx"]
         valid_idx = fold["valid_idx"]
@@ -1470,7 +1498,10 @@ def run_permutation_reranking(
         y_valid = y.iloc[valid_idx]
         y_valid_np = y_valid.to_numpy(copy=False)
         w_train = sample_weight.iloc[train_idx].to_numpy(dtype=np.float32, copy=False)
-        w_valid = sample_weight.iloc[valid_idx].to_numpy(dtype=np.float32, copy=False)
+        w_valid = (
+            None if unweighted_evaluation
+            else evaluation_sample_weight.iloc[valid_idx].to_numpy(dtype=np.float32, copy=False)
+        )
 
         x_train, x_valid, dropped_all_nan = prepare_fold_features(
             x_train_raw,
@@ -1486,7 +1517,8 @@ def run_permutation_reranking(
         seed_feature_deltas = {feature: [] for feature in candidate_features}
 
         for seed in RANDOM_SEEDS:
-            _check_deadline(deadline_monotonic, "permutation baseline fits")
+            if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+                break
             model = make_estimator(seed)
             fit_model(
                 model=model,
@@ -1502,13 +1534,12 @@ def run_permutation_reranking(
             baseline_logloss = binary_logloss_from_positive_class_proba(
                 y_true=y_valid_np,
                 y_pred_proba_pos=baseline_proba[:, 1],
-                sample_weight=w_valid,
+                sample_weight=None if unweighted_evaluation else w_valid,
             )
             seed_baseline_loglosses.append(float(baseline_logloss))
 
             x_valid_work = x_valid.copy()
             for feature in candidate_features:
-                _check_deadline(deadline_monotonic, "permutation feature scoring")
                 feature_pos = candidate_positions.get(feature)
                 if feature_pos is None:
                     seed_feature_deltas[feature].append(0.0)
@@ -1533,7 +1564,7 @@ def run_permutation_reranking(
                     permuted_logloss = binary_logloss_from_positive_class_proba(
                         y_true=y_valid_np,
                         y_pred_proba_pos=permuted_proba[:, 1],
-                        sample_weight=w_valid,
+                        sample_weight=None if unweighted_evaluation else w_valid,
                     )
                     repeat_deltas.append(
                         float(permuted_logloss) - float(baseline_logloss)
@@ -1542,6 +1573,8 @@ def run_permutation_reranking(
                 x_valid_work.iloc[:, feature_pos] = original_values
                 seed_feature_deltas[feature].append(float(np.mean(repeat_deltas)))
 
+        if not seed_baseline_loglosses:
+            break
         print(
             f"ranking | permutation fold={fold_pos}/{len(folds)} "
             f"id={fold_id} baseline_logloss={format_score_for_cli(np.mean(seed_baseline_loglosses))}"
@@ -1550,13 +1583,18 @@ def run_permutation_reranking(
             fold_deltas_by_feature[feature].append(
                 float(np.mean(seed_feature_deltas[feature]))
             )
+        completed_folds.append(fold)
 
     for feature, fold_deltas in fold_deltas_by_feature.items():
         fold_deltas_arr = np.asarray(fold_deltas, dtype=np.float64)
+        active_fold_weights = np.asarray(
+            [float(fold_weight_by_id.loc[int(fold["fold_id"])]) for fold in completed_folds],
+            dtype=np.float64,
+        )
         feature_mask = ranking_df["feature"] == feature
         ranking_df.loc[
             feature_mask, "permutation_weighted_mean_delta_logloss"
-        ] = weighted_mean_vector(fold_deltas_arr, fold_weight_array)
+        ] = weighted_mean_vector(fold_deltas_arr, active_fold_weights)
         ranking_df.loc[feature_mask, "permutation_mean_delta_logloss"] = float(
             np.mean(fold_deltas_arr)
         )
@@ -1582,6 +1620,8 @@ def run_feature_ranking(
         permutation_folds,
         permutation_fold_weight_by_id,
         *,
+        evaluation_sample_weight=None,
+        unweighted_evaluation=False,
         deadline_monotonic=None,
 ):
     ranking_df, fold_rankings, fold_metadata = run_feature_prescreen(
@@ -1590,6 +1630,8 @@ def run_feature_ranking(
         sample_weight=sample_weight,
         folds=prescreen_folds,
         fold_weight_by_id=prescreen_fold_weight_by_id,
+        evaluation_sample_weight=evaluation_sample_weight,
+        unweighted_evaluation=unweighted_evaluation,
         deadline_monotonic=deadline_monotonic,
     )
     ranking_df = run_permutation_reranking(
@@ -1599,6 +1641,8 @@ def run_feature_ranking(
         folds=permutation_folds,
         fold_weight_by_id=permutation_fold_weight_by_id,
         ranking_df=ranking_df,
+        evaluation_sample_weight=evaluation_sample_weight,
+        unweighted_evaluation=unweighted_evaluation,
         deadline_monotonic=deadline_monotonic,
     )
     ranking_df = sort_feature_table_final(ranking_df)
@@ -1673,6 +1717,8 @@ def score_topk_subset(
         k,
         phase,
         *,
+        evaluation_sample_weight=None,
+        unweighted_evaluation=False,
         deadline_monotonic=None,
 ):
     k = int(k)
@@ -1685,6 +1731,8 @@ def score_topk_subset(
     fold_scores = []
     fold_best_iterations = []
     fold_seed_scores = {}
+    if evaluation_sample_weight is None and not unweighted_evaluation:
+        evaluation_sample_weight = sample_weight
 
     for fold in folds:
         _check_deadline(deadline_monotonic, "top-k fold scoring")
@@ -1697,7 +1745,10 @@ def score_topk_subset(
         y_train = y.iloc[train_idx]
         y_valid = y.iloc[valid_idx]
         w_train = sample_weight.iloc[train_idx].to_numpy(dtype=np.float32, copy=False)
-        w_valid = sample_weight.iloc[valid_idx].to_numpy(dtype=np.float32, copy=False)
+        w_valid = (
+            None if unweighted_evaluation
+            else evaluation_sample_weight.iloc[valid_idx].to_numpy(dtype=np.float32, copy=False)
+        )
 
         x_train, x_valid, _ = prepare_fold_features(x_train_raw, x_valid_raw)
 
@@ -1726,7 +1777,7 @@ def score_topk_subset(
                 y_true=y_valid.to_numpy(),
                 y_pred=y_pred,
                 y_pred_proba=y_pred_proba,
-                sample_weight=w_valid,
+                sample_weight=None if unweighted_evaluation else w_valid,
             )
             seed_scores.append(float(score_value))
             seed_best_iterations.append(float(best_iteration))
@@ -1852,6 +1903,9 @@ def run_topk_sweep(
         fold_weight_by_id,
         global_feature_order,
         *,
+        evaluation_sample_weight=None,
+        unweighted_evaluation=False,
+        checkpoint_path=None,
         deadline_monotonic=None,
 ):
     pool_size = len(global_feature_order)
@@ -1865,25 +1919,52 @@ def run_topk_sweep(
             "MAX_SWEEP_EVALUATIONS is smaller than the required coarse grid size."
         )
 
+    checkpoint_path = None if checkpoint_path is None else Path(checkpoint_path)
     rows = []
-    seen = set()
-    refined_ks = []
+    if checkpoint_path is not None and checkpoint_path.is_file():
+        rows = pd.read_parquet(checkpoint_path).to_dict(orient="records")
+        checkpoint_ks = [int(row["k"]) for row in rows]
+        if len(set(checkpoint_ks)) != len(checkpoint_ks) or any(
+            value <= 0 or value > pool_size for value in checkpoint_ks
+        ):
+            raise RuntimeError(f"Top-k checkpoint is invalid: {checkpoint_path}")
+    seen = {int(row["k"]) for row in rows}
+    refined_ks = [
+        int(row["k"]) for row in rows
+        if str(row.get("phase", "")).startswith("refine_round_")
+    ]
+
+    def save_checkpoint():
+        if checkpoint_path is None:
+            return
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = checkpoint_path.with_name(checkpoint_path.stem + ".tmp.parquet")
+        pd.DataFrame(rows).to_parquet(temporary, index=False, compression="zstd")
+        temporary.replace(checkpoint_path)
 
     print(f"topk | coarse_grid={coarse_ks}")
 
     for k in coarse_ks:
-        _check_deadline(deadline_monotonic, "coarse top-k sweep")
-        row = score_topk_subset(
-            x=x,
-            y=y,
-            sample_weight=sample_weight,
-            folds=folds,
-            fold_weight_by_id=fold_weight_by_id,
-            global_feature_order=global_feature_order,
-            k=k,
-            phase="coarse",
-            deadline_monotonic=deadline_monotonic,
-        )
+        if int(k) in seen:
+            continue
+        if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+            break
+        try:
+            row = score_topk_subset(
+                x=x,
+                y=y,
+                sample_weight=sample_weight,
+                folds=folds,
+                fold_weight_by_id=fold_weight_by_id,
+                global_feature_order=global_feature_order,
+                k=k,
+                phase="coarse",
+                evaluation_sample_weight=evaluation_sample_weight,
+                unweighted_evaluation=unweighted_evaluation,
+                deadline_monotonic=deadline_monotonic,
+            )
+        except TimeoutError:
+            break
         rows.append(row)
         print(
             f"topk | phase=coarse k={int(row['k'])} "
@@ -1893,6 +1974,7 @@ def run_topk_sweep(
             f"select={format_score_for_cli(row['selection_score'])}"
         )
         seen.add(int(k))
+        save_checkpoint()
 
     refinement_rounds_completed = 0
     for round_idx in range(1, max_refinement_rounds + 1):
@@ -1915,21 +1997,28 @@ def run_topk_sweep(
         refinement_rounds_completed = round_idx
         print(f"topk | refine_round={round_idx} candidates={candidates}")
         for k in candidates:
-            _check_deadline(deadline_monotonic, "top-k refinement sweep")
-            row = score_topk_subset(
-                x=x,
-                y=y,
-                sample_weight=sample_weight,
-                folds=folds,
-                fold_weight_by_id=fold_weight_by_id,
-                global_feature_order=global_feature_order,
-                k=k,
-                phase=f"refine_round_{round_idx}",
-                deadline_monotonic=deadline_monotonic,
-            )
+            if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
+                break
+            try:
+                row = score_topk_subset(
+                    x=x,
+                    y=y,
+                    sample_weight=sample_weight,
+                    folds=folds,
+                    fold_weight_by_id=fold_weight_by_id,
+                    global_feature_order=global_feature_order,
+                    k=k,
+                    phase=f"refine_round_{round_idx}",
+                    evaluation_sample_weight=evaluation_sample_weight,
+                    unweighted_evaluation=unweighted_evaluation,
+                    deadline_monotonic=deadline_monotonic,
+                )
+            except TimeoutError:
+                break
             rows.append(row)
             refined_ks.append(int(k))
             seen.add(int(k))
+            save_checkpoint()
             print(
                 f"topk | phase=refine_round_{round_idx} k={int(row['k'])} "
                 f"score={format_score_for_cli(row['selection_base_score'])} "
@@ -1938,6 +2027,12 @@ def run_topk_sweep(
                 f"select={format_score_for_cli(row['selection_score'])}"
             )
 
+    minimum_completed_candidates = min(3, len(coarse_ks))
+    if len(rows) < minimum_completed_candidates:
+        raise TimeoutError(
+            f"Top-k sweep completed {len(rows)} candidates; "
+            f"requires {minimum_completed_candidates} before timeout"
+        )
     results_df = pd.DataFrame(rows).sort_values("k").reset_index(drop=True)
     evaluated_ks = sorted(int(k) for k in seen)
     print(f"topk | evaluated_ks={evaluated_ks}")
@@ -1948,6 +2043,8 @@ def run_topk_sweep(
         "max_refinement_rounds_used": int(max_refinement_rounds),
         "refinement_rounds_completed": int(refinement_rounds_completed),
         "total_k_evaluations": len(rows),
+        "minimum_k_evaluations": minimum_completed_candidates,
+        "stopped_by": "time_budget" if len(rows) < len(coarse_ks) else "search_complete",
         "evaluated_ks": evaluated_ks,
         "coarse_ks": [int(k) for k in coarse_ks],
         "refined_ks": sorted(set(int(k) for k in refined_ks)),

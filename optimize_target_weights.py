@@ -1249,6 +1249,7 @@ def evaluate_strategy(
         model_variant,
         n_estimators,
         early_stopping_rounds,
+        unweighted_eval=False,
 ):
     decision_mask_np = np.asarray(decision_mask, dtype=bool)
     sample_weight = _strategy_sample_weight_series(
@@ -1265,14 +1266,18 @@ def evaluate_strategy(
     best_iterations = []
 
     for fold in folds:
-        train_indices = np.arange(
-            int(fold["train_start"]),
-            int(fold["train_end"]),
+        train_indices = np.asarray(
+            fold.get(
+                "train_idx",
+                np.arange(int(fold["train_start"]), int(fold["train_end"])),
+            ),
             dtype=np.int32,
         )
-        test_indices = np.arange(
-            int(fold["test_start"]),
-            int(fold["test_end"]),
+        test_indices = np.asarray(
+            fold.get(
+                "valid_idx",
+                np.arange(int(fold["test_start"]), int(fold["test_end"])),
+            ),
             dtype=np.int32,
         )
         selected = select_strategy_fold_indices(
@@ -1330,9 +1335,10 @@ def evaluate_strategy(
             "y": y_train,
             "sample_weight": sample_weight_np[train_used],
             "eval_set": [(x_eval, y_np[eval_used])],
-            "eval_sample_weight": [sample_weight_np[eval_used]],
             "eval_metric": EARLY_STOPPING_EVAL_METRIC,
         }
+        if not unweighted_eval:
+            fit_kwargs["eval_sample_weight"] = [sample_weight_np[eval_used]]
         if int(early_stopping_rounds) > 0:
             fit_kwargs["callbacks"] = [
                 lgb.early_stopping(
@@ -3035,60 +3041,115 @@ def run_proxy_weight_search_for_subset(
         param_overrides,
         float_dtype,
         deadline_monotonic=None,
+        checkpoint_path=None,
+        minimum_candidates=None,
 ):
+    initial_weights = list(build_initial_weight_candidates())
+    minimum_candidates = min(
+        len(initial_weights),
+        int(minimum_candidates or min(3, len(initial_weights))),
+    )
+    checkpoint_path = None if checkpoint_path is None else Path(checkpoint_path)
+    fold_checkpoint_path = (
+        None if checkpoint_path is None
+        else checkpoint_path.with_name("candidate_fold_metrics.parquet")
+    )
     search_rows = []
     search_fold_frames = []
+    if checkpoint_path is not None and checkpoint_path.is_file():
+        search_rows = pd.read_parquet(checkpoint_path).to_dict(orient="records")
+        if fold_checkpoint_path.is_file():
+            search_fold_frames = [pd.read_parquet(fold_checkpoint_path)]
 
-    if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
-        raise TimeoutError("Target-weight search deadline expired before its baseline OOF fit")
+    def save_checkpoint():
+        if checkpoint_path is None:
+            return
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = checkpoint_path.with_name(checkpoint_path.stem + ".tmp.parquet")
+        pd.DataFrame(search_rows).to_parquet(
+            temporary, index=False, compression="zstd"
+        )
+        temporary.replace(checkpoint_path)
+        if search_fold_frames:
+            fold_temporary = fold_checkpoint_path.with_name(
+                fold_checkpoint_path.stem + ".tmp.parquet"
+            )
+            pd.concat(search_fold_frames, ignore_index=True).to_parquet(
+                fold_temporary, index=False, compression="zstd"
+            )
+            fold_temporary.replace(fold_checkpoint_path)
 
-    baseline_result = evaluate_strategy(
-        x=x,
-        y=y,
-        decision_mask=decision_mask,
-        folds=folds,
-        fold_weight_by_id=fold_weight_by_id,
-        param_overrides=param_overrides,
-        row_mode=ROW_MODE_DECISION_ONLY,
-        eval_scope=EVAL_SCOPE_DECISION_ONLY,
-        prediction_scope=PREDICTION_SCOPE_DECISION_ONLY,
-        weight_config=None,
-        std_penalty=float(OBJECTIVE_STD_PENALTY),
-        float_dtype=float_dtype,
-        model_variant=f"{feature_subset_candidate['id']}_baseline_proxy",
-        n_estimators=int(SEARCH_N_ESTIMATORS),
-        early_stopping_rounds=int(SEARCH_EARLY_STOPPING_ROUNDS),
-    )
-    baseline_row = build_result_row(
-        stage="proxy_search",
-        feature_subset_candidate=feature_subset_candidate,
-        strategy_name=STRATEGY_DECISION_ONLY_BASELINE,
-        result=baseline_result,
-        weight_config=None,
-        n_estimators=int(SEARCH_N_ESTIMATORS),
-        cv_folds=len(folds),
-        search_round=0,
-    )
-    search_rows.append(baseline_row)
-    search_fold_frames.append(
-        attach_metadata_to_fold_metrics(
-            baseline_result["fold_metrics"],
+    baseline_rows = [
+        row for row in search_rows
+        if row.get("strategy_name") == STRATEGY_DECISION_ONLY_BASELINE
+    ]
+    baseline_row = baseline_rows[0] if baseline_rows else None
+    if baseline_row is None and (
+        deadline_monotonic is None or time.perf_counter() < float(deadline_monotonic)
+    ):
+        baseline_result = evaluate_strategy(
+            x=x,
+            y=y,
+            decision_mask=decision_mask,
+            folds=folds,
+            fold_weight_by_id=fold_weight_by_id,
+            param_overrides=param_overrides,
+            row_mode=ROW_MODE_DECISION_ONLY,
+            eval_scope=EVAL_SCOPE_DECISION_ONLY,
+            prediction_scope=PREDICTION_SCOPE_DECISION_ONLY,
+            weight_config=None,
+            std_penalty=float(OBJECTIVE_STD_PENALTY),
+            float_dtype=float_dtype,
+            model_variant=f"{feature_subset_candidate['id']}_baseline_proxy",
+            n_estimators=int(SEARCH_N_ESTIMATORS),
+            early_stopping_rounds=int(SEARCH_EARLY_STOPPING_ROUNDS),
+            unweighted_eval=True,
+        )
+        baseline_row = build_result_row(
             stage="proxy_search",
             feature_subset_candidate=feature_subset_candidate,
             strategy_name=STRATEGY_DECISION_ONLY_BASELINE,
+            result=baseline_result,
             weight_config=None,
+            n_estimators=int(SEARCH_N_ESTIMATORS),
+            cv_folds=len(folds),
+            search_round=0,
         )
-    )
+        search_rows.append(baseline_row)
+        search_fold_frames.append(
+            attach_metadata_to_fold_metrics(
+                baseline_result["fold_metrics"],
+                stage="proxy_search",
+                feature_subset_candidate=feature_subset_candidate,
+                strategy_name=STRATEGY_DECISION_ONLY_BASELINE,
+                weight_config=None,
+            )
+        )
+        save_checkpoint()
 
-    weighted_results = {}
-    pending_weights = list(build_initial_weight_candidates())
+    weighted_rows = [
+        row for row in search_rows
+        if row.get("strategy_name") == STRATEGY_ALL_ROWS_WEIGHTED
+    ]
+    completed_weights = {
+        float(row["decision_weight"]) for row in weighted_rows
+    }
+    weighted_results = {weight: {} for weight in completed_weights}
+    pending_weights = [weight for weight in initial_weights if float(weight) not in completed_weights]
     for round_idx in range(int(SEARCH_REFINEMENT_ROUNDS) + 1):
         if not pending_weights:
             break
 
         for decision_weight in pending_weights:
             if deadline_monotonic is not None and time.perf_counter() >= float(deadline_monotonic):
-                raise TimeoutError("Target-weight search deadline expired between candidate fits")
+                if len(completed_weights) < minimum_candidates:
+                    save_checkpoint()
+                    raise TimeoutError(
+                        f"Target-weight search reached its time budget with "
+                        f"{len(completed_weights)} weighted candidates; requires "
+                        f"{minimum_candidates}. Checkpoint: {checkpoint_path}"
+                    )
+                break
             weight_config = build_weight_config(decision_weight)
             weighted_result = evaluate_strategy(
                 x=x,
@@ -3109,6 +3170,7 @@ def run_proxy_weight_search_for_subset(
                 ),
                 n_estimators=int(SEARCH_N_ESTIMATORS),
                 early_stopping_rounds=int(SEARCH_EARLY_STOPPING_ROUNDS),
+                unweighted_eval=True,
             )
             weighted_results[float(decision_weight)] = {
                 "weight_config": weight_config,
@@ -3135,6 +3197,8 @@ def run_proxy_weight_search_for_subset(
                     weight_config=weight_config,
                 )
             )
+            completed_weights.add(float(decision_weight))
+            save_checkpoint()
             print(
                 f"proxy subset={feature_subset_candidate['label']} "
                 f"round={round_idx} decision_weight={decision_weight:.6f} "
@@ -3167,6 +3231,12 @@ def run_proxy_weight_search_for_subset(
         for row in search_rows
         if row["strategy_name"] == STRATEGY_ALL_ROWS_WEIGHTED
     ]
+    if len(weighted_rows) < minimum_candidates:
+        save_checkpoint()
+        raise TimeoutError(
+            f"Target-weight search produced {len(weighted_rows)} weighted candidates; "
+            f"requires {minimum_candidates}. Checkpoint: {checkpoint_path}"
+        )
     top_weight_df = _top_weight_results(
         weighted_rows,
         limit=int(TOP_WEIGHT_CANDIDATES_PER_SUBSET),
@@ -3176,7 +3246,16 @@ def run_proxy_weight_search_for_subset(
         "baseline_row": baseline_row,
         "weighted_shortlist": top_weight_df.to_dict(orient="records"),
         "search_rows": search_rows,
-        "search_fold_metrics": pd.concat(search_fold_frames, ignore_index=True),
+        "search_fold_metrics": (
+            pd.concat(search_fold_frames, ignore_index=True)
+            if search_fold_frames else pd.DataFrame()
+        ),
+        "candidates_evaluated": len(weighted_rows),
+        "minimum_candidates": minimum_candidates,
+        "stopped_by": (
+            "time_budget" if len(weighted_rows) < len(initial_weights)
+            else "candidate_budget"
+        ),
     }
 
 

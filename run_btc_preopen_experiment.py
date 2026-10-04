@@ -6,6 +6,7 @@ import inspect
 import json
 import math
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -606,6 +607,42 @@ def _file_identity(path):
     return {"path": path.resolve().as_posix(), "sha256": _sha256(path), "size": path.stat().st_size}
 
 
+def _code_fingerprints(paths):
+    return {
+        Path(path).resolve().relative_to(ROOT).as_posix(): _sha256(Path(path))
+        for path in paths
+    }
+
+
+def _array_sha256(values, dtype=None):
+    array = np.asarray(values, dtype=dtype)
+    return hashlib.sha256(np.ascontiguousarray(array).view(np.uint8)).hexdigest()
+
+
+def _preopen_sample_weights(decision_mask, decision_weight):
+    decision_weight = float(decision_weight)
+    if not 0.0 < decision_weight < 1.0:
+        raise ValueError("decision_weight must be between zero and one")
+    return np.where(
+        np.asarray(decision_mask, dtype=bool),
+        decision_weight,
+        (1.0 - decision_weight) / 4.0,
+    ).astype(np.float32, copy=False)
+
+
+def _fold_index_fingerprints(folds):
+    fingerprints = {}
+    for key in ("train_idx", "valid_idx"):
+        digest = hashlib.sha256()
+        for fold in folds:
+            digest.update(int(fold["fold_id"]).to_bytes(4, "little", signed=True))
+            indices = np.asarray(fold[key], dtype="<i4")
+            digest.update(len(indices).to_bytes(8, "little", signed=False))
+            digest.update(np.ascontiguousarray(indices).view(np.uint8))
+        fingerprints[key] = digest.hexdigest()
+    return fingerprints
+
+
 def _lock_run(run_root):
     lock_path = run_root / ".writer.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
@@ -707,14 +744,8 @@ def _run_stage(
     _write_json(manifest_path, manifest)
     print(f"[preopen] stage={name} status=started", flush=True)
     try:
-        if deadline_monotonic is not None and time.perf_counter() >= deadline_monotonic:
-            raise TimeoutError(f"{name} stage runtime budget expired before execution")
         result, outputs = action(stage_dir)
-        if deadline_monotonic is not None and time.perf_counter() >= deadline_monotonic:
-            raise TimeoutError(f"{name} stage runtime budget expired before completion")
         records = _artifact_records(outputs)
-        if deadline_monotonic is not None and time.perf_counter() >= deadline_monotonic:
-            raise TimeoutError(f"{name} stage runtime budget expired while verifying artifacts")
         artifact_signature = _signature(
             [(record["path"], record["sha256"]) for record in records]
         )
@@ -751,7 +782,9 @@ def _run_stage(
         raise
 
 
-def _purged_walk_forward_folds(module, opened_values, decision_values, n_folds, ratio):
+def _purged_walk_forward_folds(
+        module, opened_values, decision_values, n_folds, ratio, *, validation_mask=None
+):
     opened = pd.DatetimeIndex(pd.to_datetime(opened_values, utc=True, errors="raise"))
     decision = pd.DatetimeIndex(pd.to_datetime(decision_values, utc=True, errors="raise"))
     fold_parameters = inspect.signature(module.make_walk_forward_folds).parameters
@@ -762,10 +795,23 @@ def _purged_walk_forward_folds(module, opened_values, decision_values, n_folds, 
         test_to_train_ratio=float(ratio),
     )
     label_available = opened + pd.Timedelta(minutes=7)
+    validation_mask = (
+        np.ones(len(opened), dtype=bool)
+        if validation_mask is None
+        else np.asarray(validation_mask, dtype=bool)
+    )
+    if validation_mask.shape != (len(opened),):
+        raise ValueError("validation_mask must contain one value per opened row")
     for fold in folds:
-        first_valid = int(fold.get("test_start", fold.get("valid_idx")[0] if "valid_idx" in fold else 0))
-        if "test_start" not in fold:
-            first_valid = int(fold["valid_idx"][0])
+        valid_candidates = (
+            np.asarray(fold["valid_idx"], dtype=np.int64)
+            if "valid_idx" in fold
+            else np.arange(int(fold["test_start"]), int(fold["test_end"]), dtype=np.int64)
+        )
+        valid_indices = valid_candidates[validation_mask[valid_candidates]]
+        if valid_indices.size == 0:
+            raise RuntimeError(f"Fold {fold['fold_id']} has no actual decision validation rows")
+        first_valid = int(valid_indices[0])
         if "train_idx" in fold:
             candidates = np.asarray(fold["train_idx"], dtype=np.int64)
         else:
@@ -780,13 +826,13 @@ def _purged_walk_forward_folds(module, opened_values, decision_values, n_folds, 
         )
         if legal.size == 0:
             raise RuntimeError(f"Fold {fold['fold_id']} has no rows after label-availability purge")
-        if "train_idx" in fold:
-            fold["train_idx"] = legal.astype(np.int32, copy=False)
-        else:
+        if "train_idx" not in fold:
             expected = np.arange(int(fold["train_start"]), int(fold["train_end"]), dtype=np.int64)
             if not np.array_equal(legal, expected[: len(legal)]):
                 raise RuntimeError("Chronological label purge did not produce a prefix fold")
             fold["train_end"] = int(fold["train_start"] + len(legal))
+        fold["train_idx"] = legal.astype(np.int32, copy=False)
+        fold["valid_idx"] = valid_indices.astype(np.int32, copy=False)
         if label_available[legal].max() > cutoff:
             raise RuntimeError(f"Fold {fold['fold_id']} retained an unavailable training label")
     return folds
@@ -930,7 +976,8 @@ def _run_optuna_stage(
     if len(successful) < int(minimum_successful_trials):
         raise RuntimeError(
             f"{stage_name} has {len(successful)} successful Optuna trials; "
-            f"requires {minimum_successful_trials}. Study is saved for resume at {database}"
+            f"requires {minimum_successful_trials} before the time budget ended. "
+            f"Study checkpoint is saved at {database}"
         )
     best = min(successful, key=lambda trial: float(trial.value))
     payload = {
@@ -939,6 +986,14 @@ def _run_optuna_stage(
         "study_database": database.resolve().relative_to(ROOT).as_posix(),
         "trials_total": len(all_trials),
         "successful_trials": len(successful),
+        "target_trials": int(target_trials),
+        "minimum_successful_trials": int(minimum_successful_trials),
+        "search_complete": len(all_trials) >= int(target_trials),
+        "stopped_by": (
+            "target_trials"
+            if len(all_trials) >= int(target_trials)
+            else "time_budget"
+        ),
         "best_trial_number": int(best.number),
         "best_value": float(best.value),
         "best_params": dict(best.params),
@@ -1081,16 +1136,231 @@ def _evaluate_preopen_external(
     return metrics, external, sample
 
 
-def load_prediction_bundle(bundle_path):
+def load_prediction_bundle(bundle_path, *, require_verified=True):
     bundle_path = Path(bundle_path)
     payload = json.loads(bundle_path.read_text(encoding="utf-8"))
+    if require_verified and payload.get("status") != "verified":
+        raise RuntimeError("Prediction bundle has not passed its raw-data replay check")
     model_path = ROOT / payload["model_path"]
     calibrator_path = ROOT / payload["calibrator_path"]
+    feature_order_path = ROOT / payload["feature_order_path"]
+    feature_sources_path = ROOT / payload["feature_sources_path"]
+    required_paths = [
+        model_path,
+        calibrator_path,
+        feature_order_path,
+        feature_sources_path,
+        ROOT / payload["model_meta_path"],
+        ROOT / payload["prediction_reference_path"],
+        ROOT / payload["reaction_profile_config_path"],
+        ROOT / payload["volume_profile_config_path"],
+        *(ROOT / path for path in payload.get("profile_state_artifacts", [])),
+        *(ROOT / path for path in payload["indicator_fit_result_paths"]),
+    ]
+    if require_verified:
+        required_paths.append(ROOT / payload["verification_path"])
+    missing = [str(path) for path in required_paths if not path.is_file()]
+    if missing:
+        raise RuntimeError(f"Prediction bundle is missing required artifacts: {missing[:5]}")
+    if _sha256(model_path) != payload.get("model_sha256"):
+        raise RuntimeError("Prediction bundle model checksum does not match its manifest")
+    if _sha256(calibrator_path) != payload.get("calibrator_sha256"):
+        raise RuntimeError("Prediction bundle calibrator checksum does not match its manifest")
     model = lgb.Booster(model_file=str(model_path))
     calibrator = json.loads(calibrator_path.read_text(encoding="utf-8"))
-    if list(model.feature_name()) != list(payload["feature_order"]):
+    feature_order = json.loads(feature_order_path.read_text(encoding="utf-8")).get("feature_order")
+    if list(model.feature_name()) != list(payload["feature_order"]) or feature_order != payload["feature_order"]:
         raise RuntimeError("Prediction bundle feature order differs from the LightGBM model")
+    feature_sources = json.loads(feature_sources_path.read_text(encoding="utf-8"))
+    if feature_sources.get("feature_order") != payload["feature_order"]:
+        raise RuntimeError("Prediction bundle feature sources have a different feature order")
+    state_dir = ROOT / feature_sources.get("profile_state_dir", "")
+    if not state_dir.is_dir():
+        raise RuntimeError(f"Prediction bundle generator state directory is missing: {state_dir}")
+    model_meta = json.loads((ROOT / payload["model_meta_path"]).read_text(encoding="utf-8"))
+    if (
+        model_meta.get("feature_columns") != payload["feature_order"]
+        or model_meta.get("model_sha256") != payload["model_sha256"]
+        or model_meta.get("calibration_path") != payload["calibrator_path"]
+    ):
+        raise RuntimeError("Prediction bundle model metadata does not match its dependencies")
+    if not (ROOT / payload["indicator_fit_results_dir"]).is_dir():
+        raise RuntimeError("Prediction bundle indicator result directory is missing")
+    if require_verified:
+        verification = json.loads((ROOT / payload["verification_path"]).read_text(encoding="utf-8"))
+        if verification.get("status") != "verified" or verification != payload.get("raw_replay_verification"):
+            raise RuntimeError("Prediction bundle raw replay verification is missing or inconsistent")
     return payload, model, calibrator
+
+
+def _verify_prediction_bundle_from_raw(bundle_path, prediction_path, verification_path):
+    """Rebuild a bounded raw history and replay one saved prediction in this process."""
+    import tempfile
+
+    import pyarrow.parquet as parquet
+    from utils.data import load_modeling_dataset_settings
+
+    bundle_path = Path(bundle_path)
+    prediction_path = Path(prediction_path)
+    verification_path = Path(verification_path)
+    payload, model, calibrator = load_prediction_bundle(bundle_path, require_verified=False)
+    raw_value = Path(payload["raw_candle_path"])
+    raw_path = raw_value if raw_value.is_absolute() else ROOT / raw_value
+    if not raw_path.is_file() or _sha256(raw_path) != payload["raw_candle_sha256"]:
+        raise RuntimeError("Raw candle source is missing or differs from the bundle manifest")
+    prediction = pd.read_parquet(
+        prediction_path,
+        columns=["Opened", "p_model_raw", "p_model_platt"],
+    )
+    if prediction.empty:
+        raise RuntimeError("Training evaluation contains no prediction for bundle replay")
+    reference = prediction.iloc[0]
+    reference_opened = pd.Timestamp(reference["Opened"])
+    if reference_opened.tzinfo is None:
+        reference_opened = reference_opened.tz_localize("UTC")
+    else:
+        reference_opened = reference_opened.tz_convert("UTC")
+    raw_cutoff = reference_opened + pd.Timedelta(minutes=7)
+
+    with tempfile.TemporaryDirectory(prefix="btc_preopen_bundle_replay_", dir=bundle_path.parent) as temp_name:
+        work_dir = Path(temp_name)
+        raw_prefix_path = work_dir / raw_path.name
+        wrote_header = False
+        previous_opened = None
+        for chunk in pd.read_csv(raw_path, chunksize=200_000):
+            if "Opened" not in chunk:
+                raise RuntimeError("Raw candles do not contain the Opened timestamp")
+            opened = pd.DatetimeIndex(pd.to_datetime(chunk["Opened"], utc=True, errors="raise"))
+            if not opened.is_monotonic_increasing or (
+                previous_opened is not None and opened[0] < previous_opened
+            ):
+                raise RuntimeError("Raw candle source must be chronological for causal replay")
+            previous_opened = opened[-1]
+            keep = opened <= raw_cutoff
+            if keep.any():
+                chunk.loc[keep].to_csv(
+                    raw_prefix_path,
+                    mode="a" if wrote_header else "w",
+                    header=not wrote_header,
+                    index=False,
+                )
+                wrote_header = True
+            if not keep.all():
+                break
+        if not wrote_header:
+            raise RuntimeError("Raw candle source does not reach the reference prediction")
+
+        settings = load_modeling_dataset_settings(
+            asset="BTC",
+            dataset_profile_name=payload["dataset_profile"],
+            modeling_profile_name=payload["modeling_profile"],
+        )
+        settings.update(
+            {
+                "raw_data_dir": work_dir,
+                "base_data_file": raw_prefix_path.name,
+                "feature_subset_path": None,
+                "feature_subset_list_key": None,
+                "excluded_feature_names": [],
+                "fit_results_dir": ROOT / payload["indicator_fit_results_dir"],
+                "modeling_output_dir": work_dir / "dataset_output",
+                "output_suffix": "_preopen_v1",
+                "profile_state_dir": work_dir / "states",
+                "reaction_profile_fixed_grid": json.loads(
+                    (ROOT / payload["reaction_profile_config_path"]).read_text(encoding="utf-8")
+                ),
+                "volume_profile_fixed_range": json.loads(
+                    (ROOT / payload["volume_profile_config_path"]).read_text(encoding="utf-8")
+                ),
+                "preopen_target": {
+                    "prediction_compute_budget_seconds": float(
+                        payload["prediction_compute_budget_seconds"]
+                    )
+                },
+            }
+        )
+        import create_modeling_dataset
+
+        replay_dataset_path = create_modeling_dataset.build_dataset_from_settings(settings)
+        batch_reader = parquet.ParquetFile(replay_dataset_path)
+        replay_row = None
+        feature_order = list(payload["feature_order"])
+        try:
+            for batch in batch_reader.iter_batches(
+                columns=["Opened", *feature_order], batch_size=65_536
+            ):
+                batch_frame = batch.to_pandas()
+                opened = pd.DatetimeIndex(pd.to_datetime(batch_frame["Opened"], utc=True, errors="raise"))
+                matches = np.flatnonzero(opened == reference_opened)
+                if matches.size:
+                    replay_row = batch_frame.iloc[int(matches[0])].copy(deep=True)
+                    break
+        finally:
+            batch_reader.close()
+            del batch_reader
+            if "batch" in locals():
+                del batch
+            if "batch_frame" in locals():
+                del batch_frame
+            import gc
+
+            gc.collect()
+        if replay_row is None:
+            raise RuntimeError(f"Raw replay dataset does not contain {reference_opened.isoformat()}")
+        feature_row = pd.to_numeric(replay_row[feature_order], errors="coerce").to_numpy(
+            dtype=np.float32, copy=True
+        ).reshape(1, -1)
+        feature_row[~np.isfinite(feature_row)] = np.nan
+        raw_probability = float(model.predict(feature_row)[0])
+        calibrated_probability = float(_apply_calibrator(np.asarray([raw_probability]), calibrator)[0])
+
+    tolerance = float(payload["verification_tolerance_abs"])
+    raw_delta = abs(raw_probability - float(reference["p_model_raw"]))
+    calibrated_delta = abs(calibrated_probability - float(reference["p_model_platt"]))
+    if raw_delta > tolerance or calibrated_delta > tolerance:
+        raise RuntimeError(
+            "Raw bundle replay differs from the training evaluation: "
+            f"raw_delta={raw_delta:.9g}, calibrated_delta={calibrated_delta:.9g}, "
+            f"tolerance={tolerance:.9g}"
+        )
+    _write_json(
+        verification_path,
+        {
+            "status": "verified",
+            "reference_opened_utc": reference_opened,
+            "reference_prediction_path": prediction_path.resolve().relative_to(ROOT).as_posix(),
+            "raw_probability_delta": raw_delta,
+            "calibrated_probability_delta": calibrated_delta,
+            "absolute_tolerance": tolerance,
+            "raw_history_cutoff_utc": raw_cutoff,
+            "generator_state_source": "rebuilt from raw prefix in a fresh process",
+        },
+    )
+
+
+def _run_bundle_raw_replay_fresh_process(bundle_path, prediction_path, verification_path):
+    child_code = (
+        "import run_btc_preopen_experiment as runner\n"
+        f"runner._verify_prediction_bundle_from_raw({str(bundle_path)!r}, "
+        f"{str(prediction_path)!r}, {str(verification_path)!r})\n"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", child_code],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if completed.stdout:
+        print(completed.stdout, end="", flush=True)
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "Fresh-process raw bundle replay failed: "
+            f"{completed.stderr[-3000:] or completed.stdout[-3000:]}"
+        )
+    if not Path(verification_path).is_file():
+        raise RuntimeError("Fresh-process bundle replay did not write its verification result")
+    return json.loads(Path(verification_path).read_text(encoding="utf-8"))
 
 
 def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
@@ -1253,7 +1523,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "seed": int(profile["seed"]),
             "minimum_generations": int(
                 profile["indicator_fit"].get(
-                    "minimum_generations", profile["indicator_fit"]["generations"]
+                    "minimum_generations", 1
                 )
             ),
         }
@@ -1284,8 +1554,20 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             )
 
         indicator_code_paths = [
-            ROOT / "fit_indicators.py", ROOT / "features/btc_preopen_contract.py",
-            ROOT / "utils/project_config.py",
+            ROOT / path for path in (
+                "fit_indicators.py",
+                "features/ADX.py",
+                "features/BollingerBands.py",
+                "features/ChaikinOsc.py",
+                "features/KeltnerChannel.py",
+                "features/MACD.py",
+                "features/StochOsc.py",
+                "features/common_utils.py",
+                "features/btc_preopen_contract.py",
+                "utils/metrics.py",
+                "utils/data.py",
+                "utils/project_config.py",
+            )
         ]
         indicator_input = {
             "effective_fit_config": indicator_cfg,
@@ -1293,7 +1575,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "worker_count": int(profile["indicator_fit"]["workers"]),
             "data_sha256": raw_identity["sha256"],
             "contract_sha256": contract_identity["sha256"],
-            "code": {path.name: _sha256(path) for path in indicator_code_paths},
+            "code": _code_fingerprints([*indicator_code_paths, Path(__file__)]),
         }
 
         indicator_stage_deadline = deadline_for("indicators")
@@ -1303,20 +1585,27 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
 
             results_root = stage_dir / "results"
             cfg = json.loads(json.dumps(indicator_cfg))
-            fit_indicators.main(
-                config=cfg,
-                results_root=results_root,
-                generation_budget=int(profile["indicator_fit"]["generations"]),
-                deadline_monotonic=indicator_stage_deadline,
-                worker_count=int(profile["indicator_fit"]["workers"]),
-                write_applied_config=False,
-            )
+            try:
+                fit_indicators.main(
+                    config=cfg,
+                    results_root=results_root,
+                    generation_budget=int(profile["indicator_fit"]["generations"]),
+                    deadline_monotonic=indicator_stage_deadline,
+                    worker_count=int(profile["indicator_fit"]["workers"]),
+                    write_applied_config=False,
+                )
+            except TimeoutError:
+                print(
+                    "[preopen] indicators stopped between fits/generations; "
+                    "checking whether every configured fit met its minimum",
+                    flush=True,
+                )
             results = list(results_root.rglob("*.json"))
             fit_jsons = [
                 path for path in results
                 if path.name not in {"fit_indicators_applied_config.json", "fit_indicators_config.json"}
             ]
-            required_generations = int(profile["indicator_fit"]["generations"])
+            required_generations = int(indicator_cfg["run_budget"]["minimum_generations"])
             incomplete = [
                 path for path in fit_jsons
                 if int(json.loads(path.read_text(encoding="utf-8"))["best"]["generations_completed"])
@@ -1324,8 +1613,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             ]
             if incomplete:
                 raise TimeoutError(
-                    f"Indicator stage reached its runtime limit with "
-                    f"{len(incomplete)} fit(s) below {required_generations} generations; "
+                    f"Indicator stage has {len(incomplete)} fit(s) below the minimum "
+                    f"{required_generations} completed generation(s); "
                     "resume the run to complete them."
                 )
             parsed = importlib.import_module("create_modeling_dataset").parse_fit_results(results_root)
@@ -1362,6 +1651,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             deadline_monotonic=indicator_stage_deadline,
         )
         indicator_results_dir = ROOT / indicator_result["fit_results_dir"]
+        if not indicator_results_dir.is_dir():
+            raise RuntimeError(f"Indicator fit results directory is missing: {indicator_results_dir}")
 
         rp_module = importlib.import_module("fit_reaction_profile")
         vp_module = importlib.import_module("fit_volume_profile")
@@ -1396,15 +1687,25 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 if key not in {"raw_data_dir", "modeling_output_dir", "fit_results_dir"}
             },
             "prediction_compute_budget_seconds": PREDICTION_COMPUTE_BUDGET_SECONDS,
-        "code": {
-            path.name: _sha256(path)
-            for path in (
-                ROOT / "create_modeling_dataset.py",
-                ROOT / "features/btc_preopen_contract.py",
-                ROOT / "features/reaction_profile_fixed_grid.py",
-                ROOT / "features/volume_profile_fixed_range.py",
-            )
-            },
+        "code": _code_fingerprints([
+            ROOT / "create_modeling_dataset.py",
+            ROOT / "features/btc_preopen_contract.py",
+            ROOT / "features/reaction_profile_fixed_grid.py",
+            ROOT / "features/volume_profile_fixed_range.py",
+            ROOT / "features/ADX.py",
+            ROOT / "features/BollingerBands.py",
+            ROOT / "features/ChaikinOsc.py",
+            ROOT / "features/KeltnerChannel.py",
+            ROOT / "features/MACD.py",
+            ROOT / "features/StochOsc.py",
+            ROOT / "features/common_utils.py",
+            ROOT / "utils/metrics.py",
+            ROOT / "utils/data.py",
+            ROOT / "utils/project_config.py",
+            ROOT / "fit_indicators.py",
+            ROOT / "train_lgbm.py",
+            Path(__file__),
+        ]),
         }
         dataset_stage_signature = _signature(dataset_stage_payload)
         dataset_dir = run_root / "datasets" / dataset_stage_signature[:16]
@@ -1435,7 +1736,17 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 },
             )
             state_files = list((stage_dir / "states").rglob("*.npz"))
-            return {"dataset_path": output_path.resolve().relative_to(ROOT).as_posix(), "rows": int(pd.read_parquet(output_path, columns=["Opened"]).shape[0])}, [output_path, metadata_path, result_path, *state_files]
+            if len(state_files) != 2:
+                raise RuntimeError(
+                    f"Expected both generator state files, found {len(state_files)} "
+                    f"in {stage_dir / 'states'}"
+                )
+            return {
+                "dataset_path": output_path.resolve().relative_to(ROOT).as_posix(),
+                "metadata_path": metadata_path.resolve().relative_to(ROOT).as_posix(),
+                "profile_state_dir": (stage_dir / "states").resolve().relative_to(ROOT).as_posix(),
+                "rows": int(pd.read_parquet(output_path, columns=["Opened"]).shape[0]),
+            }, [output_path, metadata_path, result_path, *state_files]
 
         raw_values = pd.read_csv(
             raw_path,
@@ -1546,11 +1857,26 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "base_config": base_config,
                 "search_space": search_space,
                 "folds": [(f["train_start"], f["train_end"], f["test_start"], f["test_end"]) for f in folds],
+                "fold_indices": _fold_index_fingerprints(folds),
+                "minimum_successful_trials": int(profile["minimum_successful_trials"]),
                 "initial_weights": {"decision": 0.4625, "auxiliary_total": 0.5375},
                 "seed": int(profile["seed"]),
                 "target_contract_code_sha256": _sha256(ROOT / "features/btc_preopen_contract.py"),
                 "compute_backend": compute_backend,
-                "code_sha256": _sha256(ROOT / module.__file__),
+                "code": _code_fingerprints([
+                    Path(module.__file__),
+                    ROOT / (
+                        "features/reaction_profile_fixed_grid.py"
+                        if stage_name == "reaction_profile"
+                        else "features/volume_profile_fixed_range.py"
+                    ),
+                    ROOT / "features/common_utils.py",
+                    ROOT / "features/btc_preopen_contract.py",
+                    ROOT / "utils/metrics.py",
+                    ROOT / "utils/data.py",
+                    ROOT / "train_lgbm.py",
+                    Path(__file__),
+                ]),
             }
             stage_deadline = deadline_for(stage_name)
             def action(stage_dir):
@@ -1581,12 +1907,12 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 payload["config_path"] = config_path.resolve().relative_to(ROOT).as_posix()
                 _write_json(paths[1], payload)
                 return payload, [*paths, config_path]
-            required = int(trial_budget)
             minimum_successful = int(profile["minimum_successful_trials"])
             return _run_stage(
                 manifest, manifest_path, run_root, stage_name, signature_payload, action,
                 must_run=lambda result: (
-                    int(result.get("trials_total", 0)) < required
+                    int(result.get("target_trials", 0)) < int(trial_budget)
+                    or int(result.get("minimum_successful_trials", 0)) < minimum_successful
                     or int(result.get("successful_trials", 0)) < minimum_successful
                 ),
                 deadline_monotonic=stage_deadline,
@@ -1602,10 +1928,19 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             volume.VOLUME_PROFILE_OPTUNA_SEARCH_SPACE,
             int(profile["volume_profile_trials"]),
         )
-        reaction_config = rp_result["best_config"]
-        volume_config = vp_result["best_config"]
-        dataset_settings["reaction_profile_fixed_grid"] = reaction_config
-        dataset_settings["volume_profile_fixed_range"] = volume_config
+        for stage_result, config_key, config_label in (
+            (rp_result, "reaction_profile_fixed_grid", "reaction profile"),
+            (vp_result, "volume_profile_fixed_range", "volume profile"),
+        ):
+            config_path = ROOT / stage_result.get("config_path", "")
+            if not config_path.is_file():
+                raise RuntimeError(f"Completed {config_label} config is missing: {config_path}")
+            persisted_config = json.loads(config_path.read_text(encoding="utf-8"))
+            if persisted_config != stage_result.get("best_config"):
+                raise RuntimeError(f"Persisted {config_label} config differs from its stage result")
+            dataset_settings[config_key] = persisted_config
+        reaction_config = dataset_settings["reaction_profile_fixed_grid"]
+        volume_config = dataset_settings["volume_profile_fixed_range"]
         dataset_stage_payload.update(
             {"reaction_artifact_signature": rp_sig, "volume_artifact_signature": vp_sig}
         )
@@ -1625,6 +1960,14 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             deadline_monotonic=overall_deadline,
         )
         dataset_path = ROOT / dataset_result["dataset_path"]
+        dataset_metadata_path = ROOT / dataset_result["metadata_path"]
+        dataset_settings["profile_state_dir"] = ROOT / dataset_result["profile_state_dir"]
+        if not dataset_path.is_file() or not dataset_metadata_path.is_file():
+            raise RuntimeError("Completed feature dataset or its metadata is missing")
+        if not dataset_settings["profile_state_dir"].is_dir():
+            raise RuntimeError("Completed feature dataset generator state directory is missing")
+        if int(dataset_result.get("rows", 0)) < 1:
+            raise RuntimeError("Completed feature dataset has no rows")
         feature_dataset = pd.read_parquet(dataset_path)
         contract_frame = feature_dataset.loc[:, [column for column in contract_cols if column in feature_dataset]].copy()
         contract_frame["market_start_utc"] = pd.to_datetime(contract_frame["target_window_start_at"], utc=True)
@@ -1677,6 +2020,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         weight_folds = _purged_walk_forward_folds(
             weight_search, tw_opened, development_decision_at,
             int(profile.get("weight_cv_folds", cv_folds)), 0.1,
+            validation_mask=development_decision,
         )
         weight_fold_weights = weight_search.build_fold_recency_weights(weight_folds)
         weight_params = dict(model_params)
@@ -1689,14 +2033,28 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "fit_start": fit_start.isoformat(),
             "fit_end_exclusive": FIT_END.isoformat(),
             "candidate_count": int(profile["target_weight_candidates"]),
+            "minimum_candidates": min(3, int(profile["target_weight_candidates"])),
+            "training_rows": int(len(tw_y)),
+            "decision_rows": int(development_decision.sum()),
+            "decision_mask_sha256": _array_sha256(development_decision, dtype=np.bool_),
             "cv_folds": int(profile.get("weight_cv_folds", cv_folds)),
             "folds": [
                 (fold["train_start"], fold["train_end"], fold["test_start"], fold["test_end"])
                 for fold in weight_folds
             ],
+            "fold_indices": _fold_index_fingerprints(weight_folds),
             "seed": int(weight_search.SEED),
             "compute_backend": compute_backend,
             "search_code_sha256": _sha256(ROOT / "optimize_target_weights.py"),
+            "code": _code_fingerprints([
+                ROOT / "optimize_target_weights.py",
+                ROOT / "features/btc_preopen_contract.py",
+                ROOT / "utils/metrics.py",
+                ROOT / "train_lgbm.py",
+                Path(__file__),
+            ]),
+            "observation_weights": "decision_weight; auxiliary=(1-decision_weight)/4",
+            "validation": "actual decision rows; unweighted",
             "model_params": weight_params,
             "decision_mask_code_sha256": _sha256(ROOT / "features/btc_preopen_contract.py"),
         }
@@ -1704,8 +2062,6 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         weight_stage_deadline = deadline_for("target_weights")
 
         def tune_weights_action(stage_dir):
-            if time.perf_counter() >= weight_stage_deadline:
-                raise TimeoutError("Target-weight stage runtime budget expired before candidate search")
             result = weight_search.run_proxy_weight_search_for_subset(
                 feature_subset_candidate={
                     "id": "all_features",
@@ -1722,10 +2078,12 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 param_overrides=weight_params,
                 float_dtype=np.float32,
                 deadline_monotonic=weight_stage_deadline,
+                checkpoint_path=stage_dir / "candidate_metrics.parquet",
+                minimum_candidates=min(3, int(profile["target_weight_candidates"])),
             )
             candidates = [row for row in result["search_rows"] if row.get("decision_weight") is not None]
-            if len(candidates) < int(profile["target_weight_candidates"]):
-                raise RuntimeError(f"Weight stage produced {len(candidates)} candidates")
+            if len(candidates) < min(3, int(profile["target_weight_candidates"])):
+                raise RuntimeError(f"Weight stage has only {len(candidates)} valid candidates")
             best = max(candidates, key=lambda row: float(row["objective_value"]))
             payload = {
                 "objective": weight_search.resolve_decision_objective_name(),
@@ -1734,29 +2092,47 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "auxiliary_row_weight": float(weight_search.build_weight_config(best["decision_weight"])["other_weight"]),
                 "objective_value": float(best["objective_value"]),
                 "candidates_evaluated": len(candidates),
+                "target_candidates": int(profile["target_weight_candidates"]),
+                "minimum_candidates": min(3, int(profile["target_weight_candidates"])),
+                "stopped_by": result["stopped_by"],
                 "rows": int(len(tw_y)),
                 "decision_rows": int(development_decision.sum()),
-                "baseline_oof_metrics": result["baseline_row"].get("decision_oof_metrics"),
+                "baseline_oof_metrics": {
+                    "balanced_accuracy": (result.get("baseline_row") or {}).get(
+                        "decision_rows_oof_balanced_accuracy"
+                    ),
+                    "binary_logloss": (result.get("baseline_row") or {}).get(
+                        "decision_rows_oof_logloss"
+                    ),
+                    "brier_score": (result.get("baseline_row") or {}).get(
+                        "decision_rows_oof_brier"
+                    ),
+                },
             }
             result_path = stage_dir / "target_weight_result.json"
             _write_json(result_path, payload)
-            pd.DataFrame(candidates).to_parquet(stage_dir / "candidate_metrics.parquet", index=False, compression="zstd")
-            return payload, [result_path, stage_dir / "candidate_metrics.parquet"]
+            return payload, [result_path, stage_dir / "candidate_metrics.parquet", stage_dir / "candidate_fold_metrics.parquet"]
 
         weight_result, weight_sig, weight_outputs = _run_stage(
             manifest, manifest_path, run_root, "target_weights", weight_payload,
             tune_weights_action,
-            must_run=lambda result: int(result.get("candidates_evaluated", 0)) < int(profile["target_weight_candidates"]),
+            must_run=lambda result: (
+                int(result.get("target_candidates", 0)) < int(profile["target_weight_candidates"])
+                or int(result.get("minimum_candidates", 0)) < min(3, int(profile["target_weight_candidates"]))
+                or int(result.get("candidates_evaluated", 0)) < min(3, int(profile["target_weight_candidates"]))
+            ),
             deadline_monotonic=weight_stage_deadline,
         )
 
-        # Selection uses actual decision rows, unit validation weights and the
-        # pre-existing prescreen/permutation/top-k routines.
-        decision_rows = np.flatnonzero(development_decision)
-        selector_x = development_features.iloc[decision_rows].reset_index(drop=True)
-        selector_y = development_y.iloc[decision_rows].reset_index(drop=True)
-        selector_opened = development_opened[decision_rows]
-        selector_decision_at = development_decision_at[decision_rows]
+        # Training uses every eligible development minute with the selected
+        # observation weights; all selector validation remains decision-only.
+        decision_weight = float(weight_result["decision_weight"])
+        development_weights = _preopen_sample_weights(development_decision, decision_weight)
+        selector_x = development_features.reset_index(drop=True)
+        selector_y = development_y.reset_index(drop=True)
+        selector_opened = development_opened
+        selector_decision_at = development_decision_at
+        selector_train_weights = pd.Series(development_weights, dtype=np.float32)
         selector.EXCLUDE_COLS = []
         selector.RANKING_N_SPLITS = min(cv_folds, int(profile.get("selector_cv_folds", cv_folds)))
         selector.PERMUTATION_N_SPLITS = selector.RANKING_N_SPLITS
@@ -1772,12 +2148,22 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         selection_folds = _purged_walk_forward_folds(
             selector, selector_opened, selector_decision_at,
             selector.RANKING_N_SPLITS, 0.1,
+            validation_mask=development_decision,
         )
         selector_fold_weights = selector.build_fold_recency_weights(selection_folds)
         selection_payload = {
             "dataset_signature": dataset_sig,
             "weight_artifact_signature": weight_sig,
             "feature_count": int(selector_x.shape[1]),
+            "training_rows": int(len(selector_y)),
+            "validation_rows": int(development_decision.sum()),
+            "training_weight_sha256": _array_sha256(development_weights, dtype=np.float32),
+            "weight_scheme": {
+                "decision_weight": decision_weight,
+                "auxiliary_weight": float((1.0 - decision_weight) / 4.0),
+            },
+            "decision_mask_sha256": _array_sha256(development_decision, dtype=np.bool_),
+            "fold_indices": _fold_index_fingerprints(selection_folds),
             "folds": selector.RANKING_N_SPLITS,
             "seed": [int(value) for value in selector.RANDOM_SEEDS],
             "compute_backend": compute_backend,
@@ -1787,7 +2173,13 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "early_stopping_rounds": int(selector.EARLY_STOPPING_ROUNDS),
                 "model_params": dict(selector.MODEL_PARAMS),
             },
-            "code_sha256": _sha256(ROOT / "select_features.py"),
+            "code": _code_fingerprints([
+                ROOT / "select_features.py",
+                ROOT / "features/btc_preopen_contract.py",
+                ROOT / "utils/metrics.py",
+                ROOT / "train_lgbm.py",
+                Path(__file__),
+            ]),
             "metric": "binary_logloss on unweighted actual decision rows",
         }
         selection_deadline = deadline_for("feature_selection")
@@ -1797,37 +2189,51 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             x_prefilter, filter_report, duplicate_map, corr_map = selector.prefilter_features(
                 selector_x.replace([np.inf, -np.inf], np.nan),
             )
+            rank_path = stage_dir / "feature_ranking.parquet"
+            topk_path = stage_dir / "topk_sweep.parquet"
             prescreen_folds = selection_folds
             permutation_folds = selection_folds
             topk_folds = selection_folds
-            fold_ranking, _, fold_metadata = selector.run_feature_ranking(
-                x=x_prefilter,
-                y=selector_y,
-                sample_weight=pd.Series(np.ones(len(selector_y), dtype=np.float32)),
-                prescreen_folds=prescreen_folds,
-                prescreen_fold_weight_by_id=selector_fold_weights,
-                permutation_folds=permutation_folds,
-                permutation_fold_weight_by_id=selector_fold_weights,
-                deadline_monotonic=selection_deadline,
-            )
+            if rank_path.is_file():
+                fold_ranking = pd.read_parquet(rank_path)
+                if (
+                    "feature" not in fold_ranking
+                    or len(fold_ranking) != x_prefilter.shape[1]
+                    or set(fold_ranking["feature"]) != set(x_prefilter.columns)
+                ):
+                    raise RuntimeError(f"Feature-ranking checkpoint is invalid: {rank_path}")
+                print(f"[preopen] loading verified feature-ranking checkpoint: {rank_path}", flush=True)
+            else:
+                fold_ranking, _, fold_metadata = selector.run_feature_ranking(
+                    x=x_prefilter,
+                    y=selector_y,
+                    sample_weight=selector_train_weights,
+                    prescreen_folds=prescreen_folds,
+                    prescreen_fold_weight_by_id=selector_fold_weights,
+                    permutation_folds=permutation_folds,
+                    permutation_fold_weight_by_id=selector_fold_weights,
+                    unweighted_evaluation=True,
+                    deadline_monotonic=selection_deadline,
+                )
+                temporary_rank_path = rank_path.with_name(rank_path.stem + ".tmp.parquet")
+                fold_ranking.to_parquet(temporary_rank_path, index=False, compression="zstd")
+                temporary_rank_path.replace(rank_path)
             topk = selector.run_topk_sweep(
                 x=x_prefilter,
                 y=selector_y,
-                sample_weight=pd.Series(np.ones(len(selector_y), dtype=np.float32)),
+                sample_weight=selector_train_weights,
                 folds=topk_folds,
                 fold_weight_by_id=selector_fold_weights,
                 global_feature_order=fold_ranking["feature"].tolist(),
+                unweighted_evaluation=True,
+                checkpoint_path=topk_path,
                 deadline_monotonic=selection_deadline,
             )
             best_row, recommended_row = selector.choose_recommended_row(topk)
             selected = fold_ranking["feature"].tolist()[: int(recommended_row["k"])]
             if not selected:
                 raise RuntimeError("Feature selector returned an empty feature order")
-            rank_path = stage_dir / "feature_ranking.parquet"
-            topk_path = stage_dir / "topk_sweep.parquet"
             result_path = stage_dir / "selected_features.json"
-            fold_ranking.to_parquet(rank_path, index=False, compression="zstd")
-            topk.to_parquet(topk_path, index=False, compression="zstd")
             filter_report.to_parquet(stage_dir / "prefilter_report.parquet", index=False, compression="zstd")
             _write_json(
                 result_path,
@@ -1841,10 +2247,31 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                     "recommendation_score": float(recommended_row["selection_score"]),
                     "ranking_method": "existing gain prescreen plus permutation reranking",
                     "validation_rows_are_actual_decisions": True,
+                    "training_rows_include_auxiliary_minutes": True,
+                    "training_rows": int(len(selector_y)),
+                    "validation_rows": int(development_decision.sum()),
+                    "permutation_features_scored": int(
+                        fold_ranking["permutation_mean_delta_logloss"].notna().sum()
+                    ),
+                    "training_weight_scheme": selection_payload["weight_scheme"],
+                    "topk_evaluations": int(topk.attrs["sweep_metadata"]["total_k_evaluations"]),
+                    "minimum_topk_evaluations": int(topk.attrs["sweep_metadata"]["minimum_k_evaluations"]),
+                    "stopped_by": topk.attrs["sweep_metadata"]["stopped_by"],
                     "elapsed_seconds": time.perf_counter() - start,
                 },
             )
-            return {"selected_features": selected, "feature_count": len(selected)}, [rank_path, topk_path, stage_dir / "prefilter_report.parquet", result_path]
+            return {
+                "selected_features": selected,
+                "feature_count": len(selected),
+                "training_rows": int(len(selector_y)),
+                "validation_rows": int(development_decision.sum()),
+                "training_weight_sha256": _array_sha256(development_weights, dtype=np.float32),
+                "permutation_features_scored": int(
+                    fold_ranking["permutation_mean_delta_logloss"].notna().sum()
+                ),
+                "topk_evaluations": int(topk.attrs["sweep_metadata"]["total_k_evaluations"]),
+                "minimum_topk_evaluations": int(topk.attrs["sweep_metadata"]["minimum_k_evaluations"]),
+            }, [rank_path, topk_path, stage_dir / "prefilter_report.parquet", result_path]
 
         selection_result, selection_sig, selection_outputs = _run_stage(
             manifest, manifest_path, run_root, "feature_selection", selection_payload,
@@ -1864,20 +2291,24 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             key: value for key, value in model_tuning.LGBM_OPTUNA_SEARCH_SPACE.items()
             if key not in {"monotone_constraints_method", "monotone_penalty"}
         }
-        tune_rows = np.flatnonzero(development_decision)
-        tune_x = development_features.iloc[tune_rows][selected_features].reset_index(drop=True)
-        tune_y = development_y.iloc[tune_rows].reset_index(drop=True)
-        tune_opened = development_opened[tune_rows]
-        tune_decision_at = development_decision_at[tune_rows]
+        if not isinstance(selected_features, list) or not selected_features:
+            raise RuntimeError("Feature-selection result has no selected feature order")
+        if len(set(selected_features)) != len(selected_features) or not set(selected_features).issubset(development_features.columns):
+            raise RuntimeError("Feature-selection result contains missing or duplicate features")
+        tune_x = development_features.loc[:, selected_features].reset_index(drop=True)
+        tune_y = development_y.reset_index(drop=True)
+        tune_opened = development_opened
+        tune_decision_at = development_decision_at
         tune_folds = _purged_walk_forward_folds(
             model_tuning, tune_opened, tune_decision_at,
             int(profile.get("model_cv_folds", cv_folds)), 0.1,
+            validation_mask=development_decision,
         )
         tune_fold_indices = model_tuning.build_fold_indices(tune_folds)
         tune_fold_weights = model_tuning.build_fold_recency_weights(tune_folds)
         tune_y_np = tune_y.to_numpy(dtype=np.int8, copy=False)
         tune_x_np = tune_x.to_numpy(dtype=np.float32, copy=False)
-        tune_weights = np.ones(len(tune_y_np), dtype=np.float32)
+        tune_weights = development_weights
         tune_train_set = lgb.Dataset(
             tune_x_np,
             label=tune_y_np,
@@ -1891,13 +2322,28 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "fit_start": fit_start.isoformat(),
             "fit_end_exclusive": FIT_END.isoformat(),
             "weight_artifact_signature": weight_sig,
+            "training_rows": int(len(tune_y_np)),
+            "decision_rows": int(development_decision.sum()),
+            "training_weight_sha256": _array_sha256(tune_weights, dtype=np.float32),
+            "decision_mask_sha256": _array_sha256(development_decision, dtype=np.bool_),
+            "fold_indices": _fold_index_fingerprints(tune_folds),
+            "weight_scheme": {
+                "decision_weight": decision_weight,
+                "auxiliary_weight": float((1.0 - decision_weight) / 4.0),
+            },
             "selection_artifact_signature": selection_sig,
             "feature_order": selected_features,
             "search_space": model_search_space,
             "max_estimators": int(profile["maximum_estimators"]),
             "early_stopping_rounds": int(profile["early_stopping_rounds"]),
             "cv_folds": int(profile.get("model_cv_folds", cv_folds)),
-            "code_sha256": _sha256(ROOT / "optimize_lgbm_hyperparameters.py"),
+            "code": _code_fingerprints([
+                ROOT / "optimize_lgbm_hyperparameters.py",
+                ROOT / "features/btc_preopen_contract.py",
+                ROOT / "utils/metrics.py",
+                ROOT / "train_lgbm.py",
+                Path(__file__),
+            ]),
             "objective": "unweighted decision-row binary_logloss with chronological OOF",
             "seed": int(profile["seed"]),
             "compute_backend": compute_backend,
@@ -1922,8 +2368,9 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 fold_indices=tune_fold_indices,
                 fold_weight_by_id=tune_fold_weights,
                 search_space=model_search_space,
+                unweighted_validation=True,
             )
-            return _run_optuna_stage(
+            result, outputs = _run_optuna_stage(
                 optuna=optuna,
                 stage_name="model_tuning",
                 stage_dir=stage_dir,
@@ -1935,14 +2382,25 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 seed=int(profile["seed"]),
                 catch=(lgb.basic.LightGBMError, OSError),
             )
+            result.update(
+                {
+                    "training_rows": int(len(tune_y_np)),
+                    "decision_rows": int(development_decision.sum()),
+                    "training_weight_sha256": _array_sha256(tune_weights, dtype=np.float32),
+                    "validation_weight": "no observation weights on actual decision rows",
+                    "fold_indices": _fold_index_fingerprints(tune_folds),
+                }
+            )
+            _write_json(outputs[1], result)
+            return result, outputs
 
         model_tuning_result, model_tuning_sig, model_tuning_outputs = _run_stage(
             manifest, manifest_path, run_root, "model_tuning", model_search_signature_payload,
             tune_model_action,
             must_run=lambda result: (
-                int(result.get("trials_total", 0)) < int(profile["model_trials"])
-                or int(result.get("successful_trials", 0))
-                < int(profile["minimum_successful_trials"])
+                int(result.get("target_trials", 0)) < int(profile["model_trials"])
+                or int(result.get("minimum_successful_trials", 0)) < int(profile["minimum_successful_trials"])
+                or int(result.get("successful_trials", 0)) < int(profile["minimum_successful_trials"])
             ),
             deadline_monotonic=model_tuning_deadline,
         )
@@ -1956,25 +2414,31 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         final_x[~np.isfinite(final_x)] = np.nan
         final_y = y[final_rows]
         decision_weight = float(weight_result["decision_weight"])
-        final_weights = np.where(
-            decision_mask[final_rows],
-            decision_weight,
-            (1.0 - decision_weight) / 4.0,
-        ).astype(np.float32, copy=False)
+        final_weights = _preopen_sample_weights(decision_mask[final_rows], decision_weight)
         final_model_signature = {
             "tuning_artifact_signature": model_tuning_sig,
             "weight_artifact_signature": weight_sig,
             "selected_feature_signature": selection_sig,
             "fit_rows": int(len(final_rows)),
+            "training_weight_sha256": _array_sha256(final_weights, dtype=np.float32),
             "fit_end_exclusive": FIT_END,
             "best_iteration": int(model_tuning_result["best_iteration"]),
             "final_params": tuned_params,
             "seed": int(profile["seed"]),
             "compute_backend": compute_backend,
-            "code_sha256": _sha256(ROOT / "train_lgbm.py"),
+            "code": _code_fingerprints([
+                ROOT / "train_lgbm.py",
+                ROOT / "features/btc_preopen_contract.py",
+                ROOT / "utils/metrics.py",
+                Path(__file__),
+            ]),
         }
 
         def fit_final_model_action(stage_dir):
+            if time.perf_counter() >= model_stage_deadline:
+                raise TimeoutError("Model tuning/fit budget expired before the final fit")
+            if not np.array_equal(final_weights, development_weights):
+                raise RuntimeError("Final model weights differ from the validated development weights")
             parameters = {
                 "objective": "binary",
                 "metric": "binary_logloss",
@@ -2031,6 +2495,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             deadline_monotonic=model_stage_deadline,
         )
         final_model_path = ROOT / final_model_result["model_path"]
+        if not final_model_path.is_file() or _sha256(final_model_path) != final_model_result.get("model_sha256"):
+            raise RuntimeError("Completed final model is missing or has a checksum mismatch")
         final_model = lgb.Booster(model_file=str(final_model_path))
         bundle_dir = final_model_path.parent
         CALIBRATOR_PATH = bundle_dir / "platt_calibrator.json"
@@ -2054,6 +2520,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
 
         def calibration_action(stage_dir):
             global CALIBRATOR_PATH
+            if time.perf_counter() >= calibration_evaluation_deadline:
+                raise TimeoutError("Calibration/evaluation budget expired before calibration fit")
             CALIBRATOR_PATH = stage_dir / "platt_calibrator.json"
             calibration = _fit_calibrator(
                 final_model, frame, features.loc[:, selected_features].to_numpy(dtype=np.float32, copy=False),
@@ -2071,6 +2539,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             deadline_monotonic=calibration_evaluation_deadline,
         )
         CALIBRATOR_PATH = ROOT / calibration_payload["calibrator_path"]
+        if not CALIBRATOR_PATH.is_file():
+            raise RuntimeError("Completed calibrator is missing")
         calibration = json.loads(CALIBRATOR_PATH.read_text(encoding="utf-8"))
         prediction_matrix = features.loc[:, selected_features].to_numpy(dtype=np.float32, copy=False)
         evaluation_identity = {
@@ -2084,6 +2554,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
 
         def evaluation_action(stage_dir):
             global PREDICTIONS_PATH, METRICS_PATH
+            if time.perf_counter() >= calibration_evaluation_deadline:
+                raise TimeoutError("Calibration/evaluation budget expired before external evaluation")
             PREDICTIONS_PATH = stage_dir / "external_test_predictions.parquet"
             METRICS_PATH = stage_dir / "evaluation.json"
             prior_mask = fit_mask & decision_mask
@@ -2130,19 +2602,34 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         bundle_manifest_path = bundle_dir / "model_bundle.json"
         if time.perf_counter() >= calibration_evaluation_deadline:
             raise TimeoutError("Calibration, evaluation, and bundle runtime budget expired before bundle writing")
-        if not final_features_path.is_file():
+        if final_features_path.is_file():
+            persisted_order = json.loads(final_features_path.read_text(encoding="utf-8")).get("feature_order")
+            if persisted_order != selected_features:
+                raise RuntimeError("Persisted final feature order differs from feature-selection result")
+        else:
             _write_json(final_features_path, {"feature_order": selected_features})
         _write_json(
             feature_sources_path,
             {
                 "feature_semantics_version": "btc_preopen_v1_causal_modeling_dataset",
                 "dataset_path": dataset_path.resolve().relative_to(ROOT).as_posix(),
+                "dataset_profile": profile["dataset_profile"],
+                "modeling_profile": profile["modeling_profile"],
+                "raw_candle_path": raw_path.resolve().as_posix(),
+                "raw_candle_sha256": raw_identity["sha256"],
+                "indicator_fit_results_dir": indicator_result["fit_results_dir"],
                 "feature_order": selected_features,
                 "history_requirement": "continuous 1-minute BTC index OHLCV history from fit start; preserve all earlier rows as warmup",
                 "reaction_profile_config": rp_result["best_config"],
                 "volume_profile_config": vp_result["best_config"],
                 "indicator_config_paths": [record["path"] for record in indicator_outputs if record["path"].endswith(".json") and "indicator_stage.json" not in record["path"]],
                 "profile_state_dir": dataset_settings["profile_state_dir"].resolve().relative_to(ROOT).as_posix(),
+                "profile_state_artifacts": [
+                    record["path"] for record in dataset_outputs
+                    if record["path"].endswith(".npz")
+                ],
+                "reaction_profile_config_path": rp_result["config_path"],
+                "volume_profile_config_path": vp_result["config_path"],
             },
         )
         _write_json(
@@ -2170,6 +2657,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "model_path": final_model_path.resolve().relative_to(ROOT).as_posix(),
             "model_sha256": final_model_result["model_sha256"],
             "calibrator_path": CALIBRATOR_PATH.resolve().relative_to(ROOT).as_posix(),
+            "calibrator_sha256": _sha256(CALIBRATOR_PATH),
             "feature_order_path": final_features_path.resolve().relative_to(ROOT).as_posix(),
             "feature_sources_path": feature_sources_path.resolve().relative_to(ROOT).as_posix(),
             "model_meta_path": model_meta_path.resolve().relative_to(ROOT).as_posix(),
@@ -2178,22 +2666,66 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "volume_profile_config_path": vp_result["config_path"],
             "indicator_fit_result_paths": [record["path"] for record in indicator_outputs if record["path"].endswith(".json") and "indicator_stage.json" not in record["path"]],
             "history_requirement": "1-minute BTC index OHLCV; preserve causal warmup history before fit start",
+            "raw_candle_path": raw_path.resolve().as_posix(),
+            "raw_candle_sha256": raw_identity["sha256"],
+            "dataset_profile": profile["dataset_profile"],
+            "modeling_profile": profile["modeling_profile"],
+            "indicator_fit_results_dir": indicator_result["fit_results_dir"],
+            "prediction_reference_path": PREDICTIONS_PATH.resolve().relative_to(ROOT).as_posix(),
+            "profile_state_artifacts": [
+                record["path"] for record in dataset_outputs
+                if record["path"].endswith(".npz")
+            ],
+            "verification_tolerance_abs": 1e-6,
+            "status": "verification_pending",
             "prediction_compute_budget_seconds": PREDICTION_COMPUTE_BUDGET_SECONDS,
             "activated": False,
         }
         _write_json(bundle_manifest_path, bundle_payload)
-        loaded_bundle, loaded_model, loaded_calibrator = load_prediction_bundle(bundle_manifest_path)
-        external_decisions = np.flatnonzero(
-            valid_labels & decision_mask
-            & frame["market_start_utc"].ge(TEST_MARKET_START).to_numpy()
-            & frame["market_start_utc"].le(TEST_LAST_MARKET_START).to_numpy()
+        verification_path = bundle_dir / "raw_replay_verification.json"
+        verification_input = {
+            "bundle_payload": bundle_payload,
+            "evaluation_artifact_signature": evaluation_sig,
+            "raw_candle_sha256": raw_identity["sha256"],
+            "code": _code_fingerprints([
+                ROOT / "create_modeling_dataset.py",
+                ROOT / "features/reaction_profile_fixed_grid.py",
+                ROOT / "features/volume_profile_fixed_range.py",
+                ROOT / "features/common_utils.py",
+                ROOT / "features/ADX.py",
+                ROOT / "features/BollingerBands.py",
+                ROOT / "features/ChaikinOsc.py",
+                ROOT / "features/KeltnerChannel.py",
+                ROOT / "features/MACD.py",
+                ROOT / "features/StochOsc.py",
+                ROOT / "utils/data.py",
+                Path(__file__),
+            ]),
+        }
+
+        def verify_bundle_action(stage_dir):
+            if time.perf_counter() >= calibration_evaluation_deadline:
+                raise TimeoutError("Calibration/evaluation budget expired before raw bundle replay")
+            replay = _run_bundle_raw_replay_fresh_process(
+                bundle_manifest_path,
+                PREDICTIONS_PATH,
+                verification_path,
+            )
+            return replay, [verification_path]
+
+        raw_replay_result, verification_sig, verification_outputs = _run_stage(
+            manifest,
+            manifest_path,
+            run_root,
+            "bundle_verification",
+            verification_input,
+            verify_bundle_action,
         )
-        loaded_probability = loaded_model.predict(
-            prediction_matrix[external_decisions[:1]]
-        )
-        calibrated_probability = _apply_calibrator(loaded_probability, loaded_calibrator)
-        if len(loaded_probability) != 1 or not np.isfinite(calibrated_probability).all():
-            raise RuntimeError("Saved prediction bundle failed the model plus calibrator load check")
+        bundle_payload["status"] = "verified"
+        bundle_payload["verification_path"] = verification_path.resolve().relative_to(ROOT).as_posix()
+        bundle_payload["raw_replay_verification"] = raw_replay_result
+        _write_json(bundle_manifest_path, bundle_payload)
+        load_prediction_bundle(bundle_manifest_path)
         report_path = run_root / "final_report.md"
         evaluation = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
         report_path.write_text(
@@ -2207,10 +2739,6 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             f"- Official outcomes: `{evaluation['metrics']['official_market_data']['status']}`; economic replay requires pre-start quotes.\n",
             encoding="utf-8",
         )
-        if time.perf_counter() >= calibration_evaluation_deadline:
-            raise TimeoutError("Calibration, evaluation, and bundle runtime budget expired before completion")
-        if time.perf_counter() >= overall_deadline:
-            raise TimeoutError("Overall runtime budget expired before run completion")
         manifest.update(
             {
                 "status": "completed",
@@ -2305,7 +2833,7 @@ def run_integration_smoke():
         "feature_selection": {
             "max_sweep_evaluations": 10,
             "max_refinement_rounds": 0,
-            "permutation_feature_fraction": 0.05,
+            "permutation_feature_fraction": 0.5,
             "permutation_repeats": 1,
         },
         "model_trials": 1,
@@ -2322,11 +2850,46 @@ def run_integration_smoke():
         "model_cv_folds": 2,
         "output_dir": "data/analysis/polymarket/BTC/preopen_v1/integration_smoke",
     }
+    first_result = run_training_pipeline(
+        profile_name="integration_smoke",
+        profile_override=smoke_profile,
+    )
+    first_manifest_path = first_result["run_root"] / "run_manifest.json"
+    first_manifest_payload = json.loads(first_manifest_path.read_text(encoding="utf-8"))
     result = run_training_pipeline(
         profile_name="integration_smoke",
         profile_override=smoke_profile,
     )
-    _write_json(fixture_root / "integration_result.json", {key: str(value) for key, value in result.items()})
+    run_manifest = result["run_root"] / "run_manifest.json"
+    manifest_payload = json.loads(run_manifest.read_text(encoding="utf-8"))
+    if manifest_payload.get("status") != "completed":
+        raise RuntimeError("Integration resume did not leave a completed run manifest")
+    rerun_stages = [
+        name for name, stage in manifest_payload.get("stages", {}).items()
+        if (
+            stage.get("status") != "completed"
+            or int(stage.get("attempt", 0))
+            != int(first_manifest_payload.get("stages", {}).get(name, {}).get("attempt", -1))
+        )
+    ]
+    if rerun_stages:
+        raise RuntimeError(f"Integration resume reran or failed completed stages: {rerun_stages}")
+    bundle_payload, _, _ = load_prediction_bundle(result["bundle_path"])
+    if bundle_payload.get("raw_replay_verification", {}).get("status") != "verified":
+        raise RuntimeError("Integration resume lost its raw-data bundle verification")
+    selection_result = manifest_payload["stages"]["feature_selection"]["result"]
+    if int(selection_result.get("permutation_features_scored", 0)) < 1:
+        raise RuntimeError("Integration smoke did not exercise decision-row permutation scoring")
+    _write_json(
+        fixture_root / "integration_result.json",
+        {
+            "first_run_root": str(first_result["run_root"]),
+            "resumed_run_root": str(result["run_root"]),
+            "run_manifest": run_manifest.resolve().relative_to(ROOT).as_posix(),
+            "bundle_path": result["bundle_path"].resolve().relative_to(ROOT).as_posix(),
+            "resume_skipped_completed_stages": True,
+        },
+    )
     return result
 
 

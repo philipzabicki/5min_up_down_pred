@@ -504,8 +504,20 @@ def load_generic_training_data(
 def build_fold_indices(folds):
     return [
         (
-            np.arange(fold["train_start"], fold["train_end"], dtype=np.int32),
-            np.arange(fold["test_start"], fold["test_end"], dtype=np.int32),
+            np.asarray(
+                fold.get(
+                    "train_idx",
+                    np.arange(fold["train_start"], fold["train_end"]),
+                ),
+                dtype=np.int32,
+            ),
+            np.asarray(
+                fold.get(
+                    "valid_idx",
+                    np.arange(fold["test_start"], fold["test_end"]),
+                ),
+                dtype=np.int32,
+            ),
         )
         for fold in folds
     ]
@@ -700,6 +712,8 @@ def compute_cv_fold_scores_at_iteration(
         sample_weight_np,
         folds,
         best_iteration,
+        validation_sample_weight_np=None,
+        unweighted_validation=False,
 ):
     boosters = getattr(cvbooster, "boosters", None)
     if boosters is None:
@@ -710,17 +724,28 @@ def compute_cv_fold_scores_at_iteration(
         )
     fold_scores = []
     for booster, fold in zip(boosters, folds):
-        valid_start = int(fold["test_start"])
-        valid_end = int(fold["test_end"])
+        valid_indices = np.asarray(
+            fold.get(
+                "valid_idx",
+                np.arange(int(fold["test_start"]), int(fold["test_end"])),
+            ),
+            dtype=np.int64,
+        )
         y_pred_proba = booster.predict(
-            x_np[valid_start:valid_end],
+            x_np[valid_indices],
             num_iteration=int(best_iteration),
         )
+        if unweighted_validation:
+            scoring_weights = None
+        elif validation_sample_weight_np is None:
+            scoring_weights = sample_weight_np[valid_indices]
+        else:
+            scoring_weights = np.asarray(validation_sample_weight_np)[valid_indices]
         fold_scores.append(
             score_cv_objective_metric(
-                y_true=y_np[valid_start:valid_end],
+                y_true=y_np[valid_indices],
                 y_pred_proba=y_pred_proba,
-                sample_weight=sample_weight_np[valid_start:valid_end],
+                sample_weight=scoring_weights,
             )
         )
 
@@ -1032,6 +1057,8 @@ def make_objective(
         fold_indices,
         fold_weight_by_id,
         search_space,
+        validation_sample_weight_np=None,
+        unweighted_validation=False,
 ):
     def objective(trial):
         params = {
@@ -1054,10 +1081,37 @@ def make_objective(
         }
 
         need_cvbooster = is_nontrivial_fold_recency_weighting_enabled()
+        fpreproc = None
+        if validation_sample_weight_np is not None or unweighted_validation:
+            validation_weights = (
+                None if validation_sample_weight_np is None
+                else np.asarray(validation_sample_weight_np, dtype=np.float64)
+            )
+
+            def fpreproc(train_data, valid_data, cv_params):
+                used_indices = getattr(valid_data, "used_indices", None)
+                if used_indices is None:
+                    raise RuntimeError(
+                        "LightGBM CV did not expose validation row indices for unweighted scoring"
+                    )
+                used_indices = np.asarray(used_indices, dtype=np.int64)
+                if (
+                    used_indices.ndim != 1
+                    or np.any(used_indices < 0)
+                    or np.any(used_indices >= len(sample_weight_np))
+                ):
+                    raise RuntimeError("LightGBM CV exposed invalid validation row indices")
+                if unweighted_validation:
+                    valid_data.set_weight(None)
+                else:
+                    valid_data.set_weight(validation_weights[used_indices])
+                return train_data, valid_data, cv_params
+
         cv_results = lgb.cv(
             params=params,
             train_set=train_set,
             folds=fold_indices,
+            fpreproc=fpreproc,
             stratified=False,
             shuffle=False,
             feval=[
@@ -1108,6 +1162,8 @@ def make_objective(
                     sample_weight_np=sample_weight_np,
                     folds=folds,
                     best_iteration=best_iteration,
+                    validation_sample_weight_np=validation_sample_weight_np,
+                    unweighted_validation=unweighted_validation,
                 ),
                 folds=folds,
                 fold_weight_by_id=fold_weight_by_id,

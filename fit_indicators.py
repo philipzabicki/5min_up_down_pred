@@ -533,6 +533,32 @@ def _fit_config_hash(config_payload):
     return hashlib.sha256(normalized).hexdigest()[:16]
 
 
+def _fit_implementation_signature():
+    root = Path(__file__).resolve().parent
+    dependencies = (
+        "fit_indicators.py",
+        "features/ADX.py",
+        "features/BollingerBands.py",
+        "features/ChaikinOsc.py",
+        "features/KeltnerChannel.py",
+        "features/MACD.py",
+        "features/StochOsc.py",
+        "features/common_utils.py",
+        "features/btc_preopen_contract.py",
+        "utils/metrics.py",
+        "utils/data.py",
+        "utils/project_config.py",
+    )
+    signature = hashlib.sha256()
+    for relative_path in dependencies:
+        path = root / relative_path
+        signature.update(relative_path.encode("utf-8"))
+        with path.open("rb") as handle:
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                signature.update(block)
+    return signature.hexdigest()
+
+
 def _fit_result_filename(ind_name, target_col, filename_pop_size, metric_config):
     metric_suffix = _metric_filename_suffix(metric_config)
     return f"{ind_name}_{target_col}_pop{filename_pop_size}_{metric_suffix}.json"
@@ -663,6 +689,7 @@ def main(
         write_applied_config=None,
 ):
     cfg = build_indicator_fit_config() if config is None else config
+    cfg = json.loads(json.dumps(cfg))
     active_asset = load_active_asset()
     if generation_budget is not None:
         cfg = json.loads(json.dumps(cfg))
@@ -677,6 +704,7 @@ def main(
                 cfg.get("run_budget", {}).get("minimum_generations", 1)
             ),
         }
+    cfg["implementation_sha256"] = _fit_implementation_signature()
     if write_applied_config is None:
         write_applied_config = config is None
     config_hash = _fit_config_hash(cfg)
