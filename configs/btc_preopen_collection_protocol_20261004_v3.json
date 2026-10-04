@@ -1,0 +1,53 @@
+{
+  "session_id": "btc_preopen_collection_v3_20261004",
+  "decision_timing": "one_minute_before_market_start_v1",
+  "artifact_bundle_version": null,
+  "model_meta_path": "data/models/BTC/btc_preopen_v1/lgbm_meta.json",
+  "model_weights_path": "data/models/BTC/btc_preopen_v1/platt_calibrator.json",
+  "source_model_manifest_path": "configs/btc_preopen_v1.json",
+  "feature_source_manifest_path": "data/models/BTC/btc_preopen_v1/feature_sources.json",
+  "output_directory": "data/analysis/polymarket/BTC/preopen_collection_20261004_v3",
+  "profile_state_anchor_opened_utc": "2026-10-02T18:00:00+00:00",
+  "poll_seconds": 5,
+  "checkpoint_interval_minutes": 30,
+  "market_slug_prefix": "btc-updown-5m",
+  "variants": ["collection_only"],
+  "portfolio": {
+    "initial_virtual_usd": 100.0,
+    "fixed_hypothetical_stake_usd": 5.0,
+    "expected_pnl_buffer_usd": 0.25,
+    "no_topups": true,
+    "cash_locked_until_official_resolution": true,
+    "collection_only": true,
+    "trade_decisions_enabled": false
+  },
+  "execution_assumption": {
+    "kind": "observation_only_no_order_or_fill_claim",
+    "additional_latency_seconds": null,
+    "slippage_beyond_best_ask": null,
+    "depth_limit": "record full source book and top-level sizes",
+    "max_book_age_seconds": 30,
+    "future_source_clock_skew_tolerance_seconds": 1.0,
+    "actual_fill_known": false,
+    "actual_fee_known": false
+  },
+  "hypothetical_fee_model": {
+    "rate": 0.07,
+    "exponent": 1.0,
+    "fee_round_decimals": 5,
+    "min_fee": 1e-05,
+    "source": "captured from each market Gamma payload when available"
+  },
+  "entry_state_collection": {
+    "frozen_decision_at_utc": "market_start_utc minus one minute",
+    "feature_candle_opened_utc": "market_start_utc minus two minutes",
+    "feature_candle_close_and_nominal_availability_utc": "market_start_utc minus one minute",
+    "prediction_window_start_utc": "market_start_utc",
+    "prediction_window_end_utc": "market_start_utc plus five minutes",
+    "current_btc_price_source": "Binance COIN-M BTCUSD index 1m candle close",
+    "reference_level_source": "Chainlink BTC/USD TWAP 60s stream named by Gamma; source level availability must be recorded if present",
+    "record_source_and_local_receive_timestamps_separately": true,
+    "record_prediction_and_execution_input_availability": true,
+    "allow_orders_or_redeems": false
+  }
+}

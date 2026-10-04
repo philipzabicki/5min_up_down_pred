@@ -1,0 +1,162 @@
+{
+  "experiment_id": "btc_preopen_v1_20261004",
+  "status": "causal_raw_feature_baseline_completed; full target-specific tuning remains pending",
+  "fit_runner_sha256": "4cc8b0d2b793e7af49f0749b57d14db1935709b160d9a4c151359aac6b3a6bab",
+  "contract_path": "configs/btc_preopen_v1.json",
+  "training_target": {
+    "name": "target_preopen_5m_up_binance_index_proxy",
+    "source": "Binance COIN-M BTCUSD index 1m OHLCV",
+    "formula": "Close[Opened+6m] >= Open[Opened+2m]",
+    "label_available_at": "Opened + 7 minutes",
+    "tie_policy": "UP",
+    "missing_window_policy": "label missing unless all five future candles exist"
+  },
+  "chronological_split": {
+    "fit_and_iteration_tuning_label_availability_end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+    "calibration_decision_start_utc": "2026-01-01T00:04:00+00:00",
+    "calibration_decision_end_utc": "2026-04-15T16:54:00+00:00",
+    "calibration_latest_label_available_at_utc": "2026-04-15T17:00:00+00:00",
+    "first_external_test_decision_utc": "2026-04-15T17:04:00+00:00",
+    "external_test_market_start_first_utc": "2026-04-15T17:05:00+00:00",
+    "external_test_market_start_last_utc": "2026-05-18T10:30:00+00:00",
+    "external_test_history_status": "historically exposed in earlier repository experiments; not a pristine holdout",
+    "fit_validation_purge": "drop training rows whose target label availability is later than the first validation nominal decision"
+  },
+  "model_artifacts": {
+    "model_path": "data/models/BTC/btc_preopen_v1/lgbm_model.txt",
+    "model_sha256": "93eab864165fbb9858befd604220b7983617b275b97b4952ef4245b903b45ac9",
+    "model_metadata_path": "data/models/BTC/btc_preopen_v1/lgbm_meta.json",
+    "model_metadata_sha256": "ed2da352cd3f0b2eb82efe305249649117cabd178c18767abe5149fcf7d3353f",
+    "calibrator_path": "data/models/BTC/btc_preopen_v1/platt_calibrator.json",
+    "calibrator_sha256": "fd6b77d30bc7c75381660cea7ae38ed8ca0572ffe2af97907353d48512388723",
+    "calibrator": "Platt logistic calibration fit on later development price-proxy labels; not official Polymarket labels",
+    "calibrator_parameters": {
+      "coefficient": 2.0834288721337404,
+      "intercept": -0.00563529701105558,
+      "training_rows": 30155,
+      "latest_label_available_at_utc": "2026-04-15T17:00:00+00:00"
+    },
+    "feature_source_manifest_path": "data/models/BTC/btc_preopen_v1/feature_sources.json",
+    "feature_source_manifest_sha256": "4dbf3460ab29b2a71216dbbe663d8007f6e605030c0f977ac43a98a425a945c6",
+    "input_identity": {
+      "raw_candles_sha256": "0a97ce5f4c2d57f6788e112c432b55b41e71be246efc5cc37cb12e8b26e2a1d9",
+      "contract_sha256": "57d5f59bdd5cfcd87c93f007d04afdd50fec70c0be9de04e1eb467eff70b8216",
+      "feature_code_sha256": "9bde3cd527bad2c55a20aa3ed75c80f4d552bd18d3d1e6d47fe2953da5d186bf",
+      "target_code_sha256": "5bfa64a9deaee8cd3732d293a5a36a6d5e587547f520f3d246e84102d2bcc5a7"
+    },
+    "features": 29,
+    "minute_rows_fit": 2925224,
+    "training_weights": "unit weights on every eligible minute row",
+    "selected_boosting_iterations": 19,
+    "calibration_rows": 30155,
+    "hyperparameters": {
+      "objective": "binary",
+      "metric": "binary_logloss",
+      "learning_rate": 0.05,
+      "num_leaves": 31,
+      "max_depth": 6,
+      "min_data_in_leaf": 1000,
+      "feature_fraction": 0.8,
+      "bagging_fraction": 0.8,
+      "bagging_freq": 1,
+      "lambda_l2": 10.0,
+      "device": "cpu",
+      "threads": 8,
+      "seed": 20261004,
+      "max_boosting_rounds": 2000,
+      "early_stopping_rounds": 100
+    },
+    "elapsed_time": {
+      "end_to_end_seconds": null,
+      "note": "Earlier cache and fitting invocations were resumed; cumulative wall time was not retained. The 2.0-second resume invocation is not end-to-end time."
+    }
+  },
+  "feature_cache": {
+    "path": "data/analysis/polymarket/BTC/preopen_v1/causal_minute_features.parquet",
+    "sha256": "09597e8b0ba2deae7ac8445c3cb2578a970a129a613287e60e139afa8368a7a1",
+    "size_bytes": 688416335
+  },
+  "external_test": {
+    "common_official_market_rows": 9407,
+    "complete_price_proxy_decisions": 9426,
+    "price_proxy_decisions_without_official_market_record": 19,
+    "prestart_quote_rows": 0,
+    "price_proxy_vs_official_outcome_disagreements": 400,
+    "price_proxy_vs_official_disagreement_rate": 0.04252152652280217,
+    "official_polymarket_metrics": {
+      "constant_0_5": {
+        "log_loss": 0.6931471805599452,
+        "brier": 0.25,
+        "auc": 0.5
+      },
+      "raw_model": {
+        "log_loss": 0.6924751812847295,
+        "brier": 0.24966439054306533,
+        "auc": 0.519607730575112
+      },
+      "platt_model": {
+        "log_loss": 0.6923835331222098,
+        "brier": 0.24961998751824427,
+        "auc": 0.519607730575112
+      },
+      "platt_minus_constant_0_5_paired_3_day_block_bootstrap_95pct_delta_log_loss": [
+        -0.001494687421080692,
+        -0.0000178023783683587836
+      ],
+      "platt_minus_constant_0_5_paired_3_day_block_bootstrap_95pct_delta_brier": [
+        -0.0007444356261691575,
+        -0.000009491912620534473
+      ],
+      "bootstrap_replications": 2000,
+      "bootstrap_seed": 20261004
+    },
+    "evaluation_path": "data/analysis/polymarket/BTC/preopen_v1/evaluation.json",
+    "prediction_rows_path": "data/analysis/polymarket/BTC/preopen_v1/external_test_predictions.parquet",
+    "economic_replay": "not estimable: retained quote snapshots begin at market start; no prestart ask/bid history"
+  },
+  "prospective_collection": {
+    "runner": "python run_btc_preopen_collection.py",
+    "protocol_path": "configs/btc_preopen_collection_protocol_20261004_v3.json",
+    "output_directory": "data/analysis/polymarket/BTC/preopen_collection_20261004_v3",
+    "orders_enabled": false,
+    "active_trading_model_changed": false,
+    "source_book_clock_skew_policy": {
+      "future_timestamp_tolerance_seconds": 1.0,
+      "max_past_age_seconds": 30,
+      "source_and_local_receive_times_are_both_recorded": true,
+      "suspected_clock_skew_is_recorded": true
+    },
+    "first_observation": {
+      "market_slug": "btc-updown-5m-1791132300",
+      "market_start_utc": "2026-10-04T16:45:00+00:00",
+      "market_end_utc": "2026-10-04T16:50:00+00:00",
+      "nominal_decision_at_utc": "2026-10-04T16:44:00+00:00",
+      "feature_candle_opened_utc": "2026-10-04T16:43:00+00:00",
+      "feature_candle_received_at_utc": "2026-10-04T16:44:01.661337+00:00",
+      "prediction_available_at_utc": "2026-10-04T16:44:01.685733+00:00",
+      "all_execution_inputs_available_at_utc": "2026-10-04T16:44:02.552680+00:00",
+      "artifact_bundle_version": "btc-preopen-v1:4ed7e34d94bc42a0",
+      "raw_model_probability_up": 0.5033654349374767,
+      "calibrated_probability_up": 0.5056026914426321,
+      "quote_valid": true,
+      "up_best_bid_ask": [0.48, 0.49],
+      "down_best_bid_ask": [0.51, 0.52],
+      "up_best_bid_ask_size_shares": [53.76, 46.13],
+      "down_best_bid_ask_size_shares": [46.13, 53.76],
+      "source_book_timestamp_utc": "2026-10-04T16:44:02.008000+00:00",
+      "local_up_book_received_at_utc": "2026-10-04T16:44:02.464378+00:00",
+      "local_down_book_received_at_utc": "2026-10-04T16:44:02.552680+00:00",
+      "decision": "no_trade; trade decisions disabled",
+      "official_outcome": "UP",
+      "official_resolution_observed_at_utc": "2026-10-04T16:53:38.520276+00:00"
+    }
+  },
+  "not_refit_in_this_baseline": [
+    "indicator genetic searches",
+    "reaction profile parameter search",
+    "volume profile parameter search",
+    "target-weight optimization",
+    "feature selection",
+    "LightGBM Optuna search"
+  ]
+}

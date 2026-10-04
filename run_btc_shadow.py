@@ -17,6 +17,7 @@ from scipy.special import expit, logit
 
 import audit_feature_readiness as audit
 import run as live_runtime
+from features.btc_preopen_contract import scheduled_market_start_for_opened
 from features.reaction_profile_fixed_grid import (
     load_state as load_reaction_profile_state,
     save_state as save_reaction_profile_state,
@@ -57,6 +58,7 @@ CHECKPOINT_INTERVAL = pd.Timedelta(minutes=int(CONFIG["checkpoint_interval_minut
 MAX_BOOK_AGE_SECONDS = float(
     CONFIG["execution_assumption"].get("max_book_age_seconds") or 30.0
 )
+MAX_BOOK_FUTURE_CLOCK_SKEW_SECONDS = 1.0
 VARIANTS = tuple(CONFIG["variants"])
 
 
@@ -270,6 +272,10 @@ def _book_observation(session, token_id):
         "book_timestamp_raw": raw_timestamp,
         "book_timestamp_utc": None if book_timestamp is None else _utc_iso(book_timestamp),
         "book_timestamp_age_seconds": age_seconds,
+        "book_timestamp_clock_skew_suspected": bool(
+            age_seconds is not None and age_seconds < 0.0
+        ),
+        "book_timestamp_future_skew_tolerance_seconds": MAX_BOOK_FUTURE_CLOCK_SKEW_SECONDS,
         "best_bid": bid[0],
         "best_bid_size": bid[1],
         "top5_bid_depth_shares": bid[2],
@@ -284,6 +290,15 @@ def _book_observation(session, token_id):
         "tick_size": _float(payload.get("tick_size")),
         "neg_risk": bool(payload.get("neg_risk", False)),
     }
+
+
+def _book_timestamp_age_is_acceptable(age_seconds):
+    return bool(
+        age_seconds is not None
+        and -MAX_BOOK_FUTURE_CLOCK_SKEW_SECONDS
+        <= float(age_seconds)
+        <= MAX_BOOK_AGE_SECONDS
+    )
 
 
 def _market_observation(session, bucket_start):
@@ -331,7 +346,7 @@ def _market_observation(session, bucket_start):
                        for side in ("up", "down"))
     sizes_valid = all(quote_fields[f"{side}_ask_size"] >= 0.0 for side in ("up", "down"))
     ages = [up_book["book_timestamp_age_seconds"], down_book["book_timestamp_age_seconds"]]
-    age_valid = all(age is not None and 0.0 <= age <= MAX_BOOK_AGE_SECONDS for age in ages)
+    age_valid = all(_book_timestamp_age_is_acceptable(age) for age in ages)
     valid = bool(
         identity_valid
         and not market.get("closed", False)
@@ -349,7 +364,12 @@ def _market_observation(session, bucket_start):
     elif not quotes_finite or not prices_valid or not sizes_valid:
         reason = "invalid_or_missing_book"
     elif not age_valid:
-        reason = "book_timestamp_missing_or_older_than_limit"
+        if any(age is None for age in ages):
+            reason = "book_timestamp_missing"
+        elif any(age > MAX_BOOK_AGE_SECONDS for age in ages):
+            reason = "book_timestamp_older_than_limit"
+        else:
+            reason = "book_timestamp_future_beyond_clock_skew_tolerance"
     return {
         "market_slug": slug,
         "condition_id": str(market.get("conditionId", "")),
@@ -846,18 +866,48 @@ def _record_market_decision(connection, accounts, market_data, market_id, market
             "order_min_size": float(quote_observation["order_min_size"]),
         }
     decision_at = _utc_iso()
+    preopen_timing = (
+        CONFIG.get("decision_timing") == "one_minute_before_market_start_v1"
+    )
+    nominal_decision_at = (
+        market_start - pd.Timedelta(minutes=1) if preopen_timing else market_start
+    )
+    quote_received_times = []
+    for side in ("up", "down"):
+        quote_book = (quote_observation or {}).get(f"{side}_book") or {}
+        if quote_book.get("received_at_utc"):
+            quote_received_times.append(
+                pd.to_datetime(quote_book["received_at_utc"], utc=True)
+            )
+    if (quote_observation or {}).get("gamma_received_at_utc"):
+        quote_received_times.append(
+            pd.to_datetime(quote_observation["gamma_received_at_utc"], utc=True)
+        )
+    execution_inputs_available_at = max(
+        [pd.to_datetime(inference_finished, utc=True), *quote_received_times]
+    )
+    input_candle_opened = market_start - pd.Timedelta(
+        minutes=2 if preopen_timing else 1
+    )
     common = {
         "condition_key": condition_key,
         "market_slug": market_data["market_slug"],
         "condition_id": market_id or None,
         "market_start_utc": _utc_iso(market_start),
         "market_end_utc": _utc_iso(market_end),
-        "btc_candle_opened_utc": _utc_iso(market_start - pd.Timedelta(minutes=1)),
-        "btc_candle_assumed_available_at_utc": _utc_iso(market_start),
+        "btc_candle_opened_utc": _utc_iso(input_candle_opened),
+        "btc_candle_assumed_available_at_utc": _utc_iso(nominal_decision_at),
         "btc_data_received_at_utc": _utc_iso(available_at),
         "prediction_started_at_utc": _utc_iso(inference_started),
         "prediction_finished_at_utc": _utc_iso(inference_finished),
         "decision_at_utc": decision_at,
+        "nominal_decision_at_utc": _utc_iso(nominal_decision_at),
+        "prediction_available_at_utc": _utc_iso(inference_finished),
+        "execution_inputs_available_at_utc": _utc_iso(execution_inputs_available_at),
+        "artifact_bundle_version": CONFIG.get("artifact_bundle_version"),
+        "prediction_window_start_utc": _utc_iso(market_start),
+        "prediction_window_end_utc": _utc_iso(market_end),
+        "input_candle_opened_utc": _utc_iso(input_candle_opened),
         "raw_btc_probability_up": float(raw_btc),
         "btc_platt_probability_up": float(prediction_values["btc_platt"]),
         "market_only_probability_up": prediction_values["market_only"],
@@ -880,7 +930,9 @@ def _record_market_decision(connection, accounts, market_data, market_id, market
         trade = None
         reject_reason = reason or ("missing_or_stale_quote" if not quotes_valid else None)
         if quotes_valid and probability is not None:
-            if account["cash"] < float(CONFIG["portfolio"]["fixed_hypothetical_stake_usd"]) - 1e-9:
+            if not bool(CONFIG["portfolio"].get("trade_decisions_enabled", True)):
+                reject_reason = "trade_decisions_disabled"
+            elif account["cash"] < float(CONFIG["portfolio"]["fixed_hypothetical_stake_usd"]) - 1e-9:
                 reject_reason = "insufficient_virtual_cash"
             else:
                 selection, rejections = decide_at_observed_book(
@@ -978,9 +1030,14 @@ def _process_decision_candle(connection, predictor, model, weights, session, acc
     )
     volume_values = predictor._prepare_volume_profile_features_for_latest_candle(opened)
     reaction_values = predictor._prepare_reaction_profile_features_for_latest_candle(opened)
-    if int(pd.Timestamp(opened).minute) % int(predictor.target_bucket_minutes) != int(predictor.target_bucket_minutes) - 1:
-        return
-    market_start = pd.Timestamp(opened) + live_runtime.INTERVAL_DELTA
+    if CONFIG.get("decision_timing") == "one_minute_before_market_start_v1":
+        market_start = scheduled_market_start_for_opened(opened)
+        if market_start is None:
+            return
+    else:
+        if int(pd.Timestamp(opened).minute) % int(predictor.target_bucket_minutes) != int(predictor.target_bucket_minutes) - 1:
+            return
+        market_start = pd.Timestamp(opened) + live_runtime.INTERVAL_DELTA
     if market_start <= pd.to_datetime(
             _record_session_start(connection), utc=True
     ):

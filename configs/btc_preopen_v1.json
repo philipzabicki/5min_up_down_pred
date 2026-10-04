@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_preopen_v1_20261004",
+  "contract_version": "btc_preopen_v1",
+  "asset": "BTC",
+  "market": {
+    "schedule": "every 5 minutes at UTC minute divisible by 5",
+    "nominal_decision_offset_before_market_start_seconds": 60,
+    "prediction_window_offset_after_decision_seconds": 60,
+    "prediction_window_seconds": 300,
+    "settlement_source": "official Polymarket BTC Up/Down 5m outcome",
+    "settlement_price_source": "Chainlink BTC/USD TWAP 60s stream named by Gamma resolutionSource",
+    "tie_policy": "UP",
+    "missing_official_outcome_policy": "exclude from official-label metrics; retain price-proxy row when complete",
+    "missing_window_candle_policy": "target missing unless all five 1m target-window candles exist"
+  },
+  "features": {
+    "source": "Binance COIN-M BTCUSD index 1m OHLCV plus causal derived features",
+    "row_timestamp": "Opened is candle start",
+    "last_allowed_candle": "Opened = nominal_decision_at - 1 minute",
+    "candle_values_available_at": "candle close, nominally Opened + 1 minute; actual receive time must be measured live",
+    "actual_prediction_available_at": "measured per prediction by collector; null in historical batch data",
+    "actual_execution_available_at": "measured per quote/order observation by collector; null in historical batch data",
+    "decision_market_start_alignment": "Opened + 2 minutes; UTC Opened minute modulo 5 equals 3"
+  },
+  "training_target": {
+    "name": "target_preopen_5m_up_binance_index_proxy",
+    "source": "Binance COIN-M BTCUSD index 1m OHLCV",
+    "formula": "Close[Opened+6m] >= Open[Opened+2m]",
+    "window_start": "Opened + 2 minutes",
+    "window_end": "Opened + 7 minutes, exclusive candle boundary",
+    "label_available_at": "Opened + 7 minutes",
+    "proxy_of_official_settlement": true,
+    "official_and_proxy_labels_are_never_mixed": true
+  },
+  "chronological_split_frozen_before_tuning": {
+    "feature_and_model_fit_start_utc": "2020-06-09T09:33:00+00:00",
+    "fit_and_tuning_end_exclusive_utc": "2026-01-01T00:00:00+00:00",
+    "calibration_start_utc": "2026-01-01T00:00:00+00:00",
+    "calibration_end_exclusive_utc": "2026-04-15T17:04:00+00:00",
+    "first_external_test_market_start_utc": "2026-04-15T17:05:00+00:00",
+    "first_external_test_nominal_decision_utc": "2026-04-15T17:04:00+00:00",
+    "external_test_market_start_last_inclusive_utc": "2026-05-18T10:30:00+00:00",
+    "external_test_nominal_decision_last_utc": "2026-05-18T10:29:00+00:00",
+    "internal_validation_label_purge": "keep training rows only when target_label_available_at <= first validation nominal_decision_at",
+    "test_history_status": "historically exposed: this exact official-market period and overlapping BTC observations were used in prior repository experiments; new fitted artifacts must not use it, but this is not a pristine holdout"
+  },
+  "evaluation": {
+    "primary_rows": "actual Polymarket decision timestamps only (Opened minute modulo 5 equals 3)",
+    "auxiliary_rows": "all minute rows; secondary only",
+    "fixed_metrics": ["log_loss", "brier", "auc", "calibration"],
+    "baselines": ["constant_0.5", "development_prevalence", "Polymarket_prestart_quote_if_available"],
+    "paired_uncertainty": {
+      "method": "moving calendar-block bootstrap paired on identical market rows",
+      "block_days": 3,
+      "replications": 2000,
+      "seed": 20261004
+    },
+    "economic_replay": {
+      "initial_cash_usd": 100,
+      "only_prestart_quotes": true,
+      "hold_until_official_resolution": true,
+      "missing_ask_policy": "ineligible; never impute",
+      "actual_fill_claim": false
+    }
+  },
+  "reproduction": {
+    "runner": "python run_btc_preopen_experiment.py",
+    "resume": "python run_btc_preopen_experiment.py resumes the matching manifest/checkpoints",
+    "cli_arguments": false
+  }
+}

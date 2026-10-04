@@ -83,6 +83,15 @@ class BtcShadowTests(unittest.TestCase):
         self.assertEqual(depth_shares, 23.0)
         self.assertAlmostEqual(depth_usd, 9.61)
 
+    def test_book_age_allows_small_future_source_clock_skew(self):
+        for age in (-0.087153, -0.010567, 0.0, shadow.MAX_BOOK_AGE_SECONDS):
+            with self.subTest(age=age):
+                self.assertTrue(shadow._book_timestamp_age_is_acceptable(age))
+
+        for age in (None, -1.001, shadow.MAX_BOOK_AGE_SECONDS + 0.001):
+            with self.subTest(age=age):
+                self.assertFalse(shadow._book_timestamp_age_is_acceptable(age))
+
 
 if __name__ == "__main__":
     unittest.main()
