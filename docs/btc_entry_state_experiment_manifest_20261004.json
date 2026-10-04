@@ -1,0 +1,184 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_entry_state_experiment_20261004",
+  "generated_at_utc": "2026-10-04T04:56:00+00:00",
+  "status": "historical_C_D_withheld; collection_only_v2_running",
+  "report": "docs/btc_entry_state_experiment_20261004.md",
+  "reproduce": {
+    "historical_A_B": "python run_btc_new_model_comparison.py",
+    "targeted_ADX_test": "python -m unittest tests/test_entry_state_adx_runtime.py",
+    "collection_only": "python run_btc_entry_state_collection.py"
+  },
+  "frozen_decision": {
+    "timestamp": "market_start_utc = decision_available_at = Opened + 1 minute",
+    "market_duration_seconds": 300,
+    "simulated_execution_delay_seconds": 1,
+    "delay_search": false
+  },
+  "resolution": {
+    "target": "official Polymarket outcome",
+    "resolution_source": "https://data.chain.link/streams/btc-usd-twap-60s-streams",
+    "source_is_binance": false,
+    "binance_proxy_disagreements": 405,
+    "shared_rows": 9407
+  },
+  "coverage": {
+    "shared_rows": 9407,
+    "market_start_range_utc": [
+      "2026-04-15T17:05:00+00:00",
+      "2026-05-18T10:30:00+00:00"
+    ],
+    "outcomes": 9407,
+    "old_and_new_BTC_OOF": 9407,
+    "market_quotes": 9407,
+    "exact_TWAP_start_reference_available": 0,
+    "exact_TWAP_point_in_time_history_rows": 0,
+    "generic_Chainlink_proxy_market_start_intersections": 288,
+    "proxy_is_resolution_feed": false,
+    "proxy_has_point_in_time_availability": false,
+    "seconds_to_end_unique": [300.0],
+    "complete_current_state_rows": 0,
+    "authenticated_Chainlink_Candlestick_credentials_configured": false,
+    "C_D_fit_status": "withheld; insufficient exact source and point-in-time coverage"
+  },
+  "historical_A_B_development_results": {
+    "A_market_only": {
+      "n": 9407,
+      "log_loss": 0.688384,
+      "brier": 0.247547,
+      "calibration_slope": 0.923,
+      "calibration_intercept": -0.012
+    },
+    "B_market_plus_new_BTC": {
+      "n": 9407,
+      "log_loss": 0.688148,
+      "brier": 0.247426,
+      "calibration_slope": 0.946,
+      "calibration_intercept": -0.011
+    },
+    "B_minus_A": {
+      "log_loss_delta": -0.000235,
+      "log_loss_CI95": [-0.000464, -0.000064],
+      "brier_delta": -0.000121,
+      "brier_CI95": [-0.000231, -0.000035]
+    },
+    "bootstrap": {
+      "method": "paired calendar moving-block",
+      "block_days": 3,
+      "replications": 2000
+    },
+    "independent_holdout": false
+  },
+  "C_D_comparisons": {
+    "C_minus_A": "not_estimable",
+    "D_minus_C": "not_estimable",
+    "D_minus_B": "not_estimable"
+  },
+  "frozen_previous_BTC_policy_entries": {
+    "sample_n": 810,
+    "wins": 318,
+    "hit_rate": 0.3925925926,
+    "BTC_only_mean_selected_side_probability": 0.5060426298,
+    "A_selected_side_log_loss": 0.6595055709,
+    "A_selected_side_brier": 0.23348061,
+    "B_selected_side_log_loss": 0.6595938242,
+    "B_selected_side_brier": 0.2335034222,
+    "development_and_policy_selected": true
+  },
+  "existing_economics_1s": {
+    "initial_capital_usd": 100,
+    "stake_usd": 5,
+    "EV_buffer_usd": 0.25,
+    "market_only": {
+      "trades": 4,
+      "turnover_usd": 20,
+      "fees_usd": 0.63,
+      "PnL_usd": 5.24,
+      "ending_capital_usd": 105.24,
+      "max_drawdown": 0.0454
+    },
+    "market_plus_new_BTC": {
+      "trades": 5,
+      "turnover_usd": 25,
+      "fees_usd": 0.87,
+      "PnL_usd": 0.24,
+      "ending_capital_usd": 100.24,
+      "max_drawdown": 0.0644
+    },
+    "C_D": "not_evaluated; no fitted variants",
+    "actual_fills_known": false
+  },
+  "ADX": {
+    "known_probability_drift_rows": 5,
+    "max_abs_probability_change": 0.000403938021,
+    "UP_DOWN_flips": 0,
+    "threshold_decisions_verified": 0,
+    "threshold_verification_blocker": "historical quote inputs missing at the five audit timestamps",
+    "runtime": "features/live_indicator_runtime_entry_state_v1.py",
+    "test": "tests/test_entry_state_adx_runtime.py"
+  },
+  "collectors": {
+    "preserved_v2": {
+      "session_id": "btc_new_model_shadow_v2_20261004",
+      "status": "not_running_at_audit",
+      "markets": 56,
+      "variant_decision_rows": 168,
+      "market_start_range_utc": [
+        "2026-10-03T23:15:00+00:00",
+        "2026-10-04T03:50:00+00:00"
+      ],
+      "candles": 3471,
+      "last_candle_utc": "2026-10-04T03:50:00+00:00",
+      "trading_enabled": false,
+      "order_submission_count": 0
+    },
+    "entry_state_v1_boot_attempt": {
+      "status": "failed_before_market_decisions",
+      "reason": "Pandas datetime unit conversion bug",
+      "decision_rows": 0,
+      "preserved_artifact_directory": "data/analysis/polymarket/BTC/entry_state_collection_20261004_v1"
+    },
+    "entry_state_v2": {
+      "session_id": "btc_entry_state_collection_v2_20261004",
+      "status": "running_at_audit",
+      "started_at_utc": "2026-10-04T04:47:46.863038+00:00",
+      "variant": "collection_only",
+      "trading_enabled": false,
+      "order_submission_count": 0,
+      "database": "data/analysis/polymarket/BTC/entry_state_collection_20261004_v2/shadow.sqlite3",
+      "session_manifest": "data/analysis/polymarket/BTC/entry_state_collection_20261004_v2/session_manifest.json",
+      "runtime_frozen_hash": "c2ae683e8bf1952dd7669942a3b92e04c353f80c1553b689c14d18b8e9e12cc0",
+      "market_decisions_at_status": 2,
+      "candles_at_status": 3536,
+      "last_candle_utc": "2026-10-04T04:55:00+00:00",
+      "both_quotes_rejected_as_invalid": true,
+      "book_timestamp_ahead_of_local_receive_seconds_range": [-0.21, -0.19],
+      "first_market_decision": {
+        "market_start_utc": "2026-10-04T04:50:00+00:00",
+        "decision": "no_trade",
+        "quote_valid": false,
+        "quote_invalid_reason": "book_timestamp_missing_or_older_than_limit",
+        "reference_level_price": null,
+        "btc_data_delay_seconds": 15.785969,
+        "quote_delay_seconds": 17.463498
+      }
+    }
+  },
+  "input_sha256": {
+    "shared_market_evaluation.parquet": "2f3146a2345a1e6a0ac79daeb69172ad271e91743e9e3cb2e9ca5a5eba0dfd85",
+    "frozen_entry_signals.parquet": "13f4a9d02ed52927088da80474026b3076c74542f99af69d328916ffac8d53f2",
+    "frozen_entry_summary.json": "deeeaec7bb09d58e48837b9413e9bc29d77912a3eb97d0099074294a9443e757",
+    "raw_Binance_index_ohlcv.csv": "0a97ce5f4c2d57f6788e112c432b55b41e71be246efc5cc37cb12e8b26e2a1d9",
+    "local_Chainlink_reports.csv": "2cc9776ddddb014b306cbc22633115cd10495a61b7ec5923e530b33ea1bcf64d",
+    "generic_Chainlink_capture_April.csv": "82b89f7f0d76892703de59018917dbc3c19a03b67616fcb17a25ec80ea7f09f7",
+    "generic_Chainlink_capture_May.csv": "b944e180d7b7cab8f0e60935fcc2caa88db09f39b640a60639ea274f8f2c9e3c",
+    "source_model_manifest_sha256": "cb3740dde581a7e3e30ecd454e6a2935be18d6f5cbe7b3c4aafc6099dc5e7a15"
+  },
+  "guardrails": {
+    "new_LightGBM_training": false,
+    "Optuna": false,
+    "live_orders": false,
+    "redeems": false,
+    "active_trading_configuration_changes": false
+  }
+}
