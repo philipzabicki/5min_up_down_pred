@@ -84,6 +84,8 @@ The first prospective record was market `btc-updown-5m-1791132300`, starting at 
 
 The next two v2 snapshots were preserved with their source timestamps, local request/receive times, bids, asks, sizes, and depth, but the old freshness check marked them invalid because source timestamps were 60–87 ms later than local receive timestamps. That comparison treated the two clocks as synchronized. The v3 collector accepts source times up to one second ahead of local receipt as suspected clock skew, still rejects timestamps older than the configured 30-second limit or more than one second into the future, and records the raw signed difference and both clocks. The v2 database is retained; collection now uses a new v3 database so the earlier session is not rewritten.
 
+The first v3 observation was market `btc-updown-5m-1791133500` for 17:05–17:10 UTC. Its 17:03 candle produced a calibrated UP probability of 0.48568, available at 17:04:02.663; book inputs were complete at 17:04:03.661. UP was 0.49 bid / 0.50 ask and DOWN was 0.50 bid / 0.51 ask. The DOWN source timestamp was 17:04:03.760, about 99 ms later than the local receive time. v3 kept the quote valid and flagged the skew. The official outcome was pending at report time; this is a collection check, not a trading result.
+
 To reproduce the historical fit and evaluation, run `python run_btc_preopen_experiment.py`; the script resumes verified matching cache/checkpoints and does not accept console arguments. To observe new markets, start `python run_btc_preopen_collection.py` in a separate process after the model bundle exists. The collection script is prospective and does not alter the training result above.
 
 ## Conclusion
