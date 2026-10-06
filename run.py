@@ -102,6 +102,7 @@ from utils.live import (
     resolve_polymarket_closed_position_settlement,
     send_telegram_message,
     setup_live_console_logging,
+    summarize_live_latency,
     upsert_records_csv,
     write_records_csv,
 )
@@ -1867,6 +1868,9 @@ class LivePredictor:
         volume_received_at = (
             None if volume_meta is None else volume_meta.get("received_at")
         )
+        if volume_meta is None and VOLUME_SOURCE == PRICE_SOURCE:
+            volume_event_at = price_event_at
+            volume_received_at = price_received_at
         component_received = [
             pd.Timestamp(ts)
             for ts in (price_received_at, volume_received_at)
@@ -1915,6 +1919,11 @@ class LivePredictor:
             "ws_ready_at": completed_at,
             "ws_candle_opened": pd.Timestamp(opened),
             "ws_bucket_start": pd.Timestamp(live_minute_opened),
+            "ws_price_source_at_utc": price_event_at,
+            "ws_price_received_at_utc": price_received_at,
+            "ws_volume_source_at_utc": volume_event_at,
+            "ws_volume_received_at_utc": volume_received_at,
+            "required_inputs_ready_at_utc": completed_at,
         }
 
     def _store_pending_ws_price_candle(
@@ -3254,6 +3263,16 @@ def _json_compact(payload):
         return str(payload)
 
 
+def _polymarket_response_order_id(response):
+    if not isinstance(response, dict):
+        return ""
+    for key in ("orderID", "orderId", "order_id", "id"):
+        value = _safe_text(response.get(key))
+        if value:
+            return value
+    return ""
+
+
 def _http_status_code(exc):
     status_code = getattr(exc, "status_code", None)
     try:
@@ -3275,6 +3294,25 @@ def _submission_error_status_from_exception(exc):
 
 def _utc_now():
     return pd.Timestamp.now(tz="UTC")
+
+
+def _polymarket_timestamp_utc(value):
+    if value in (None, ""):
+        return None
+    try:
+        number = float(value)
+        if np.isfinite(number):
+            if abs(number) >= 1e12:
+                return pd.Timestamp(number, unit="ms", tz="UTC")
+            if abs(number) >= 1e9:
+                return pd.Timestamp(number, unit="s", tz="UTC")
+    except (TypeError, ValueError, OverflowError):
+        pass
+    try:
+        timestamp = pd.Timestamp(value)
+        return timestamp.tz_localize("UTC") if timestamp.tzinfo is None else timestamp.tz_convert("UTC")
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def _delay_ms_since(timestamp, *, now=None):
@@ -3919,6 +3957,10 @@ class PolymarketLiveTrader(LivePredictor):
         )
 
         self.pm_session = requests.Session()
+        self.pm_auth_clock_sync_status = "not_run"
+        self.pm_auth_clock_sync_source = ""
+        self.pm_auth_clock_sync_at_utc = None
+        self.pm_auth_clock_offset_seconds_estimate = float("nan")
         adapter = requests.adapters.HTTPAdapter(pool_connections=4, pool_maxsize=4)
         self.pm_session.mount("https://", adapter)
         self.pm_session.headers.update(
@@ -3972,6 +4014,7 @@ class PolymarketLiveTrader(LivePredictor):
         return str(base_source)
 
     def _sync_pyclob_auth_clock(self):
+        self.pm_auth_clock_sync_source = "polymarket_clob_time_endpoint"
         try:
             response = self.pm_session.get(
                 f"{self.pm_cfg.clob_host.rstrip('/')}/time",
@@ -3981,11 +4024,18 @@ class PolymarketLiveTrader(LivePredictor):
             server_ts = float(str(response.text).strip())
         except Exception as exc:
             print(f"[pm] auth clock sync skipped: {exc}")
+            self.pm_auth_clock_sync_status = "unavailable"
+            self.pm_auth_clock_sync_at_utc = _utc_now()
+            self.pm_auth_clock_offset_seconds_estimate = float("nan")
             _set_pyclob_auth_time_offset(0.0)
             return 0.0
 
-        local_ts = float(time.time())
+        received_at_utc = _utc_now()
+        local_ts = float(received_at_utc.timestamp())
         offset_sec = float(server_ts - local_ts)
+        self.pm_auth_clock_sync_status = "offset_estimate_available"
+        self.pm_auth_clock_sync_at_utc = received_at_utc
+        self.pm_auth_clock_offset_seconds_estimate = offset_sec
         _set_pyclob_auth_time_offset(offset_sec)
         if abs(offset_sec) >= POLYMARKET_AUTH_CLOCK_SKEW_WARN_SEC:
             print(
@@ -5463,8 +5513,17 @@ class PolymarketLiveTrader(LivePredictor):
         return response.json()
 
     def _fetch_order_book_summary(self, token_id):
+        request_started_at_utc = _utc_now()
         payload = self._get_json(self.pm_cfg.clob_host, "/book", {"token_id": token_id})
+        received_at_utc = _utc_now()
+        source_timestamp_raw = payload.get("timestamp")
         return {
+            "request_started_at_utc": request_started_at_utc,
+            "source_at_utc": _polymarket_timestamp_utc(source_timestamp_raw),
+            "source_timestamp_raw": (
+                "" if source_timestamp_raw is None else str(source_timestamp_raw)
+            ),
+            "received_at_utc": received_at_utc,
             "best_bid": _best_price(payload.get("bids", []), side="bid"),
             "best_bid_size": _best_size(payload.get("bids", []), side="bid"),
             "best_ask": _best_price(payload.get("asks", []), side="ask"),
@@ -5511,12 +5570,22 @@ class PolymarketLiveTrader(LivePredictor):
             default_round_decimals=DEFAULT_POLYMARKET_FEE_ROUND_DECIMALS,
             default_min_fee=DEFAULT_POLYMARKET_MIN_FEE_USDC,
         )
+        snapshot_received_at_utc = _utc_now()
+        market_start_raw = market.get("startDate")
+        market_start_at_utc = _polymarket_timestamp_utc(market_start_raw)
 
         return PolymarketMarketSnapshot(
             market_slug=market_slug,
             market_question=str(market.get("question", "")),
             bucket_start=pd.Timestamp(bucket_start).isoformat(),
+            market_start_at_utc=market_start_at_utc,
+            market_start_source=(
+                "gamma_startDate" if market_start_at_utc is not None else ""
+            ),
             market_end=str(market.get("endDate", "")),
+            snapshot_received_at_utc=snapshot_received_at_utc,
+            book_data_origin="polymarket_clob_rest_book_api",
+            book_stream_sync_status="not_connected_rest_snapshot",
             condition_id=str(market.get("conditionId", "")),
             restricted=bool(market.get("restricted", False)),
             accepting_orders=bool(market.get("acceptingOrders", False)),
@@ -5543,11 +5612,19 @@ class PolymarketLiveTrader(LivePredictor):
             up_best_ask=_safe_float(up_book.get("best_ask")),
             up_best_ask_size=_safe_float(up_book.get("best_ask_size")),
             up_last_trade_price=_safe_float(up_book.get("last_trade_price")),
+            up_book_request_started_at_utc=up_book.get("request_started_at_utc"),
+            up_book_source_at_utc=up_book.get("source_at_utc"),
+            up_book_source_timestamp_raw=up_book.get("source_timestamp_raw", ""),
+            up_book_received_at_utc=up_book.get("received_at_utc"),
             down_best_bid=_safe_float(down_book.get("best_bid")),
             down_best_bid_size=_safe_float(down_book.get("best_bid_size")),
             down_best_ask=_safe_float(down_book.get("best_ask")),
             down_best_ask_size=_safe_float(down_book.get("best_ask_size")),
             down_last_trade_price=_safe_float(down_book.get("last_trade_price")),
+            down_book_request_started_at_utc=down_book.get("request_started_at_utc"),
+            down_book_source_at_utc=down_book.get("source_at_utc"),
+            down_book_source_timestamp_raw=down_book.get("source_timestamp_raw", ""),
+            down_book_received_at_utc=down_book.get("received_at_utc"),
         )
 
     def _fetch_market_snapshot_with_retry(self, bucket_start):
@@ -5719,6 +5796,10 @@ class PolymarketLiveTrader(LivePredictor):
             submitted_stake_usdc=np.nan,
             filled_stake_usdc=np.nan,
             filled_shares=np.nan,
+            submit_call_started_at_utc=None,
+            submit_call_completed_at_utc=None,
+            submit_response_received_at_utc=None,
+            order_id="",
     ):
         submitted_stake_value = _safe_float(submitted_stake_usdc)
         filled_stake_value = _safe_float(filled_stake_usdc)
@@ -5743,6 +5824,14 @@ class PolymarketLiveTrader(LivePredictor):
                 if np.isfinite(filled_shares_value)
                 else np.nan
             ),
+            "submit_call_started_at_utc": submit_call_started_at_utc,
+            "submit_call_completed_at_utc": submit_call_completed_at_utc,
+            "submit_response_received_at_utc": submit_response_received_at_utc,
+            "transport_sent_at_utc": None,
+            "order_ack_source_at_utc": None,
+            "fill_event_source_at_utc": None,
+            "fill_event_received_at_utc": None,
+            "order_id": str(order_id or ""),
         }
 
     def _prime_pm_client_order_metadata(self, intent):
@@ -5813,6 +5902,10 @@ class PolymarketLiveTrader(LivePredictor):
 
     def _maybe_submit_order(self, intent):
         attempted_stake_usdc = np.nan
+        submit_call_started_at_utc = None
+        submit_call_completed_at_utc = None
+        submit_response_received_at_utc = None
+        order_id = ""
         try:
             if intent.get("final_reason") != "ok":
                 return self._submit_result(
@@ -5864,9 +5957,17 @@ class PolymarketLiveTrader(LivePredictor):
                     order_type=order_type,
                     user_usdc_balance=float(self.pm_cash_balance_usdc),
                 )
-                response = self._create_and_post_market_order_with_retry(
-                    order, order_options, order_type
-                )
+                submit_call_started_at_utc = _utc_now()
+                try:
+                    response = self._create_and_post_market_order_with_retry(
+                        order, order_options, order_type
+                    )
+                except Exception:
+                    submit_call_completed_at_utc = _utc_now()
+                    raise
+                submit_response_received_at_utc = _utc_now()
+                submit_call_completed_at_utc = submit_response_received_at_utc
+                order_id = _polymarket_response_order_id(response)
             else:
                 raise NotImplementedError(
                     "Unsupported live.polymarket_execution_mode: "
@@ -5884,6 +5985,10 @@ class PolymarketLiveTrader(LivePredictor):
                     status="submission_rejected",
                     response_text=response_txt,
                     submitted_stake_usdc=attempted_stake_usdc,
+                    submit_call_started_at_utc=submit_call_started_at_utc,
+                    submit_call_completed_at_utc=submit_call_completed_at_utc,
+                    submit_response_received_at_utc=submit_response_received_at_utc,
+                    order_id=order_id,
                 )
             filled_shares, filled_stake_usdc = _extract_buy_fill_metrics_from_response(
                 response
@@ -5898,6 +6003,10 @@ class PolymarketLiveTrader(LivePredictor):
                 submitted_stake_usdc=attempted_stake_usdc,
                 filled_stake_usdc=filled_stake_usdc,
                 filled_shares=filled_shares,
+                submit_call_started_at_utc=submit_call_started_at_utc,
+                submit_call_completed_at_utc=submit_call_completed_at_utc,
+                submit_response_received_at_utc=submit_response_received_at_utc,
+                order_id=order_id,
             )
         except Exception as exc:
             return self._submit_result(
@@ -5905,6 +6014,10 @@ class PolymarketLiveTrader(LivePredictor):
                 status=_submission_error_status_from_exception(exc),
                 error=str(exc),
                 submitted_stake_usdc=attempted_stake_usdc,
+                submit_call_started_at_utc=submit_call_started_at_utc,
+                submit_call_completed_at_utc=submit_call_completed_at_utc,
+                submit_response_received_at_utc=submit_response_received_at_utc,
+                order_id=order_id,
             )
 
     def _apply_local_outcome_pnl(self, rec):
@@ -5974,6 +6087,7 @@ class PolymarketLiveTrader(LivePredictor):
             "market_prefetch_hit": False,
             "market_prefetch_age_ms": np.nan,
             "market_lookup_source": "future_snapshot",
+            "market_snapshot_received_at_utc": None,
         }
         try:
             result = self._future_result_with_timeout(
@@ -5987,14 +6101,27 @@ class PolymarketLiveTrader(LivePredictor):
                     _utc_now(),
                 )
                 metadata["market_lookup_source"] = "prefetched_snapshot"
-                return result["snapshot"], metadata
+                snapshot = result["snapshot"]
+                metadata["market_snapshot_received_at_utc"] = getattr(
+                    snapshot, "snapshot_received_at_utc", fetched_at
+                )
+                return snapshot, metadata
             if isinstance(result, dict):
                 metadata["market_lookup_source"] = "stale_prefetch_refetch"
-                return self._fetch_market_snapshot_with_retry(bucket_start), metadata
-            return result, metadata
+                snapshot = self._fetch_market_snapshot_with_retry(bucket_start)
+            else:
+                snapshot = result
+            metadata["market_snapshot_received_at_utc"] = getattr(
+                snapshot, "snapshot_received_at_utc", _utc_now()
+            )
+            return snapshot, metadata
         except Exception:
             metadata["market_lookup_source"] = "future_error_refetch"
-            return self._fetch_market_snapshot_with_retry(bucket_start), metadata
+            snapshot = self._fetch_market_snapshot_with_retry(bucket_start)
+            metadata["market_snapshot_received_at_utc"] = getattr(
+                snapshot, "snapshot_received_at_utc", _utc_now()
+            )
+            return snapshot, metadata
 
     def _evaluate_prediction_execution(
             self,
@@ -6018,6 +6145,8 @@ class PolymarketLiveTrader(LivePredictor):
         market_prefetch_hit = False
         market_prefetch_age_ms = np.nan
         market_lookup_source = ""
+        market_snapshot_received_at_utc = None
+        policy_decision_ready_at_utc = None
 
         try:
             market, market_meta = self._resolve_market_snapshot(bucket_start, market_future)
@@ -6027,9 +6156,13 @@ class PolymarketLiveTrader(LivePredictor):
                 market_meta.get("market_prefetch_age_ms", np.nan)
             )
             market_lookup_source = str(market_meta.get("market_lookup_source", ""))
+            market_snapshot_received_at_utc = market_meta.get(
+                "market_snapshot_received_at_utc"
+            )
             policy_started_perf = time.perf_counter()
             intent = self._recommend_polymarket_bet(prob_up_raw=proba_up, market=market)
             policy_compute_ms = _elapsed_ms(policy_started_perf)
+            policy_decision_ready_at_utc = _utc_now()
             decision_ready_delay_ms = _delay_ms_since(bucket_start)
             submit_started_perf = time.perf_counter()
             submit_result = self._maybe_submit_order(intent)
@@ -6045,6 +6178,22 @@ class PolymarketLiveTrader(LivePredictor):
         else:
             submit_order_ms = _elapsed_ms(submit_started_perf)
 
+        cycle_completed_at_utc = _utc_now()
+        market_start_at_utc = (
+            _polymarket_timestamp_utc(
+                getattr(market, "market_start_at_utc", None)
+            )
+            if market is not None
+            else None
+        )
+        market_start_source = (
+            "gamma_startDate"
+            if market_start_at_utc is not None
+            else "scheduled_market_slug_bucket_start"
+        )
+        if market_start_at_utc is None:
+            market_start_at_utc = _polymarket_timestamp_utc(bucket_start)
+
         return {
             "market": market,
             "intent": intent,
@@ -6057,6 +6206,50 @@ class PolymarketLiveTrader(LivePredictor):
             "market_lookup_ms": float(market_lookup_ms),
             "submit_order_ms": float(submit_order_ms),
             "execution_ms": _elapsed_ms(execution_started_perf),
+            "policy_decision_ready_at_utc": policy_decision_ready_at_utc,
+            "cycle_completed_at_utc": cycle_completed_at_utc,
+            "market_start_at_utc": market_start_at_utc,
+            "market_start_source": market_start_source,
+            "nominal_decision_at_utc": (
+                market_start_at_utc - pd.Timedelta(seconds=60)
+                if market_start_at_utc is not None
+                else None
+            ),
+            "market_snapshot_received_at_utc": market_snapshot_received_at_utc,
+            "book_data_origin": (
+                getattr(market, "book_data_origin", "polymarket_clob_rest_book_api")
+                if market is not None
+                else ""
+            ),
+            "book_stream_sync_status": (
+                getattr(market, "book_stream_sync_status", "not_connected_rest_snapshot")
+                if market is not None
+                else "unavailable"
+            ),
+            "up_book_request_started_at_utc": getattr(
+                market, "up_book_request_started_at_utc", None
+            ) if market is not None else None,
+            "up_book_source_at_utc": getattr(
+                market, "up_book_source_at_utc", None
+            ) if market is not None else None,
+            "up_book_source_timestamp_raw": getattr(
+                market, "up_book_source_timestamp_raw", ""
+            ) if market is not None else "",
+            "up_book_received_at_utc": getattr(
+                market, "up_book_received_at_utc", None
+            ) if market is not None else None,
+            "down_book_request_started_at_utc": getattr(
+                market, "down_book_request_started_at_utc", None
+            ) if market is not None else None,
+            "down_book_source_at_utc": getattr(
+                market, "down_book_source_at_utc", None
+            ) if market is not None else None,
+            "down_book_source_timestamp_raw": getattr(
+                market, "down_book_source_timestamp_raw", ""
+            ) if market is not None else "",
+            "down_book_received_at_utc": getattr(
+                market, "down_book_received_at_utc", None
+            ) if market is not None else None,
         }
 
     def _build_prediction_record(
@@ -6077,6 +6270,29 @@ class PolymarketLiveTrader(LivePredictor):
         order_status = str(submit_result["status"])
         buy_record_fields = _resolve_buy_record_fields(intent, submit_result)
         btc_snapshot = self._latest_btc_snapshot()
+        decision_id = (
+            f"{self.run_started_at_utc}:{pd.Timestamp(bucket_start).isoformat()}:"
+            f"{self.model_hash}"
+        )
+        skip_reason = ""
+        if not _is_polymarket_submitted_status(order_status):
+            if order_status == "paper_intent":
+                skip_reason = "paper_mode_no_order_submission"
+            elif order_status == "submission_disabled":
+                skip_reason = "order_submission_disabled"
+            else:
+                skip_reason = next(
+                    (
+                        str(value)
+                        for value in (
+                            intent.get("final_reason"),
+                            intent.get("reason"),
+                            submit_result.get("error"),
+                        )
+                        if value not in (None, "", "ok")
+                    ),
+                    order_status,
+                )
         intended_stake_usdc = _safe_float(intent.get("bet_usdc"), 0.0)
         submitted_stake_usdc = _safe_float(
             submit_result.get("submitted_stake_usdc"),
@@ -6086,6 +6302,7 @@ class PolymarketLiveTrader(LivePredictor):
 
         record = {
             "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
+            "decision_id": decision_id,
             "pm_model_hash": self.model_hash,
             "pm_policy_hash": self.trade_policy_config_hash,
             "pm_run_started_at_utc": self.run_started_at_utc,
@@ -6271,6 +6488,23 @@ class PolymarketLiveTrader(LivePredictor):
             ),
             "pm_seconds_to_close": float(intent.get("seconds_to_close", np.nan)),
             "pm_order_status": order_status,
+            "cycle_outcome": (
+                "submit_response_success"
+                if _is_polymarket_submitted_status(order_status)
+                else "submit_response_rejected"
+                if order_status == "submission_rejected"
+                else "submit_call_error"
+                if submit_result.get("submit_call_started_at_utc") is not None
+                and submit_result.get("submit_response_received_at_utc") is None
+                else "no_order_attempt"
+                if order_status in {
+                    "skipped", "submission_disabled", "paper_intent", "not_attempted"
+                }
+                else "submit_not_attempted"
+            ),
+            "transaction_skip_reason": (
+                skip_reason
+            ),
             "decision_delay_ms": float(decision_delay_ms),
             "pm_order_error": str(submit_result["error"]),
             "pm_order_response": str(submit_result.get("response_text", "")),
@@ -6291,6 +6525,18 @@ class PolymarketLiveTrader(LivePredictor):
             "pm_exit_order_response": "",
         }
         record.update(latency_metrics)
+        record["pm_auth_clock_sync_status"] = getattr(
+            self, "pm_auth_clock_sync_status", "unavailable"
+        )
+        record["pm_auth_clock_sync_source"] = getattr(
+            self, "pm_auth_clock_sync_source", ""
+        )
+        record["pm_auth_clock_sync_at_utc"] = getattr(
+            self, "pm_auth_clock_sync_at_utc", None
+        )
+        record["pm_auth_clock_offset_seconds_estimate"] = (
+            getattr(self, "pm_auth_clock_offset_seconds_estimate", np.nan)
+        )
         return record
 
     def _build_prediction_summary(
@@ -6437,6 +6683,12 @@ class PolymarketLiveTrader(LivePredictor):
                     "ws_receive_delay_ms",
                     "ws_component_sync_ms",
                     "feature_prep_ms",
+                    "required_inputs_source",
+                    "required_inputs_ready_at_utc",
+                    "ws_price_source_at_utc",
+                    "ws_price_received_at_utc",
+                    "ws_volume_source_at_utc",
+                    "ws_volume_received_at_utc",
             ):
                 if key in delay_timing:
                     latency_metrics[key] = delay_timing[key]
@@ -6460,9 +6712,11 @@ class PolymarketLiveTrader(LivePredictor):
             reaction_profile_values=reaction_profile_values,
         )
         latency_metrics["feature_vector_ms"] = _elapsed_ms(feature_vector_started_perf)
+        latency_metrics["features_ready_at_utc"] = _utc_now()
         model_predict_started_perf = time.perf_counter()
         proba_up = float(self.model.predict(feature_vector)[0])
         latency_metrics["model_predict_ms"] = _elapsed_ms(model_predict_started_perf)
+        latency_metrics["prediction_ready_at_utc"] = _utc_now()
         latency_metrics["signal_ready_delay_ms"] = _delay_ms_since(bucket_start)
         bankroll_before_entry = float(self.live_bankroll_usdc)
         execution = self._evaluate_prediction_execution(
@@ -6479,6 +6733,9 @@ class PolymarketLiveTrader(LivePredictor):
         latency_metrics.setdefault("ws_receive_delay_ms", np.nan)
         latency_metrics.setdefault("ws_component_sync_ms", np.nan)
         latency_metrics["policy_compute_ms"] = float(execution["policy_compute_ms"])
+        latency_metrics["policy_decision_ready_at_utc"] = execution[
+            "policy_decision_ready_at_utc"
+        ]
         latency_metrics["decision_ready_delay_ms"] = float(
             execution["decision_ready_delay_ms"]
         )
@@ -6491,6 +6748,63 @@ class PolymarketLiveTrader(LivePredictor):
         latency_metrics["submit_order_ms"] = float(execution["submit_order_ms"])
         latency_metrics["execution_ms"] = float(execution["execution_ms"])
         latency_metrics["cycle_complete_delay_ms"] = float(decision_delay_ms)
+        latency_metrics["cycle_completed_at_utc"] = execution[
+            "cycle_completed_at_utc"
+        ]
+        latency_metrics["pm_market_snapshot_received_at_utc"] = execution.get(
+            "pm_market_snapshot_received_at_utc"
+        )
+        latency_metrics["pm_book_data_origin"] = execution.get(
+            "pm_book_data_origin", ""
+        )
+        latency_metrics["pm_book_stream_sync_status"] = execution.get(
+            "pm_book_stream_sync_status", "unavailable"
+        )
+        for field in (
+                "pm_up_book_request_started_at_utc",
+                "pm_up_book_source_at_utc",
+                "pm_up_book_source_timestamp_raw",
+                "pm_up_book_received_at_utc",
+                "pm_down_book_request_started_at_utc",
+                "pm_down_book_source_at_utc",
+                "pm_down_book_source_timestamp_raw",
+                "pm_down_book_received_at_utc",
+        ):
+            latency_metrics[field] = execution.get(field)
+        latency_metrics["pm_market_start_at_utc"] = execution.get(
+            "market_start_at_utc"
+        )
+        latency_metrics["pm_start_time_source"] = execution.get(
+            "market_start_source", ""
+        )
+        latency_metrics["pm_nominal_decision_at_utc"] = execution.get(
+            "nominal_decision_at_utc"
+        )
+        latency_metrics["pm_submit_call_started_at_utc"] = submit_result.get(
+            "submit_call_started_at_utc"
+        )
+        latency_metrics["pm_submit_call_completed_at_utc"] = submit_result.get(
+            "submit_call_completed_at_utc"
+        )
+        latency_metrics["pm_submit_response_received_at_utc"] = submit_result.get(
+            "submit_response_received_at_utc"
+        )
+        latency_metrics["pm_transport_sent_at_utc"] = submit_result.get(
+            "transport_sent_at_utc"
+        )
+        latency_metrics["pm_order_ack_source_at_utc"] = submit_result.get(
+            "order_ack_source_at_utc"
+        )
+        latency_metrics["pm_fill_event_source_at_utc"] = submit_result.get(
+            "fill_event_source_at_utc"
+        )
+        latency_metrics["pm_fill_event_received_at_utc"] = submit_result.get(
+            "fill_event_received_at_utc"
+        )
+        latency_metrics["pm_order_id"] = submit_result.get("order_id", "")
+        latency_metrics["pm_response_filled_stake_usdc"] = _safe_float(
+            submit_result.get("filled_stake_usdc"), np.nan
+        )
         intent = execution["intent"]
         submit_result = execution["submit_result"]
         filled_stake_usdc = _safe_float(submit_result.get("filled_stake_usdc"))
@@ -7025,6 +7339,19 @@ class PolymarketLiveTrader(LivePredictor):
             return
         self._save_records()
         self._log("resolve+pred" if pred else "resolve", pred=pred)
+        if pred is not None:
+            current_run_records = [
+                record
+                for record in self._records_snapshot()
+                if str(record.get("pm_run_started_at_utc", ""))
+                == str(self.run_started_at_utc)
+            ]
+            summary = summarize_live_latency(current_run_records, budget_ms=1000.0)
+            print(
+                "[latency_summary] "
+                + json.dumps(summary, ensure_ascii=True, separators=(",", ":")),
+                flush=True,
+            )
 
     def _print_live_runtime_configuration(self):
         if self.pm_cfg.disable_order_submission:
@@ -7175,6 +7502,9 @@ class PolymarketLiveTrader(LivePredictor):
                     opened
                 )
                 delay_timing = {} if ws_timing is None else dict(ws_timing)
+                delay_timing["required_inputs_source"] = (
+                    "websocket" if ws_timing is not None else "unavailable"
+                )
                 delay_timing["feature_prep_ms"] = _elapsed_ms(feature_prep_started_perf)
                 pred = self._maybe_predict_closed_bucket(
                     opened,

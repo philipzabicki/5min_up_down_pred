@@ -29,6 +29,8 @@ The experiment uses the supplied current main-model OOF, accepting its existing 
 
 See [the data and timing contract](docs/polymarket_history_contract.md) and [the BTC experiment and loss diagnosis](docs/polymarket_btc_experiment.md). Reproduce focused validation with `python -m unittest discover -s tests -p test_polymarket_history.py` and `python -m unittest discover -s tests -p test_polymarket_adaptation.py`.
 
+For current live decision, book, and order timing fields, see the [live telemetry log guide](docs/live_telemetry.md).
+
 ## Repository Layout
 
 | Path | Purpose |

@@ -1,5 +1,6 @@
 import threading
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 import pandas as pd
@@ -277,6 +278,119 @@ class PolymarketOrderRetryTests(unittest.TestCase):
             run.POLYMARKET_POST_ORDER_RETRY_INITIAL_DELAY_SEC
         )
         self.assertLessEqual(run.POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC, 0.10)
+
+
+class LiveSubmitTelemetryTests(unittest.TestCase):
+    def _trader(self, submit):
+        trader = PolymarketLiveTrader.__new__(PolymarketLiveTrader)
+        trader.pm_cfg = SimpleNamespace(
+            paper_mode=False,
+            disable_order_submission=False,
+            execution_mode="fok",
+            order_price_cap=0.60,
+        )
+        trader.pm_client = object()
+        trader.pm_cash_balance_usdc = 100.0
+        trader.live_trade_policy = {
+            "submitted_price_mode": "entry_price",
+            "submitted_price_slippage_ticks": 0,
+        }
+        trader._prime_pm_client_order_metadata = lambda intent: None
+        trader._create_and_post_market_order_with_retry = submit
+        return trader
+
+    def _intent(self, *, final_reason="ok"):
+        return {
+            "final_reason": final_reason,
+            "token_id": "fake-token",
+            "bet_usdc": 5.0,
+            "entry_price": 0.50,
+            "submitted_price": 0.50,
+            "tick_size": 0.01,
+            "neg_risk": False,
+        }
+
+    def _patch_order_helpers(self):
+        return (
+            mock.patch.object(run, "_polymarket_order_type_for_execution_mode", return_value="FOK"),
+            mock.patch.object(run, "_polymarket_submitted_status_for_execution_mode", return_value="submitted_fok"),
+            mock.patch.object(run, "_partial_create_order_options", return_value=None),
+            mock.patch.object(run, "MarketOrderArgs", side_effect=lambda **kwargs: kwargs),
+        )
+
+    def test_no_trade_cycle_has_no_submit_timestamps(self):
+        calls = []
+        trader = self._trader(lambda *args: calls.append(args))
+
+        result = trader._maybe_submit_order(self._intent(final_reason="no_positive_expected_edge"))
+
+        self.assertEqual(result["status"], "skipped")
+        self.assertIsNone(result["submit_call_started_at_utc"])
+        self.assertIsNone(result["submit_response_received_at_utc"])
+        self.assertEqual(calls, [])
+
+    def test_successful_submit_response_is_distinct_from_send_and_fill_events(self):
+        response = {
+            "success": True,
+            "orderID": "fake-order-id",
+            "takingAmount": "9.8",
+            "makingAmount": "5.0",
+        }
+        trader = self._trader(lambda *args: response)
+
+        with self._patch_order_helpers()[0], self._patch_order_helpers()[1], self._patch_order_helpers()[2], self._patch_order_helpers()[3]:
+            result = trader._maybe_submit_order(self._intent())
+
+        self.assertEqual(result["status"], "submitted_fok")
+        self.assertEqual(result["order_id"], "fake-order-id")
+        self.assertEqual(result["filled_stake_usdc"], 5.0)
+        self.assertIsNotNone(result["submit_call_started_at_utc"])
+        self.assertIsNotNone(result["submit_call_completed_at_utc"])
+        self.assertIsNotNone(result["submit_response_received_at_utc"])
+        self.assertIsNone(result["transport_sent_at_utc"])
+        self.assertIsNone(result["order_ack_source_at_utc"])
+        self.assertIsNone(result["fill_event_source_at_utc"])
+        self.assertIsNone(result["fill_event_received_at_utc"])
+
+    def test_submit_error_has_call_bounds_but_no_client_response(self):
+        def fail(*args):
+            raise RuntimeError("fake transport error")
+
+        trader = self._trader(fail)
+
+        with self._patch_order_helpers()[0], self._patch_order_helpers()[1], self._patch_order_helpers()[2], self._patch_order_helpers()[3]:
+            result = trader._maybe_submit_order(self._intent())
+
+        self.assertEqual(result["status"], "submission_error")
+        self.assertIsNotNone(result["submit_call_started_at_utc"])
+        self.assertIsNotNone(result["submit_call_completed_at_utc"])
+        self.assertIsNone(result["submit_response_received_at_utc"])
+        self.assertEqual(result["order_id"], "")
+
+    def test_book_snapshot_separates_source_and_local_receive_times(self):
+        trader = PolymarketLiveTrader.__new__(PolymarketLiveTrader)
+        trader.pm_cfg = SimpleNamespace(clob_host="https://example.invalid")
+        trader._get_json = lambda *args: {
+            "timestamp": "2026-10-06T12:00:00.123Z",
+            "bids": [{"price": "0.49", "size": "3"}],
+            "asks": [{"price": "0.51", "size": "7"}],
+        }
+        request_started = pd.Timestamp("2026-10-06T12:00:00.000Z")
+        response_received = pd.Timestamp("2026-10-06T12:00:00.200Z")
+
+        with mock.patch.object(
+            run,
+            "_utc_now",
+            side_effect=[request_started, response_received],
+        ):
+            result = trader._fetch_order_book_summary("fake-token")
+
+        self.assertEqual(result["request_started_at_utc"], request_started)
+        self.assertEqual(result["source_at_utc"], pd.Timestamp("2026-10-06T12:00:00.123Z"))
+        self.assertEqual(result["received_at_utc"], response_received)
+        self.assertEqual(result["best_bid"], 0.49)
+        self.assertEqual(result["best_ask"], 0.51)
+        self.assertEqual(result["best_ask_size"], 7.0)
 
 
 class RuntimeAssetLauncherTests(unittest.TestCase):

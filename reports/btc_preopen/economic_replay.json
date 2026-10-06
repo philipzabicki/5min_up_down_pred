@@ -745,12 +745,12 @@
       }
     }
   },
-  "primary_scenario": "prestart_c0_o1|age30|release60 (historical cycle-complete p50 rounded upward to a one-second entry delay; entry T-59s); ideal +0s, +2s sensitivity, and the conservative local-host T-55s scenario are also reported",
+  "primary_scenario": "prestart_c0_o1|age30|release60 (fixed accepted operational assumption: entry T-59s, one second after nominal T-60s; not a measured maximum or worst case)",
   "main_entry_times_relative_to_market_start": {
-    "prestart_c0_o1": "T-59s (historical cycle-complete p50 of 475.28ms rounded upward to one second)",
-    "prestart_c0_o0": "T-60s (ideal reference)",
-    "prestart_c0_o2": "T-58s (+2s sensitivity)",
-    "prestart_c0_o5": "T-55s (conservative local-host component scenario)"
+    "prestart_c0_o1": "T-59s (fixed accepted operational assumption)",
+    "prestart_c0_o0": "T-60s (retained prior ideal reference)",
+    "prestart_c0_o2": "T-58s (retained prior sensitivity)",
+    "prestart_c0_o5": "T-55s (retained prior local component scenario)"
   },
   "robustness_scenarios": {
     "prestart_c15_o5": [

@@ -25,6 +25,18 @@ COVERAGE_CSV = REPORT_DIR / "data_coverage.csv"
 MODEL_COMPARISON = REPORT_DIR / "model_comparison.csv"
 TRADES = REPORT_DIR / "trades.parquet"
 INFERENCE_LATENCY = REPORT_DIR / "candidate_inference_latency.json"
+ENTRY_SNAPSHOTS = REPORT_DIR / "entry_snapshots.parquet"
+BOOK_TIMING_EXAMPLES = REPORT_DIR / "book_timing_examples.csv"
+ECONOMIC_COMPARISON = REPORT_DIR / "primary_economic_comparison.csv"
+ENTRY_SNAPSHOT_SIMULATION_COLUMNS = [
+    "entry_case", "entry_time_utc", "condition_id", "entry_kind",
+    "compute_delay_seconds", "order_delay_seconds", "target_polymarket_up",
+    "resolved_at_utc", "fee_collection_mode", "no_future_event_at_entry",
+    "no_future_source_event_at_entry", "has_full_snapshot", "quote_valid",
+    "bbo_at_entry_ask_mismatches", "up_ask_age_seconds", "down_ask_age_seconds",
+    "fee_known", "depth_5usd_valid_both_sides", "up_fill", "down_fill",
+    "p_model_raw", "p_model_platt", "p_candidate_raw", "p_candidate_platt",
+]
 
 
 def _json(path):
@@ -68,7 +80,10 @@ def _get_scenario(economic, entry_case, age, release_delay):
 
 
 def _money(value):
-    return "-" if pd.isna(value) else f"${float(value):.2f}"
+    if pd.isna(value):
+        return "-"
+    amount = float(value)
+    return f"-${abs(amount):.2f}" if amount < 0.0 else f"${amount:.2f}"
 
 
 def _repair_report_line(value):
@@ -86,8 +101,254 @@ def _repair_report_line(value):
     except UnicodeError:
         return value
 
-def _coverage_counts(coverage, case, age):
-    return coverage.loc[coverage.entry_case.eq(case), f"coverage_reason_age{age}s"].value_counts().to_dict()
+def _build_primary_economic_comparison(coverage):
+    import run_btc_preopen_economic_replay as replay
+
+    snapshots = pd.read_parquet(
+        ENTRY_SNAPSHOTS,
+        columns=ENTRY_SNAPSHOT_SIMULATION_COLUMNS,
+    )
+    primary = snapshots.loc[snapshots.entry_case.eq("prestart_c0_o1")].copy()
+    primary["entry_time_utc"] = pd.to_datetime(primary.entry_time_utc, utc=True)
+    eligible_ids = set(
+        coverage.loc[
+            coverage.entry_case.eq("prestart_c0_o1")
+            & coverage.coverage_reason_age30s.eq("eligible"),
+            "condition_id",
+        ]
+    )
+    common = primary.loc[primary.condition_id.isin(eligible_ids)].copy()
+    if common.condition_id.nunique() != len(eligible_ids) or len(common) != len(eligible_ids):
+        raise RuntimeError("Cached entry snapshots do not cover the age-30 eligible markets")
+
+    model_names = (
+        "candidate_platt",
+        "original_v1_platt",
+        "candidate_raw",
+        "original_v1_raw",
+        "no_btc_constant_0_5",
+        "no_btc_development_prevalence_0_5015364895",
+    )
+    baseline_probabilities = {
+        "no_btc_constant_0_5": 0.5,
+        "no_btc_development_prevalence_0_5015364895": 0.5015364895,
+    }
+    rows = []
+    for sample_scope, group in (
+        ("all_archived_markets", primary),
+        ("shared_eligible_markets", common),
+    ):
+        for model_name in model_names:
+            simulation_group = group
+            simulation_name = model_name
+            if model_name in baseline_probabilities:
+                simulation_group = group.copy()
+                simulation_group["p_candidate_platt"] = baseline_probabilities[model_name]
+                simulation_name = "candidate_platt"
+            result, _ = replay._simulate_group(
+                simulation_group,
+                simulation_name,
+                max_age_seconds=30,
+                release_delay_seconds=60,
+                keep_trades=False,
+            )
+            result["model"] = model_name
+            rows.append({
+                "sample_scope": sample_scope,
+                "sample_markets": int(group.condition_id.nunique()),
+                "model": model_name,
+                "baseline_probability": baseline_probabilities.get(model_name),
+                "entry_case": "prestart_c0_o1",
+                "max_ask_age_seconds": 30,
+                "settlement_release_delay_seconds": 60,
+                "initial_cash_usd": result["initial_cash_usd"],
+                "ending_cash_usd": result["ending_cash_usd"],
+                "net_pnl_usd": result["net_pnl_usd"],
+                "max_drawdown_at_cost": result["max_drawdown_at_cost"],
+                "trade_count": result["trade_count"],
+                "gross_turnover_usd": result["gross_turnover_usd"],
+                "fees_paid_usd": result["fees_paid_usd"],
+                "data_rejections": result.get("data_rejections", 0),
+                "skip_no_positive_expected_edge": result.get("skip_no_positive_expected_edge", 0),
+                "reject_insufficient_balance": result.get("reject_insufficient_balance", 0),
+            })
+
+    frame = pd.DataFrame(rows)
+    frame.to_csv(ECONOMIC_COMPARISON, index=False)
+    return frame
+
+
+def _build_completed_summary(
+        *,
+        examples,
+        market_index,
+        coverage,
+        comparison,
+        trades,
+        live_timing,
+        training,
+):
+    index_by_id = market_index.set_index("condition_id")
+    example_lines = []
+    for row in examples.itertuples(index=False):
+        market = index_by_id.loc[row.condition_id]
+        example_lines.append(
+            f"| {row.period_position} | `{row.condition_id}` / `{row.market_slug}` | "
+            f"{row.market_start_utc} | {row.entry_time_utc} | "
+            f"{row.first_observed_archive_event_received_utc} | "
+            f"{row.up_initial_full_book_received_utc} / {row.down_initial_full_book_received_utc} | "
+            f"{row.last_any_archive_event_received_utc} | "
+            f"{row.up_last_changed_ask_depth_received_utc} ({row.up_last_changed_ask_depth_source_utc}; age {row.up_ask_age_seconds:.3f}s) / "
+            f"{row.down_last_changed_ask_depth_received_utc} ({row.down_last_changed_ask_depth_source_utc}; age {row.down_ask_age_seconds:.3f}s) | "
+            f"UP `{market.up_token_id}`: {row.up_best_bid:.2f}/{row.up_best_ask:.2f}, "
+            f"{row.up_best_ask_size_shares:.2f} shares, ${row.up_5usd_ask_vwap:.2f}; "
+            f"DOWN `{market.down_token_id}`: {row.down_best_bid:.2f}/{row.down_best_ask:.2f}, "
+            f"{row.down_best_ask_size_shares:.2f} shares, ${row.down_5usd_ask_vwap:.2f} |"
+        )
+
+    t60 = coverage.loc[coverage.entry_case.eq("prestart_c0_o0")]
+    t59 = coverage.loc[coverage.entry_case.eq("prestart_c0_o1")]
+    t60_both_books = int(t60.has_full_snapshot.sum())
+    t60_both_depth = int(t60.depth_5usd_valid_both_sides.sum())
+    t60_valid_bbo = int(t60.quote_valid.sum())
+    t59_eligible = int(t59.coverage_reason_age30s.eq("eligible").sum())
+    t59_reason_counts = {
+        str(reason): int(count)
+        for reason, count in t59.coverage_reason_age30s.value_counts().items()
+    }
+    t60_silence = (
+        pd.to_datetime(t60.entry_time_utc, utc=True, format="mixed")
+        - pd.to_datetime(t60.market_last_event_utc, utc=True, format="mixed")
+    ).dt.total_seconds().dropna()
+    silence_stats = {
+        "p50": float(t60_silence.quantile(0.50)),
+        "p95": float(t60_silence.quantile(0.95)),
+        "p99": float(t60_silence.quantile(0.99)),
+        "max": float(t60_silence.max()),
+    }
+
+    comparison_lines = []
+    for row in comparison.itertuples(index=False):
+        scope = "all archived" if row.sample_scope == "all_archived_markets" else "common eligible"
+        comparison_lines.append(
+            f"| {scope} ({row.sample_markets:,}) | `{row.model}` | "
+            f"{_money(row.net_pnl_usd)} | {_money(row.ending_cash_usd)} | "
+            f"{float(row.max_drawdown_at_cost):.2%} | {row.trade_count:,} | "
+            f"{_money(row.gross_turnover_usd)} | {_money(row.fees_paid_usd)} | "
+            f"{row.data_rejections:,} / {row.skip_no_positive_expected_edge:,} / "
+            f"{row.reject_insufficient_balance:,} |"
+        )
+
+    main_trades = trades.loc[
+        trades.entry_case.eq("prestart_c0_o1")
+        & trades.max_ask_age_seconds.eq(30)
+        & trades.settlement_release_delay_seconds.eq(60)
+    ]
+    cash_after = pd.to_numeric(main_trades.cash_available_after_entry_usd, errors="coerce")
+    cash_before = pd.to_numeric(main_trades.cash_available_before_usd, errors="coerce")
+    debit = pd.to_numeric(main_trades.cash_debit_usd, errors="coerce")
+    negative_cash_count = int((cash_after < -1e-9).sum())
+    debit_violation_count = int((cash_before + 1e-9 < debit).sum())
+    minimum_cash_after = float(cash_after.min()) if cash_after.notna().any() else float("nan")
+
+    historical = {item["stage"]: item for item in live_timing["historical_live_stages"]}
+    old_cycle = historical["cycle_complete_from_window_start_ms"]
+    old_submit = historical["submit_call_including_response_ms"]
+    collection = live_timing["preopen_collection"]
+    input_offsets = collection["all_execution_inputs_ready"]["observed_offsets_ms"]
+    prevalence = comparison.loc[
+        comparison.model.eq("no_btc_development_prevalence_0_5015364895")
+        & comparison.sample_scope.eq("shared_eligible_markets")
+    ].iloc[0]
+    constant_baseline = comparison.loc[
+        comparison.model.eq("no_btc_constant_0_5")
+        & comparison.sample_scope.eq("shared_eligible_markets")
+    ].iloc[0]
+    candidate_platt = comparison.loc[
+        comparison.model.eq("candidate_platt")
+        & comparison.sample_scope.eq("shared_eligible_markets")
+    ].iloc[0]
+    original_platt = comparison.loc[
+        comparison.model.eq("original_v1_platt")
+        & comparison.sample_scope.eq("shared_eligible_markets")
+    ].iloc[0]
+
+    return [
+        "# BTC pre-open: ocena eksperymentu i telemetria live",
+        "",
+        "Główny scenariusz ekonomiczny to ustalone wejście T−59 s: sekundę po nominalnej decyzji T−60 s. To założenie operacyjne dla przyszłego uruchomienia serwera. Nie jest zmierzonym maksimum ani gwarantowanym worst case. Warianty wcześniejszych analiz pozostają w `economic_scenarios.csv`; dalsze porównania w tym raporcie dotyczą T−59 s.",
+        "",
+        "Nie uruchomiono ponownego pobrania archiwum ani pełnego replayu. Ocenę księgi i porównanie ekonomiczne zbudowano z istniejącego `entry_snapshots.parquet`, `data_coverage.csv`, `trades.parquet` i zapisanych podsumowań/checkpointów. Nie wysłano prawdziwych zleceń, nie aktywowano kandydata ani handlu live.",
+        "",
+        "## Czas i pochodzenie ceny wejścia",
+        "",
+        "Tak: archiwum mapuje każde `condition_id` do natywnych tokenów UP/DOWN przez indeks rynku i zapisane mapowanie tokenów. Oficjalny start T pochodzi z indeksu rynku / bucketa sluga; dla przykładowych rynków poniżej slug epoch zgadza się z T. Replay używa aktualizacji według `timestamp_received` kolektora archiwum. Snapshot T−59 obejmuje zdarzenia odebrane do tej chwili włącznie, w tym zmiany rozmiaru i usunięcia poziomów; później odebrane zdarzenia są wykluczone nawet wtedy, gdy ich czas źródłowy wygląda na wcześniejszy. Zdarzenia z czasem źródłowym po wejściu są także odrzucane przez kontrolę przyczynowości. PMXT nie podaje monotonicznego identyfikatora kolejności: zdarzenia z identycznymi receive/source timestamp mają tylko stabilny porządek w części Parquet, nie gwarantowaną kolejność giełdową. Odtworzony best ask porównano z raportowanym BBO; niezgodne snapshoty są wykluczane.",
+        "",
+        "Pełny `book` jest inicjalizatorem stanu, nie ceną zakupu. Po nim replay składa stan z wcześniejszych zmian poziomów. Fill $5 przechodzi po natywnych poziomach ask właściwego tokena, uwzględniając dostępną głębokość i opłaty; komplementowane kwotowanie nie dostarcza głębokości do fillu. Zapisany replay raportuje 0 snapshotów skażonych zdarzeniami odebranymi po wejściu i 0 snapshotów ze zdarzeniem źródłowym po wejściu.",
+        "",
+        f"Przy T−60 oba natywne booki były zainicjalizowane dla {t60_both_books:,}/{len(t60):,} rynków; dla {t60_valid_bbo:,} BBO obu stron były poprawne, a dla {t60_both_depth:,} obie strony miały głębokość wystarczającą na $5. Przy T−59, filtrze ask age 30 s i pozostałych warunkach kwalifikuje się {t59_eligible:,}/{len(t59):,} rynków; powody z cache: `{json.dumps(t59_reason_counts, ensure_ascii=False)}`.",
+        "",
+        f"`ask age` to czas od ostatniej zmiany poziomu po stronie ask w natywnej księdze: dodanie, zmiana rozmiaru/ceny albo usunięcie poziomu odświeża wiek, także gdy zmienił się poziom poza best ask. Aktualizacja rozmiaru przy tej samej cenie odświeża go tylko, jeśli rozmiar faktycznie się zmienił; identyczny duplikat nie. Usunięcie best ask odświeża wiek i przesuwa BBO na następny poziom. Pełny snapshot resetuje wiek; gdy źródłowy timestamp jest niedostępny, kod używa czasu odbioru. Osobne `ask_received_age` liczy od ostatniej zmienionej głębokości po czasie odbioru archiwizatora. Filtr 30 s ogranicza wiek zmienionej głębokości ask według czasu źródłowego; nie mierzy opóźnienia wejścia i sam nie dowodzi, że lokalny feed nie miał przerwy.",
+        "",
+        f"Przerwa między ostatnią wiadomością odebraną przez archiwizator a wejściem T−60 miała p50 {silence_stats['p50']:.3f} s, p95 {silence_stats['p95']:.3f} s, p99 {silence_stats['p99']:.3f} s i maksimum {silence_stats['max']:.3f} s. To cisza w archiwalnym odbiorze, nie dowód braku zdarzeń na giełdzie ani jakość feedu hipotetycznego serwera. Pierwsza obserwacja archiwalna oznacza pierwsze zdarzenie zobaczone przez eksportera, nie moment publikacji rynku przez giełdę.",
+        "",
+        "Próbki początku, środka i końca okresu: ceny w kolumnie to best bid/best ask, a kwota po średniku to zrekonstruowany VWAP zakupu $5. Czasy ask pokazują odbiór kolektora i czas źródłowy ostatniej zmiany głębokości.",
+        "",
+        "| Okres | Rynek / condition_id | T | Wejście | Pierwsza obserwacja archiwalna | Inicjalizacja booka UP / DOWN | Ostatnie zdarzenie odebrane przed wejściem | Ostatnia zmiana ask: UP / DOWN (odbiór; źródło; wiek) | Natywne BBO, rozmiar ask i cena $5 |",
+        "|---|---|---|---|---|---|---|---|---|",
+        *example_lines,
+        "",
+        "Te archiwalne `timestamp_received` pochodzą od eksportera, nie od naszego przyszłego serwera. Live używa obecnie REST `/book` dla obu tokenów; znacznik odbioru jest lokalny po pobraniu i parsowaniu odpowiedzi, a źródłowy timestamp zostaje pusty, jeśli API go nie zwraca. Kod nie utrzymuje jeszcze strumienia booka. Nie utożsamiam tych zegarów.",
+        "",
+        "## Porównanie ekonomiczne T−59 s",
+        "",
+        "Każdy wiersz stosuje te same dostępne snapshoty, filtr ask age ≤30 s, zakup brutto $5, początkową gotówkę $100, model historycznej opłaty i zwrot kapitału 60 s po rozstrzygnięciu. Strategie wybierają transakcje niezależnie; wspólny zbiór oznacza te same kwalifikujące się rynki, a nie wymuszone identyczne transakcje.",
+        "",
+        "`MARKET_ONLY` nie ma zapisanego, porównywalnego portfela pre-open. Z cache policzono dwa nietrenowane baseline’y bez informacji BTC: stałe p=0.5 i p=0.5015364895 (prewalencja development). Nie stroiłem ich do okresu. Candidate_platt daje na wspólnych rynkach PnL "
+        f"{_money(candidate_platt.net_pnl_usd)} wobec {_money(original_platt.net_pnl_usd)} dla oryginalnego Platt; baseline’y dają odpowiednio {_money(constant_baseline.net_pnl_usd)} i {_money(prevalence.net_pnl_usd)}. To dodatni wynik tego replayu, nie potwierdzenie niezależnej przewagi.",
+        "",
+        "| Zakres | Model | PnL netto | Kapitał końcowy | Drawdown | Transakcje | Obrót | Opłaty | Odrzucenia danych / bez przewagi / brak salda |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|",
+        *comparison_lines,
+        "",
+        f"Księgowanie odtworzono z kodu symulatora i zapisanych wpisów T−59: gotówka przed wejściem musi pokryć pełny debet (`$5 + fee w collateral`, bez kredytu), kapitał jest blokowany do `resolved_at_utc + 60 s`, a po ostatnim rynku symulator rozlicza wszystkie pozostałe pozycje. W {len(main_trades):,} zapisanych transakcjach znaleziono {negative_cash_count} ujemnych stanów gotówki i {debit_violation_count} naruszeń pokrycia debetu; minimum po wejściu wyniosło {_money(minimum_cash_after)}. Legacy fee zmniejsza liczbę udziałów; współczesna opłata jest debetowana w collateral. Dokładne zaokrąglenie maker-level nie jest dostępne w zagregowanym booku. Drawdown liczy gotówkę plus koszt zablokowanych pozycji, bez mark-to-market.",
+        "",
+        "Candidate_platt przewyższa oryginalny model Platt i oba proste baseline’y w zapisanej symulacji. Nie istnieje jednak porównywalny wyuczony baseline `MARKET_ONLY` w tej samej pre-open definicji; wcześniejsze wyniki MARKET_ONLY mają inny moment decyzji/feature availability i nie są podstawiane do tej tabeli.",
+        "",
+        "## Chronologia i niezależność oceny",
+        "",
+        f"Fit i dobór iteracji kończyły się przed {training['fit_end_exclusive']}; ostatnia dostępna etykieta treningu to {training['latest_label_available_at']}. Kalibracja Platt używała etykiet dostępnych do 2026-04-15 17:00 UTC, a pierwsza decyzja okresu testowego była 17:04 UTC (T rynku 17:05). Kandydat wybierano na wcześniejszych foldach Q3 2025. Nie wykryto bezpośredniego przecieku etykiety do predykcji na badanych punktach czasu.",
+        "",
+        "Mimo tej chronologii okres ekonomiczny 2026-04-15–2026-05-18 był już użyty w wcześniejszych eksperymentach repozytorium: mieści się w foldach selekcji/tuningu innych komponentów i był raportowany jako development. Wynik ekonomiczny jest więc retrospektywnym wynikiem rozwojowym, a nie niezależnym, nietkniętym holdoutem. Przyczynowość rekonstrukcji booka i niezależność wyboru modelu to odrębne własności.",
+        "",
+        "Tę tabelę policzono bez dostrajania strategii do okresu. Przyjęto istniejącą regułę dodatniego oczekiwanego zwrotu netto, age cap 30 s, gross $5 i zwolnienie kapitału po 60 s. Nie ma w repozytorium zamrożonego, datowanego przed okresem protokołu potwierdzającego niezależny wybór tych ekonomicznych ustawień; z uwagi na historyczne użycie danych nie traktuję ich wyniku jako prospektywnego testu strategii.",
+        "",
+        "## Telemetria opóźnień live",
+        "",
+        "Każda decyzja zachowuje istniejący rekord CSV oraz identyfikator decision/condition/token/model; dołączone są czasy UTC danych Binance (source i receive), gotowości cech, predykcji, decyzji i końca cyklu. Księga zapisuje początek requestu, źródłowy timestamp jeśli istnieje, lokalny odbiór, pochodzenie, stan synchronizacji REST oraz BBO UP/DOWN. Submit zapisuje start/koniec wywołania, osobny lokalny odbiór odpowiedzi, order ID i status/powód pominięcia. Czas lokalnych etapów nadal mierzy monotoniczny `perf_counter`; timestampy zdarzeń są UTC.",
+        "",
+        "Po cyklu log `[latency_summary]` podaje N, p50/p95/p99, maksimum, liczbę przekroczeń budżetu 1 s i ujemnych różnic dla każdego obserwowalnego etapu względem nominalnego T−60; liczniki rozdzielają cykle, próby, odpowiedzi klienta, order IDs, pola fill zgłoszone w odpowiedzi oraz niezależne rekordy zdarzeń fill. Nie wolno odczytywać mediany wszystkich cykli jako opóźnienia prób zlecenia ani sumować percentyli etapów.",
+        "",
+        "Send po warstwie transportowej, źródłowy ACK giełdy oraz źródłowy i lokalnie odebrany fill pozostają puste: obecny synchroniczny CLOB client nie udostępnia tu tych zdarzeń, a user stream fill nie jest podłączony. HTTP/client response i dodatni `filled_stake_usdc` nie są czasem giełdowego ACK ani dowodem niezależnie timestampowanego fillu. Endpoint CLOB `/time` zapisuje jedynie przybliżony offset względem czasu hosta; RTT, NTP status i niepewność offsetu nie są mierzone.",
+        "",
+        f"W dotychczasowych, innych runtime’ach: {old_cycle['n']} cykli miało close-to-cycle p50/p95/p99 {old_cycle['p50_ms']:.0f}/{old_cycle['p95_ms']:.0f}/{old_cycle['p99_ms']:.0f} ms; {old_submit['n']} synchronicznych submitów miało p50/p95/p99 {old_submit['p50_ms']:.0f}/{old_submit['p95_ms']:.0f}/{old_submit['p99_ms']:.0f} ms. Dwie kolekcje pre-open miały wszystkie wejścia gotowe {input_offsets[0]:.0f} i {input_offsets[1]:.0f} ms po decyzji i miały wyłączone zlecenia. To odrębne historyczne pomiary, nie podstawa do wyboru T−59 i nie pomiary kandydata end-to-end.",
+        "",
+        "Instrukcja lokalizacji kolumn, odczytu `[latency_summary]` i rozróżnienia czasu send/ACK/fill jest w [`docs/live_telemetry.md`](../../docs/live_telemetry.md).",
+        "",
+        "## Gotowość kandydata do live",
+        "",
+        "Nie. Bundle kandydata wymaga 112 cech, pre-open collector ma obecnie bundle 29 cech, a ogólny runtime 256 kolumn, z których tylko 44 pokrywają się z kandydatem. Zmierzony warm inference dotyczy już zbudowanego wektora i nie obejmuje aktualizacji cech. Zgodna inkrementalna ścieżka obliczania 112 cech pozostaje osobnym brakiem wdrożeniowym; kandydata nie aktywowano.",
+        "",
+        "## Artefakty",
+        "",
+        "- `primary_economic_comparison.csv` — T−59, wszystkie rynki i wspólny zbiór kwalifikujących się rynków.",
+        "- `book_timing_examples.csv` — audyt trzech ksiąg T−59 z archiwum lokalnego.",
+        "- `economic_scenarios.csv` — zachowana wcześniejsza macierz wariantów czasowych i freshness.",
+        "- `audit.json`, `data_coverage.csv`, `trades.parquet`, `model_comparison.csv` i `report_bundle.zip` — szczegóły oraz materiały odtwarzalności.",
+        "",
+        "Nie złożono rzeczywistych zleceń ani nie zmieniono konfiguracji aktywnego modelu.",
+        "",
+    ]
 
 
 def build():
@@ -111,6 +372,8 @@ def build():
     model_comparison = pd.read_csv(MODEL_COMPARISON)
     trades = pd.read_parquet(TRADES)
     market_index = pd.read_parquet(EXTRACT_DIR / "market_index.parquet")
+    primary_comparison = _build_primary_economic_comparison(coverage)
+    book_examples = pd.read_csv(BOOK_TIMING_EXAMPLES)
 
     model_path = ROOT / training["model_path"]
     candidate_model_path = ROOT / candidate["candidate_model_path"]
@@ -208,7 +471,7 @@ def build():
             "rounded_entry_delay_seconds": 1,
             "replay_case": "prestart_c0_o1",
             "entry_relative_to_market_start": "T-59s",
-            "interpretation": "Usable historical p50 reference for timing tests, rounded upward to a one-second replay offset. This run used a different model/runtime and is not a current-candidate end-to-end measurement.",
+            "interpretation": "Retained historical timing context from a different runtime. The current T-59 primary is an accepted operational assumption and is not derived from a measured maximum or guaranteed worst case.",
         },
         "conservative_local_component_scenario": {
             "input_ready_observation_count": 2,
@@ -422,24 +685,19 @@ def build():
 
     main_case = "prestart_c0_o1"
     primary_cases = [main_case, "prestart_c0_o0", "prestart_c0_o2", "prestart_c0_o5"]
-    fallback_case = "market_start_c45_o5"
     primary_scenarios = {
         case: _get_scenario(economic, case, 30, 60) for case in primary_cases
     }
-    primary_coverages = {
-        case: _coverage_counts(coverage, case, 30) for case in primary_cases
-    }
-    fallback_coverage_30 = _coverage_counts(coverage, fallback_case, 30)
     robustness_cases = ["prestart_c15_o5", "prestart_c45_o5"]
     robustness = {
         case: _get_scenario(economic, case, 30, 60) for case in robustness_cases
     }
-    economics["primary_scenario"] = "prestart_c0_o1|age30|release60 (historical cycle-complete p50 rounded upward to a one-second entry delay; entry T-59s); ideal +0s, +2s sensitivity, and the conservative local-host T-55s scenario are also reported"
+    economics["primary_scenario"] = "prestart_c0_o1|age30|release60 (fixed accepted operational assumption: entry T-59s, one second after nominal T-60s; not a measured maximum or worst case)"
     economics["main_entry_times_relative_to_market_start"] = {
-        "prestart_c0_o1": "T-59s (historical cycle-complete p50 of 475.28ms rounded upward to one second)",
-        "prestart_c0_o0": "T-60s (ideal reference)",
-        "prestart_c0_o2": "T-58s (+2s sensitivity)",
-        "prestart_c0_o5": "T-55s (conservative local-host component scenario)",
+        "prestart_c0_o1": "T-59s (fixed accepted operational assumption)",
+        "prestart_c0_o0": "T-60s (retained prior ideal reference)",
+        "prestart_c0_o2": "T-58s (retained prior sensitivity)",
+        "prestart_c0_o5": "T-55s (retained prior local component scenario)",
     }
     economics["primary_latency_grid"] = {
         case: primary_scenarios[case] for case in primary_cases
@@ -454,146 +712,43 @@ def build():
     audit["archive_and_replay"]["primary_scenario"] = economics["primary_scenario"]
     audit["archive_and_replay"]["primary_latency_grid"] = economics["primary_latency_grid"]
     audit["archive_and_replay"]["robustness_scenarios"] = economics["robustness_scenarios"]
+    audit["archive_and_replay"]["primary_economic_comparison"] = {
+        "artifact": ECONOMIC_COMPARISON.relative_to(ROOT).as_posix(),
+        "rows": primary_comparison.to_dict("records"),
+        "method": "Cached T-59 entry snapshots; same eligibility, $5 gross order, fee model, $100 initial cash, and 60-second post-resolution capital release. Constant-probability baselines are not tuned.",
+    }
+    audit["archive_and_replay"]["primary_entry_book_examples"] = [
+        {
+            **row._asdict(),
+            "up_token_id": str(market_index.loc[
+                market_index.condition_id.eq(row.condition_id), "up_token_id"
+            ].iloc[0]),
+            "down_token_id": str(market_index.loc[
+                market_index.condition_id.eq(row.condition_id), "down_token_id"
+            ].iloc[0]),
+        }
+        for row in book_examples.itertuples(index=False)
+    ]
     (REPORT_DIR / "audit.json").write_text(
         json.dumps(_json_safe(audit), indent=2, allow_nan=False, default=str) + "\n",
         encoding="utf-8",
     )
-    candidate_dev = candidate["q3_2025_development_selection"]
-    paired_official = candidate["paired_3day_bootstrap_vs_original"]["official_polymarket"]
-    paired_proxy = candidate["paired_3day_bootstrap_vs_original"]["binance_proxy"]
-    report_lines = [
-        "# BTC Pre-Open v1: audit, economics, candidate study",
-        "",
-        "Raport końcowy z audytu uruchomienia `btc_preopen_v1`, odtworzenia punktu w czasie, treningu kandydata i replayu publicznych zdarzeń order booka. Nie wykonano rzeczywistych zleceń ani aktywacji live.",
-        "",
-        "## 1. Czy model wytrenowano poprawnie?",
-        "",
-        "**Werdykt: poprawny z ograniczeniami.** Nie znaleziono potwierdzonego wycieku targetu ani przyszłych danych w użytych cechach w zweryfikowanej ścieżce treningu. Potwierdzono błąd w dawnym teście replay: dla świecy `Opened=17:03` przyciął on historię dopiero do `17:10`. To błędne potwierdzenie punktu w czasie; sam zapisany model pozostał niezmieniony.",
-        "",
-        f"Nowy replay z surowego prefiksu sprawdził {len(point_time)} punktów, w tym granicę godziny i dnia. Każdy odtworzył **112/112 cech** oraz raw/Platt probability z maksymalną różnicą `0`; target nie był dostępny przy predykcji. Zasada czasu to świeca otwarta `T−2 min`, zamknięta `T−1 min`, decyzja `T−1 min`, rynek od `T` przez 5 minut; etykieta `Close[Opened+6m] >= Open[Opened+2m]`, remis UP, dostępna `Opened+7m`, UTC.",
-        "",
-        "- **A — 181 vs 66 iteracji:** `181` to early-stopping punkt pojedynczego foldu. Końcowy wybór skanuje iteracje na foldach i minimalizuje średni log loss + `0,5 × odchylenie`; trial 30 osiągnął `0.692521820039`, a finalny model zachował jego parametry i 66 iteracji. Rozbieżność nie wskazuje na zły checkpoint.",
-        "- **B — 0.691942 vs 0.692147:** foldy, obserwacje i wagi są porównywalne; walidacja używa nieważonego log loss na minutach decyzyjnych. Selekcja cech dała `0.6919421` średniego LL i `0.6923578` po karze `0,5 × std`. Tuning wybrał `0.6925218`. Etap tuningu nie włączył selektora jako bazowego kandydata ani nie miał bramki akceptacji względem niego. To potwierdzona luka selekcji modelu.",
-        "- **C — przyczynowość replayu:** pięć skorygowanych odtworzeń daje identyczne cechy i predykcje; istniejący test perturbacji przyszłego okna również pozostaje w zestawie testów. Nie stwierdzono wpływu świec przyszłych na wcześniejszą prognozę w tych sprawdzeniach.",
-        "- **D — źródło etykiet:** historyczne `paired_uncertainty` w `evaluation.json` porównywało model z baseline na proxy Binance, nie na oficjalnym wyniku Polymarket. Poniżej i w `model_comparison.csv` log loss, Brier, AUC oraz paired 3-day block intervals są przeliczone osobno: proxy `n={proxy_rows}` i oficjalne Polymarket `n={official_rows}`. Etykiety rozeszły się w `400/{official_rows}` wspólnych rynków.",
-        "- **E — wagi:** `decision_weight=0.23`, `auxiliary_row_weight=0.1925` dobrano celowo przez balanced accuracy. To wybór metodologiczny, nie błąd implementacji; nowy ograniczony search dobiera wagę przez nieważony log loss minut decyzyjnych.",
-        "",
-        f"Model oryginalny: SHA-256 `{training['model_sha256']}`, 112 cech, 66 iteracji, `{training['training_rows']:,}` wierszy treningowych, fit do `{training['fit_end_exclusive']}` (ostatnia dostępna etykieta `{training['latest_label_available_at']}`). Kalibracja kończy się przed pierwszą decyzją testową. Okres testowy był wcześniej analizowany w repozytorium, dlatego nie jest pristine holdoutem.",
-        "",
-        "## 2. Opóźnienia live i scenariusze czasu wejścia",
-        "",
-        "Surowe pliki `data/live/BTC/trade/*.csv` i `data/live/BTC/logs/*.log` nie są obecne w checkoutcie; poniższy rozkład historycznego runtime pochodzi z utrwalonej tabeli audytu w `docs/polymarket_btc_experiment.md` (run `20260620_052109`, model różny od obecnego). Są to `p50/p95/p99` i liczebności zapisane w tym raporcie, nie ponownie przeliczone próbki.",
-        "",
-        "| Etap z historycznego live | N | p50 | p95 | p99 |",
-        "|---|---:|---:|---:|---:|",
-    ]
-    for stage in live_timing["historical_live_stages"]:
-        report_lines.append(
-            f"| {stage['stage']} ({stage['anchor']}) | {stage['n']} | {stage['p50_ms']:.2f} ms | {stage['p95_ms']:.2f} ms | {stage['p99_ms']:.2f} ms |"
-        )
-    report_lines.extend([
-        "",
-        "W starym live kod uzywa `live_minute_opened = candle_opened + 1 min`, wiec kolumny opisane jako opoznienie od otwarcia minuty sa zakotwiczone w granicy zamkniecia wlasnie przetwarzanej swiecy. W tej sesji `p50` close-to-signal wynosil 357 ms, a `p50` close-to-cycle-end 475 ms, co wspiera obserwacje typowego cyklu ponizej sekundy. Ogon przekraczal sekunde: sygnal `p95=1.033 s`, cykl `p95=1.271 s`, `p99=1.792 s`. Czasy scienne hosta nie maja zapisanej kalibracji offsetu zegara. Koniec cyklu obejmuje wszystkie 527 decyzji, nie tylko 111 prob zlecenia; osobnego rozkladu close-to-send dla prob brak.",
-        "Treat the historical p50 values as usable timing-test references: signal-ready p50 is 357.02ms and cycle-complete p50 is 475.28ms (N=527). The `prestart_c0_o1` case rounds the latter up to a one-second entry offset at T-59s; it is not a p95/p99 or a measurement of the current candidate.",
-        "",
-        "Z osobnego pre-open collection-only z 2026-10-04: decyzja nominalna była `T−60s`; pierwszy odbiór świecy zapisano `T−58.338663s`, gotową predykcję `T−58.314267s`, a wszystkie wejścia wykonawcze (w tym quote) `T−57.447320s`. To **jedna** obserwacja; druga ma predykcję gotową `T−57.336717s` i komplet wejść `T−56.339268s`. Dla dwóch próbek `p50` gotowości predykcji to 2.175 s po nominalnej decyzji, `p50` wszystkich wejść 3.107 s; `p95/p99` z `N=2` nie opisują wiarygodnie ogona. Zlecenia były wyłączone, więc liczebność send/ACK/fill wynosi zero.",
-        "",
-        f"Nowy kandydat LightGBM ma szybki, osobno zmierzony ciepły inference na 2,000 jednorzędowych wektorach 112 cech: p50 `{inference_latency['combined_model_predict_and_calibration']['p50_ms']:.3f} ms`, p95 `{inference_latency['combined_model_predict_and_calibration']['p95_ms']:.3f} ms`, p99 `{inference_latency['combined_model_predict_and_calibration']['p99_ms']:.3f} ms` razem z kalibracją. Pomiar nie obejmuje budowy cech. Pełny inkrementalny update tych 112 cech nie jest obecnie podłączony do pre-open collectora: jego bundle ma 29 cech, a ogólny live runtime ma 256 kolumn, z których 44 pokrywają się z kandydatem. Nie mierzono odbudowy historii jako inferencji live.",
-        "",
-        "Brak znaczników czasu wysłania, osobnego ACK giełdy i fillu. `submit_call_including_response_ms` (111 prób; `p50=403 ms`, `p95=631 ms`, `p99=1.002 s`) obejmuje synchroniczne wywołanie klienta z odpowiedzią; nie jest czasem fillu. Historyczny raport podaje dodatni `filled_stake_usdc` w 89 z 111 odpowiedzi, lecz nie zapisuje czasu ani niezależnego zdarzenia wykonania. W pre-open próbie nie było wysyłania zleceń.",
-        "",
-        "The timing-grounded main economic scenario uses the existing `prestart_c0_o1` snapshot: the historical cycle-complete p50 of 475.28ms is rounded upward to one second, so entry is T-59s after the nominal T-60s candle-close decision. The signal-ready p50 is 357.02ms (N=527). These are historical timing references, not measurements of the current candidate runtime.",
-        "In the two pre-open collection observations, all execution inputs were ready +2.553s and +3.661s after the decision (N=2). The historical local submit-call p99 was 1.002s (N=111). The slower observed input time plus this local-call budget is 4.663s; rounding up to the existing five-second snapshot leaves 0.337s of margin.",
-        "The T-55s row is a conservative local-host component scenario, not a measured joint p99: the input and submit-call measurements come from separate runs and bundles. Submit duration includes the client response, with no separate exchange ACK or fill time. The candidate incremental feature path still has no matching live updater.",
-        "The T-60s row is an ideal reference; T-59s is the historical p50-based main scenario rounded upward from 475ms; T-58s is a +2s sensitivity. These old-live values are not current-candidate end-to-end measurements.",
-        "",
-        "| Scenario | Dokladny czas wejscia | Model | Saldo koncowe | PnL netto | Obrot | Fee | Drawdown | Transakcje | Brak danych | Bez przewagi |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|",
-    ])
-    for case in primary_cases:
-        relative = {"prestart_c0_o1": "T-59s", "prestart_c0_o0": "T-60s", "prestart_c0_o2": "T-58s", "prestart_c0_o5": "T-55s"}[case]
-        scenario_label = {"prestart_c0_o1": "Main, historical p50 ceiling (475ms to 1s)", "prestart_c0_o0": "Ideal reference", "prestart_c0_o2": "+2s sensitivity", "prestart_c0_o5": "Conservative local-host component"}[case]
-        for row in primary_scenarios[case]:
-            report_lines.append(
-                f"| {scenario_label} ({case}) | {relative} | {row['model']} | {_money(row.get('ending_cash_usd'))} | {_money(row.get('net_pnl_usd'))} | {_money(row.get('gross_turnover_usd'))} | {_money(row.get('fees_paid_usd'))} | {float(row.get('max_drawdown_at_cost', 0.0)):.2%} | {int(row.get('trade_count', 0))} | {int(row.get('data_rejections', 0))} | {int(row.get('skip_no_positive_expected_edge', 0))} |"
-            )
-    report_lines.extend([
-        "",
-        "All rows use ask age <=30s, capital release 60s after resolution, initial cash $100 and gross $5 per position. T denotes market start. The main historical p50-based entry is T-59s; T-60s is ideal, T-58s is +2s sensitivity, and T-55s is a conservative local-host component scenario.",
-        "",
-        "Długie opóźnienia są osobnym testem odporności, nie głównym wynikiem: `prestart_c15_o5` wchodzi `T−40s`, `prestart_c45_o5` wchodzi `T−10s`. Nie należy z wyniku T−10s wnioskować o strategii wejścia T−60s.",
-        "",
-        "## 3. Wynik ekonomiczny",
-        "",
-        "Według schematu PMXT `timestamp_received` oznacza czas ingestu przez eksportera, a `timestamp` jest czasem źródłowym Polymarket; porównanie tych kolumn daje rozkład opóźnienia feedu.",
-        f"Pobieranie odnotowało {extraction.get('hour_retry_attempts', 0)} ponownych prób dla godzin z błędem technicznym; szczegóły i wynik końcowy są zapisane w `audit.json`. Błędy HTTP nie są traktowane jako brak danych.",
-        "Wykonano pełny, checkpointowany odczyt archiwum PMXT v2 dla 9 407 oficjalnych rynków. Każdy hourly Parquet filtrowano do docelowych condition ID i zdarzeń odebranych nie później niż `market_start + 5s`. BBO odbudowano z pełnego snapshotu i aktualizacji; zakup przechodzi po ask przez poziomy wystarczające na $5. Użyto `timestamp_received` jako czasu dostępności. Brak pełnego snapshotu, brak historycznego `fee_rate_bps`, niekompletny book, przeterminowany ask lub niewystarczająca głębokość powodują wykluczenie.",
-        "",
-        "Do replayu ekonomicznego wymagane s\u0105 natywne snapshoty token\u00f3w UP i DOWN oraz zgodno\u015b\u0107 ask z ostatnim raportowanym BBO; komplementarne kwotowania s\u0142u\u017c\u0105 wy\u0142\u0105cznie do diagnostyki i nie dostarczaj\u0105 g\u0142\u0119boko\u015bci do fillu.",
-        "Przedzia\u0142y wieku ask liczono po czasie \u017ar\u00f3d\u0142owym ostatniej zmiany g\u0142\u0119boko\u015bci ask; `timestamp_received` ogranicza dost\u0119pno\u015b\u0107, a jego wiek jest zapisany osobno w CSV.",
-        "PMXT nie zawiera monotonicznego identyfikatora kolejno\u015bci zdarze\u0144; przy identycznym czasie odbioru i \u017ar\u00f3d\u0142owym zachowano kolejno\u015b\u0107 w przefiltrowanym pliku Parquet, ale PMXT nie opisuje jej jako kolejno\u015bci zdarze\u0144. Zgodno\u015b\u0107 odtworzonego BBO jest raportowana, a niezgodno\u015b\u0107 ask przy wej\u015bciu wyklucza snapshot.",
-        "Pilot wybrano chronologicznie dla pierwszego, środkowego i ostatniego rynku, niezależnie od predykcji i wyniku. Rzeczywiste odpowiedzi CLOB mapowały `condition_id` na tokeny UP/DOWN; próbki, pierwsze booki, eventy i ceny są w `audit.json`.",
-        "",
-        "Zastosowano regułę fee zgodną z datą wejścia. Przed modernizacją giełdy 28 kwietnia 2026 r. opłata BUY była potrącana w tokenach wyniku (`shares × rate × min(price, 1−price) / price`); replay zaokrągla zagregowane poziomy booka w dół do 6 miejsc, bo PMXT nie udostępnia wypełnień per maker. Dla wejść od 11:00 do 12:00 UTC przyjęto okno konserwatywnej przerwy i nie symulowano zleceń. Od 12:00 UTC opłata jest w collateral: `shares × rate × (price × (1−price))`, wykładnik 1 i aktualna precyzja 5 miejsc/minimum $0.00001; historyczny wykładnik nie występuje w archiwum. Book agreguje rozmiary zamiast pokazywać wypełnienia makerów, więc cash fee zaokrąglono dla całego fillu, a legacy fee per poziom; dokładne zaokrąglenie każdego matchu jest nieznane. `fee_rate_bps` pochodzi z ostatniego odebranego eventu przed wejściem. To przybliżenie nie odtwarza dokładnej minuty wznowienia ani rozliczenia opłaty dla poszczególnych makerów. Źródła: [opis modernizacji](https://help.polymarket.com/en/articles/14762452-polymarket-exchange-upgrade-april-28-2026), [stary wzór kontraktu](https://github.com/Polymarket/ctf-exchange/blob/main/src/exchange/libraries/CalculatorHelper.sol), [nowy settlement](https://github.com/Polymarket/ctf-exchange-v2/blob/main/src/exchange/mixins/Trading.sol). Czas compute, order delay i dostępność środków po resolution są scenariuszami, nie pomiarami.",
-        "",
-        f"Coverage dla wariantow glownych (ask age <= 30s): `{json.dumps(primary_coverages, ensure_ascii=False)}`. Kazdy wariant startuje od $100, pojedynczy gross zakup to $5, a kapital wraca 60 s po `resolved_at_utc`. Wyniki dotycza tylko pokrytych rynkow; brakujacych bookow i nieznanych fee nie imputowano.",
-        "",
-        "| Test odpornosci | Dokladny czas wejscia | Model | PnL netto | Obrot | Fee | Drawdown | Transakcje | Brak danych |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|",
-    ])
-    for case, relative in (("prestart_c15_o5", "T-40s"), ("prestart_c45_o5", "T-10s")):
-        for row in robustness[case]:
-            report_lines.append(
-                f"| {case} | {relative} | {row['model']} | {_money(row.get('net_pnl_usd'))} | {_money(row.get('gross_turnover_usd'))} | {_money(row.get('fees_paid_usd'))} | {float(row.get('max_drawdown_at_cost', 0.0)):.2%} | {int(row.get('trade_count', 0))} | {int(row.get('data_rejections', 0))} |"
-            )
-    report_lines.extend([
-        "",
-        "Fallback jest oddzielny: `market_start_c45_o0` wchodzi w T+0s (predykcja gotowa T-15s); `market_start_c45_o5` wchodzi T+5s. Pelna macierz opoznien, wieku ask i czasu zwolnienia kapitalu pozostaje w `economic_scenarios.csv`.",
-        "",
-        "| Fallback | Dokladny czas wejscia | Model | PnL netto | Obrot | Fee | Drawdown | Transakcje | Brak danych |",
-        "|---|---|---|---:|---:|---:|---:|---:|---:|",
-    ])
-    for case, relative in (("market_start_c45_o0", "T+0s"), ("market_start_c45_o5", "T+5s")):
-        for row in _get_scenario(economic, case, 30, 60):
-            report_lines.append(
-                f"| {case} | {relative} | {row['model']} | {_money(row.get('net_pnl_usd'))} | {_money(row.get('gross_turnover_usd'))} | {_money(row.get('fees_paid_usd'))} | {float(row.get('max_drawdown_at_cost', 0.0)):.2%} | {int(row.get('trade_count', 0))} | {int(row.get('data_rejections', 0))} |"
-            )
-    report_lines.extend([
-        "",
-        f"Coverage wariantu T+5s: `{json.dumps(fallback_coverage_30, ensure_ascii=False)}`. Drawdown uwzglednia gotowke plus koszt pozycji zablokowanych, bez niezrealizowanej zmiany wartosci w trakcie rynku. Symulowany ask fill nie jest dowodem rzeczywistego wykonania.",
-        "",
-        "Wcześniejszy `p_old_model_up` powstawał minutę później i miał dostęp do innej informacji, dlatego nie był porównywalny jako decyzja pre-open. Nie użyto polityki MARKET_ONLY.",
-        "",
-        "Archiwum i schemat: [PMXT Polymarket v2](https://archive.pmxt.dev/Polymarket/v2), [PMXT v2 data overview](https://archive.pmxt.dev/docs/v2-data-overview). Fee formula i modernizacja: [Polymarket Trading Fees](https://help.polymarket.com/en/articles/13364478-trading-fees), [Exchange Upgrade April 28](https://help.polymarket.com/en/articles/14762452-polymarket-exchange-upgrade-april-28-2026), [legacy CalculatorHelper](https://github.com/Polymarket/ctf-exchange/blob/main/src/exchange/libraries/CalculatorHelper.sol), [v2 Trading settlement](https://github.com/Polymarket/ctf-exchange-v2/blob/main/src/exchange/mixins/Trading.sol). Raport zapisuje godziny, hash części, liczbę row groups, mapowanie tokenów i opóźnienie receive/source.",
-        "",
-        "## 4. Wynik nowego treningu",
-        "",
-        f"Wytrenowano ograniczonego kandydata LightGBM GPU w 16 trialach, 4 wątkach i dwóch chronologicznych foldach. Kandydat i reguła wyboru zostały ustalone przed oceną Q3 2025; okres zewnętrzny nie służył wyborowi. Zwycięzca deweloperski: `tuned_search_winner`, historia 3 lata, waga decyzji `0.23`, 103 iteracje.",
-        "",
-        f"Na kwartale Q3 2025 log loss wyniósł `{candidate_dev['original_v1_recipe']['logloss']:.9f}` dla przepisu v1 i `{candidate_dev['tuned_search_winner']['logloss']:.9f}` dla kandydata. Sparowany 3-day bootstrap dla różnicy LL (kandydat − v1) ma 95% CI `[{candidate['development_paired_bootstrap_vs_original']['delta_first_minus_second_log_loss_ci95'][0]:.7f}, {candidate['development_paired_bootstrap_vs_original']['delta_first_minus_second_log_loss_ci95'][1]:.7f}]`, obejmujący zero. Na oficjalnych zewnętrznych etykietach przedział raw również obejmuje zero `[{paired_official['candidate_raw_minus_original_raw']['delta_first_minus_second_log_loss_ci95'][0]:.7f}, {paired_official['candidate_raw_minus_original_raw']['delta_first_minus_second_log_loss_ci95'][1]:.7f}]`. Proxy raw przedział to `[{paired_proxy['candidate_raw_minus_original_raw']['delta_first_minus_second_log_loss_ci95'][0]:.7f}, {paired_proxy['candidate_raw_minus_original_raw']['delta_first_minus_second_log_loss_ci95'][1]:.7f}]`.",
-        "",
-        "Kandydat nie wykazał stabilnej poprawy według ustalonej reguły. Zachowano model v1 jako wybraną konfigurację; model kandydata pozostaje porównaniem badawczym. Raw/Platt oraz oficjalne/Proxy metryki i sparowane przedziały są rozdzielone w `model_comparison.csv`.",
-        "",
-        "## Pliki dostawy",
-        "",
-        "- `audit.json` — wynik audytu i dane źródłowe do odtworzenia werdyktu.",
-        "- `data_coverage.csv` — wszystkie 9 407 rynków dla 16 czasów wejścia.",
-        "- `model_comparison.csv` — metryki raw/Platt dla obu etykiet oraz paired intervals.",
-        "- `economic_scenarios.csv` i `economic_replay.json` — pełna macierz opóźnień, świeżości i zwalniania kapitału.",
-        f"- `trades.parquet` — {len(trades):,} wierszy dziennika transakcji dla scenariuszy z ask freshness do 30 s.",
-        "- `candidate_metrics.json`, `candidate_search_trials.csv` i pięć `point_in_time_*.json` — małe dowody treningu/replayu.",
-        "- `candidate_inference_latency.json`: warm single-row candidate inference and calibration; feature generation is not included.",
-        "- `report_bundle.zip` — raport, artefakty metadanych, wyniki i kod odtworzeniowy bez surowych shardów archiwum.",
-        "",
-        "Nie aktywowano modelu live ani nie wysłano zleceń.",
-        "",
-    ])
+    report_lines = _build_completed_summary(
+        examples=book_examples,
+        market_index=market_index,
+        coverage=coverage,
+        comparison=primary_comparison,
+        trades=trades,
+        live_timing=live_timing,
+        training=training,
+    )
     report_lines = [_repair_report_line(line) for line in report_lines]
     (REPORT_DIR / "SUMMARY.md").write_text("\n".join(report_lines), encoding="utf-8")
 
     include_paths = [
         REPORT_DIR / "SUMMARY.md", REPORT_DIR / "audit.json", COVERAGE_CSV,
-        MODEL_COMPARISON, ECONOMIC_SCENARIOS, ECONOMIC_REPLAY, TRADES,
+        MODEL_COMPARISON, ECONOMIC_SCENARIOS, ECONOMIC_REPLAY, ECONOMIC_COMPARISON,
+        BOOK_TIMING_EXAMPLES, TRADES,
         CANDIDATE_METRICS, REPORT_DIR / "candidate_search_trials.csv",
         INFERENCE_LATENCY, ROOT / "benchmark_btc_preopen_bundle.py",
         REPORT_DIR / "candidate_external_predictions.parquet",
@@ -608,9 +763,10 @@ def build():
         *sorted(REPORT_DIR.glob("point_in_time_*.json")),
         ORIGINAL_TRAINING_MANIFEST, ORIGINAL_EVALUATION, ORIGINAL_MODEL_TUNING,
         ORIGINAL_CONFIG, EXTRACT_DIR / "extraction_summary.json", EXTRACT_DIR / "archive_identity.json",
-        ROOT / "docs/polymarket_btc_experiment.md",
+        ROOT / "docs/polymarket_btc_experiment.md", ROOT / "docs/live_telemetry.md",
         ROOT / "docs/btc_preopen_experiment_manifest_20261004.json",
-        ROOT / "run.py", ROOT / "audit_btc_oof.py",
+        ROOT / "run.py", ROOT / "utils/live.py", ROOT / "README.md",
+        ROOT / "audit_btc_oof.py",
         ORIGINAL_RUN_MANIFEST,
         RUN_DIR / "stages/calibration_6942659d3b63/platt_calibrator.json",
         RUN_DIR / "stages/feature_selection_2eeac6e4f194/selected_features.json",
@@ -631,7 +787,8 @@ def build():
         ROOT / "build_btc_preopen_report.py",
         ROOT / "features/btc_preopen_contract.py", ROOT / "tests/test_btc_preopen_contract.py",
         ROOT / "tests/test_btc_preopen_candidate_study.py", ROOT / "tests/test_btc_preopen_economic_replay.py",
-        ROOT / "tests/test_btc_preopen_pmxt_extract.py",
+        ROOT / "tests/test_btc_preopen_pmxt_extract.py", ROOT / "tests/test_live_utils.py",
+        ROOT / "tests/test_run_multi_asset_latency.py",
     ]
     bundle_path = REPORT_DIR / "report_bundle.zip"
     with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as bundle:

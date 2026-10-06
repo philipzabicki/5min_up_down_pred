@@ -33,6 +33,32 @@ LIVE_RECORD_TIMESTAMP_COLUMNS = (
     "pm_account_sync_at_resolve",
     "pm_redeem_submitted_at",
     "pm_redeem_confirmed_at",
+    "required_inputs_ready_at_utc",
+    "features_ready_at_utc",
+    "prediction_ready_at_utc",
+    "policy_decision_ready_at_utc",
+    "cycle_completed_at_utc",
+    "ws_price_source_at_utc",
+    "ws_price_received_at_utc",
+    "ws_volume_source_at_utc",
+    "ws_volume_received_at_utc",
+    "pm_market_start_at_utc",
+    "pm_nominal_decision_at_utc",
+    "pm_market_snapshot_received_at_utc",
+    "pm_up_book_request_started_at_utc",
+    "pm_up_book_source_at_utc",
+    "pm_up_book_received_at_utc",
+    "pm_down_book_request_started_at_utc",
+    "pm_down_book_source_at_utc",
+    "pm_down_book_received_at_utc",
+    "pm_submit_call_started_at_utc",
+    "pm_submit_call_completed_at_utc",
+    "pm_submit_response_received_at_utc",
+    "pm_transport_sent_at_utc",
+    "pm_order_ack_source_at_utc",
+    "pm_fill_event_source_at_utc",
+    "pm_fill_event_received_at_utc",
+    "pm_auth_clock_sync_at_utc",
 )
 
 POLICY_DIAGNOSTIC_COLUMNS = (
@@ -76,10 +102,54 @@ LATENCY_DIAGNOSTIC_COLUMNS = (
     "market_prefetch_hit",
     "market_prefetch_age_ms",
     "market_lookup_source",
+    "required_inputs_source",
+    "required_inputs_ready_at_utc",
+    "features_ready_at_utc",
+    "prediction_ready_at_utc",
+    "policy_decision_ready_at_utc",
+    "cycle_completed_at_utc",
+    "cycle_outcome",
+    "transaction_skip_reason",
+    "pm_condition_id",
+    "pm_up_token_id",
+    "pm_down_token_id",
+    "pm_selected_token_id",
+    "ws_price_source_at_utc",
+    "ws_price_received_at_utc",
+    "ws_volume_source_at_utc",
+    "ws_volume_received_at_utc",
+    "pm_market_start_at_utc",
+    "pm_nominal_decision_at_utc",
+    "pm_start_time_source",
+    "pm_market_snapshot_received_at_utc",
+    "pm_book_data_origin",
+    "pm_book_stream_sync_status",
+    "pm_up_book_request_started_at_utc",
+    "pm_up_book_source_at_utc",
+    "pm_up_book_source_timestamp_raw",
+    "pm_up_book_received_at_utc",
+    "pm_down_book_request_started_at_utc",
+    "pm_down_book_source_at_utc",
+    "pm_down_book_source_timestamp_raw",
+    "pm_down_book_received_at_utc",
+    "pm_submit_call_started_at_utc",
+    "pm_submit_call_completed_at_utc",
+    "pm_submit_response_received_at_utc",
+    "pm_transport_sent_at_utc",
+    "pm_order_ack_source_at_utc",
+    "pm_fill_event_source_at_utc",
+    "pm_fill_event_received_at_utc",
+    "pm_order_id",
+    "pm_response_filled_stake_usdc",
+    "pm_auth_clock_sync_status",
+    "pm_auth_clock_sync_source",
+    "pm_auth_clock_sync_at_utc",
+    "pm_auth_clock_offset_seconds_estimate",
 )
 
 LIVE_BASE_EXPORT_COLUMNS = (
                                "record_id",
+                               "decision_id",
                                "record_snapshot_at",
                                "pm_model_hash",
                                "pm_policy_hash",
@@ -237,6 +307,136 @@ TELEGRAM_CONSOLE_MAX_MESSAGE_CHARS = 3900
 def as_utc_timestamp(value):
     ts = pd.Timestamp(value)
     return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+
+
+def summarize_live_latency(records, *, budget_ms=1000.0):
+    """Summarize observable per-decision timestamps relative to nominal T-60s."""
+    records = list(records)
+    stage_fields = {
+        "ws_price_source_event": "ws_price_source_at_utc",
+        "ws_price_local_receive": "ws_price_received_at_utc",
+        "ws_volume_source_event": "ws_volume_source_at_utc",
+        "ws_volume_local_receive": "ws_volume_received_at_utc",
+        "required_inputs_ready": "required_inputs_ready_at_utc",
+        "features_ready": "features_ready_at_utc",
+        "prediction_ready": "prediction_ready_at_utc",
+        "policy_decision_ready": "policy_decision_ready_at_utc",
+        "market_snapshot_received": "pm_market_snapshot_received_at_utc",
+        "up_book_local_receive": "pm_up_book_received_at_utc",
+        "down_book_local_receive": "pm_down_book_received_at_utc",
+        "cycle_completed": "cycle_completed_at_utc",
+        "submit_call_started": "pm_submit_call_started_at_utc",
+        "submit_call_completed": "pm_submit_call_completed_at_utc",
+        "client_response_received": "pm_submit_response_received_at_utc",
+        "transport_send_observed": "pm_transport_sent_at_utc",
+        "order_ack_source_event": "pm_order_ack_source_at_utc",
+        "fill_event_source": "pm_fill_event_source_at_utc",
+        "fill_event_received": "pm_fill_event_received_at_utc",
+    }
+    samples = {name: [] for name in stage_fields}
+
+    for record in records:
+        decision_at = record.get("pm_nominal_decision_at_utc")
+        if _summary_label(decision_at) == "unavailable":
+            continue
+        try:
+            start = as_utc_timestamp(decision_at)
+        except (TypeError, ValueError):
+            continue
+        for name, field in stage_fields.items():
+            event_at = record.get(field)
+            if _summary_label(event_at) == "unavailable":
+                continue
+            try:
+                end = as_utc_timestamp(event_at)
+            except (TypeError, ValueError):
+                continue
+            if pd.isna(start) or pd.isna(end):
+                continue
+            samples[name].append((end - start).total_seconds() * 1000.0)
+
+    stage_summary = {}
+    for name, values in samples.items():
+        values = np.asarray(values, dtype=np.float64)
+        values = values[np.isfinite(values)]
+        stage_summary[name] = {
+            "n": int(values.size),
+            "p50_ms": float(np.quantile(values, 0.50)) if values.size else None,
+            "p95_ms": float(np.quantile(values, 0.95)) if values.size else None,
+            "p99_ms": float(np.quantile(values, 0.99)) if values.size else None,
+            "max_ms": float(np.max(values)) if values.size else None,
+            "over_budget_count": int(np.count_nonzero(values > float(budget_ms))),
+            "negative_count": int(np.count_nonzero(values < 0.0)),
+        }
+
+    decision_records = [
+        record for record in records
+        if _summary_label(record.get("cycle_completed_at_utc")) != "unavailable"
+    ]
+    submit_attempts = [
+        record for record in decision_records
+        if _summary_label(record.get("pm_submit_call_started_at_utc")) != "unavailable"
+    ]
+    response_records = [
+        record for record in decision_records
+        if _summary_label(record.get("pm_submit_response_received_at_utc")) != "unavailable"
+    ]
+    response_reported_fills = [
+        record for record in decision_records
+        if _safe_number_for_summary(record.get("pm_response_filled_stake_usdc")) > 0.0
+    ]
+    fill_event_records = [
+        record for record in decision_records
+        if _summary_label(record.get("pm_fill_event_received_at_utc")) != "unavailable"
+    ]
+    cycle_outcomes = {}
+    for record in decision_records:
+        outcome = _summary_label(record.get("cycle_outcome"))
+        cycle_outcomes[outcome] = cycle_outcomes.get(outcome, 0) + 1
+    submit_attempt_statuses = {}
+    for record in submit_attempts:
+        status = _summary_label(record.get("pm_order_status"))
+        submit_attempt_statuses[status] = submit_attempt_statuses.get(status, 0) + 1
+    order_ids = {
+        _summary_label(record.get("pm_order_id"))
+        for record in decision_records
+        if _summary_label(record.get("pm_order_id")) != "unavailable"
+    }
+
+    return {
+        "budget_ms": float(budget_ms),
+        "counts": {
+            "cycles": len(decision_records),
+            "submit_attempts": len(submit_attempts),
+            "client_responses": len(response_records),
+            "unique_order_ids": len(order_ids),
+            "response_reported_fill_records": len(response_reported_fills),
+            "independent_fill_event_records": len(fill_event_records),
+            "cycle_outcomes": cycle_outcomes,
+            "submit_attempt_statuses": submit_attempt_statuses,
+        },
+        "stages_from_nominal_decision": stage_summary,
+    }
+
+
+def _safe_number_for_summary(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return number if np.isfinite(number) else 0.0
+
+
+def _summary_label(value):
+    if value is None:
+        return "unavailable"
+    try:
+        if pd.isna(value):
+            return "unavailable"
+    except (TypeError, ValueError):
+        pass
+    label = str(value).strip()
+    return label if label and label.lower() not in {"nan", "nat", "none", "null"} else "unavailable"
 
 
 def interval_to_timedelta(interval):
