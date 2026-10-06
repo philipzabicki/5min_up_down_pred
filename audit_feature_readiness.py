@@ -3790,6 +3790,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
             max_keep=DEFAULT_MAX_KEEP,
             volume_profile_state=None,
             reaction_profile_state=None,
+            feature_runtime_config=None,
+            fit_results_dir=None,
+            indicator_history_requirements_path=None,
+            indicator_state_by_feature=None,
             allow_unstable_indicator_summary=AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY,
     ):
         self.model, meta = load_model_and_meta(model_meta_path)
@@ -3830,6 +3834,11 @@ class PseudoLiveAuditPredictor(LivePredictor):
             self.feature_columns,
             source_label=f"model metadata {model_meta_path}",
         )
+        if feature_parts["unclassified_feature_cols"]:
+            raise ValueError(
+                "Model metadata contains features with no live feature family: "
+                f"{feature_parts['unclassified_feature_cols'][:10]}"
+            )
         if feature_parts["streak_intervals"]:
             self.streak_interval_to_rule = resolve_streak_interval_to_rule(
                 feature_parts["streak_intervals"]
@@ -3843,7 +3852,18 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.basis_premium_feature_columns = tuple(
             feature_parts["basis_premium_feature_cols"]
         )
-        self.basis_premium_cfg = _basis_premium_config()
+        runtime_config = dict(feature_runtime_config or {})
+        basis_config = runtime_config.get("basis_premium_features")
+        self.basis_premium_cfg = (
+            _basis_premium_config()
+            if basis_config is None
+            else {
+                "enabled": bool(basis_config.get("enabled", False)),
+                "index_close_col": str(basis_config.get("index_close_col", "Close")),
+                "futures_close_col": str(basis_config.get("futures_close_col", "")),
+                "eps": float(basis_config.get("eps", 1e-12)),
+            }
+        )
         self.basis_premium_interval_to_rule = {}
         self.basis_index_close_col = ""
         self.basis_index_ohlcv_idx = None
@@ -3876,7 +3896,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
             feature_parts["volume_profile_feature_cols"]
         )
         self.volume_profile_cfg = normalize_volume_profile_config(
-            MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range")
+            runtime_config.get(
+                "volume_profile_fixed_range",
+                MODELING_DATASET_SETTINGS.get("volume_profile_fixed_range"),
+            )
         )
         validate_volume_profile_model_metadata(
             meta,
@@ -3902,7 +3925,10 @@ class PseudoLiveAuditPredictor(LivePredictor):
             feature_parts["reaction_profile_feature_cols"]
         )
         self.reaction_profile_cfg = normalize_reaction_profile_config(
-            MODELING_DATASET_SETTINGS.get("reaction_profile_fixed_grid")
+            runtime_config.get(
+                "reaction_profile_fixed_grid",
+                MODELING_DATASET_SETTINGS.get("reaction_profile_fixed_grid"),
+            )
         )
         validate_reaction_profile_model_metadata(
             meta,
@@ -3928,11 +3954,17 @@ class PseudoLiveAuditPredictor(LivePredictor):
         self.indicator_specs = load_indicator_specs(
             self.feature_columns,
             source_label=f"model metadata {model_meta_path}",
+            fit_results_dir=fit_results_dir,
+        )
+        self.indicator_state_by_feature = dict(indicator_state_by_feature or {})
+        requirements_path = Path(
+            indicator_history_requirements_path
+            or INDICATOR_HISTORY_REQUIREMENTS_PATH
         )
         requirements_indicator_specs = self.indicator_specs
         if allow_unstable_indicator_summary:
             requirements_payload = json.loads(
-                Path(INDICATOR_HISTORY_REQUIREMENTS_PATH).read_text(encoding="utf-8")
+                requirements_path.read_text(encoding="utf-8")
             )
             unstable_feature_cols = {
                 str(feature_col).strip()
@@ -3966,7 +3998,7 @@ class PseudoLiveAuditPredictor(LivePredictor):
                 )
                 requirements_indicator_specs = filtered_specs
         self.indicator_history_requirements = load_indicator_history_requirements(
-            INDICATOR_HISTORY_REQUIREMENTS_PATH,
+            requirements_path,
             indicator_specs=requirements_indicator_specs,
             allow_unstable=allow_unstable_indicator_summary,
         )

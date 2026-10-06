@@ -1,0 +1,20 @@
+{
+  "assets": {
+    "BTC": {
+      "enabled": true,
+      "dataset_profile": "BTC",
+      "modeling_profile": "BTC",
+      "live_profile": "paper_polymarket",
+      "artifacts": {
+        "model_meta_path": "configs/runtime/btc_preopen_candidate_model_meta.json",
+        "trade_policy_path": "configs/runtime/trade_policy_project.json",
+        "indicator_history_requirements_path": "configs/runtime/btc_preopen_candidate_history_requirements.json",
+        "indicator_state_seed_path": "configs/runtime/btc_preopen_candidate_indicator_state.json",
+        "indicator_fit_results_dir": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/indicators_b150948edf4d/results/ba1c9334ea457365",
+        "feature_runtime_config_path": "configs/runtime/btc_preopen_candidate_features.json",
+        "volume_profile_modeling_state_path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/states/volume_profile/BTCUSD_INDEXVOL_UM_BTCUSDT_1m_vp_fixed_range_v3_modeling_end",
+        "reaction_profile_modeling_state_path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/states/reaction_profile/BTCUSD_INDEXVOL_UM_BTCUSDT_1m_rp_fixed_grid_v1_modeling_end"
+      }
+    }
+  }
+}

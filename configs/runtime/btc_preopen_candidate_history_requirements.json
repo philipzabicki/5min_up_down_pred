@@ -1,0 +1,14 @@
+{
+  "meta_path": "configs/runtime/btc_preopen_candidate_model_meta.json",
+  "fit_results_dir": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/indicators_b150948edf4d/results/ba1c9334ea457365",
+  "validation_status": "parameter_based_warmup_only_empirical_stability_not_audited",
+  "unstable_feature_count": 0,
+  "global_required_stable_window": 2047,
+  "required_stable_window_by_feature": {
+    "BollingerBands_fit_5m_preopen_v1_pop64_maper1732_masoulow_matypshmma_stdmaper1997_stdmatypnwmabiw_stdsouhl2": 2047,
+    "ChaikinOsc_fit_5m_preopen_v1_pop64_fasmatypema_fasper13_slomatypshmma_sloper79": 79,
+    "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypema_atrper1979_maper1500_matypshmma_souopen": 2029,
+    "StochOsc_fit_5m_preopen_v1_pop64_faskper843_slodmatypnwmaunif_slodper786_slokmatypkama_slokper1754": 1804
+  },
+  "live_feature_param_overrides": {}
+}

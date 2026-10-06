@@ -1,0 +1,370 @@
+{
+  "repository_head_before_this_change": "5b6ec18273de74ff89f7a372a88dcb27faa6768d",
+  "candidate": {
+    "feature_count": 112,
+    "ordered_feature_sha256_newline_utf8": "875b25f822b32bd3d07e3a534ea351d4d19bf25b4948fee81646d7ef76111883",
+    "ordered_feature_sha256_json_compact_utf8": "aa348c2f84fb18562300bb10bb9519a7881213f434df4d64ec04323164017f29",
+    "feature_order_matches_original_v1": true,
+    "model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+    "calibrator_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_calibrator.json",
+    "model_iterations": 103,
+    "model_hash_from_candidate_study": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+    "indicator_state_seed_path": "configs/runtime/btc_preopen_candidate_indicator_state.json",
+    "indicator_state_seed_sha256": "912ddf048ac3b55612f1c6acfff7fa82cdb4206a0b30ee5ed6b67536b3f38a35",
+    "calibration": {
+      "coefficient": 0.9673715586800833,
+      "intercept": -0.008572066772185114,
+      "rows": 30155,
+      "latest_target_available_at": "2026-04-15T17:00:00+00:00",
+      "label_source": "Binance COIN-M BTCUSD index proxy"
+    },
+    "training_feature_sources_path": "D:/Cloud/filips19/github/5min_up_down_pred/data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv",
+    "feature_dataset_path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_preopen_v1.parquet",
+    "feature_dataset_rows": 3321148
+  },
+  "original_v1": {
+    "feature_count": 112,
+    "ordered_feature_sha256_newline_utf8": "875b25f822b32bd3d07e3a534ea351d4d19bf25b4948fee81646d7ef76111883",
+    "model_path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_model_51d3adab0c53/lgbm_model.txt",
+    "model_sha256": "ec5b0d8c3140f82713b33867075b2b384aad93e341369b7572401c4b8f3f7c20",
+    "calibrator_path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/calibration_6942659d3b63/platt_calibrator.json"
+  },
+  "economics": {
+    "entry_case": "prestart_c0_o1",
+    "entry_relative_to_market_start": "T-59s",
+    "age_cap_seconds": 30,
+    "gross_order_usd": 5.0,
+    "initial_cash_usd": 100.0,
+    "capital_release_delay_seconds": 60,
+    "decision_and_entry_config_path": "configs/btc_preopen_v1.json",
+    "strategy_policy_config_path": "configs/runtime/trade_policy_project.json",
+    "replay_code_path": "run_btc_preopen_economic_replay.py"
+  },
+  "pmxt_cache": {
+    "archive_identity": {
+      "source_path": "data/analysis/polymarket/BTC/new_model_comparison/runs/d794ac2dea5a25a2/shared_market_evaluation.parquet",
+      "source_sha256": "2f3146a2345a1e6a0ac79daeb69172ad271e91743e9e3cb2e9ca5a5eba0dfd85",
+      "rows": 9407,
+      "first_market_start_utc": "2026-04-15T17:05:00+00:00",
+      "last_market_start_utc": "2026-05-18T10:30:00+00:00",
+      "market_index_sha256": "e159e2bd96acc55c4765a77ea5d6357c6dff8b230143aa16461cde6fbc569fc6",
+      "token_map_sha256": "dd11c3f3e8959e5b9516a80a547946287091dadf983a87e15973078b06877892",
+      "max_order_delay_seconds": 5,
+      "max_compute_delay_seconds": 45,
+      "history_lookback_hours": 25,
+      "entry_event_cutoff": "market_start_plus_max_order_delay",
+      "market_start_fallback_horizon_seconds": 5
+    },
+    "mapping_identity": {
+      "source_path": "data/analysis/polymarket/BTC/new_model_comparison/runs/d794ac2dea5a25a2/shared_market_evaluation.parquet",
+      "source_sha256": "2f3146a2345a1e6a0ac79daeb69172ad271e91743e9e3cb2e9ca5a5eba0dfd85",
+      "rows": 9407,
+      "first_market_start_utc": "2026-04-15T17:05:00+00:00",
+      "last_market_start_utc": "2026-05-18T10:30:00+00:00"
+    },
+    "partition_count": 811,
+    "partition_list_hash_sha256": "8edbe2aeb21ecb26630371082ba960b6438fc0e93130d041a822bbde81b314d7",
+    "event_type_counts": {
+      "book": 617342,
+      "price_change": 102390694,
+      "last_trade_price": 1429897
+    },
+    "event_rows": 104437933,
+    "schema_sequence_id_present": false,
+    "schema_version_column_present": false,
+    "observed_partition_schema_count": 1,
+    "observed_partition_schemas": [
+      {
+        "sha256": "a259386e1f35e2fa7eddf6e137f6ae918e7441f8d7d911ee5a9bf8991232cbbc",
+        "fields": [
+          {
+            "name": "timestamp_received",
+            "type": "timestamp[ms, tz=UTC]"
+          },
+          {
+            "name": "timestamp",
+            "type": "timestamp[ms, tz=UTC]"
+          },
+          {
+            "name": "market",
+            "type": "fixed_size_binary[66]"
+          },
+          {
+            "name": "event_type",
+            "type": "string"
+          },
+          {
+            "name": "asset_id",
+            "type": "string"
+          },
+          {
+            "name": "bids",
+            "type": "string"
+          },
+          {
+            "name": "asks",
+            "type": "string"
+          },
+          {
+            "name": "price",
+            "type": "decimal128(9, 4)"
+          },
+          {
+            "name": "size",
+            "type": "decimal128(18, 6)"
+          },
+          {
+            "name": "side",
+            "type": "string"
+          },
+          {
+            "name": "best_bid",
+            "type": "decimal128(9, 4)"
+          },
+          {
+            "name": "best_ask",
+            "type": "decimal128(9, 4)"
+          },
+          {
+            "name": "fee_rate_bps",
+            "type": "uint16"
+          },
+          {
+            "name": "transaction_hash",
+            "type": "string"
+          }
+        ]
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "configs/runtime/btc_preopen_candidate.json",
+      "exists": true,
+      "size_bytes": 1332,
+      "sha256": "7d21a2408cf9f5d127b6d21f5342768ee2b5778a7f3a4794b1406901eb0b7253"
+    },
+    {
+      "path": "configs/runtime/btc_preopen_candidate_model_meta.json",
+      "exists": true,
+      "size_bytes": 23270,
+      "sha256": "c6b8368fab9c988386e40c36f9b1b8e94a8ed780815a0e14bd297c0b63b24fbd"
+    },
+    {
+      "path": "configs/runtime/btc_preopen_candidate_features.json",
+      "exists": true,
+      "size_bytes": 16300,
+      "sha256": "279f74ab2968fd704d67fd23e065dcc2433d3cc3e51d54f58b1b40d72afb0047"
+    },
+    {
+      "path": "configs/runtime/btc_preopen_candidate_history_requirements.json",
+      "exists": true,
+      "size_bytes": 905,
+      "sha256": "b5d6f4c4a5172d8612c66dd8c7ed475d71921b80594d06f0460f73438bdd87c4"
+    },
+    {
+      "path": "configs/runtime/btc_preopen_candidate_indicator_state.json",
+      "exists": true,
+      "size_bytes": 3183,
+      "sha256": "912ddf048ac3b55612f1c6acfff7fa82cdb4206a0b30ee5ed6b67536b3f38a35"
+    },
+    {
+      "path": "data/models/BTC/20261003_043549/lgbm_meta_20261003_043549.json",
+      "exists": true,
+      "size_bytes": 47056,
+      "sha256": "52d740e9a4966845ce72586e8333ecbd48e93a99edebf75e9a945f286cb40ab9"
+    },
+    {
+      "path": "data/models/BTC/btc_preopen_v1/lgbm_meta.json",
+      "exists": true,
+      "size_bytes": 5854,
+      "sha256": "ed2da352cd3f0b2eb82efe305249649117cabd178c18767abe5149fcf7d3353f"
+    },
+    {
+      "path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+      "exists": true,
+      "size_bytes": 743612,
+      "sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986"
+    },
+    {
+      "path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_calibrator.json",
+      "exists": true,
+      "size_bytes": 218,
+      "sha256": "de2ec02fddae11ca0fed2b0cdb12c2f1842f57a3eb534eddaff8640bc536109e"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/indicators_b150948edf4d/results/ba1c9334ea457365/BollingerBands_target_5m_preopen_v1_pop64_qe0.2_qm0.1_tf0.8_stmc_sg10_rwlin1-1.5.json",
+      "exists": true,
+      "size_bytes": 760,
+      "sha256": "f64df0f6fe4c511897c67e0e4ef93cb14fced3eb6c8e72ec5ce0b912c3062e9a"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/indicators_b150948edf4d/results/ba1c9334ea457365/ChaikinOsc_target_5m_preopen_v1_pop64_qe0.2_qm0.1_tf0.8_stmc_sg10_rwlin1-1.5.json",
+      "exists": true,
+      "size_bytes": 700,
+      "sha256": "286f0e287fe517ab662b9c29ce1906f59ea80cb5e2c75ef035c3d0c691a00c11"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/indicators_b150948edf4d/results/ba1c9334ea457365/KeltnerChannel_target_5m_preopen_v1_pop64_qe0.2_qm0.1_tf0.8_stmc_sg10_rwlin1-1.5.json",
+      "exists": true,
+      "size_bytes": 722,
+      "sha256": "73ef332d19d204a36e59d3feb5afda4194f6cb1b409686510c64d4483c9d47bb"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/indicators_b150948edf4d/results/ba1c9334ea457365/StochOsc_target_5m_preopen_v1_pop64_qe0.2_qm0.1_tf0.8_stmc_sg10_rwlin1-1.5.json",
+      "exists": true,
+      "size_bytes": 742,
+      "sha256": "3d419e2cff574fbba3d8952b61878e2092a4f23c836e0e871849e9343eb47408"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/states/volume_profile/BTCUSD_INDEXVOL_UM_BTCUSDT_1m_vp_fixed_range_v3_modeling_end.npz",
+      "exists": true,
+      "size_bytes": 29713,
+      "sha256": "4226b7ff28b6fd5e822aa57f050286e9397355bbc17e7146aa7801de0f8e8ea5"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/states/volume_profile/BTCUSD_INDEXVOL_UM_BTCUSDT_1m_vp_fixed_range_v3_modeling_end.json",
+      "exists": true,
+      "size_bytes": 10782,
+      "sha256": "3f5be9a037fcf304bffa7fd80ac886e4777286346ebdc8793d2092caad04516f"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/states/reaction_profile/BTCUSD_INDEXVOL_UM_BTCUSDT_1m_rp_fixed_grid_v1_modeling_end.npz",
+      "exists": true,
+      "size_bytes": 133491,
+      "sha256": "3652a78f4bc87b6f8f8c9d4a18887a043646fa0e50517ae4ef73ca272b186e6c"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/states/reaction_profile/BTCUSD_INDEXVOL_UM_BTCUSDT_1m_rp_fixed_grid_v1_modeling_end.json",
+      "exists": true,
+      "size_bytes": 3837,
+      "sha256": "a3681af1b0b3a2a01c6d4ddd9812197af4942159bbca75dd7b8cba5df544d7cf"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_model_51d3adab0c53/lgbm_model.txt",
+      "exists": true,
+      "size_bytes": 184540,
+      "sha256": "ec5b0d8c3140f82713b33867075b2b384aad93e341369b7572401c4b8f3f7c20"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/calibration_6942659d3b63/platt_calibrator.json",
+      "exists": true,
+      "size_bytes": 5889,
+      "sha256": "c2c0039620e890397b84b359c04304eedbb525daaec35c1ce7d4830329f0e677"
+    },
+    {
+      "path": "configs/btc_preopen_v1.json",
+      "exists": true,
+      "size_bytes": 3868,
+      "sha256": "57d5f59bdd5cfcd87c93f007d04afdd50fec70c0be9de04e1eb467eff70b8216"
+    },
+    {
+      "path": "configs/runtime/trade_policy_project.json",
+      "exists": true,
+      "size_bytes": 1805,
+      "sha256": "286d3962f5d402ce052cede343bbd31455d29b0de0a30c3ae762fa463c43cbca"
+    },
+    {
+      "path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv",
+      "exists": true,
+      "size_bytes": 323586300,
+      "sha256": "0a97ce5f4c2d57f6788e112c432b55b41e71be246efc5cc37cb12e8b26e2a1d9"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_preopen_v1.parquet",
+      "exists": true,
+      "size_bytes": 5204864065,
+      "sha256": "b950eb17f79944726ccdb388d91b61b5977f0ade176958541d8ba345744f068e"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_model_51d3adab0c53/feature_order.json",
+      "exists": true,
+      "size_bytes": 4647,
+      "sha256": "8930b01f00e82a444aec9ccc5a33977794ac0f93ca94be274c9e4d92c55713fa"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_model_51d3adab0c53/feature_sources.json",
+      "exists": true,
+      "size_bytes": 23547,
+      "sha256": "0d236ecb5a9561e2e17074d6899b7aa78a029c35f3b883d64c17f6ef50acd781"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/pmxt_v2_archive_full_scenarios/archive_identity.json",
+      "exists": true,
+      "size_bytes": 747,
+      "sha256": "a9366836850f200ab8a9715e548cc23cdbf078e5f1462345a81b969b59194a63"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/pmxt_v2_archive_full_scenarios/mapping_identity.json",
+      "exists": true,
+      "size_bytes": 351,
+      "sha256": "1dd581af7f3649e424806ab35021d6ab744d6545f20b6fee5fbeb6841a0aeea9"
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/pmxt_v2_archive_full_scenarios/market_index.parquet",
+      "exists": true,
+      "size_bytes": 2417119,
+      "sha256": "e159e2bd96acc55c4765a77ea5d6357c6dff8b230143aa16461cde6fbc569fc6"
+    },
+    {
+      "path": "reports/btc_preopen/entry_snapshots.parquet",
+      "exists": true,
+      "size_bytes": 10485483,
+      "sha256": "1df26fe04d2e8d0f0fb9a3820184ce4a5b10c42383b8d424975dde44ef6a84b9"
+    },
+    {
+      "path": "reports/btc_preopen/event_replay_summary.json",
+      "exists": true,
+      "size_bytes": 11259,
+      "sha256": "717ff072744db54c3204a1d554a23a9dc655b94450a1253b0924a365033c49c8"
+    },
+    {
+      "path": "reports/btc_preopen/economic_replay.json",
+      "exists": true,
+      "size_bytes": 87830,
+      "sha256": "96a3f15dedb62ec986140ecb81577a5d94326121618912f8f011251d6d5db8c7"
+    },
+    {
+      "path": "run_btc_preopen_economic_replay.py",
+      "exists": true,
+      "size_bytes": 62884,
+      "sha256": "7172bf02d2806f06a1eddfa2780333a550e8d7f9cb812c37bf90f70265d7818e"
+    },
+    {
+      "path": "audit_btc_preopen_runtime_compatibility.py",
+      "exists": true,
+      "size_bytes": 122583,
+      "sha256": "c4750cc1051ad92eb7544423284f2a6ff6db99fd73820ba09619cdadd561070a"
+    },
+    {
+      "path": "run.py",
+      "exists": true,
+      "size_bytes": 323020,
+      "sha256": "95073d8711ccc95c4409c8f5bf12b52f31613fc446b81b292fbb412972d345fd"
+    },
+    {
+      "path": "features/live_indicator_runtime.py",
+      "exists": true,
+      "size_bytes": 12173,
+      "sha256": "623b76a02676617f34288bb9b9b175398e1a6c9867efc19184e0db10d0153bed"
+    },
+    {
+      "path": "utils/project_config.py",
+      "exists": true,
+      "size_bytes": 40209,
+      "sha256": "eb30902ffa9d161c28ca4b5dec9f9b94e6f30d63c47c1d33f72e7b47b6a0b6dd"
+    },
+    {
+      "path": "utils/polymarket_user_stream.py",
+      "exists": true,
+      "size_bytes": 23808,
+      "sha256": "e0264e41bc02f201f1599fd971e6208b44309cfaca8cf9c09f55d97d7895fb06"
+    },
+    {
+      "path": "docs/live_telemetry.md",
+      "exists": true,
+      "size_bytes": 7136,
+      "sha256": "14bfa9f1af3b7bb4ab050a8a88d5562877b0545fa92a2b6013f66d89ca190f08"
+    }
+  ]
+}

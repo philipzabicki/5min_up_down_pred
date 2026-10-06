@@ -1,0 +1,200 @@
+{
+  "status": "verified",
+  "model_meta_path": "configs/runtime/btc_preopen_candidate_model_meta.json",
+  "model_file": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+  "feature_count": 112,
+  "feature_order_sha256_newline_utf8": "875b25f822b32bd3d07e3a534ea351d4d19bf25b4948fee81646d7ef76111883",
+  "history_cutoff_and_span": {
+    "bootstrap_start_utc": "2020-06-09T09:33:00+00:00",
+    "first_anchor_inclusive_utc": "2026-04-15T17:03:00+00:00",
+    "last_anchor_inclusive_utc": "2026-04-16T00:04:00+00:00",
+    "bootstrap_rows": 3076291,
+    "chronological_rows_compared": 422,
+    "target_columns_loaded": false,
+    "raw_source": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv",
+    "reference_dataset": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_preopen_v1.parquet"
+  },
+  "predeclared_tolerances": {
+    "feature_absolute": 1e-06,
+    "feature_relative": 1e-05,
+    "probability_absolute": 1e-06,
+    "mask_comparison": "finite/non-finite status must match exactly"
+  },
+  "comparison": {
+    "anchor_rows": 422,
+    "decision_rows": 85,
+    "feature_values_compared": 47264,
+    "feature_value_mismatches": 0,
+    "finite_mask_mismatches": 0,
+    "features_with_value_mismatches": 0,
+    "features_with_mask_mismatches": 0,
+    "top_features_by_value_mismatch_rows": [
+      {
+        "feature": "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypema_atrper1979_maper1500_matypshmma_souopen",
+        "family": "indicator",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 1.447250213004736e-07,
+        "mean_signed_delta": -1.3941701439047645e-07
+      },
+      {
+        "feature": "BollingerBands_fit_5m_preopen_v1_pop64_maper1732_masoulow_matypshmma_stdmaper1997_stdmatypnwmabiw_stdsouhl2",
+        "family": "indicator",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 3.6969940442332927e-09,
+        "mean_signed_delta": 2.48111345805095e-09
+      },
+      {
+        "feature": "ChaikinOsc_fit_5m_preopen_v1_pop64_fasmatypema_fasper13_slomatypshmma_sloper79",
+        "family": "indicator",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 4.656612873077393e-10,
+        "mean_signed_delta": -5.627660107273626e-11
+      },
+      {
+        "feature": "StochOsc_fit_5m_preopen_v1_pop64_faskper843_slodmatypnwmaunif_slodper786_slokmatypkama_slokper1754",
+        "family": "indicator",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 2.842170943040401e-14,
+        "mean_signed_delta": 9.260628072702727e-17
+      },
+      {
+        "feature": "vp_medium_local_above_below_volume_log_ratio",
+        "family": "volume_profile",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 1.9984014443252818e-15,
+        "mean_signed_delta": 1.0839144221458874e-16
+      },
+      {
+        "feature": "vp_short_local_above_below_volume_log_ratio",
+        "family": "volume_profile",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 1.7763568394002505e-15,
+        "mean_signed_delta": -1.7024543307483285e-17
+      },
+      {
+        "feature": "vp_short_log_density_ratio_to_current_bin_plus_6",
+        "family": "volume_profile",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 1.7763568394002505e-15,
+        "mean_signed_delta": -1.0391897979311299e-17
+      },
+      {
+        "feature": "vp_short_log_density_ratio_to_current_bin_plus_3",
+        "family": "volume_profile",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 1.7763568394002505e-15,
+        "mean_signed_delta": -8.401282237032227e-18
+      },
+      {
+        "feature": "vp_short_log_density_ratio_to_current_bin_plus_4",
+        "family": "volume_profile",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 1.7763568394002505e-15,
+        "mean_signed_delta": -1.1045245402209555e-17
+      },
+      {
+        "feature": "vp_short_log_density_ratio_to_current_bin_plus_5",
+        "family": "volume_profile",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 1.7763568394002505e-15,
+        "mean_signed_delta": -4.2295189204562486e-17
+      },
+      {
+        "feature": "vp_short_log_density_ratio_to_current_bin_minus_5",
+        "family": "volume_profile",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 8.326672684688674e-16,
+        "mean_signed_delta": 9.355996756690078e-18
+      },
+      {
+        "feature": "vp_short_log_density_ratio_to_current_bin_minus_3",
+        "family": "volume_profile",
+        "value_mismatch_rows": 0,
+        "finite_mask_mismatch_rows": 0,
+        "max_abs_delta": 7.216449660063518e-16,
+        "mean_signed_delta": -6.3592825055358304e-18
+      }
+    ],
+    "feature_max_abs_delta": 1.447250213004736e-07,
+    "raw_probability_max_abs_delta_vs_booster_on_reference": 0.0,
+    "platt_probability_max_abs_delta_vs_booster_on_reference": 0.0,
+    "cached_decision_prediction_raw_max_abs_delta": 0.0,
+    "cached_decision_prediction_platt_max_abs_delta": 0.0,
+    "cached_decision_raw_probability_mismatches": 0,
+    "cached_decision_platt_probability_mismatches": 0,
+    "boundary_example_opened_utc": {
+      "3m": "2026-04-15T17:03:00+00:00",
+      "5m": "2026-04-15T17:05:00+00:00",
+      "15m": "2026-04-15T17:15:00+00:00",
+      "30m": "2026-04-15T17:30:00+00:00",
+      "1h": "2026-04-15T18:00:00+00:00",
+      "4h": "2026-04-15T20:00:00+00:00",
+      "1d": "2026-04-16T00:00:00+00:00"
+    },
+    "resumption_anchor_utc": "2026-04-15T23:58:00+00:00",
+    "resumption_comparison_rows": 6,
+    "resumption_failures": 0,
+    "resumption_max_feature_abs_delta": 0.0,
+    "resumption_max_raw_probability_abs_delta": 0.0
+  },
+  "timing": {
+    "raw_csv_read_seconds": 4.634090000006836,
+    "feature_reference_read_seconds": 17.4136871000228,
+    "candidate_runtime_initialization_seconds": 2.762964599998668,
+    "chaikin_state_rebuild_seconds": 1.1709876999957487,
+    "warm_state_update": {
+      "n": 422,
+      "p50_ms": 0.5636,
+      "p95_ms": 1.03525,
+      "p99_ms": 1.1591210000000005,
+      "max_ms": 12.8774,
+      "mean_ms": 0.6648831753554502
+    },
+    "warm_full_feature_vector": {
+      "n": 422,
+      "p50_ms": 14.057549999999999,
+      "p95_ms": 20.67278,
+      "p99_ms": 26.649756000000025,
+      "max_ms": 52.54,
+      "mean_ms": 15.110241469194312
+    },
+    "warm_model_predict_plus_platt": {
+      "n": 422,
+      "p50_ms": 0.14055,
+      "p95_ms": 0.22376999999999997,
+      "p99_ms": 0.2893860000000001,
+      "max_ms": 0.4319,
+      "mean_ms": 0.1532526066350711
+    },
+    "warm_update_vector_predict_end_to_end": {
+      "n": 422,
+      "p50_ms": 14.846,
+      "p95_ms": 22.73670999999999,
+      "p99_ms": 28.000333000000015,
+      "max_ms": 53.0098,
+      "mean_ms": 15.950901421800946
+    },
+    "rows_are_local_cpu_only": true,
+    "network_latency_measured": false,
+    "threads": 1
+  },
+  "memory": {
+    "rss_peak_sampled_bytes": 3063386112,
+    "rss_peak_sampler_interval_ms": 100,
+    "sampled_peak_scope": "this audit process; may miss native allocator peaks between samples"
+  },
+  "retained_history_candles": 21600,
+  "history_requirement_status": "parameter_based_warmup_only_empirical_stability_not_audited",
+  "profile_states_rebuilt_from_pre_anchor_raw_prefix": true
+}

@@ -1,7 +1,155 @@
 import numpy as np
-from talib import AD, STOCHF, TRANGE
+from talib import AD, EMA, STOCHF, TRANGE
 
 from .ta_tools import apply_ma, get_1d_ma, precompute_ohlcv_sources
+
+
+class _SharpModifiedMovingAverageState:
+    __slots__ = (
+        "period",
+        "count",
+        "total",
+        "weighted_total",
+        "window_values",
+        "value",
+    )
+
+    def __init__(
+            self,
+            period,
+            *,
+            count=0,
+            total=0.0,
+            weighted_total=0.0,
+            window_values=(),
+            value=float("nan"),
+    ):
+        self.period = int(period)
+        self.count = int(count)
+        self.total = float(total)
+        self.weighted_total = float(weighted_total)
+        self.window_values = list(window_values)
+        self.value = float(value)
+
+    def update(self, value):
+        value = float(value)
+        period = self.period
+        index = self.count
+        if index < period - 1:
+            self.total += value
+            self.weighted_total += (-period + 2 * index + 1.0) / 2.0 * value
+            self.window_values.append(value)
+            self.count += 1
+            return self.value
+
+        self.total += value
+        self.weighted_total += (period - 1.0) / 2.0 * value
+        self.value = self.total / period + (6.0 * self.weighted_total) / (
+            (period + 1) * period
+        )
+        self.weighted_total -= self.total
+        oldest = self.window_values.pop(0)
+        self.weighted_total += (period + 1.0) / 2.0 * oldest
+        self.total -= oldest
+        self.window_values.append(value)
+        self.count += 1
+        return self.value
+
+    def to_dict(self):
+        return {
+            "period": self.period,
+            "count": self.count,
+            "total": self.total,
+            "weighted_total": self.weighted_total,
+            "window_values": list(self.window_values),
+            "value": self.value,
+        }
+
+
+class ChaikinOscillatorRuntimeState:
+    """Continue the fitted Chaikin EMA minus SHMMA from its training history."""
+
+    __slots__ = (
+        "fast_period",
+        "slow_period",
+        "adl_value",
+        "fast_ema_value",
+        "fast_ema_alpha",
+        "shmma_state",
+        "value",
+    )
+
+    def __init__(self, fast_period, slow_period, adl_value, fast_ema_value, shmma_state):
+        self.fast_period = int(fast_period)
+        self.slow_period = int(slow_period)
+        self.adl_value = float(adl_value)
+        self.fast_ema_value = float(fast_ema_value)
+        self.fast_ema_alpha = 2.0 / (self.fast_period + 1.0)
+        self.shmma_state = shmma_state
+        self.value = self.fast_ema_value - self.shmma_state.value
+
+    @classmethod
+    def from_history(cls, ohlcv, *, fast_period, slow_period):
+        values = np.asarray(ohlcv, dtype=np.float64)
+        if values.ndim != 2 or values.shape[1] < 5:
+            raise ValueError("Chaikin history must be an OHLCV matrix.")
+        adl = AD(*values[:, 1:5].T)
+        fast_ema = EMA(adl, timeperiod=int(fast_period))
+        shmma_state = _SharpModifiedMovingAverageState(slow_period)
+        for value in adl:
+            shmma_state.update(float(value))
+        if not np.isfinite(fast_ema[-1]) or not np.isfinite(shmma_state.value):
+            raise ValueError("Chaikin history is too short to initialize its fitted state.")
+        return cls(
+            fast_period,
+            slow_period,
+            adl[-1],
+            fast_ema[-1],
+            shmma_state,
+        )
+
+    @classmethod
+    def from_dict(cls, payload):
+        shmma = payload["shmma_state"]
+        return cls(
+            payload["fast_period"],
+            payload["slow_period"],
+            payload["adl_value"],
+            payload["fast_ema_value"],
+            _SharpModifiedMovingAverageState(
+                shmma["period"],
+                count=shmma["count"],
+                total=shmma["total"],
+                weighted_total=shmma["weighted_total"],
+                window_values=shmma["window_values"],
+                value=shmma["value"],
+            ),
+        )
+
+    def to_dict(self):
+        return {
+            "fast_period": self.fast_period,
+            "slow_period": self.slow_period,
+            "adl_value": self.adl_value,
+            "fast_ema_value": self.fast_ema_value,
+            "shmma_state": self.shmma_state.to_dict(),
+        }
+
+    def update(self, ohlcv_row):
+        row = np.asarray(ohlcv_row, dtype=np.float64).reshape(-1)
+        increment = AD(
+            np.asarray([row[1]], dtype=np.float64),
+            np.asarray([row[2]], dtype=np.float64),
+            np.asarray([row[3]], dtype=np.float64),
+            np.asarray([row[4]], dtype=np.float64),
+        )[0]
+        self.adl_value += float(increment)
+        self.fast_ema_value = (
+            (self.adl_value - self.fast_ema_value) * self.fast_ema_alpha
+        ) + self.fast_ema_value
+        slow_value = self.shmma_state.update(self.adl_value)
+        self.value = self.fast_ema_value - slow_value
+        return self.value
 
 
 class IndicatorFullHistoryScratch:

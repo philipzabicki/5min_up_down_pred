@@ -134,6 +134,10 @@ def _new_state():
         "bbo_mismatches": 0,
         "bbo_bid_mismatches": 0,
         "bbo_ask_mismatches": 0,
+        "bbo_not_newer_than_side_state": 0,
+        "bbo_older_than_side_state": 0,
+        "bbo_tied_with_side_state": 0,
+        "bbo_not_newer_side_samples": [],
         "bbo_mismatch_samples": [],
         "complement_checks": 0,
         "complement_mismatches": 0,
@@ -318,7 +322,34 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
         if book is not None and book["source_token_id"] != token_id:
             continue
         source_token = state["tokens"].get(book["source_token_id"]) if book else None
-        if source_token is not None and source_token["book_source_ns"] is not None and source_ns <= source_token["book_source_ns"]:
+        side_source_timestamps = (
+            source_token["bid_book_source_ns"],
+            source_token["ask_book_source_ns"],
+        ) if source_token is not None else ()
+        latest_side_source_ns = (
+            max(value for value in side_source_timestamps if value is not None)
+            if any(value is not None for value in side_source_timestamps)
+            else None
+        )
+        if latest_side_source_ns is not None and source_ns <= latest_side_source_ns:
+            state["bbo_not_newer_than_side_state"] += 1
+            if len(state["bbo_not_newer_side_samples"]) < 5:
+                actual = _bbo(book)
+                state["bbo_not_newer_side_samples"].append({
+                    "token_id": token_id,
+                    "received_at_utc": pd.Timestamp(received_ns, unit="ns", tz="UTC").isoformat(),
+                    "source_timestamp_utc": pd.Timestamp(source_ns, unit="ns", tz="UTC").isoformat(),
+                    "latest_side_source_timestamp_utc": pd.Timestamp(
+                        latest_side_source_ns, unit="ns", tz="UTC"
+                    ).isoformat(),
+                    "relation": "older" if source_ns < latest_side_source_ns else "tied",
+                    "reported_bbo": [expected_bid, expected_ask],
+                    "reconstructed_bbo": None if actual is None else [actual[0], actual[1]],
+                })
+            if source_ns < latest_side_source_ns:
+                state["bbo_older_than_side_state"] += 1
+            else:
+                state["bbo_tied_with_side_state"] += 1
             continue
         actual = _bbo(book)
         if actual is None:
@@ -339,6 +370,9 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
                     "reconstructed_bbo": [actual[0], actual[1]],
                     "source_token_id": book["source_token_id"],
                     "complemented": bool(book["complemented"]),
+                    "latest_side_source_timestamp_utc": pd.Timestamp(
+                        latest_side_source_ns, unit="ns", tz="UTC"
+                    ).isoformat(),
                 })
     up_direct = _direct_book(state["tokens"].get(str(up_token_id)))
     down_direct = _direct_book(state["tokens"].get(str(down_token_id)))
@@ -403,6 +437,19 @@ def _walk_asks(asks, fee_rate_bps, fee_collection_mode):
     }
 
 
+def _valid_reconstructed_quote(bid, ask, ask_size):
+    bid_value, ask_value, size_value = _float(bid), _float(ask), _float(ask_size)
+    return (
+        bid_value is not None
+        and ask_value is not None
+        and size_value is not None
+        and 0.0 < bid_value < 1.0
+        and 0.0 < ask_value < 1.0
+        and size_value > 0.0
+        and bid_value <= ask_value
+    )
+
+
 def _snapshot(state, market, case):
     up_token_id = str(market["up_token_id"])
     down_token_id = str(market["down_token_id"])
@@ -418,6 +465,9 @@ def _snapshot(state, market, case):
     entry_bbo_mismatches = 0
     entry_bbo_ask_checks = 0
     entry_bbo_ask_mismatches = 0
+    entry_bbo_not_newer_than_side_state = 0
+    entry_bbo_older_than_side_state = 0
+    entry_bbo_tied_with_side_state = 0
     for outcome, book in (("up", up_book), ("down", down_book)):
         top = _book_top(book)
         ask_update_ns = book["ask_book_source_ns"] if book else None
@@ -444,6 +494,22 @@ def _snapshot(state, market, case):
             ),
         }
         source_token = state["tokens"].get(book["source_token_id"]) if book else None
+        side_state_source_ns = (
+            max(
+                value
+                for value in (
+                    source_token["bid_book_source_ns"],
+                    source_token["ask_book_source_ns"],
+                )
+                if value is not None
+            )
+            if source_token is not None
+            and any((
+                source_token["bid_book_source_ns"] is not None,
+                source_token["ask_book_source_ns"] is not None,
+            ))
+            else None
+        )
         if (
             book is not None
             and top is not None
@@ -452,8 +518,23 @@ def _snapshot(state, market, case):
             and reported_token["reported_receive_ns"] <= entry_ns
             and source_token is not None
             and book["source_token_id"] == (up_token_id if outcome == "up" else down_token_id)
-            and (source_token["book_source_ns"] is None or reported_token["reported_source_ns"] > source_token["book_source_ns"])
+            and source_token is not None
         ):
+            if (
+                side_state_source_ns is None
+                or reported_token["reported_source_ns"] is None
+                or reported_token["reported_source_ns"] <= side_state_source_ns
+            ):
+                entry_bbo_not_newer_than_side_state += 1
+                if (
+                    side_state_source_ns is not None
+                    and reported_token["reported_source_ns"] is not None
+                ):
+                    if reported_token["reported_source_ns"] < side_state_source_ns:
+                        entry_bbo_older_than_side_state += 1
+                    else:
+                        entry_bbo_tied_with_side_state += 1
+                continue
             entry_bbo_checks += 1
             bid_mismatch = abs(top[0] - reported_token["reported_best_bid"]) > 1e-6
             ask_mismatch = abs(top[1] - reported_token["reported_best_ask"]) > 1e-6
@@ -469,7 +550,14 @@ def _snapshot(state, market, case):
         token["last_source_ns"] is None or token["last_source_ns"] <= entry_ns
         for token in state["tokens"].values()
     ) and (state["fee_source_ns"] is None or state["fee_source_ns"] <= entry_ns)
-    bbo_valid = all(side["best_bid"] is not None and side["best_ask"] is not None and side["best_bid"] < side["best_ask"] for side in sides.values())
+    bbo_valid = all(
+        _valid_reconstructed_quote(
+            side["best_bid"],
+            side["best_ask"],
+            side["best_ask_size_shares"],
+        )
+        for side in sides.values()
+    )
     fill_valid = all(side["fill"] is not None and side["fill"]["depth_sufficient"] for side in sides.values())
     return {
         "condition_id": market["condition_id"],
@@ -495,6 +583,9 @@ def _snapshot(state, market, case):
         "bbo_at_entry_mismatches": entry_bbo_mismatches,
         "bbo_at_entry_ask_checks": entry_bbo_ask_checks,
         "bbo_at_entry_ask_mismatches": entry_bbo_ask_mismatches,
+        "bbo_at_entry_not_newer_than_side_state": entry_bbo_not_newer_than_side_state,
+        "bbo_at_entry_older_than_side_state": entry_bbo_older_than_side_state,
+        "bbo_at_entry_tied_with_side_state": entry_bbo_tied_with_side_state,
         "depth_5usd_valid_both_sides": fill_valid,
         "fee_known": fee_known,
         "fee_rate_bps": rate if fee_known else None,
@@ -568,6 +659,12 @@ def _event_latency_stats(arrays):
     }
 
 
+def _accumulate_event_type_counts(counts, part_counts):
+    for event_type, count in part_counts.items():
+        key = str(event_type)
+        counts[key] = int(counts.get(key, 0)) + int(count)
+
+
 def _extract_snapshots(index):
     markets = index.to_dict("records")
     market_by_id = {market["condition_id"]: market for market in markets}
@@ -592,7 +689,7 @@ def _extract_snapshots(index):
         with REPLAY_CHECKPOINT_PATH.open("rb") as stream:
             checkpoint = pickle.load(stream)
         if (
-            checkpoint.get("version") != 1
+            checkpoint.get("version") != 3
             or checkpoint.get("part_signature") != part_signature
             or checkpoint.get("index_signature") != index_signature
         ):
@@ -613,7 +710,7 @@ def _extract_snapshots(index):
 
     def save_checkpoint(part_position, part_name):
         payload = {
-            "version": 1,
+            "version": 3,
             "part_signature": part_signature,
             "index_signature": index_signature,
             "last_part_position": part_position,
@@ -668,7 +765,10 @@ def _extract_snapshots(index):
             recv_ms = frame.loc[valid_source, "_received_ns"].to_numpy(dtype=np.int64, copy=False) / 1e6
             source_ms = frame.loc[valid_source, "_source_ns"].to_numpy(dtype=np.int64, copy=False) / 1e6
             latency_arrays.append(recv_ms - source_ms)
-        event_type_counts.update(frame["event_type"].value_counts().to_dict())
+        _accumulate_event_type_counts(
+            event_type_counts,
+            frame["event_type"].value_counts().to_dict(),
+        )
         total_events += int(len(frame))
         duplicate_count += int(frame.duplicated(subset=[
             "market", "timestamp_received", "timestamp", "event_type", "asset_id", "price", "size", "side",
@@ -713,6 +813,9 @@ def _extract_snapshots(index):
         "book_snapshot_events": int(sum(state["book_count"] for state in states.values())),
         "bbo_reconciliation_checks": int(sum(state["bbo_checks"] for state in states.values())),
         "bbo_reconciliation_mismatches": int(sum(state["bbo_mismatches"] for state in states.values())),
+        "bbo_references_not_newer_than_side_state": int(sum(state["bbo_not_newer_than_side_state"] for state in states.values())),
+        "bbo_references_older_than_side_state": int(sum(state["bbo_older_than_side_state"] for state in states.values())),
+        "bbo_references_tied_with_side_state": int(sum(state["bbo_tied_with_side_state"] for state in states.values())),
         "bbo_bid_reconciliation_mismatches": int(sum(state["bbo_bid_mismatches"] for state in states.values())),
         "bbo_ask_reconciliation_mismatches": int(sum(state["bbo_ask_mismatches"] for state in states.values())),
         "complement_checks": int(sum(state["complement_checks"] for state in states.values())),
@@ -720,10 +823,26 @@ def _extract_snapshots(index):
         "out_of_order_price_changes": int(sum(state["out_of_order_price_changes"] for state in states.values())),
         "out_of_order_book_events": int(sum(state["out_of_order_book_events"] for state in states.values())),
         "bbo_reconciliation_first_mismatch_samples": [sample for state in states.values() for sample in state["bbo_mismatch_samples"][:5]][:20],
+        "bbo_references_not_newer_samples": [sample for state in states.values() for sample in state["bbo_not_newer_side_samples"][:5]][:20],
         "markets_with_uninitialized_deltas": int(sum(state["uninitialized_price_changes"] > 0 for state in states.values())),
         "max_market_inter_event_gap_seconds": max((state["max_inter_event_gap_seconds"] or 0.0 for state in states.values()), default=0.0),
     }
     return pd.DataFrame(snapshots), summary
+
+
+def _count_cached_event_types(part_paths):
+    counts = {}
+    for path in part_paths:
+        table = pq.read_table(path, columns=["event_type"])
+        part_counts = {
+            row["values"]: int(row["counts"])
+            for row in table.column("event_type").value_counts().to_pylist()
+        }
+        _accumulate_event_type_counts(
+            counts,
+            part_counts,
+        )
+    return counts
 
 
 def _data_reason(row, max_age_seconds):
@@ -996,13 +1115,23 @@ def run_replay():
         original, on="condition_id", how="left", validate="one_to_one", suffixes=("", "_source"),
     )
     expected_snapshot_rows = int(len(index) * 16)
-    reused_snapshot_cache = SNAPSHOT_CACHE.is_file() and EVENT_SUMMARY_CACHE.is_file()
+    cached_summary = (
+        json.loads(EVENT_SUMMARY_CACHE.read_text(encoding="utf-8"))
+        if EVENT_SUMMARY_CACHE.is_file()
+        else {}
+    )
+    reused_snapshot_cache = (
+        SNAPSHOT_CACHE.is_file()
+        and cached_summary.get("book_replay_semantics_version") == 3
+        and cached_summary.get("bbo_references_not_newer_than_side_state") is not None
+    )
     if reused_snapshot_cache:
         snapshots = pd.read_parquet(SNAPSHOT_CACHE)
         event_summary = json.loads(EVENT_SUMMARY_CACHE.read_text(encoding="utf-8"))
         print(f"[replay] reused {len(snapshots):,} cached full-depth snapshots", flush=True)
     else:
         snapshots, event_summary = _extract_snapshots(index)
+        event_summary["book_replay_semantics_version"] = 3
     if snapshots.empty:
         raise RuntimeError("No PMXT entry snapshots were produced")
     if len(snapshots) != expected_snapshot_rows:
@@ -1011,20 +1140,48 @@ def run_replay():
         raise RuntimeError("At least one entry snapshot includes a future-received PMXT event")
     if not reused_snapshot_cache:
         snapshots.to_parquet(SNAPSHOT_CACHE, index=False)
+    event_summary["event_type_counts"] = _count_cached_event_types(PARTS_DIR.glob("*.parquet"))
+    if not reused_snapshot_cache:
         EVENT_SUMMARY_CACHE.write_text(json.dumps(event_summary, indent=2, default=str) + "\n", encoding="utf-8")
-    REPLAY_CHECKPOINT_PATH.unlink(missing_ok=True)
-    REPLAY_CHECKPOINT_PATH.with_suffix(".pkl.tmp").unlink(missing_ok=True)
+        REPLAY_CHECKPOINT_PATH.unlink(missing_ok=True)
+        REPLAY_CHECKPOINT_PATH.with_suffix(".pkl.tmp").unlink(missing_ok=True)
+    else:
+        EVENT_SUMMARY_CACHE.write_text(json.dumps(event_summary, indent=2, default=str) + "\n", encoding="utf-8")
     snapshots["entry_time_utc"] = pd.to_datetime(snapshots["entry_time_utc"], utc=True)
     snapshots["resolved_at_utc"] = pd.to_datetime(snapshots["resolved_at_utc"], utc=True, errors="coerce")
+    snapshots["quote_valid_strict_bid_lt_ask"] = snapshots.apply(
+        lambda row: all(
+            _float(row[f"{outcome}_best_bid"]) is not None
+            and _float(row[f"{outcome}_best_ask"]) is not None
+            and _float(row[f"{outcome}_best_bid"]) < _float(row[f"{outcome}_best_ask"])
+            for outcome in ("up", "down")
+        ),
+        axis=1,
+    )
+    snapshots["quote_valid"] = snapshots.apply(
+        lambda row: all(
+            _valid_reconstructed_quote(
+                row[f"{outcome}_best_bid"],
+                row[f"{outcome}_best_ask"],
+                row[f"{outcome}_best_ask_size_shares"],
+            )
+            for outcome in ("up", "down")
+        ),
+        axis=1,
+    )
+    snapshots.to_parquet(SNAPSHOT_CACHE, index=False)
     for outcome in ("up", "down"):
         snapshots[f"{outcome}_ask_age_seconds"] = pd.to_numeric(snapshots[f"{outcome}_ask_age_seconds"], errors="coerce")
     coverage_columns = [
         "condition_id", "market_slug", "market_start_utc", "entry_case", "entry_kind",
         "compute_delay_seconds", "order_delay_seconds", "prediction_available_at_utc", "entry_time_utc",
         "target_polymarket_up", "no_future_event_at_entry", "no_future_source_event_at_entry", "has_full_snapshot", "book_snapshot_token_count", "quote_valid",
+        "quote_valid_strict_bid_lt_ask",
         "fee_collection_mode",
         "bbo_at_entry_checks", "bbo_at_entry_mismatches",
         "bbo_at_entry_ask_checks", "bbo_at_entry_ask_mismatches",
+        "bbo_at_entry_not_newer_than_side_state",
+        "bbo_at_entry_older_than_side_state", "bbo_at_entry_tied_with_side_state",
         "depth_5usd_valid_both_sides", "fee_known", "fee_rate_bps", "fee_age_seconds",
         "up_best_bid", "up_best_ask", "up_reported_best_bid", "up_reported_best_ask", "up_best_ask_size_shares", "up_ask_age_seconds", "up_ask_received_age_seconds", "up_quote_complemented",
         "down_best_bid", "down_best_ask", "down_reported_best_bid", "down_reported_best_ask", "down_best_ask_size_shares", "down_ask_age_seconds", "down_ask_received_age_seconds", "down_quote_complemented",

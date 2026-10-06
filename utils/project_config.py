@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from utils.config import (
@@ -20,7 +21,10 @@ LIVE_CONFIG_PATH = CONFIGS_DIR / "live.json"
 ACTIVE_CONFIG_PATH = CONFIGS_DIR / "active.json"
 
 RUNTIME_DIR = CONFIGS_DIR / "runtime"
-RUNTIME_ACTIVE_PATH = RUNTIME_DIR / "active.json"
+RUNTIME_ACTIVE_PATH = Path(
+    os.environ.get("POLYMARKET_RUNTIME_CONFIG_PATH")
+    or RUNTIME_DIR / "active.json"
+)
 
 DEFAULT_WALK_FORWARD_TEST_TO_TRAIN_RATIO = 0.1
 ASSET_PLACEHOLDER = "{asset}"
@@ -812,7 +816,7 @@ def _normalize_runtime_artifacts(artifacts, asset, *, source_label):
         indicator_requirements_path = (
             f"data/runtime/{normalize_asset_name(asset)}/indicator_history_requirements.json"
         )
-    return {
+    normalized = {
         "model_meta_path": _format_runtime_path(
             require_text(artifacts, "model_meta_path"),
             asset,
@@ -831,6 +835,22 @@ def _normalize_runtime_artifacts(artifacts, asset, *, source_label):
             ),
         ),
     }
+    optional_path_artifacts = (
+        "indicator_fit_results_dir",
+        "indicator_state_seed_path",
+        "feature_runtime_config_path",
+        "volume_profile_modeling_state_path",
+        "reaction_profile_modeling_state_path",
+    )
+    for key in optional_path_artifacts:
+        value = str(artifacts.get(key) or "").strip()
+        if value:
+            normalized[key] = _format_runtime_path(
+                value,
+                asset,
+                source_label=f"{source_label}.artifacts.{key}",
+            )
+    return normalized
 
 
 def _runtime_asset_enabled(entry, *, source_label):

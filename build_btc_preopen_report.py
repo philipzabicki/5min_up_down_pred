@@ -28,12 +28,20 @@ INFERENCE_LATENCY = REPORT_DIR / "candidate_inference_latency.json"
 ENTRY_SNAPSHOTS = REPORT_DIR / "entry_snapshots.parquet"
 BOOK_TIMING_EXAMPLES = REPORT_DIR / "book_timing_examples.csv"
 ECONOMIC_COMPARISON = REPORT_DIR / "primary_economic_comparison.csv"
+QUOTE_IMPACT = REPORT_DIR / "quote_validation_economic_impact.csv"
+QUOTE_MARKET_CHANGES = REPORT_DIR / "quote_validation_market_changes.csv"
+CORRECTED_TRADES = REPORT_DIR / "quote_validation_corrected_trades.parquet"
 ENTRY_SNAPSHOT_SIMULATION_COLUMNS = [
-    "entry_case", "entry_time_utc", "condition_id", "entry_kind",
+    "entry_case", "entry_time_utc", "prediction_available_at_utc",
+    "condition_id", "entry_kind", "market_slug", "market_start_utc",
     "compute_delay_seconds", "order_delay_seconds", "target_polymarket_up",
     "resolved_at_utc", "fee_collection_mode", "no_future_event_at_entry",
     "no_future_source_event_at_entry", "has_full_snapshot", "quote_valid",
-    "bbo_at_entry_ask_mismatches", "up_ask_age_seconds", "down_ask_age_seconds",
+    "bbo_at_entry_ask_mismatches", "up_best_ask", "down_best_ask",
+    "up_best_ask_size_shares", "down_best_ask_size_shares",
+    "up_quote_source_token_id", "down_quote_source_token_id",
+    "up_quote_complemented", "down_quote_complemented",
+    "up_ask_age_seconds", "down_ask_age_seconds", "fee_rate_bps",
     "fee_known", "depth_5usd_valid_both_sides", "up_fill", "down_fill",
     "p_model_raw", "p_model_platt", "p_candidate_raw", "p_candidate_platt",
 ]
@@ -178,12 +186,244 @@ def _build_primary_economic_comparison(coverage):
     return frame
 
 
+def _build_quote_validation_economic_impact(coverage):
+    import run_btc_preopen_economic_replay as replay
+
+    snapshot_columns = list(dict.fromkeys(
+        ENTRY_SNAPSHOT_SIMULATION_COLUMNS
+        + ["quote_valid_strict_bid_lt_ask"]
+    ))
+    snapshots = pd.read_parquet(ENTRY_SNAPSHOTS, columns=snapshot_columns)
+    snapshots = snapshots.loc[snapshots.entry_case.eq("prestart_c0_o1")].copy()
+    snapshots["entry_time_utc"] = pd.to_datetime(snapshots.entry_time_utc, utc=True)
+    snapshots["condition_id"] = snapshots.condition_id.astype(str)
+
+    before = pd.read_csv(REPORT_DIR / "quote_validation_before_fresh_bbo.csv")
+    before = before.loc[before.entry_case.eq("prestart_c0_o1")].copy()
+    before["condition_id"] = before.condition_id.astype(str)
+    before = before[[
+        "condition_id", "quote_valid", "quote_valid_strict_bid_lt_ask",
+        "bbo_at_entry_ask_mismatches", "coverage_reason_age30s",
+    ]].rename(columns={
+        "quote_valid": "quote_valid_before_fresh_bbo",
+        "quote_valid_strict_bid_lt_ask": "quote_valid_strict_before_fresh_bbo",
+        "bbo_at_entry_ask_mismatches": "ask_mismatches_before_fresh_bbo",
+        "coverage_reason_age30s": "reason_before_fresh_bbo",
+    })
+    after = coverage.loc[coverage.entry_case.eq("prestart_c0_o1"), [
+        "condition_id", "coverage_reason_age30s",
+    ]].copy()
+    after["condition_id"] = after.condition_id.astype(str)
+    data = snapshots.merge(before, on="condition_id", how="left", validate="one_to_one")
+    data = data.merge(after, on="condition_id", how="left", validate="one_to_one")
+    if data.quote_valid_before_fresh_bbo.isna().any() or data.coverage_reason_age30s.isna().any():
+        raise RuntimeError("T-59 snapshots are missing before/after quote-validation rows")
+
+    stages = {
+        "original_strict_bid_lt_ask": {
+            "quote_valid": (
+                data.quote_valid_before_fresh_bbo.fillna(False).astype(bool)
+                & data.quote_valid_strict_before_fresh_bbo.fillna(False).astype(bool)
+            ),
+            "ask_mismatches": data.ask_mismatches_before_fresh_bbo,
+        },
+        "locked_quotes_old_bbo_freshness": {
+            "quote_valid": data.quote_valid_before_fresh_bbo.fillna(False).astype(bool),
+            "ask_mismatches": data.ask_mismatches_before_fresh_bbo,
+        },
+        "locked_quotes_corrected_bbo_freshness": {
+            "quote_valid": data.quote_valid.fillna(False).astype(bool),
+            "ask_mismatches": data.bbo_at_entry_ask_mismatches,
+        },
+    }
+    stage_frames = {}
+    stage_eligible_ids = {}
+    for stage, config in stages.items():
+        frame = data.copy()
+        frame["quote_valid"] = config["quote_valid"].to_numpy()
+        frame["bbo_at_entry_ask_mismatches"] = pd.to_numeric(
+            config["ask_mismatches"], errors="coerce"
+        ).fillna(0).to_numpy()
+        frame["quote_validation_reason"] = frame.apply(
+            lambda row: replay._data_reason(row, 30), axis=1
+        )
+        stage_frames[stage] = frame
+        stage_eligible_ids[stage] = set(
+            frame.loc[frame.quote_validation_reason.eq("eligible"), "condition_id"]
+        )
+
+    before_artifact = _json(REPORT_DIR / "book_validation_before.json")
+    expected_original_eligible = int(
+        before_artifact["reason_counts_age30_seconds"]["prestart_c0_o1"]["eligible"]
+    )
+    if len(stage_eligible_ids["original_strict_bid_lt_ask"]) != expected_original_eligible:
+        raise RuntimeError("Reconstructed original strict-quote eligibility differs from saved before-fix audit")
+    expected_fresh_eligible = int(
+        coverage.loc[
+            coverage.entry_case.eq("prestart_c0_o1"),
+            "coverage_reason_age30s",
+        ].eq("eligible").sum()
+    )
+    if len(stage_eligible_ids["locked_quotes_corrected_bbo_freshness"]) != expected_fresh_eligible:
+        raise RuntimeError("Reconstructed corrected quote eligibility differs from final coverage")
+
+    common_ids = set.intersection(*stage_eligible_ids.values())
+    model_names = (
+        "candidate_platt", "original_v1_platt", "candidate_raw", "original_v1_raw",
+        "no_btc_constant_0_5", "no_btc_development_prevalence_0_5015364895",
+    )
+    baseline_probabilities = {
+        "no_btc_constant_0_5": 0.5,
+        "no_btc_development_prevalence_0_5015364895": 0.5015364895,
+    }
+    impact_rows = []
+    for stage, frame in stage_frames.items():
+        scopes = (
+            ("all_archived_markets", frame),
+            ("stage_eligible_markets", frame.loc[
+                frame.condition_id.isin(stage_eligible_ids[stage])
+            ].copy()),
+            ("common_eligible_across_stages", frame.loc[
+                frame.condition_id.isin(common_ids)
+            ].copy()),
+        )
+        for scope, group in scopes:
+            for model_name in model_names:
+                simulation_group = group
+                simulation_name = model_name
+                if model_name in baseline_probabilities:
+                    simulation_group = group.copy()
+                    simulation_group["p_candidate_platt"] = baseline_probabilities[model_name]
+                    simulation_name = "candidate_platt"
+                result, _ = replay._simulate_group(
+                    simulation_group,
+                    simulation_name,
+                    max_age_seconds=30,
+                    release_delay_seconds=60,
+                    keep_trades=False,
+                )
+                impact_rows.append({
+                    "validation_stage": stage,
+                    "sample_scope": scope,
+                    "sample_markets": int(group.condition_id.nunique()),
+                    "eligible_markets_at_stage": len(stage_eligible_ids[stage]),
+                    "model": model_name,
+                    "baseline_probability": baseline_probabilities.get(model_name),
+                    "net_pnl_usd": result["net_pnl_usd"],
+                    "ending_cash_usd": result["ending_cash_usd"],
+                    "max_drawdown_at_cost": result["max_drawdown_at_cost"],
+                    "trade_count": result["trade_count"],
+                    "gross_turnover_usd": result["gross_turnover_usd"],
+                    "fees_paid_usd": result["fees_paid_usd"],
+                    "data_rejections": result.get("data_rejections", 0),
+                    "skip_no_positive_expected_edge": result.get("skip_no_positive_expected_edge", 0),
+                    "reject_insufficient_balance": result.get("reject_insufficient_balance", 0),
+                })
+
+    impact = pd.DataFrame(impact_rows)
+    common = impact.loc[impact.sample_scope.eq("common_eligible_across_stages")]
+    for model_name, group in common.groupby("model"):
+        if group.net_pnl_usd.max() - group.net_pnl_usd.min() > 1e-9:
+            raise RuntimeError(f"Quote validation changed economics on common eligible markets for {model_name}")
+    saved_original = {
+        (row["sample_scope"], row["model"]): row
+        for row in before_artifact["primary_t59_economics"]
+    }
+    reconstructed_original = impact.loc[
+        impact.validation_stage.eq("original_strict_bid_lt_ask")
+        & impact.sample_scope.isin(("all_archived_markets", "stage_eligible_markets"))
+    ]
+    for row in reconstructed_original.itertuples(index=False):
+        saved_scope = (
+            "all_archived_markets"
+            if row.sample_scope == "all_archived_markets"
+            else "shared_eligible_markets"
+        )
+        expected = saved_original[(saved_scope, row.model)]
+        for metric in ("net_pnl_usd", "ending_cash_usd", "max_drawdown_at_cost"):
+            if abs(float(getattr(row, metric)) - float(expected[metric])) > 1e-8:
+                raise RuntimeError(
+                    f"Reconstructed original strict-quote {metric} differs for {row.sample_scope}/{row.model}"
+                )
+        if row.trade_count != expected["trade_count"]:
+            raise RuntimeError(
+                f"Reconstructed original strict-quote trade count differs for {row.sample_scope}/{row.model}"
+            )
+    impact.to_csv(QUOTE_IMPACT, index=False)
+
+    corrected_trade_rows = []
+    corrected_frame = stage_frames["locked_quotes_corrected_bbo_freshness"]
+    for model_name in model_names:
+        simulation_group = corrected_frame
+        simulation_name = model_name
+        if model_name in baseline_probabilities:
+            simulation_group = corrected_frame.copy()
+            simulation_group["p_candidate_platt"] = baseline_probabilities[model_name]
+            simulation_name = "candidate_platt"
+        _, trade_rows = replay._simulate_group(
+            simulation_group,
+            simulation_name,
+            max_age_seconds=30,
+            release_delay_seconds=60,
+            keep_trades=True,
+        )
+        for trade in trade_rows:
+            trade["model"] = model_name
+            trade["validation_stage"] = "locked_quotes_corrected_bbo_freshness"
+        corrected_trade_rows.extend(trade_rows)
+    corrected_trades = pd.DataFrame(corrected_trade_rows)
+    corrected_trades.to_parquet(CORRECTED_TRADES, index=False)
+
+    market_changes = data[[
+        "condition_id", "market_slug", "market_start_utc", "entry_time_utc",
+        "reason_before_fresh_bbo", "coverage_reason_age30s",
+        "quote_valid_strict_before_fresh_bbo", "quote_valid_before_fresh_bbo",
+        "quote_valid", "ask_mismatches_before_fresh_bbo", "bbo_at_entry_ask_mismatches",
+    ]].rename(columns={
+        "coverage_reason_age30s": "reason_after_fresh_bbo",
+        "quote_valid": "quote_valid_after_fresh_bbo",
+        "bbo_at_entry_ask_mismatches": "ask_mismatches_after_fresh_bbo",
+    })
+    market_changes["reason_original_strict_bid_lt_ask"] = stage_frames[
+        "original_strict_bid_lt_ask"
+    ].quote_validation_reason.to_numpy()
+    market_changes["reason_locked_quotes_old_bbo_freshness"] = stage_frames[
+        "locked_quotes_old_bbo_freshness"
+    ].quote_validation_reason.to_numpy()
+    for stage, ids in stage_eligible_ids.items():
+        market_changes[f"eligible_{stage}"] = market_changes.condition_id.isin(ids)
+    original_ids = stage_eligible_ids["original_strict_bid_lt_ask"]
+    locked_ids = stage_eligible_ids["locked_quotes_old_bbo_freshness"]
+    fresh_ids = stage_eligible_ids["locked_quotes_corrected_bbo_freshness"]
+    market_changes["validation_transition"] = "unchanged"
+    market_changes.loc[
+        ~market_changes.condition_id.isin(original_ids)
+        & market_changes.condition_id.isin(locked_ids),
+        "validation_transition",
+    ] = "added_by_accepting_locked_quote"
+    market_changes.loc[
+        market_changes.condition_id.isin(locked_ids)
+        & ~market_changes.condition_id.isin(fresh_ids),
+        "validation_transition",
+    ] = "removed_by_fresh_bbo_reconciliation"
+    market_changes.loc[
+        ~market_changes.condition_id.isin(locked_ids)
+        & market_changes.condition_id.isin(fresh_ids),
+        "validation_transition",
+    ] = "added_by_fresh_bbo_reconciliation"
+    market_changes.to_csv(QUOTE_MARKET_CHANGES, index=False)
+    return impact, market_changes, corrected_trades
+
+
 def _build_completed_summary(
         *,
         examples,
         market_index,
         coverage,
         comparison,
+        quote_impact,
+        quote_changes,
+        compatibility,
         trades,
         live_timing,
         training,
@@ -216,6 +456,26 @@ def _build_completed_summary(
         str(reason): int(count)
         for reason, count in t59.coverage_reason_age30s.value_counts().items()
     }
+    old_t59_reason_counts = _json(REPORT_DIR / "book_validation_before.json")[
+        "reason_counts_age30_seconds"
+    ]["prestart_c0_o1"]
+    pre_fresh_bbo_t59_reasons = _json(REPORT_DIR / "fresh_bbo_replay_summary.json")[
+        "reason_counts_before_by_entry_case"
+    ]["prestart_c0_o1"]
+    schema_audit = compatibility["pmxt_partition_schema"]
+    event_type_counts = compatibility["archive_event_type_counts"]
+    fresh_bbo_audit = compatibility["fresh_bbo_validation"]
+    feature_parity = compatibility["feature_parity"]
+    feature_definition_audit = compatibility["candidate_feature_definition_audit"]
+    feature_timing = feature_parity["timing"]
+    feature_memory = feature_parity["memory"]
+    feature_families = compatibility["feature_family_counts"]
+    state_seed_as_of = _json(
+        ROOT / "configs/runtime/btc_preopen_candidate_indicator_state.json"
+    )["state_as_of_opened_utc"]
+    bbo_time_relations = compatibility["book_diagnostics"]["prestart_c0_o1"][
+        "entry_reference_bbo_source_time_relations"
+    ]
     t60_silence = (
         pd.to_datetime(t60.entry_time_utc, utc=True, format="mixed")
         - pd.to_datetime(t60.market_last_event_utc, utc=True, format="mixed")
@@ -239,11 +499,40 @@ def _build_completed_summary(
             f"{row.reject_insufficient_balance:,} |"
         )
 
+    quote_impact_lines = []
+    eligible_impact = quote_impact.loc[
+        quote_impact.sample_scope.eq("stage_eligible_markets")
+    ]
+    for row in eligible_impact.itertuples(index=False):
+        quote_impact_lines.append(
+            f"| `{row.validation_stage}` ({row.eligible_markets_at_stage:,}) | `{row.model}` | "
+            f"{_money(row.net_pnl_usd)} | {row.trade_count:,} |"
+        )
+    quote_transition_counts = quote_changes.validation_transition.value_counts().to_dict()
+    candidate_common_quote_result = quote_impact.loc[
+        quote_impact.validation_stage.eq("original_strict_bid_lt_ask")
+        & quote_impact.sample_scope.eq("common_eligible_across_stages")
+        & quote_impact.model.eq("candidate_platt")
+    ].iloc[0]
+    candidate_corrected_quote_result = quote_impact.loc[
+        quote_impact.validation_stage.eq("locked_quotes_corrected_bbo_freshness")
+        & quote_impact.sample_scope.eq("stage_eligible_markets")
+        & quote_impact.model.eq("candidate_platt")
+    ].iloc[0]
+
     main_trades = trades.loc[
         trades.entry_case.eq("prestart_c0_o1")
         & trades.max_ask_age_seconds.eq(30)
         & trades.settlement_release_delay_seconds.eq(60)
+        & trades.model.eq("candidate_platt")
     ]
+    expected_candidate_trades = int(comparison.loc[
+        comparison.model.eq("candidate_platt")
+        & comparison.sample_scope.eq("all_archived_markets"),
+        "trade_count",
+    ].iloc[0])
+    if len(main_trades) != expected_candidate_trades:
+        raise RuntimeError("Corrected candidate trade log does not match the T-59 economics table")
     cash_after = pd.to_numeric(main_trades.cash_available_after_entry_usd, errors="coerce")
     cash_before = pd.to_numeric(main_trades.cash_available_before_usd, errors="coerce")
     debit = pd.to_numeric(main_trades.cash_debit_usd, errors="coerce")
@@ -278,19 +567,24 @@ def _build_completed_summary(
         "",
         "Główny scenariusz ekonomiczny to ustalone wejście T−59 s: sekundę po nominalnej decyzji T−60 s. To założenie operacyjne dla przyszłego uruchomienia serwera. Nie jest zmierzonym maksimum ani gwarantowanym worst case. Warianty wcześniejszych analiz pozostają w `economic_scenarios.csv`; dalsze porównania w tym raporcie dotyczą T−59 s.",
         "",
-        "Nie uruchomiono ponownego pobrania archiwum ani pełnego replayu. Ocenę księgi i porównanie ekonomiczne zbudowano z istniejącego `entry_snapshots.parquet`, `data_coverage.csv`, `trades.parquet` i zapisanych podsumowań/checkpointów. Nie wysłano prawdziwych zleceń, nie aktywowano kandydata ani handlu live.",
+        "Nie pobierano ponownie archiwum. Ukierunkowany replay lokalnych partycji PMXT odtworzył historię dla kompletnych, semantycznie poprawnych booków T−60/T−59, aby zweryfikować świeżość referencji BBO; zakres i zasoby są zapisane w raporcie. Ekonomikę policzono ponownie z istniejących snapshotów i filli, bo korekta zmienia kwalifikację rynków. Nie wysłano prawdziwych zleceń i nie uruchomiono handlu live.",
+        "",
+        f"Weryfikacja BBO objęła {fresh_bbo_audit['target_markets']:,} rynków / {fresh_bbo_audit['target_entries']:,} snapshotów, odczytała {fresh_bbo_audit['partitions_scanned']:,} lokalnych partycji, zastosowała {fresh_bbo_audit['rows_applied_to_target_market_states']:,} zdarzeń do stanów docelowych i trwała {fresh_bbo_audit['elapsed_seconds'] / 60:.1f} min. Szczyt RSS próbkowany co 100 ms wyniósł {fresh_bbo_audit['peak_sampled_rss_bytes'] / (1024**2):.0f} MiB; nie było ruchu sieciowego ani pobierania danych.",
         "",
         "## Czas i pochodzenie ceny wejścia",
         "",
-        "Tak: archiwum mapuje każde `condition_id` do natywnych tokenów UP/DOWN przez indeks rynku i zapisane mapowanie tokenów. Oficjalny start T pochodzi z indeksu rynku / bucketa sluga; dla przykładowych rynków poniżej slug epoch zgadza się z T. Replay używa aktualizacji według `timestamp_received` kolektora archiwum. Snapshot T−59 obejmuje zdarzenia odebrane do tej chwili włącznie, w tym zmiany rozmiaru i usunięcia poziomów; później odebrane zdarzenia są wykluczone nawet wtedy, gdy ich czas źródłowy wygląda na wcześniejszy. Zdarzenia z czasem źródłowym po wejściu są także odrzucane przez kontrolę przyczynowości. PMXT nie podaje monotonicznego identyfikatora kolejności: zdarzenia z identycznymi receive/source timestamp mają tylko stabilny porządek w części Parquet, nie gwarantowaną kolejność giełdową. Odtworzony best ask porównano z raportowanym BBO; niezgodne snapshoty są wykluczane.",
+        "Tak: archiwum mapuje każde `condition_id` do natywnych tokenów UP/DOWN przez indeks rynku i zapisane mapowanie tokenów. Oficjalny start T pochodzi z indeksu rynku / bucketa sluga; dla przykładowych rynków poniżej slug epoch zgadza się z T. Replay używa aktualizacji według `timestamp_received` kolektora archiwum. Snapshot T−59 obejmuje zdarzenia odebrane do tej chwili włącznie, w tym zmiany rozmiaru i usunięcia poziomów; później odebrane zdarzenia są wykluczone nawet wtedy, gdy ich czas źródłowy wygląda na wcześniejszy. Zdarzenia z czasem źródłowym po wejściu są także odrzucane przez kontrolę przyczynowości. PMXT nie podaje monotonicznego identyfikatora kolejności: zdarzenia z identycznymi receive/source timestamp mają tylko stabilny porządek w części Parquet, nie gwarantowaną kolejność giełdową. Referencję BBO uznajemy za rozstrzygającą tylko, gdy jej czas źródłowy jest późniejszy od ostatniej zmiany obu stron. Starsza lub równa referencja jest raportowana osobno, bo bez identyfikatora sekwencji nie ustala kolejności; świeża rozbieżność ask wyklucza snapshot.",
         "",
         "Pełny `book` jest inicjalizatorem stanu, nie ceną zakupu. Po nim replay składa stan z wcześniejszych zmian poziomów. Fill $5 przechodzi po natywnych poziomach ask właściwego tokena, uwzględniając dostępną głębokość i opłaty; komplementowane kwotowanie nie dostarcza głębokości do fillu. Zapisany replay raportuje 0 snapshotów skażonych zdarzeniami odebranymi po wejściu i 0 snapshotów ze zdarzeniem źródłowym po wejściu.",
         "",
         f"Przy T−60 oba natywne booki były zainicjalizowane dla {t60_both_books:,}/{len(t60):,} rynków; dla {t60_valid_bbo:,} BBO obu stron były poprawne, a dla {t60_both_depth:,} obie strony miały głębokość wystarczającą na $5. Przy T−59, filtrze ask age 30 s i pozostałych warunkach kwalifikuje się {t59_eligible:,}/{len(t59):,} rynków; powody z cache: `{json.dumps(t59_reason_counts, ensure_ascii=False)}`.",
+        f"The former 75% rejection rate was {100.0 * (len(t59) - old_t59_reason_counts['eligible']) / len(t59):.1f}% ({len(t59) - old_t59_reason_counts['eligible']:,}/{len(t59):,}), not proof that those markets had no exchange liquidity. The earlier strict `bid < ask` rule rejected valid locked books; after accepting locks, {fresh_bbo_audit['eligible_before']['prestart_c0_o1']:,} qualified (+{quote_transition_counts.get('added_by_accepting_locked_quote', 0):,} vs the old strict stage). The old-BBO stage then rejected {pre_fresh_bbo_t59_reasons['unreconciled_best_ask_at_entry']:,} ask mismatches. The timestamp gate counted {fresh_bbo_audit['mismatches_cleared_as_stale_or_tied']:,} prior BBO disagreements cleared as older/tied across T-60 and T-59; at T-59 only {t59_reason_counts.get('unreconciled_best_ask_at_entry', 0):,} fresh ask mismatches remain, and {t59_eligible:,} qualify (+{quote_transition_counts.get('added_by_fresh_bbo_reconciliation', 0):,} net). Current exclusions are {len(t59) - t59_eligible:,}, including {t59_reason_counts.get('incomplete_or_crossed_book', 0):,} incomplete/crossed books. The full primary-reason sums and overlapping flags are in the audit tables; none of these counts establish exchange liquidity where the archive is incomplete.",
         "",
-        f"`ask age` to czas od ostatniej zmiany poziomu po stronie ask w natywnej księdze: dodanie, zmiana rozmiaru/ceny albo usunięcie poziomu odświeża wiek, także gdy zmienił się poziom poza best ask. Aktualizacja rozmiaru przy tej samej cenie odświeża go tylko, jeśli rozmiar faktycznie się zmienił; identyczny duplikat nie. Usunięcie best ask odświeża wiek i przesuwa BBO na następny poziom. Pełny snapshot resetuje wiek; gdy źródłowy timestamp jest niedostępny, kod używa czasu odbioru. Osobne `ask_received_age` liczy od ostatniej zmienionej głębokości po czasie odbioru archiwizatora. Filtr 30 s ogranicza wiek zmienionej głębokości ask według czasu źródłowego; nie mierzy opóźnienia wejścia i sam nie dowodzi, że lokalny feed nie miał przerwy.",
+        f"`ask age` to wiek ostatniej rzeczywistej zmiany dowolnego poziomu ask w natywnej księdze: dodanie, zmiana ceny/rozmiaru albo usunięcie poziomu odświeża go, także poza best ask; identyczny duplikat nie. Pełny snapshot inicjalizuje oba booki i resetuje wiek. Zmiana rozmiaru ≤0 usuwa poziom. Osobne `ask_received_age` używa czasu odbioru archiwizatora, a filtr 30 s korzysta z czasu źródłowego (zastępowanego czasem odbioru, jeśli źródła brak). To wiek zmienionej głębokości, nie opóźnienie wejścia ani miara ciągłości feedu.",
         "",
         f"Przerwa między ostatnią wiadomością odebraną przez archiwizator a wejściem T−60 miała p50 {silence_stats['p50']:.3f} s, p95 {silence_stats['p95']:.3f} s, p99 {silence_stats['p99']:.3f} s i maksimum {silence_stats['max']:.3f} s. To cisza w archiwalnym odbiorze, nie dowód braku zdarzeń na giełdzie ani jakość feedu hipotetycznego serwera. Pierwsza obserwacja archiwalna oznacza pierwsze zdarzenie zobaczone przez eksportera, nie moment publikacji rynku przez giełdę.",
+        "",
+        f"Kontrola schematu wykazała {schema_audit['partition_count']:,} lokalnych partycji PMXT i {schema_audit['observed_schema_count']} wariantów kolumn; pole `schema_version` i monotoniczny event sequence ID nie występują. Liczniki archiwum to `{json.dumps(event_type_counts, ensure_ascii=False)}` (globalnie, nie tylko dla odrzuconych rynków). Dla T−59 porównano referencję BBO w {bbo_time_relations['checked_market_entries']:,} kwalifikowanych do tej kontroli wpisach: {bbo_time_relations['older_reference_events']:,} starszych i {bbo_time_relations['tied_reference_events']:,} równych czasowo aktualizacji strony. Rozkład przyczyn odrzuceń i przykłady w `book_rejection_markets.csv`/`BOOK_TRACE_EXAMPLES.md` wskazują na stan inicjalizacji, crossed book, świeżość ask i jakość uzgodnienia BBO; nie ma podstaw, by przypisać je do wariantu schematu.",
         "",
         "Próbki początku, środka i końca okresu: ceny w kolumnie to best bid/best ask, a kwota po średniku to zrekonstruowany VWAP zakupu $5. Czasy ask pokazują odbiór kolektora i czas źródłowy ostatniej zmiany głębokości.",
         "",
@@ -311,7 +605,18 @@ def _build_completed_summary(
         "|---|---|---:|---:|---:|---:|---:|---:|---:|",
         *comparison_lines,
         "",
-        f"Księgowanie odtworzono z kodu symulatora i zapisanych wpisów T−59: gotówka przed wejściem musi pokryć pełny debet (`$5 + fee w collateral`, bez kredytu), kapitał jest blokowany do `resolved_at_utc + 60 s`, a po ostatnim rynku symulator rozlicza wszystkie pozostałe pozycje. W {len(main_trades):,} zapisanych transakcjach znaleziono {negative_cash_count} ujemnych stanów gotówki i {debit_violation_count} naruszeń pokrycia debetu; minimum po wejściu wyniosło {_money(minimum_cash_after)}. Legacy fee zmniejsza liczbę udziałów; współczesna opłata jest debetowana w collateral. Dokładne zaokrąglenie maker-level nie jest dostępne w zagregowanym booku. Drawdown liczy gotówkę plus koszt zablokowanych pozycji, bez mark-to-market.",
+        "## Wpływ walidacji kwotowań na ekonomikę T−59",
+        "",
+        "Tabela porównuje trzy etapy filtracji przy tych samych zapisanych cenach, fillach, opłatach i zasadach gotówki. Pierwszy odtwarza dawną walidację bid < ask; drugi dopuszcza poprawne bid = ask przy starym uzgadnianiu BBO; trzeci stosuje korektę świeżości referencji. Każdy wiersz pokazuje rynki kwalifikowane w danym etapie. Pełna tabela sześciu modeli/baseline’ów dla wszystkich rynków, zbiorów kwalifikowanych i ich przecięcia oraz lista zmian per rynek są w CSV.",
+        "",
+        f"Dopuszczenie zablokowanych kwotowań dodało {quote_transition_counts.get('added_by_accepting_locked_quote', 0):,} kwalifikowane rynki przed korektą referencji BBO. Korekta świeżości dodała {quote_transition_counts.get('added_by_fresh_bbo_reconciliation', 0):,} i odrzuciła {quote_transition_counts.get('removed_by_fresh_bbo_reconciliation', 0):,} po potwierdzeniu świeżej rozbieżności. Na wspólnym zbiorze wynik każdego z sześciu modeli jest identyczny we wszystkich trzech etapach.",
+        f"Poprzednie +{_money(candidate_common_quote_result.net_pnl_usd)} pozostaje wynikiem na {candidate_common_quote_result.sample_markets:,} rynkach wspólnych dla trzech walidacji; skorygowany zbiór obejmuje {candidate_corrected_quote_result.sample_markets:,} kwalifikowanych rynków i daje {_money(candidate_corrected_quote_result.net_pnl_usd)} dla candidate_platt. Różnica wynika ze zmienionej kwalifikacji snapshotów, nie ze zmiany modelu ani strategii.",
+        "",
+        "| Walidacja | Rynki kwalifikowane | Model | PnL netto | Transakcje |",
+        "|---|---:|---|---:|---:|",
+        *quote_impact_lines,
+        "",
+        f"Księgowanie odtworzono z poprawionych wpisów T−59: gotówka przed wejściem musi pokryć pełny debet (`$5 + fee w collateral`, bez kredytu), kapitał jest blokowany do `resolved_at_utc + 60 s`, a po ostatnim rynku symulator rozlicza wszystkie pozostałe pozycje. W {len(main_trades):,} transakcjach `candidate_platt` znaleziono {negative_cash_count} ujemnych stanów gotówki i {debit_violation_count} naruszeń pokrycia debetu; minimum po wejściu wyniosło {_money(minimum_cash_after)}. Legacy fee zmniejsza liczbę udziałów; współczesna opłata jest debetowana w collateral. Dokładne zaokrąglenie maker-level nie jest dostępne w zagregowanym booku. Drawdown liczy gotówkę plus koszt zablokowanych pozycji, bez mark-to-market.",
         "",
         "Candidate_platt przewyższa oryginalny model Platt i oba proste baseline’y w zapisanej symulacji. Nie istnieje jednak porównywalny wyuczony baseline `MARKET_ONLY` w tej samej pre-open definicji; wcześniejsze wyniki MARKET_ONLY mają inny moment decyzji/feature availability i nie są podstawiane do tej tabeli.",
         "",
@@ -329,7 +634,7 @@ def _build_completed_summary(
         "",
         "Po cyklu log `[latency_summary]` podaje N, p50/p95/p99, maksimum, liczbę przekroczeń budżetu 1 s i ujemnych różnic dla każdego obserwowalnego etapu względem nominalnego T−60; liczniki rozdzielają cykle, próby, odpowiedzi klienta, order IDs, pola fill zgłoszone w odpowiedzi oraz niezależne rekordy zdarzeń fill. Nie wolno odczytywać mediany wszystkich cykli jako opóźnienia prób zlecenia ani sumować percentyli etapów.",
         "",
-        "Send po warstwie transportowej, źródłowy ACK giełdy oraz źródłowy i lokalnie odebrany fill pozostają puste: obecny synchroniczny CLOB client nie udostępnia tu tych zdarzeń, a user stream fill nie jest podłączony. HTTP/client response i dodatni `filled_stake_usdc` nie są czasem giełdowego ACK ani dowodem niezależnie timestampowanego fillu. Endpoint CLOB `/time` zapisuje jedynie przybliżony offset względem czasu hosta; RTT, NTP status i niepewność offsetu nie są mierzone.",
+        "The authenticated Polymarket user stream records order placement updates and partial/final fills, with REST resync and order/attempt linking. It starts only for enabled live submit. Current official protocol docs and mocked reconnect tests were checked, but py-clob-client-v2 is not installed here, so there was no real handshake or observed exchange ACK/fill. A live order is needed to measure acceptance latency; only actual execution events can establish fill time, price, quantity, and any reported fee. HTTP/client response is not an exchange ACK or fill timestamp.",
         "",
         f"W dotychczasowych, innych runtime’ach: {old_cycle['n']} cykli miało close-to-cycle p50/p95/p99 {old_cycle['p50_ms']:.0f}/{old_cycle['p95_ms']:.0f}/{old_cycle['p99_ms']:.0f} ms; {old_submit['n']} synchronicznych submitów miało p50/p95/p99 {old_submit['p50_ms']:.0f}/{old_submit['p95_ms']:.0f}/{old_submit['p99_ms']:.0f} ms. Dwie kolekcje pre-open miały wszystkie wejścia gotowe {input_offsets[0]:.0f} i {input_offsets[1]:.0f} ms po decyzji i miały wyłączone zlecenia. To odrębne historyczne pomiary, nie podstawa do wyboru T−59 i nie pomiary kandydata end-to-end.",
         "",
@@ -337,16 +642,23 @@ def _build_completed_summary(
         "",
         "## Gotowość kandydata do live",
         "",
-        "Nie. Bundle kandydata wymaga 112 cech, pre-open collector ma obecnie bundle 29 cech, a ogólny runtime 256 kolumn, z których tylko 44 pokrywają się z kandydatem. Zmierzony warm inference dotyczy już zbudowanego wektora i nie obejmuje aktualizacji cech. Zgodna inkrementalna ścieżka obliczania 112 cech pozostaje osobnym brakiem wdrożeniowym; kandydata nie aktywowano.",
+        f"Kandydat ma osobny, nieaktywny paper runtime ze ścieżkami modelu, kalibratora, uporządkowanych 112 cech i konfiguracji historii. Nie zmieniono nazw, pozycji ani definicji cech: lista dokładnie zgadza się z oryginalnym v1, a zmieniły się wyuczony booster/kalibrator i parametry. Audyt mapuje rodziny {json.dumps(feature_families, ensure_ascii=False)} i sprawdza {feature_parity['decision_rows']:,} historycznych decyzji względem rebuildów ograniczonych do chwili decyzji. Wektory miały {feature_parity['feature_mismatches']} różnic cech, {feature_parity['mask_mismatches']} różnic maski i {feature_parity['resume_mismatches']} błędów wznowienia. Na lokalnym CPU p50/p95/p99 wyniosły: warm update {feature_timing['warm_state_update']['p50_ms']:.2f}/{feature_timing['warm_state_update']['p95_ms']:.2f}/{feature_timing['warm_state_update']['p99_ms']:.2f} ms, pełny wektor {feature_timing['warm_full_feature_vector']['p50_ms']:.2f}/{feature_timing['warm_full_feature_vector']['p95_ms']:.2f}/{feature_timing['warm_full_feature_vector']['p99_ms']:.2f} ms, predykcja z Platt {feature_timing['warm_model_predict_plus_platt']['p50_ms']:.2f}/{feature_timing['warm_model_predict_plus_platt']['p95_ms']:.2f}/{feature_timing['warm_model_predict_plus_platt']['p99_ms']:.2f} ms, cała ścieżka update→wektor→predykcja {feature_timing['warm_update_vector_predict_end_to_end']['p50_ms']:.2f}/{feature_timing['warm_update_vector_predict_end_to_end']['p95_ms']:.2f}/{feature_timing['warm_update_vector_predict_end_to_end']['p99_ms']:.2f} ms. Szczyt RSS próbkowany co 100 ms: {feature_memory['rss_peak_sampled_bytes'] / (1024**2):.0f} MiB. To potwierdza zgodność badanego lokalnego runtime, nie sprawdza bieżącego live feedu ani złożenia zlecenia. Kandydata nie aktywowano.",
         "",
+        f"The exact 44/112 was a name intersection: the active BTC model bundle has {feature_definition_audit['active_general_runtime_feature_count']} columns, of which {feature_definition_audit['candidate_names_present_in_active_general_runtime']} names occur in the candidate; the other {len(feature_definition_audit['candidate_names_absent_from_active_general_runtime'])} are absent from that separate bundle, not unsupported code. The 29-feature pre-open baseline is a separate causal raw-candle model ({feature_definition_audit['29_feature_preopen_baseline_feature_count']} features; {feature_definition_audit['candidate_names_present_in_29_feature_preopen_baseline']} exact name overlap). Candidate and original have the same ordered feature list ({feature_definition_audit['same_ordered_feature_list']}), indicator-fit directory ({feature_definition_audit['indicator_fit_results_dir_same']}), and volume/reaction profile configs ({feature_definition_audit['volume_profile_config_same']}/{feature_definition_audit['reaction_profile_config_same']}); no names, positions, or definitions changed.",
+        f"Chaikin SHMMA accumulated numerical drift over more than 3 million candles. The fix serializes and incrementally advances its recurrence state; it does not reset a short window or relax tolerance. The candidate seed is valid through {state_seed_as_of}; a later startup requires a complete contiguous closed-candle catch-up and fails before prediction if that interval is missing.",
         "## Artefakty",
         "",
         "- `primary_economic_comparison.csv` — T−59, wszystkie rynki i wspólny zbiór kwalifikujących się rynków.",
         "- `book_timing_examples.csv` — audyt trzech ksiąg T−59 z archiwum lokalnego.",
-        "- `economic_scenarios.csv` — zachowana wcześniejsza macierz wariantów czasowych i freshness.",
-        "- `audit.json`, `data_coverage.csv`, `trades.parquet`, `model_comparison.csv` i `report_bundle.zip` — szczegóły oraz materiały odtwarzalności.",
+        "- `economic_scenarios.csv` — wcześniejsza macierz wariantów czasowych; nie przeliczono jej po korekcie BBO.",
+        "- `quote_validation_economic_impact.csv` i `quote_validation_market_changes.csv` — wpływ trzech etapów walidacji BBO na ekonomikę i kwalifikację per rynek.",
+        "- `quote_validation_corrected_trades.parquet` — transakcje z finalnej T−59 walidacji dla wszystkich sześciu modeli/baseline’ów.",
+        "- `fresh_bbo_replay_summary.json`, `quote_validation_before_after.csv` i `fresh_bbo_entry_results.csv` — zakres, zasoby i wyniki ukierunkowanego replayu świeżości BBO.",
+        "- `runtime_compatibility_audit.json`, `feature_compatibility_112.csv`, `feature_definition_comparison.json`, `artifact_manifest.json` and `archive_partition_hashes.csv` - candidate feature map, numerical parity and reproducibility fingerprints.",
+        "- `book_rejection_markets.csv`, `book_rejection_daily.csv` i `BOOK_TRACE_EXAMPLES.md` — powody odrzuceń i przykładowe ścieżki księgi.",
+        "- `audit.json`, `data_coverage.csv`, `quote_validation_corrected_trades.parquet`, `model_comparison.csv` i `report_bundle.zip` — szczegóły oraz odtwarzalność finalnej walidacji.",
         "",
-        "Nie złożono rzeczywistych zleceń ani nie zmieniono konfiguracji aktywnego modelu.",
+        "Nie aktywowano kandydata ani nie złożono rzeczywistych zleceń; dodane ścieżki konfiguracji dotyczą osobnego profilu paper.",
         "",
     ]
 
@@ -365,6 +677,8 @@ def build():
     candidate = _json(CANDIDATE_METRICS)
     inference_latency = _json(INFERENCE_LATENCY)
     economics = _json(ECONOMIC_REPLAY)
+    fresh_bbo = _json(REPORT_DIR / "fresh_bbo_replay_summary.json")
+    compatibility = _json(REPORT_DIR / "runtime_compatibility_audit.json")
     extraction = _json(EXTRACT_DIR / "extraction_summary.json")
     checkpoint = _json(EXTRACT_DIR / "hour_checkpoint.json")
     coverage = pd.read_csv(COVERAGE_CSV)
@@ -373,6 +687,7 @@ def build():
     trades = pd.read_parquet(TRADES)
     market_index = pd.read_parquet(EXTRACT_DIR / "market_index.parquet")
     primary_comparison = _build_primary_economic_comparison(coverage)
+    quote_impact, quote_changes, corrected_trades = _build_quote_validation_economic_impact(coverage)
     book_examples = pd.read_csv(BOOK_TIMING_EXAMPLES)
 
     model_path = ROOT / training["model_path"]
@@ -489,18 +804,31 @@ def build():
         },
         "candidate_bundle_inference": inference_latency,
         "candidate_live_feature_path": {
-            "candidate_feature_count": 112,
-            "preopen_collection_v3_feature_count": 29,
-            "preopen_collection_v3_model_meta": "data/models/BTC/btc_preopen_v1/lgbm_meta.json",
-            "generic_current_live_feature_count": 256,
-            "candidate_features_available_in_generic_current_live_model": 44,
-            "candidate_incremental_feature_update_benchmark_available": False,
-            "reason": "The 112-feature research candidate is not wired into the pre-open collector. That collector loads the 29-feature pre-open bundle. The generic live metadata has 256 columns, only 44 of which match the candidate; the candidate artifact directory contains a booster and calibrator, but no matching live feature updater/manifest. A full-history rebuild was not timed as live inference.",
+            "candidate_feature_count": compatibility["feature_map_rows"],
+            "candidate_runtime_manifest": compatibility["candidate_runtime_manifest"],
+            "candidate_runtime_profile_is_active": False,
+            "feature_order_exactly_matches_original_v1": compatibility["feature_order_exactly_matches_original"],
+            "historical_feature_parity_status": compatibility["feature_parity"]["status"],
+            "historical_parity_decision_rows": compatibility["feature_parity"]["decision_rows"],
+            "historical_parity_feature_mismatches": compatibility["feature_parity"]["feature_mismatches"],
+            "historical_parity_mask_mismatches": compatibility["feature_parity"]["mask_mismatches"],
+            "historical_parity_resumption_mismatches": compatibility["feature_parity"]["resume_mismatches"],
+            "historical_timing_and_memory_artifact": "reports/btc_preopen/live_feature_parity.json",
+            "feature_definition_comparison": compatibility["candidate_feature_definition_audit"],
+            "prior_44_of_112_claim_explanation": compatibility[
+                "candidate_feature_definition_audit"
+            ]["prior_44_of_112_claim_explanation"],
+            "feature_values_compared": compatibility["feature_parity"]["comparison"]["feature_values_compared"],
+            "max_feature_abs_delta": compatibility["feature_parity"]["comparison"]["feature_max_abs_delta"],
+            "feature_tolerances": compatibility["feature_parity"]["predeclared_tolerances"],
+            "local_py_clob_client_v2_installed": False,
+            "generic_256_column_runtime_overlap_is_not_a_candidate_readiness_measure": True,
+            "reason": "The inactive paper profile is wired to the candidate booster, calibrator, 112-column order, history configuration, and validated Chaikin recurrence seed. Historical causal feature parity was checked against the saved candidate dataset on local CPU; startup must fetch a complete contiguous candle catch-up from the seed timestamp. No current exchange feed or live order was exercised. User-stream protocol and REST resync were checked against current official documentation and mocks, but the local py-clob-client-v2 package is absent, so no real client handshake was possible.",
         },
         "interpretation": [
             "The June historical log supports sub-second median receive-to-decision behavior in its different live model; the recorded p95/p99 are above one second.",
             "In the historical runtime, live_minute_opened is candle Opened plus one minute, so the WS 'minute open' and next target-window start coincide with the just-closed candle boundary. The wall-clock delay columns are close-anchored for that cycle, but have no recorded clock-offset calibration. Local feature/inference and submit-call durations are separate monotonic measurements and must not be summed as if their quantiles aligned.",
-            "Synchronous submit duration includes the client response and is not a separately timestamped exchange acknowledgement or fill.",
+            "Synchronous submit duration includes the client response and is not a separately timestamped exchange acknowledgement or fill. The authenticated Polymarket user-stream logger is now wired for future enabled live runs, but it produced no observed events in this audit.",
             "A positive filled_stake_usdc response value is not an execution timestamp; the log summary reports 89 positive response rows among 111 attempts, with no fill timestamps.",
             "The two October pre-open collection observations measure prediction and quote-input availability only. Orders were disabled, so they do not measure submission, ACK, or execution.",
         ],
@@ -649,7 +977,7 @@ def build():
                 "bids", "asks", "price", "size", "side", "best_bid", "best_ask",
                 "fee_rate_bps", "transaction_hash", "old_tick_size", "new_tick_size",
             ],
-            "event_ordering_limit": "PMXT rows expose source/receive timestamps and transaction_hash but no monotonic event sequence ID. Reconstruction sorts by receive time, source time, market, token, and event type; exact ties retain the order in the filtered Parquet part, but PMXT does not document that row order as an event sequence. Reported-BBO reconciliation is recorded, and ask-side disagreement at entry disqualifies the snapshot.",
+            "event_ordering_limit": "PMXT rows expose source/receive timestamps and transaction_hash but no monotonic event sequence ID or observed schema-version field. Reconstruction sorts by receive time, source time, market, token, and event type; exact ties retain the order in the filtered Parquet part, but PMXT does not document that row order as an event sequence. A BBO reference is decisive only when its source timestamp is strictly newer than the latest update to both side states; stale or tied references are counted separately, while a fresh ask-side disagreement at entry disqualifies the snapshot.",
             "market_token_pilot_samples": pilot_rows,
             "event_archive_identity": extraction.get("identity"),
             "hours_requested": extraction.get("hours_requested"),
@@ -667,7 +995,8 @@ def build():
             "event_and_replay_summary": economics["event_archive"],
             "execution_assumptions": economics["money_and_execution"],
             "economic_scenarios": economic.to_dict("records"),
-            "trade_log_rows": int(len(trades)),
+            "legacy_trade_log_rows_before_fresh_bbo_correction": int(len(trades)),
+            "corrected_trade_log_rows": int(len(corrected_trades)),
             "coverage_rows": int(len(coverage)),
             "coverage_markets": int(coverage.condition_id.nunique()),
         },
@@ -680,6 +1009,44 @@ def build():
             }
             for name, stage in run.get("stages", {}).items()
         },
+    }
+    impact_summary = {
+        stage: {
+            "eligible_markets": int(group.eligible_markets_at_stage.iloc[0]),
+            "stage_eligible_model_rows": group.loc[
+                group.sample_scope.eq("stage_eligible_markets")
+            ].to_dict("records"),
+            "common_eligible_model_rows": group.loc[
+                group.sample_scope.eq("common_eligible_across_stages")
+            ].to_dict("records"),
+        }
+        for stage, group in quote_impact.groupby("validation_stage", sort=False)
+    }
+    audit["candidate_study"]["runtime_compatibility_audit"] = compatibility
+    audit["archive_and_replay"]["fresh_bbo_validation"] = fresh_bbo
+    audit["archive_and_replay"]["quote_validation_economic_impact"] = {
+        "artifacts": [QUOTE_IMPACT.relative_to(ROOT).as_posix(), QUOTE_MARKET_CHANGES.relative_to(ROOT).as_posix()],
+        "stages": impact_summary,
+        "changed_market_rows_by_transition": {
+            str(key): int(value)
+            for key, value in quote_changes.validation_transition.value_counts().items()
+        },
+        "earlier_economic_scenario_matrix_recomputed_after_freshness_fix": False,
+    }
+    economics["quote_validation_economic_impact"] = {
+        "artifacts": [QUOTE_IMPACT.relative_to(ROOT).as_posix(), QUOTE_MARKET_CHANGES.relative_to(ROOT).as_posix()],
+        "stages": impact_summary,
+        "changed_market_rows_by_transition": {
+            str(key): int(value)
+            for key, value in quote_changes.validation_transition.value_counts().items()
+        },
+        "earlier_scenario_matrix_status": "retained from before the targeted fresh-BBO correction; use quote_validation_economic_impact.csv for same-T-59 stage comparisons",
+    }
+    economics["corrected_trade_log"] = {
+        "artifact": CORRECTED_TRADES.relative_to(ROOT).as_posix(),
+        "rows": int(len(corrected_trades)),
+        "models": sorted(corrected_trades.model.unique().tolist()),
+        "validation_stage": "locked_quotes_corrected_bbo_freshness",
     }
     (REPORT_DIR / "audit.json").write_text(json.dumps(_json_safe(audit), indent=2, allow_nan=False, default=str) + "\n", encoding="utf-8")
 
@@ -715,7 +1082,8 @@ def build():
     audit["archive_and_replay"]["primary_economic_comparison"] = {
         "artifact": ECONOMIC_COMPARISON.relative_to(ROOT).as_posix(),
         "rows": primary_comparison.to_dict("records"),
-        "method": "Cached T-59 entry snapshots; same eligibility, $5 gross order, fee model, $100 initial cash, and 60-second post-resolution capital release. Constant-probability baselines are not tuned.",
+        "method": "Cached T-59 entry prices and fills with corrected fresh-BBO eligibility; same $5 gross order, fee model, $100 initial cash, and 60-second post-resolution capital release. Constant-probability baselines are not tuned.",
+        "corrected_trade_log": CORRECTED_TRADES.relative_to(ROOT).as_posix(),
     }
     audit["archive_and_replay"]["primary_entry_book_examples"] = [
         {
@@ -738,7 +1106,10 @@ def build():
         market_index=market_index,
         coverage=coverage,
         comparison=primary_comparison,
-        trades=trades,
+        quote_impact=quote_impact,
+        quote_changes=quote_changes,
+        compatibility=compatibility,
+        trades=corrected_trades,
         live_timing=live_timing,
         training=training,
     )
@@ -748,24 +1119,45 @@ def build():
     include_paths = [
         REPORT_DIR / "SUMMARY.md", REPORT_DIR / "audit.json", COVERAGE_CSV,
         MODEL_COMPARISON, ECONOMIC_SCENARIOS, ECONOMIC_REPLAY, ECONOMIC_COMPARISON,
-        BOOK_TIMING_EXAMPLES, TRADES,
+        QUOTE_IMPACT, QUOTE_MARKET_CHANGES, CORRECTED_TRADES,
+        BOOK_TIMING_EXAMPLES,
         CANDIDATE_METRICS, REPORT_DIR / "candidate_search_trials.csv",
         INFERENCE_LATENCY, ROOT / "benchmark_btc_preopen_bundle.py",
         REPORT_DIR / "candidate_external_predictions.parquet",
         REPORT_DIR / "original_bundle_verification.json",
-        ROOT / training["model_path"],
-        ROOT / candidate["candidate_model_path"],
+        REPORT_DIR / "runtime_compatibility_audit.json",
+        REPORT_DIR / "live_feature_parity.json",
+        REPORT_DIR / "live_feature_parity_by_feature.csv",
+        REPORT_DIR / "live_feature_parity_anchors.csv",
+        REPORT_DIR / "feature_compatibility_112.csv",
+        REPORT_DIR / "feature_definition_comparison.json",
+        ROOT / "configs/runtime/btc_preopen_candidate.json",
+        ROOT / "configs/runtime/btc_preopen_candidate_features.json",
+        ROOT / "configs/runtime/btc_preopen_candidate_history_requirements.json",
+        ROOT / "configs/runtime/btc_preopen_candidate_model_meta.json",
+        ROOT / "configs/runtime/btc_preopen_candidate_indicator_state.json",
+        ROOT / "data/models/BTC/20261003_043549/lgbm_meta_20261003_043549.json",
+        ROOT / "data/models/BTC/btc_preopen_v1/lgbm_meta.json",
+        REPORT_DIR / "book_rejection_markets.csv",
+        REPORT_DIR / "book_rejection_daily.csv",
+        REPORT_DIR / "BOOK_TRACE_EXAMPLES.md",
+        REPORT_DIR / "fresh_bbo_entry_results.csv",
+        REPORT_DIR / "fresh_bbo_replay_summary.json",
+        REPORT_DIR / "quote_validation_before_fresh_bbo.csv",
+        REPORT_DIR / "quote_validation_before_after.csv",
+        REPORT_DIR / "book_validation_before.json",
+        REPORT_DIR / "artifact_manifest.json",
+        REPORT_DIR / "archive_partition_hashes.csv",
         candidate_calibrator_path,
         ROOT / "data/analysis/polymarket/BTC/preopen_v1/candidate_study_20261005/study_identity.json",
         ROOT / "data/analysis/polymarket/BTC/preopen_v1/candidate_study_20261005/frozen_candidate_list.json",
         ROOT / "data/analysis/polymarket/BTC/preopen_v1/candidate_study_20261005/selection_results.json",
-        EXTRACT_DIR / "hour_checkpoint.json",
         *sorted(REPORT_DIR.glob("point_in_time_*.json")),
         ORIGINAL_TRAINING_MANIFEST, ORIGINAL_EVALUATION, ORIGINAL_MODEL_TUNING,
         ORIGINAL_CONFIG, EXTRACT_DIR / "extraction_summary.json", EXTRACT_DIR / "archive_identity.json",
         ROOT / "docs/polymarket_btc_experiment.md", ROOT / "docs/live_telemetry.md",
         ROOT / "docs/btc_preopen_experiment_manifest_20261004.json",
-        ROOT / "run.py", ROOT / "utils/live.py", ROOT / "README.md",
+        ROOT / "run.py", ROOT / "utils/live.py", ROOT / "utils/polymarket_user_stream.py", ROOT / "README.md",
         ROOT / "audit_btc_oof.py",
         ORIGINAL_RUN_MANIFEST,
         RUN_DIR / "stages/calibration_6942659d3b63/platt_calibrator.json",
@@ -789,7 +1181,11 @@ def build():
         ROOT / "tests/test_btc_preopen_candidate_study.py", ROOT / "tests/test_btc_preopen_economic_replay.py",
         ROOT / "tests/test_btc_preopen_pmxt_extract.py", ROOT / "tests/test_live_utils.py",
         ROOT / "tests/test_run_multi_asset_latency.py",
+        ROOT / "tests/test_polymarket_user_stream.py",
+        ROOT / "audit_btc_preopen_runtime_compatibility.py",
+        ROOT / "audit_feature_readiness.py", ROOT / "utils/project_config.py",
     ]
+    include_paths = list(dict.fromkeys(include_paths))
     bundle_path = REPORT_DIR / "report_bundle.zip"
     with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as bundle:
         for path in include_paths:

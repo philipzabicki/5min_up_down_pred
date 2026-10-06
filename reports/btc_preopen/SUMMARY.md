@@ -2,19 +2,24 @@
 
 Główny scenariusz ekonomiczny to ustalone wejście T−59 s: sekundę po nominalnej decyzji T−60 s. To założenie operacyjne dla przyszłego uruchomienia serwera. Nie jest zmierzonym maksimum ani gwarantowanym worst case. Warianty wcześniejszych analiz pozostają w `economic_scenarios.csv`; dalsze porównania w tym raporcie dotyczą T−59 s.
 
-Nie uruchomiono ponownego pobrania archiwum ani pełnego replayu. Ocenę księgi i porównanie ekonomiczne zbudowano z istniejącego `entry_snapshots.parquet`, `data_coverage.csv`, `trades.parquet` i zapisanych podsumowań/checkpointów. Nie wysłano prawdziwych zleceń, nie aktywowano kandydata ani handlu live.
+Nie pobierano ponownie archiwum. Ukierunkowany replay lokalnych partycji PMXT odtworzył historię dla kompletnych, semantycznie poprawnych booków T−60/T−59, aby zweryfikować świeżość referencji BBO; zakres i zasoby są zapisane w raporcie. Ekonomikę policzono ponownie z istniejących snapshotów i filli, bo korekta zmienia kwalifikację rynków. Nie wysłano prawdziwych zleceń i nie uruchomiono handlu live.
+
+Weryfikacja BBO objęła 4,591 rynków / 9,157 snapshotów, odczytała 810 lokalnych partycji, zastosowała 26,984,593 zdarzeń do stanów docelowych i trwała 118.7 min. Szczyt RSS próbkowany co 100 ms wyniósł 2086 MiB; nie było ruchu sieciowego ani pobierania danych.
 
 ## Czas i pochodzenie ceny wejścia
 
-Tak: archiwum mapuje każde `condition_id` do natywnych tokenów UP/DOWN przez indeks rynku i zapisane mapowanie tokenów. Oficjalny start T pochodzi z indeksu rynku / bucketa sluga; dla przykładowych rynków poniżej slug epoch zgadza się z T. Replay używa aktualizacji według `timestamp_received` kolektora archiwum. Snapshot T−59 obejmuje zdarzenia odebrane do tej chwili włącznie, w tym zmiany rozmiaru i usunięcia poziomów; później odebrane zdarzenia są wykluczone nawet wtedy, gdy ich czas źródłowy wygląda na wcześniejszy. Zdarzenia z czasem źródłowym po wejściu są także odrzucane przez kontrolę przyczynowości. PMXT nie podaje monotonicznego identyfikatora kolejności: zdarzenia z identycznymi receive/source timestamp mają tylko stabilny porządek w części Parquet, nie gwarantowaną kolejność giełdową. Odtworzony best ask porównano z raportowanym BBO; niezgodne snapshoty są wykluczane.
+Tak: archiwum mapuje każde `condition_id` do natywnych tokenów UP/DOWN przez indeks rynku i zapisane mapowanie tokenów. Oficjalny start T pochodzi z indeksu rynku / bucketa sluga; dla przykładowych rynków poniżej slug epoch zgadza się z T. Replay używa aktualizacji według `timestamp_received` kolektora archiwum. Snapshot T−59 obejmuje zdarzenia odebrane do tej chwili włącznie, w tym zmiany rozmiaru i usunięcia poziomów; później odebrane zdarzenia są wykluczone nawet wtedy, gdy ich czas źródłowy wygląda na wcześniejszy. Zdarzenia z czasem źródłowym po wejściu są także odrzucane przez kontrolę przyczynowości. PMXT nie podaje monotonicznego identyfikatora kolejności: zdarzenia z identycznymi receive/source timestamp mają tylko stabilny porządek w części Parquet, nie gwarantowaną kolejność giełdową. Referencję BBO uznajemy za rozstrzygającą tylko, gdy jej czas źródłowy jest późniejszy od ostatniej zmiany obu stron. Starsza lub równa referencja jest raportowana osobno, bo bez identyfikatora sekwencji nie ustala kolejności; świeża rozbieżność ask wyklucza snapshot.
 
 Pełny `book` jest inicjalizatorem stanu, nie ceną zakupu. Po nim replay składa stan z wcześniejszych zmian poziomów. Fill $5 przechodzi po natywnych poziomach ask właściwego tokena, uwzględniając dostępną głębokość i opłaty; komplementowane kwotowanie nie dostarcza głębokości do fillu. Zapisany replay raportuje 0 snapshotów skażonych zdarzeniami odebranymi po wejściu i 0 snapshotów ze zdarzeniem źródłowym po wejściu.
 
-Przy T−60 oba natywne booki były zainicjalizowane dla 9,399/9,407 rynków; dla 2,422 BBO obu stron były poprawne, a dla 9,383 obie strony miały głębokość wystarczającą na $5. Przy T−59, filtrze ask age 30 s i pozostałych warunkach kwalifikuje się 2,331/9,407 rynków; powody z cache: `{"incomplete_or_crossed_book": 7000, "eligible": 2331, "stale_ask": 29, "unreconciled_best_ask_at_entry": 26, "exchange_maintenance_pause": 12, "no_initial_book_snapshot": 8, "unknown_historical_fee": 1}`.
+Przy T−60 oba natywne booki były zainicjalizowane dla 9,399/9,407 rynków; dla 4,588 BBO obu stron były poprawne, a dla 9,383 obie strony miały głębokość wystarczającą na $5. Przy T−59, filtrze ask age 30 s i pozostałych warunkach kwalifikuje się 4,454/9,407 rynków; powody z cache: `{"incomplete_or_crossed_book": 4830, "eligible": 4454, "unreconciled_best_ask_at_entry": 71, "stale_ask": 31, "exchange_maintenance_pause": 12, "no_initial_book_snapshot": 8, "unknown_historical_fee": 1}`.
+The former 75% rejection rate was 75.2% (7,076/9,407), not proof that those markets had no exchange liquidity. The earlier strict `bid < ask` rule rejected valid locked books; after accepting locks, 2,370 qualified (+39 vs the old strict stage). The old-BBO stage then rejected 2,157 ask mismatches. The timestamp gate counted 4,190 prior BBO disagreements cleared as older/tied across T-60 and T-59; at T-59 only 71 fresh ask mismatches remain, and 4,454 qualify (+2,084 net). Current exclusions are 4,953, including 4,830 incomplete/crossed books. The full primary-reason sums and overlapping flags are in the audit tables; none of these counts establish exchange liquidity where the archive is incomplete.
 
-`ask age` to czas od ostatniej zmiany poziomu po stronie ask w natywnej księdze: dodanie, zmiana rozmiaru/ceny albo usunięcie poziomu odświeża wiek, także gdy zmienił się poziom poza best ask. Aktualizacja rozmiaru przy tej samej cenie odświeża go tylko, jeśli rozmiar faktycznie się zmienił; identyczny duplikat nie. Usunięcie best ask odświeża wiek i przesuwa BBO na następny poziom. Pełny snapshot resetuje wiek; gdy źródłowy timestamp jest niedostępny, kod używa czasu odbioru. Osobne `ask_received_age` liczy od ostatniej zmienionej głębokości po czasie odbioru archiwizatora. Filtr 30 s ogranicza wiek zmienionej głębokości ask według czasu źródłowego; nie mierzy opóźnienia wejścia i sam nie dowodzi, że lokalny feed nie miał przerwy.
+`ask age` to wiek ostatniej rzeczywistej zmiany dowolnego poziomu ask w natywnej księdze: dodanie, zmiana ceny/rozmiaru albo usunięcie poziomu odświeża go, także poza best ask; identyczny duplikat nie. Pełny snapshot inicjalizuje oba booki i resetuje wiek. Zmiana rozmiaru ≤0 usuwa poziom. Osobne `ask_received_age` używa czasu odbioru archiwizatora, a filtr 30 s korzysta z czasu źródłowego (zastępowanego czasem odbioru, jeśli źródła brak). To wiek zmienionej głębokości, nie opóźnienie wejścia ani miara ciągłości feedu.
 
 Przerwa między ostatnią wiadomością odebraną przez archiwizator a wejściem T−60 miała p50 0.726 s, p95 3.027 s, p99 4.688 s i maksimum 1460.334 s. To cisza w archiwalnym odbiorze, nie dowód braku zdarzeń na giełdzie ani jakość feedu hipotetycznego serwera. Pierwsza obserwacja archiwalna oznacza pierwsze zdarzenie zobaczone przez eksportera, nie moment publikacji rynku przez giełdę.
+
+Kontrola schematu wykazała 811 lokalnych partycji PMXT i 1 wariantów kolumn; pole `schema_version` i monotoniczny event sequence ID nie występują. Liczniki archiwum to `{"book": 617342, "price_change": 102390694, "last_trade_price": 1429897}` (globalnie, nie tylko dla odrzuconych rynków). Dla T−59 porównano referencję BBO w 4,569 kwalifikowanych do tej kontroli wpisach: 3 starszych i 8,795 równych czasowo aktualizacji strony. Rozkład przyczyn odrzuceń i przykłady w `book_rejection_markets.csv`/`BOOK_TRACE_EXAMPLES.md` wskazują na stan inicjalizacji, crossed book, świeżość ask i jakość uzgodnienia BBO; nie ma podstaw, by przypisać je do wariantu schematu.
 
 Próbki początku, środka i końca okresu: ceny w kolumnie to best bid/best ask, a kwota po średniku to zrekonstruowany VWAP zakupu $5. Czasy ask pokazują odbiór kolektora i czas źródłowy ostatniej zmiany głębokości.
 
@@ -30,24 +35,52 @@ Te archiwalne `timestamp_received` pochodzą od eksportera, nie od naszego przys
 
 Każdy wiersz stosuje te same dostępne snapshoty, filtr ask age ≤30 s, zakup brutto $5, początkową gotówkę $100, model historycznej opłaty i zwrot kapitału 60 s po rozstrzygnięciu. Strategie wybierają transakcje niezależnie; wspólny zbiór oznacza te same kwalifikujące się rynki, a nie wymuszone identyczne transakcje.
 
-`MARKET_ONLY` nie ma zapisanego, porównywalnego portfela pre-open. Z cache policzono dwa nietrenowane baseline’y bez informacji BTC: stałe p=0.5 i p=0.5015364895 (prewalencja development). Nie stroiłem ich do okresu. Candidate_platt daje na wspólnych rynkach PnL $318.16 wobec -$95.11 dla oryginalnego Platt; baseline’y dają odpowiednio -$52.09 i -$97.54. To dodatni wynik tego replayu, nie potwierdzenie niezależnej przewagi.
+`MARKET_ONLY` nie ma zapisanego, porównywalnego portfela pre-open. Z cache policzono dwa nietrenowane baseline’y bez informacji BTC: stałe p=0.5 i p=0.5015364895 (prewalencja development). Nie stroiłem ich do okresu. Candidate_platt daje na wspólnych rynkach PnL $475.84 wobec -$95.11 dla oryginalnego Platt; baseline’y dają odpowiednio -$97.99 i -$95.71. To dodatni wynik tego replayu, nie potwierdzenie niezależnej przewagi.
 
 | Zakres | Model | PnL netto | Kapitał końcowy | Drawdown | Transakcje | Obrót | Opłaty | Odrzucenia danych / bez przewagi / brak salda |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| all archived (9,407) | `candidate_platt` | $318.16 | $418.16 | 40.67% | 1,076 | $5380.00 | $0.50 | 7,076 / 1,255 / 0 |
-| all archived (9,407) | `original_v1_platt` | -$95.11 | $4.89 | 96.75% | 287 | $1435.00 | $0.00 | 7,076 / 1,208 / 836 |
-| all archived (9,407) | `candidate_raw` | $355.53 | $455.53 | 31.42% | 1,059 | $5295.00 | $0.50 | 7,076 / 1,272 / 0 |
-| all archived (9,407) | `original_v1_raw` | -$99.43 | $0.57 | 99.61% | 373 | $1865.00 | $28.32 | 7,076 / 1,035 / 923 |
-| all archived (9,407) | `no_btc_constant_0_5` | -$52.09 | $47.91 | 92.97% | 119 | $595.00 | $0.00 | 7,076 / 2,212 / 0 |
-| all archived (9,407) | `no_btc_development_prevalence_0_5015364895` | -$97.54 | $2.46 | 97.55% | 52 | $260.00 | $0.00 | 7,076 / 2,173 / 106 |
-| common eligible (2,331) | `candidate_platt` | $318.16 | $418.16 | 40.67% | 1,076 | $5380.00 | $0.50 | 0 / 1,255 / 0 |
-| common eligible (2,331) | `original_v1_platt` | -$95.11 | $4.89 | 96.75% | 287 | $1435.00 | $0.00 | 0 / 1,208 / 836 |
-| common eligible (2,331) | `candidate_raw` | $355.53 | $455.53 | 31.42% | 1,059 | $5295.00 | $0.50 | 0 / 1,272 / 0 |
-| common eligible (2,331) | `original_v1_raw` | -$99.43 | $0.57 | 99.61% | 373 | $1865.00 | $28.32 | 0 / 1,035 / 923 |
-| common eligible (2,331) | `no_btc_constant_0_5` | -$52.09 | $47.91 | 92.97% | 119 | $595.00 | $0.00 | 0 / 2,212 / 0 |
-| common eligible (2,331) | `no_btc_development_prevalence_0_5015364895` | -$97.54 | $2.46 | 97.55% | 52 | $260.00 | $0.00 | 0 / 2,173 / 106 |
+| all archived (9,407) | `candidate_platt` | $475.84 | $575.84 | 66.27% | 2,316 | $11580.00 | $1.00 | 4,953 / 2,138 / 0 |
+| all archived (9,407) | `original_v1_platt` | -$95.11 | $4.89 | 96.71% | 765 | $3825.00 | $1.99 | 4,953 / 2,075 / 1,614 |
+| all archived (9,407) | `candidate_raw` | $384.19 | $484.19 | 74.88% | 2,297 | $11485.00 | $0.50 | 4,953 / 2,157 / 0 |
+| all archived (9,407) | `original_v1_raw` | -$97.70 | $2.30 | 97.94% | 206 | $1030.00 | $61.94 | 4,953 / 1,829 / 2,419 |
+| all archived (9,407) | `no_btc_constant_0_5` | -$97.99 | $2.01 | 98.73% | 349 | $1745.00 | $0.00 | 4,953 / 3,553 / 552 |
+| all archived (9,407) | `no_btc_development_prevalence_0_5015364895` | -$95.71 | $4.29 | 98.20% | 606 | $3030.00 | $0.00 | 4,953 / 3,053 / 795 |
+| common eligible (4,454) | `candidate_platt` | $475.84 | $575.84 | 66.27% | 2,316 | $11580.00 | $1.00 | 0 / 2,138 / 0 |
+| common eligible (4,454) | `original_v1_platt` | -$95.11 | $4.89 | 96.71% | 765 | $3825.00 | $1.99 | 0 / 2,075 / 1,614 |
+| common eligible (4,454) | `candidate_raw` | $384.19 | $484.19 | 74.88% | 2,297 | $11485.00 | $0.50 | 0 / 2,157 / 0 |
+| common eligible (4,454) | `original_v1_raw` | -$97.70 | $2.30 | 97.94% | 206 | $1030.00 | $61.94 | 0 / 1,829 / 2,419 |
+| common eligible (4,454) | `no_btc_constant_0_5` | -$97.99 | $2.01 | 98.73% | 349 | $1745.00 | $0.00 | 0 / 3,553 / 552 |
+| common eligible (4,454) | `no_btc_development_prevalence_0_5015364895` | -$95.71 | $4.29 | 98.20% | 606 | $3030.00 | $0.00 | 0 / 3,053 / 795 |
 
-Księgowanie odtworzono z kodu symulatora i zapisanych wpisów T−59: gotówka przed wejściem musi pokryć pełny debet (`$5 + fee w collateral`, bez kredytu), kapitał jest blokowany do `resolved_at_utc + 60 s`, a po ostatnim rynku symulator rozlicza wszystkie pozostałe pozycje. W 2,795 zapisanych transakcjach znaleziono 0 ujemnych stanów gotówki i 0 naruszeń pokrycia debetu; minimum po wejściu wyniosło $0.57. Legacy fee zmniejsza liczbę udziałów; współczesna opłata jest debetowana w collateral. Dokładne zaokrąglenie maker-level nie jest dostępne w zagregowanym booku. Drawdown liczy gotówkę plus koszt zablokowanych pozycji, bez mark-to-market.
+## Wpływ walidacji kwotowań na ekonomikę T−59
+
+Tabela porównuje trzy etapy filtracji przy tych samych zapisanych cenach, fillach, opłatach i zasadach gotówki. Pierwszy odtwarza dawną walidację bid < ask; drugi dopuszcza poprawne bid = ask przy starym uzgadnianiu BBO; trzeci stosuje korektę świeżości referencji. Każdy wiersz pokazuje rynki kwalifikowane w danym etapie. Pełna tabela sześciu modeli/baseline’ów dla wszystkich rynków, zbiorów kwalifikowanych i ich przecięcia oraz lista zmian per rynek są w CSV.
+
+Dopuszczenie zablokowanych kwotowań dodało 39 kwalifikowane rynki przed korektą referencji BBO. Korekta świeżości dodała 2,084 i odrzuciła 0 po potwierdzeniu świeżej rozbieżności. Na wspólnym zbiorze wynik każdego z sześciu modeli jest identyczny we wszystkich trzech etapach.
+Poprzednie +$318.16 pozostaje wynikiem na 2,331 rynkach wspólnych dla trzech walidacji; skorygowany zbiór obejmuje 4,454 kwalifikowanych rynków i daje $475.84 dla candidate_platt. Różnica wynika ze zmienionej kwalifikacji snapshotów, nie ze zmiany modelu ani strategii.
+
+| Walidacja | Rynki kwalifikowane | Model | PnL netto | Transakcje |
+|---|---:|---|---:|---:|
+| `original_strict_bid_lt_ask` (2,331) | `candidate_platt` | $318.16 | 1,076 |
+| `original_strict_bid_lt_ask` (2,331) | `original_v1_platt` | -$95.11 | 287 |
+| `original_strict_bid_lt_ask` (2,331) | `candidate_raw` | $355.53 | 1,059 |
+| `original_strict_bid_lt_ask` (2,331) | `original_v1_raw` | -$99.43 | 373 |
+| `original_strict_bid_lt_ask` (2,331) | `no_btc_constant_0_5` | -$52.09 | 119 |
+| `original_strict_bid_lt_ask` (2,331) | `no_btc_development_prevalence_0_5015364895` | -$97.54 | 52 |
+| `locked_quotes_old_bbo_freshness` (2,370) | `candidate_platt` | $323.01 | 1,099 |
+| `locked_quotes_old_bbo_freshness` (2,370) | `original_v1_platt` | -$95.11 | 287 |
+| `locked_quotes_old_bbo_freshness` (2,370) | `candidate_raw` | $355.39 | 1,083 |
+| `locked_quotes_old_bbo_freshness` (2,370) | `original_v1_raw` | -$99.23 | 371 |
+| `locked_quotes_old_bbo_freshness` (2,370) | `no_btc_constant_0_5` | -$97.54 | 36 |
+| `locked_quotes_old_bbo_freshness` (2,370) | `no_btc_development_prevalence_0_5015364895` | -$97.54 | 54 |
+| `locked_quotes_corrected_bbo_freshness` (4,454) | `candidate_platt` | $475.84 | 2,316 |
+| `locked_quotes_corrected_bbo_freshness` (4,454) | `original_v1_platt` | -$95.11 | 765 |
+| `locked_quotes_corrected_bbo_freshness` (4,454) | `candidate_raw` | $384.19 | 2,297 |
+| `locked_quotes_corrected_bbo_freshness` (4,454) | `original_v1_raw` | -$97.70 | 206 |
+| `locked_quotes_corrected_bbo_freshness` (4,454) | `no_btc_constant_0_5` | -$97.99 | 349 |
+| `locked_quotes_corrected_bbo_freshness` (4,454) | `no_btc_development_prevalence_0_5015364895` | -$95.71 | 606 |
+
+Księgowanie odtworzono z poprawionych wpisów T−59: gotówka przed wejściem musi pokryć pełny debet (`$5 + fee w collateral`, bez kredytu), kapitał jest blokowany do `resolved_at_utc + 60 s`, a po ostatnim rynku symulator rozlicza wszystkie pozostałe pozycje. W 2,316 transakcjach `candidate_platt` znaleziono 0 ujemnych stanów gotówki i 0 naruszeń pokrycia debetu; minimum po wejściu wyniosło $30.28. Legacy fee zmniejsza liczbę udziałów; współczesna opłata jest debetowana w collateral. Dokładne zaokrąglenie maker-level nie jest dostępne w zagregowanym booku. Drawdown liczy gotówkę plus koszt zablokowanych pozycji, bez mark-to-market.
 
 Candidate_platt przewyższa oryginalny model Platt i oba proste baseline’y w zapisanej symulacji. Nie istnieje jednak porównywalny wyuczony baseline `MARKET_ONLY` w tej samej pre-open definicji; wcześniejsze wyniki MARKET_ONLY mają inny moment decyzji/feature availability i nie są podstawiane do tej tabeli.
 
@@ -65,7 +98,7 @@ Każda decyzja zachowuje istniejący rekord CSV oraz identyfikator decision/cond
 
 Po cyklu log `[latency_summary]` podaje N, p50/p95/p99, maksimum, liczbę przekroczeń budżetu 1 s i ujemnych różnic dla każdego obserwowalnego etapu względem nominalnego T−60; liczniki rozdzielają cykle, próby, odpowiedzi klienta, order IDs, pola fill zgłoszone w odpowiedzi oraz niezależne rekordy zdarzeń fill. Nie wolno odczytywać mediany wszystkich cykli jako opóźnienia prób zlecenia ani sumować percentyli etapów.
 
-Send po warstwie transportowej, źródłowy ACK giełdy oraz źródłowy i lokalnie odebrany fill pozostają puste: obecny synchroniczny CLOB client nie udostępnia tu tych zdarzeń, a user stream fill nie jest podłączony. HTTP/client response i dodatni `filled_stake_usdc` nie są czasem giełdowego ACK ani dowodem niezależnie timestampowanego fillu. Endpoint CLOB `/time` zapisuje jedynie przybliżony offset względem czasu hosta; RTT, NTP status i niepewność offsetu nie są mierzone.
+The authenticated Polymarket user stream records order placement updates and partial/final fills, with REST resync and order/attempt linking. It starts only for enabled live submit. Current official protocol docs and mocked reconnect tests were checked, but py-clob-client-v2 is not installed here, so there was no real handshake or observed exchange ACK/fill. A live order is needed to measure acceptance latency; only actual execution events can establish fill time, price, quantity, and any reported fee. HTTP/client response is not an exchange ACK or fill timestamp.
 
 W dotychczasowych, innych runtime’ach: 527 cykli miało close-to-cycle p50/p95/p99 475/1271/1792 ms; 111 synchronicznych submitów miało p50/p95/p99 403/631/1002 ms. Dwie kolekcje pre-open miały wszystkie wejścia gotowe 2553 i 3661 ms po decyzji i miały wyłączone zlecenia. To odrębne historyczne pomiary, nie podstawa do wyboru T−59 i nie pomiary kandydata end-to-end.
 
@@ -73,13 +106,20 @@ Instrukcja lokalizacji kolumn, odczytu `[latency_summary]` i rozróżnienia czas
 
 ## Gotowość kandydata do live
 
-Nie. Bundle kandydata wymaga 112 cech, pre-open collector ma obecnie bundle 29 cech, a ogólny runtime 256 kolumn, z których tylko 44 pokrywają się z kandydatem. Zmierzony warm inference dotyczy już zbudowanego wektora i nie obejmuje aktualizacji cech. Zgodna inkrementalna ścieżka obliczania 112 cech pozostaje osobnym brakiem wdrożeniowym; kandydata nie aktywowano.
+Kandydat ma osobny, nieaktywny paper runtime ze ścieżkami modelu, kalibratora, uporządkowanych 112 cech i konfiguracji historii. Nie zmieniono nazw, pozycji ani definicji cech: lista dokładnie zgadza się z oryginalnym v1, a zmieniły się wyuczony booster/kalibrator i parametry. Audyt mapuje rodziny {"candle": 47, "reaction_profile": 19, "volume_profile": 16, "realized_volatility": 9, "session": 7, "basis_premium": 6, "streak": 4, "indicator": 4} i sprawdza 85 historycznych decyzji względem rebuildów ograniczonych do chwili decyzji. Wektory miały 0 różnic cech, 0 różnic maski i 0 błędów wznowienia. Na lokalnym CPU p50/p95/p99 wyniosły: warm update 0.56/1.04/1.16 ms, pełny wektor 14.06/20.67/26.65 ms, predykcja z Platt 0.14/0.22/0.29 ms, cała ścieżka update→wektor→predykcja 14.85/22.74/28.00 ms. Szczyt RSS próbkowany co 100 ms: 2921 MiB. To potwierdza zgodność badanego lokalnego runtime, nie sprawdza bieżącego live feedu ani złożenia zlecenia. Kandydata nie aktywowano.
 
+The exact 44/112 was a name intersection: the active BTC model bundle has 256 columns, of which 44 names occur in the candidate; the other 68 are absent from that separate bundle, not unsupported code. The 29-feature pre-open baseline is a separate causal raw-candle model (29 features; 1 exact name overlap). Candidate and original have the same ordered feature list (True), indicator-fit directory (True), and volume/reaction profile configs (True/True); no names, positions, or definitions changed.
+Chaikin SHMMA accumulated numerical drift over more than 3 million candles. The fix serializes and incrementally advances its recurrence state; it does not reset a short window or relax tolerance. The candidate seed is valid through 2026-10-02T18:00:00+00:00; a later startup requires a complete contiguous closed-candle catch-up and fails before prediction if that interval is missing.
 ## Artefakty
 
 - `primary_economic_comparison.csv` — T−59, wszystkie rynki i wspólny zbiór kwalifikujących się rynków.
 - `book_timing_examples.csv` — audyt trzech ksiąg T−59 z archiwum lokalnego.
-- `economic_scenarios.csv` — zachowana wcześniejsza macierz wariantów czasowych i freshness.
-- `audit.json`, `data_coverage.csv`, `trades.parquet`, `model_comparison.csv` i `report_bundle.zip` — szczegóły oraz materiały odtwarzalności.
+- `economic_scenarios.csv` — wcześniejsza macierz wariantów czasowych; nie przeliczono jej po korekcie BBO.
+- `quote_validation_economic_impact.csv` i `quote_validation_market_changes.csv` — wpływ trzech etapów walidacji BBO na ekonomikę i kwalifikację per rynek.
+- `quote_validation_corrected_trades.parquet` — transakcje z finalnej T−59 walidacji dla wszystkich sześciu modeli/baseline’ów.
+- `fresh_bbo_replay_summary.json`, `quote_validation_before_after.csv` i `fresh_bbo_entry_results.csv` — zakres, zasoby i wyniki ukierunkowanego replayu świeżości BBO.
+- `runtime_compatibility_audit.json`, `feature_compatibility_112.csv`, `feature_definition_comparison.json`, `artifact_manifest.json` and `archive_partition_hashes.csv` - candidate feature map, numerical parity and reproducibility fingerprints.
+- `book_rejection_markets.csv`, `book_rejection_daily.csv` i `BOOK_TRACE_EXAMPLES.md` — powody odrzuceń i przykładowe ścieżki księgi.
+- `audit.json`, `data_coverage.csv`, `quote_validation_corrected_trades.parquet`, `model_comparison.csv` i `report_bundle.zip` — szczegóły oraz odtwarzalność finalnej walidacji.
 
-Nie złożono rzeczywistych zleceń ani nie zmieniono konfiguracji aktywnego modelu.
+Nie aktywowano kandydata ani nie złożono rzeczywistych zleceń; dodane ścieżki konfiguracji dotyczą osobnego profilu paper.

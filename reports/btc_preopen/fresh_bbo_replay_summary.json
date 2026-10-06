@@ -1,0 +1,83 @@
+{
+  "replay_semantics_version": 3,
+  "target_reason_before_replay": "complete direct books and semantically valid quotes at T-60 or T-59",
+  "target_entry_cases": [
+    "prestart_c0_o0",
+    "prestart_c0_o1"
+  ],
+  "target_market_count": 4591,
+  "target_fingerprint": "df96fa12ea1af70e76fe7429ef4ca7f279b89c2ade360035a0dff409a860231c",
+  "target_entry_count": 9157,
+  "target_first_event_utc": "2026-04-14T17:18:40.315000+00:00",
+  "target_last_entry_utc": "2026-05-18T10:04:01+00:00",
+  "partitions_scanned": 810,
+  "rows_applied_to_target_market_states": 26984593,
+  "elapsed_seconds": 7120.121783899987,
+  "peak_sampled_rss_bytes": 2187833344,
+  "rss_sample_interval_ms": 100,
+  "network_or_archive_download": false,
+  "scope_rationale": "Only markets with complete direct books and semantically valid top quotes can reach or be rejected by the ask-BBO validator. Invalid or missing books fail earlier checks and cannot change eligibility under this freshness correction.",
+  "eligible_before_by_entry_case": {
+    "prestart_c0_o0": 2397,
+    "prestart_c0_o1": 2370
+  },
+  "eligible_after_by_entry_case": {
+    "prestart_c0_o0": 4497,
+    "prestart_c0_o1": 4454
+  },
+  "reason_counts_before_by_entry_case": {
+    "prestart_c0_o0": {
+      "eligible": 2397,
+      "exchange_maintenance_pause": 12,
+      "incomplete_or_crossed_book": 4811,
+      "no_initial_book_snapshot": 8,
+      "stale_ask": 29,
+      "unknown_historical_fee": 1,
+      "unreconciled_best_ask_at_entry": 2149
+    },
+    "prestart_c0_o1": {
+      "eligible": 2370,
+      "exchange_maintenance_pause": 12,
+      "incomplete_or_crossed_book": 4830,
+      "no_initial_book_snapshot": 8,
+      "stale_ask": 29,
+      "unknown_historical_fee": 1,
+      "unreconciled_best_ask_at_entry": 2157
+    }
+  },
+  "reason_counts_after_by_entry_case": {
+    "prestart_c0_o0": {
+      "eligible": 4497,
+      "exchange_maintenance_pause": 12,
+      "incomplete_or_crossed_book": 4811,
+      "no_initial_book_snapshot": 8,
+      "stale_ask": 31,
+      "unknown_historical_fee": 1,
+      "unreconciled_best_ask_at_entry": 47
+    },
+    "prestart_c0_o1": {
+      "eligible": 4454,
+      "exchange_maintenance_pause": 12,
+      "incomplete_or_crossed_book": 4830,
+      "no_initial_book_snapshot": 8,
+      "stale_ask": 31,
+      "unknown_historical_fee": 1,
+      "unreconciled_best_ask_at_entry": 71
+    }
+  },
+  "primary_reason_changed_market_entry_rows": 4188,
+  "newly_eligible_market_entry_rows": 4184,
+  "ask_mismatches_rejected_as_old_or_tied_references": 4190,
+  "ask_mismatches_still_confirmed_by_fresh_reference": 120,
+  "before_snapshot_hash_sha256": "ffd4c2d0e59d37c6e99fae117d11a76a0787a03a1b59439441c9816c8f898fa5",
+  "after_snapshot_hash_sha256": "1df26fe04d2e8d0f0fb9a3820184ce4a5b10c42383b8d424975dde44ef6a84b9",
+  "after_coverage_hash_sha256": "283675ad6ddbebb6d750a012eedef815bbeea0d9cd5dd7dc55ec1f1f26745939",
+  "replay_code_sha256": "99c07b99db8d02c79995f1677efeec35eb1fa54ae87b405ec612530c304d0eff",
+  "completed": true,
+  "before_coverage_path": "reports/btc_preopen/quote_validation_before_fresh_bbo.csv",
+  "after_coverage_path": "reports/btc_preopen/data_coverage.csv",
+  "entry_impact_path": "reports/btc_preopen/quote_validation_before_after.csv",
+  "results_path": "reports/btc_preopen/fresh_bbo_entry_results.csv",
+  "archive_partition_fingerprint": "ad0e21ea465b6635a563f4c0c510ebbb434563f47215fb073eb1a0e721b61a95",
+  "replay_identity_complete": true
+}

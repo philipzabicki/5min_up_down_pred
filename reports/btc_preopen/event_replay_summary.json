@@ -2,9 +2,9 @@
   "event_rows": 104437933,
   "exact_duplicate_rows": 1906,
   "event_type_counts": {
-    "price_change": 65653,
-    "book": 53,
-    "last_trade_price": 825
+    "book": 617342,
+    "price_change": 102390694,
+    "last_trade_price": 1429897
   },
   "source_receive_latency": {
     "count": 104437933,

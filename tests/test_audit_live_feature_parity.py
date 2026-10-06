@@ -14,6 +14,7 @@ import audit_feature_readiness as audit
 import run as live_runtime
 from features.ChaikinOsc import get_chaikin_oscillator_values
 from features.live_indicator_runtime import (
+    ChaikinOscillatorRuntimeState,
     IndicatorFullHistoryScratch,
     IndicatorWindowScratch,
     get_chaikin_oscillator_latest_value_live,
@@ -21,6 +22,121 @@ from features.live_indicator_runtime import (
 
 
 class PseudoLiveAuditPredictorTests(unittest.TestCase):
+    def test_chaikin_state_continues_batch_feature_across_restart(self):
+        count = 12_000
+        steps = np.arange(count, dtype=np.float64)
+        center = 25_000.0 + 0.4 * steps + 30.0 * np.sin(steps / 47.0)
+        ohlcv = np.column_stack(
+            (
+                center,
+                center + 2.0,
+                center - 2.0,
+                center + np.sin(steps / 13.0),
+                2_000.0 + 500.0 * np.sin(steps / 17.0) ** 2,
+            )
+        )
+        params = {"fast_period": 13, "slow_period": 79}
+        expected = get_chaikin_oscillator_values(
+            {
+                **params,
+                "fast_ma_type": "EMA",
+                "slow_ma_type": "SHMMA",
+            },
+            ohlcv,
+        )
+        split = 8_000
+        state = ChaikinOscillatorRuntimeState.from_history(
+            ohlcv[:split], **params
+        )
+        state = ChaikinOscillatorRuntimeState.from_dict(state.to_dict())
+        actual = np.asarray(
+            [state.update(row) for row in ohlcv[split:]],
+            dtype=np.float64,
+        )
+
+        np.testing.assert_allclose(actual, expected[split:], rtol=1e-12, atol=1e-9)
+
+    def test_live_chaikin_state_seed_loads_and_catches_up_contiguously(self):
+        count = 300
+        steps = np.arange(count + 2, dtype=np.float64)
+        center = 1_000.0 + 0.2 * steps + 2.0 * np.sin(steps / 11.0)
+        rows = np.column_stack(
+            (
+                center,
+                center + 1.0,
+                center - 1.0,
+                center + 0.1 * np.cos(steps / 5.0),
+                100.0 + 20.0 * np.sin(steps / 7.0) ** 2,
+            )
+        )
+        seed_count = count
+        params = {"fast_period": 13, "slow_period": 79}
+        state = ChaikinOscillatorRuntimeState.from_history(
+            rows[:seed_count], **params
+        )
+        start = pd.Timestamp("2026-01-01T00:00:00Z")
+        opened = pd.date_range(start, periods=count + 2, freq="min")
+        feature_col = "ChaikinOsc_fit_test"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            seed_path = Path(temp_dir) / "indicator_state.json"
+            seed_path.write_text(
+                json.dumps({
+                    "state_version": 1,
+                    "feature_col": feature_col,
+                    "params": params,
+                    "state_as_of_opened_utc": opened[seed_count - 1].isoformat(),
+                    "model_sha256": "candidate-sha",
+                    "state": state.to_dict(),
+                }),
+                encoding="utf-8",
+            )
+            catchup = pd.DataFrame(rows[seed_count:], columns=live_runtime.OHLCV_COLS)
+            catchup.insert(0, "Opened", opened[seed_count:])
+            predictor = live_runtime.LivePredictor.__new__(live_runtime.LivePredictor)
+            predictor.indicator_specs = [SimpleNamespace(
+                indicator="ChaikinOsc",
+                feature_col=feature_col,
+                params={
+                    **params,
+                    "fast_ma_type": "EMA",
+                    "slow_ma_type": "SHMMA",
+                },
+            )]
+            predictor.indicator_state_by_feature = {}
+            predictor.model_hash = "candidate-sha"
+            predictor.session = object()
+            with mock.patch.object(
+                live_runtime, "INDICATOR_STATE_SEED_PATH", seed_path
+            ), mock.patch.object(
+                live_runtime, "fetch_closed_ohlcv_range", return_value=catchup
+            ):
+                predictor._initialize_indicator_state(
+                    pd.DataFrame({"Opened": [opened[-1]]})
+                )
+
+        expected = ChaikinOscillatorRuntimeState.from_history(rows, **params)
+        self.assertAlmostEqual(
+            predictor.indicator_state_by_feature[feature_col].value,
+            expected.value,
+            places=9,
+        )
+
+    def test_live_chaikin_state_startup_fails_clearly_when_seed_is_missing(self):
+        predictor = live_runtime.LivePredictor.__new__(live_runtime.LivePredictor)
+        predictor.indicator_specs = [SimpleNamespace(
+            indicator="ChaikinOsc",
+            feature_col="ChaikinOsc_fit_test",
+            params={"fast_ma_type": "EMA", "slow_ma_type": "SHMMA"},
+        )]
+        with mock.patch.object(live_runtime, "INDICATOR_STATE_SEED_PATH", None):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "missing artifacts.indicator_state_seed_path.*ChaikinOsc_fit_test",
+            ):
+                predictor._initialize_indicator_state(
+                    pd.DataFrame({"Opened": [pd.Timestamp("2026-01-01T00:00:00Z")]})
+                )
+
     def test_live_feature_parameter_override_requires_expected_fitted_value(self):
         spec = SimpleNamespace(
             feature_col="chaikin_feature",
@@ -103,7 +219,8 @@ class PseudoLiveAuditPredictorTests(unittest.TestCase):
 
     def test_indicator_runtime_uses_global_retained_history(self):
         predictor = audit.LivePredictor.__new__(audit.LivePredictor)
-        predictor.required_stable_window = 21936
+        predictor.required_stable_window = 2047
+        predictor.ohlcv_np = np.empty((21936, 5), dtype=np.float64)
         predictor.indicator_runtime_window_by_feature = {
             "short_recursive_indicator": 7166,
             "long_recursive_indicator": 18000,
@@ -343,7 +460,7 @@ class PseudoLiveAuditPredictorTests(unittest.TestCase):
         self.assertEqual(drift["worst_feature"], "indicator_macd")
         self.assertGreater(drift["proba_up_abs_diff"], audit.PREDICTION_DIFF_TOL)
 
-    def test_snapshot_preserves_model_feature_order_and_missing_values(self):
+    def test_unclassified_model_feature_fails_before_prediction(self):
         bootstrap_df = pd.DataFrame(
             {
                 "Opened": pd.date_range(
@@ -396,20 +513,15 @@ class PseudoLiveAuditPredictorTests(unittest.TestCase):
                     return_value=requirements,
                 ),
             ):
-                predictor = audit.PseudoLiveAuditPredictor(
-                    bootstrap_df,
-                    model_meta_path="unused.json",
-                    max_keep=10,
-                )
-
-        snapshot = predictor.build_feature_snapshot()
-        vector = snapshot["vector"][0]
-
-        self.assertEqual(predictor.feature_columns, feature_columns)
-        self.assertEqual(vector[0], 101.5)
-        self.assertEqual(vector[1], 101.0)
-        self.assertTrue(pd.isna(vector[2]))
-        self.assertEqual(snapshot["nonfinite_feature_indices"], (2,))
+                with self.assertRaisesRegex(
+                        ValueError,
+                        "no live feature family.*not_available_live",
+                ):
+                    audit.PseudoLiveAuditPredictor(
+                        bootstrap_df,
+                        model_meta_path="unused.json",
+                        max_keep=10,
+                    )
 
     def test_basis_premium_features_are_replayed_from_futures_close(self):
         bootstrap_df = pd.DataFrame(

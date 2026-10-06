@@ -49,6 +49,7 @@ from features.candle_features import (
 )
 from features.feature_intervals import FEATURE_INTERVAL_TO_RULE
 from features.live_indicator_runtime import (
+    ChaikinOscillatorRuntimeState,
     LATEST_VALUE_BUILDERS as LIVE_LATEST_VALUE_BUILDERS,
     IndicatorFullHistoryScratch,
     IndicatorWindowScratch,
@@ -106,6 +107,7 @@ from utils.live import (
     upsert_records_csv,
     write_records_csv,
 )
+from utils.polymarket_user_stream import PolymarketUserTradeMonitor
 from utils.project_config import (
     load_dataset_profile,
     load_enabled_runtime_asset_settings,
@@ -264,6 +266,11 @@ TRADE_POLICY_CONFIG_PATH = Path(
 )
 INDICATOR_HISTORY_REQUIREMENTS_PATH = Path(
     RUNTIME_ARTIFACT_PATHS["indicator_history_requirements_path"]
+)
+INDICATOR_STATE_SEED_PATH = (
+    Path(RUNTIME_ARTIFACT_PATHS["indicator_state_seed_path"])
+    if RUNTIME_ARTIFACT_PATHS.get("indicator_state_seed_path")
+    else None
 )
 # Polymarket 5m up/down markets resolve from the market itself.
 SETTLEMENT_SOURCE = "polymarket"
@@ -456,14 +463,54 @@ MODELING_DATASET_SETTINGS = load_modeling_dataset_settings(
     dataset_profile_name=RUNTIME_ASSET_SETTINGS["dataset_profile"],
     modeling_profile_name=RUNTIME_ASSET_SETTINGS["modeling_profile"],
 )
-FIT_RESULTS_DIR = MODELING_DATASET_SETTINGS["fit_results_dir"]
-VOLUME_PROFILE_MODELING_STATE_PATH = resolve_volume_profile_modeling_state_path(
-    MODELING_DATASET_SETTINGS["base_data_file"],
-    asset=RUNTIME_ASSET,
+_FEATURE_RUNTIME_CONFIG_PATH = RUNTIME_ARTIFACT_PATHS.get(
+    "feature_runtime_config_path"
 )
-REACTION_PROFILE_MODELING_STATE_PATH = resolve_reaction_profile_modeling_state_path(
-    MODELING_DATASET_SETTINGS["base_data_file"],
-    asset=RUNTIME_ASSET,
+if _FEATURE_RUNTIME_CONFIG_PATH is not None:
+    if not _FEATURE_RUNTIME_CONFIG_PATH.is_file():
+        raise FileNotFoundError(
+            "Runtime feature configuration is missing: "
+            f"{_FEATURE_RUNTIME_CONFIG_PATH}"
+        )
+    _feature_runtime_config = json.loads(
+        _FEATURE_RUNTIME_CONFIG_PATH.read_text(encoding="utf-8")
+    )
+    _feature_runtime_config_keys = {
+        "feature_intervals",
+        "basis_premium_features",
+        "volume_profile_fixed_range",
+        "reaction_profile_fixed_grid",
+    }
+    unknown_feature_runtime_keys = (
+        set(_feature_runtime_config) - _feature_runtime_config_keys
+    )
+    if unknown_feature_runtime_keys:
+        raise ValueError(
+            "Runtime feature configuration contains unsupported keys: "
+            f"{sorted(unknown_feature_runtime_keys)}"
+        )
+    MODELING_DATASET_SETTINGS = {
+        **MODELING_DATASET_SETTINGS,
+        **_feature_runtime_config,
+    }
+
+FIT_RESULTS_DIR = RUNTIME_ARTIFACT_PATHS.get(
+    "indicator_fit_results_dir",
+    MODELING_DATASET_SETTINGS["fit_results_dir"],
+)
+VOLUME_PROFILE_MODELING_STATE_PATH = RUNTIME_ARTIFACT_PATHS.get(
+    "volume_profile_modeling_state_path",
+    resolve_volume_profile_modeling_state_path(
+        MODELING_DATASET_SETTINGS["base_data_file"],
+        asset=RUNTIME_ASSET,
+    ),
+)
+REACTION_PROFILE_MODELING_STATE_PATH = RUNTIME_ARTIFACT_PATHS.get(
+    "reaction_profile_modeling_state_path",
+    resolve_reaction_profile_modeling_state_path(
+        MODELING_DATASET_SETTINGS["base_data_file"],
+        asset=RUNTIME_ASSET,
+    ),
 )
 
 
@@ -934,7 +981,12 @@ def load_required_stable_window(
     return int(requirements["global_required_runtime_window"])
 
 
-def load_indicator_specs(feature_columns, *, source_label=None):
+def load_indicator_specs(
+        feature_columns,
+        *,
+        source_label=None,
+        fit_results_dir=None,
+):
     source_label = source_label or f"model metadata feature_columns at {MODEL_META_PATH}"
     validate_volume_profile_feature_columns(
         feature_columns,
@@ -948,7 +1000,15 @@ def load_indicator_specs(feature_columns, *, source_label=None):
         feature_columns,
         source_label=source_label,
     )
-    fit_configs = parse_fit_results(FIT_RESULTS_DIR)
+    resolved_fit_results_dir = coerce_path(
+        FIT_RESULTS_DIR if fit_results_dir is None else fit_results_dir
+    )
+    if not resolved_fit_results_dir.is_dir():
+        raise FileNotFoundError(
+            "Indicator fit results directory is required for runtime feature loading: "
+            f"{resolved_fit_results_dir.resolve()}"
+        )
+    fit_configs = parse_fit_results(resolved_fit_results_dir)
     fit_by_feature_col = {cfg["feature_col"]: cfg for cfg in fit_configs}
 
     specs = []
@@ -997,7 +1057,7 @@ def load_indicator_specs(feature_columns, *, source_label=None):
         preview = ", ".join(missing_features[:10])
         raise FileNotFoundError(
             "Missing fit configs for model feature columns in fit_results_dir "
-            f"{FIT_RESULTS_DIR.resolve()}. Missing_count={len(missing_features)} "
+            f"{resolved_fit_results_dir.resolve()}. Missing_count={len(missing_features)} "
             f"preview=[{preview}]"
         )
 
@@ -1319,6 +1379,11 @@ class LivePredictor:
             self.feature_columns,
             source_label=f"model metadata {self.model_meta_path}",
         )
+        if feature_parts["unclassified_feature_cols"]:
+            raise ValueError(
+                "Model metadata contains features with no live feature family: "
+                f"{feature_parts['unclassified_feature_cols'][:10]}"
+            )
         if feature_parts["streak_intervals"]:
             self.streak_interval_to_rule = resolve_streak_interval_to_rule(
                 feature_parts["streak_intervals"]
@@ -1421,6 +1486,7 @@ class LivePredictor:
             self.feature_columns,
             source_label=f"model metadata {self.model_meta_path}",
         )
+        self.indicator_state_by_feature = {}
         self.indicator_history_requirements = load_indicator_history_requirements(
             INDICATOR_HISTORY_REQUIREMENTS_PATH,
             indicator_specs=self.indicator_specs,
@@ -1457,6 +1523,7 @@ class LivePredictor:
         bootstrap_df = fetch_historical_ohlcv(self.session, self.bootstrap_candles)
         if bootstrap_df.empty:
             raise RuntimeError("Bootstrap dataframe is empty.")
+        self._initialize_indicator_state(bootstrap_df)
 
         self.opened_candles = deque(
             pd.Timestamp(opened) for opened in bootstrap_df["Opened"]
@@ -1508,7 +1575,90 @@ class LivePredictor:
         # The per-feature windows bound a stability check, but resetting a
         # recursive indicator at those cutoffs changes its live value. Use the
         # same complete retained history for every indicator instead.
-        return int(self.required_stable_window)
+        return int(self.ohlcv_np.shape[0])
+
+    def _initialize_indicator_state(self, bootstrap_df):
+        stateful_specs = [
+            spec
+            for spec in self.indicator_specs
+            if spec.indicator == "ChaikinOsc"
+            and spec.params.get("fast_ma_type") == "EMA"
+            and spec.params.get("slow_ma_type") == "SHMMA"
+        ]
+        if not stateful_specs:
+            return
+        if INDICATOR_STATE_SEED_PATH is None or not INDICATOR_STATE_SEED_PATH.is_file():
+            feature = stateful_specs[0].feature_col
+            raise RuntimeError(
+                "Live model bundle is missing artifacts.indicator_state_seed_path "
+                f"required by fitted feature {feature!r}."
+            )
+
+        seed = json.loads(INDICATOR_STATE_SEED_PATH.read_text(encoding="utf-8"))
+        if seed.get("state_version") != 1:
+            raise RuntimeError("Chaikin indicator state seed has an unsupported version.")
+        seed_model_hash = str(seed.get("model_sha256") or "")
+        if seed_model_hash != self.model_hash:
+            raise RuntimeError(
+                "Chaikin indicator state seed does not match the loaded model hash."
+            )
+
+        latest_opened = pd.Timestamp(bootstrap_df["Opened"].iloc[-1])
+        for spec in stateful_specs:
+            if seed.get("feature_col") != spec.feature_col:
+                raise RuntimeError(
+                    "Chaikin indicator state seed feature does not match model "
+                    f"feature {spec.feature_col!r}."
+                )
+            expected_params = {
+                "fast_period": int(spec.params["fast_period"]),
+                "slow_period": int(spec.params["slow_period"]),
+            }
+            if seed.get("params") != expected_params:
+                raise RuntimeError(
+                    "Chaikin indicator state seed parameters do not match fitted "
+                    f"feature {spec.feature_col!r}."
+                )
+
+            state = ChaikinOscillatorRuntimeState.from_dict(seed["state"])
+            if (
+                    state.fast_period != expected_params["fast_period"]
+                    or state.slow_period != expected_params["slow_period"]
+                    or state.shmma_state.count < state.slow_period
+            ):
+                raise RuntimeError(
+                    "Chaikin indicator state seed is incomplete for fitted feature "
+                    f"{spec.feature_col!r}."
+                )
+            state_opened = pd.Timestamp(seed["state_as_of_opened_utc"])
+            if state_opened > latest_opened:
+                raise RuntimeError(
+                    "Chaikin indicator state seed is ahead of the latest closed "
+                    f"bootstrap candle ({state_opened.isoformat()} > "
+                    f"{latest_opened.isoformat()})."
+                )
+            catchup_start = state_opened + INTERVAL_DELTA
+            if catchup_start <= latest_opened:
+                catchup = fetch_closed_ohlcv_range(
+                    self.session,
+                    start_opened=catchup_start,
+                    end_opened=latest_opened,
+                )
+                try:
+                    validate_closed_ohlcv_catchup(
+                        catchup,
+                        catchup_start,
+                        end_opened=latest_opened,
+                    )
+                except RuntimeError as exc:
+                    raise RuntimeError(
+                        "Chaikin indicator state seed catch-up is incomplete; "
+                        "live prediction is disabled until the entire interval is "
+                        "available."
+                    ) from exc
+                for row in catchup[OHLCV_COLS].itertuples(index=False, name=None):
+                    state.update(row)
+            self.indicator_state_by_feature[spec.feature_col] = state
 
     def _slice_indicator_ohlcv_window(self, feature_col):
         window_len = max(2, int(self._resolve_indicator_window_len(feature_col)))
@@ -1519,6 +1669,9 @@ class LivePredictor:
     def _compute_latest_indicator_value(
             self, spec, full_history_scratch, window_scratch_by_len
     ):
+        state = getattr(self, "indicator_state_by_feature", {}).get(spec.feature_col)
+        if state is not None:
+            return float(state.value)
         window_len = max(2, int(self._resolve_indicator_window_len(spec.feature_col)))
         window_scratch = window_scratch_by_len.get(window_len)
         if window_scratch is None:
@@ -1760,6 +1913,8 @@ class LivePredictor:
                 context=f"closed candle {pd.Timestamp(opened).isoformat()}",
             )
         ohlcv_row = np.asarray(ohlcv, dtype=np.float64).reshape(1, len(OHLCV_COLS))
+        for state in getattr(self, "indicator_state_by_feature", {}).values():
+            state.update(ohlcv_row[0])
         opened_ns_row = np.asarray([pd.Timestamp(opened).value], dtype=np.int64)
         if self.ohlcv_np.size == 0:
             self.ohlcv_np = ohlcv_row
@@ -2772,6 +2927,15 @@ class LivePredictor:
             values[spec.feature_col] = raw_value
             if not np.isfinite(raw_value):
                 indicator_nan_cols.append(spec.feature_col)
+
+        missing_live_values = [
+            col for col in self.feature_columns if col not in values
+        ]
+        if missing_live_values:
+            raise RuntimeError(
+                "Live feature builders did not produce model features: "
+                f"{missing_live_values[:10]}"
+            )
 
         self.last_indicator_nan_cols = indicator_nan_cols
 
@@ -3995,12 +4159,19 @@ class PolymarketLiveTrader(LivePredictor):
         )
         self.pm_relayer_warning_printed = False
         self.pm_client = None
+        self.pm_user_trade_monitor = None
         self.pm_allowance_info = ""
         self.bankroll_source = self._bankroll_source_label("profile_start_bankroll")
         self._load_existing_records()
         if not self.pm_cfg.paper_mode:
             self.pm_client = self._build_live_client()
             self._refresh_live_cash_state(sync_bankroll=True)
+            if not self.pm_cfg.disable_order_submission:
+                self.pm_user_trade_monitor = PolymarketUserTradeMonitor(
+                    self.pm_client,
+                    LIVE_TRADE_DIR / f"polymarket_user_events_{RUNTIME_ASSET}.jsonl",
+                )
+                self.pm_user_trade_monitor.start()
 
     def _capped_trading_bankroll_usdc(self, bankroll_usdc):
         bankroll_usdc = float(bankroll_usdc)
@@ -5900,7 +6071,14 @@ class PolymarketLiveTrader(LivePredictor):
                     float(POLYMARKET_POST_ORDER_RETRY_MAX_DELAY_SEC),
                 )
 
-    def _maybe_submit_order(self, intent):
+    def _maybe_submit_order(
+            self,
+            intent,
+            *,
+            decision_id="",
+            attempt_id="",
+            condition_id="",
+    ):
         attempted_stake_usdc = np.nan
         submit_call_started_at_utc = None
         submit_call_completed_at_utc = None
@@ -5968,6 +6146,14 @@ class PolymarketLiveTrader(LivePredictor):
                 submit_response_received_at_utc = _utc_now()
                 submit_call_completed_at_utc = submit_response_received_at_utc
                 order_id = _polymarket_response_order_id(response)
+                if order_id and self.pm_user_trade_monitor is not None:
+                    self.pm_user_trade_monitor.register_order(
+                        order_id,
+                        decision_id=decision_id,
+                        attempt_id=attempt_id,
+                        condition_id=condition_id,
+                        asset_id=intent.get("token_id"),
+                    )
             else:
                 raise NotImplementedError(
                     "Unsupported live.polymarket_execution_mode: "
@@ -6165,7 +6351,22 @@ class PolymarketLiveTrader(LivePredictor):
             policy_decision_ready_at_utc = _utc_now()
             decision_ready_delay_ms = _delay_ms_since(bucket_start)
             submit_started_perf = time.perf_counter()
-            submit_result = self._maybe_submit_order(intent)
+            decision_id = self._decision_id_for_bucket(bucket_start)
+            will_submit = (
+                intent.get("final_reason") == "ok"
+                and not self.pm_cfg.paper_mode
+                and not self.pm_cfg.disable_order_submission
+                and self.pm_client is not None
+            )
+            attempt_id = f"{decision_id}:submit" if will_submit else ""
+            submit_result = self._maybe_submit_order(
+                intent,
+                decision_id=decision_id,
+                attempt_id=attempt_id,
+                condition_id=getattr(market, "condition_id", ""),
+            )
+            submit_result["decision_id"] = decision_id
+            submit_result["attempt_id"] = attempt_id
         except Exception as exc:
             if not np.isfinite(market_lookup_ms):
                 market_lookup_ms = _elapsed_ms(market_lookup_started_perf)
@@ -6177,6 +6378,10 @@ class PolymarketLiveTrader(LivePredictor):
             )
         else:
             submit_order_ms = _elapsed_ms(submit_started_perf)
+
+        if "decision_id" not in submit_result:
+            submit_result["decision_id"] = self._decision_id_for_bucket(bucket_start)
+            submit_result["attempt_id"] = ""
 
         cycle_completed_at_utc = _utc_now()
         market_start_at_utc = (
@@ -6252,6 +6457,12 @@ class PolymarketLiveTrader(LivePredictor):
             ) if market is not None else None,
         }
 
+    def _decision_id_for_bucket(self, bucket_start):
+        return (
+            f"{self.run_started_at_utc}:{pd.Timestamp(bucket_start).isoformat()}:"
+            f"{self.model_hash}"
+        )
+
     def _build_prediction_record(
             self,
             *,
@@ -6270,10 +6481,7 @@ class PolymarketLiveTrader(LivePredictor):
         order_status = str(submit_result["status"])
         buy_record_fields = _resolve_buy_record_fields(intent, submit_result)
         btc_snapshot = self._latest_btc_snapshot()
-        decision_id = (
-            f"{self.run_started_at_utc}:{pd.Timestamp(bucket_start).isoformat()}:"
-            f"{self.model_hash}"
-        )
+        decision_id = self._decision_id_for_bucket(bucket_start)
         skip_reason = ""
         if not _is_polymarket_submitted_status(order_status):
             if order_status == "paper_intent":
@@ -6303,6 +6511,7 @@ class PolymarketLiveTrader(LivePredictor):
         record = {
             "record_id": f"bucket:{pd.Timestamp(bucket_start).isoformat()}",
             "decision_id": decision_id,
+            "pm_attempt_id": str(submit_result.get("attempt_id", "") or ""),
             "pm_model_hash": self.model_hash,
             "pm_policy_hash": self.trade_policy_config_hash,
             "pm_run_started_at_utc": self.run_started_at_utc,
