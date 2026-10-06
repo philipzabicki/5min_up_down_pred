@@ -228,3 +228,13 @@ def scheduled_market_start_for_opened(opened_value):
     if market_start.minute % 5 != 0 or opened.second != 0 or opened.microsecond != 0:
         return None
     return market_start
+
+
+def last_closed_candle_opened_at(nominal_decision_at):
+    """Return the start timestamp of the latest 1m candle closed by decision time."""
+    decision_at = pd.Timestamp(nominal_decision_at)
+    if decision_at.tzinfo is None:
+        decision_at = decision_at.tz_localize("UTC")
+    else:
+        decision_at = decision_at.tz_convert("UTC")
+    return decision_at - pd.Timedelta(minutes=1)

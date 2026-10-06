@@ -1,0 +1,207 @@
+{
+  "selected_candidate_by_development_logloss": "tuned_search_winner",
+  "selected_candidate_description": "history and decision weight selected by two earlier chronological logloss folds",
+  "history_mode": "last_3y",
+  "decision_weight": 0.23,
+  "parameters": {
+    "objective": "binary",
+    "metric": "binary_logloss",
+    "verbosity": -1,
+    "device_type": "gpu",
+    "num_threads": 4,
+    "max_bin": 63,
+    "feature_pre_filter": false,
+    "deterministic": true,
+    "learning_rate": 0.03160897816053476,
+    "num_leaves": 62,
+    "min_data_in_leaf": 686,
+    "feature_fraction": 0.9454257900487109,
+    "bagging_fraction": 0.9367897543403904,
+    "lambda_l1": 0.06700615341939592,
+    "lambda_l2": 0.7660994037649935,
+    "min_gain_to_split": 0.2868081670860422,
+    "extra_trees": false
+  },
+  "iterations": 103,
+  "q3_2025_development_selection": {
+    "original_v1_recipe": {
+      "logloss": 0.6932250790197477,
+      "rows": 132480,
+      "train_rows": 2660541,
+      "description": "original fitted params and 66-round schedule",
+      "probability_sha256": "2da74a79d3e296e2f66790c8eb2a561d38e1eff0c390daa17599d8639b793ad9"
+    },
+    "selector_baseline": {
+      "logloss": 0.6932536648165759,
+      "rows": 132480,
+      "train_rows": 2660541,
+      "description": "fixed selector params; 112 selected features",
+      "probability_sha256": "56d900dbcfeb8ec687f4f6346fa24adc3a5f2376797e92b8a2f3bc3309e45b70"
+    },
+    "tuned_search_winner": {
+      "logloss": 0.6930948804517257,
+      "rows": 132480,
+      "train_rows": 1578234,
+      "description": "history and decision weight selected by two earlier chronological logloss folds",
+      "probability_sha256": "f600108fa8870437b10ca587d0433b9ce10f6526ba903caae4d733c04320f2df"
+    },
+    "tuned_all_legacy_weight": {
+      "logloss": 0.6932501212421069,
+      "rows": 132480,
+      "train_rows": 2660541,
+      "description": "new search params; legacy 0.23 decision weight",
+      "probability_sha256": "900453a48726b4d753aa277b5839ad584daa3b13070fa403ae613e377723aec8"
+    },
+    "tuned_all_logloss_weight": {
+      "logloss": 0.693250120796226,
+      "rows": 132480,
+      "train_rows": 2660541,
+      "description": "new search params and logloss-selected decision weight",
+      "probability_sha256": "4e4147b5aa2fb2018514d274dd59b10cda9d3437eb9d7bf4472c0b070bd054e7"
+    },
+    "tuned_last_3y": {
+      "logloss": 0.6930948805024617,
+      "rows": 132480,
+      "train_rows": 1578234,
+      "description": "new search params; three-year history",
+      "probability_sha256": "c66b8738e701eebcda027fa4e66f9fb99b640ee7076920cf873f563a5306f489"
+    },
+    "tuned_last_1y": {
+      "logloss": 0.6934582097294744,
+      "rows": 132480,
+      "train_rows": 525594,
+      "description": "new search params; one-year history",
+      "probability_sha256": "b12f3258561f5258b4006a81260c63e0e6fa4a469f3a7f306c59ddedaf49e8b5"
+    },
+    "tuned_half_life_365d": {
+      "logloss": 0.6933532857777036,
+      "rows": 132480,
+      "train_rows": 2660541,
+      "description": "new search params; 365-day exponential half-life",
+      "probability_sha256": "23b577ecc106261bf8e4a739c503a6bdfb2a6110392764751022237710c33d7c"
+    }
+  },
+  "development_paired_bootstrap_vs_original": {
+    "method": "paired circular moving-block bootstrap",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261004,
+    "delta_first_minus_second_log_loss_ci95": [
+      -0.00035062773581243936,
+      8.310939606571582e-05
+    ],
+    "delta_first_minus_second_brier_ci95": [
+      -0.00017530051815718763,
+      4.119697523027151e-05
+    ]
+  },
+  "stable_development_logloss_improvement": false,
+  "candidate_model_sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+  "candidate_model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+  "calibration": {
+    "coefficient": 0.9673715586800833,
+    "intercept": -0.008572066772185114,
+    "rows": 30155,
+    "latest_target_available_at": "2026-04-15T17:00:00+00:00",
+    "label_source": "Binance COIN-M BTCUSD index proxy"
+  },
+  "external_metrics": {
+    "binance_proxy": {
+      "raw": {
+        "n": 9426,
+        "positive_rate": 0.5003182686187142,
+        "logloss": 0.6915354208419431,
+        "brier": 0.24919534182672698,
+        "auc": 0.5333851738401503
+      },
+      "platt": {
+        "n": 9426,
+        "positive_rate": 0.5003182686187142,
+        "logloss": 0.6915795420119518,
+        "brier": 0.24921727864573964,
+        "auc": 0.5333851738401503
+      }
+    },
+    "official_polymarket": {
+      "raw": {
+        "n": 9407,
+        "positive_rate": 0.5007972786223025,
+        "logloss": 0.6918857635252803,
+        "brier": 0.2493700862777398,
+        "auc": 0.5297106304900235
+      },
+      "platt": {
+        "n": 9407,
+        "positive_rate": 0.5007972786223025,
+        "logloss": 0.6919228940773738,
+        "brier": 0.2493885376587858,
+        "auc": 0.5297106304900235
+      }
+    }
+  },
+  "paired_3day_bootstrap_vs_original": {
+    "binance_proxy": {
+      "candidate_raw_minus_original_raw": {
+        "method": "paired circular moving-block bootstrap",
+        "block_days": 3,
+        "replications": 2000,
+        "seed": 20261004,
+        "delta_first_minus_second_log_loss_ci95": [
+          -0.0008617943279608144,
+          -0.00012174620128938629
+        ],
+        "delta_first_minus_second_brier_ci95": [
+          -0.00042985011777119976,
+          -6.0640634588206184e-05
+        ]
+      },
+      "candidate_platt_minus_original_platt": {
+        "method": "paired circular moving-block bootstrap",
+        "block_days": 3,
+        "replications": 2000,
+        "seed": 20261004,
+        "delta_first_minus_second_log_loss_ci95": [
+          -0.0008323020600793425,
+          0.00023977708179483123
+        ],
+        "delta_first_minus_second_brier_ci95": [
+          -0.0004159051542573939,
+          0.00011936328937912501
+        ]
+      }
+    },
+    "official_polymarket": {
+      "candidate_raw_minus_original_raw": {
+        "method": "paired circular moving-block bootstrap",
+        "block_days": 3,
+        "replications": 2000,
+        "seed": 20261004,
+        "delta_first_minus_second_log_loss_ci95": [
+          -0.0007251252511514518,
+          6.428674454678623e-05
+        ],
+        "delta_first_minus_second_brier_ci95": [
+          -0.00036177300991097424,
+          3.173441257385217e-05
+        ]
+      },
+      "candidate_platt_minus_original_platt": {
+        "method": "paired circular moving-block bootstrap",
+        "block_days": 3,
+        "replications": 2000,
+        "seed": 20261004,
+        "delta_first_minus_second_log_loss_ci95": [
+          -0.0007993440119588629,
+          0.00030259040131382607
+        ],
+        "delta_first_minus_second_brier_ci95": [
+          -0.000399792317615043,
+          0.00015082291395457028
+        ]
+      }
+    }
+  },
+  "external_rows": 9426,
+  "external_official_rows": 9407,
+  "elapsed_seconds": 375.3547101000004
+}

@@ -13,6 +13,7 @@ from features.btc_preopen_contract import (
     TARGET_START_PRICE_COL,
     build_preopen_contract_frame,
     build_preopen_return_target,
+    last_closed_candle_opened_at,
     preopen_decision_mask,
     purge_unavailable_training_rows,
     scheduled_market_start_for_opened,
@@ -153,6 +154,20 @@ class BtcPreopenContractTests(unittest.TestCase):
         self.assertEqual(
             scheduled_market_start_for_opened("2026-12-31 23:58+00:00"),
             pd.Timestamp("2027-01-01 00:00", tz="UTC"),
+        )
+
+    def test_last_closed_candle_at_decision_hour_and_day_boundaries(self):
+        self.assertEqual(
+            last_closed_candle_opened_at("2026-04-15 17:04:00+00:00"),
+            pd.Timestamp("2026-04-15 17:03:00", tz="UTC"),
+        )
+        self.assertEqual(
+            last_closed_candle_opened_at("2026-04-16 00:00:00+00:00"),
+            pd.Timestamp("2026-04-15 23:59:00", tz="UTC"),
+        )
+        self.assertEqual(
+            last_closed_candle_opened_at("2026-04-16 00:01:00+00:00"),
+            pd.Timestamp("2026-04-16 00:00:00", tz="UTC"),
         )
 
     def test_baseline_features_use_only_current_closed_candle_and_past(self):

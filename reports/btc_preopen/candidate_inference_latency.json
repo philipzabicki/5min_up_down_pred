@@ -1,0 +1,47 @@
+{
+  "measured_at_utc": "2026-10-05T22:02:30.355742+00:00",
+  "model_sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+  "model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+  "feature_order_sha256": "875b25f822b32bd3d07e3a534ea351d4d19bf25b4948fee81646d7ef76111883",
+  "feature_count": 112,
+  "model_iterations": 103,
+  "feature_dataset_path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_preopen_v1.parquet",
+  "feature_row_group": 2,
+  "feature_rows_used": 2000,
+  "sample_first_opened_utc": "2026-04-15T17:00:00+00:00",
+  "sample_last_opened_utc": "2026-05-18T11:00:00+00:00",
+  "warmup_rows": 100,
+  "prediction_backend": "LightGBM CPU, one native thread, warm loaded model",
+  "environment": {
+    "python_version": "3.14.4",
+    "lightgbm_version": "4.6.0",
+    "numpy_version": "2.4.4",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "cpu_model": "Intel64 Family 6 Model 183 Stepping 1, GenuineIntel",
+    "logical_cpu_count": 20
+  },
+  "feature_generation_included": false,
+  "vector_allocation_included": false,
+  "network_or_order_submission_included": false,
+  "model_predict": {
+    "n": 2000,
+    "p50_ms": 0.0225,
+    "p95_ms": 0.026704999999999996,
+    "p99_ms": 0.06480699999999999,
+    "max_ms": 0.1557
+  },
+  "platt_calibration": {
+    "n": 2000,
+    "p50_ms": 0.0032,
+    "p95_ms": 0.0038,
+    "p99_ms": 0.0063,
+    "max_ms": 0.026
+  },
+  "combined_model_predict_and_calibration": {
+    "n": 2000,
+    "p50_ms": 0.0257,
+    "p95_ms": 0.0305,
+    "p99_ms": 0.071306,
+    "max_ms": 0.1637
+  }
+}

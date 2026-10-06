@@ -1,0 +1,10 @@
+{
+  "absolute_tolerance": 1e-06,
+  "calibrated_probability_delta": 0.0,
+  "generator_state_source": "rebuilt from raw prefix in a fresh process",
+  "raw_history_cutoff_utc": "2026-04-15T17:10:00+00:00",
+  "raw_probability_delta": 0.0,
+  "reference_opened_utc": "2026-04-15T17:03:00+00:00",
+  "reference_prediction_path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/external_evaluation_7e5807168d4c/external_test_predictions.parquet",
+  "status": "verified"
+}

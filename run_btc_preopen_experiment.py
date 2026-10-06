@@ -32,6 +32,7 @@ from features.btc_preopen_contract import (
     TARGET_START_PRICE_COL,
     build_preopen_contract_frame,
     build_preopen_target_weights,
+    last_closed_candle_opened_at,
     preopen_decision_mask,
     purge_unavailable_training_rows,
 )
@@ -1193,8 +1194,49 @@ def load_prediction_bundle(bundle_path, *, require_verified=True):
     return payload, model, calibrator
 
 
-def _verify_prediction_bundle_from_raw(bundle_path, prediction_path, verification_path):
-    """Rebuild a bounded raw history and replay one saved prediction in this process."""
+def _read_batch_feature_row(dataset_path, reference_opened, feature_order):
+    """Read one saved batch feature row, using row-group timestamp statistics."""
+    import pyarrow.parquet as parquet
+
+    reader = parquet.ParquetFile(dataset_path)
+    try:
+        opened_column = reader.schema_arrow.get_field_index("Opened")
+        if opened_column < 0:
+            raise RuntimeError("Batch feature dataset does not contain Opened")
+        row_groups = []
+        for row_group_index in range(reader.metadata.num_row_groups):
+            stats = reader.metadata.row_group(row_group_index).column(opened_column).statistics
+            if stats is None or not stats.has_min_max:
+                row_groups.append(row_group_index)
+                continue
+            group_min = pd.Timestamp(stats.min)
+            group_max = pd.Timestamp(stats.max)
+            if group_min.tzinfo is None:
+                group_min = group_min.tz_localize("UTC")
+            else:
+                group_min = group_min.tz_convert("UTC")
+            if group_max.tzinfo is None:
+                group_max = group_max.tz_localize("UTC")
+            else:
+                group_max = group_max.tz_convert("UTC")
+            if group_min <= reference_opened <= group_max:
+                row_groups.append(row_group_index)
+        for row_group_index in row_groups:
+            batch = reader.read_row_group(row_group_index, columns=["Opened", *feature_order])
+            frame = batch.to_pandas()
+            opened = pd.DatetimeIndex(pd.to_datetime(frame["Opened"], utc=True, errors="raise"))
+            matches = np.flatnonzero(opened == reference_opened)
+            if matches.size:
+                return frame.iloc[int(matches[0])].copy(deep=True)
+    finally:
+        reader.close()
+    raise RuntimeError(f"Batch feature dataset does not contain {reference_opened.isoformat()}")
+
+
+def _verify_prediction_bundle_from_raw(
+    bundle_path, prediction_path, verification_path, reference_opened=None
+):
+    """Rebuild through the last available input candle and compare a saved batch prediction."""
     import tempfile
 
     import pyarrow.parquet as parquet
@@ -1208,19 +1250,28 @@ def _verify_prediction_bundle_from_raw(bundle_path, prediction_path, verificatio
     raw_path = raw_value if raw_value.is_absolute() else ROOT / raw_value
     if not raw_path.is_file() or _sha256(raw_path) != payload["raw_candle_sha256"]:
         raise RuntimeError("Raw candle source is missing or differs from the bundle manifest")
-    prediction = pd.read_parquet(
-        prediction_path,
-        columns=["Opened", "p_model_raw", "p_model_platt"],
-    )
+    prediction = pd.read_parquet(prediction_path, columns=["Opened", "p_model_raw", "p_model_platt"])
     if prediction.empty:
         raise RuntimeError("Training evaluation contains no prediction for bundle replay")
-    reference = prediction.iloc[0]
-    reference_opened = pd.Timestamp(reference["Opened"])
+    if reference_opened is None:
+        reference_opened = prediction.iloc[0]["Opened"]
+    reference_opened = pd.Timestamp(reference_opened)
     if reference_opened.tzinfo is None:
         reference_opened = reference_opened.tz_localize("UTC")
     else:
         reference_opened = reference_opened.tz_convert("UTC")
-    raw_cutoff = reference_opened + pd.Timedelta(minutes=7)
+    reference_rows = prediction.loc[
+        pd.to_datetime(prediction["Opened"], utc=True, errors="raise").eq(reference_opened)
+    ]
+    if len(reference_rows) != 1:
+        raise RuntimeError(
+            f"Expected one batch prediction for {reference_opened.isoformat()}, got {len(reference_rows)}"
+        )
+    reference = reference_rows.iloc[0]
+    decision_at = reference_opened + pd.Timedelta(minutes=1)
+    raw_cutoff = last_closed_candle_opened_at(decision_at)
+    if raw_cutoff != reference_opened:
+        raise RuntimeError("Reference row is not the last candle closed at its nominal decision")
 
     with tempfile.TemporaryDirectory(prefix="btc_preopen_bundle_replay_", dir=bundle_path.parent) as temp_name:
         work_dir = Path(temp_name)
@@ -1247,8 +1298,8 @@ def _verify_prediction_bundle_from_raw(bundle_path, prediction_path, verificatio
                 wrote_header = True
             if not keep.all():
                 break
-        if not wrote_header:
-            raise RuntimeError("Raw candle source does not reach the reference prediction")
+        if not wrote_header or previous_opened is None or previous_opened < raw_cutoff:
+            raise RuntimeError("Raw candle source does not reach the last closed reference candle")
 
         settings = load_modeling_dataset_settings(
             asset="BTC",
@@ -1283,11 +1334,11 @@ def _verify_prediction_bundle_from_raw(bundle_path, prediction_path, verificatio
 
         replay_dataset_path = create_modeling_dataset.build_dataset_from_settings(settings)
         batch_reader = parquet.ParquetFile(replay_dataset_path)
-        replay_row = None
         feature_order = list(payload["feature_order"])
+        replay_row = None
         try:
             for batch in batch_reader.iter_batches(
-                columns=["Opened", *feature_order], batch_size=65_536
+                columns=["Opened", TARGET_COL, *feature_order], batch_size=65_536
             ):
                 batch_frame = batch.to_pandas()
                 opened = pd.DatetimeIndex(pd.to_datetime(batch_frame["Opened"], utc=True, errors="raise"))
@@ -1307,19 +1358,43 @@ def _verify_prediction_bundle_from_raw(bundle_path, prediction_path, verificatio
             gc.collect()
         if replay_row is None:
             raise RuntimeError(f"Raw replay dataset does not contain {reference_opened.isoformat()}")
+        if not pd.isna(replay_row.get(TARGET_COL)):
+            raise RuntimeError("Point-in-time replay unexpectedly has a future-dependent target")
         feature_row = pd.to_numeric(replay_row[feature_order], errors="coerce").to_numpy(
             dtype=np.float32, copy=True
         ).reshape(1, -1)
         feature_row[~np.isfinite(feature_row)] = np.nan
+        batch_dataset_path = None
+        for stage in json.loads((bundle_path.parent.parent.parent / "run_manifest.json").read_text(
+            encoding="utf-8"
+        )).get("stages", {}).values():
+            result = stage.get("result", {}) if isinstance(stage, dict) else {}
+            candidate = result.get("dataset_path") if isinstance(result, dict) else None
+            if candidate:
+                batch_dataset_path = Path(candidate)
+                if not batch_dataset_path.is_absolute():
+                    batch_dataset_path = ROOT / batch_dataset_path
+                break
+        if batch_dataset_path is None or not batch_dataset_path.is_file():
+            raise RuntimeError("Run manifest does not identify the saved batch feature dataset")
+        batch_row = _read_batch_feature_row(batch_dataset_path, reference_opened, feature_order)
+        batch_features = pd.to_numeric(batch_row[feature_order], errors="coerce").to_numpy(
+            dtype=np.float32, copy=True
+        )
+        batch_features[~np.isfinite(batch_features)] = np.nan
+        feature_equal = np.isclose(feature_row[0], batch_features, rtol=0.0, atol=1e-6, equal_nan=True)
+        feature_delta = np.abs(feature_row[0].astype(np.float64) - batch_features.astype(np.float64))
+        finite_deltas = feature_delta[np.isfinite(feature_delta)]
         raw_probability = float(model.predict(feature_row)[0])
         calibrated_probability = float(_apply_calibrator(np.asarray([raw_probability]), calibrator)[0])
 
     tolerance = float(payload["verification_tolerance_abs"])
     raw_delta = abs(raw_probability - float(reference["p_model_raw"]))
     calibrated_delta = abs(calibrated_probability - float(reference["p_model_platt"]))
-    if raw_delta > tolerance or calibrated_delta > tolerance:
+    if not feature_equal.all() or raw_delta > tolerance or calibrated_delta > tolerance:
         raise RuntimeError(
-            "Raw bundle replay differs from the training evaluation: "
+            "Point-in-time bundle replay differs from batch features or prediction: "
+            f"feature_mismatches={(~feature_equal).sum()}, "
             f"raw_delta={raw_delta:.9g}, calibrated_delta={calibrated_delta:.9g}, "
             f"tolerance={tolerance:.9g}"
         )
@@ -1329,6 +1404,12 @@ def _verify_prediction_bundle_from_raw(bundle_path, prediction_path, verificatio
             "status": "verified",
             "reference_opened_utc": reference_opened,
             "reference_prediction_path": prediction_path.resolve().relative_to(ROOT).as_posix(),
+            "last_closed_candle_opened_utc": reference_opened,
+            "decision_at_utc": decision_at,
+            "target_available_for_prediction": False,
+            "compared_features": len(feature_order),
+            "feature_mismatch_count": int((~feature_equal).sum()),
+            "feature_max_abs_delta": float(finite_deltas.max()) if finite_deltas.size else 0.0,
             "raw_probability_delta": raw_delta,
             "calibrated_probability_delta": calibrated_delta,
             "absolute_tolerance": tolerance,

@@ -1,0 +1,1543 @@
+{
+  "money_and_execution": {
+    "initial_cash_usd": 100.0,
+    "target_gross_order_usd": 5.0,
+    "fee_in_cash_debit": "gross $5 order plus any collateral-denominated fee; historical share-denominated fees reduce the payout shares instead",
+    "order_minimum_shares": "historical minimum not available; no current minimum was projected backward",
+    "ev_rule": "choose UP or DOWN with the larger positive expected net payout after ask depth and historical fee; otherwise skip",
+    "execution_price": "walk ask-side full depth to $5 gross; no midpoint or future quote",
+    "event_availability_clock": "timestamp_received",
+    "quote_freshness_age_clock": "source timestamp of the latest changed ask-side level; received timestamp gates availability and its age is retained separately",
+    "fee_rate": "latest fee_rate_bps last_trade_price event received at/before entry, divided by 10000",
+    "fee_collection_mode": "outcome shares before 2026-04-28 11:00 UTC; entries from 11:00 to 12:00 UTC excluded as exchange maintenance; collateral cash from 12:00 UTC onward",
+    "legacy_fee_curve": "fee shares = shares * rate * min(price, 1-price) / price; aggregate depth levels rounded down to 6 share decimals; PMXT does not expose maker-level fills/rounding",
+    "collateral_fee_curve": "cash fee = shares * rate * (price * (1-price))^1, exponent 1; historical exponent is not included in PMXT rows",
+    "collateral_fee_rounding": {
+      "decimals": 5,
+      "minimum_fee_usd": 1e-05
+    },
+    "maker_fill_fee_precision_limit": "book depth is aggregated; the archive has no maker-level matches. The replay rounds the cash fee for the aggregate order and share fees per aggregate price level, so exact per-match rounding cannot be recovered",
+    "fee_accounting": "fees_paid_usd reports the collateral fee or legacy share-fee value at execution price; cash_debit_usd adds fees only when historically charged in collateral",
+    "quote_freshness_scenarios_seconds": [
+      1,
+      5,
+      30
+    ],
+    "compute_delay_scenarios_seconds": [
+      0,
+      15,
+      45
+    ],
+    "order_delay_scenarios_seconds": [
+      0,
+      1,
+      2,
+      5
+    ],
+    "settlement_release_delay_scenarios_seconds": [
+      0,
+      60,
+      300
+    ],
+    "settlement_cash_policy": "cash plus cost basis of locked positions until official resolved_at_utc and the scenario release delay; no credit or deposits",
+    "drawdown": "peak-to-trough of available cash plus locked shares at entry cost; excludes intratrade mark-to-market"
+  },
+  "event_archive": {
+    "event_rows": 104437933,
+    "exact_duplicate_rows": 1906,
+    "event_type_counts": {
+      "price_change": 65653,
+      "book": 53,
+      "last_trade_price": 825
+    },
+    "source_receive_latency": {
+      "count": 104437933,
+      "negative_count": 8,
+      "p50_ms": 136.0,
+      "p95_ms": 300.999755859375,
+      "max_ms": 10508362.0
+    },
+    "market_states_with_events": 9407,
+    "snapshot_rows": 150512,
+    "future_event_contaminated_snapshots": 0,
+    "future_source_timestamp_snapshots": 0,
+    "book_snapshot_events": 605898,
+    "bbo_reconciliation_checks": 21751678,
+    "bbo_reconciliation_mismatches": 6160220,
+    "bbo_bid_reconciliation_mismatches": 3691456,
+    "bbo_ask_reconciliation_mismatches": 3703585,
+    "complement_checks": 11550335,
+    "complement_mismatches": 408828,
+    "out_of_order_price_changes": 72261,
+    "out_of_order_book_events": 11444,
+    "bbo_reconciliation_first_mismatch_samples": [
+      {
+        "token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "received_at_utc": "2026-04-15T17:09:18.726000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:18.663000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.51
+        ],
+        "reconstructed_bbo": [
+          0.5,
+          0.51
+        ],
+        "source_token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "complemented": false
+      },
+      {
+        "token_id": "67103309535592287189501612156910505345968746590311581144200559228030100874285",
+        "received_at_utc": "2026-04-15T17:09:18.726000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:18.694000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.51
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "67103309535592287189501612156910505345968746590311581144200559228030100874285",
+        "complemented": false
+      },
+      {
+        "token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "received_at_utc": "2026-04-15T17:09:18.964000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:18.928000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.51
+        ],
+        "reconstructed_bbo": [
+          0.5,
+          0.51
+        ],
+        "source_token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "complemented": false
+      },
+      {
+        "token_id": "67103309535592287189501612156910505345968746590311581144200559228030100874285",
+        "received_at_utc": "2026-04-15T17:09:18.964000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:18.928000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.51
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "67103309535592287189501612156910505345968746590311581144200559228030100874285",
+        "complemented": false
+      },
+      {
+        "token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "received_at_utc": "2026-04-15T17:09:19.227000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:19.175000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.5
+        ],
+        "reconstructed_bbo": [
+          0.5,
+          0.5
+        ],
+        "source_token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "complemented": false
+      },
+      {
+        "token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "received_at_utc": "2026-04-15T17:02:38.973000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:38.913000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.5
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "complemented": false
+      },
+      {
+        "token_id": "72317588882511246208727641141411186965072436872950671035823725316490063157840",
+        "received_at_utc": "2026-04-15T17:02:38.973000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:38.913000+00:00",
+        "reported_bbo": [
+          0.5,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.5,
+          0.51
+        ],
+        "source_token_id": "72317588882511246208727641141411186965072436872950671035823725316490063157840",
+        "complemented": false
+      },
+      {
+        "token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "received_at_utc": "2026-04-15T17:02:39.479000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:39.334000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "complemented": false
+      },
+      {
+        "token_id": "72317588882511246208727641141411186965072436872950671035823725316490063157840",
+        "received_at_utc": "2026-04-15T17:02:39.479000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:39.334000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "72317588882511246208727641141411186965072436872950671035823725316490063157840",
+        "complemented": false
+      },
+      {
+        "token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "received_at_utc": "2026-04-15T17:02:39.776000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:39.679000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.5
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "complemented": false
+      },
+      {
+        "token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "received_at_utc": "2026-04-15T17:10:41.928000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:41.893000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "complemented": false
+      },
+      {
+        "token_id": "49491929008212128495122880408271720785403430558615290632925760732037218819782",
+        "received_at_utc": "2026-04-15T17:10:41.928000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:41.893000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "49491929008212128495122880408271720785403430558615290632925760732037218819782",
+        "complemented": false
+      },
+      {
+        "token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "received_at_utc": "2026-04-15T17:10:42.175000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:42.012000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "complemented": false
+      },
+      {
+        "token_id": "49491929008212128495122880408271720785403430558615290632925760732037218819782",
+        "received_at_utc": "2026-04-15T17:10:42.175000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:42.012000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "49491929008212128495122880408271720785403430558615290632925760732037218819782",
+        "complemented": false
+      },
+      {
+        "token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "received_at_utc": "2026-04-15T17:10:42.429000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:42.202000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.5
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "complemented": false
+      },
+      {
+        "token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "received_at_utc": "2026-04-15T17:19:58.308000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.256000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "complemented": false
+      },
+      {
+        "token_id": "63546135170148941640429862661189208034929426584906524032748732920043596395940",
+        "received_at_utc": "2026-04-15T17:19:58.308000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.256000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "63546135170148941640429862661189208034929426584906524032748732920043596395940",
+        "complemented": false
+      },
+      {
+        "token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "received_at_utc": "2026-04-15T17:19:58.534000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.469000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "complemented": false
+      },
+      {
+        "token_id": "63546135170148941640429862661189208034929426584906524032748732920043596395940",
+        "received_at_utc": "2026-04-15T17:19:58.534000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.469000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "63546135170148941640429862661189208034929426584906524032748732920043596395940",
+        "complemented": false
+      },
+      {
+        "token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "received_at_utc": "2026-04-15T17:19:58.845000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.742000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "complemented": false
+      }
+    ],
+    "markets_with_uninitialized_deltas": 97,
+    "max_market_inter_event_gap_seconds": 11598.492
+  },
+  "predictive_intervals": {
+    "binance_proxy": {
+      "n": 9408,
+      "positive_rate": 0.5001062925170068,
+      "paired_intervals": {
+        "candidate_raw_minus_original_v1_raw": {
+          "method": "paired circular moving-block bootstrap",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261004,
+          "delta_first_minus_second_log_loss_ci95": [
+            -0.0008403029761798653,
+            -0.00011848042516462336
+          ],
+          "delta_first_minus_second_brier_ci95": [
+            -0.0004190970758772694,
+            -5.889237926911852e-05
+          ]
+        },
+        "candidate_platt_minus_original_v1_platt": {
+          "method": "paired circular moving-block bootstrap",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261004,
+          "delta_first_minus_second_log_loss_ci95": [
+            -0.0008292669657431372,
+            0.00024690992692875594
+          ],
+          "delta_first_minus_second_brier_ci95": [
+            -0.00041434629309860843,
+            0.00012303531550545064
+          ]
+        },
+        "original_v1_platt_minus_original_v1_raw": {
+          "method": "paired circular moving-block bootstrap",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261004,
+          "delta_first_minus_second_log_loss_ci95": [
+            -0.0004380249053251769,
+            0.00011610754822584568
+          ],
+          "delta_first_minus_second_brier_ci95": [
+            -0.00021760778990191453,
+            5.8176610511932655e-05
+          ]
+        },
+        "candidate_platt_minus_candidate_raw": {
+          "method": "paired circular moving-block bootstrap",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261004,
+          "delta_first_minus_second_log_loss_ci95": [
+            -2.7546524609121965e-05,
+            0.00010628439380364796
+          ],
+          "delta_first_minus_second_brier_ci95": [
+            -1.3860744602043436e-05,
+            5.30152160628049e-05
+          ]
+        }
+      },
+      "model_vs_baseline_intervals": {
+        "original_v1_raw": {
+          "vs_constant_0_5": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0017432156016130916,
+              -0.0004992759125649581
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0008708980947493156,
+              -0.0002492692425160692
+            ]
+          },
+          "vs_development_prevalence_0_5015364895": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.001743424554484609,
+              -0.0005042047174586507
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0008709249103759973,
+              -0.00025185602535560467
+            ]
+          }
+        },
+        "original_v1_platt": {
+          "vs_constant_0_5": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0021784457342684006,
+              -0.00038795678926393883
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0010874412480418737,
+              -0.00019361917904149175
+            ]
+          },
+          "vs_development_prevalence_0_5015364895": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.002175768842622295,
+              -0.00039269131322489695
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0010862564161334596,
+              -0.00019608789609100165
+            ]
+          }
+        },
+        "candidate_raw": {
+          "vs_constant_0_5": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0022742143068357873,
+              -0.0009097566663936688
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0011352332109537998,
+              -0.0004540536421848303
+            ]
+          },
+          "vs_development_prevalence_0_5015364895": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.00227651091048114,
+              -0.0009181996124566282
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0011364957863756007,
+              -0.00045834594517749614
+            ]
+          }
+        },
+        "candidate_platt": {
+          "vs_constant_0_5": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0022103252745716514,
+              -0.0008960234955548681
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0011035616549884006,
+              -0.0004471722118241999
+            ]
+          },
+          "vs_development_prevalence_0_5015364895": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.002212548727923593,
+              -0.0009032924271090065
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0011047026601442413,
+              -0.00045085942261233777
+            ]
+          }
+        }
+      }
+    },
+    "official_polymarket": {
+      "n": 9407,
+      "positive_rate": 0.5007972786223025,
+      "paired_intervals": {
+        "candidate_raw_minus_original_v1_raw": {
+          "method": "paired circular moving-block bootstrap",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261004,
+          "delta_first_minus_second_log_loss_ci95": [
+            -0.0007251252511514518,
+            6.428674454678623e-05
+          ],
+          "delta_first_minus_second_brier_ci95": [
+            -0.00036177300991097424,
+            3.173441257385217e-05
+          ]
+        },
+        "candidate_platt_minus_original_v1_platt": {
+          "method": "paired circular moving-block bootstrap",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261004,
+          "delta_first_minus_second_log_loss_ci95": [
+            -0.0007993440119588629,
+            0.00030259040131382607
+          ],
+          "delta_first_minus_second_brier_ci95": [
+            -0.000399792317615043,
+            0.00015082291395457028
+          ]
+        },
+        "original_v1_platt_minus_original_v1_raw": {
+          "method": "paired circular moving-block bootstrap",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261004,
+          "delta_first_minus_second_log_loss_ci95": [
+            -0.0003474160955853489,
+            0.00019372990656428885
+          ],
+          "delta_first_minus_second_brier_ci95": [
+            -0.0001730111571829388,
+            9.673233971960754e-05
+          ]
+        },
+        "candidate_platt_minus_candidate_raw": {
+          "method": "paired circular moving-block bootstrap",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261004,
+          "delta_first_minus_second_log_loss_ci95": [
+            -3.955876913732811e-05,
+            0.00010538958612427005
+          ],
+          "delta_first_minus_second_brier_ci95": [
+            -1.9860510831781568e-05,
+            5.258060190615701e-05
+          ]
+        }
+      },
+      "model_vs_baseline_intervals": {
+        "original_v1_raw": {
+          "vs_constant_0_5": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0015337178191538112,
+              -0.0003098287964831999
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0007661741260608717,
+              -0.00015487401010958658
+            ]
+          },
+          "vs_development_prevalence_0_5015364895": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0015294630648715088,
+              -0.00033966298547618537
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0007640893391771144,
+              -0.0001696203960231584
+            ]
+          }
+        },
+        "original_v1_platt": {
+          "vs_constant_0_5": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0018766630853718686,
+              -0.00011706911609264544
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0009369373356541771,
+              -5.864021263196496e-05
+            ]
+          },
+          "vs_development_prevalence_0_5015364895": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0018740808159374777,
+              -0.0001459840176560477
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0009355830314177469,
+              -7.285144803347605e-05
+            ]
+          }
+        },
+        "candidate_raw": {
+          "vs_constant_0_5": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.001948204768221913,
+              -0.0006069158524689298
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0009728948918279618,
+              -0.00030318160019513277
+            ]
+          },
+          "vs_development_prevalence_0_5015364895": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0019483890623522313,
+              -0.0006259699684538018
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0009727511286552878,
+              -0.0003129717224212291
+            ]
+          }
+        },
+        "candidate_platt": {
+          "vs_constant_0_5": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.001896865371039896,
+              -0.0006054788058544571
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.0009472654109261254,
+              -0.0003026715790532446
+            ]
+          },
+          "vs_development_prevalence_0_5015364895": {
+            "method": "paired circular moving-block bootstrap",
+            "block_days": 3,
+            "replications": 2000,
+            "seed": 20261004,
+            "delta_first_minus_second_log_loss_ci95": [
+              -0.0018904188749692314,
+              -0.0006041833099555219
+            ],
+            "delta_first_minus_second_brier_ci95": [
+              -0.000943830371271792,
+              -0.0003019740706781673
+            ]
+          }
+        }
+      }
+    }
+  },
+  "primary_scenario": "prestart_c0_o1|age30|release60 (historical cycle-complete p50 rounded upward to a one-second entry delay; entry T-59s); ideal +0s, +2s sensitivity, and the conservative local-host T-55s scenario are also reported",
+  "main_entry_times_relative_to_market_start": {
+    "prestart_c0_o1": "T-59s (historical cycle-complete p50 of 475.28ms rounded upward to one second)",
+    "prestart_c0_o0": "T-60s (ideal reference)",
+    "prestart_c0_o2": "T-58s (+2s sensitivity)",
+    "prestart_c0_o5": "T-55s (conservative local-host component scenario)"
+  },
+  "robustness_scenarios": {
+    "prestart_c15_o5": [
+      {
+        "scenario_id": "candidate_platt|prestart_c15_o5|age30|release60",
+        "model": "candidate_platt",
+        "entry_case": "prestart_c15_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 15,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 377.3649536692153,
+        "net_pnl_usd": 277.3649536692153,
+        "gross_turnover_usd": 4230.0,
+        "roi_on_initial_cash": 2.773649536692153,
+        "roi_on_gross_turnover": 0.0655709110329114,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 4507.364953669221,
+        "max_drawdown_at_cost": 0.4300845603200815,
+        "trade_count": 846,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 24,
+        "reject_incomplete_or_crossed_book": 7555,
+        "skip_no_positive_expected_edge": 949,
+        "trades": 846,
+        "reject_unreconciled_best_ask_at_entry": 11,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7612,
+        "reject_unknown_historical_fee": 2.0
+      },
+      {
+        "scenario_id": "candidate_raw|prestart_c15_o5|age30|release60",
+        "model": "candidate_raw",
+        "entry_case": "prestart_c15_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 15,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 387.04817674073735,
+        "net_pnl_usd": 287.04817674073735,
+        "gross_turnover_usd": 4165.0,
+        "roi_on_initial_cash": 2.870481767407373,
+        "roi_on_gross_turnover": 0.0689191300698048,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 4452.048176740745,
+        "max_drawdown_at_cost": 0.3425091052301168,
+        "trade_count": 833,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 24,
+        "reject_incomplete_or_crossed_book": 7555,
+        "skip_no_positive_expected_edge": 962,
+        "trades": 833,
+        "reject_unreconciled_best_ask_at_entry": 11,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7612,
+        "reject_unknown_historical_fee": 2.0
+      },
+      {
+        "scenario_id": "original_v1_platt|prestart_c15_o5|age30|release60",
+        "model": "original_v1_platt",
+        "entry_case": "prestart_c15_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 15,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 0.79759265276207,
+        "net_pnl_usd": -99.20240734723794,
+        "gross_turnover_usd": 3510.0,
+        "roi_on_initial_cash": -0.9920240734723794,
+        "roi_on_gross_turnover": -0.0282627941160222,
+        "fees_paid_usd": 0.0,
+        "total_payout_usd": 3410.7975926527683,
+        "max_drawdown_at_cost": 0.9948446328546964,
+        "trade_count": 702,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 24,
+        "reject_incomplete_or_crossed_book": 7555,
+        "skip_no_positive_expected_edge": 909,
+        "trades": 702,
+        "reject_unreconciled_best_ask_at_entry": 11,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 184.0,
+        "data_rejections": 7612,
+        "reject_unknown_historical_fee": 2.0
+      },
+      {
+        "scenario_id": "original_v1_raw|prestart_c15_o5|age30|release60",
+        "model": "original_v1_raw",
+        "entry_case": "prestart_c15_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 15,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 1.061807018913477,
+        "net_pnl_usd": -98.93819298108652,
+        "gross_turnover_usd": 4095.0,
+        "roi_on_initial_cash": -0.9893819298108651,
+        "roi_on_gross_turnover": -0.0241607308867122,
+        "fees_paid_usd": 21.471336630000007,
+        "total_payout_usd": 3996.061807018927,
+        "max_drawdown_at_cost": 0.9943039020314236,
+        "trade_count": 819,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 24,
+        "reject_incomplete_or_crossed_book": 7555,
+        "skip_no_positive_expected_edge": 766,
+        "trades": 819,
+        "reject_unreconciled_best_ask_at_entry": 11,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 210.0,
+        "data_rejections": 7612,
+        "reject_unknown_historical_fee": 2.0
+      }
+    ],
+    "prestart_c45_o5": [
+      {
+        "scenario_id": "candidate_platt|prestart_c45_o5|age30|release60",
+        "model": "candidate_platt",
+        "entry_case": "prestart_c45_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 45,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 182.09467266763627,
+        "net_pnl_usd": 82.09467266763627,
+        "gross_turnover_usd": 1935.0,
+        "roi_on_initial_cash": 0.8209467266763627,
+        "roi_on_gross_turnover": 0.042426187425135,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 2017.0946726676343,
+        "max_drawdown_at_cost": 0.4039842601554341,
+        "trade_count": 387,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 22,
+        "reject_incomplete_or_crossed_book": 8493,
+        "skip_no_positive_expected_edge": 451,
+        "trades": 387,
+        "reject_unreconciled_best_ask_at_entry": 33,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 8569,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "candidate_raw|prestart_c45_o5|age30|release60",
+        "model": "candidate_raw",
+        "entry_case": "prestart_c45_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 45,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 214.7192297981809,
+        "net_pnl_usd": 114.71922979818092,
+        "gross_turnover_usd": 1890.0,
+        "roi_on_initial_cash": 1.1471922979818092,
+        "roi_on_gross_turnover": 0.0606980051842227,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 2004.7192297981787,
+        "max_drawdown_at_cost": 0.3619006090016874,
+        "trade_count": 378,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 22,
+        "reject_incomplete_or_crossed_book": 8493,
+        "skip_no_positive_expected_edge": 460,
+        "trades": 378,
+        "reject_unreconciled_best_ask_at_entry": 33,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 8569,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "original_v1_platt|prestart_c45_o5|age30|release60",
+        "model": "original_v1_platt",
+        "entry_case": "prestart_c45_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 45,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 116.00050782631536,
+        "net_pnl_usd": 16.000507826315356,
+        "gross_turnover_usd": 2110.0,
+        "roi_on_initial_cash": 0.1600050782631535,
+        "roi_on_gross_turnover": 0.0075831790646044,
+        "fees_paid_usd": 0.0,
+        "total_payout_usd": 2126.000507826312,
+        "max_drawdown_at_cost": 0.6701367558696727,
+        "trade_count": 422,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 22,
+        "reject_incomplete_or_crossed_book": 8493,
+        "skip_no_positive_expected_edge": 416,
+        "trades": 422,
+        "reject_unreconciled_best_ask_at_entry": 33,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 8569,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "original_v1_raw|prestart_c45_o5|age30|release60",
+        "model": "original_v1_raw",
+        "entry_case": "prestart_c45_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 45,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 137.80957891875153,
+        "net_pnl_usd": 37.80957891875153,
+        "gross_turnover_usd": 2410.0,
+        "roi_on_initial_cash": 0.3780957891875152,
+        "roi_on_gross_turnover": 0.0156886219579881,
+        "fees_paid_usd": 10.285065109999998,
+        "total_payout_usd": 2447.8095789187505,
+        "max_drawdown_at_cost": 0.4975555872104955,
+        "trade_count": 482,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 22,
+        "reject_incomplete_or_crossed_book": 8493,
+        "skip_no_positive_expected_edge": 356,
+        "trades": 482,
+        "reject_unreconciled_best_ask_at_entry": 33,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 8569,
+        "reject_unknown_historical_fee": 1.0
+      }
+    ]
+  },
+  "markets": 9407,
+  "markets_with_official_labels": 9407,
+  "markets_with_candidate_probabilities": 9407,
+  "market_start_fallback_is_separate": true,
+  "primary_latency_grid": {
+    "prestart_c0_o1": [
+      {
+        "scenario_id": "candidate_platt|prestart_c0_o1|age30|release60",
+        "model": "candidate_platt",
+        "entry_case": "prestart_c0_o1",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 1,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 418.1571211043697,
+        "net_pnl_usd": 318.15712110436965,
+        "gross_turnover_usd": 5380.0,
+        "roi_on_initial_cash": 3.1815712110436967,
+        "roi_on_gross_turnover": 0.0591370113576895,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 5698.157121104389,
+        "max_drawdown_at_cost": 0.4066936443122617,
+        "trade_count": 1076,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 7000,
+        "skip_no_positive_expected_edge": 1255,
+        "trades": 1076,
+        "reject_unreconciled_best_ask_at_entry": 26,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7076,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "candidate_raw|prestart_c0_o1|age30|release60",
+        "model": "candidate_raw",
+        "entry_case": "prestart_c0_o1",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 1,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 455.5336984406747,
+        "net_pnl_usd": 355.5336984406747,
+        "gross_turnover_usd": 5295.0,
+        "roi_on_initial_cash": 3.555336984406747,
+        "roi_on_gross_turnover": 0.0671451743986165,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 5650.533698440697,
+        "max_drawdown_at_cost": 0.3141574643594776,
+        "trade_count": 1059,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 7000,
+        "skip_no_positive_expected_edge": 1272,
+        "trades": 1059,
+        "reject_unreconciled_best_ask_at_entry": 26,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7076,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "original_v1_platt|prestart_c0_o1|age30|release60",
+        "model": "original_v1_platt",
+        "entry_case": "prestart_c0_o1",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 1,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 4.886034926791574,
+        "net_pnl_usd": -95.11396507320842,
+        "gross_turnover_usd": 1435.0,
+        "roi_on_initial_cash": -0.9511396507320842,
+        "roi_on_gross_turnover": -0.0662815087618177,
+        "fees_paid_usd": 0.0,
+        "total_payout_usd": 1339.8860349267904,
+        "max_drawdown_at_cost": 0.967452815938758,
+        "trade_count": 287,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 7000,
+        "skip_no_positive_expected_edge": 1208,
+        "trades": 287,
+        "reject_unreconciled_best_ask_at_entry": 26,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 836.0,
+        "data_rejections": 7076,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "original_v1_raw|prestart_c0_o1|age30|release60",
+        "model": "original_v1_raw",
+        "entry_case": "prestart_c0_o1",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 1,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 0.5709395761897937,
+        "net_pnl_usd": -99.4290604238102,
+        "gross_turnover_usd": 1865.0,
+        "roi_on_initial_cash": -0.994290604238102,
+        "roi_on_gross_turnover": -0.0533131691280483,
+        "fees_paid_usd": 28.31718684000001,
+        "total_payout_usd": 1765.5709395761876,
+        "max_drawdown_at_cost": 0.9960994741981312,
+        "trade_count": 373,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 7000,
+        "skip_no_positive_expected_edge": 1035,
+        "trades": 373,
+        "reject_unreconciled_best_ask_at_entry": 26,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 923.0,
+        "data_rejections": 7076,
+        "reject_unknown_historical_fee": 1.0
+      }
+    ],
+    "prestart_c0_o0": [
+      {
+        "scenario_id": "candidate_platt|prestart_c0_o0|age30|release60",
+        "model": "candidate_platt",
+        "entry_case": "prestart_c0_o0",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 0,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 412.5943865359414,
+        "net_pnl_usd": 312.5943865359414,
+        "gross_turnover_usd": 5415.0,
+        "roi_on_initial_cash": 3.125943865359414,
+        "roi_on_gross_turnover": 0.05772749520516,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 5727.59438653596,
+        "max_drawdown_at_cost": 0.3883897720088591,
+        "trade_count": 1083,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 6977,
+        "skip_no_positive_expected_edge": 1272,
+        "trades": 1083,
+        "reject_unreconciled_best_ask_at_entry": 25,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7052,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "candidate_raw|prestart_c0_o0|age30|release60",
+        "model": "candidate_raw",
+        "entry_case": "prestart_c0_o0",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 0,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 435.3555792568618,
+        "net_pnl_usd": 335.3555792568618,
+        "gross_turnover_usd": 5325.0,
+        "roi_on_initial_cash": 3.353555792568618,
+        "roi_on_gross_turnover": 0.0629775735693637,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 5660.355579256883,
+        "max_drawdown_at_cost": 0.3107669257856435,
+        "trade_count": 1065,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 6977,
+        "skip_no_positive_expected_edge": 1290,
+        "trades": 1065,
+        "reject_unreconciled_best_ask_at_entry": 25,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7052,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "original_v1_platt|prestart_c0_o0|age30|release60",
+        "model": "original_v1_platt",
+        "entry_case": "prestart_c0_o0",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 0,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 4.886496649942359,
+        "net_pnl_usd": -95.11350335005764,
+        "gross_turnover_usd": 1525.0,
+        "roi_on_initial_cash": -0.9511350335005764,
+        "roi_on_gross_turnover": -0.0623695103934804,
+        "fees_paid_usd": 0.0,
+        "total_payout_usd": 1429.8864966499411,
+        "max_drawdown_at_cost": 0.9691836870710908,
+        "trade_count": 305,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 6977,
+        "skip_no_positive_expected_edge": 1228,
+        "trades": 305,
+        "reject_unreconciled_best_ask_at_entry": 25,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 822.0,
+        "data_rejections": 7052,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "original_v1_raw|prestart_c0_o0|age30|release60",
+        "model": "original_v1_raw",
+        "entry_case": "prestart_c0_o0",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 0,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 3.867340132119004,
+        "net_pnl_usd": -96.132659867881,
+        "gross_turnover_usd": 1970.0,
+        "roi_on_initial_cash": -0.96132659867881,
+        "roi_on_gross_turnover": -0.0487983045014624,
+        "fees_paid_usd": 28.798833950000013,
+        "total_payout_usd": 1873.8673401321164,
+        "max_drawdown_at_cost": 0.975087511347882,
+        "trade_count": 394,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 6977,
+        "skip_no_positive_expected_edge": 1051,
+        "trades": 394,
+        "reject_unreconciled_best_ask_at_entry": 25,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 910.0,
+        "data_rejections": 7052,
+        "reject_unknown_historical_fee": 1.0
+      }
+    ],
+    "prestart_c0_o2": [
+      {
+        "scenario_id": "candidate_platt|prestart_c0_o2|age30|release60",
+        "model": "candidate_platt",
+        "entry_case": "prestart_c0_o2",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 2,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 419.0504033403409,
+        "net_pnl_usd": 319.0504033403409,
+        "gross_turnover_usd": 5320.0,
+        "roi_on_initial_cash": 3.1905040334034087,
+        "roi_on_gross_turnover": 0.0599718803271317,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 5639.05040334036,
+        "max_drawdown_at_cost": 0.3956560682207045,
+        "trade_count": 1064,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 31,
+        "reject_incomplete_or_crossed_book": 7036,
+        "skip_no_positive_expected_edge": 1210,
+        "trades": 1064,
+        "reject_unreconciled_best_ask_at_entry": 45,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7133,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "candidate_raw|prestart_c0_o2|age30|release60",
+        "model": "candidate_raw",
+        "entry_case": "prestart_c0_o2",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 2,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 456.42698067664594,
+        "net_pnl_usd": 356.42698067664594,
+        "gross_turnover_usd": 5225.0,
+        "roi_on_initial_cash": 3.5642698067664598,
+        "roi_on_gross_turnover": 0.0682156900816547,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 5581.426980676668,
+        "max_drawdown_at_cost": 0.3258009190818991,
+        "trade_count": 1045,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 31,
+        "reject_incomplete_or_crossed_book": 7036,
+        "skip_no_positive_expected_edge": 1229,
+        "trades": 1045,
+        "reject_unreconciled_best_ask_at_entry": 45,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7133,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "original_v1_platt|prestart_c0_o2|age30|release60",
+        "model": "original_v1_platt",
+        "entry_case": "prestart_c0_o2",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 2,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 0.5432898287522576,
+        "net_pnl_usd": -99.45671017124776,
+        "gross_turnover_usd": 1380.0,
+        "roi_on_initial_cash": -0.9945671017124776,
+        "roi_on_gross_turnover": -0.0720700798342375,
+        "fees_paid_usd": 0.0,
+        "total_payout_usd": 1280.543289828751,
+        "max_drawdown_at_cost": 0.9959441653721576,
+        "trade_count": 276,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 31,
+        "reject_incomplete_or_crossed_book": 7036,
+        "skip_no_positive_expected_edge": 1171,
+        "trades": 276,
+        "reject_unreconciled_best_ask_at_entry": 45,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 827.0,
+        "data_rejections": 7133,
+        "reject_unknown_historical_fee": 1.0
+      },
+      {
+        "scenario_id": "original_v1_raw|prestart_c0_o2|age30|release60",
+        "model": "original_v1_raw",
+        "entry_case": "prestart_c0_o2",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 2,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 1.1630453415728468,
+        "net_pnl_usd": -98.83695465842716,
+        "gross_turnover_usd": 1845.0,
+        "roi_on_initial_cash": -0.9883695465842716,
+        "roi_on_gross_turnover": -0.0535701651265187,
+        "fees_paid_usd": 28.297578790000014,
+        "total_payout_usd": 1746.1630453415708,
+        "max_drawdown_at_cost": 0.9914916158800596,
+        "trade_count": 369,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 31,
+        "reject_incomplete_or_crossed_book": 7036,
+        "skip_no_positive_expected_edge": 993,
+        "trades": 369,
+        "reject_unreconciled_best_ask_at_entry": 45,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 912.0,
+        "data_rejections": 7133,
+        "reject_unknown_historical_fee": 1.0
+      }
+    ],
+    "prestart_c0_o5": [
+      {
+        "scenario_id": "candidate_platt|prestart_c0_o5|age30|release60",
+        "model": "candidate_platt",
+        "entry_case": "prestart_c0_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 405.2325891237452,
+        "net_pnl_usd": 305.2325891237452,
+        "gross_turnover_usd": 4955.0,
+        "roi_on_initial_cash": 3.052325891237452,
+        "roi_on_gross_turnover": 0.0616009261601907,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 5260.2325891237615,
+        "max_drawdown_at_cost": 0.4258029336379837,
+        "trade_count": 991,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 7233,
+        "skip_no_positive_expected_edge": 1108,
+        "trades": 991,
+        "reject_unreconciled_best_ask_at_entry": 24,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7308,
+        "reject_unknown_historical_fee": 2.0
+      },
+      {
+        "scenario_id": "candidate_raw|prestart_c0_o5|age30|release60",
+        "model": "candidate_raw",
+        "entry_case": "prestart_c0_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 423.94296151653424,
+        "net_pnl_usd": 323.94296151653424,
+        "gross_turnover_usd": 4870.0,
+        "roi_on_initial_cash": 3.2394296151653426,
+        "roi_on_gross_turnover": 0.066518061913046,
+        "fees_paid_usd": 0.5,
+        "total_payout_usd": 5193.942961516552,
+        "max_drawdown_at_cost": 0.3559602271027007,
+        "trade_count": 974,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 7233,
+        "skip_no_positive_expected_edge": 1125,
+        "trades": 974,
+        "reject_unreconciled_best_ask_at_entry": 24,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": null,
+        "data_rejections": 7308,
+        "reject_unknown_historical_fee": 2.0
+      },
+      {
+        "scenario_id": "original_v1_platt|prestart_c0_o5|age30|release60",
+        "model": "original_v1_platt",
+        "entry_case": "prestart_c0_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 1.4587662370224237,
+        "net_pnl_usd": -98.54123376297758,
+        "gross_turnover_usd": 1270.0,
+        "roi_on_initial_cash": -0.985412337629776,
+        "roi_on_gross_turnover": -0.0775915226480138,
+        "fees_paid_usd": 0.0,
+        "total_payout_usd": 1171.458766237021,
+        "max_drawdown_at_cost": 0.9898938784981762,
+        "trade_count": 254,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 7233,
+        "skip_no_positive_expected_edge": 1066,
+        "trades": 254,
+        "reject_unreconciled_best_ask_at_entry": 24,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 779.0,
+        "data_rejections": 7308,
+        "reject_unknown_historical_fee": 2.0
+      },
+      {
+        "scenario_id": "original_v1_raw|prestart_c0_o5|age30|release60",
+        "model": "original_v1_raw",
+        "entry_case": "prestart_c0_o5",
+        "entry_kind": "prestart",
+        "compute_delay_seconds": 0,
+        "order_delay_seconds": 5,
+        "max_ask_age_seconds": 30,
+        "settlement_release_delay_seconds": 60,
+        "initial_cash_usd": 100.0,
+        "ending_cash_usd": 4.046142622514331,
+        "net_pnl_usd": -95.95385737748566,
+        "gross_turnover_usd": 2110.0,
+        "roi_on_initial_cash": -0.9595385737748566,
+        "roi_on_gross_turnover": -0.0454757617902775,
+        "fees_paid_usd": 24.912512480000007,
+        "total_payout_usd": 2014.046142622512,
+        "max_drawdown_at_cost": 0.9766421648547802,
+        "trade_count": 422,
+        "max_open_cost_basis_usd": 10.0,
+        "markets_seen": 9407,
+        "reject_stale_ask": 29,
+        "reject_incomplete_or_crossed_book": 7233,
+        "skip_no_positive_expected_edge": 903,
+        "trades": 422,
+        "reject_unreconciled_best_ask_at_entry": 24,
+        "reject_no_initial_book_snapshot": 8,
+        "reject_exchange_maintenance_pause": 12,
+        "reject_insufficient_balance": 774.0,
+        "data_rejections": 7308,
+        "reject_unknown_historical_fee": 2.0
+      }
+    ]
+  }
+}
