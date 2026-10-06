@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "policy_id": "candidate_platt_t59_fixed_5_positive_expected_net_payout_reference",
+  "status": "retained_reference_only; sizing optimization gated by incomplete depth cache",
+  "active_for_trading": false,
+  "selection_result": "No sizing candidate was selected; do not describe the fixed-$5 reference as an optimized policy.",
+  "model": {
+    "model_name": "candidate_platt",
+    "model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+    "model_sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+    "manifest_model_hash": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+    "calibrator_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_calibrator.json",
+    "calibrator_sha256": "de2ec02fddae11ca0fed2b0cdb12c2f1842f57a3eb534eddaff8640bc536109e",
+    "ordered_feature_sha256_newline_utf8": "875b25f822b32bd3d07e3a534ea351d4d19bf25b4948fee81646d7ef76111883",
+    "prediction_path": "reports/btc_preopen/candidate_external_predictions.parquet",
+    "prediction_column": "p_candidate_platt"
+  },
+  "decision": {
+    "decision_time": "single decision per market using frozen candidate_platt probability and T-59 book snapshot",
+    "probability": "p_candidate_platt is unchanged; no BTC model fit or recalibration in this stage",
+    "eligible": "Corrected BBO/freshness qualification, both-side $5 depth valid, known historical fee, ask age <= 30 seconds, and no future event at entry",
+    "extra_buffer_usd_per_share": 0.0,
+    "gross_stake_usd": 5.0,
+    "execution_price": "Walk the ask-side full depth for a $5 gross order; no midpoint, future quote, or additional slippage assumption.",
+    "expected_net_payout_usd": "p_side * net_shares_after_historical_fee - full_cash_debit_usd",
+    "expected_value_metrics": {
+      "ev_per_net_share_usd": "p_side - full_cash_debit_usd / net_shares_after_historical_fee",
+      "ev_usd_per_order": "p_side * net_shares_after_historical_fee - full_cash_debit_usd",
+      "expected_return": "ev_usd_per_order / full_cash_debit_usd"
+    },
+    "side_selection": "Compute both sides from the exact aggregate $5 ask-depth fill; buy the side with the larger positive expected net payout. If neither is positive, no_trade. Ties choose UP.",
+    "expected_value_units": "USD per order; not USD per share"
+  },
+  "fees": {
+    "historical_mode": "outcome-share fees before 2026-04-28 11:00 UTC; maintenance exclusion 11:00–12:00 UTC; collateral fee from 12:00 UTC",
+    "legacy": "At each aggregate ask level, fee_shares = shares * rate * min(price, 1-price) / price, floored to six share decimals; payout uses gross shares minus fee shares.",
+    "collateral": "fee_cash = shares * rate * (price * (1-price))^1; round to five decimals, apply the historical minimum fee, and include it in cash debit.",
+    "maker_fill_precision": "The archive does not expose individual maker matches, so maker-level fee rounding cannot be reproduced."
+  },
+  "portfolio": {
+    "initial_free_cash_usd": 100.0,
+    "one_purchase_per_market": true,
+    "maximum_purchases_per_market": 1,
+    "hold_to_resolution": true,
+    "cash_constraint": "Require free cash for the full cash debit; no borrowing, deposits, or credit for unresolved payouts.",
+    "capital_release": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "equity_and_drawdown": "Free cash plus gross cost basis of locked positions; no mark-to-market while unresolved.",
+    "historical_minimum_order": "Unavailable; no current minimum was projected backward."
+  },
+  "evaluation": {
+    "gross_pnl_usd": 475.84015563503385,
+    "trade_count": 2316,
+    "walk_forward_candidate": null
+  },
+  "inputs": {
+    "candidate": {
+      "model_name": "candidate_platt",
+      "model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+      "model_sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+      "manifest_model_hash": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+      "calibrator_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_calibrator.json",
+      "calibrator_sha256": "de2ec02fddae11ca0fed2b0cdb12c2f1842f57a3eb534eddaff8640bc536109e",
+      "ordered_feature_sha256_newline_utf8": "875b25f822b32bd3d07e3a534ea351d4d19bf25b4948fee81646d7ef76111883",
+      "prediction_path": "reports/btc_preopen/candidate_external_predictions.parquet",
+      "prediction_column": "p_candidate_platt"
+    },
+    "shared_market_evaluation_sha256": "2f3146a2345a1e6a0ac79daeb69172ad271e91743e9e3cb2e9ca5a5eba0dfd85",
+    "pmxt_partition_list_sha256": "8edbe2aeb21ecb26630371082ba960b6438fc0e93130d041a822bbde81b314d7",
+    "pmxt_event_rows": 104437933,
+    "files": {
+      "reports/btc_preopen/entry_snapshots.parquet": {
+        "sha256": "1df26fe04d2e8d0f0fb9a3820184ce4a5b10c42383b8d424975dde44ef6a84b9",
+        "size_bytes": 10485483
+      },
+      "reports/btc_preopen/quote_validation_market_changes.csv": {
+        "sha256": "538e430b7f954e094b243d12ff4dfbedaeb0f23e103b27712a5c0eda6cd9cf7d",
+        "size_bytes": 2689091
+      },
+      "reports/btc_preopen/fresh_bbo_entry_results.csv": {
+        "sha256": "79a07bfab87254d7eb3dd653e0e756916cf21e30df54a5058e14d8ad5a1843f5",
+        "size_bytes": 1665105
+      },
+      "reports/btc_preopen/quote_validation_corrected_trades.parquet": {
+        "sha256": "3789e766aaf5a9c288aa370674604c52936d803535564368eb1bf2e62ade092a",
+        "size_bytes": 824208
+      },
+      "reports/btc_preopen/primary_economic_comparison.csv": {
+        "sha256": "35aac8f06ad8d20ac701546f4a984b49e660925253ee30b5558f807c91e3d944",
+        "size_bytes": 2330
+      },
+      "reports/btc_preopen/candidate_external_predictions.parquet": {
+        "sha256": "b2598681065023422b6bee3308cfcba5934686060fca7ef24fffc9be0db911ad",
+        "size_bytes": 1012750
+      },
+      "reports/btc_preopen/artifact_manifest.json": {
+        "sha256": "bf2e75658805dd5cabed60f8e6698ebd15f9a694d5d7add914a39c6d2eeb32cf",
+        "size_bytes": 15692
+      },
+      "configs/btc_preopen_v1.json": {
+        "sha256": "57d5f59bdd5cfcd87c93f007d04afdd50fec70c0be9de04e1eb467eff70b8216",
+        "size_bytes": 3868
+      },
+      "configs/runtime/trade_policy_project.json": {
+        "sha256": "286d3962f5d402ce052cede343bbd31455d29b0de0a30c3ae762fa463c43cbca",
+        "size_bytes": 1805
+      },
+      "run_btc_preopen_economic_replay.py": {
+        "sha256": "7172bf02d2806f06a1eddfa2780333a550e8d7f9cb812c37bf90f70265d7818e",
+        "size_bytes": 62884
+      },
+      "utils/polymarket.py": {
+        "sha256": "b23581b616ac262f7b9724261eccdc5b92552b0e6583387e08c003e911e8f518",
+        "size_bytes": 20222
+      },
+      "audit_btc_preopen_policy_readiness.py": {
+        "sha256": "049a207a86e228ab6625da2331f93e0763d21ea9937f22a85218efbf36f79028",
+        "size_bytes": 39196
+      }
+    }
+  }
+}

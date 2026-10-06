@@ -1,0 +1,303 @@
+{
+  "experiment_id": "btc_preopen_policy_t59_candidate_platt_20261007",
+  "status": "not_run_input_depth_gate",
+  "evaluation_label": "retrospective_walk_forward_policy_assessment; the period has prior development exposure",
+  "entry": {
+    "scenario": "prestart_c0_o1",
+    "relative_to_market_start": "T-59s",
+    "ask_age_cap_seconds": 30
+  },
+  "coverage": {
+    "archived_markets": 9407,
+    "corrected_eligible_markets": 4454,
+    "qualification_reasons": {
+      "incomplete_or_crossed_book": 4830,
+      "eligible": 4454,
+      "unreconciled_best_ask_at_entry": 71,
+      "stale_ask": 31,
+      "exchange_maintenance_pause": 12,
+      "no_initial_book_snapshot": 8,
+      "unknown_historical_fee": 1
+    },
+    "first_market_start_utc": "2026-04-15T17:05:00+00:00",
+    "last_market_start_utc": "2026-05-18T10:30:00+00:00",
+    "first_decision_utc": "2026-04-15T17:04:01+00:00",
+    "last_decision_utc": "2026-05-18T10:29:01+00:00",
+    "last_outcome_available_utc": "2026-05-18T10:35:17+00:00",
+    "eligible_books_without_decisive_bbo_confirmation": 4353,
+    "frozen_prediction_rows": 9426,
+    "prediction_rows_without_market_id": 19
+  },
+  "depth_audit": {
+    "stored_native_ask_levels": [
+      "best ask price",
+      "best ask size"
+    ],
+    "full_ask_level_ladders_stored": false,
+    "additional_stored_execution_point": "Exact aggregate fee-inclusive fill for $5 gross per side only",
+    "top_level_capacity_on_eligible_markets": {
+      "both_sides_cover_1_usd": 4376,
+      "both_sides_cover_2_usd": 4326,
+      "both_sides_cover_2.5_usd": 4277,
+      "both_sides_cover_5_usd": 4030
+    },
+    "baseline_selected_trades_requiring_levels_beyond_best_ask": 141,
+    "baseline_selected_trade_count": 2316,
+    "reason_tuning_stopped": "Variable stakes below $5 can cross unrecorded intermediate ask levels; stakes above $5 exceed recorded execution depth. Historical minimum-order sizes are also absent. Reconstructing levels requires replaying PMXT events, which this task forbids."
+  },
+  "frozen_search_space": {
+    "trial_budget": 25,
+    "trials_run": 0,
+    "search_method": "finite deterministic grid; no Optuna",
+    "seed": null,
+    "seed_reason": "No stochastic search or trials were run",
+    "families": {
+      "current_baseline": {
+        "gross_stake_usd": 5.0,
+        "minimum_expected_return": 0.0
+      },
+      "no_trade": {
+        "stake_usd": 0.0,
+        "daily_log_growth": 0.0
+      },
+      "fixed_stake_expected_net_profit": {
+        "gross_stakes_usd": [
+          1.0,
+          2.5
+        ],
+        "min_return_grid": [
+          0.0,
+          0.02,
+          0.05
+        ]
+      },
+      "fixed_5_usd_min_return": {
+        "gross_stake_usd": 5.0,
+        "min_return_grid": [
+          0.02,
+          0.05
+        ]
+      },
+      "free_cash_fraction": {
+        "basis": "free cash only",
+        "fractions": [
+          0.01,
+          0.025,
+          0.05
+        ],
+        "max_gross_stake_usd": 5.0,
+        "min_return_grid": [
+          0.0,
+          0.02,
+          0.05
+        ]
+      },
+      "fractional_kelly": {
+        "multipliers": [
+          0.25,
+          0.5
+        ],
+        "max_gross_stake_usd": 5.0,
+        "stake_grid_usd": 0.01,
+        "min_return_grid": [
+          0.0,
+          0.02,
+          0.05
+        ]
+      }
+    },
+    "minimum_expected_return_definition": "Expected net USD payout after historical fees divided by full cash debit, both evaluated at actual gross stake.",
+    "range_rationale": {
+      "fixed_stakes": "$1 and $2.50 plus the exact $5 baseline span 1%, 2.5%, and 5% of the $100 initial cash; amounts above $5 exceed the only stored aggregate execution point.",
+      "free_cash_fractions": "1%, 2.5%, and 5% of free cash target the same initial-dollar band while allowing bankroll-dependent sizing; use free cash, never locked cost or possible payout, and cap gross stake at $5.",
+      "kelly": "Quarter- and half-Kelly are bounded fractional-growth candidates; each uses actual fee/depth costs, free-cash affordability, a $5 cap, and one-cent stake increments.",
+      "minimum_return": "0%, 2%, and 5% of full debit span merely positive net EV through modest after-cost hurdles without adding dozens of independent thresholds."
+    },
+    "side_rule": "For fixed and free-cash sizing, choose the side with the greater positive expected net USD payout at that actual stake; skip if neither meets the threshold. Kelly separately maximizes expected log growth with actual fee/depth constraints.",
+    "kelly_objective": "For stake s, maximize p*ln((free_cash - cash_debit(s) + net_shares(s))/free_cash) + (1-p)*ln((free_cash - cash_debit(s))/free_cash), then apply the stated fractional multiplier. Never count locked positions or possible payouts as free cash.",
+    "stake_rounding": "Nearest cent, matching the existing trade-intent sizing precision.",
+    "depth_limit": "No stake above $5. A non-$5 stake is evaluable only where its full ask ladder is present; top-level-only records cannot stand in for deeper asks."
+  },
+  "selection_objective": "Mean daily log growth over inner chronological validation blocks, with no-trade growth zero; report PnL/final capital, cost-basis drawdown and duration underwater, trades, turnover, fees, exposure, stake-to-capital, depth/cash skips, and inability to place further orders.",
+  "split_design_frozen_before_search": {
+    "method": "Sort corrected eligible markets by entry_time_utc. First 20% is initial history; each outer block is 20%, preceded by a separate 20% policy-selection validation block.",
+    "initial_history_count": 890,
+    "outer_folds": [
+      {
+        "fold_id": 1,
+        "refit_at_utc": "2026-04-28T19:34:01+00:00",
+        "selection_validation": {
+          "start_index_in_eligible_order": 890,
+          "end_index_exclusive": 1781,
+          "decision_start_utc": "2026-04-21T18:19:01+00:00",
+          "decision_end_utc": "2026-04-28T19:24:01+00:00",
+          "markets": 891,
+          "labels_known_strictly_before_refit": 891
+        },
+        "all_past_labels_known_strictly_before_refit": 1781,
+        "evaluation": {
+          "start_index_in_eligible_order": 1781,
+          "end_index_exclusive": 2672,
+          "decision_start_utc": "2026-04-28T19:34:01+00:00",
+          "decision_end_utc": "2026-05-05T14:39:01+00:00",
+          "markets": 891
+        },
+        "capital_and_open_positions": "Carry continuously across outer blocks; no per-fold reset. A later settlement can influence a refit only after outcome_available_at_utc."
+      },
+      {
+        "fold_id": 2,
+        "refit_at_utc": "2026-05-05T14:44:01+00:00",
+        "selection_validation": {
+          "start_index_in_eligible_order": 1781,
+          "end_index_exclusive": 2672,
+          "decision_start_utc": "2026-04-28T19:34:01+00:00",
+          "decision_end_utc": "2026-05-05T14:39:01+00:00",
+          "markets": 891,
+          "labels_known_strictly_before_refit": 890
+        },
+        "all_past_labels_known_strictly_before_refit": 2671,
+        "evaluation": {
+          "start_index_in_eligible_order": 2672,
+          "end_index_exclusive": 3563,
+          "decision_start_utc": "2026-05-05T14:44:01+00:00",
+          "decision_end_utc": "2026-05-11T23:49:01+00:00",
+          "markets": 891
+        },
+        "capital_and_open_positions": "Carry continuously across outer blocks; no per-fold reset. A later settlement can influence a refit only after outcome_available_at_utc."
+      },
+      {
+        "fold_id": 3,
+        "refit_at_utc": "2026-05-11T23:59:01+00:00",
+        "selection_validation": {
+          "start_index_in_eligible_order": 2672,
+          "end_index_exclusive": 3563,
+          "decision_start_utc": "2026-05-05T14:44:01+00:00",
+          "decision_end_utc": "2026-05-11T23:49:01+00:00",
+          "markets": 891,
+          "labels_known_strictly_before_refit": 891
+        },
+        "all_past_labels_known_strictly_before_refit": 3563,
+        "evaluation": {
+          "start_index_in_eligible_order": 3563,
+          "end_index_exclusive": 4454,
+          "decision_start_utc": "2026-05-11T23:59:01+00:00",
+          "decision_end_utc": "2026-05-18T10:04:01+00:00",
+          "markets": 891
+        },
+        "capital_and_open_positions": "Carry continuously across outer blocks; no per-fold reset. A later settlement can influence a refit only after outcome_available_at_utc."
+      }
+    ],
+    "availability_rule": "Only labels with max(resolved_at_utc, market_start_utc + 5 minutes) strictly before the refit time enter selection.",
+    "crossing_positions": "Carry cost basis and unsettled positions through block boundaries; cash is released only at max(resolved_at_utc, expiry) + 60 seconds."
+  },
+  "baseline_reproduction": {
+    "initial_cash_usd": 100.0,
+    "ending_cash_usd": 575.8401556350339,
+    "net_pnl_usd": 475.84015563503385,
+    "max_drawdown_at_cost": 0.6626779823614556,
+    "maximum_underwater_duration_seconds": 1107439.0,
+    "average_daily_log_growth": 0.0514899979005112,
+    "daily_log_growth_days": 34,
+    "trade_count": 2316,
+    "gross_turnover_usd": 11580.0,
+    "fees_paid_usd": 0.99999992,
+    "expected_net_value_at_entry_usd": 295.0977761296115,
+    "max_open_cost_basis_usd": 15.0,
+    "max_open_positions": 3,
+    "minimum_free_cash_after_entries_usd": 30.28170901538229,
+    "max_stake_to_cost_basis_equity": 0.12412581596502424,
+    "insufficient_cash_trades": 0
+  },
+  "baseline_decision_counts": {
+    "markets_seen": 9407,
+    "ineligible": 4953,
+    "no_positive_ev": 2138,
+    "insufficient_cash": 0
+  },
+  "baseline_release_matches_resolution_and_expiry_rule": true,
+  "trial_runtime_profile": {
+    "trial_seconds": null,
+    "projected_total_seconds": null,
+    "reason": "No policy trial was run because exact variable-stake executions and historical minimum-order feasibility cannot be reconstructed from the available cache."
+  },
+  "execution_environment": {
+    "platform": "Windows",
+    "logical_cpu_count": 20,
+    "physical_memory_total_bytes": 68366831616,
+    "active_background_processes": [
+      "run_btc_preopen_collection.py",
+      "run_btc_entry_state_collection.py"
+    ],
+    "policy_workers": 0,
+    "gpu_used": false
+  },
+  "baseline_reported_pnl_usd": 475.84015563503385,
+  "policy_chosen": null,
+  "reason_policy_not_selected": "The execution-depth cache lacks intervening ask levels and historical minimum-order sizes, so sizing trials would rely on unobserved prices or unsupported order-size assumptions.",
+  "inputs": {
+    "candidate": {
+      "model_name": "candidate_platt",
+      "model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+      "model_sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+      "manifest_model_hash": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+      "calibrator_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_calibrator.json",
+      "calibrator_sha256": "de2ec02fddae11ca0fed2b0cdb12c2f1842f57a3eb534eddaff8640bc536109e",
+      "ordered_feature_sha256_newline_utf8": "875b25f822b32bd3d07e3a534ea351d4d19bf25b4948fee81646d7ef76111883",
+      "prediction_path": "reports/btc_preopen/candidate_external_predictions.parquet",
+      "prediction_column": "p_candidate_platt"
+    },
+    "shared_market_evaluation_sha256": "2f3146a2345a1e6a0ac79daeb69172ad271e91743e9e3cb2e9ca5a5eba0dfd85",
+    "pmxt_partition_list_sha256": "8edbe2aeb21ecb26630371082ba960b6438fc0e93130d041a822bbde81b314d7",
+    "pmxt_event_rows": 104437933,
+    "files": {
+      "reports/btc_preopen/entry_snapshots.parquet": {
+        "sha256": "1df26fe04d2e8d0f0fb9a3820184ce4a5b10c42383b8d424975dde44ef6a84b9",
+        "size_bytes": 10485483
+      },
+      "reports/btc_preopen/quote_validation_market_changes.csv": {
+        "sha256": "538e430b7f954e094b243d12ff4dfbedaeb0f23e103b27712a5c0eda6cd9cf7d",
+        "size_bytes": 2689091
+      },
+      "reports/btc_preopen/fresh_bbo_entry_results.csv": {
+        "sha256": "79a07bfab87254d7eb3dd653e0e756916cf21e30df54a5058e14d8ad5a1843f5",
+        "size_bytes": 1665105
+      },
+      "reports/btc_preopen/quote_validation_corrected_trades.parquet": {
+        "sha256": "3789e766aaf5a9c288aa370674604c52936d803535564368eb1bf2e62ade092a",
+        "size_bytes": 824208
+      },
+      "reports/btc_preopen/primary_economic_comparison.csv": {
+        "sha256": "35aac8f06ad8d20ac701546f4a984b49e660925253ee30b5558f807c91e3d944",
+        "size_bytes": 2330
+      },
+      "reports/btc_preopen/candidate_external_predictions.parquet": {
+        "sha256": "b2598681065023422b6bee3308cfcba5934686060fca7ef24fffc9be0db911ad",
+        "size_bytes": 1012750
+      },
+      "reports/btc_preopen/artifact_manifest.json": {
+        "sha256": "bf2e75658805dd5cabed60f8e6698ebd15f9a694d5d7add914a39c6d2eeb32cf",
+        "size_bytes": 15692
+      },
+      "configs/btc_preopen_v1.json": {
+        "sha256": "57d5f59bdd5cfcd87c93f007d04afdd50fec70c0be9de04e1eb467eff70b8216",
+        "size_bytes": 3868
+      },
+      "configs/runtime/trade_policy_project.json": {
+        "sha256": "286d3962f5d402ce052cede343bbd31455d29b0de0a30c3ae762fa463c43cbca",
+        "size_bytes": 1805
+      },
+      "run_btc_preopen_economic_replay.py": {
+        "sha256": "7172bf02d2806f06a1eddfa2780333a550e8d7f9cb812c37bf90f70265d7818e",
+        "size_bytes": 62884
+      },
+      "utils/polymarket.py": {
+        "sha256": "b23581b616ac262f7b9724261eccdc5b92552b0e6583387e08c003e911e8f518",
+        "size_bytes": 20222
+      },
+      "audit_btc_preopen_policy_readiness.py": {
+        "sha256": "049a207a86e228ab6625da2331f93e0763d21ea9937f22a85218efbf36f79028",
+        "size_bytes": 39196
+      }
+    }
+  }
+}

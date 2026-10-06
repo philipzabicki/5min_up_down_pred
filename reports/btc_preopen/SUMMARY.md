@@ -123,3 +123,31 @@ Chaikin SHMMA accumulated numerical drift over more than 3 million candles. The 
 - `audit.json`, `data_coverage.csv`, `quote_validation_corrected_trades.parquet`, `model_comparison.csv` i `report_bundle.zip` — szczegóły oraz odtwarzalność finalnej walidacji.
 
 Nie aktywowano kandydata ani nie złożono rzeczywistych zleceń; dodane ścieżki konfiguracji dotyczą osobnego profilu paper.
+
+## Etap optymalizacji polityki wejścia i sizingu — stan na 2026-10-07
+
+**Status: strojenie nieuruchomione z powodu braku krzywej głębokości dla stawek zmiennych.** Zachowuję stały zakup $5 jako odtworzony punkt odniesienia, nie jako zatwierdzoną politykę docelową. Nie wybrano nowej polityki i nie ma podstaw, by twierdzić, że brak poprawy został przetestowany.
+
+### Odtworzenie punktu odniesienia
+
+Na 4,454 rynkach zakwalifikowanych po skorygowanym uzgadnianiu BBO reguła kupuje najwyżej jedną stronę raz na rynek, w T−59 s. Dla każdej strony liczy `EV_USD = p_strony × udziały_netto_po_fee − pełny_debet_gotówkowy` z zapisanego, dokładnego fillu $5. Kupuje stronę z większym dodatnim EV; przy remisie UP; gdy oba EV są niedodatnie — `no_trade`. `extra_buffer = 0`; EV jest w USD na zlecenie, nie na udział. Opłata historyczna jest odejmowana w udziałach przed 2026-04-28 11:00 UTC, a później — poza godziną przerwy giełdowej — w collateral. Nie dolicza się historycznego minimum zlecenia, którego danych nie ma.
+
+Ponowny przebieg decyzji na wszystkich 9,407 rekordach cache odtwarza zapisane strony, EV i księgowanie: 4,454 zakwalifikowane, 2,138 `no_trade` z powodu braku dodatniego EV, 2,316 transakcji i 0 odrzuceń z braku gotówki. Końcowa księga daje **+$475.840155635 USD**: saldo $100 → $575.840156; obrót $11,580; fee $0.99999992; maksymalne obsunięcie kosztowe 66.2678%; maksymalny koszt pozycji otwartych $15 (3 pozycje); najniższa wolna gotówka po wejściu $30.2817. Największa stawka $5 stanowiła maksymalnie 12.41% bieżącego kapitału kosztowego, a maksymalny czas pod wodą wyniósł 12 dni 19 godz. 37 min. Średni dzienny logarytmiczny wzrost 5.149% obejmuje pełne 34 dni i jest opisem historycznej ścieżki baseline’u, nie wynikiem selekcji polityki.
+
+Starsze **+$318.16** dotyczy 2,331 rynków przy poprzedniej, ścisłej walidacji `bid < ask`. Nie jest celem strojenia ani porównaniem równych zbiorów: skorygowana kwalifikacja zwiększyła próbę do 4,454 rynków.
+
+### Cache, jakość danych i ograniczenie głębokości
+
+[`policy_opportunities.parquet`](policy_opportunities.parquet) zachowuje wszystkie 9,407 rynków — również kwalifikujące się rynki bez dawnego zakupu — z prawdopodobieństwem zamrożonego `candidate_platt`, wejściem, askami i rozmiarami najlepszego poziomu, fee, powodem kwalifikacji, wynikiem, czasem dostępności wyniku oraz zwolnieniem kapitału. 4,454 rekordy kwalifikują się; 4,953 są zachowane z powodami wykluczenia. Przy 4,353 kwalifikujących się księgach brak rozstrzygającego potwierdzenia BBO; to oznaczenie pozostało jawne i nie są one opisane jako niezależnie potwierdzone.
+
+Cache zawiera natywny **najlepszy ask z rozmiarem**, ale nie drabinkę dalszych poziomów. Dodatkowo przechowuje tylko dokładny, zagregowany fill brutto $5 na stronę. Obie najlepsze ceny pokrywają $5 w 4,030 z 4,454 kwalifikujących się rynków; 141 z 2,316 transakcji baseline’u rzeczywiście przechodzi przez poziomy gorsze od najlepszego asku. Dla stake’u pośredniego między poziomami nie można odzyskać dokładnej ceny z samego VWAP $5. Nie znamy też historycznego `orderMinSize`, więc nie da się zweryfikować wykonalności mniejszych zleceń bez przenoszenia współczesnego minimum wstecz. Nie ekstrapoluję fillu liniowo ani nie odtwarzam strumienia PMXT, bo oba działania są poza zakresem polecenia. Wobec tego nie uruchamiam sizingu wymagającego nieobecnej krzywej wykonania.
+
+### Zamrożony projekt oceny i status wyboru
+
+Przed jakimkolwiek strojeniem zapisano trzy rodziny nowych polityk i 25 skończonych konfiguracji (`policy_trials.csv`): stały stake $1/$2.50 (baseline $5 zachowany osobno), stały udział wolnej gotówki 1%/2.5%/5% z limitem $5 oraz ułamkowy Kelly 25%/50% z limitem $5 i krokiem $0.01. Minimalny oczekiwany zwrot po kosztach: 0%/2%/5%, liczony jako oczekiwany zysk netto USD podzielony przez pełny debet. Strona dla sizingu stałego i procentowego jest wybierana po najwyższym EV netto dla faktycznej stawki. Kelly maksymalizowałby oczekiwany logarytm wzrostu na wolnej gotówce, z fee i limitem dostępnej głębokości. `no_trade` ma wzrost zero. Stawki powyżej $5 są wyłączone, bo cache nie dokumentuje takiej egzekucji.
+
+[`policy_study.json`](policy_study.json) zamraża podziały chronologiczne i tożsamość wejść. Dla 4,454 kwalifikujących się rynków pierwsze 20% to historia początkowa, a kolejne okna 20% służą naprzemiennie jako wcześniejsza walidacja wyboru i trzy zewnętrzne bloki. Bloki zewnętrzne zaczynają się 2026-04-28 19:34, 2026-05-05 14:44 i 2026-05-11 23:59 UTC; liczby etykiet dostępnych ściśle przed refitem zapisano per blok. Etykieta jest dostępna od `max(resolved_at, expiry)`. Wszystkie portfele miałyby wspólny start i przenosiły gotówkę oraz nierozliczone pozycje między blokami. Ten okres był już wcześniej użyty w rozwoju, więc ewentualny wynik byłby retrospektywną oceną walk-forward, nie nowym nietkniętym holdoutem.
+
+Z powodu braku krzywej ask **0/25 prób wykonano**; nie ma oceny trial→raport ani wyników zewnętrznych bloków polityki. Nie można więc stwierdzić, czy poprawa wystąpiłaby tylko wewnątrz strojenia czy także w kolejnych blokach, ani wyliczyć kosztu poprawy w ryzyku. [`policy.json`](policy.json) zapisuje kompletną regułę baseline’u, fee, księgowanie, ograniczenia i fingerprint wejść; pozostaje nieaktywna. Bieżący runtime nie został zmieniony, a handlu, shadow ani live nie uruchomiono.
+
+Powtarzalność kontroli wejść: `python audit_btc_preopen_policy_readiness.py`. Skrypt czyta istniejące cache’e, porównuje predykcje z zapisanym plikiem `candidate_platt`, sprawdza sumę +$475.84, drawdown, brak podwójnych zakupów i zgodność czasu zwalniania kapitału. Model SHA-256: `19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986`; pełne hashe plików wejściowych znajdują się w `policy_study.json`.
