@@ -1,0 +1,1346 @@
+[replay] processed 2026-04-14T17.parquet: events=4,691, snapshots=0
+[replay] processed 2026-04-14T18.parquet: events=10,810, snapshots=0
+[replay] processed 2026-04-14T19.parquet: events=12,287, snapshots=0
+[replay] processed 2026-04-14T20.parquet: events=7,954, snapshots=0
+[replay] processed 2026-04-14T21.parquet: events=6,943, snapshots=0
+[replay] processed 2026-04-14T22.parquet: events=10,065, snapshots=0
+[replay] processed 2026-04-14T23.parquet: events=11,170, snapshots=0
+[replay] processed 2026-04-15T00.parquet: events=13,053, snapshots=0
+[replay] processed 2026-04-15T01.parquet: events=17,087, snapshots=0
+[replay] processed 2026-04-15T02.parquet: events=13,602, snapshots=0
+[replay] processed 2026-04-15T03.parquet: events=18,540, snapshots=0
+[replay] saved checkpoint after 2026-04-15T03.parquet: snapshots=0
+[replay] processed 2026-04-15T04.parquet: events=21,464, snapshots=0
+[replay] processed 2026-04-15T05.parquet: events=22,184, snapshots=0
+[replay] processed 2026-04-15T06.parquet: events=18,861, snapshots=0
+[replay] processed 2026-04-15T07.parquet: events=8,784, snapshots=0
+[replay] processed 2026-04-15T08.parquet: events=10,199, snapshots=0
+[replay] processed 2026-04-15T09.parquet: events=9,393, snapshots=0
+[replay] processed 2026-04-15T10.parquet: events=12,325, snapshots=0
+[replay] processed 2026-04-15T11.parquet: events=15,270, snapshots=0
+[replay] processed 2026-04-15T12.parquet: events=25,220, snapshots=0
+[replay] processed 2026-04-15T13.parquet: events=24,599, snapshots=0
+[replay] processed 2026-04-15T14.parquet: events=29,354, snapshots=0
+[replay] processed 2026-04-15T15.parquet: events=28,407, snapshots=0
+[replay] saved checkpoint after 2026-04-15T15.parquet: snapshots=0
+[replay] processed 2026-04-15T16.parquet: events=37,913, snapshots=0
+[replay] processed 2026-04-15T17.parquet: events=175,374, snapshots=188
+[replay] processed 2026-04-15T18.parquet: events=141,014, snapshots=380
+[replay] processed 2026-04-15T19.parquet: events=146,544, snapshots=572
+[replay] processed 2026-04-15T20.parquet: events=149,931, snapshots=764
+[replay] processed 2026-04-15T21.parquet: events=133,011, snapshots=956
+[replay] processed 2026-04-15T22.parquet: events=131,797, snapshots=1,148
+[replay] processed 2026-04-15T23.parquet: events=133,124, snapshots=1,340
+[replay] processed 2026-04-16T00.parquet: events=125,657, snapshots=1,532
+[replay] processed 2026-04-16T01.parquet: events=135,131, snapshots=1,724
+[replay] processed 2026-04-16T02.parquet: events=137,795, snapshots=1,916
+[replay] processed 2026-04-16T03.parquet: events=128,746, snapshots=2,108
+[replay] saved checkpoint after 2026-04-16T03.parquet: snapshots=2,108
+[replay] processed 2026-04-16T04.parquet: events=139,970, snapshots=2,300
+[replay] processed 2026-04-16T05.parquet: events=135,304, snapshots=2,492
+[replay] processed 2026-04-16T06.parquet: events=143,894, snapshots=2,684
+[replay] processed 2026-04-16T07.parquet: events=152,805, snapshots=2,876
+[replay] processed 2026-04-16T08.parquet: events=163,570, snapshots=3,068
+[replay] processed 2026-04-16T09.parquet: events=157,521, snapshots=3,260
+[replay] processed 2026-04-16T10.parquet: events=152,187, snapshots=3,452
+[replay] processed 2026-04-16T11.parquet: events=146,142, snapshots=3,644
+[replay] processed 2026-04-16T12.parquet: events=150,462, snapshots=3,836
+[replay] processed 2026-04-16T13.parquet: events=166,697, snapshots=4,028
+[replay] processed 2026-04-16T14.parquet: events=155,149, snapshots=4,220
+[replay] processed 2026-04-16T15.parquet: events=148,011, snapshots=4,412
+[replay] saved checkpoint after 2026-04-16T15.parquet: snapshots=4,412
+[replay] processed 2026-04-16T16.parquet: events=150,140, snapshots=4,604
+[replay] processed 2026-04-16T17.parquet: events=164,734, snapshots=4,796
+[replay] processed 2026-04-16T18.parquet: events=132,250, snapshots=4,988
+[replay] processed 2026-04-16T19.parquet: events=133,585, snapshots=5,180
+[replay] processed 2026-04-16T20.parquet: events=137,624, snapshots=5,372
+[replay] processed 2026-04-16T21.parquet: events=150,447, snapshots=5,564
+[replay] processed 2026-04-16T22.parquet: events=188,999, snapshots=5,740
+[replay] processed 2026-04-16T23.parquet: events=152,587, snapshots=5,916
+[replay] processed 2026-04-17T00.parquet: events=137,190, snapshots=6,108
+[replay] processed 2026-04-17T01.parquet: events=162,458, snapshots=6,300
+[replay] processed 2026-04-17T02.parquet: events=148,053, snapshots=6,492
+[replay] processed 2026-04-17T03.parquet: events=168,253, snapshots=6,684
+[replay] saved checkpoint after 2026-04-17T03.parquet: snapshots=6,684
+[replay] processed 2026-04-17T04.parquet: events=186,443, snapshots=6,876
+[replay] processed 2026-04-17T05.parquet: events=152,264, snapshots=7,068
+[replay] processed 2026-04-17T06.parquet: events=153,564, snapshots=7,260
+[replay] processed 2026-04-17T07.parquet: events=157,505, snapshots=7,452
+[replay] processed 2026-04-17T08.parquet: events=167,661, snapshots=7,644
+[replay] processed 2026-04-17T09.parquet: events=172,926, snapshots=7,836
+[replay] processed 2026-04-17T10.parquet: events=160,894, snapshots=8,028
+[replay] processed 2026-04-17T11.parquet: events=154,733, snapshots=8,220
+[replay] processed 2026-04-17T12.parquet: events=186,080, snapshots=8,412
+[replay] processed 2026-04-17T13.parquet: events=167,393, snapshots=8,604
+[replay] processed 2026-04-17T14.parquet: events=176,618, snapshots=8,796
+[replay] processed 2026-04-17T15.parquet: events=167,985, snapshots=8,988
+[replay] saved checkpoint after 2026-04-17T15.parquet: snapshots=8,988
+[replay] processed 2026-04-17T16.parquet: events=157,400, snapshots=9,180
+[replay] processed 2026-04-17T17.parquet: events=159,869, snapshots=9,372
+[replay] processed 2026-04-17T18.parquet: events=161,548, snapshots=9,564
+[replay] processed 2026-04-17T19.parquet: events=167,411, snapshots=9,756
+[replay] processed 2026-04-17T20.parquet: events=169,600, snapshots=9,948
+[replay] processed 2026-04-17T21.parquet: events=162,096, snapshots=10,140
+[replay] processed 2026-04-17T22.parquet: events=184,727, snapshots=10,332
+[replay] processed 2026-04-17T23.parquet: events=170,345, snapshots=10,524
+[replay] processed 2026-04-18T00.parquet: events=159,708, snapshots=10,716
+[replay] processed 2026-04-18T01.parquet: events=169,879, snapshots=10,908
+[replay] processed 2026-04-18T02.parquet: events=141,087, snapshots=11,100
+[replay] processed 2026-04-18T03.parquet: events=153,992, snapshots=11,292
+[replay] saved checkpoint after 2026-04-18T03.parquet: snapshots=11,292
+[replay] processed 2026-04-18T04.parquet: events=179,007, snapshots=11,484
+[replay] processed 2026-04-18T05.parquet: events=162,381, snapshots=11,676
+[replay] processed 2026-04-18T06.parquet: events=166,898, snapshots=11,868
+[replay] processed 2026-04-18T07.parquet: events=153,996, snapshots=12,060
+[replay] processed 2026-04-18T08.parquet: events=165,902, snapshots=12,252
+[replay] processed 2026-04-18T09.parquet: events=163,409, snapshots=12,444
+[replay] processed 2026-04-18T10.parquet: events=122,932, snapshots=12,560
+[replay] processed 2026-04-18T11.parquet: events=63,581, snapshots=12,588
+[replay] processed 2026-04-18T12.parquet: events=175,488, snapshots=12,780
+[replay] processed 2026-04-18T13.parquet: events=170,486, snapshots=12,972
+[replay] processed 2026-04-18T14.parquet: events=167,449, snapshots=13,164
+[replay] processed 2026-04-18T15.parquet: events=165,115, snapshots=13,356
+[replay] saved checkpoint after 2026-04-18T15.parquet: snapshots=13,356
+[replay] processed 2026-04-18T16.parquet: events=153,268, snapshots=13,548
+[replay] processed 2026-04-18T17.parquet: events=170,190, snapshots=13,740
+[replay] processed 2026-04-18T18.parquet: events=145,167, snapshots=13,932
+[replay] processed 2026-04-18T19.parquet: events=139,806, snapshots=14,124
+[replay] processed 2026-04-18T20.parquet: events=148,747, snapshots=14,316
+[replay] processed 2026-04-18T21.parquet: events=151,318, snapshots=14,508
+[replay] processed 2026-04-18T22.parquet: events=146,161, snapshots=14,700
+[replay] processed 2026-04-18T23.parquet: events=134,675, snapshots=14,892
+[replay] processed 2026-04-19T00.parquet: events=157,936, snapshots=15,084
+[replay] processed 2026-04-19T01.parquet: events=140,820, snapshots=15,276
+[replay] processed 2026-04-19T02.parquet: events=149,924, snapshots=15,468
+[replay] processed 2026-04-19T03.parquet: events=160,902, snapshots=15,660
+[replay] saved checkpoint after 2026-04-19T03.parquet: snapshots=15,660
+[replay] processed 2026-04-19T04.parquet: events=175,161, snapshots=15,852
+[replay] processed 2026-04-19T05.parquet: events=155,597, snapshots=16,044
+[replay] processed 2026-04-19T06.parquet: events=166,479, snapshots=16,236
+[replay] processed 2026-04-19T07.parquet: events=159,891, snapshots=16,428
+[replay] processed 2026-04-19T08.parquet: events=149,130, snapshots=16,620
+[replay] processed 2026-04-19T09.parquet: events=163,299, snapshots=16,812
+[replay] processed 2026-04-19T10.parquet: events=162,054, snapshots=17,004
+[replay] processed 2026-04-19T11.parquet: events=148,260, snapshots=17,196
+[replay] processed 2026-04-19T12.parquet: events=157,975, snapshots=17,388
+[replay] processed 2026-04-19T13.parquet: events=178,915, snapshots=17,580
+[replay] processed 2026-04-19T14.parquet: events=155,252, snapshots=17,772
+[replay] processed 2026-04-19T15.parquet: events=153,167, snapshots=17,964
+[replay] saved checkpoint after 2026-04-19T15.parquet: snapshots=17,964
+[replay] processed 2026-04-19T16.parquet: events=172,851, snapshots=18,156
+[replay] processed 2026-04-19T17.parquet: events=143,341, snapshots=18,348
+[replay] processed 2026-04-19T18.parquet: events=153,941, snapshots=18,540
+[replay] processed 2026-04-19T19.parquet: events=174,199, snapshots=18,732
+[replay] processed 2026-04-19T20.parquet: events=154,472, snapshots=18,924
+[replay] processed 2026-04-19T21.parquet: events=168,173, snapshots=19,116
+[replay] processed 2026-04-19T22.parquet: events=160,153, snapshots=19,308
+[replay] processed 2026-04-19T23.parquet: events=136,806, snapshots=19,500
+[replay] processed 2026-04-20T00.parquet: events=155,371, snapshots=19,692
+[replay] processed 2026-04-20T01.parquet: events=144,927, snapshots=19,884
+[replay] processed 2026-04-20T02.parquet: events=147,033, snapshots=20,076
+[replay] processed 2026-04-20T03.parquet: events=151,450, snapshots=20,268
+[replay] saved checkpoint after 2026-04-20T03.parquet: snapshots=20,268
+[replay] processed 2026-04-20T04.parquet: events=151,878, snapshots=20,460
+[replay] processed 2026-04-20T05.parquet: events=164,395, snapshots=20,652
+[replay] processed 2026-04-20T06.parquet: events=150,173, snapshots=20,844
+[replay] processed 2026-04-20T07.parquet: events=143,392, snapshots=21,036
+[replay] processed 2026-04-20T08.parquet: events=134,217, snapshots=21,228
+[replay] processed 2026-04-20T09.parquet: events=142,106, snapshots=21,420
+[replay] processed 2026-04-20T10.parquet: events=138,855, snapshots=21,612
+[replay] processed 2026-04-20T11.parquet: events=130,716, snapshots=21,804
+[replay] processed 2026-04-20T12.parquet: events=145,111, snapshots=21,996
+[replay] processed 2026-04-20T13.parquet: events=122,773, snapshots=22,188
+[replay] processed 2026-04-20T14.parquet: events=148,172, snapshots=22,380
+[replay] processed 2026-04-20T15.parquet: events=11,059, snapshots=22,572
+[replay] saved checkpoint after 2026-04-20T15.parquet: snapshots=22,572
+[replay] processed 2026-04-20T16.parquet: events=110,433, snapshots=22,764
+[replay] processed 2026-04-20T17.parquet: events=164,534, snapshots=22,956
+[replay] processed 2026-04-20T18.parquet: events=192,741, snapshots=23,148
+[replay] processed 2026-04-20T19.parquet: events=269,202, snapshots=23,340
+[replay] processed 2026-04-20T20.parquet: events=199,720, snapshots=23,532
+[replay] processed 2026-04-20T21.parquet: events=196,589, snapshots=23,724
+[replay] processed 2026-04-20T22.parquet: events=188,042, snapshots=23,916
+[replay] processed 2026-04-20T23.parquet: events=138,577, snapshots=24,108
+[replay] processed 2026-04-21T00.parquet: events=124,850, snapshots=24,300
+[replay] processed 2026-04-21T01.parquet: events=138,914, snapshots=24,492
+[replay] processed 2026-04-21T02.parquet: events=135,920, snapshots=24,684
+[replay] processed 2026-04-21T03.parquet: events=124,706, snapshots=24,876
+[replay] saved checkpoint after 2026-04-21T03.parquet: snapshots=24,876
+[replay] processed 2026-04-21T04.parquet: events=139,847, snapshots=25,068
+[replay] processed 2026-04-21T05.parquet: events=154,972, snapshots=25,260
+[replay] processed 2026-04-21T06.parquet: events=142,873, snapshots=25,452
+[replay] processed 2026-04-21T07.parquet: events=123,921, snapshots=25,644
+[replay] processed 2026-04-21T08.parquet: events=134,522, snapshots=25,836
+[replay] processed 2026-04-21T09.parquet: events=132,039, snapshots=26,028
+[replay] processed 2026-04-21T10.parquet: events=134,308, snapshots=26,220
+[replay] processed 2026-04-21T11.parquet: events=163,912, snapshots=26,412
+[replay] processed 2026-04-21T12.parquet: events=166,389, snapshots=26,604
+[replay] processed 2026-04-21T13.parquet: events=158,479, snapshots=26,796
+[replay] processed 2026-04-21T14.parquet: events=180,045, snapshots=26,988
+[replay] processed 2026-04-21T15.parquet: events=148,339, snapshots=27,180
+[replay] saved checkpoint after 2026-04-21T15.parquet: snapshots=27,180
+[replay] processed 2026-04-21T16.parquet: events=155,513, snapshots=27,372
+[replay] processed 2026-04-21T17.parquet: events=167,548, snapshots=27,564
+[replay] processed 2026-04-21T18.parquet: events=153,676, snapshots=27,756
+[replay] processed 2026-04-21T19.parquet: events=145,415, snapshots=27,948
+[replay] processed 2026-04-21T20.parquet: events=139,573, snapshots=28,140
+[replay] processed 2026-04-21T21.parquet: events=149,049, snapshots=28,332
+[replay] processed 2026-04-21T22.parquet: events=131,246, snapshots=28,524
+[replay] processed 2026-04-21T23.parquet: events=139,563, snapshots=28,716
+[replay] processed 2026-04-22T00.parquet: events=118,094, snapshots=28,908
+[replay] processed 2026-04-22T01.parquet: events=127,948, snapshots=29,100
+[replay] processed 2026-04-22T02.parquet: events=140,486, snapshots=29,292
+[replay] processed 2026-04-22T03.parquet: events=126,585, snapshots=29,484
+[replay] saved checkpoint after 2026-04-22T03.parquet: snapshots=29,484
+[replay] processed 2026-04-22T04.parquet: events=147,458, snapshots=29,676
+[replay] processed 2026-04-22T05.parquet: events=125,231, snapshots=29,868
+[replay] processed 2026-04-22T06.parquet: events=113,728, snapshots=30,044
+[replay] processed 2026-04-22T07.parquet: events=112,864, snapshots=30,236
+[replay] processed 2026-04-22T08.parquet: events=112,931, snapshots=30,428
+[replay] processed 2026-04-22T09.parquet: events=121,356, snapshots=30,620
+[replay] processed 2026-04-22T10.parquet: events=116,568, snapshots=30,812
+[replay] processed 2026-04-22T11.parquet: events=146,841, snapshots=31,004
+[replay] processed 2026-04-22T12.parquet: events=143,749, snapshots=31,196
+[replay] processed 2026-04-22T13.parquet: events=136,440, snapshots=31,388
+[replay] processed 2026-04-22T14.parquet: events=153,113, snapshots=31,580
+[replay] processed 2026-04-22T15.parquet: events=138,722, snapshots=31,772
+[replay] saved checkpoint after 2026-04-22T15.parquet: snapshots=31,772
+[replay] processed 2026-04-22T16.parquet: events=127,107, snapshots=31,964
+[replay] processed 2026-04-22T17.parquet: events=130,582, snapshots=32,156
+[replay] processed 2026-04-22T18.parquet: events=140,518, snapshots=32,348
+[replay] processed 2026-04-22T19.parquet: events=117,978, snapshots=32,540
+[replay] processed 2026-04-22T20.parquet: events=133,430, snapshots=32,732
+[replay] processed 2026-04-22T21.parquet: events=150,724, snapshots=32,924
+[replay] processed 2026-04-22T22.parquet: events=132,057, snapshots=33,116
+[replay] processed 2026-04-22T23.parquet: events=125,956, snapshots=33,308
+[replay] processed 2026-04-23T00.parquet: events=133,478, snapshots=33,500
+[replay] processed 2026-04-23T01.parquet: events=133,545, snapshots=33,692
+[replay] processed 2026-04-23T02.parquet: events=133,607, snapshots=33,884
+[replay] processed 2026-04-23T03.parquet: events=135,918, snapshots=34,076
+[replay] saved checkpoint after 2026-04-23T03.parquet: snapshots=34,076
+[replay] processed 2026-04-23T04.parquet: events=129,056, snapshots=34,268
+[replay] processed 2026-04-23T05.parquet: events=132,718, snapshots=34,460
+[replay] processed 2026-04-23T06.parquet: events=129,108, snapshots=34,652
+[replay] processed 2026-04-23T07.parquet: events=128,889, snapshots=34,844
+[replay] processed 2026-04-23T08.parquet: events=143,258, snapshots=35,036
+[replay] processed 2026-04-23T09.parquet: events=157,481, snapshots=35,228
+[replay] processed 2026-04-23T10.parquet: events=135,815, snapshots=35,420
+[replay] processed 2026-04-23T11.parquet: events=137,900, snapshots=35,612
+[replay] processed 2026-04-23T12.parquet: events=145,832, snapshots=35,804
+[replay] processed 2026-04-23T13.parquet: events=126,240, snapshots=35,996
+[replay] processed 2026-04-23T14.parquet: events=137,559, snapshots=36,188
+[replay] processed 2026-04-23T15.parquet: events=145,734, snapshots=36,380
+[replay] saved checkpoint after 2026-04-23T15.parquet: snapshots=36,380
+[replay] processed 2026-04-23T16.parquet: events=142,135, snapshots=36,572
+[replay] processed 2026-04-23T17.parquet: events=120,517, snapshots=36,764
+[replay] processed 2026-04-23T18.parquet: events=123,245, snapshots=36,956
+[replay] processed 2026-04-23T19.parquet: events=108,955, snapshots=37,148
+[replay] processed 2026-04-23T20.parquet: events=115,092, snapshots=37,340
+[replay] processed 2026-04-23T21.parquet: events=119,400, snapshots=37,532
+[replay] processed 2026-04-23T22.parquet: events=137,692, snapshots=37,724
+[replay] processed 2026-04-23T23.parquet: events=170,670, snapshots=37,916
+[replay] processed 2026-04-24T00.parquet: events=133,804, snapshots=38,108
+[replay] processed 2026-04-24T01.parquet: events=163,718, snapshots=38,300
+[replay] processed 2026-04-24T02.parquet: events=157,238, snapshots=38,492
+[replay] processed 2026-04-24T03.parquet: events=134,365, snapshots=38,684
+[replay] saved checkpoint after 2026-04-24T03.parquet: snapshots=38,684
+[replay] processed 2026-04-24T04.parquet: events=151,048, snapshots=38,876
+[replay] processed 2026-04-24T05.parquet: events=148,924, snapshots=39,068
+[replay] processed 2026-04-24T06.parquet: events=169,393, snapshots=39,260
+[replay] processed 2026-04-24T07.parquet: events=208,348, snapshots=39,452
+[replay] processed 2026-04-24T08.parquet: events=207,059, snapshots=39,644
+[replay] processed 2026-04-24T09.parquet: events=175,166, snapshots=39,836
+[replay] processed 2026-04-24T10.parquet: events=139,346, snapshots=40,028
+[replay] processed 2026-04-24T11.parquet: events=155,804, snapshots=40,220
+[replay] processed 2026-04-24T12.parquet: events=127,002, snapshots=40,412
+[replay] processed 2026-04-24T13.parquet: events=136,123, snapshots=40,604
+[replay] processed 2026-04-24T14.parquet: events=188,372, snapshots=40,796
+[replay] processed 2026-04-24T15.parquet: events=191,107, snapshots=40,988
+[replay] saved checkpoint after 2026-04-24T15.parquet: snapshots=40,988
+[replay] processed 2026-04-24T16.parquet: events=194,546, snapshots=41,180
+[replay] processed 2026-04-24T17.parquet: events=193,297, snapshots=41,372
+[replay] processed 2026-04-24T18.parquet: events=184,100, snapshots=41,564
+[replay] processed 2026-04-24T19.parquet: events=147,954, snapshots=41,756
+[replay] processed 2026-04-24T20.parquet: events=149,848, snapshots=41,948
+[replay] processed 2026-04-24T21.parquet: events=152,129, snapshots=42,140
+[replay] processed 2026-04-24T22.parquet: events=139,754, snapshots=42,332
+[replay] processed 2026-04-24T23.parquet: events=126,498, snapshots=42,524
+[replay] processed 2026-04-25T00.parquet: events=122,274, snapshots=42,716
+[replay] processed 2026-04-25T01.parquet: events=130,653, snapshots=42,908
+[replay] processed 2026-04-25T02.parquet: events=121,749, snapshots=43,100
+[replay] processed 2026-04-25T03.parquet: events=124,171, snapshots=43,292
+[replay] saved checkpoint after 2026-04-25T03.parquet: snapshots=43,292
+[replay] processed 2026-04-25T04.parquet: events=118,555, snapshots=43,484
+[replay] processed 2026-04-25T05.parquet: events=116,381, snapshots=43,676
+[replay] processed 2026-04-25T06.parquet: events=127,123, snapshots=43,868
+[replay] processed 2026-04-25T07.parquet: events=117,763, snapshots=44,060
+[replay] processed 2026-04-25T08.parquet: events=109,338, snapshots=44,252
+[replay] processed 2026-04-25T09.parquet: events=163,033, snapshots=44,444
+[replay] processed 2026-04-25T10.parquet: events=141,607, snapshots=44,636
+[replay] processed 2026-04-25T11.parquet: events=141,871, snapshots=44,828
+[replay] processed 2026-04-25T12.parquet: events=159,469, snapshots=45,020
+[replay] processed 2026-04-25T13.parquet: events=143,977, snapshots=45,212
+[replay] processed 2026-04-25T14.parquet: events=148,206, snapshots=45,404
+[replay] processed 2026-04-25T15.parquet: events=146,705, snapshots=45,596
+[replay] saved checkpoint after 2026-04-25T15.parquet: snapshots=45,596
+[replay] processed 2026-04-25T16.parquet: events=150,520, snapshots=45,788
+[replay] processed 2026-04-25T17.parquet: events=166,988, snapshots=45,980
+[replay] processed 2026-04-25T18.parquet: events=164,953, snapshots=46,172
+[replay] processed 2026-04-25T19.parquet: events=150,266, snapshots=46,364
+[replay] processed 2026-04-25T20.parquet: events=134,859, snapshots=46,556
+[replay] processed 2026-04-25T21.parquet: events=134,577, snapshots=46,748
+[replay] processed 2026-04-25T22.parquet: events=139,064, snapshots=46,940
+[replay] processed 2026-04-25T23.parquet: events=145,111, snapshots=47,132
+[replay] processed 2026-04-26T00.parquet: events=126,308, snapshots=47,324
+[replay] processed 2026-04-26T01.parquet: events=122,456, snapshots=47,516
+[replay] processed 2026-04-26T02.parquet: events=121,982, snapshots=47,708
+[replay] processed 2026-04-26T03.parquet: events=129,160, snapshots=47,900
+[replay] saved checkpoint after 2026-04-26T03.parquet: snapshots=47,900
+[replay] processed 2026-04-26T04.parquet: events=119,789, snapshots=48,092
+[replay] processed 2026-04-26T05.parquet: events=123,877, snapshots=48,284
+[replay] processed 2026-04-26T06.parquet: events=128,871, snapshots=48,476
+[replay] processed 2026-04-26T07.parquet: events=124,840, snapshots=48,668
+[replay] processed 2026-04-26T08.parquet: events=129,439, snapshots=48,860
+[replay] processed 2026-04-26T09.parquet: events=131,536, snapshots=49,052
+[replay] processed 2026-04-26T10.parquet: events=140,382, snapshots=49,244
+[replay] processed 2026-04-26T11.parquet: events=143,535, snapshots=49,436
+[replay] processed 2026-04-26T12.parquet: events=155,915, snapshots=49,628
+[replay] processed 2026-04-26T13.parquet: events=165,110, snapshots=49,820
+[replay] processed 2026-04-26T14.parquet: events=155,042, snapshots=50,012
+[replay] processed 2026-04-26T15.parquet: events=133,719, snapshots=50,204
+[replay] saved checkpoint after 2026-04-26T15.parquet: snapshots=50,204
+[replay] processed 2026-04-26T16.parquet: events=125,711, snapshots=50,396
+[replay] processed 2026-04-26T17.parquet: events=133,277, snapshots=50,588
+[replay] processed 2026-04-26T18.parquet: events=141,319, snapshots=50,780
+[replay] processed 2026-04-26T19.parquet: events=132,255, snapshots=50,972
+[replay] processed 2026-04-26T20.parquet: events=133,571, snapshots=51,164
+[replay] processed 2026-04-26T21.parquet: events=140,435, snapshots=51,356
+[replay] processed 2026-04-26T22.parquet: events=119,332, snapshots=51,548
+[replay] processed 2026-04-26T23.parquet: events=150,775, snapshots=51,740
+[replay] processed 2026-04-27T00.parquet: events=186,081, snapshots=51,932
+[replay] processed 2026-04-27T01.parquet: events=181,398, snapshots=52,124
+[replay] processed 2026-04-27T02.parquet: events=182,532, snapshots=52,316
+[replay] processed 2026-04-27T03.parquet: events=188,343, snapshots=52,508
+[replay] saved checkpoint after 2026-04-27T03.parquet: snapshots=52,508
+[replay] processed 2026-04-27T04.parquet: events=183,068, snapshots=52,700
+[replay] processed 2026-04-27T05.parquet: events=188,679, snapshots=52,892
+[replay] processed 2026-04-27T06.parquet: events=180,497, snapshots=53,084
+[replay] processed 2026-04-27T07.parquet: events=183,176, snapshots=53,276
+[replay] processed 2026-04-27T08.parquet: events=210,891, snapshots=53,468
+[replay] processed 2026-04-27T09.parquet: events=203,248, snapshots=53,660
+[replay] processed 2026-04-27T10.parquet: events=221,518, snapshots=53,852
+[replay] processed 2026-04-27T11.parquet: events=360,037, snapshots=54,044
+[replay] processed 2026-04-27T12.parquet: events=176,523, snapshots=54,236
+[replay] processed 2026-04-27T13.parquet: events=200,494, snapshots=54,428
+[replay] processed 2026-04-27T14.parquet: events=215,404, snapshots=54,620
+[replay] processed 2026-04-27T15.parquet: events=218,413, snapshots=54,812
+[replay] saved checkpoint after 2026-04-27T15.parquet: snapshots=54,812
+[replay] processed 2026-04-27T16.parquet: events=221,742, snapshots=55,004
+[replay] processed 2026-04-27T17.parquet: events=201,729, snapshots=55,196
+[replay] processed 2026-04-27T18.parquet: events=186,040, snapshots=55,388
+[replay] processed 2026-04-27T19.parquet: events=154,502, snapshots=55,580
+[replay] processed 2026-04-27T20.parquet: events=144,560, snapshots=55,772
+[replay] processed 2026-04-27T21.parquet: events=155,087, snapshots=55,964
+[replay] processed 2026-04-27T22.parquet: events=171,658, snapshots=56,156
+[replay] processed 2026-04-27T23.parquet: events=146,768, snapshots=56,348
+[replay] processed 2026-04-28T00.parquet: events=136,374, snapshots=56,540
+[replay] processed 2026-04-28T01.parquet: events=156,737, snapshots=56,732
+[replay] processed 2026-04-28T02.parquet: events=176,641, snapshots=56,924
+[replay] processed 2026-04-28T03.parquet: events=176,150, snapshots=57,116
+[replay] saved checkpoint after 2026-04-28T03.parquet: snapshots=57,116
+[replay] processed 2026-04-28T04.parquet: events=145,899, snapshots=57,308
+[replay] processed 2026-04-28T05.parquet: events=145,115, snapshots=57,500
+[replay] processed 2026-04-28T06.parquet: events=141,173, snapshots=57,692
+[replay] processed 2026-04-28T07.parquet: events=154,005, snapshots=57,884
+[replay] processed 2026-04-28T08.parquet: events=147,840, snapshots=58,076
+[replay] processed 2026-04-28T09.parquet: events=136,161, snapshots=58,268
+[replay] processed 2026-04-28T10.parquet: events=118,883, snapshots=58,460
+[replay] processed 2026-04-28T11.parquet: events=20,926, snapshots=58,652
+[replay] processed 2026-04-28T12.parquet: events=144,567, snapshots=58,844
+[replay] processed 2026-04-28T13.parquet: events=186,362, snapshots=59,036
+[replay] processed 2026-04-28T14.parquet: events=137,092, snapshots=59,228
+[replay] processed 2026-04-28T15.parquet: events=144,905, snapshots=59,420
+[replay] saved checkpoint after 2026-04-28T15.parquet: snapshots=59,420
+[replay] processed 2026-04-28T16.parquet: events=126,890, snapshots=59,612
+[replay] processed 2026-04-28T17.parquet: events=172,650, snapshots=59,804
+[replay] processed 2026-04-28T18.parquet: events=193,346, snapshots=59,996
+[replay] processed 2026-04-28T19.parquet: events=146,033, snapshots=60,188
+[replay] processed 2026-04-28T20.parquet: events=128,061, snapshots=60,380
+[replay] processed 2026-04-28T21.parquet: events=114,442, snapshots=60,572
+[replay] processed 2026-04-28T22.parquet: events=113,028, snapshots=60,764
+[replay] processed 2026-04-28T23.parquet: events=105,150, snapshots=60,956
+[replay] processed 2026-04-29T00.parquet: events=98,719, snapshots=61,148
+[replay] processed 2026-04-29T01.parquet: events=107,024, snapshots=61,340
+[replay] processed 2026-04-29T02.parquet: events=101,276, snapshots=61,532
+[replay] processed 2026-04-29T03.parquet: events=106,377, snapshots=61,724
+[replay] saved checkpoint after 2026-04-29T03.parquet: snapshots=61,724
+[replay] processed 2026-04-29T04.parquet: events=111,060, snapshots=61,916
+[replay] processed 2026-04-29T05.parquet: events=113,436, snapshots=62,108
+[replay] processed 2026-04-29T06.parquet: events=118,773, snapshots=62,300
+[replay] processed 2026-04-29T07.parquet: events=170,529, snapshots=62,492
+[replay] processed 2026-04-29T08.parquet: events=110,991, snapshots=62,684
+[replay] processed 2026-04-29T09.parquet: events=115,469, snapshots=62,876
+[replay] processed 2026-04-29T10.parquet: events=112,859, snapshots=63,068
+[replay] processed 2026-04-29T11.parquet: events=114,997, snapshots=63,260
+[replay] processed 2026-04-29T12.parquet: events=107,530, snapshots=63,452
+[replay] processed 2026-04-29T13.parquet: events=120,831, snapshots=63,644
+[replay] processed 2026-04-29T14.parquet: events=155,969, snapshots=63,836
+[replay] processed 2026-04-29T15.parquet: events=165,607, snapshots=64,028
+[replay] saved checkpoint after 2026-04-29T15.parquet: snapshots=64,028
+[replay] processed 2026-04-29T16.parquet: events=140,326, snapshots=64,220
+[replay] processed 2026-04-29T17.parquet: events=127,703, snapshots=64,412
+[replay] processed 2026-04-29T18.parquet: events=118,809, snapshots=64,604
+[replay] processed 2026-04-29T19.parquet: events=151,165, snapshots=64,796
+[replay] processed 2026-04-29T20.parquet: events=119,770, snapshots=64,988
+[replay] processed 2026-04-29T21.parquet: events=107,523, snapshots=65,180
+[replay] processed 2026-04-29T22.parquet: events=111,418, snapshots=65,372
+[replay] processed 2026-04-29T23.parquet: events=125,321, snapshots=65,564
+[replay] processed 2026-04-30T00.parquet: events=122,660, snapshots=65,756
+[replay] processed 2026-04-30T01.parquet: events=114,018, snapshots=65,948
+[replay] processed 2026-04-30T02.parquet: events=124,171, snapshots=66,140
+[replay] processed 2026-04-30T03.parquet: events=111,530, snapshots=66,332
+[replay] saved checkpoint after 2026-04-30T03.parquet: snapshots=66,332
+[replay] processed 2026-04-30T04.parquet: events=121,168, snapshots=66,524
+[replay] processed 2026-04-30T05.parquet: events=103,954, snapshots=66,716
+[replay] processed 2026-04-30T06.parquet: events=131,448, snapshots=66,908
+[replay] processed 2026-04-30T07.parquet: events=141,365, snapshots=67,100
+[replay] processed 2026-04-30T08.parquet: events=131,595, snapshots=67,292
+[replay] processed 2026-04-30T09.parquet: events=140,405, snapshots=67,484
+[replay] processed 2026-04-30T10.parquet: events=122,819, snapshots=67,676
+[replay] processed 2026-04-30T11.parquet: events=120,898, snapshots=67,868
+[replay] processed 2026-04-30T12.parquet: events=138,241, snapshots=68,060
+[replay] processed 2026-04-30T13.parquet: events=147,205, snapshots=68,252
+[replay] processed 2026-04-30T14.parquet: events=129,932, snapshots=68,444
+[replay] processed 2026-04-30T15.parquet: events=137,682, snapshots=68,636
+[replay] saved checkpoint after 2026-04-30T15.parquet: snapshots=68,636
+[replay] processed 2026-04-30T16.parquet: events=138,436, snapshots=68,828
+[replay] processed 2026-04-30T17.parquet: events=153,074, snapshots=69,020
+[replay] processed 2026-04-30T18.parquet: events=139,831, snapshots=69,212
+[replay] processed 2026-04-30T19.parquet: events=129,829, snapshots=69,404
+[replay] processed 2026-04-30T20.parquet: events=129,020, snapshots=69,596
+[replay] processed 2026-04-30T21.parquet: events=111,971, snapshots=69,788
+[replay] processed 2026-04-30T22.parquet: events=136,117, snapshots=69,980
+[replay] processed 2026-04-30T23.parquet: events=113,607, snapshots=70,172
+[replay] processed 2026-05-01T00.parquet: events=122,694, snapshots=70,364
+[replay] processed 2026-05-01T01.parquet: events=128,633, snapshots=70,556
+[replay] processed 2026-05-01T02.parquet: events=128,416, snapshots=70,748
+[replay] processed 2026-05-01T03.parquet: events=150,462, snapshots=70,940
+[replay] saved checkpoint after 2026-05-01T03.parquet: snapshots=70,940
+[replay] processed 2026-05-01T04.parquet: events=146,613, snapshots=71,132
+[replay] processed 2026-05-01T05.parquet: events=130,134, snapshots=71,324
+[replay] processed 2026-05-01T06.parquet: events=126,442, snapshots=71,516
+[replay] processed 2026-05-01T07.parquet: events=122,264, snapshots=71,708
+[replay] processed 2026-05-01T08.parquet: events=122,898, snapshots=71,900
+[replay] processed 2026-05-01T09.parquet: events=113,598, snapshots=72,092
+[replay] processed 2026-05-01T10.parquet: events=120,787, snapshots=72,284
+[replay] processed 2026-05-01T11.parquet: events=124,602, snapshots=72,476
+[replay] processed 2026-05-01T12.parquet: events=162,398, snapshots=72,668
+[replay] processed 2026-05-01T13.parquet: events=141,024, snapshots=72,860
+[replay] processed 2026-05-01T14.parquet: events=124,365, snapshots=73,052
+[replay] processed 2026-05-01T15.parquet: events=136,161, snapshots=73,244
+[replay] saved checkpoint after 2026-05-01T15.parquet: snapshots=73,244
+[replay] processed 2026-05-01T16.parquet: events=148,156, snapshots=73,436
+[replay] processed 2026-05-01T17.parquet: events=141,563, snapshots=73,628
+[replay] processed 2026-05-01T18.parquet: events=140,162, snapshots=73,820
+[replay] processed 2026-05-01T19.parquet: events=64,958, snapshots=74,012
+[replay] processed 2026-05-01T20.parquet: events=97,867, snapshots=74,204
+[replay] processed 2026-05-01T21.parquet: events=101,792, snapshots=74,396
+[replay] processed 2026-05-01T22.parquet: events=120,636, snapshots=74,588
+[replay] processed 2026-05-01T23.parquet: events=103,327, snapshots=74,780
+[replay] processed 2026-05-02T00.parquet: events=110,721, snapshots=74,972
+[replay] processed 2026-05-02T01.parquet: events=108,515, snapshots=75,164
+[replay] processed 2026-05-02T02.parquet: events=116,656, snapshots=75,356
+[replay] processed 2026-05-02T03.parquet: events=124,186, snapshots=75,548
+[replay] saved checkpoint after 2026-05-02T03.parquet: snapshots=75,548
+[replay] processed 2026-05-02T04.parquet: events=122,519, snapshots=75,740
+[replay] processed 2026-05-02T05.parquet: events=220,735, snapshots=75,932
+[replay] processed 2026-05-02T06.parquet: events=94,004, snapshots=76,124
+[replay] processed 2026-05-02T07.parquet: events=92,792, snapshots=76,316
+[replay] processed 2026-05-02T08.parquet: events=131,594, snapshots=76,508
+[replay] processed 2026-05-02T09.parquet: events=87,467, snapshots=76,700
+[replay] processed 2026-05-02T10.parquet: events=129,179, snapshots=76,892
+[replay] processed 2026-05-02T11.parquet: events=111,640, snapshots=77,084
+[replay] processed 2026-05-02T12.parquet: events=86,426, snapshots=77,276
+[replay] processed 2026-05-02T13.parquet: events=93,230, snapshots=77,468
+[replay] processed 2026-05-02T14.parquet: events=137,543, snapshots=77,660
+[replay] processed 2026-05-02T15.parquet: events=96,578, snapshots=77,852
+[replay] saved checkpoint after 2026-05-02T15.parquet: snapshots=77,852
+[replay] processed 2026-05-02T16.parquet: events=100,833, snapshots=78,044
+[replay] processed 2026-05-02T17.parquet: events=83,153, snapshots=78,236
+[replay] processed 2026-05-02T18.parquet: events=85,278, snapshots=78,428
+[replay] processed 2026-05-02T19.parquet: events=89,623, snapshots=78,620
+[replay] processed 2026-05-02T20.parquet: events=89,616, snapshots=78,812
+[replay] processed 2026-05-02T21.parquet: events=83,115, snapshots=79,004
+[replay] processed 2026-05-02T22.parquet: events=96,573, snapshots=79,196
+[replay] processed 2026-05-02T23.parquet: events=94,739, snapshots=79,388
+[replay] processed 2026-05-03T00.parquet: events=94,506, snapshots=79,580
+[replay] processed 2026-05-03T01.parquet: events=90,145, snapshots=79,772
+[replay] processed 2026-05-03T02.parquet: events=94,437, snapshots=79,964
+[replay] processed 2026-05-03T03.parquet: events=103,184, snapshots=80,156
+[replay] saved checkpoint after 2026-05-03T03.parquet: snapshots=80,156
+[replay] processed 2026-05-03T04.parquet: events=89,790, snapshots=80,348
+[replay] processed 2026-05-03T05.parquet: events=96,846, snapshots=80,540
+[replay] processed 2026-05-03T06.parquet: events=105,534, snapshots=80,732
+[replay] processed 2026-05-03T07.parquet: events=105,817, snapshots=80,924
+[replay] processed 2026-05-03T08.parquet: events=86,355, snapshots=81,116
+[replay] processed 2026-05-03T09.parquet: events=83,254, snapshots=81,308
+[replay] processed 2026-05-03T10.parquet: events=96,071, snapshots=81,500
+[replay] processed 2026-05-03T11.parquet: events=95,857, snapshots=81,692
+[replay] processed 2026-05-03T12.parquet: events=95,626, snapshots=81,884
+[replay] processed 2026-05-03T13.parquet: events=95,410, snapshots=82,076
+[replay] processed 2026-05-03T14.parquet: events=101,525, snapshots=82,268
+[replay] processed 2026-05-03T15.parquet: events=126,791, snapshots=82,460
+[replay] saved checkpoint after 2026-05-03T15.parquet: snapshots=82,460
+[replay] processed 2026-05-03T16.parquet: events=112,407, snapshots=82,652
+[replay] processed 2026-05-03T17.parquet: events=105,710, snapshots=82,844
+[replay] processed 2026-05-03T18.parquet: events=114,959, snapshots=83,036
+[replay] processed 2026-05-03T19.parquet: events=109,935, snapshots=83,228
+[replay] processed 2026-05-03T20.parquet: events=111,967, snapshots=83,404
+[replay] processed 2026-05-03T21.parquet: events=132,994, snapshots=83,596
+[replay] processed 2026-05-03T22.parquet: events=108,681, snapshots=83,788
+[replay] processed 2026-05-03T23.parquet: events=114,895, snapshots=83,980
+[replay] processed 2026-05-04T00.parquet: events=100,580, snapshots=84,172
+[replay] processed 2026-05-04T01.parquet: events=102,508, snapshots=84,364
+[replay] processed 2026-05-04T02.parquet: events=95,823, snapshots=84,556
+[replay] processed 2026-05-04T03.parquet: events=83,752, snapshots=84,748
+[replay] saved checkpoint after 2026-05-04T03.parquet: snapshots=84,748
+[replay] processed 2026-05-04T04.parquet: events=84,100, snapshots=84,940
+[replay] processed 2026-05-04T05.parquet: events=81,529, snapshots=85,132
+[replay] processed 2026-05-04T06.parquet: events=86,399, snapshots=85,324
+[replay] processed 2026-05-04T07.parquet: events=85,631, snapshots=85,516
+[replay] processed 2026-05-04T08.parquet: events=98,943, snapshots=85,708
+[replay] processed 2026-05-04T09.parquet: events=93,275, snapshots=85,900
+[replay] processed 2026-05-04T10.parquet: events=131,210, snapshots=86,092
+[replay] processed 2026-05-04T11.parquet: events=103,331, snapshots=86,284
+[replay] processed 2026-05-04T12.parquet: events=94,201, snapshots=86,476
+[replay] processed 2026-05-04T13.parquet: events=122,827, snapshots=86,668
+[replay] processed 2026-05-04T14.parquet: events=152,234, snapshots=86,860
+[replay] processed 2026-05-04T15.parquet: events=142,621, snapshots=87,052
+[replay] saved checkpoint after 2026-05-04T15.parquet: snapshots=87,052
+[replay] processed 2026-05-04T16.parquet: events=122,600, snapshots=87,244
+[replay] processed 2026-05-04T17.parquet: events=118,489, snapshots=87,436
+[replay] processed 2026-05-04T18.parquet: events=128,064, snapshots=87,628
+[replay] processed 2026-05-04T19.parquet: events=107,614, snapshots=87,820
+[replay] processed 2026-05-04T20.parquet: events=107,675, snapshots=88,012
+[replay] processed 2026-05-04T21.parquet: events=102,409, snapshots=88,204
+[replay] processed 2026-05-04T22.parquet: events=127,665, snapshots=88,396
+[replay] processed 2026-05-04T23.parquet: events=92,672, snapshots=88,588
+[replay] processed 2026-05-05T00.parquet: events=106,958, snapshots=88,780
+[replay] processed 2026-05-05T01.parquet: events=100,614, snapshots=88,972
+[replay] processed 2026-05-05T02.parquet: events=112,976, snapshots=89,164
+[replay] processed 2026-05-05T03.parquet: events=113,213, snapshots=89,356
+[replay] saved checkpoint after 2026-05-05T03.parquet: snapshots=89,356
+[replay] processed 2026-05-05T04.parquet: events=132,475, snapshots=89,548
+[replay] processed 2026-05-05T05.parquet: events=110,360, snapshots=89,740
+[replay] processed 2026-05-05T06.parquet: events=105,752, snapshots=89,932
+[replay] processed 2026-05-05T07.parquet: events=102,814, snapshots=90,124
+[replay] processed 2026-05-05T08.parquet: events=101,548, snapshots=90,316
+[replay] processed 2026-05-05T09.parquet: events=115,558, snapshots=90,508
+[replay] processed 2026-05-05T10.parquet: events=113,100, snapshots=90,700
+[replay] processed 2026-05-05T11.parquet: events=107,540, snapshots=90,892
+[replay] processed 2026-05-05T12.parquet: events=113,148, snapshots=91,084
+[replay] processed 2026-05-05T13.parquet: events=124,360, snapshots=91,276
+[replay] processed 2026-05-05T14.parquet: events=132,899, snapshots=91,468
+[replay] processed 2026-05-05T15.parquet: events=136,167, snapshots=91,660
+[replay] saved checkpoint after 2026-05-05T15.parquet: snapshots=91,660
+[replay] processed 2026-05-05T16.parquet: events=127,726, snapshots=91,852
+[replay] processed 2026-05-05T17.parquet: events=131,756, snapshots=92,044
+[replay] processed 2026-05-05T18.parquet: events=135,726, snapshots=92,236
+[replay] processed 2026-05-05T19.parquet: events=140,856, snapshots=92,428
+[replay] processed 2026-05-05T20.parquet: events=135,594, snapshots=92,620
+[replay] processed 2026-05-05T21.parquet: events=141,628, snapshots=92,812
+[replay] processed 2026-05-05T22.parquet: events=140,614, snapshots=93,004
+[replay] processed 2026-05-05T23.parquet: events=129,887, snapshots=93,196
+[replay] processed 2026-05-06T00.parquet: events=130,796, snapshots=93,388
+[replay] processed 2026-05-06T01.parquet: events=133,069, snapshots=93,580
+[replay] processed 2026-05-06T02.parquet: events=135,879, snapshots=93,772
+[replay] processed 2026-05-06T03.parquet: events=134,346, snapshots=93,964
+[replay] saved checkpoint after 2026-05-06T03.parquet: snapshots=93,964
+[replay] processed 2026-05-06T04.parquet: events=131,855, snapshots=94,156
+[replay] processed 2026-05-06T05.parquet: events=125,718, snapshots=94,348
+[replay] processed 2026-05-06T06.parquet: events=132,265, snapshots=94,540
+[replay] processed 2026-05-06T07.parquet: events=139,392, snapshots=94,732
+[replay] processed 2026-05-06T08.parquet: events=143,101, snapshots=94,924
+[replay] processed 2026-05-06T09.parquet: events=123,530, snapshots=95,116
+[replay] processed 2026-05-06T10.parquet: events=128,437, snapshots=95,308
+[replay] processed 2026-05-06T11.parquet: events=137,004, snapshots=95,500
+[replay] processed 2026-05-06T12.parquet: events=134,397, snapshots=95,692
+[replay] processed 2026-05-06T13.parquet: events=135,833, snapshots=95,884
+[replay] processed 2026-05-06T14.parquet: events=133,389, snapshots=96,076
+[replay] processed 2026-05-06T15.parquet: events=138,463, snapshots=96,268
+[replay] saved checkpoint after 2026-05-06T15.parquet: snapshots=96,268
+[replay] processed 2026-05-06T16.parquet: events=130,848, snapshots=96,460
+[replay] processed 2026-05-06T17.parquet: events=138,552, snapshots=96,652
+[replay] processed 2026-05-06T18.parquet: events=132,888, snapshots=96,844
+[replay] processed 2026-05-06T19.parquet: events=129,639, snapshots=97,036
+[replay] processed 2026-05-06T20.parquet: events=114,973, snapshots=97,228
+[replay] processed 2026-05-06T21.parquet: events=110,164, snapshots=97,420
+[replay] processed 2026-05-06T22.parquet: events=177,082, snapshots=97,612
+[replay] processed 2026-05-06T23.parquet: events=165,496, snapshots=97,804
+[replay] processed 2026-05-07T00.parquet: events=159,885, snapshots=97,996
+[replay] processed 2026-05-07T01.parquet: events=151,101, snapshots=98,188
+[replay] processed 2026-05-07T02.parquet: events=172,242, snapshots=98,380
+[replay] processed 2026-05-07T03.parquet: events=168,692, snapshots=98,572
+[replay] saved checkpoint after 2026-05-07T03.parquet: snapshots=98,572
+[replay] processed 2026-05-07T04.parquet: events=164,503, snapshots=98,764
+[replay] processed 2026-05-07T05.parquet: events=154,736, snapshots=98,956
+[replay] processed 2026-05-07T06.parquet: events=174,486, snapshots=99,148
+[replay] processed 2026-05-07T07.parquet: events=170,037, snapshots=99,340
+[replay] processed 2026-05-07T08.parquet: events=167,240, snapshots=99,532
+[replay] processed 2026-05-07T09.parquet: events=166,935, snapshots=99,724
+[replay] processed 2026-05-07T10.parquet: events=166,053, snapshots=99,916
+[replay] processed 2026-05-07T11.parquet: events=159,274, snapshots=100,108
+[replay] processed 2026-05-07T12.parquet: events=163,266, snapshots=100,300
+[replay] processed 2026-05-07T13.parquet: events=177,842, snapshots=100,492
+[replay] processed 2026-05-07T14.parquet: events=167,118, snapshots=100,684
+[replay] processed 2026-05-07T15.parquet: events=168,359, snapshots=100,876
+[replay] saved checkpoint after 2026-05-07T15.parquet: snapshots=100,876
+[replay] processed 2026-05-07T16.parquet: events=172,252, snapshots=101,068
+[replay] processed 2026-05-07T17.parquet: events=160,566, snapshots=101,260
+[replay] processed 2026-05-07T18.parquet: events=152,312, snapshots=101,452
+[replay] processed 2026-05-07T19.parquet: events=167,596, snapshots=101,644
+[replay] processed 2026-05-07T20.parquet: events=164,157, snapshots=101,836
+[replay] processed 2026-05-07T21.parquet: events=160,168, snapshots=102,028
+[replay] processed 2026-05-07T22.parquet: events=159,890, snapshots=102,220
+[replay] processed 2026-05-07T23.parquet: events=148,523, snapshots=102,412
+[replay] processed 2026-05-08T00.parquet: events=165,340, snapshots=102,604
+[replay] processed 2026-05-08T01.parquet: events=144,418, snapshots=102,796
+[replay] processed 2026-05-08T02.parquet: events=166,158, snapshots=102,988
+[replay] processed 2026-05-08T03.parquet: events=144,991, snapshots=103,180
+[replay] saved checkpoint after 2026-05-08T03.parquet: snapshots=103,180
+[replay] processed 2026-05-08T04.parquet: events=141,844, snapshots=103,372
+[replay] processed 2026-05-08T05.parquet: events=145,165, snapshots=103,564
+[replay] processed 2026-05-08T06.parquet: events=137,049, snapshots=103,756
+[replay] processed 2026-05-08T07.parquet: events=148,952, snapshots=103,948
+[replay] processed 2026-05-08T08.parquet: events=132,448, snapshots=104,140
+[replay] processed 2026-05-08T09.parquet: events=143,150, snapshots=104,332
+[replay] processed 2026-05-08T10.parquet: events=145,949, snapshots=104,524
+[replay] processed 2026-05-08T11.parquet: events=137,298, snapshots=104,716
+[replay] processed 2026-05-08T12.parquet: events=151,123, snapshots=104,908
+[replay] processed 2026-05-08T13.parquet: events=146,652, snapshots=105,100
+[replay] processed 2026-05-08T14.parquet: events=141,864, snapshots=105,292
+[replay] processed 2026-05-08T15.parquet: events=145,436, snapshots=105,484
+[replay] saved checkpoint after 2026-05-08T15.parquet: snapshots=105,484
+[replay] processed 2026-05-08T16.parquet: events=133,397, snapshots=105,676
+[replay] processed 2026-05-08T17.parquet: events=148,711, snapshots=105,868
+[replay] processed 2026-05-08T18.parquet: events=115,090, snapshots=106,060
+[replay] processed 2026-05-08T19.parquet: events=118,663, snapshots=106,252
+[replay] processed 2026-05-08T20.parquet: events=109,975, snapshots=106,444
+[replay] processed 2026-05-08T21.parquet: events=112,337, snapshots=106,636
+[replay] processed 2026-05-08T22.parquet: events=113,924, snapshots=106,828
+[replay] processed 2026-05-08T23.parquet: events=105,976, snapshots=107,020
+[replay] processed 2026-05-09T00.parquet: events=116,556, snapshots=107,212
+[replay] processed 2026-05-09T01.parquet: events=119,013, snapshots=107,404
+[replay] processed 2026-05-09T02.parquet: events=126,331, snapshots=107,596
+[replay] processed 2026-05-09T03.parquet: events=125,902, snapshots=107,788
+[replay] saved checkpoint after 2026-05-09T03.parquet: snapshots=107,788
+[replay] processed 2026-05-09T04.parquet: events=127,177, snapshots=107,980
+[replay] processed 2026-05-09T05.parquet: events=99,493, snapshots=108,172
+[replay] processed 2026-05-09T06.parquet: events=104,803, snapshots=108,364
+[replay] processed 2026-05-09T07.parquet: events=101,058, snapshots=108,556
+[replay] processed 2026-05-09T08.parquet: events=104,004, snapshots=108,748
+[replay] processed 2026-05-09T09.parquet: events=117,972, snapshots=108,940
+[replay] processed 2026-05-09T10.parquet: events=143,240, snapshots=109,132
+[replay] processed 2026-05-09T11.parquet: events=121,283, snapshots=109,324
+[replay] processed 2026-05-09T12.parquet: events=108,103, snapshots=109,516
+[replay] processed 2026-05-09T13.parquet: events=128,728, snapshots=109,708
+[replay] processed 2026-05-09T14.parquet: events=123,554, snapshots=109,900
+[replay] processed 2026-05-09T15.parquet: events=129,284, snapshots=110,092
+[replay] saved checkpoint after 2026-05-09T15.parquet: snapshots=110,092
+[replay] processed 2026-05-09T16.parquet: events=108,773, snapshots=110,284
+[replay] processed 2026-05-09T17.parquet: events=108,619, snapshots=110,476
+[replay] processed 2026-05-09T18.parquet: events=114,788, snapshots=110,668
+[replay] processed 2026-05-09T19.parquet: events=118,097, snapshots=110,860
+[replay] processed 2026-05-09T20.parquet: events=129,773, snapshots=111,052
+[replay] processed 2026-05-09T21.parquet: events=90,774, snapshots=111,244
+[replay] processed 2026-05-09T22.parquet: events=111,155, snapshots=111,436
+[replay] processed 2026-05-09T23.parquet: events=113,156, snapshots=111,628
+[replay] processed 2026-05-10T00.parquet: events=140,714, snapshots=111,820
+[replay] processed 2026-05-10T01.parquet: events=143,666, snapshots=112,012
+[replay] processed 2026-05-10T02.parquet: events=153,996, snapshots=112,204
+[replay] processed 2026-05-10T03.parquet: events=150,094, snapshots=112,396
+[replay] saved checkpoint after 2026-05-10T03.parquet: snapshots=112,396
+[replay] processed 2026-05-10T04.parquet: events=168,646, snapshots=112,588
+[replay] processed 2026-05-10T05.parquet: events=149,478, snapshots=112,780
+[replay] processed 2026-05-10T06.parquet: events=148,685, snapshots=112,972
+[replay] processed 2026-05-10T07.parquet: events=160,681, snapshots=113,164
+[replay] processed 2026-05-10T08.parquet: events=149,072, snapshots=113,356
+[replay] processed 2026-05-10T09.parquet: events=158,629, snapshots=113,548
+[replay] processed 2026-05-10T10.parquet: events=165,621, snapshots=113,740
+[replay] processed 2026-05-10T11.parquet: events=148,386, snapshots=113,932
+[replay] processed 2026-05-10T12.parquet: events=150,071, snapshots=114,124
+[replay] processed 2026-05-10T13.parquet: events=134,356, snapshots=114,316
+[replay] processed 2026-05-10T14.parquet: events=123,843, snapshots=114,508
+[replay] processed 2026-05-10T15.parquet: events=142,654, snapshots=114,700
+[replay] saved checkpoint after 2026-05-10T15.parquet: snapshots=114,700
+[replay] processed 2026-05-10T16.parquet: events=119,177, snapshots=114,892
+[replay] processed 2026-05-10T17.parquet: events=127,187, snapshots=115,084
+[replay] processed 2026-05-10T18.parquet: events=145,141, snapshots=115,276
+[replay] processed 2026-05-10T19.parquet: events=210,566, snapshots=115,468
+[replay] processed 2026-05-10T20.parquet: events=188,205, snapshots=115,660
+[replay] processed 2026-05-10T21.parquet: events=256,397, snapshots=115,852
+[replay] processed 2026-05-10T22.parquet: events=112,802, snapshots=116,044
+[replay] processed 2026-05-10T23.parquet: events=108,500, snapshots=116,236
+[replay] processed 2026-05-11T00.parquet: events=122,681, snapshots=116,428
+[replay] processed 2026-05-11T01.parquet: events=138,660, snapshots=116,620
+[replay] processed 2026-05-11T02.parquet: events=132,117, snapshots=116,812
+[replay] processed 2026-05-11T03.parquet: events=129,616, snapshots=117,004
+[replay] saved checkpoint after 2026-05-11T03.parquet: snapshots=117,004
+[replay] processed 2026-05-11T04.parquet: events=121,379, snapshots=117,196
+[replay] processed 2026-05-11T05.parquet: events=127,303, snapshots=117,388
+[replay] processed 2026-05-11T06.parquet: events=136,041, snapshots=117,580
+[replay] processed 2026-05-11T07.parquet: events=111,894, snapshots=117,772
+[replay] processed 2026-05-11T08.parquet: events=104,627, snapshots=117,964
+[replay] processed 2026-05-11T09.parquet: events=122,542, snapshots=118,156
+[replay] processed 2026-05-11T10.parquet: events=125,619, snapshots=118,348
+[replay] processed 2026-05-11T11.parquet: events=124,009, snapshots=118,540
+[replay] processed 2026-05-11T12.parquet: events=122,358, snapshots=118,732
+[replay] processed 2026-05-11T13.parquet: events=154,044, snapshots=118,924
+[replay] processed 2026-05-11T14.parquet: events=150,897, snapshots=119,116
+[replay] processed 2026-05-11T15.parquet: events=128,965, snapshots=119,308
+[replay] saved checkpoint after 2026-05-11T15.parquet: snapshots=119,308
+[replay] processed 2026-05-11T16.parquet: events=140,243, snapshots=119,500
+[replay] processed 2026-05-11T17.parquet: events=150,477, snapshots=119,692
+[replay] processed 2026-05-11T18.parquet: events=147,193, snapshots=119,884
+[replay] processed 2026-05-11T19.parquet: events=128,792, snapshots=120,076
+[replay] processed 2026-05-11T20.parquet: events=146,940, snapshots=120,268
+[replay] processed 2026-05-11T21.parquet: events=127,446, snapshots=120,460
+[replay] processed 2026-05-11T22.parquet: events=129,951, snapshots=120,652
+[replay] processed 2026-05-11T23.parquet: events=110,973, snapshots=120,844
+[replay] processed 2026-05-12T00.parquet: events=108,989, snapshots=121,036
+[replay] processed 2026-05-12T01.parquet: events=119,251, snapshots=121,228
+[replay] processed 2026-05-12T02.parquet: events=133,887, snapshots=121,420
+[replay] processed 2026-05-12T03.parquet: events=127,705, snapshots=121,612
+[replay] saved checkpoint after 2026-05-12T03.parquet: snapshots=121,612
+[replay] processed 2026-05-12T04.parquet: events=159,518, snapshots=121,804
+[replay] processed 2026-05-12T05.parquet: events=104,717, snapshots=121,996
+[replay] processed 2026-05-12T06.parquet: events=128,122, snapshots=122,188
+[replay] processed 2026-05-12T07.parquet: events=107,549, snapshots=122,380
+[replay] processed 2026-05-12T08.parquet: events=107,403, snapshots=122,572
+[replay] processed 2026-05-12T09.parquet: events=108,583, snapshots=122,764
+[replay] processed 2026-05-12T10.parquet: events=107,188, snapshots=122,956
+[replay] processed 2026-05-12T11.parquet: events=123,731, snapshots=123,148
+[replay] processed 2026-05-12T12.parquet: events=107,503, snapshots=123,340
+[replay] processed 2026-05-12T13.parquet: events=87,766, snapshots=123,532
+[replay] processed 2026-05-12T14.parquet: events=114,191, snapshots=123,724
+[replay] processed 2026-05-12T15.parquet: events=99,160, snapshots=123,916
+[replay] saved checkpoint after 2026-05-12T15.parquet: snapshots=123,916
+[replay] processed 2026-05-12T16.parquet: events=115,521, snapshots=124,108
+[replay] processed 2026-05-12T17.parquet: events=109,751, snapshots=124,300
+[replay] processed 2026-05-12T18.parquet: events=102,174, snapshots=124,492
+[replay] processed 2026-05-12T19.parquet: events=108,986, snapshots=124,684
+[replay] processed 2026-05-12T20.parquet: events=96,224, snapshots=124,876
+[replay] processed 2026-05-12T21.parquet: events=116,551, snapshots=125,068
+[replay] processed 2026-05-12T22.parquet: events=137,400, snapshots=125,260
+[replay] processed 2026-05-12T23.parquet: events=110,083, snapshots=125,452
+[replay] processed 2026-05-13T00.parquet: events=84,654, snapshots=125,644
+[replay] processed 2026-05-13T01.parquet: events=104,643, snapshots=125,836
+[replay] processed 2026-05-13T02.parquet: events=88,968, snapshots=126,028
+[replay] processed 2026-05-13T03.parquet: events=117,660, snapshots=126,220
+[replay] saved checkpoint after 2026-05-13T03.parquet: snapshots=126,220
+[replay] processed 2026-05-13T04.parquet: events=111,111, snapshots=126,412
+[replay] processed 2026-05-13T05.parquet: events=107,447, snapshots=126,604
+[replay] processed 2026-05-13T06.parquet: events=100,959, snapshots=126,796
+[replay] processed 2026-05-13T07.parquet: events=94,780, snapshots=126,988
+[replay] processed 2026-05-13T08.parquet: events=102,430, snapshots=127,180
+[replay] processed 2026-05-13T09.parquet: events=105,256, snapshots=127,372
+[replay] processed 2026-05-13T10.parquet: events=108,735, snapshots=127,564
+[replay] processed 2026-05-13T11.parquet: events=105,398, snapshots=127,756
+[replay] processed 2026-05-13T12.parquet: events=112,444, snapshots=127,948
+[replay] processed 2026-05-13T13.parquet: events=120,405, snapshots=128,140
+[replay] processed 2026-05-13T14.parquet: events=98,934, snapshots=128,332
+[replay] processed 2026-05-13T15.parquet: events=110,482, snapshots=128,524
+[replay] saved checkpoint after 2026-05-13T15.parquet: snapshots=128,524
+[replay] processed 2026-05-13T16.parquet: events=116,318, snapshots=128,716
+[replay] processed 2026-05-13T17.parquet: events=122,928, snapshots=128,908
+[replay] processed 2026-05-13T18.parquet: events=111,296, snapshots=129,100
+[replay] processed 2026-05-13T19.parquet: events=101,469, snapshots=129,292
+[replay] processed 2026-05-13T20.parquet: events=105,488, snapshots=129,484
+[replay] processed 2026-05-13T21.parquet: events=109,426, snapshots=129,676
+[replay] processed 2026-05-13T22.parquet: events=96,198, snapshots=129,868
+[replay] processed 2026-05-13T23.parquet: events=82,382, snapshots=130,060
+[replay] processed 2026-05-14T00.parquet: events=92,283, snapshots=130,252
+[replay] processed 2026-05-14T01.parquet: events=87,100, snapshots=130,444
+[replay] processed 2026-05-14T02.parquet: events=89,872, snapshots=130,636
+[replay] processed 2026-05-14T03.parquet: events=105,540, snapshots=130,828
+[replay] saved checkpoint after 2026-05-14T03.parquet: snapshots=130,828
+[replay] processed 2026-05-14T04.parquet: events=114,134, snapshots=131,020
+[replay] processed 2026-05-14T05.parquet: events=113,993, snapshots=131,212
+[replay] processed 2026-05-14T06.parquet: events=96,115, snapshots=131,404
+[replay] processed 2026-05-14T07.parquet: events=107,124, snapshots=131,596
+[replay] processed 2026-05-14T08.parquet: events=165,388, snapshots=131,788
+[replay] processed 2026-05-14T09.parquet: events=126,701, snapshots=131,980
+[replay] processed 2026-05-14T10.parquet: events=99,835, snapshots=132,172
+[replay] processed 2026-05-14T11.parquet: events=101,766, snapshots=132,364
+[replay] processed 2026-05-14T12.parquet: events=127,788, snapshots=132,556
+[replay] processed 2026-05-14T13.parquet: events=116,489, snapshots=132,748
+[replay] processed 2026-05-14T14.parquet: events=116,840, snapshots=132,940
+[replay] processed 2026-05-14T15.parquet: events=126,273, snapshots=133,132
+[replay] saved checkpoint after 2026-05-14T15.parquet: snapshots=133,132
+[replay] processed 2026-05-14T16.parquet: events=130,625, snapshots=133,324
+[replay] processed 2026-05-14T17.parquet: events=102,305, snapshots=133,516
+[replay] processed 2026-05-14T18.parquet: events=92,111, snapshots=133,708
+[replay] processed 2026-05-14T19.parquet: events=101,698, snapshots=133,900
+[replay] processed 2026-05-14T20.parquet: events=112,410, snapshots=134,092
+[replay] processed 2026-05-14T21.parquet: events=105,954, snapshots=134,284
+[replay] processed 2026-05-14T22.parquet: events=104,675, snapshots=134,476
+[replay] processed 2026-05-14T23.parquet: events=104,038, snapshots=134,668
+[replay] processed 2026-05-15T00.parquet: events=110,744, snapshots=134,860
+[replay] processed 2026-05-15T01.parquet: events=111,254, snapshots=135,052
+[replay] processed 2026-05-15T02.parquet: events=113,370, snapshots=135,244
+[replay] processed 2026-05-15T03.parquet: events=145,304, snapshots=135,436
+[replay] saved checkpoint after 2026-05-15T03.parquet: snapshots=135,436
+[replay] processed 2026-05-15T04.parquet: events=133,929, snapshots=135,628
+[replay] processed 2026-05-15T05.parquet: events=118,244, snapshots=135,820
+[replay] processed 2026-05-15T06.parquet: events=112,882, snapshots=136,012
+[replay] processed 2026-05-15T07.parquet: events=102,200, snapshots=136,204
+[replay] processed 2026-05-15T08.parquet: events=110,605, snapshots=136,396
+[replay] processed 2026-05-15T09.parquet: events=109,647, snapshots=136,588
+[replay] processed 2026-05-15T10.parquet: events=116,328, snapshots=136,780
+[replay] processed 2026-05-15T11.parquet: events=149,927, snapshots=136,972
+[replay] processed 2026-05-15T12.parquet: events=95,490, snapshots=137,164
+[replay] processed 2026-05-15T13.parquet: events=101,139, snapshots=137,356
+[replay] processed 2026-05-15T14.parquet: events=102,590, snapshots=137,548
+[replay] processed 2026-05-15T15.parquet: events=110,984, snapshots=137,740
+[replay] saved checkpoint after 2026-05-15T15.parquet: snapshots=137,740
+[replay] processed 2026-05-15T16.parquet: events=82,399, snapshots=137,932
+[replay] processed 2026-05-15T17.parquet: events=115,336, snapshots=138,124
+[replay] processed 2026-05-15T18.parquet: events=119,947, snapshots=138,316
+[replay] processed 2026-05-15T19.parquet: events=116,103, snapshots=138,508
+[replay] processed 2026-05-15T20.parquet: events=100,230, snapshots=138,700
+[replay] processed 2026-05-15T21.parquet: events=114,390, snapshots=138,892
+[replay] processed 2026-05-15T22.parquet: events=100,483, snapshots=139,084
+[replay] processed 2026-05-15T23.parquet: events=120,018, snapshots=139,276
+[replay] processed 2026-05-16T00.parquet: events=71,255, snapshots=139,468
+[replay] processed 2026-05-16T01.parquet: events=85,736, snapshots=139,660
+[replay] processed 2026-05-16T02.parquet: events=76,737, snapshots=139,852
+[replay] processed 2026-05-16T03.parquet: events=58,312, snapshots=140,044
+[replay] saved checkpoint after 2026-05-16T03.parquet: snapshots=140,044
+[replay] processed 2026-05-16T04.parquet: events=112,330, snapshots=140,236
+[replay] processed 2026-05-16T05.parquet: events=132,815, snapshots=140,428
+[replay] processed 2026-05-16T06.parquet: events=99,701, snapshots=140,620
+[replay] processed 2026-05-16T07.parquet: events=125,341, snapshots=140,812
+[replay] processed 2026-05-16T08.parquet: events=98,548, snapshots=141,004
+[replay] processed 2026-05-16T09.parquet: events=129,999, snapshots=141,196
+[replay] processed 2026-05-16T10.parquet: events=97,207, snapshots=141,388
+[replay] processed 2026-05-16T11.parquet: events=117,692, snapshots=141,580
+[replay] processed 2026-05-16T12.parquet: events=104,611, snapshots=141,772
+[replay] processed 2026-05-16T13.parquet: events=117,945, snapshots=141,964
+[replay] processed 2026-05-16T14.parquet: events=115,181, snapshots=142,156
+[replay] processed 2026-05-16T15.parquet: events=156,324, snapshots=142,348
+[replay] saved checkpoint after 2026-05-16T15.parquet: snapshots=142,348
+[replay] processed 2026-05-16T16.parquet: events=270,027, snapshots=142,540
+[replay] processed 2026-05-16T17.parquet: events=267,052, snapshots=142,732
+[replay] processed 2026-05-16T18.parquet: events=85,204, snapshots=142,924
+[replay] processed 2026-05-16T19.parquet: events=97,721, snapshots=143,116
+[replay] processed 2026-05-16T20.parquet: events=92,831, snapshots=143,308
+[replay] processed 2026-05-16T21.parquet: events=106,902, snapshots=143,500
+[replay] processed 2026-05-16T22.parquet: events=88,958, snapshots=143,692
+[replay] processed 2026-05-16T23.parquet: events=81,909, snapshots=143,884
+[replay] processed 2026-05-17T00.parquet: events=75,442, snapshots=144,076
+[replay] processed 2026-05-17T01.parquet: events=74,320, snapshots=144,268
+[replay] processed 2026-05-17T02.parquet: events=86,591, snapshots=144,460
+[replay] processed 2026-05-17T03.parquet: events=76,864, snapshots=144,652
+[replay] saved checkpoint after 2026-05-17T03.parquet: snapshots=144,652
+[replay] processed 2026-05-17T04.parquet: events=82,613, snapshots=144,844
+[replay] processed 2026-05-17T05.parquet: events=80,201, snapshots=145,036
+[replay] processed 2026-05-17T06.parquet: events=91,465, snapshots=145,228
+[replay] processed 2026-05-17T07.parquet: events=95,648, snapshots=145,420
+[replay] processed 2026-05-17T08.parquet: events=86,091, snapshots=145,612
+[replay] processed 2026-05-17T09.parquet: events=85,865, snapshots=145,804
+[replay] processed 2026-05-17T10.parquet: events=78,447, snapshots=145,996
+[replay] processed 2026-05-17T11.parquet: events=84,697, snapshots=146,188
+[replay] processed 2026-05-17T12.parquet: events=78,916, snapshots=146,380
+[replay] processed 2026-05-17T13.parquet: events=85,141, snapshots=146,572
+[replay] processed 2026-05-17T14.parquet: events=98,977, snapshots=146,764
+[replay] processed 2026-05-17T15.parquet: events=79,207, snapshots=146,956
+[replay] saved checkpoint after 2026-05-17T15.parquet: snapshots=146,956
+[replay] processed 2026-05-17T16.parquet: events=85,122, snapshots=147,148
+[replay] processed 2026-05-17T17.parquet: events=82,393, snapshots=147,340
+[replay] processed 2026-05-17T18.parquet: events=75,097, snapshots=147,532
+[replay] processed 2026-05-17T19.parquet: events=66,188, snapshots=147,724
+[replay] processed 2026-05-17T20.parquet: events=73,164, snapshots=147,916
+[replay] processed 2026-05-17T21.parquet: events=83,191, snapshots=148,108
+[replay] processed 2026-05-17T22.parquet: events=79,732, snapshots=148,300
+[replay] processed 2026-05-17T23.parquet: events=84,697, snapshots=148,492
+[replay] processed 2026-05-18T00.parquet: events=92,683, snapshots=148,684
+[replay] processed 2026-05-18T01.parquet: events=88,864, snapshots=148,876
+[replay] processed 2026-05-18T02.parquet: events=110,690, snapshots=149,068
+[replay] processed 2026-05-18T03.parquet: events=96,058, snapshots=149,260
+[replay] saved checkpoint after 2026-05-18T03.parquet: snapshots=149,260
+[replay] processed 2026-05-18T04.parquet: events=124,077, snapshots=149,452
+[replay] processed 2026-05-18T05.parquet: events=88,821, snapshots=149,644
+[replay] processed 2026-05-18T06.parquet: events=110,867, snapshots=149,836
+[replay] processed 2026-05-18T07.parquet: events=108,173, snapshots=150,028
+[replay] processed 2026-05-18T08.parquet: events=99,410, snapshots=150,220
+[replay] processed 2026-05-18T09.parquet: events=120,779, snapshots=150,412
+[replay] processed 2026-05-18T10.parquet: events=66,531, snapshots=150,512
+[replay] saved checkpoint after 2026-05-18T10.parquet: snapshots=150,512
+{
+  "event_summary": {
+    "event_rows": 104437933,
+    "exact_duplicate_rows": 1906,
+    "event_type_counts": {
+      "price_change": 65653,
+      "book": 53,
+      "last_trade_price": 825
+    },
+    "source_receive_latency": {
+      "count": 104437933,
+      "negative_count": 8,
+      "p50_ms": 136.0,
+      "p95_ms": 300.999755859375,
+      "max_ms": 10508362.0
+    },
+    "market_states_with_events": 9407,
+    "snapshot_rows": 150512,
+    "future_event_contaminated_snapshots": 0,
+    "future_source_timestamp_snapshots": 0,
+    "book_snapshot_events": 605898,
+    "bbo_reconciliation_checks": 21751678,
+    "bbo_reconciliation_mismatches": 6160220,
+    "bbo_bid_reconciliation_mismatches": 3691456,
+    "bbo_ask_reconciliation_mismatches": 3703585,
+    "complement_checks": 11550335,
+    "complement_mismatches": 408828,
+    "out_of_order_price_changes": 72261,
+    "out_of_order_book_events": 11444,
+    "bbo_reconciliation_first_mismatch_samples": [
+      {
+        "token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "received_at_utc": "2026-04-15T17:09:18.726000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:18.663000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.51
+        ],
+        "reconstructed_bbo": [
+          0.5,
+          0.51
+        ],
+        "source_token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "complemented": false
+      },
+      {
+        "token_id": "67103309535592287189501612156910505345968746590311581144200559228030100874285",
+        "received_at_utc": "2026-04-15T17:09:18.726000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:18.694000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.51
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "67103309535592287189501612156910505345968746590311581144200559228030100874285",
+        "complemented": false
+      },
+      {
+        "token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "received_at_utc": "2026-04-15T17:09:18.964000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:18.928000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.51
+        ],
+        "reconstructed_bbo": [
+          0.5,
+          0.51
+        ],
+        "source_token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "complemented": false
+      },
+      {
+        "token_id": "67103309535592287189501612156910505345968746590311581144200559228030100874285",
+        "received_at_utc": "2026-04-15T17:09:18.964000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:18.928000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.51
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "67103309535592287189501612156910505345968746590311581144200559228030100874285",
+        "complemented": false
+      },
+      {
+        "token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "received_at_utc": "2026-04-15T17:09:19.227000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:09:19.175000+00:00",
+        "reported_bbo": [
+          0.49,
+          0.5
+        ],
+        "reconstructed_bbo": [
+          0.5,
+          0.5
+        ],
+        "source_token_id": "370033696666235685419298806385131140639346262331292027808378867135689806352",
+        "complemented": false
+      },
+      {
+        "token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "received_at_utc": "2026-04-15T17:02:38.973000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:38.913000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.5
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "complemented": false
+      },
+      {
+        "token_id": "72317588882511246208727641141411186965072436872950671035823725316490063157840",
+        "received_at_utc": "2026-04-15T17:02:38.973000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:38.913000+00:00",
+        "reported_bbo": [
+          0.5,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.5,
+          0.51
+        ],
+        "source_token_id": "72317588882511246208727641141411186965072436872950671035823725316490063157840",
+        "complemented": false
+      },
+      {
+        "token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "received_at_utc": "2026-04-15T17:02:39.479000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:39.334000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "complemented": false
+      },
+      {
+        "token_id": "72317588882511246208727641141411186965072436872950671035823725316490063157840",
+        "received_at_utc": "2026-04-15T17:02:39.479000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:39.334000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "72317588882511246208727641141411186965072436872950671035823725316490063157840",
+        "complemented": false
+      },
+      {
+        "token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "received_at_utc": "2026-04-15T17:02:39.776000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:02:39.679000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.5
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "55576256613755583782762506804635568915886813915197270562671579528629125545275",
+        "complemented": false
+      },
+      {
+        "token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "received_at_utc": "2026-04-15T17:10:41.928000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:41.893000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "complemented": false
+      },
+      {
+        "token_id": "49491929008212128495122880408271720785403430558615290632925760732037218819782",
+        "received_at_utc": "2026-04-15T17:10:41.928000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:41.893000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "49491929008212128495122880408271720785403430558615290632925760732037218819782",
+        "complemented": false
+      },
+      {
+        "token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "received_at_utc": "2026-04-15T17:10:42.175000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:42.012000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "complemented": false
+      },
+      {
+        "token_id": "49491929008212128495122880408271720785403430558615290632925760732037218819782",
+        "received_at_utc": "2026-04-15T17:10:42.175000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:42.012000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "49491929008212128495122880408271720785403430558615290632925760732037218819782",
+        "complemented": false
+      },
+      {
+        "token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "received_at_utc": "2026-04-15T17:10:42.429000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:10:42.202000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.5
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.5
+        ],
+        "source_token_id": "26745674432959705727586650367219350133825883313338807331119851580719757072113",
+        "complemented": false
+      },
+      {
+        "token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "received_at_utc": "2026-04-15T17:19:58.308000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.256000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "complemented": false
+      },
+      {
+        "token_id": "63546135170148941640429862661189208034929426584906524032748732920043596395940",
+        "received_at_utc": "2026-04-15T17:19:58.308000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.256000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "63546135170148941640429862661189208034929426584906524032748732920043596395940",
+        "complemented": false
+      },
+      {
+        "token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "received_at_utc": "2026-04-15T17:19:58.534000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.469000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "complemented": false
+      },
+      {
+        "token_id": "63546135170148941640429862661189208034929426584906524032748732920043596395940",
+        "received_at_utc": "2026-04-15T17:19:58.534000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.469000+00:00",
+        "reported_bbo": [
+          0.51,
+          0.52
+        ],
+        "reconstructed_bbo": [
+          0.51,
+          0.51
+        ],
+        "source_token_id": "63546135170148941640429862661189208034929426584906524032748732920043596395940",
+        "complemented": false
+      },
+      {
+        "token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "received_at_utc": "2026-04-15T17:19:58.845000+00:00",
+        "source_timestamp_utc": "2026-04-15T17:19:58.742000+00:00",
+        "reported_bbo": [
+          0.48,
+          0.49
+        ],
+        "reconstructed_bbo": [
+          0.49,
+          0.49
+        ],
+        "source_token_id": "42611417129780928000469375748740930747426464451286507507209094401297263325275",
+        "complemented": false
+      }
+    ],
+    "markets_with_uninitialized_deltas": 97,
+    "max_market_inter_event_gap_seconds": 11598.492
+  },
+  "coverage_rows": 150512,
+  "economic_scenario_rows": 576,
+  "trade_rows": 109551,
+  "primary": [
+    {
+      "scenario_id": "original_v1_raw|prestart_c0_o5|age30|release60",
+      "model": "original_v1_raw",
+      "entry_case": "prestart_c0_o5",
+      "entry_kind": "prestart",
+      "compute_delay_seconds": 0,
+      "order_delay_seconds": 5,
+      "max_ask_age_seconds": 30,
+      "settlement_release_delay_seconds": 60,
+      "initial_cash_usd": 100.0,
+      "ending_cash_usd": 4.046142622514331,
+      "net_pnl_usd": -95.95385737748566,
+      "gross_turnover_usd": 2110.0,
+      "roi_on_initial_cash": -0.9595385737748566,
+      "roi_on_gross_turnover": -0.04547576179027756,
+      "fees_paid_usd": 24.912512480000007,
+      "total_payout_usd": 2014.0461426225118,
+      "max_drawdown_at_cost": 0.9766421648547802,
+      "trade_count": 422,
+      "max_open_cost_basis_usd": 10.0,
+      "markets_seen": 9407,
+      "reject_stale_ask": 29,
+      "reject_incomplete_or_crossed_book": 7233,
+      "skip_no_positive_expected_edge": 903,
+      "trades": 422,
+      "reject_unreconciled_best_ask_at_entry": 24,
+      "reject_no_initial_book_snapshot": 8,
+      "reject_exchange_maintenance_pause": 12,
+      "reject_insufficient_balance": 774.0,
+      "data_rejections": 7308,
+      "reject_unknown_historical_fee": 2.0
+    },
+    {
+      "scenario_id": "original_v1_platt|prestart_c0_o5|age30|release60",
+      "model": "original_v1_platt",
+      "entry_case": "prestart_c0_o5",
+      "entry_kind": "prestart",
+      "compute_delay_seconds": 0,
+      "order_delay_seconds": 5,
+      "max_ask_age_seconds": 30,
+      "settlement_release_delay_seconds": 60,
+      "initial_cash_usd": 100.0,
+      "ending_cash_usd": 1.4587662370224237,
+      "net_pnl_usd": -98.54123376297758,
+      "gross_turnover_usd": 1270.0,
+      "roi_on_initial_cash": -0.9854123376297759,
+      "roi_on_gross_turnover": -0.07759152264801385,
+      "fees_paid_usd": 0.0,
+      "total_payout_usd": 1171.4587662370213,
+      "max_drawdown_at_cost": 0.9898938784981762,
+      "trade_count": 254,
+      "max_open_cost_basis_usd": 10.0,
+      "markets_seen": 9407,
+      "reject_stale_ask": 29,
+      "reject_incomplete_or_crossed_book": 7233,
+      "skip_no_positive_expected_edge": 1066,
+      "trades": 254,
+      "reject_unreconciled_best_ask_at_entry": 24,
+      "reject_no_initial_book_snapshot": 8,
+      "reject_exchange_maintenance_pause": 12,
+      "reject_insufficient_balance": 779.0,
+      "data_rejections": 7308,
+      "reject_unknown_historical_fee": 2.0
+    },
+    {
+      "scenario_id": "candidate_raw|prestart_c0_o5|age30|release60",
+      "model": "candidate_raw",
+      "entry_case": "prestart_c0_o5",
+      "entry_kind": "prestart",
+      "compute_delay_seconds": 0,
+      "order_delay_seconds": 5,
+      "max_ask_age_seconds": 30,
+      "settlement_release_delay_seconds": 60,
+      "initial_cash_usd": 100.0,
+      "ending_cash_usd": 423.94296151653424,
+      "net_pnl_usd": 323.94296151653424,
+      "gross_turnover_usd": 4870.0,
+      "roi_on_initial_cash": 3.2394296151653426,
+      "roi_on_gross_turnover": 0.06651806191304604,
+      "fees_paid_usd": 0.5,
+      "total_payout_usd": 5193.942961516552,
+      "max_drawdown_at_cost": 0.3559602271027007,
+      "trade_count": 974,
+      "max_open_cost_basis_usd": 10.0,
+      "markets_seen": 9407,
+      "reject_stale_ask": 29,
+      "reject_incomplete_or_crossed_book": 7233,
+      "skip_no_positive_expected_edge": 1125,
+      "trades": 974,
+      "reject_unreconciled_best_ask_at_entry": 24,
+      "reject_no_initial_book_snapshot": 8,
+      "reject_exchange_maintenance_pause": 12,
+      "reject_insufficient_balance": NaN,
+      "data_rejections": 7308,
+      "reject_unknown_historical_fee": 2.0
+    },
+    {
+      "scenario_id": "candidate_platt|prestart_c0_o5|age30|release60",
+      "model": "candidate_platt",
+      "entry_case": "prestart_c0_o5",
+      "entry_kind": "prestart",
+      "compute_delay_seconds": 0,
+      "order_delay_seconds": 5,
+      "max_ask_age_seconds": 30,
+      "settlement_release_delay_seconds": 60,
+      "initial_cash_usd": 100.0,
+      "ending_cash_usd": 405.2325891237452,
+      "net_pnl_usd": 305.2325891237452,
+      "gross_turnover_usd": 4955.0,
+      "roi_on_initial_cash": 3.052325891237452,
+      "roi_on_gross_turnover": 0.06160092616019076,
+      "fees_paid_usd": 0.5,
+      "total_payout_usd": 5260.2325891237615,
+      "max_drawdown_at_cost": 0.42580293363798377,
+      "trade_count": 991,
+      "max_open_cost_basis_usd": 10.0,
+      "markets_seen": 9407,
+      "reject_stale_ask": 29,
+      "reject_incomplete_or_crossed_book": 7233,
+      "skip_no_positive_expected_edge": 1108,
+      "trades": 991,
+      "reject_unreconciled_best_ask_at_entry": 24,
+      "reject_no_initial_book_snapshot": 8,
+      "reject_exchange_maintenance_pause": 12,
+      "reject_insufficient_balance": NaN,
+      "data_rejections": 7308,
+      "reject_unknown_historical_fee": 2.0
+    }
+  ]
+}
