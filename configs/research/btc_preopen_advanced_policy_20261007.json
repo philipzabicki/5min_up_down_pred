@@ -1,0 +1,98 @@
+{
+  "experiment_id": "btc_preopen_drk_rck_os_20261007",
+  "status": "frozen_before_advanced_outer_evaluation",
+  "evaluation_label": "retrospective_development_period_with_prior_exposure_not_an_independent_holdout",
+  "entry": {
+    "relative_to_market_start": "T-59s",
+    "prediction_artifact": "frozen_candidate_platt",
+    "base_model_retrained": false,
+    "ask_age_tuned": false
+  },
+  "capital_and_execution": {
+    "initial_cash_usd": 100.0,
+    "credit": false,
+    "technical_max_gross_purchase_usd": 20.0,
+    "execution_config": "configs/research/btc_preopen_policy_search_20261007.json",
+    "execution_model": "saved_native_best_ask_and_quantity_only",
+    "market_resolution_release": "existing_optimizer_contract_max_resolution_or_market_start_plus_5m_then_60s",
+    "sale_fill_model": "unavailable_without_post-entry_bid_trajectories"
+  },
+  "data_and_splits": {
+    "opportunities": "reports/btc_preopen/policy_opportunities.parquet",
+    "opportunity_rows": 9407,
+    "eligible_rows": 4454,
+    "evaluation_folds": "reuse exact chronological outer folds in reports/btc_preopen/policy_study.json",
+    "label_purge": "outcome_available_at_utc strictly before fit/refit timestamp",
+    "history_for_fit": "all eligible earlier opportunities with labels available before fold refit",
+    "prediction_source": "candidate_platt column in frozen opportunity cache"
+  },
+  "calibration": {
+    "models": ["logistic_on_candidate_logit", "logistic_on_candidate_and_market_midpoint_logits"],
+    "regularization_C_grid": [0.1, 1.0, 10.0],
+    "inner_validation": "frozen preceding chronological selection block; train labels must be available before validation start",
+    "selection_metric": "Brier score",
+    "bootstrap": {
+      "method": "moving calendar block bootstrap",
+      "block_length_days": 3,
+      "replicates": 500,
+      "seed": 20261007,
+      "interval_quantiles": [0.05, 0.95],
+      "minimum_nonempty_blocks": 4,
+      "insufficient_history_fallback": "use candidate_platt as point probability; disable robust Kelly for that fold"
+    }
+  },
+  "scenario_model": {
+    "scenario_count": 512,
+    "seed": 20261007,
+    "correlation_shrinkage_n": 200,
+    "weights": "equal_weight_discrete_gaussian_copula_scenarios",
+    "dependent_model": "AR(1) Gaussian copula; lag-one correlation estimated from prior candidate_platt standardized residuals for adjacent 5-minute markets and shrunk by n/(n+200)",
+    "independent_control": "same marginal probabilities and latent bank with identity correlation",
+    "marginal_check_tolerance": 0.002,
+    "scenario_horizon": "joint settlement of all currently open positions and the proposed position",
+    "pending_position_payoffs": "net shares times binary market outcome; cash released only at existing settlement release timestamp",
+    "wealth_reference": "cash plus gross cost basis of open positions, fixed before evaluating each action",
+    "locked_due_funds": "included once as pending-position terminal payouts; not available as current purchase cash"
+  },
+  "drk": {
+    "objective": "maximize worst-case expected terminal log wealth over the Cartesian product of bootstrap marginal probability intervals, with the common copula scenario dependence and equal scenario weights fixed",
+    "uncertainty_set": "each open/proposed position win probability lies in its fold-specific bootstrap 5th-95th percentile interval; monotone log wealth makes the lower endpoint worst case",
+    "selection_controls": ["candidate_platt_point", "new_point_calibration", "robust_calibrated_probability"]
+  },
+  "rck": {
+    "constraint": "E[(W_terminal/W_reference)^(-lambda)] <= 1",
+    "profiles": [
+      {"alpha": 0.5, "beta": 0.1, "lambda": 3.321928094887362},
+      {"alpha": 0.7, "beta": 0.1, "lambda": 6.456008210160012},
+      {"alpha": 0.8, "beta": 0.1, "lambda": 10.31885115851617}
+    ],
+    "existing_portfolio_breach": "record breach and prohibit additional purchases until the unconstrained/no-addition portfolio satisfies the local constraint",
+    "interpretation": "local portfolio risk constraint; not a multi-period maximum-drawdown guarantee"
+  },
+  "comparison_roles": {
+    "point_kelly_btc_market": "uses point-calibrated market-aware probabilities and the same dependent terminal scenarios as RCK; also serves as the no-risk-constraint portfolio Kelly control",
+    "portfolio_kelly_independent": "same point-calibrated probabilities with independent outcomes and no power constraint"
+  },
+  "sizing": {
+    "gross_amount_grid_for_search_usd": "continuous bounded scalar optimization up to $20, then round down to cents",
+    "post_rounding": "recompute exact fee, minima, feasibility, objective, and RCK constraint; step down by one cent if needed",
+    "fees": "reuse existing fee ledger"
+  },
+  "finite_budget": {
+    "calibration_candidates_per_model_per_fold": 3,
+    "bootstrap_models_per_fold": 1000,
+    "drk_outer_policies": 4,
+    "rck_outer_policies": 6,
+    "portfolio_kelly_scenario_controls": 2,
+    "rck_profiles": 3,
+    "scenario_dependence_variants": ["AR1_copula", "independent"],
+    "os_status": "hold-to-resolution control only; trained exit policy excluded because local cache stops at market_start+5s"
+  },
+  "artifacts": {
+    "summary": "reports/btc_preopen/advanced_policy_study_20261007.json",
+    "fold_results": "reports/btc_preopen/advanced_policy_folds_20261007.csv",
+    "trial_results": "reports/btc_preopen/advanced_policy_trials_20261007.csv",
+    "decision_and_trade_logs": "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_20261007/",
+    "manifest": "reports/btc_preopen/advanced_policy_manifest_20261007.json"
+  }
+}

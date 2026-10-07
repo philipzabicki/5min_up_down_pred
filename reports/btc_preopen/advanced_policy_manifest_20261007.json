@@ -1,0 +1,65 @@
+{
+  "experiment_id": "btc_preopen_drk_rck_os_20261007",
+  "git_commit_at_run": "c04bbe0d05e68d469d75459f750064b7e6517caf",
+  "input_identity": {
+    "runner_sha256": "4a680dd38a455927d3c3b1558ced786226fc763769d89c64958980208ea5d8c9",
+    "advanced_config_sha256": "d992c56b1eb12e54be8ca7429a07135bcaed41dd3230215a0dda6a1315753e0b",
+    "base_policy_config_sha256": "5cf78087458aa614b6bc3d75cbb54b2c044e69c9aeb46cf925c8c91da953bda8",
+    "source_study_sha256": "3ebd60befaec96609713ae2359ff4a37a88ed14833519ef1cbff9cb731b39261",
+    "opportunities_sha256": "717ab94b2a32dacd72e4fac8a1fabf4ce2f63c9f2dbe308e9bfe49a49826ceef",
+    "candidate_model_sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986"
+  },
+  "python_version": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "elapsed_seconds": 37.40619209999568,
+  "peak_working_set_bytes": 480362496,
+  "artifacts": [
+    {
+      "path": "configs/research/btc_preopen_advanced_policy_20261007.json",
+      "size_bytes": 5650,
+      "sha256": "d992c56b1eb12e54be8ca7429a07135bcaed41dd3230215a0dda6a1315753e0b"
+    },
+    {
+      "path": "reports/btc_preopen/advanced_policy_study_20261007.json",
+      "size_bytes": 151271,
+      "sha256": "98af0de3715ca4e62eb7a4eddf779d73021ddf49e488ed0eaa5b42b346a8bce2"
+    },
+    {
+      "path": "reports/btc_preopen/advanced_policy_folds_20261007.csv",
+      "size_bytes": 7854,
+      "sha256": "ea0ad8ad77eb2536319f85696e785124aa9cc977776661cbf9355532d9ed31f3"
+    },
+    {
+      "path": "reports/btc_preopen/advanced_policy_trials_20261007.csv",
+      "size_bytes": 2864,
+      "sha256": "14213421768791e12cc35a41e75e2799efb765a8449226b84357789364ba09e6"
+    },
+    {
+      "path": "reports/btc_preopen/advanced_policy_20261007.md",
+      "size_bytes": 10913,
+      "sha256": "e94aa4cc3824607d70284192ab67a2668878adbc00b08317ea6aee74595c3cb2"
+    },
+    {
+      "path": "reports/btc_preopen/policy_opportunities.parquet",
+      "size_bytes": 2051771,
+      "sha256": "717ab94b2a32dacd72e4fac8a1fabf4ce2f63c9f2dbe308e9bfe49a49826ceef"
+    },
+    {
+      "path": "reports/btc_preopen/policy_study.json",
+      "size_bytes": 67778,
+      "sha256": "3ebd60befaec96609713ae2359ff4a37a88ed14833519ef1cbff9cb731b39261"
+    },
+    {
+      "path": "configs/research/btc_preopen_policy_search_20261007.json",
+      "size_bytes": 4760,
+      "sha256": "5cf78087458aa614b6bc3d75cbb54b2c044e69c9aeb46cf925c8c91da953bda8"
+    }
+  ],
+  "external_logs": {
+    "decisions_path": "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_20261007/decisions.parquet",
+    "decisions_sha256": "525ac623a4bfbddfac35a65fdead9d054f0b7fbd8773e7f8d6ced2429d4334cd",
+    "trades_path": "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_20261007/trades.parquet",
+    "trades_sha256": "ad6f19e8f99951191cf2c68c2af6cc5ee806b263cb97388010107c9e653a0b04",
+    "policy_checkpoint_path": "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_20261007/run_checkpoint.json"
+  }
+}
