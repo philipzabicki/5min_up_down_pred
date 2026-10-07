@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "policy_id": "candidate_platt_t59_walk_forward_development_choice_20261007",
+  "status": "inactive_research_candidate",
+  "active_for_trading": false,
+  "evaluation_label": "retrospective_walk_forward_policy_assessment; the period has prior development exposure",
+  "selected_from_development_only": true,
+  "development_refit_at_utc": "2026-05-11T23:59:01+00:00",
+  "development_validation_block": {
+    "start_index_in_eligible_order": 2672,
+    "end_index_exclusive": 3563,
+    "decision_start_utc": "2026-05-05T14:44:01+00:00",
+    "decision_end_utc": "2026-05-11T23:49:01+00:00",
+    "markets": 891,
+    "labels_known_strictly_before_refit": 891
+  },
+  "selected_trial_id": "fixed_20_roi_0.05",
+  "family": "fixed_stake",
+  "parameters": {
+    "stake_usd": 20.0,
+    "min_expected_return": 0.05
+  },
+  "validation_mean_daily_log_growth": 0.1225559033149891,
+  "model": {
+    "model_name": "candidate_platt",
+    "model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+    "model_sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+    "manifest_model_hash": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986",
+    "calibrator_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_calibrator.json",
+    "calibrator_sha256": "de2ec02fddae11ca0fed2b0cdb12c2f1842f57a3eb534eddaff8640bc536109e",
+    "ordered_feature_sha256_newline_utf8": "875b25f822b32bd3d07e3a534ea351d4d19bf25b4948fee81646d7ef76111883",
+    "prediction_path": "reports/btc_preopen/candidate_external_predictions.parquet",
+    "prediction_column": "p_candidate_platt"
+  },
+  "decision": {
+    "decision_time": "single T-59s decision per corrected eligible market",
+    "prediction": "frozen candidate_platt probability; no refit or recalibration",
+    "threshold": "expected net profit / full cash debit at the actually feasible amount",
+    "side_selection": "For each side, calculate its own capped executable amount; among sides passing the return threshold, choose the side with the greater positive expected log change in cost-basis portfolio equity; ties choose UP",
+    "sizing": "Use the configured fixed gross amount or fraction of free cash, then apply cash, top-of-book, minimum purchase, rounding, and $20 caps."
+  },
+  "execution": {
+    "model": "saved_best_ask_level_only",
+    "assume_fill_at_saved_best_ask": true,
+    "available_quantity": "saved quantity at the native best ask only",
+    "no_depth_beyond_best_ask": true,
+    "initial_cash_usd": 100.0,
+    "technical_max_gross_purchase_usd": 20.0,
+    "minimum_purchase_assumption": {
+      "minimum_net_shares": 5.0,
+      "minimum_gross_notional_usd": 1.0,
+      "gross_notional_rounding": "round down to nearest $0.01 after cash and top-of-book caps",
+      "share_fee_rounding": "historical replay rule: floor outcome-share fee to 6 decimals",
+      "cash_fee_rounding": "historical replay rule: round fee to 5 decimals and apply $0.00001 minimum",
+      "historical_status": "research assumption, not a confirmed historical venue rule",
+      "metadata_review": "shared_market_evaluation contains order_min_size=5.0 for all rows, but no capture timestamp aligned to T-59; interpreted as shares for context only, not treated as historically verified"
+    },
+    "fee_model": {
+      "rate_source": "fee_rate_bps saved in the policy opportunity cache",
+      "cash_fee_exponent": 1.0,
+      "cash_fee_round_decimals": 5,
+      "cash_fee_minimum_usd": 1e-05,
+      "legacy_fee_share_decimals": 6,
+      "legacy_outcome_shares": "fee_shares = gross_shares * fee_rate * min(price, 1-price) / price; floor fee_shares to 6 decimals; deduct shares from payout, not cash",
+      "cash_collateral": "fee_cash = round(gross_shares * fee_rate * (price * (1-price))^1, 5); zero it below $0.00001; add it to cash debit",
+      "cash_debit": "gross notional + cash fee; outcome-share fees do not add a cash debit"
+    }
+  },
+  "portfolio": {
+    "initial_cash_usd": 100.0,
+    "no_credit": true,
+    "one_purchase_per_market": true,
+    "hold_to_resolution": true,
+    "capital_release": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "equity_and_drawdown": "free cash + gross cost basis of unresolved purchases; cash fees reduce equity at entry; no mark-to-market before release"
+  },
+  "source_fingerprints": {
+    "opportunities_sha256": "717ab94b2a32dacd72e4fac8a1fabf4ce2f63c9f2dbe308e9bfe49a49826ceef",
+    "search_config_sha256": "9f4f750ad11eb6c6f7997a2d0d6ab2ed1b22e90d5aa978afb9dc2d7422f2bc0e"
+  },
+  "live_or_shadow_activation": false
+}

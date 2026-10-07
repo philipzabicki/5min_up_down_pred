@@ -1,0 +1,61 @@
+{
+  "experiment_id": "btc_preopen_policy_t59_candidate_platt_20261007",
+  "search_status": "frozen_before_policy_trials",
+  "evaluation_label": "retrospective_walk_forward_policy_assessment; the period has prior development exposure",
+  "execution": {
+    "model": "saved_best_ask_level_only",
+    "assume_fill_at_saved_best_ask": true,
+    "available_quantity": "saved quantity at the native best ask only",
+    "no_depth_beyond_best_ask": true,
+    "initial_cash_usd": 100.0,
+    "technical_max_gross_purchase_usd": 20.0,
+    "minimum_purchase_assumption": {
+      "minimum_net_shares": 5.0,
+      "minimum_gross_notional_usd": 1.0,
+      "gross_notional_rounding": "round down to nearest $0.01 after cash and top-of-book caps",
+      "share_fee_rounding": "historical replay rule: floor outcome-share fee to 6 decimals",
+      "cash_fee_rounding": "historical replay rule: round fee to 5 decimals and apply $0.00001 minimum",
+      "historical_status": "research assumption, not a confirmed historical venue rule",
+      "metadata_review": "shared_market_evaluation contains order_min_size=5.0 for all rows, but no capture timestamp aligned to T-59; interpreted as shares for context only, not treated as historically verified"
+    },
+    "fee_model": {
+      "rate_source": "fee_rate_bps saved in the policy opportunity cache",
+      "cash_fee_exponent": 1.0,
+      "cash_fee_round_decimals": 5,
+      "cash_fee_minimum_usd": 0.00001,
+      "legacy_fee_share_decimals": 6,
+      "legacy_outcome_shares": "fee_shares = gross_shares * fee_rate * min(price, 1-price) / price; floor fee_shares to 6 decimals; deduct shares from payout, not cash",
+      "cash_collateral": "fee_cash = round(gross_shares * fee_rate * (price * (1-price))^1, 5); zero it below $0.00001; add it to cash debit",
+      "cash_debit": "gross notional + cash fee; outcome-share fees do not add a cash debit"
+    }
+  },
+  "search_space": {
+    "minimum_expected_net_return_on_cash_debit": [0.0, 0.05, 0.1],
+    "family_a_fixed_gross_usd": [1.0, 2.5, 5.0, 10.0, 20.0],
+    "family_b_fraction_of_free_cash": [0.01, 0.025, 0.05, 0.1, 0.2],
+    "family_c_fractional_kelly_multipliers": [0.25, 0.5, 0.75],
+    "family_c_max_cost_basis_equity_fraction_per_purchase": [0.05, 0.1, 0.2],
+    "family_c_technical_max_gross_usd": 20.0,
+    "no_trade_is_candidate": true,
+    "trial_budget": 58,
+    "trial_count_includes_no_trade": true,
+    "range_rationale": {
+      "fixed_stakes": "At $100 starting cash, $1/$2.50/$5/$10/$20 span 1% through the experiment's $20 technical ceiling; the fixed 5-share/$1 minimum is not tuned.",
+      "free_cash_fractions": "1%/2.5%/5%/10%/20% map to $1/$2.50/$5/$10/$20 at initial cash and shrink with available cash.",
+      "kelly": "Quarter-, half-, and three-quarter Kelly are bounded by 5%/10%/20% of cost-basis equity and the common $20 ceiling.",
+      "return_thresholds": "0%/5%/10% are expected net profit divided by fee-inclusive cash debit; 5% and 10% are modest hurdles, and zero retains strictly positive-growth choices.",
+      "minimum_purchase": "One fixed research floor of at least 5 net shares and $1 gross, followed by cent-down rounding; it is not selected against historical PnL."
+    },
+    "trial_budget_basis": "15 fixed-stake + 15 free-cash-fraction + 27 fractional-Kelly configurations + no-trade; one shared cache load and sequential simulation"
+  },
+  "selection": {
+    "threshold_metric": "expected net profit USD divided by full cash debit at the actually capped amount",
+    "primary_objective": "mean UTC-day log growth on the preceding frozen chronological validation block",
+    "side_selection": "For each side, calculate its own capped executable amount; among sides passing the return threshold, choose the side with the greater positive expected log change in cost-basis portfolio equity; ties choose UP",
+    "kelly": "Full Kelly solves the binary-outcome log-wealth optimum from fee-adjusted net payout per gross dollar and fee-inclusive cash debit per gross dollar; apply the fractional multiplier, then the cost-basis equity fraction and $20 caps; evaluate the rounded executable stake with the exact fee accounting",
+    "portfolio_equity_for_sizing_and_drawdown": "free cash + gross cost basis of unresolved purchases; cash fees reduce equity at entry; no mark-to-market before release",
+    "capital_release": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "label_availability": "Only labels with outcome_available_at_utc strictly before each refit are used in the validation score; cash remains locked until capital_release_at_utc",
+    "outer_evaluation": "Three frozen chronological blocks, continuous portfolio cash and open positions from the first outer block through the last"
+  }
+}

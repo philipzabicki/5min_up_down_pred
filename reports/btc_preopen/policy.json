@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "policy_id": "candidate_platt_t59_fixed_5_positive_expected_net_payout_reference",
-  "status": "retained_reference_only; sizing optimization gated by incomplete depth cache",
+  "status": "historical_fixed_5_reference; policy optimization completed separately",
   "active_for_trading": false,
-  "selection_result": "No sizing candidate was selected; do not describe the fixed-$5 reference as an optimized policy.",
+  "selection_result": "This artifact preserves the historical exact-fill fixed-$5 reference. The separate policy_final_research_20261007.json is the development-selected, inactive research candidate; this reference remains the comparison baseline.",
   "model": {
     "model_name": "candidate_platt",
     "model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
@@ -50,7 +50,8 @@
   "evaluation": {
     "gross_pnl_usd": 475.84015563503385,
     "trade_count": 2316,
-    "walk_forward_candidate": null
+    "walk_forward_candidate": null,
+    "optimization_assessment": "reports/btc_preopen/policy_study.json"
   },
   "inputs": {
     "candidate": {
