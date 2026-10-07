@@ -1,0 +1,307 @@
+{
+  "status": "completed",
+  "pairs": [
+    {
+      "first": "point_kelly_btc_only",
+      "second": "drk_btc_only",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 485,
+      "first_only": 581,
+      "second_only": 0,
+      "rejected_by_both": 1219,
+      "common_first_pnl_usd": 37.43802318363237,
+      "common_second_pnl_usd": -3.2851960784313414,
+      "paired_pnl_difference_first_minus_second_usd": 40.72321926206371,
+      "common_first_admitted_gross_usd": 3187.03,
+      "common_second_admitted_gross_usd": 1504.1299999999999,
+      "common_fixed5_feasible": 485,
+      "common_fixed5_pnl_usd": -4.376479463580197,
+      "common_fixed5_admitted_gross_usd": 2388.08,
+      "first_only_pnl_usd": 264.51504840833286,
+      "second_only_pnl_usd": 0.0,
+      "first_only_rejections_second": {
+        "rounded_order_not_beneficial_or_feasible": 581
+      },
+      "second_only_rejections_first": {},
+      "both_rejection_reasons_first": {
+        "rounded_order_not_beneficial_or_feasible": 1178,
+        "no_positive_log_growth": 41
+      },
+      "both_rejection_reasons_second": {
+        "rounded_order_not_beneficial_or_feasible": 1178,
+        "no_positive_log_growth": 41
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    },
+    {
+      "first": "point_kelly_btc_market",
+      "second": "drk_btc_market",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 343,
+      "first_only": 590,
+      "second_only": 0,
+      "rejected_by_both": 1352,
+      "common_first_pnl_usd": 2.1592058361805617,
+      "common_second_pnl_usd": -18.799577677224722,
+      "paired_pnl_difference_first_minus_second_usd": 20.958783513405283,
+      "common_first_admitted_gross_usd": 2449.98,
+      "common_second_admitted_gross_usd": 1205.95,
+      "common_fixed5_feasible": 343,
+      "common_fixed5_pnl_usd": -10.1395633125044,
+      "common_fixed5_admitted_gross_usd": 1682.04,
+      "first_only_pnl_usd": 258.6109145269138,
+      "second_only_pnl_usd": 0.0,
+      "first_only_rejections_second": {
+        "rounded_order_not_beneficial_or_feasible": 590
+      },
+      "second_only_rejections_first": {},
+      "both_rejection_reasons_first": {
+        "rounded_order_not_beneficial_or_feasible": 1311,
+        "no_positive_log_growth": 41
+      },
+      "both_rejection_reasons_second": {
+        "rounded_order_not_beneficial_or_feasible": 1311,
+        "no_positive_log_growth": 41
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    },
+    {
+      "first": "point_kelly_btc_market",
+      "second": "rck_alpha_0.5_correlated",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 405,
+      "first_only": 528,
+      "second_only": 0,
+      "rejected_by_both": 1352,
+      "common_first_pnl_usd": 52.69375327053892,
+      "common_second_pnl_usd": 18.006956596059016,
+      "paired_pnl_difference_first_minus_second_usd": 34.68679667447991,
+      "common_first_admitted_gross_usd": 2868.35,
+      "common_second_admitted_gross_usd": 1387.95,
+      "common_fixed5_feasible": 405,
+      "common_fixed5_pnl_usd": 24.13139871333158,
+      "common_fixed5_admitted_gross_usd": 1983.4,
+      "first_only_pnl_usd": 208.07636709255544,
+      "second_only_pnl_usd": 0.0,
+      "first_only_rejections_second": {
+        "no_positive_log_growth": 528
+      },
+      "second_only_rejections_first": {},
+      "both_rejection_reasons_first": {
+        "rounded_order_not_beneficial_or_feasible": 1311,
+        "no_positive_log_growth": 41
+      },
+      "both_rejection_reasons_second": {
+        "no_positive_log_growth": 1352
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    },
+    {
+      "first": "point_kelly_btc_market",
+      "second": "rck_alpha_0.7_correlated",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 54,
+      "first_only": 879,
+      "second_only": 0,
+      "rejected_by_both": 1352,
+      "common_first_pnl_usd": 84.01865030627633,
+      "common_second_pnl_usd": 19.653141872133467,
+      "paired_pnl_difference_first_minus_second_usd": 64.36550843414287,
+      "common_first_admitted_gross_usd": 577.4300000000001,
+      "common_second_admitted_gross_usd": 168.61,
+      "common_fixed5_feasible": 54,
+      "common_fixed5_pnl_usd": 46.14955674577525,
+      "common_fixed5_admitted_gross_usd": 266.34,
+      "first_only_pnl_usd": 176.75147005681805,
+      "second_only_pnl_usd": 0.0,
+      "first_only_rejections_second": {
+        "no_positive_log_growth": 879
+      },
+      "second_only_rejections_first": {},
+      "both_rejection_reasons_first": {
+        "rounded_order_not_beneficial_or_feasible": 1311,
+        "no_positive_log_growth": 41
+      },
+      "both_rejection_reasons_second": {
+        "no_positive_log_growth": 1352
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    },
+    {
+      "first": "point_kelly_btc_market",
+      "second": "rck_alpha_0.8_correlated",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 4,
+      "first_only": 929,
+      "second_only": 0,
+      "rejected_by_both": 1352,
+      "common_first_pnl_usd": -36.131764705882354,
+      "common_second_pnl_usd": -8.675490196078432,
+      "paired_pnl_difference_first_minus_second_usd": -27.456274509803922,
+      "common_first_admitted_gross_usd": 65.72,
+      "common_second_admitted_gross_usd": 13.95,
+      "common_fixed5_feasible": 4,
+      "common_fixed5_pnl_usd": -10.196078431372548,
+      "common_fixed5_admitted_gross_usd": 20.0,
+      "first_only_pnl_usd": 296.90188506897675,
+      "second_only_pnl_usd": 0.0,
+      "first_only_rejections_second": {
+        "no_positive_log_growth": 929
+      },
+      "second_only_rejections_first": {},
+      "both_rejection_reasons_first": {
+        "rounded_order_not_beneficial_or_feasible": 1311,
+        "no_positive_log_growth": 41
+      },
+      "both_rejection_reasons_second": {
+        "no_positive_log_growth": 1352
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    },
+    {
+      "first": "portfolio_kelly_independent",
+      "second": "rck_alpha_0.5_independent",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 405,
+      "first_only": 528,
+      "second_only": 0,
+      "rejected_by_both": 1352,
+      "common_first_pnl_usd": 52.69375327053892,
+      "common_second_pnl_usd": 18.006956596059016,
+      "paired_pnl_difference_first_minus_second_usd": 34.68679667447991,
+      "common_first_admitted_gross_usd": 2868.35,
+      "common_second_admitted_gross_usd": 1387.95,
+      "common_fixed5_feasible": 405,
+      "common_fixed5_pnl_usd": 24.13139871333158,
+      "common_fixed5_admitted_gross_usd": 1983.4,
+      "first_only_pnl_usd": 208.07636709255544,
+      "second_only_pnl_usd": 0.0,
+      "first_only_rejections_second": {
+        "no_positive_log_growth": 528
+      },
+      "second_only_rejections_first": {},
+      "both_rejection_reasons_first": {
+        "rounded_order_not_beneficial_or_feasible": 1311,
+        "no_positive_log_growth": 41
+      },
+      "both_rejection_reasons_second": {
+        "no_positive_log_growth": 1352
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    },
+    {
+      "first": "portfolio_kelly_independent",
+      "second": "rck_alpha_0.7_independent",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 54,
+      "first_only": 879,
+      "second_only": 0,
+      "rejected_by_both": 1352,
+      "common_first_pnl_usd": 84.01865030627633,
+      "common_second_pnl_usd": 19.653141872133467,
+      "paired_pnl_difference_first_minus_second_usd": 64.36550843414287,
+      "common_first_admitted_gross_usd": 577.4300000000001,
+      "common_second_admitted_gross_usd": 168.61,
+      "common_fixed5_feasible": 54,
+      "common_fixed5_pnl_usd": 46.14955674577525,
+      "common_fixed5_admitted_gross_usd": 266.34,
+      "first_only_pnl_usd": 176.75147005681805,
+      "second_only_pnl_usd": 0.0,
+      "first_only_rejections_second": {
+        "no_positive_log_growth": 879
+      },
+      "second_only_rejections_first": {},
+      "both_rejection_reasons_first": {
+        "rounded_order_not_beneficial_or_feasible": 1311,
+        "no_positive_log_growth": 41
+      },
+      "both_rejection_reasons_second": {
+        "no_positive_log_growth": 1352
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    },
+    {
+      "first": "portfolio_kelly_independent",
+      "second": "rck_alpha_0.8_independent",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 4,
+      "first_only": 929,
+      "second_only": 0,
+      "rejected_by_both": 1352,
+      "common_first_pnl_usd": -36.131764705882354,
+      "common_second_pnl_usd": -8.675490196078432,
+      "paired_pnl_difference_first_minus_second_usd": -27.456274509803922,
+      "common_first_admitted_gross_usd": 65.72,
+      "common_second_admitted_gross_usd": 13.95,
+      "common_fixed5_feasible": 4,
+      "common_fixed5_pnl_usd": -10.196078431372548,
+      "common_fixed5_admitted_gross_usd": 20.0,
+      "first_only_pnl_usd": 296.90188506897675,
+      "second_only_pnl_usd": 0.0,
+      "first_only_rejections_second": {
+        "no_positive_log_growth": 929
+      },
+      "second_only_rejections_first": {},
+      "both_rejection_reasons_first": {
+        "rounded_order_not_beneficial_or_feasible": 1311,
+        "no_positive_log_growth": 41
+      },
+      "both_rejection_reasons_second": {
+        "no_positive_log_growth": 1352
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    },
+    {
+      "first": "fractional_kelly",
+      "second": "fixed_5",
+      "frozen_population_markets": 2673,
+      "candidate_positive_ev_market_side_times": 2285,
+      "common_feasible": 290,
+      "first_only": 0,
+      "second_only": 1954,
+      "rejected_by_both": 41,
+      "common_first_pnl_usd": 112.37575993572553,
+      "common_second_pnl_usd": 196.40838996045773,
+      "paired_pnl_difference_first_minus_second_usd": -84.0326300247322,
+      "common_first_admitted_gross_usd": 944.47,
+      "common_second_admitted_gross_usd": 1409.53,
+      "common_fixed5_feasible": 290,
+      "common_fixed5_pnl_usd": 196.40838996045773,
+      "common_fixed5_admitted_gross_usd": 1409.53,
+      "first_only_pnl_usd": 0.0,
+      "second_only_pnl_usd": 264.74311904964577,
+      "first_only_rejections_second": {},
+      "second_only_rejections_first": {
+        "minimum_order_shares": 854,
+        "below_minimum_gross_notional": 1100
+      },
+      "both_rejection_reasons_first": {
+        "insufficient_top_of_book": 17,
+        "minimum_order_shares": 15,
+        "below_minimum_gross_notional": 9
+      },
+      "both_rejection_reasons_second": {
+        "insufficient_top_of_book": 17,
+        "minimum_order_shares": 24
+      },
+      "independent_trade_capital_usd": 100.0,
+      "capital_method": "Each order is independently financed from a fresh $100 state; no shared cash path or reinvestment. This diagnostic is not one $100 portfolio return."
+    }
+  ]
+}

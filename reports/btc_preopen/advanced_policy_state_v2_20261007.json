@@ -1,0 +1,4508 @@
+{
+  "experiment_id": "btc_preopen_drk_rck_os_20261007",
+  "status": "corrected_position_state_evaluated; complete_local_post_entry_trajectory_available",
+  "evaluation_label": "retrospective_development_period_with_prior_exposure_not_an_independent_holdout",
+  "coverage": {
+    "outer_markets": 2673,
+    "full_eligible_markets": 4454,
+    "archived_markets": 9407,
+    "eligible_markets": 4454,
+    "both_sides_with_best_ask_and_size": 4454,
+    "eligible_bbo_confirmation_status": {
+      "no_decisive_bbo_confirmation": 4353,
+      "checked_against_newer_reported_bbo": 101
+    },
+    "top_level_capacity_quantiles_usd": {
+      "up": {
+        "0.0": 0.005,
+        "0.1": 11.71623,
+        "0.25": 43.912275,
+        "0.5": 115.65525000000001,
+        "0.75": 229.21695,
+        "0.9": 400.17252000000013,
+        "1.0": 14069.9973
+      },
+      "down": {
+        "0.0": 0.005,
+        "0.1": 10.0,
+        "0.25": 36.202875,
+        "0.5": 103.22874999999999,
+        "0.75": 224.04415,
+        "0.9": 376.8145,
+        "1.0": 13547.66
+      }
+    },
+    "minimum_order_metadata": {
+      "shared_cache_order_min_size_unique_values": [
+        5.0
+      ],
+      "source_timestamp_aligned_to_entry": false,
+      "used_as_historical_rule": false,
+      "research_assumption": {
+        "minimum_net_shares": 5.0,
+        "minimum_gross_notional_usd": 1.0,
+        "gross_notional_rounding": "round down to nearest $0.01 after cash and top-of-book caps",
+        "share_fee_rounding": "historical replay rule: floor outcome-share fee to 6 decimals",
+        "cash_fee_rounding": "historical replay rule: round fee to 5 decimals and apply $0.00001 minimum",
+        "historical_status": "research assumption, not a confirmed historical venue rule",
+        "metadata_review": "shared_market_evaluation contains order_min_size=5.0 for all rows, but no capture timestamp aligned to T-59; interpreted as shares for context only, not treated as historically verified"
+      }
+    },
+    "outcome_availability": {
+      "field": "outcome_available_at_utc",
+      "source_field": "resolved_at_utc in shared_market_evaluation.parquet",
+      "eligible_rows_equal_to_resolved_at": 4454,
+      "eligible_rows": 4454,
+      "observed_label_receipt_timestamp": false,
+      "interpretation": "resolved_at_utc is an explicit proxy for result availability; the source does not record when the strategy first observed the label",
+      "purge_rule": "labels strictly before fit/refit; an open position becomes deterministic when the proxy timestamp is at or before a decision"
+    },
+    "outer_start_utc": "2026-04-28T19:34:01+00:00",
+    "outer_end_utc": "2026-05-18T10:04:01+00:00"
+  },
+  "frozen_config": {
+    "experiment_id": "btc_preopen_drk_rck_os_20261007",
+    "status": "frozen_before_advanced_outer_evaluation",
+    "evaluation_label": "retrospective_development_period_with_prior_exposure_not_an_independent_holdout",
+    "entry": {
+      "relative_to_market_start": "T-59s",
+      "prediction_artifact": "frozen_candidate_platt",
+      "base_model_retrained": false,
+      "ask_age_tuned": false
+    },
+    "capital_and_execution": {
+      "initial_cash_usd": 100.0,
+      "credit": false,
+      "technical_max_gross_purchase_usd": 20.0,
+      "execution_config": "configs/research/btc_preopen_policy_search_20261007.json",
+      "execution_model": "saved_native_best_ask_and_quantity_only",
+      "market_resolution_release": "existing_optimizer_contract_max_resolution_or_market_start_plus_5m_then_60s",
+      "sale_fill_model": "unavailable_without_post-entry_bid_trajectories"
+    },
+    "data_and_splits": {
+      "opportunities": "reports/btc_preopen/policy_opportunities.parquet",
+      "opportunity_rows": 9407,
+      "eligible_rows": 4454,
+      "evaluation_folds": "reuse exact chronological outer folds in reports/btc_preopen/policy_study.json",
+      "label_purge": "outcome_available_at_utc strictly before fit/refit timestamp",
+      "history_for_fit": "all eligible earlier opportunities with labels available before fold refit",
+      "prediction_source": "candidate_platt column in frozen opportunity cache"
+    },
+    "calibration": {
+      "models": [
+        "logistic_on_candidate_logit",
+        "logistic_on_candidate_and_market_midpoint_logits"
+      ],
+      "regularization_C_grid": [
+        0.1,
+        1.0,
+        10.0
+      ],
+      "inner_validation": "frozen preceding chronological selection block; train labels must be available before validation start",
+      "selection_metric": "Brier score",
+      "bootstrap": {
+        "method": "moving calendar block bootstrap",
+        "block_length_days": 3,
+        "replicates": 500,
+        "seed": 20261007,
+        "interval_quantiles": [
+          0.05,
+          0.95
+        ],
+        "minimum_nonempty_blocks": 4,
+        "insufficient_history_fallback": "use candidate_platt as point probability; disable robust Kelly for that fold"
+      }
+    },
+    "scenario_model": {
+      "scenario_count": 512,
+      "seed": 20261007,
+      "correlation_shrinkage_n": 200,
+      "weights": "equal_weight_discrete_gaussian_copula_scenarios",
+      "dependent_model": "AR(1) Gaussian copula; lag-one correlation estimated from prior candidate_platt standardized residuals for adjacent 5-minute markets and shrunk by n/(n+200)",
+      "independent_control": "same marginal probabilities and latent bank with identity correlation",
+      "marginal_check_tolerance": 0.002,
+      "scenario_horizon": "joint settlement of all currently open positions and the proposed position",
+      "pending_position_payoffs": "net shares times binary market outcome; cash released only at existing settlement release timestamp",
+      "wealth_reference": "cash plus gross cost basis of open positions, fixed before evaluating each action",
+      "locked_due_funds": "included once as pending-position terminal payouts; not available as current purchase cash"
+    },
+    "drk": {
+      "objective": "maximize worst-case expected terminal log wealth over the Cartesian product of bootstrap marginal probability intervals, with the common copula scenario dependence and equal scenario weights fixed",
+      "uncertainty_set": "each open/proposed position win probability lies in its fold-specific bootstrap 5th-95th percentile interval; monotone log wealth makes the lower endpoint worst case",
+      "selection_controls": [
+        "candidate_platt_point",
+        "new_point_calibration",
+        "robust_calibrated_probability"
+      ]
+    },
+    "rck": {
+      "constraint": "E[(W_terminal/W_reference)^(-lambda)] <= 1",
+      "profiles": [
+        {
+          "alpha": 0.5,
+          "beta": 0.1,
+          "lambda": 3.321928094887362
+        },
+        {
+          "alpha": 0.7,
+          "beta": 0.1,
+          "lambda": 6.456008210160012
+        },
+        {
+          "alpha": 0.8,
+          "beta": 0.1,
+          "lambda": 10.31885115851617
+        }
+      ],
+      "existing_portfolio_breach": "record breach and prohibit additional purchases until the unconstrained/no-addition portfolio satisfies the local constraint",
+      "interpretation": "local portfolio risk constraint; not a multi-period maximum-drawdown guarantee"
+    },
+    "comparison_roles": {
+      "point_kelly_btc_market": "uses point-calibrated market-aware probabilities and the same dependent terminal scenarios as RCK; also serves as the no-risk-constraint portfolio Kelly control",
+      "portfolio_kelly_independent": "same point-calibrated probabilities with independent outcomes and no power constraint"
+    },
+    "sizing": {
+      "gross_amount_grid_for_search_usd": "continuous bounded scalar optimization up to $20, then round down to cents",
+      "post_rounding": "recompute exact fee, minima, feasibility, objective, and RCK constraint; step down by one cent if needed",
+      "fees": "reuse existing fee ledger"
+    },
+    "finite_budget": {
+      "calibration_candidates_per_model_per_fold": 3,
+      "bootstrap_models_per_fold": 1000,
+      "drk_outer_policies": 4,
+      "rck_outer_policies": 6,
+      "portfolio_kelly_scenario_controls": 2,
+      "rck_profiles": 3,
+      "scenario_dependence_variants": [
+        "AR1_copula",
+        "independent"
+      ],
+      "os_status": "hold-to-resolution control only; trained exit policy excluded because local cache stops at market_start+5s"
+    },
+    "artifacts": {
+      "summary": "reports/btc_preopen/advanced_policy_study_20261007.json",
+      "fold_results": "reports/btc_preopen/advanced_policy_folds_20261007.csv",
+      "trial_results": "reports/btc_preopen/advanced_policy_trials_20261007.csv",
+      "decision_and_trade_logs": "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_20261007/",
+      "manifest": "reports/btc_preopen/advanced_policy_manifest_20261007.json"
+    }
+  },
+  "input_identity": {
+    "runner_sha256": "e61666b0bd9fe9d3731a54712ef00c50f5f9d5b52693a242f108c1f29fccccdd",
+    "advanced_config_sha256": "d992c56b1eb12e54be8ca7429a07135bcaed41dd3230215a0dda6a1315753e0b",
+    "base_policy_config_sha256": "5cf78087458aa614b6bc3d75cbb54b2c044e69c9aeb46cf925c8c91da953bda8",
+    "source_study_sha256": "3ebd60befaec96609713ae2359ff4a37a88ed14833519ef1cbff9cb731b39261",
+    "opportunities_sha256": "717ab94b2a32dacd72e4fac8a1fabf4ce2f63c9f2dbe308e9bfe49a49826ceef",
+    "candidate_model_sha256": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986"
+  },
+  "development_baselines": {
+    "legacy_exact_fixed_5_full_development": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 575.8401556350339,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 575.8401556350339,
+      "net_pnl_usd": 475.84015563503385,
+      "trade_count": 2316,
+      "eligible_decisions_seen": 4454,
+      "gross_turnover_usd": 11580.0,
+      "cash_debit_total_usd": 11580.0,
+      "fees_paid_usd": 0.99999992,
+      "legacy_fee_shares": 2.0204079999999998,
+      "expected_net_profit_at_entry_usd": 295.0977761296117,
+      "mean_daily_log_growth": 0.0514899979005112,
+      "daily_log_growth_days": 34,
+      "max_drawdown_cost_basis": 0.6626779823614556,
+      "maximum_time_underwater_seconds": 1107439.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 15.0,
+      "maximum_concurrent_positions": 3,
+      "minimum_free_cash_usd": 30.28170901538229,
+      "stake_usd_quantiles": {
+        "0.0": 5.0,
+        "0.25": 5.0,
+        "0.5": 5.0,
+        "0.75": 5.0,
+        "0.9": 5.0,
+        "1.0": 5.0
+      },
+      "stake_to_cost_basis_equity_quantiles": {
+        "0.0": 0.008462525697201488,
+        "0.25": 0.013114421990120091,
+        "0.5": 0.018133833447242006,
+        "0.75": 0.025655745383737945,
+        "0.9": 0.03248935830380834,
+        "1.0": 0.12412581596502424
+      },
+      "decisions_skipped_no_positive_policy_edge": 2138,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-15",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-16",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-17",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-18",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-19",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-20",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-21",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-22",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-23",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-24",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-25",
+          "equity_usd": 95.0,
+          "daily_log_growth": -0.05129329438755058
+        },
+        {
+          "date_utc": "2026-04-26",
+          "equity_usd": 95.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-27",
+          "equity_usd": 99.18367363265307,
+          "daily_log_growth": 0.04309652882946257
+        },
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 104.44454221085358,
+          "daily_log_growth": 0.051682813558752705
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 70.90195711462198,
+          "daily_log_growth": -0.3873581969582836
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 175.07111595969863,
+          "daily_log_growth": 0.9038942312568706
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 174.3350678481465,
+          "daily_log_growth": -0.004213143524270854
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 154.95171849609812,
+          "daily_log_growth": -0.1178655499415864
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 172.32420923765218,
+          "daily_log_growth": 0.1062640651548595
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 281.1816001642667,
+          "daily_log_growth": 0.4896230845485702
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 290.8312240138066,
+          "daily_log_growth": 0.03374238818266565
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 272.0792302162878,
+          "daily_log_growth": -0.066649801267687
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 316.2599024851957,
+          "daily_log_growth": 0.15047104031777128
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 265.9397744339754,
+          "daily_log_growth": -0.17329448051335875
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 206.12996897332974,
+          "daily_log_growth": -0.2547629840531396
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 221.3295874607248,
+          "daily_log_growth": 0.07114604935071124
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 215.3059803932827,
+          "daily_log_growth": -0.027592755533263298
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 313.99697166913865,
+          "daily_log_growth": 0.37732316048733067
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 412.0574943397457,
+          "daily_log_growth": 0.2717795474857881
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 491.3694729927456,
+          "daily_log_growth": 0.17603344665377596
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 459.140225601482,
+          "daily_log_growth": -0.06784066983157773
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 476.1671905474606,
+          "daily_log_growth": 0.03641336740285839
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 503.6341336262309,
+          "daily_log_growth": 0.05608104590841267
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 575.8401556350339,
+          "daily_log_growth": 0.1339800354902689
+        }
+      ]
+    },
+    "legacy_best_level_fixed_5_full_development": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 577.9176956479616,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 577.9176956479616,
+      "net_pnl_usd": 477.91769564796164,
+      "trade_count": 2275,
+      "eligible_decisions_seen": 4454,
+      "gross_turnover_usd": 11219.970000000001,
+      "cash_debit_total_usd": 11219.970000000001,
+      "fees_paid_usd": 0.99999992,
+      "legacy_fee_shares": 2.0204079999999998,
+      "expected_net_profit_at_entry_usd": 288.9358067552838,
+      "mean_daily_log_growth": 0.05159591992565924,
+      "daily_log_growth_days": 34,
+      "max_drawdown_cost_basis": 0.5502891232795927,
+      "maximum_time_underwater_seconds": 1107439.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 15.0,
+      "maximum_concurrent_positions": 3,
+      "minimum_free_cash_usd": 44.75957854781059,
+      "stake_usd_quantiles": {
+        "0.0": 2.45,
+        "0.25": 5.0,
+        "0.5": 5.0,
+        "0.75": 5.0,
+        "0.9": 5.0,
+        "1.0": 5.0
+      },
+      "stake_to_cost_basis_equity_quantiles": {
+        "0.0": 0.00462242739457442,
+        "0.25": 0.011612987162134231,
+        "0.5": 0.018277254975046994,
+        "0.75": 0.023813179947743478,
+        "0.9": 0.03098770746814823,
+        "1.0": 0.09130822648013077
+      },
+      "decisions_skipped_no_positive_policy_edge": 2138,
+      "decisions_skipped_minimum_purchase": 24,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 17,
+      "executed_orders_limited_by_top_of_book": 100,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-15",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-16",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-17",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-18",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-19",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-20",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-21",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-22",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-23",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-24",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-25",
+          "equity_usd": 95.0,
+          "daily_log_growth": -0.05129329438755058
+        },
+        {
+          "date_utc": "2026-04-26",
+          "equity_usd": 95.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-27",
+          "equity_usd": 99.18367363265307,
+          "daily_log_growth": 0.04309652882946257
+        },
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 102.17434990316127,
+          "daily_log_growth": 0.029707246417872382
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 85.37982664705027,
+          "daily_log_growth": -0.1795708158896424
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 191.56500317920174,
+          "daily_log_growth": 0.8081173422540441
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 181.24095355935395,
+          "daily_log_growth": -0.05539981211977638
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 153.6710576009707,
+          "daily_log_growth": -0.16501305276241535
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 167.42289223392746,
+          "daily_log_growth": 0.08570857207173029
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 271.9064068100017,
+          "daily_log_growth": 0.4849350140704476
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 290.998775757581,
+          "daily_log_growth": 0.06786114567175719
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 261.5607525482975,
+          "daily_log_growth": -0.10665248030147748
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 310.67142481720543,
+          "daily_log_growth": 0.1720692619928609
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 270.3512967659851,
+          "daily_log_growth": -0.13901362939975193
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 225.20894228573155,
+          "daily_log_growth": -0.18269360876250068
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 236.95410435055757,
+          "daily_log_growth": 0.05083786617961436
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 234.22907526199933,
+          "daily_log_growth": -0.011566879247034397
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 329.1182054672732,
+          "daily_log_growth": 0.3401173827660423
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 430.54844202343446,
+          "daily_log_growth": 0.26864286919094527
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 500.69424434436297,
+          "daily_log_growth": 0.15093578148914058
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 477.87335645074455,
+          "daily_log_growth": -0.04664987132815594
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 492.69193588251744,
+          "daily_log_growth": 0.030538349496242588
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 505.55597495968703,
+          "daily_log_growth": 0.025774661979076047
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 577.9176956479616,
+          "daily_log_growth": 0.13377269926148344
+        }
+      ]
+    }
+  },
+  "outer_controls": {
+    "no_trade": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 100.0,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 100.0,
+      "net_pnl_usd": 0.0,
+      "trade_count": 0,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 0.0,
+      "cash_debit_total_usd": 0.0,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 0.0,
+      "mean_daily_log_growth": 0.0,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.0,
+      "maximum_time_underwater_seconds": 0.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 0.0,
+      "maximum_concurrent_positions": 0,
+      "minimum_free_cash_usd": 100.0,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2673,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        }
+      ]
+    },
+    "legacy_best_level_fixed_5": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 561.1515090101066,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 561.1515090101066,
+      "net_pnl_usd": 461.15150901010657,
+      "trade_count": 2244,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 11067.519999999999,
+      "cash_debit_total_usd": 11067.519999999999,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 285.0776370806317,
+      "mean_daily_log_growth": 0.08213432155281543,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.6381581722861385,
+      "maximum_time_underwater_seconds": 448498.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 15.0,
+      "maximum_concurrent_positions": 3,
+      "minimum_free_cash_usd": 27.993391909955463,
+      "stake_usd_quantiles": {
+        "0.0": 2.45,
+        "0.25": 5.0,
+        "0.5": 5.0,
+        "0.75": 5.0,
+        "0.9": 5.0,
+        "1.0": 5.0
+      },
+      "stake_to_cost_basis_equity_quantiles": {
+        "0.0": 0.004772162155581359,
+        "0.25": 0.012072054590316617,
+        "0.5": 0.01940567692362802,
+        "0.75": 0.025622191315820036,
+        "0.9": 0.03352655104290375,
+        "1.0": 0.13160183254630242
+      },
+      "decisions_skipped_no_positive_policy_edge": 388,
+      "decisions_skipped_minimum_purchase": 24,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 17,
+      "executed_orders_limited_by_top_of_book": 98,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 85.40816326530611,
+          "daily_log_growth": -0.1577285011751424
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 68.61364000919515,
+          "daily_log_growth": -0.21895033589267793
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 174.79881654134667,
+          "daily_log_growth": 0.9351443439198164
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 164.47476692149888,
+          "daily_log_growth": -0.0608785269749799
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 136.90487096311563,
+          "daily_log_growth": -0.18347085375724814
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 150.65670559607238,
+          "daily_log_growth": 0.09571746357027686
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 255.14022017214666,
+          "daily_log_growth": 0.5268095013780436
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 274.2325891197258,
+          "daily_log_growth": 0.0721633346498751
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 244.7945659104422,
+          "daily_log_growth": -0.11355725939252413
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 293.90523817935014,
+          "daily_log_growth": 0.18283804395132242
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 253.58511012812983,
+          "daily_log_growth": -0.1475578894313146
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 208.44275564787625,
+          "daily_log_growth": -0.19603505653892153
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 220.1879177127023,
+          "daily_log_growth": 0.05481690288231366
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 217.46288862414406,
+          "daily_log_growth": -0.01245314422206724
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 312.35201882941794,
+          "daily_log_growth": 0.3621026083203762
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 413.7822553855792,
+          "daily_log_growth": 0.2812090650132571
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 483.92805770650773,
+          "daily_log_growth": 0.15659637227769443
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 461.1071698128893,
+          "daily_log_growth": -0.04830576610793004
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 475.9257492446622,
+          "daily_log_growth": 0.03163136462380986
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 488.7897883218318,
+          "daily_log_growth": 0.02667066323513942
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 561.1515090101066,
+          "daily_log_growth": 0.13805842228000467
+        }
+      ]
+    },
+    "legacy_exact_fixed_5": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 561.4239689971789,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 561.4239689971789,
+      "net_pnl_usd": 461.4239689971789,
+      "trade_count": 2285,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 11425.0,
+      "cash_debit_total_usd": 11425.0,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 291.24715476915253,
+      "mean_daily_log_growth": 0.0821574367653025,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.7536616916425988,
+      "maximum_time_underwater_seconds": 457199.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 15.0,
+      "maximum_concurrent_positions": 3,
+      "minimum_free_cash_usd": 15.865522377527125,
+      "stake_usd_quantiles": {
+        "0.0": 5.0,
+        "0.25": 5.0,
+        "0.5": 5.0,
+        "0.75": 5.0,
+        "0.9": 5.0,
+        "1.0": 5.0
+      },
+      "stake_to_cost_basis_equity_quantiles": {
+        "0.0": 0.008674170868880837,
+        "0.25": 0.013254683883546144,
+        "0.5": 0.01910634659851882,
+        "0.75": 0.027537877445438088,
+        "0.9": 0.034414932191417405,
+        "1.0": 0.19330752060682044
+      },
+      "decisions_skipped_no_positive_policy_edge": 388,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 90.02835557299842,
+          "daily_log_growth": -0.10504550335720673
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 56.48577047676682,
+          "daily_log_growth": -0.46613592616674754
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 160.65492932184347,
+          "daily_log_growth": 1.0452700122363567
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 159.91888121029135,
+          "daily_log_growth": -0.004592074466466794
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 140.53553185824296,
+          "daily_log_growth": -0.12920634164476996
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 157.90802259979702,
+          "daily_log_growth": 0.11655237548676224
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 266.7654135264115,
+          "daily_log_growth": 0.5243569431034492
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 276.41503737595144,
+          "daily_log_growth": 0.035533823633426095
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 257.6630435784326,
+          "daily_log_growth": -0.07025079613694582
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 301.84371584734055,
+          "daily_log_growth": 0.1582566875567976
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 251.52358779612024,
+          "daily_log_growth": -0.18237261263705606
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 191.71378233547458,
+          "daily_log_growth": -0.2715332307947148
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 206.91340082286965,
+          "daily_log_growth": 0.07629680941744134
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 200.88979375542755,
+          "daily_log_growth": -0.02954388429913682
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 299.5807850312835,
+          "daily_log_growth": 0.39962764625741976
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 397.6413077018905,
+          "daily_log_growth": 0.28316624781964417
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 476.95328635489045,
+          "daily_log_growth": 0.1818681919262881
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 444.7240389636268,
+          "daily_log_growth": -0.06996460128136242
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 461.75100390960546,
+          "daily_log_growth": 0.03757184057671337
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 489.21794698837573,
+          "daily_log_growth": 0.05778229632516211
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 561.4239689971789,
+          "daily_log_growth": 0.13766826851629854
+        }
+      ]
+    },
+    "fractional_kelly_half_10pct": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 309.64612706239114,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 309.64612706239114,
+      "net_pnl_usd": 209.64612706239114,
+      "trade_count": 529,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 2088.3100000000013,
+      "cash_debit_total_usd": 2088.3100000000013,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 131.2116802666237,
+      "mean_daily_log_growth": 0.053821901611871364,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.3262120728404721,
+      "maximum_time_underwater_seconds": 603901.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 23.33,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 83.21380662903458,
+      "stake_usd_quantiles": {
+        "0.0": 2.4,
+        "0.25": 2.92,
+        "0.5": 3.41,
+        "0.75": 4.53,
+        "0.9": 6.061999999999999,
+        "1.0": 15.99
+      },
+      "stake_to_cost_basis_equity_quantiles": {
+        "0.0": 0.009906460174488412,
+        "0.25": 0.019419218714404322,
+        "0.5": 0.025251601074405387,
+        "0.75": 0.03064682812939357,
+        "0.9": 0.03692767795904343,
+        "1.0": 0.0999778179419997
+      },
+      "decisions_skipped_no_positive_policy_edge": 339,
+      "decisions_skipped_minimum_purchase": 1776,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 29,
+      "executed_orders_limited_by_top_of_book": 25,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 2,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.32632653061225,
+          "daily_log_growth": 0.0032579524110131933
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 111.10396269145954,
+          "daily_log_growth": 0.102038225400314
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 119.66250110682573,
+          "daily_log_growth": 0.07420892572261502
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 105.58038826168765,
+          "daily_log_growth": -0.12520265271631775
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 104.23977601678972,
+          "daily_log_growth": -0.012778852717550313
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 91.50269551792347,
+          "daily_log_growth": -0.13032535302832576
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 131.9916274753218,
+          "daily_log_growth": 0.3663700612976173
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 115.919122473321,
+          "daily_log_growth": -0.12984576447961027
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 100.17912247332102,
+          "daily_log_growth": -0.14593291948643125
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 111.17180354574997,
+          "daily_log_growth": 0.10411697603590489
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 112.25976272942341,
+          "daily_log_growth": 0.00973871150373479
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 110.58813007636218,
+          "daily_log_growth": -0.015002735600879811
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 111.48506885187237,
+          "daily_log_growth": 0.008077909960633066
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 130.69576112878315,
+          "daily_log_growth": 0.15898151774597793
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 163.53379312881725,
+          "daily_log_growth": 0.22414746674711705
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 167.54471549776486,
+          "daily_log_growth": 0.024230619049829802
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 182.0868573545075,
+          "daily_log_growth": 0.08323353761270443
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 193.46815787471564,
+          "daily_log_growth": 0.060629128695116406
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 201.2612441092096,
+          "daily_log_growth": 0.03949084594648233
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 227.03408624606442,
+          "daily_log_growth": 0.12049637979482306
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 309.64612706239114,
+          "daily_log_growth": 0.3103299539545304
+        }
+      ]
+    }
+  },
+  "calibration_by_fold": [
+    {
+      "fold_id": 1,
+      "refit_at_utc": "2026-04-28T19:34:01+00:00",
+      "inner_history_rows": 889,
+      "inner_validation_rows": 891,
+      "all_prior_label_rows": 1781,
+      "distinct_three_day_blocks": 6,
+      "models": {
+        "btc_only": {
+          "selected_C": 1.0,
+          "inner_scores": [
+            {
+              "model": "btc_only",
+              "C": 0.1,
+              "brier": 0.2494021578218121
+            },
+            {
+              "model": "btc_only",
+              "C": 1.0,
+              "brier": 0.2493914711651822
+            },
+            {
+              "model": "btc_only",
+              "C": 10.0,
+              "brier": 0.24961414570395635
+            }
+          ],
+          "bootstrap_models_completed": 500,
+          "prediction_mean": 0.5201836225059403,
+          "prediction_interval_mean_width": 0.04251457268511491
+        },
+        "btc_market": {
+          "selected_C": 1.0,
+          "inner_scores": [
+            {
+              "model": "btc_market",
+              "C": 0.1,
+              "brier": 0.24940195577824775
+            },
+            {
+              "model": "btc_market",
+              "C": 1.0,
+              "brier": 0.24939053970296512
+            },
+            {
+              "model": "btc_market",
+              "C": 10.0,
+              "brier": 0.24961278566981077
+            }
+          ],
+          "bootstrap_models_completed": 500,
+          "prediction_mean": 0.5201591253813764,
+          "prediction_interval_mean_width": 0.04041227507900662
+        }
+      },
+      "bootstrap_models_requested_per_variant": 500,
+      "bootstrap_models_completed_per_variant": 500,
+      "fallback": null,
+      "inner_candidate_scores": [
+        {
+          "model": "btc_only",
+          "C": 0.1,
+          "brier": 0.2494021578218121
+        },
+        {
+          "model": "btc_only",
+          "C": 1.0,
+          "brier": 0.2493914711651822
+        },
+        {
+          "model": "btc_only",
+          "C": 10.0,
+          "brier": 0.24961414570395635
+        },
+        {
+          "model": "btc_market",
+          "C": 0.1,
+          "brier": 0.24940195577824775
+        },
+        {
+          "model": "btc_market",
+          "C": 1.0,
+          "brier": 0.24939053970296512
+        },
+        {
+          "model": "btc_market",
+          "C": 10.0,
+          "brier": 0.24961278566981077
+        }
+      ],
+      "residual_dependence": {
+        "raw_lag_one_correlation": 0.025795353806101103,
+        "shrunk_lag_one_correlation": 0.021863135238097884,
+        "adjacent_pairs": 1112
+      },
+      "fit_elapsed_seconds": 1.8854865999892354
+    },
+    {
+      "fold_id": 2,
+      "refit_at_utc": "2026-05-05T14:44:01+00:00",
+      "inner_history_rows": 1781,
+      "inner_validation_rows": 890,
+      "all_prior_label_rows": 2671,
+      "distinct_three_day_blocks": 8,
+      "models": {
+        "btc_only": {
+          "selected_C": 10.0,
+          "inner_scores": [
+            {
+              "model": "btc_only",
+              "C": 0.1,
+              "brier": 0.25045882954438337
+            },
+            {
+              "model": "btc_only",
+              "C": 1.0,
+              "brier": 0.24998873982123862
+            },
+            {
+              "model": "btc_only",
+              "C": 10.0,
+              "brier": 0.2497674337568657
+            }
+          ],
+          "bootstrap_models_completed": 500,
+          "prediction_mean": 0.5114353067442826,
+          "prediction_interval_mean_width": 0.03732003770098947
+        },
+        "btc_market": {
+          "selected_C": 10.0,
+          "inner_scores": [
+            {
+              "model": "btc_market",
+              "C": 0.1,
+              "brier": 0.2504507915056893
+            },
+            {
+              "model": "btc_market",
+              "C": 1.0,
+              "brier": 0.24995925519344786
+            },
+            {
+              "model": "btc_market",
+              "C": 10.0,
+              "brier": 0.24973449786880167
+            }
+          ],
+          "bootstrap_models_completed": 500,
+          "prediction_mean": 0.5124946224892651,
+          "prediction_interval_mean_width": 0.04068845904078354
+        }
+      },
+      "bootstrap_models_requested_per_variant": 500,
+      "bootstrap_models_completed_per_variant": 500,
+      "fallback": null,
+      "inner_candidate_scores": [
+        {
+          "model": "btc_only",
+          "C": 0.1,
+          "brier": 0.25045882954438337
+        },
+        {
+          "model": "btc_only",
+          "C": 1.0,
+          "brier": 0.24998873982123862
+        },
+        {
+          "model": "btc_only",
+          "C": 10.0,
+          "brier": 0.2497674337568657
+        },
+        {
+          "model": "btc_market",
+          "C": 0.1,
+          "brier": 0.2504507915056893
+        },
+        {
+          "model": "btc_market",
+          "C": 1.0,
+          "brier": 0.24995925519344786
+        },
+        {
+          "model": "btc_market",
+          "C": 10.0,
+          "brier": 0.24973449786880167
+        }
+      ],
+      "residual_dependence": {
+        "raw_lag_one_correlation": 0.014056896673459909,
+        "shrunk_lag_one_correlation": 0.012522300966750312,
+        "adjacent_pairs": 1632
+      },
+      "fit_elapsed_seconds": 2.6138570999901276
+    },
+    {
+      "fold_id": 3,
+      "refit_at_utc": "2026-05-11T23:59:01+00:00",
+      "inner_history_rows": 2671,
+      "inner_validation_rows": 891,
+      "all_prior_label_rows": 3563,
+      "distinct_three_day_blocks": 10,
+      "models": {
+        "btc_only": {
+          "selected_C": 10.0,
+          "inner_scores": [
+            {
+              "model": "btc_only",
+              "C": 0.1,
+              "brier": 0.24961133532290586
+            },
+            {
+              "model": "btc_only",
+              "C": 1.0,
+              "brier": 0.2493944632975432
+            },
+            {
+              "model": "btc_only",
+              "C": 10.0,
+              "brier": 0.24938435153593183
+            }
+          ],
+          "bootstrap_models_completed": 500,
+          "prediction_mean": 0.5148153722121788,
+          "prediction_interval_mean_width": 0.03344840349283838
+        },
+        "btc_market": {
+          "selected_C": 10.0,
+          "inner_scores": [
+            {
+              "model": "btc_market",
+              "C": 0.1,
+              "brier": 0.249569658762903
+            },
+            {
+              "model": "btc_market",
+              "C": 1.0,
+              "brier": 0.24917355705554622
+            },
+            {
+              "model": "btc_market",
+              "C": 10.0,
+              "brier": 0.24892262926698985
+            }
+          ],
+          "bootstrap_models_completed": 500,
+          "prediction_mean": 0.5201025325347947,
+          "prediction_interval_mean_width": 0.03383071525637532
+        }
+      },
+      "bootstrap_models_requested_per_variant": 500,
+      "bootstrap_models_completed_per_variant": 500,
+      "fallback": null,
+      "inner_candidate_scores": [
+        {
+          "model": "btc_only",
+          "C": 0.1,
+          "brier": 0.24961133532290586
+        },
+        {
+          "model": "btc_only",
+          "C": 1.0,
+          "brier": 0.2493944632975432
+        },
+        {
+          "model": "btc_only",
+          "C": 10.0,
+          "brier": 0.24938435153593183
+        },
+        {
+          "model": "btc_market",
+          "C": 0.1,
+          "brier": 0.249569658762903
+        },
+        {
+          "model": "btc_market",
+          "C": 1.0,
+          "brier": 0.24917355705554622
+        },
+        {
+          "model": "btc_market",
+          "C": 10.0,
+          "brier": 0.24892262926698985
+        }
+      ],
+      "residual_dependence": {
+        "raw_lag_one_correlation": 0.008912394572042627,
+        "shrunk_lag_one_correlation": 0.008168144503396061,
+        "adjacent_pairs": 2195
+      },
+      "fit_elapsed_seconds": 2.9625248999800533
+    }
+  ],
+  "policies": {
+    "point_kelly_btc_only": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 553.8685358468492,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 553.8685358468492,
+      "net_pnl_usd": 453.8685358468492,
+      "trade_count": 1779,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 9928.620000000034,
+      "cash_debit_total_usd": 9928.620000000034,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 507.3501027018792,
+      "mean_daily_log_growth": 0.08151224631827035,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.8951680491995543,
+      "maximum_time_underwater_seconds": 1075201.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 40.0,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 17.223026952435383,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 894,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 101.95666666666666,
+          "daily_log_growth": 0.019377700426236495
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 93.28946778711492,
+          "daily_log_growth": -0.08884067038736025
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 159.02212320632162,
+          "daily_log_growth": 0.5333361161766391
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 99.7789053037758,
+          "daily_log_growth": -0.4660865409295573
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 126.07775284279143,
+          "daily_log_growth": 0.23394201141202142
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 70.5876928187818,
+          "daily_log_growth": -0.5800429960629834
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 97.19892931337965,
+          "daily_log_growth": 0.31990388948818904
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 67.20537989361182,
+          "daily_log_growth": -0.36900639384598655
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 28.953419109298125,
+          "daily_log_growth": -0.8420650012718863
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 41.0793014622393,
+          "daily_log_growth": 0.3498160795951949
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 57.45428345503647,
+          "daily_log_growth": 0.3354851806314546
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 56.821714427425476,
+          "daily_log_growth": -0.011071012292052266
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 89.54261735463409,
+          "daily_log_growth": 0.45479613457926477
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 113.55990311509217,
+          "daily_log_growth": 0.23761579493662785
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 143.99159155970085,
+          "daily_log_growth": 0.2374244274807089
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 192.13428925416318,
+          "daily_log_growth": 0.288439644819531
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 288.31645558223295,
+          "daily_log_growth": 0.40586413025341417
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 250.95543960835437,
+          "daily_log_growth": -0.13878328906715492
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 252.5292661389663,
+          "daily_log_growth": 0.0062517555693546115
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 408.33128094488865,
+          "daily_log_growth": 0.48055166054092285
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 553.8685358468492,
+          "daily_log_growth": 0.3048485506310988
+        }
+      ],
+      "policy_id": "point_kelly_btc_only",
+      "family": "portfolio_kelly",
+      "calibration": "btc_only",
+      "robust_probability_interval": false,
+      "scenario_dependence": "ar1_gaussian_copula",
+      "rck_alpha": null,
+      "rck_beta": null,
+      "rck_lambda": null,
+      "risk_constraint_changed_decisions": 0,
+      "outer_markets": 2673
+    },
+    "drk_btc_only": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 85.61050720288148,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 85.61050720288148,
+      "net_pnl_usd": -14.389492797118521,
+      "trade_count": 265,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 755.3699999999988,
+      "cash_debit_total_usd": 755.3699999999988,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 72.18365937608591,
+      "mean_daily_log_growth": -0.007398198222669686,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.6219918367346935,
+      "maximum_time_underwater_seconds": 1694234.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 17.4,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 35.250816326530654,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2408,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 84.72,
+          "daily_log_growth": -0.1658184846949404
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 79.3,
+          "daily_log_growth": -0.06611357265234873
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 71.73081632653063,
+          "daily_log_growth": -0.1003176780216904
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 74.23081632653063,
+          "daily_log_growth": 0.0342589277088078
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 38.05081632653064,
+          "daily_log_growth": -0.6682568402022483
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 40.600816326530634,
+          "daily_log_growth": 0.06486563484467525
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 45.65081632653063,
+          "daily_log_growth": 0.11723331620057226
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 40.250816326530654,
+          "daily_log_growth": -0.12589120410752305
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 44.90081632653067,
+          "daily_log_growth": 0.10932569051131517
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 54.80081632653068,
+          "daily_log_growth": 0.19924911473784557
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 47.200816326530685,
+          "daily_log_growth": -0.14929390281698832
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 52.350816326530676,
+          "daily_log_growth": 0.10355634332940164
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 44.99748299319736,
+          "daily_log_growth": -0.15136097610348895
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 50.778707482993305,
+          "daily_log_growth": 0.12087056796197619
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 52.48996798719499,
+          "daily_log_growth": 0.033144942696682556
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 80.61795818327347,
+          "daily_log_growth": 0.4290993655589059
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 74.16893857543046,
+          "daily_log_growth": -0.08337598599231097
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 73.14893857543046,
+          "daily_log_growth": -0.01384782783289612
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 79.53050720288148,
+          "daily_log_growth": 0.08364306933872301
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 85.61050720288148,
+          "daily_log_growth": 0.07366733685946654
+        }
+      ],
+      "policy_id": "drk_btc_only",
+      "family": "drk",
+      "calibration": "btc_only",
+      "robust_probability_interval": true,
+      "scenario_dependence": "ar1_gaussian_copula",
+      "rck_alpha": null,
+      "rck_beta": null,
+      "rck_lambda": null,
+      "risk_constraint_changed_decisions": 0,
+      "outer_markets": 2673
+    },
+    "point_kelly_btc_market": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 412.084230447424,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 412.084230447424,
+      "net_pnl_usd": 312.084230447424,
+      "trade_count": 1824,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 9838.760000000031,
+      "cash_debit_total_usd": 9838.760000000031,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 515.13877438732,
+      "mean_daily_log_growth": 0.06743131358568573,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.8613893668150923,
+      "maximum_time_underwater_seconds": 1133399.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 40.0,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 24.25973676166199,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 849,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 101.95666666666666,
+          "daily_log_growth": 0.019377700426236495
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 92.08922368947583,
+          "daily_log_growth": -0.10178995662780321
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 158.33560261259814,
+          "daily_log_growth": 0.5419589177673941
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 98.8375874065156,
+          "daily_log_growth": -0.47123887581158985
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 125.4391320243628,
+          "daily_log_growth": 0.238342665387191
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 71.56459687697047,
+          "daily_log_growth": -0.5612201424726583
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 88.73009875261197,
+          "daily_log_growth": 0.21499866914605945
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 78.20515154295896,
+          "daily_log_growth": -0.12626364191299094
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 37.840913232250166,
+          "daily_log_growth": -0.7259446439528078
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 52.45816813421105,
+          "daily_log_growth": 0.32662517660504753
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 72.3769999746396,
+          "daily_log_growth": 0.3218725144702566
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 75.14039505110274,
+          "daily_log_growth": 0.03746972865354867
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 121.30789024205131,
+          "daily_log_growth": 0.47897356350614645
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 170.53177271811873,
+          "daily_log_growth": 0.340589768443294
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 97.52008175113366,
+          "daily_log_growth": -0.5588633061415444
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 141.47058533718354,
+          "daily_log_growth": 0.3720334945241691
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 203.26269110256652,
+          "daily_log_growth": 0.36240736932956674
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 226.40037475129952,
+          "daily_log_growth": 0.10780581426197447
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 294.6174107964868,
+          "daily_log_growth": 0.26337260047703354
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 389.6485441729142,
+          "daily_log_growth": 0.2795675619729729
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 412.084230447424,
+          "daily_log_growth": 0.05598260724790355
+        }
+      ],
+      "policy_id": "point_kelly_btc_market",
+      "family": "portfolio_kelly",
+      "calibration": "btc_market",
+      "robust_probability_interval": false,
+      "scenario_dependence": "ar1_gaussian_copula",
+      "rck_alpha": null,
+      "rck_beta": null,
+      "rck_lambda": null,
+      "risk_constraint_changed_decisions": 0,
+      "outer_markets": 2673
+    },
+    "drk_btc_market": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 50.93150175019246,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 50.93150175019246,
+      "net_pnl_usd": -49.06849824980754,
+      "trade_count": 285,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 794.8899999999995,
+      "cash_debit_total_usd": 794.8899999999995,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 72.28455523216245,
+      "mean_daily_log_growth": -0.032128026617731065,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.7023999999999987,
+      "maximum_time_underwater_seconds": 1694234.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 15.41,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 27.160000000000135,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2388,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 87.5,
+          "daily_log_growth": -0.13353139262452263
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 82.5,
+          "daily_log_growth": -0.058840500022933465
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 79.95,
+          "daily_log_growth": -0.03139685406067204
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 85.0,
+          "daily_log_growth": 0.06124981721035308
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 50.56,
+          "daily_log_growth": -0.5194905066517144
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 53.16,
+          "daily_log_growth": 0.05014548400644254
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 50.61,
+          "daily_log_growth": -0.04915704861905785
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 42.460000000000036,
+          "daily_log_growth": -0.17558672895087576
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 49.36000000000006,
+          "daily_log_growth": 0.15057792332202272
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 48.86000000000009,
+          "daily_log_growth": -0.010181313767537352
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 41.2100000000001,
+          "daily_log_growth": -0.17027812047886792
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 41.2100000000001,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 45.660000000000124,
+          "daily_log_growth": 0.10254169575092371
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 44.178461538461704,
+          "daily_log_growth": -0.03298526629495765
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 55.55846153846173,
+          "daily_log_growth": 0.2291984526035893
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 66.74090497737582,
+          "daily_log_growth": 0.18338220556592952
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 55.71985770796013,
+          "daily_log_growth": -0.1804814377656413
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 46.79887731580329,
+          "daily_log_growth": -0.1744773815532734
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 48.48150175019246,
+          "daily_log_growth": 0.03532310431938143
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 50.93150175019246,
+          "daily_log_growth": 0.04929930903905904
+        }
+      ],
+      "policy_id": "drk_btc_market",
+      "family": "drk",
+      "calibration": "btc_market",
+      "robust_probability_interval": true,
+      "scenario_dependence": "ar1_gaussian_copula",
+      "rck_alpha": null,
+      "rck_beta": null,
+      "rck_lambda": null,
+      "risk_constraint_changed_decisions": 0,
+      "outer_markets": 2673
+    },
+    "portfolio_kelly_independent": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 419.18836186567415,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 419.18836186567415,
+      "net_pnl_usd": 319.18836186567415,
+      "trade_count": 1827,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 10006.910000000033,
+      "cash_debit_total_usd": 10006.910000000033,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 523.5064159278106,
+      "mean_daily_log_growth": 0.06824524685277789,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.863612420231302,
+      "maximum_time_underwater_seconds": 1133399.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 40.0,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 23.808276312944557,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 846,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 101.94666666666667,
+          "daily_log_growth": 0.019279614731956368
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 91.80711884753903,
+          "daily_log_growth": -0.10475995874143092
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 158.3516878159102,
+          "daily_log_growth": 0.5451285897172113
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 98.57955496276884,
+          "daily_log_growth": -0.4739545449066845
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 125.16876264584216,
+          "daily_log_growth": 0.23879904111279426
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 71.22808370760016,
+          "daily_log_growth": -0.5637757531571788
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 88.46675293436215,
+          "daily_log_growth": 0.2167396336282685
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 77.86293694642858,
+          "daily_log_growth": -0.12767674603867737
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 37.40278611686606,
+          "daily_log_growth": -0.7332048655851159
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 54.38376650902302,
+          "daily_log_growth": 0.374320502819004
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 74.69404415854441,
+          "daily_log_growth": 0.3173346592519489
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 78.2206723831289,
+          "daily_log_growth": 0.04613360652148639
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 129.87750754486657,
+          "daily_log_growth": 0.507057791262779
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 179.5093939147991,
+          "daily_log_growth": 0.3236357837416975
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 104.15462937650513,
+          "daily_log_growth": -0.544350924500693
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 144.3452733263928,
+          "daily_log_growth": 0.3263315451925118
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 207.40488086171467,
+          "daily_log_growth": 0.36246466804715677
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 232.60402659310395,
+          "daily_log_growth": 0.11466472208392546
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 302.88470963555164,
+          "daily_log_growth": 0.26401468568094655
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 396.77365598332165,
+          "daily_log_growth": 0.2700137451856643
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 419.18836186567415,
+          "daily_log_growth": 0.05495438786076489
+        }
+      ],
+      "policy_id": "portfolio_kelly_independent",
+      "family": "portfolio_kelly",
+      "calibration": "btc_market",
+      "robust_probability_interval": false,
+      "scenario_dependence": "independent",
+      "rck_alpha": null,
+      "rck_beta": null,
+      "rck_lambda": null,
+      "risk_constraint_changed_decisions": 0,
+      "outer_markets": 2673
+    },
+    "rck_alpha_0.5_correlated": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 133.52349907193965,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 133.52349907193965,
+      "net_pnl_usd": 33.52349907193965,
+      "trade_count": 303,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 1068.5999999999997,
+      "cash_debit_total_usd": 1068.5999999999997,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 96.37124431518697,
+      "mean_daily_log_growth": 0.013767014255845936,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.3976979230483063,
+      "maximum_time_underwater_seconds": 1114500.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 24.27,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 61.17410164065629,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2370,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 89.12607843137255,
+          "daily_log_growth": -0.11511820711508465
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 99.02165666266505,
+          "daily_log_growth": 0.10528660150671286
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 91.4076350540216,
+          "daily_log_growth": -0.08000957090053291
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 91.4076350540216,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 66.56090036014406,
+          "daily_log_growth": -0.3172116860122894
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 69.15253301320529,
+          "daily_log_growth": 0.03819736467732487
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 72.2825330132053,
+          "daily_log_growth": 0.044267821420734155
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 68.3003761504602,
+          "daily_log_growth": -0.05666723567599492
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 76.09018007202882,
+          "daily_log_growth": 0.10800394286295743
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 77.58595684427618,
+          "daily_log_growth": 0.019467225558883854
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 67.9012398631441,
+          "daily_log_growth": -0.13333214777819602
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 73.57872171542378,
+          "daily_log_growth": 0.08030158227530793
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 81.6194797109297,
+          "daily_log_growth": 0.10371207862026474
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 84.32920821771698,
+          "daily_log_growth": 0.03266032902045938
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 102.46113883611821,
+          "daily_log_growth": 0.1947553089344578
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 114.44297895678184,
+          "daily_log_growth": 0.11059310519037499
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 100.6927689337305,
+          "daily_log_growth": -0.12800270943392128
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 119.7309802182443,
+          "daily_log_growth": 0.1731734054615973
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 129.58036181703767,
+          "daily_log_growth": 0.07905384864579551
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 133.52349907193965,
+          "daily_log_growth": 0.029976242113912997
+        }
+      ],
+      "policy_id": "rck_alpha_0.5_correlated",
+      "family": "rck",
+      "calibration": "btc_market",
+      "robust_probability_interval": false,
+      "scenario_dependence": "ar1_gaussian_copula",
+      "rck_alpha": 0.5,
+      "rck_beta": 0.1,
+      "rck_lambda": 3.321928094887362,
+      "risk_constraint_changed_decisions": 1712,
+      "outer_markets": 2673
+    },
+    "rck_alpha_0.5_independent": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 129.88147888580298,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 129.88147888580298,
+      "net_pnl_usd": 29.881478885802977,
+      "trade_count": 281,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 997.3700000000001,
+      "cash_debit_total_usd": 997.3700000000001,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 91.13625330175209,
+      "mean_daily_log_growth": 0.012450102273192029,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.427873030671748,
+      "maximum_time_underwater_seconds": 1115089.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 24.259999999999998,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 57.59812324929982,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2392,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 89.12607843137255,
+          "daily_log_growth": -0.11511820711508465
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 99.70070828331338,
+          "daily_log_growth": 0.11212080221512212
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 91.92671868747506,
+          "daily_log_growth": -0.08118105744815857
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 91.92671868747506,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 65.0075350140057,
+          "daily_log_growth": -0.3464885371705234
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 65.0075350140057,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 67.9475350140057,
+          "daily_log_growth": 0.04423267700179167
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 65.33282913165276,
+          "daily_log_growth": -0.03924121031127175
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 67.73204481792726,
+          "daily_log_growth": 0.036064750337931085
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 71.38371902607206,
+          "daily_log_growth": 0.05251041500109425
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 65.24371902607206,
+          "daily_log_growth": -0.08994003706632006
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 70.68920584134322,
+          "daily_log_growth": 0.08016310430235177
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 81.53920945817454,
+          "daily_log_growth": 0.1427911164677383
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 84.26933012182455,
+          "daily_log_growth": 0.032933978360686615
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 102.35204505395119,
+          "daily_log_growth": 0.19440031233056584
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 114.29798773871738,
+          "daily_log_growth": 0.11039067266619214
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 100.49593728454707,
+          "daily_log_growth": -0.12869166390757192
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 119.47766289786932,
+          "daily_log_growth": 0.17301213089021478
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 123.50853770933239,
+          "daily_log_growth": 0.03318085238538302
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 129.88147888580298,
+          "daily_log_growth": 0.05031204879689142
+        }
+      ],
+      "policy_id": "rck_alpha_0.5_independent",
+      "family": "rck",
+      "calibration": "btc_market",
+      "robust_probability_interval": false,
+      "scenario_dependence": "independent",
+      "rck_alpha": 0.5,
+      "rck_beta": 0.1,
+      "rck_lambda": 3.321928094887362,
+      "risk_constraint_changed_decisions": 1688,
+      "outer_markets": 2673
+    },
+    "rck_alpha_0.7_correlated": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 95.81725720450474,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 95.81725720450474,
+      "net_pnl_usd": -4.182742795495258,
+      "trade_count": 26,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 91.42999999999999,
+      "cash_debit_total_usd": 91.42999999999999,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 17.889806011783442,
+      "mean_daily_log_growth": -0.002034637114289004,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.21861568627450964,
+      "maximum_time_underwater_seconds": 1694234.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 12.87,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 71.01882583195572,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2647,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 83.79,
+          "daily_log_growth": -0.17685651736289618
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 83.79,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 83.79,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 78.24000000000001,
+          "daily_log_growth": -0.06853264289863314
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 80.72843137254903,
+          "daily_log_growth": 0.03130979695212207
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 80.72843137254903,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 80.72843137254903,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 80.72843137254903,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 83.43843137254903,
+          "daily_log_growth": 0.033018188371025735
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 80.70843137254903,
+          "daily_log_growth": -0.03326596325666495
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 78.13843137254904,
+          "daily_log_growth": -0.032361032944670874
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 80.95352941176472,
+          "daily_log_growth": 0.03539326422308923
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 83.88882583195573,
+          "daily_log_growth": 0.03561714116900871
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 90.81882583195572,
+          "daily_log_growth": 0.07937417682732409
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 95.81725720450474,
+          "daily_log_growth": 0.05357620952022622
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 95.81725720450474,
+          "daily_log_growth": 0.0
+        }
+      ],
+      "policy_id": "rck_alpha_0.7_correlated",
+      "family": "rck",
+      "calibration": "btc_market",
+      "robust_probability_interval": false,
+      "scenario_dependence": "ar1_gaussian_copula",
+      "rck_alpha": 0.7,
+      "rck_beta": 0.1,
+      "rck_lambda": 6.456008210160012,
+      "risk_constraint_changed_decisions": 1741,
+      "outer_markets": 2673
+    },
+    "rck_alpha_0.7_independent": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 95.77764936136748,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 95.77764936136748,
+      "net_pnl_usd": -4.22235063863252,
+      "trade_count": 26,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 91.45,
+      "cash_debit_total_usd": 91.45,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 17.89178939159345,
+      "mean_daily_log_growth": -0.002054325401719136,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.21861568627450964,
+      "maximum_time_underwater_seconds": 1694234.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 12.87,
+      "maximum_concurrent_positions": 2,
+      "minimum_free_cash_usd": 70.96921798881847,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2647,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 83.79,
+          "daily_log_growth": -0.17685651736289618
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 83.79,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 83.79,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 78.24000000000001,
+          "daily_log_growth": -0.06853264289863314
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 80.72843137254903,
+          "daily_log_growth": 0.03130979695212207
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 80.72843137254903,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 80.72843137254903,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 80.72843137254903,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 83.43843137254903,
+          "daily_log_growth": 0.033018188371025735
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 80.70843137254903,
+          "daily_log_growth": -0.03326596325666495
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 78.13843137254904,
+          "daily_log_growth": -0.032361032944670874
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 80.95352941176472,
+          "daily_log_growth": 0.03539326422308923
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 83.83921798881848,
+          "daily_log_growth": 0.03502561403432439
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 90.76921798881847,
+          "daily_log_growth": 0.07941932609122375
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 95.77764936136748,
+          "daily_log_growth": 0.05370913335497812
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 95.77764936136748,
+          "daily_log_growth": 0.0
+        }
+      ],
+      "policy_id": "rck_alpha_0.7_independent",
+      "family": "rck",
+      "calibration": "btc_market",
+      "robust_probability_interval": false,
+      "scenario_dependence": "independent",
+      "rck_alpha": 0.7,
+      "rck_beta": 0.1,
+      "rck_lambda": 6.456008210160012,
+      "risk_constraint_changed_decisions": 1741,
+      "outer_markets": 2673
+    },
+    "rck_alpha_0.8_correlated": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 94.0507692307692,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 94.0507692307692,
+      "net_pnl_usd": -5.949230769230795,
+      "trade_count": 4,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 19.979999999999997,
+      "cash_debit_total_usd": 19.979999999999997,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 7.136900103756842,
+      "mean_daily_log_growth": -0.0029207357770929645,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.10860000000000014,
+      "maximum_time_underwater_seconds": 1694234.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 9.12,
+      "maximum_concurrent_positions": 1,
+      "minimum_free_cash_usd": 80.01999999999998,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2669,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": -0.11496201846968176
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 94.0507692307692,
+          "daily_log_growth": 0.05362656715072951
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 94.0507692307692,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 94.0507692307692,
+          "daily_log_growth": 0.0
+        }
+      ],
+      "policy_id": "rck_alpha_0.8_correlated",
+      "family": "rck",
+      "calibration": "btc_market",
+      "robust_probability_interval": false,
+      "scenario_dependence": "ar1_gaussian_copula",
+      "rck_alpha": 0.8,
+      "rck_beta": 0.1,
+      "rck_lambda": 10.31885115851617,
+      "risk_constraint_changed_decisions": 1787,
+      "outer_markets": 2673
+    },
+    "rck_alpha_0.8_independent": {
+      "initial_cost_basis_equity_usd": 100.0,
+      "ending_cash_usd": 94.0507692307692,
+      "ending_locked_cost_basis_usd": 0.0,
+      "ending_cost_basis_equity_usd": 94.0507692307692,
+      "net_pnl_usd": -5.949230769230795,
+      "trade_count": 4,
+      "eligible_decisions_seen": 2673,
+      "gross_turnover_usd": 19.979999999999997,
+      "cash_debit_total_usd": 19.979999999999997,
+      "fees_paid_usd": 0.0,
+      "legacy_fee_shares": 0.0,
+      "expected_net_profit_at_entry_usd": 7.136900103756842,
+      "mean_daily_log_growth": -0.0029207357770929645,
+      "daily_log_growth_days": 21,
+      "max_drawdown_cost_basis": 0.10860000000000014,
+      "maximum_time_underwater_seconds": 1694234.0,
+      "maximum_concurrent_cost_basis_exposure_usd": 9.12,
+      "maximum_concurrent_positions": 1,
+      "minimum_free_cash_usd": 80.01999999999998,
+      "stake_usd_quantiles": {},
+      "stake_to_cost_basis_equity_quantiles": {},
+      "decisions_skipped_no_positive_policy_edge": 2669,
+      "decisions_skipped_minimum_purchase": 0,
+      "decisions_skipped_insufficient_cash": 0,
+      "decisions_skipped_insufficient_top_of_book": 0,
+      "executed_orders_limited_by_top_of_book": 0,
+      "executed_orders_limited_by_cash": 0,
+      "executed_orders_limited_by_policy_cap": 0,
+      "daily_equity_path": [
+        {
+          "date_utc": "2026-04-28",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-29",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-04-30",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-01",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-02",
+          "equity_usd": 100.0,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-03",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": -0.11496201846968176
+        },
+        {
+          "date_utc": "2026-05-04",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-05",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-06",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-07",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-08",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-09",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-10",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-11",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-12",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-13",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-14",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-15",
+          "equity_usd": 89.13999999999999,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-16",
+          "equity_usd": 94.0507692307692,
+          "daily_log_growth": 0.05362656715072951
+        },
+        {
+          "date_utc": "2026-05-17",
+          "equity_usd": 94.0507692307692,
+          "daily_log_growth": 0.0
+        },
+        {
+          "date_utc": "2026-05-18",
+          "equity_usd": 94.0507692307692,
+          "daily_log_growth": 0.0
+        }
+      ],
+      "policy_id": "rck_alpha_0.8_independent",
+      "family": "rck",
+      "calibration": "btc_market",
+      "robust_probability_interval": false,
+      "scenario_dependence": "independent",
+      "rck_alpha": 0.8,
+      "rck_beta": 0.1,
+      "rck_lambda": 10.31885115851617,
+      "risk_constraint_changed_decisions": 1787,
+      "outer_markets": 2673
+    }
+  },
+  "common_outer_comparison": [
+    {
+      "strategy": "no_trade",
+      "comparison": "outer_walk_forward",
+      "trades": 0,
+      "pnl_usd": 0.0,
+      "mean_daily_log_growth": 0.0,
+      "max_drawdown_cost_basis": 0.0,
+      "max_underwater_seconds": 0.0,
+      "max_open_cost_basis_usd": 0.0,
+      "max_open_positions": 0,
+      "minimum_cash_usd": 100.0,
+      "fees_usd": 0.0,
+      "turnover_usd": 0.0
+    },
+    {
+      "strategy": "legacy_best_level_fixed_5",
+      "comparison": "outer_walk_forward",
+      "trades": 2244,
+      "pnl_usd": 461.15150901010657,
+      "mean_daily_log_growth": 0.08213432155281543,
+      "max_drawdown_cost_basis": 0.6381581722861385,
+      "max_underwater_seconds": 448498.0,
+      "max_open_cost_basis_usd": 15.0,
+      "max_open_positions": 3,
+      "minimum_cash_usd": 27.993391909955463,
+      "fees_usd": 0.0,
+      "turnover_usd": 11067.519999999999
+    },
+    {
+      "strategy": "legacy_exact_fixed_5",
+      "comparison": "outer_walk_forward",
+      "trades": 2285,
+      "pnl_usd": 461.4239689971789,
+      "mean_daily_log_growth": 0.0821574367653025,
+      "max_drawdown_cost_basis": 0.7536616916425988,
+      "max_underwater_seconds": 457199.0,
+      "max_open_cost_basis_usd": 15.0,
+      "max_open_positions": 3,
+      "minimum_cash_usd": 15.865522377527125,
+      "fees_usd": 0.0,
+      "turnover_usd": 11425.0
+    },
+    {
+      "strategy": "fractional_kelly_half_10pct",
+      "comparison": "outer_walk_forward",
+      "trades": 529,
+      "pnl_usd": 209.64612706239114,
+      "mean_daily_log_growth": 0.053821901611871364,
+      "max_drawdown_cost_basis": 0.3262120728404721,
+      "max_underwater_seconds": 603901.0,
+      "max_open_cost_basis_usd": 23.33,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 83.21380662903458,
+      "fees_usd": 0.0,
+      "turnover_usd": 2088.3100000000013
+    },
+    {
+      "strategy": "point_kelly_btc_only",
+      "comparison": "outer_walk_forward",
+      "trades": 1779,
+      "pnl_usd": 453.8685358468492,
+      "mean_daily_log_growth": 0.08151224631827035,
+      "max_drawdown_cost_basis": 0.8951680491995543,
+      "max_underwater_seconds": 1075201.0,
+      "max_open_cost_basis_usd": 40.0,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 17.223026952435383,
+      "fees_usd": 0.0,
+      "turnover_usd": 9928.620000000034
+    },
+    {
+      "strategy": "drk_btc_only",
+      "comparison": "outer_walk_forward",
+      "trades": 265,
+      "pnl_usd": -14.389492797118521,
+      "mean_daily_log_growth": -0.007398198222669686,
+      "max_drawdown_cost_basis": 0.6219918367346935,
+      "max_underwater_seconds": 1694234.0,
+      "max_open_cost_basis_usd": 17.4,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 35.250816326530654,
+      "fees_usd": 0.0,
+      "turnover_usd": 755.3699999999988
+    },
+    {
+      "strategy": "point_kelly_btc_market",
+      "comparison": "outer_walk_forward",
+      "trades": 1824,
+      "pnl_usd": 312.084230447424,
+      "mean_daily_log_growth": 0.06743131358568573,
+      "max_drawdown_cost_basis": 0.8613893668150923,
+      "max_underwater_seconds": 1133399.0,
+      "max_open_cost_basis_usd": 40.0,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 24.25973676166199,
+      "fees_usd": 0.0,
+      "turnover_usd": 9838.760000000031
+    },
+    {
+      "strategy": "drk_btc_market",
+      "comparison": "outer_walk_forward",
+      "trades": 285,
+      "pnl_usd": -49.06849824980754,
+      "mean_daily_log_growth": -0.032128026617731065,
+      "max_drawdown_cost_basis": 0.7023999999999987,
+      "max_underwater_seconds": 1694234.0,
+      "max_open_cost_basis_usd": 15.41,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 27.160000000000135,
+      "fees_usd": 0.0,
+      "turnover_usd": 794.8899999999995
+    },
+    {
+      "strategy": "portfolio_kelly_independent",
+      "comparison": "outer_walk_forward",
+      "trades": 1827,
+      "pnl_usd": 319.18836186567415,
+      "mean_daily_log_growth": 0.06824524685277789,
+      "max_drawdown_cost_basis": 0.863612420231302,
+      "max_underwater_seconds": 1133399.0,
+      "max_open_cost_basis_usd": 40.0,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 23.808276312944557,
+      "fees_usd": 0.0,
+      "turnover_usd": 10006.910000000033
+    },
+    {
+      "strategy": "rck_alpha_0.5_correlated",
+      "comparison": "outer_walk_forward",
+      "trades": 303,
+      "pnl_usd": 33.52349907193965,
+      "mean_daily_log_growth": 0.013767014255845936,
+      "max_drawdown_cost_basis": 0.3976979230483063,
+      "max_underwater_seconds": 1114500.0,
+      "max_open_cost_basis_usd": 24.27,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 61.17410164065629,
+      "fees_usd": 0.0,
+      "turnover_usd": 1068.5999999999997
+    },
+    {
+      "strategy": "rck_alpha_0.5_independent",
+      "comparison": "outer_walk_forward",
+      "trades": 281,
+      "pnl_usd": 29.881478885802977,
+      "mean_daily_log_growth": 0.012450102273192029,
+      "max_drawdown_cost_basis": 0.427873030671748,
+      "max_underwater_seconds": 1115089.0,
+      "max_open_cost_basis_usd": 24.259999999999998,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 57.59812324929982,
+      "fees_usd": 0.0,
+      "turnover_usd": 997.3700000000001
+    },
+    {
+      "strategy": "rck_alpha_0.7_correlated",
+      "comparison": "outer_walk_forward",
+      "trades": 26,
+      "pnl_usd": -4.182742795495258,
+      "mean_daily_log_growth": -0.002034637114289004,
+      "max_drawdown_cost_basis": 0.21861568627450964,
+      "max_underwater_seconds": 1694234.0,
+      "max_open_cost_basis_usd": 12.87,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 71.01882583195572,
+      "fees_usd": 0.0,
+      "turnover_usd": 91.42999999999999
+    },
+    {
+      "strategy": "rck_alpha_0.7_independent",
+      "comparison": "outer_walk_forward",
+      "trades": 26,
+      "pnl_usd": -4.22235063863252,
+      "mean_daily_log_growth": -0.002054325401719136,
+      "max_drawdown_cost_basis": 0.21861568627450964,
+      "max_underwater_seconds": 1694234.0,
+      "max_open_cost_basis_usd": 12.87,
+      "max_open_positions": 2,
+      "minimum_cash_usd": 70.96921798881847,
+      "fees_usd": 0.0,
+      "turnover_usd": 91.45
+    },
+    {
+      "strategy": "rck_alpha_0.8_correlated",
+      "comparison": "outer_walk_forward",
+      "trades": 4,
+      "pnl_usd": -5.949230769230795,
+      "mean_daily_log_growth": -0.0029207357770929645,
+      "max_drawdown_cost_basis": 0.10860000000000014,
+      "max_underwater_seconds": 1694234.0,
+      "max_open_cost_basis_usd": 9.12,
+      "max_open_positions": 1,
+      "minimum_cash_usd": 80.01999999999998,
+      "fees_usd": 0.0,
+      "turnover_usd": 19.979999999999997
+    },
+    {
+      "strategy": "rck_alpha_0.8_independent",
+      "comparison": "outer_walk_forward",
+      "trades": 4,
+      "pnl_usd": -5.949230769230795,
+      "mean_daily_log_growth": -0.0029207357770929645,
+      "max_drawdown_cost_basis": 0.10860000000000014,
+      "max_underwater_seconds": 1694234.0,
+      "max_open_cost_basis_usd": 9.12,
+      "max_open_positions": 1,
+      "minimum_cash_usd": 80.01999999999998,
+      "fees_usd": 0.0,
+      "turnover_usd": 19.979999999999997
+    }
+  ],
+  "selection_comparison": [
+    {
+      "comparison": "selection_fixed_5_usd_independent_markets_no_reinvestment",
+      "strategy": "candidate_platt",
+      "markets": 2673,
+      "selected": 955,
+      "feasible": 955,
+      "up_trades": 197,
+      "down_trades": 758,
+      "wins": 511,
+      "hit_rate": 0.5350785340314136,
+      "gross_stake_usd": 4775.0,
+      "realized_pnl_usd": 357.4431929110979,
+      "mean_pnl_per_trade_usd": 0.37428606587549523,
+      "rejections_by_reason": {
+        "insufficient_top_of_book": 62,
+        "minimum_order_shares": 65
+      }
+    },
+    {
+      "comparison": "selection_fixed_5_usd_independent_markets_no_reinvestment",
+      "strategy": "point_kelly_btc_only",
+      "markets": 2673,
+      "selected": 1356,
+      "feasible": 1356,
+      "up_trades": 1089,
+      "down_trades": 267,
+      "wins": 718,
+      "hit_rate": 0.5294985250737463,
+      "gross_stake_usd": 6780.0,
+      "realized_pnl_usd": 317.7427034142155,
+      "mean_pnl_per_trade_usd": 0.2343235275916043,
+      "rejections_by_reason": {
+        "insufficient_top_of_book": 62,
+        "minimum_order_shares": 65
+      }
+    },
+    {
+      "comparison": "selection_fixed_5_usd_independent_markets_no_reinvestment",
+      "strategy": "drk_btc_only",
+      "markets": 2673,
+      "selected": 240,
+      "feasible": 240,
+      "up_trades": 230,
+      "down_trades": 10,
+      "wins": 126,
+      "hit_rate": 0.525,
+      "gross_stake_usd": 1200.0,
+      "realized_pnl_usd": 56.035156062425024,
+      "mean_pnl_per_trade_usd": 0.23347981692677083,
+      "rejections_by_reason": {
+        "insufficient_top_of_book": 62,
+        "minimum_order_shares": 65
+      }
+    },
+    {
+      "comparison": "selection_fixed_5_usd_independent_markets_no_reinvestment",
+      "strategy": "point_kelly_btc_market",
+      "markets": 2673,
+      "selected": 1330,
+      "feasible": 1330,
+      "up_trades": 1148,
+      "down_trades": 182,
+      "wins": 714,
+      "hit_rate": 0.5368421052631579,
+      "gross_stake_usd": 6650.0,
+      "realized_pnl_usd": 382.7612366136295,
+      "mean_pnl_per_trade_usd": 0.2877904034688943,
+      "rejections_by_reason": {
+        "insufficient_top_of_book": 62,
+        "minimum_order_shares": 65
+      }
+    },
+    {
+      "comparison": "selection_fixed_5_usd_independent_markets_no_reinvestment",
+      "strategy": "drk_btc_market",
+      "markets": 2673,
+      "selected": 266,
+      "feasible": 266,
+      "up_trades": 266,
+      "down_trades": 0,
+      "wins": 135,
+      "hit_rate": 0.5075187969924813,
+      "gross_stake_usd": 1330.0,
+      "realized_pnl_usd": -0.13791959163921108,
+      "mean_pnl_per_trade_usd": -0.0005184947054106198,
+      "rejections_by_reason": {
+        "insufficient_top_of_book": 62,
+        "minimum_order_shares": 65
+      }
+    }
+  ],
+  "sizing_comparison": [
+    {
+      "comparison": "sizing_on_frozen_legacy_market_side_time",
+      "strategy": "candidate_fractional_kelly",
+      "frozen_population_markets": 2673,
+      "requested_orders": 2285,
+      "feasible_orders": 290,
+      "feasibility_rate": 0.12691466083150985,
+      "mean_requested_usd": 1.2765959187191178,
+      "mean_admitted_usd": 3.2567931034482758,
+      "realized_pnl_on_feasible_orders_usd": 112.37575993572553,
+      "top_of_book_limited_orders": 15,
+      "rejections_by_reason": {
+        "minimum_order_shares": 869,
+        "below_minimum_gross_notional": 1109,
+        "insufficient_top_of_book": 17
+      },
+      "side_and_time_frozen_from": "candidate_platt legacy exact-$5 expected-profit side rule"
+    },
+    {
+      "comparison": "sizing_on_frozen_legacy_market_side_time",
+      "strategy": "point_kelly_btc_only",
+      "frozen_population_markets": 2673,
+      "requested_orders": 2285,
+      "feasible_orders": 949,
+      "feasibility_rate": 0.4153172866520788,
+      "mean_requested_usd": 2.5304064065280185,
+      "mean_admitted_usd": 5.450210748155953,
+      "realized_pnl_on_feasible_orders_usd": 292.43881217121583,
+      "top_of_book_limited_orders": 55,
+      "rejections_by_reason": {
+        "no_positive_kelly_amount": 988,
+        "below_minimum_gross_notional": 157,
+        "insufficient_top_of_book": 14,
+        "minimum_order_shares": 177
+      },
+      "side_and_time_frozen_from": "candidate_platt legacy exact-$5 expected-profit side rule"
+    },
+    {
+      "comparison": "sizing_on_frozen_legacy_market_side_time",
+      "strategy": "drk_btc_only",
+      "frozen_population_markets": 2673,
+      "requested_orders": 2285,
+      "feasible_orders": 221,
+      "feasibility_rate": 0.09671772428884026,
+      "mean_requested_usd": 0.6958545211514426,
+      "mean_admitted_usd": 3.777285067873303,
+      "realized_pnl_on_feasible_orders_usd": 16.088739495798308,
+      "top_of_book_limited_orders": 7,
+      "rejections_by_reason": {
+        "no_positive_kelly_amount": 1495,
+        "below_minimum_gross_notional": 212,
+        "insufficient_top_of_book": 7,
+        "minimum_order_shares": 350
+      },
+      "side_and_time_frozen_from": "candidate_platt legacy exact-$5 expected-profit side rule"
+    },
+    {
+      "comparison": "sizing_on_frozen_legacy_market_side_time",
+      "strategy": "point_kelly_btc_market",
+      "frozen_population_markets": 2673,
+      "requested_orders": 2285,
+      "feasible_orders": 792,
+      "feasibility_rate": 0.3466083150984683,
+      "mean_requested_usd": 2.2315041445219803,
+      "mean_admitted_usd": 5.602777777777777,
+      "realized_pnl_on_feasible_orders_usd": 212.9544657524354,
+      "top_of_book_limited_orders": 54,
+      "rejections_by_reason": {
+        "no_positive_kelly_amount": 1119,
+        "below_minimum_gross_notional": 169,
+        "insufficient_top_of_book": 12,
+        "minimum_order_shares": 193
+      },
+      "side_and_time_frozen_from": "candidate_platt legacy exact-$5 expected-profit side rule"
+    },
+    {
+      "comparison": "sizing_on_frozen_legacy_market_side_time",
+      "strategy": "drk_btc_market",
+      "frozen_population_markets": 2673,
+      "requested_orders": 2285,
+      "feasible_orders": 202,
+      "feasibility_rate": 0.08840262582056893,
+      "mean_requested_usd": 0.599585819651238,
+      "mean_admitted_usd": 4.219752475247525,
+      "realized_pnl_on_feasible_orders_usd": -19.75474004986611,
+      "top_of_book_limited_orders": 12,
+      "rejections_by_reason": {
+        "no_positive_kelly_amount": 1652,
+        "below_minimum_gross_notional": 203,
+        "insufficient_top_of_book": 6,
+        "minimum_order_shares": 222
+      },
+      "side_and_time_frozen_from": "candidate_platt legacy exact-$5 expected-profit side rule"
+    },
+    {
+      "comparison": "sizing_on_frozen_legacy_market_side_time",
+      "strategy": "rck_alpha_0.5",
+      "frozen_population_markets": 2673,
+      "requested_orders": 2285,
+      "feasible_orders": 405,
+      "feasibility_rate": 0.1772428884026258,
+      "mean_requested_usd": 0.6082929654900343,
+      "mean_admitted_usd": 3.4270370370370364,
+      "realized_pnl_on_feasible_orders_usd": 18.006956596059016,
+      "top_of_book_limited_orders": 0,
+      "rejections_by_reason": {
+        "no_positive_kelly_amount": 1880
+      },
+      "side_and_time_frozen_from": "candidate_platt legacy exact-$5 expected-profit side rule"
+    },
+    {
+      "comparison": "sizing_on_frozen_legacy_market_side_time",
+      "strategy": "rck_alpha_0.7",
+      "frozen_population_markets": 2673,
+      "requested_orders": 2285,
+      "feasible_orders": 54,
+      "feasibility_rate": 0.02363238512035011,
+      "mean_requested_usd": 0.07393728297010019,
+      "mean_admitted_usd": 3.122407407407408,
+      "realized_pnl_on_feasible_orders_usd": 19.653141872133467,
+      "top_of_book_limited_orders": 0,
+      "rejections_by_reason": {
+        "no_positive_kelly_amount": 2231
+      },
+      "side_and_time_frozen_from": "candidate_platt legacy exact-$5 expected-profit side rule"
+    },
+    {
+      "comparison": "sizing_on_frozen_legacy_market_side_time",
+      "strategy": "rck_alpha_0.8",
+      "frozen_population_markets": 2673,
+      "requested_orders": 2285,
+      "feasible_orders": 4,
+      "feasibility_rate": 0.00175054704595186,
+      "mean_requested_usd": 0.0061078322151937635,
+      "mean_admitted_usd": 3.4875,
+      "realized_pnl_on_feasible_orders_usd": -8.675490196078432,
+      "top_of_book_limited_orders": 0,
+      "rejections_by_reason": {
+        "no_positive_kelly_amount": 2281
+      },
+      "side_and_time_frozen_from": "candidate_platt legacy exact-$5 expected-profit side rule"
+    }
+  ],
+  "exit_comparison": {
+    "hold_to_resolution": "available control; same settlement and +60s release as shared ledger",
+    "simple_exit_rule": "trajectory data audited; evaluated in the separate exit-policy continuation run",
+    "regression_optimal_stopping": "trajectory data audited; evaluated in the separate exit-policy continuation run",
+    "reason": "The local 1-second Kacho top-of-book file covers every eligible market for its full 300-second window; existing PMXT event replay supplies the pre-start interval."
+  },
+  "optimal_stopping_data_audit": {
+    "local_event_partitions": 811,
+    "local_event_partition_bytes": 820545838,
+    "cached_event_rows": 104437933,
+    "covered_market_states": 9407,
+    "snapshot_rows": 150512,
+    "local_cutoff": "market condition_id min/max statistics then exact id and timestamp_received cutoff through market start plus max order delay",
+    "full_hourly_files_downloaded": false,
+    "eligible_markets_requiring_trajectory": 4454,
+    "target_market_start_range": {
+      "start_utc": "2026-04-15T17:05:00+00:00",
+      "end_utc": "2026-05-18T10:05:00+00:00"
+    },
+    "post_entry_source": "local Kacho 1-second top-of-book observations from market start through market end; existing PMXT event replay supplies pre-start exit decisions",
+    "post_entry_trajectory_available": true,
+    "post_entry_market_rows": 1336200,
+    "post_entry_markets_with_exact_300_second_coverage": 4454,
+    "post_entry_markets_with_gaps_or_incomplete_coverage": 0,
+    "post_entry_observation_seconds": {
+      "first": 0,
+      "last": 299,
+      "nominal_market_end_offset": 300,
+      "decision_grid_seconds": 5
+    },
+    "markets_with_up_bid_size_missing_samples": 1903,
+    "markets_with_down_bid_size_missing_samples": 1956,
+    "up_bid_size_missing_samples": 44490,
+    "down_bid_size_missing_samples": 46372,
+    "kacho_market_ids_matched": 4454,
+    "kacho_start_matches": 4454,
+    "kacho_token_ids_match_pmxt": 4454,
+    "kacho_market_end_duration_seconds": [
+      300.0
+    ],
+    "kacho_recorded_outcome_nonnull": 4025,
+    "kacho_recorded_outcome_matches_official_label": 4019,
+    "kacho_recorded_outcome_used_for_pnl": false,
+    "quote_source_crosscheck": {
+      "markets_compared_at_market_start_plus_5s": 4454,
+      "median_absolute_price_difference_by_side": {
+        "up_best_bid": 0.020000000000000018,
+        "up_best_ask": 0.020000000000000018,
+        "down_best_bid": 0.009999999999999953,
+        "down_best_ask": 0.010000000000000009
+      }
+    },
+    "per_market_coverage_csv": "reports/btc_preopen/trajectory_coverage_per_market_20261007.csv",
+    "other_local_parquet_files_found": 25,
+    "other_local_orderbook_parquet_files": 21,
+    "other_local_resolution_parquet_files": 1,
+    "other_local_orderbook_market_time_overlap_files": 0,
+    "other_local_orderbook_target_condition_or_token_ids": 0,
+    "other_local_resolution_target_condition_ids": 0,
+    "other_local_orderbook_audit": [
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-01-09.parquet",
+        "rows": 16,
+        "first_timestamp_utc": "2026-01-09T09:31:01.644586+00:00",
+        "last_timestamp_utc": "2026-01-09T09:48:58.077926+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-01-27.parquet",
+        "rows": 478,
+        "first_timestamp_utc": "2026-01-27T03:34:12.946038+00:00",
+        "last_timestamp_utc": "2026-01-27T04:02:28.752532+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-01.parquet",
+        "rows": 52261,
+        "first_timestamp_utc": "2026-03-01T18:31:02.130697+00:00",
+        "last_timestamp_utc": "2026-03-01T23:59:59.135882+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-02.parquet",
+        "rows": 308370,
+        "first_timestamp_utc": "2026-03-02T00:00:08.952710+00:00",
+        "last_timestamp_utc": "2026-03-02T23:59:54.882586+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-03.parquet",
+        "rows": 306150,
+        "first_timestamp_utc": "2026-03-03T00:00:03.326738+00:00",
+        "last_timestamp_utc": "2026-03-03T23:59:58.432670+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-04.parquet",
+        "rows": 306232,
+        "first_timestamp_utc": "2026-03-04T00:00:10.394718+00:00",
+        "last_timestamp_utc": "2026-03-04T23:59:58.606297+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-05.parquet",
+        "rows": 304732,
+        "first_timestamp_utc": "2026-03-05T00:00:08.441050+00:00",
+        "last_timestamp_utc": "2026-03-05T23:59:58.169438+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-06.parquet",
+        "rows": 304067,
+        "first_timestamp_utc": "2026-03-06T00:00:07.993241+00:00",
+        "last_timestamp_utc": "2026-03-06T23:59:56.920327+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-07.parquet",
+        "rows": 304831,
+        "first_timestamp_utc": "2026-03-07T00:00:06.749995+00:00",
+        "last_timestamp_utc": "2026-03-07T23:59:59.520401+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-08.parquet",
+        "rows": 302946,
+        "first_timestamp_utc": "2026-03-08T00:00:09.387798+00:00",
+        "last_timestamp_utc": "2026-03-08T23:59:54.720074+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-09.parquet",
+        "rows": 301998,
+        "first_timestamp_utc": "2026-03-09T00:00:03.743726+00:00",
+        "last_timestamp_utc": "2026-03-09T23:59:58.950730+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-10.parquet",
+        "rows": 300814,
+        "first_timestamp_utc": "2026-03-10T00:00:08.802239+00:00",
+        "last_timestamp_utc": "2026-03-10T23:59:59.356802+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-11.parquet",
+        "rows": 299415,
+        "first_timestamp_utc": "2026-03-11T00:00:09.218539+00:00",
+        "last_timestamp_utc": "2026-03-11T23:59:59.959631+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-12.parquet",
+        "rows": 299345,
+        "first_timestamp_utc": "2026-03-12T00:00:00.062904+00:00",
+        "last_timestamp_utc": "2026-03-12T23:59:59.405977+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-13.parquet",
+        "rows": 296206,
+        "first_timestamp_utc": "2026-03-13T00:00:09.238444+00:00",
+        "last_timestamp_utc": "2026-03-13T23:59:52.393932+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-14.parquet",
+        "rows": 298328,
+        "first_timestamp_utc": "2026-03-14T00:00:02.228959+00:00",
+        "last_timestamp_utc": "2026-03-14T23:59:46.705034+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-15.parquet",
+        "rows": 296376,
+        "first_timestamp_utc": "2026-03-15T00:00:24.276897+00:00",
+        "last_timestamp_utc": "2026-03-15T23:59:58.915144+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-16.parquet",
+        "rows": 291058,
+        "first_timestamp_utc": "2026-03-16T00:00:09.373425+00:00",
+        "last_timestamp_utc": "2026-03-16T23:59:59.434080+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-17.parquet",
+        "rows": 290415,
+        "first_timestamp_utc": "2026-03-17T00:00:00.666525+00:00",
+        "last_timestamp_utc": "2026-03-17T23:59:50.822949+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-18.parquet",
+        "rows": 286535,
+        "first_timestamp_utc": "2026-03-18T00:00:03.336195+00:00",
+        "last_timestamp_utc": "2026-03-18T23:59:52.920841+00:00",
+        "target_condition_or_token_ids": 0
+      },
+      {
+        "path": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/orderbooks/2026-03-19.parquet",
+        "rows": 177184,
+        "first_timestamp_utc": "2026-03-19T00:00:03.076248+00:00",
+        "last_timestamp_utc": "2026-03-19T14:49:39.506035+00:00",
+        "target_condition_or_token_ids": 0
+      }
+    ],
+    "recovery_source_pattern_in_existing_extractor": "https://r2v2.pmxt.dev/polymarket_orderbook_{hour}.parquet",
+    "recovery_assessment": "selective PMXT HTTP range access is available, but the local 1-second Kacho trajectories cover all eligible post-entry windows; no additional data download was needed",
+    "outcome_availability_proxy": "outcome_available_at_utc equals resolved_at_utc from shared_market_evaluation; it is a market-resolution timestamp, not an observed label-receipt timestamp",
+    "trajectory_sampling_limitations": [
+      "Kacho records one cached top-of-book sample per second; websocket receive timestamps are not included.",
+      "Sale feasibility uses the sampled best bid and its displayed top-level quantity; deeper levels are not present in this source.",
+      "The exact timestamp cross-check with the independent PMXT replay differs by a median of one to two price ticks; the exit study uses Kacho snapshots as a single consistent trajectory source after market start and does not forward-fill missing quotes."
+    ],
+    "hold_to_resolution_available": true,
+    "trained_or_simple_exit_policy_evaluable": true
+  },
+  "fold_results": [
+    {
+      "policy_id": "no_trade",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 0,
+      "realized_pnl_on_block_entries_usd": 0.0,
+      "cash_after_last_decision_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 100.0,
+      "open_positions_after_last_decision": 0
+    },
+    {
+      "policy_id": "no_trade",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 0,
+      "realized_pnl_on_block_entries_usd": 0.0,
+      "cash_after_last_decision_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 100.0,
+      "open_positions_after_last_decision": 0
+    },
+    {
+      "policy_id": "no_trade",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 0,
+      "realized_pnl_on_block_entries_usd": 0.0,
+      "cash_after_last_decision_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 100.0,
+      "open_positions_after_last_decision": 0
+    },
+    {
+      "policy_id": "legacy_best_level_fixed_5",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 734,
+      "realized_pnl_on_block_entries_usd": 156.9126611485365,
+      "cash_after_last_decision_usd": 256.91266114853727,
+      "cost_basis_equity_after_last_decision_usd": 256.91266114853727,
+      "open_positions_after_last_decision": 0
+    },
+    {
+      "policy_id": "legacy_best_level_fixed_5",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 755,
+      "realized_pnl_on_block_entries_usd": -39.44977252439433,
+      "cash_after_last_decision_usd": 207.46288862414406,
+      "cost_basis_equity_after_last_decision_usd": 212.46288862414406,
+      "open_positions_after_last_decision": 1
+    },
+    {
+      "policy_id": "legacy_best_level_fixed_5",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 755,
+      "realized_pnl_on_block_entries_usd": 343.6886203859613,
+      "cash_after_last_decision_usd": 561.1515090101066,
+      "cost_basis_equity_after_last_decision_usd": 566.1515090101066,
+      "open_positions_after_last_decision": 1
+    },
+    {
+      "policy_id": "legacy_exact_fixed_5",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 750,
+      "realized_pnl_on_block_entries_usd": 161.69314862044834,
+      "cash_after_last_decision_usd": 261.6931486204492,
+      "cost_basis_equity_after_last_decision_usd": 261.6931486204492,
+      "open_positions_after_last_decision": 0
+    },
+    {
+      "policy_id": "legacy_exact_fixed_5",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 767,
+      "realized_pnl_on_block_entries_usd": -60.80335486502288,
+      "cash_after_last_decision_usd": 190.88979375542755,
+      "cost_basis_equity_after_last_decision_usd": 195.88979375542755,
+      "open_positions_after_last_decision": 1
+    },
+    {
+      "policy_id": "legacy_exact_fixed_5",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 768,
+      "realized_pnl_on_block_entries_usd": 360.5341752417498,
+      "cash_after_last_decision_usd": 561.4239689971789,
+      "cost_basis_equity_after_last_decision_usd": 566.4239689971789,
+      "open_positions_after_last_decision": 1
+    },
+    {
+      "policy_id": "fractional_kelly_half_10pct",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 125,
+      "realized_pnl_on_block_entries_usd": 18.469122473321022,
+      "cash_after_last_decision_usd": 118.469122473321,
+      "cost_basis_equity_after_last_decision_usd": 118.469122473321,
+      "open_positions_after_last_decision": 0
+    },
+    {
+      "policy_id": "fractional_kelly_half_10pct",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 101,
+      "realized_pnl_on_block_entries_usd": 12.226638655462187,
+      "cash_after_last_decision_usd": 130.69576112878315,
+      "cost_basis_equity_after_last_decision_usd": 130.69576112878315,
+      "open_positions_after_last_decision": 0
+    },
+    {
+      "policy_id": "fractional_kelly_half_10pct",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 303,
+      "realized_pnl_on_block_entries_usd": 178.95036593360751,
+      "cash_after_last_decision_usd": 309.64612706239114,
+      "cost_basis_equity_after_last_decision_usd": 309.64612706239114,
+      "open_positions_after_last_decision": 0
+    },
+    {
+      "policy_id": "point_kelly_btc_only",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 648,
+      "realized_pnl_on_block_entries_usd": -22.084207941522035,
+      "mean_expected_log_growth_at_entry": 0.0012714249454828246,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 75.4657920584777,
+      "cash_after_last_decision_usd": 72.9157920584777,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "point_kelly_btc_only",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 423,
+      "realized_pnl_on_block_entries_usd": 35.64411105661425,
+      "mean_expected_log_growth_at_entry": 0.0021465260260810424,
+      "starting_cost_basis_equity_usd": 75.4657920584777,
+      "cost_basis_equity_after_last_decision_usd": 110.95990311509216,
+      "cash_after_last_decision_usd": 108.35990311509217,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "point_kelly_btc_only",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 708,
+      "realized_pnl_on_block_entries_usd": 440.3086327317575,
+      "mean_expected_log_growth_at_entry": 0.0015816765152979959,
+      "starting_cost_basis_equity_usd": 110.95990311509216,
+      "cost_basis_equity_after_last_decision_usd": 573.8685358468492,
+      "cash_after_last_decision_usd": 553.8685358468492,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "drk_btc_only",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 57,
+      "realized_pnl_on_block_entries_usd": -56.89918367346938,
+      "mean_expected_log_growth_at_entry": 0.0022796647736090065,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 43.100816326530634,
+      "cash_after_last_decision_usd": 43.100816326530634,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "drk_btc_only",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 49,
+      "realized_pnl_on_block_entries_usd": 1.896666666666674,
+      "mean_expected_log_growth_at_entry": 0.0005376680355356635,
+      "starting_cost_basis_equity_usd": 43.100816326530634,
+      "cost_basis_equity_after_last_decision_usd": 44.99748299319736,
+      "cash_after_last_decision_usd": 44.99748299319736,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "drk_btc_only",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 159,
+      "realized_pnl_on_block_entries_usd": 40.613024209683886,
+      "mean_expected_log_growth_at_entry": 0.0009221800899819066,
+      "starting_cost_basis_equity_usd": 44.99748299319736,
+      "cost_basis_equity_after_last_decision_usd": 88.16050720288148,
+      "cash_after_last_decision_usd": 85.61050720288148,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "point_kelly_btc_market",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 649,
+      "realized_pnl_on_block_entries_usd": -27.725391443466613,
+      "mean_expected_log_growth_at_entry": 0.0012478681669110822,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 69.8246085565336,
+      "cash_after_last_decision_usd": 67.27460855653361,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "point_kelly_btc_market",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 505,
+      "realized_pnl_on_block_entries_usd": 98.25716416158465,
+      "mean_expected_log_growth_at_entry": 0.0018458468605543077,
+      "starting_cost_basis_equity_usd": 69.8246085565336,
+      "cost_basis_equity_after_last_decision_usd": 167.91177271811873,
+      "cash_after_last_decision_usd": 165.29177271811872,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "point_kelly_btc_market",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 670,
+      "realized_pnl_on_block_entries_usd": 241.55245772930567,
+      "mean_expected_log_growth_at_entry": 0.0019590954932991,
+      "starting_cost_basis_equity_usd": 167.91177271811873,
+      "cost_basis_equity_after_last_decision_usd": 430.764230447424,
+      "cash_after_last_decision_usd": 412.084230447424,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "drk_btc_market",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 55,
+      "realized_pnl_on_block_entries_usd": -46.839999999999996,
+      "mean_expected_log_growth_at_entry": 0.001360261251808856,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 53.16,
+      "cash_after_last_decision_usd": 53.16,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "drk_btc_market",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 48,
+      "realized_pnl_on_block_entries_usd": -7.499999999999992,
+      "mean_expected_log_growth_at_entry": 0.00041866872058452317,
+      "starting_cost_basis_equity_usd": 53.16,
+      "cost_basis_equity_after_last_decision_usd": 45.660000000000124,
+      "cash_after_last_decision_usd": 45.660000000000124,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "drk_btc_market",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 182,
+      "realized_pnl_on_block_entries_usd": 5.271501750192103,
+      "mean_expected_log_growth_at_entry": 0.0012109108704442368,
+      "starting_cost_basis_equity_usd": 45.660000000000124,
+      "cost_basis_equity_after_last_decision_usd": 50.93150175019246,
+      "cash_after_last_decision_usd": 50.93150175019246,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "portfolio_kelly_independent",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 647,
+      "realized_pnl_on_block_entries_usd": -28.02109020289295,
+      "mean_expected_log_growth_at_entry": 0.001256063887790838,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 69.52890979710729,
+      "cash_after_last_decision_usd": 66.97890979710729,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "portfolio_kelly_independent",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 507,
+      "realized_pnl_on_block_entries_usd": 107.5304841176916,
+      "mean_expected_log_growth_at_entry": 0.001845622929299409,
+      "starting_cost_basis_equity_usd": 69.52890979710729,
+      "cost_basis_equity_after_last_decision_usd": 176.74939391479907,
+      "cash_after_last_decision_usd": 173.98939391479908,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "portfolio_kelly_independent",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 673,
+      "realized_pnl_on_block_entries_usd": 239.67896795087532,
+      "mean_expected_log_growth_at_entry": 0.0019451566089841179,
+      "starting_cost_basis_equity_usd": 176.74939391479907,
+      "cost_basis_equity_after_last_decision_usd": 438.18836186567415,
+      "cash_after_last_decision_usd": 419.18836186567415,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 0
+    },
+    {
+      "policy_id": "rck_alpha_0.5_correlated",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 40,
+      "realized_pnl_on_block_entries_usd": -27.71746698679472,
+      "mean_expected_log_growth_at_entry": 0.004077523692632971,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 72.2825330132053,
+      "cash_after_last_decision_usd": 72.2825330132053,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 605
+    },
+    {
+      "policy_id": "rck_alpha_0.5_correlated",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 68,
+      "realized_pnl_on_block_entries_usd": 9.336946697724406,
+      "mean_expected_log_growth_at_entry": 0.003342979046132158,
+      "starting_cost_basis_equity_usd": 72.2825330132053,
+      "cost_basis_equity_after_last_decision_usd": 81.6194797109297,
+      "cash_after_last_decision_usd": 81.6194797109297,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 518
+    },
+    {
+      "policy_id": "rck_alpha_0.5_correlated",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 195,
+      "realized_pnl_on_block_entries_usd": 51.904019361009986,
+      "mean_expected_log_growth_at_entry": 0.0031704572276475915,
+      "starting_cost_basis_equity_usd": 81.6194797109297,
+      "cost_basis_equity_after_last_decision_usd": 136.25349907193964,
+      "cash_after_last_decision_usd": 133.52349907193965,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 589
+    },
+    {
+      "policy_id": "rck_alpha_0.5_independent",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 42,
+      "realized_pnl_on_block_entries_usd": -32.0524649859944,
+      "mean_expected_log_growth_at_entry": 0.003955392302797052,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 67.9475350140057,
+      "cash_after_last_decision_usd": 67.9475350140057,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 595
+    },
+    {
+      "policy_id": "rck_alpha_0.5_independent",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 51,
+      "realized_pnl_on_block_entries_usd": 13.591674444168895,
+      "mean_expected_log_growth_at_entry": 0.003456233565030671,
+      "starting_cost_basis_equity_usd": 67.9475350140057,
+      "cost_basis_equity_after_last_decision_usd": 81.53920945817454,
+      "cash_after_last_decision_usd": 81.53920945817454,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 506
+    },
+    {
+      "policy_id": "rck_alpha_0.5_independent",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 188,
+      "realized_pnl_on_block_entries_usd": 48.342269427628544,
+      "mean_expected_log_growth_at_entry": 0.003259880787190843,
+      "starting_cost_basis_equity_usd": 81.53920945817454,
+      "cost_basis_equity_after_last_decision_usd": 132.54147888580297,
+      "cash_after_last_decision_usd": 129.88147888580298,
+      "open_positions_after_last_decision": 1,
+      "risk_constraint_changed_decisions": 587
+    },
+    {
+      "policy_id": "rck_alpha_0.7_correlated",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 3,
+      "realized_pnl_on_block_entries_usd": -16.21,
+      "mean_expected_log_growth_at_entry": 0.0207599080579869,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 83.79,
+      "cash_after_last_decision_usd": 83.79,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 625
+    },
+    {
+      "policy_id": "rck_alpha_0.7_correlated",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 4,
+      "realized_pnl_on_block_entries_usd": -0.3515686274509804,
+      "mean_expected_log_growth_at_entry": 0.00351349952759405,
+      "starting_cost_basis_equity_usd": 83.79,
+      "cost_basis_equity_after_last_decision_usd": 83.43843137254903,
+      "cash_after_last_decision_usd": 83.43843137254903,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 546
+    },
+    {
+      "policy_id": "rck_alpha_0.7_correlated",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 19,
+      "realized_pnl_on_block_entries_usd": 12.378825831955686,
+      "mean_expected_log_growth_at_entry": 0.005694655706772941,
+      "starting_cost_basis_equity_usd": 83.43843137254903,
+      "cost_basis_equity_after_last_decision_usd": 95.81725720450474,
+      "cash_after_last_decision_usd": 95.81725720450474,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 570
+    },
+    {
+      "policy_id": "rck_alpha_0.7_independent",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 3,
+      "realized_pnl_on_block_entries_usd": -16.21,
+      "mean_expected_log_growth_at_entry": 0.0207599080579869,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 83.79,
+      "cash_after_last_decision_usd": 83.79,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 625
+    },
+    {
+      "policy_id": "rck_alpha_0.7_independent",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 4,
+      "realized_pnl_on_block_entries_usd": -0.3515686274509804,
+      "mean_expected_log_growth_at_entry": 0.00351349952759405,
+      "starting_cost_basis_equity_usd": 83.79,
+      "cost_basis_equity_after_last_decision_usd": 83.43843137254903,
+      "cash_after_last_decision_usd": 83.43843137254903,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 546
+    },
+    {
+      "policy_id": "rck_alpha_0.7_independent",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 19,
+      "realized_pnl_on_block_entries_usd": 12.33921798881843,
+      "mean_expected_log_growth_at_entry": 0.005701103765048796,
+      "starting_cost_basis_equity_usd": 83.43843137254903,
+      "cost_basis_equity_after_last_decision_usd": 95.77764936136748,
+      "cash_after_last_decision_usd": 95.77764936136748,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 570
+    },
+    {
+      "policy_id": "rck_alpha_0.8_correlated",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 3,
+      "realized_pnl_on_block_entries_usd": -10.86,
+      "mean_expected_log_growth_at_entry": 0.014451151525649462,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 89.13999999999999,
+      "cash_after_last_decision_usd": 89.13999999999999,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 625
+    },
+    {
+      "policy_id": "rck_alpha_0.8_correlated",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 0,
+      "realized_pnl_on_block_entries_usd": 0.0,
+      "mean_expected_log_growth_at_entry": null,
+      "starting_cost_basis_equity_usd": 89.13999999999999,
+      "cost_basis_equity_after_last_decision_usd": 89.13999999999999,
+      "cash_after_last_decision_usd": 89.13999999999999,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 575
+    },
+    {
+      "policy_id": "rck_alpha_0.8_correlated",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 1,
+      "realized_pnl_on_block_entries_usd": 4.91076923076923,
+      "mean_expected_log_growth_at_entry": 0.025858763343845848,
+      "starting_cost_basis_equity_usd": 89.13999999999999,
+      "cost_basis_equity_after_last_decision_usd": 94.0507692307692,
+      "cash_after_last_decision_usd": 94.0507692307692,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 587
+    },
+    {
+      "policy_id": "rck_alpha_0.8_independent",
+      "fold_id": 1,
+      "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+      "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 3,
+      "realized_pnl_on_block_entries_usd": -10.86,
+      "mean_expected_log_growth_at_entry": 0.014451151525649462,
+      "starting_cost_basis_equity_usd": 100.0,
+      "cost_basis_equity_after_last_decision_usd": 89.13999999999999,
+      "cash_after_last_decision_usd": 89.13999999999999,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 625
+    },
+    {
+      "policy_id": "rck_alpha_0.8_independent",
+      "fold_id": 2,
+      "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+      "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 0,
+      "realized_pnl_on_block_entries_usd": 0.0,
+      "mean_expected_log_growth_at_entry": null,
+      "starting_cost_basis_equity_usd": 89.13999999999999,
+      "cost_basis_equity_after_last_decision_usd": 89.13999999999999,
+      "cash_after_last_decision_usd": 89.13999999999999,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 575
+    },
+    {
+      "policy_id": "rck_alpha_0.8_independent",
+      "fold_id": 3,
+      "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+      "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+      "eligible_markets": 891,
+      "decisions": 891,
+      "trades_entered": 1,
+      "realized_pnl_on_block_entries_usd": 4.91076923076923,
+      "mean_expected_log_growth_at_entry": 0.025858763343845848,
+      "starting_cost_basis_equity_usd": 89.13999999999999,
+      "cost_basis_equity_after_last_decision_usd": 94.0507692307692,
+      "cash_after_last_decision_usd": 94.0507692307692,
+      "open_positions_after_last_decision": 0,
+      "risk_constraint_changed_decisions": 587
+    }
+  ],
+  "artifacts": {
+    "config": "configs/research/btc_preopen_advanced_policy_20261007.json",
+    "folds": "reports/btc_preopen/advanced_policy_state_v2_folds_20261007.csv",
+    "trials": "reports/btc_preopen/advanced_policy_state_v2_trials_20261007.csv",
+    "manifest": "reports/btc_preopen/advanced_policy_state_v2_manifest_20261007.json",
+    "decisions": "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_state_v2_20261007/decisions.parquet",
+    "trades": "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_state_v2_20261007/trades.parquet"
+  },
+  "execution": {
+    "elapsed_seconds": 49.11878069999511,
+    "policy_replay_seconds": 48.73837360000471,
+    "peak_working_set_bytes": 2340257792,
+    "cpu_count": 20,
+    "bootstrap_fit_count_requested": 3000,
+    "bootstrap_fit_count_completed": 3000,
+    "policies_completed": 11,
+    "decision_rows_logged": 40095,
+    "trade_rows_logged": 11682
+  }
+}

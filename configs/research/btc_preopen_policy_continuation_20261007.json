@@ -1,0 +1,27 @@
+{
+  "experiment_id": "btc_preopen_policy_continuation_20261007",
+  "status": "frozen_development_research",
+  "active_for_trading": false,
+  "scenario_seed": 20261007,
+  "scenario_count": 512,
+  "drk_intensity": {
+    "grid": [0.0, 0.25, 0.5, 0.75, 1.0],
+    "selection_metric": "mean_daily_log_growth",
+    "tie_break": "smallest_eta",
+    "internal_calibrator_C": 1.0,
+    "bootstrap_block_days": 3,
+    "bootstrap_replicates": 500,
+    "minimum_nonempty_blocks": 4
+  },
+  "optimal_stopping": {
+    "entry": "frozen exact-$5 candidate_platt side chooser at T-59s",
+    "decision_offsets_seconds_from_market_start": [-54, -49, -44, -39, -34, -29, -24, -19, -14, -9, -4, 1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56, 61, 66, 71, 76, 81, 86, 91, 96, 101, 106, 111, 116, 121, 126, 131, 136, 141, 146, 151, 156, 161, 166, 171, 176, 181, 186, 191, 196, 201, 206, 211, 216, 221, 226, 231, 236, 241, 246, 251, 256, 261, 266, 271, 276, 281, 286, 291, 296],
+    "exit": "sell full position only with fresh best bid and enough displayed top-bid size; otherwise hold",
+    "max_bid_age_seconds": 30,
+    "sale_proceeds_available_immediately": true,
+    "ridge_alpha": 10.0,
+    "tree_max_depth": 3,
+    "tree_min_samples_leaf": 25,
+    "sale_fee_rate": "market-specific entry fee_rate_bps held constant across the 5-minute window"
+  }
+}

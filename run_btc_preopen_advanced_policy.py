@@ -20,15 +20,20 @@ CONFIG_PATH = ROOT / "configs/research/btc_preopen_advanced_policy_20261007.json
 BASE_CONFIG_PATH = ROOT / "configs/research/btc_preopen_policy_search_20261007.json"
 SOURCE_STUDY_PATH = ROOT / "reports/btc_preopen/policy_study.json"
 OPPORTUNITIES_PATH = ROOT / "reports/btc_preopen/policy_opportunities.parquet"
-SUMMARY_PATH = ROOT / "reports/btc_preopen/advanced_policy_study_20261007.json"
-FOLDS_PATH = ROOT / "reports/btc_preopen/advanced_policy_folds_20261007.csv"
-TRIALS_PATH = ROOT / "reports/btc_preopen/advanced_policy_trials_20261007.csv"
-MANIFEST_PATH = ROOT / "reports/btc_preopen/advanced_policy_manifest_20261007.json"
-REPORT_PATH = ROOT / "reports/btc_preopen/advanced_policy_20261007.md"
-CACHE_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_20261007"
+SUMMARY_PATH = ROOT / "reports/btc_preopen/advanced_policy_state_v2_20261007.json"
+FOLDS_PATH = ROOT / "reports/btc_preopen/advanced_policy_state_v2_folds_20261007.csv"
+TRIALS_PATH = ROOT / "reports/btc_preopen/advanced_policy_state_v2_trials_20261007.csv"
+MANIFEST_PATH = ROOT / "reports/btc_preopen/advanced_policy_state_v2_manifest_20261007.json"
+REPORT_PATH = ROOT / "reports/btc_preopen/advanced_policy_state_v2_20261007.md"
+PREDICTION_CACHE_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_20261007"
+CACHE_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_v1/advanced_policy_state_v2_20261007"
 DECISIONS_PATH = CACHE_DIR / "decisions.parquet"
 TRADES_PATH = CACHE_DIR / "trades.parquet"
 CHECKPOINT_PATH = CACHE_DIR / "run_checkpoint.json"
+KACHO_MARKETS_PATH = ROOT / "data/raw/polymarket/kachoio/42d917dc8e3205dde8ac909792af0cce2d715c9f/btc_markets.parquet"
+KACHO_TICKS_PATH = ROOT / "data/raw/polymarket/kachoio/42d917dc8e3205dde8ac909792af0cce2d715c9f/btc_ticks.parquet"
+ENTRY_SNAPSHOTS_PATH = ROOT / "reports/btc_preopen/entry_snapshots.parquet"
+TRAJECTORY_COVERAGE_PATH = ROOT / "reports/btc_preopen/trajectory_coverage_per_market_20261007.csv"
 
 EPS = 1e-10
 INTERVAL_NS = 300_000_000_000
@@ -41,6 +46,7 @@ COMPATIBLE_RUNNER_SHA256S = {
     # Existing non-RCK policy caches are still valid after the RCK audit-count correction.
     "c3c39642087a0e33ff43a1fb214730fad4a3e09dbbca14bb0ad6c20ad24580db",
     "85f1dfe2efb667e630650e01aec52d53590efb195eaed416fc33e364e00f49a7",
+    "4a680dd38a455927d3c3b1558ced786226fc763769d89c64958980208ea5d8c9",
 }
 RCK_AUDIT_METRIC_RUNNER_SHA256S = {
     "c3c39642087a0e33ff43a1fb214730fad4a3e09dbbca14bb0ad6c20ad24580db",
@@ -343,8 +349,20 @@ def single_bet_rck_fraction(probability: float, price: float, lam: float) -> flo
     return min(full_kelly, lo)
 
 
-def _positions_from_state(state: ledger.Portfolio) -> list[dict]:
-    return [entry[5] for entry in sorted(state.pending, key=lambda item: (item[0], item[1]))]
+def _positions_from_state(state: ledger.Portfolio, as_of_ns: int) -> tuple[list[dict], float, int]:
+    uncertain = []
+    known_locked_payout = 0.0
+    known_locked_count = 0
+    for release_ns, _, _, payout, _, position in sorted(state.pending, key=lambda item: (item[0], item[1])):
+        if int(release_ns) <= int(as_of_ns):
+            raise AssertionError("Released capital must be removed before scenario positions are read")
+        outcome_available_ns = position.get("outcome_available_ns")
+        if outcome_available_ns is None or int(outcome_available_ns) > int(as_of_ns):
+            uncertain.append(position)
+            continue
+        known_locked_count += 1
+        known_locked_payout += float(payout)
+    return uncertain, known_locked_payout, known_locked_count
 
 
 def _position_probability(position: dict, robust: bool) -> float:
@@ -352,9 +370,10 @@ def _position_probability(position: dict, robust: bool) -> float:
 
 
 def _scenario_base_wealth(
-    state: ledger.Portfolio, positions: list[dict], y_existing: np.ndarray
+    state: ledger.Portfolio, positions: list[dict], y_existing: np.ndarray,
+    known_locked_payout: float = 0.0,
 ) -> np.ndarray:
-    wealth = np.full(y_existing.shape[0], float(state.cash), dtype=float)
+    wealth = np.full(y_existing.shape[0], float(state.cash) + float(known_locked_payout), dtype=float)
     for column, position in enumerate(positions):
         wealth += float(position["net_shares"]) * y_existing[:, column]
     return wealth
@@ -499,7 +518,7 @@ def _decision_changed_by_risk_constraint(candidates: dict, chosen: dict | None, 
 def _choose_candidate(
     row: dict, side: str, state: ledger.Portfolio, config: dict, positions: list[dict],
     *, p_up: float, p_up_low: float, robust: bool, dependent: bool, rho: float,
-    z_bank: np.ndarray, lam: float | None,
+    z_bank: np.ndarray, lam: float | None, known_locked_payout: float = 0.0,
 ) -> dict:
     p_center_win = p_up if side == "up" else 1.0 - p_up
     p_low_win = p_up_low if side == "up" else 1.0 - float(row.get("_p_up_high", p_up))
@@ -510,7 +529,7 @@ def _choose_candidate(
     outcomes, weights = scenario_outcomes(probabilities, times, dependent=dependent, rho=rho, z_bank=z_bank, side_signs=signs)
     y_existing = outcomes[:, :len(positions)].astype(float)
     y_new = outcomes[:, -1].astype(float)
-    base_wealth = _scenario_base_wealth(state, positions, y_existing)
+    base_wealth = _scenario_base_wealth(state, positions, y_existing, known_locked_payout)
     wealth_reference = float(state.equity)
     if wealth_reference <= 0.0:
         return {"requested_gross_usd": 0.0, "admitted_gross_usd": 0.0, "skip_reason": "nonpositive_wealth_reference", "objective": float("-inf"), "baseline_objective": float("-inf"), "risk_moment": float("inf"), "risk_changed": False}
@@ -638,8 +657,8 @@ def _load_or_fit_predictions(rows: list[dict], folds: list[dict], config: dict, 
     predictions = {}
     fold_meta = []
     for fold_number, fold in enumerate(folds, start=1):
-        prediction_path = CACHE_DIR / f"fold_{fold_number}_predictions.parquet"
-        metadata_path = CACHE_DIR / f"fold_{fold_number}_metadata.json"
+        prediction_path = PREDICTION_CACHE_DIR / f"fold_{fold_number}_predictions.parquet"
+        metadata_path = PREDICTION_CACHE_DIR / f"fold_{fold_number}_metadata.json"
         cache_valid = False
         if prediction_path.is_file() and metadata_path.is_file():
             try:
@@ -652,13 +671,13 @@ def _load_or_fit_predictions(rows: list[dict], folds: list[dict], config: dict, 
                         for record in data.to_dict(orient="records")
                     }
                     fold_meta.append(cached_meta["model_meta"])
-                    if cached_meta.get("identity") != identity:
-                        _write_json_atomic(metadata_path, {"identity": identity, "model_meta": cached_meta["model_meta"]})
             except (OSError, ValueError, KeyError, pd.errors.ParserError):
                 cache_valid = False
         if cache_valid:
             print(f"fold {fold_number}/{len(folds)}: reusing causal calibration and bootstrap cache", flush=True)
             continue
+        prediction_path = CACHE_DIR / f"fold_{fold_number}_predictions.parquet"
+        metadata_path = CACHE_DIR / f"fold_{fold_number}_metadata.json"
         print(f"fold {fold_number}/{len(folds)}: fitting calibration and {config['calibration']['bootstrap']['replicates']} block-bootstrap replicates per model", flush=True)
         started = time.perf_counter()
         fold_predictions, metadata = _fit_fold_models(rows, fold, config, fold_number)
@@ -740,15 +759,22 @@ def _simulate_advanced(
             p_up = float(pred[f"p_{spec['calibration']}"])
             p_low = float(pred[f"p_{spec['calibration']}_low"])
             p_high = float(pred[f"p_{spec['calibration']}_high"])
-            action_row = {**row, "_p_up_high": p_high}
-            positions = _positions_from_state(state)
+            eta = spec.get("eta_by_fold", {}).get(fold_number)
+            if eta is None:
+                eta = float(spec.get("uncertainty_eta", 1.0 if spec["robust"] else 0.0))
+            p_low = min(p_low, p_up)
+            p_high = max(p_high, p_up)
+            adjusted_low = p_up + float(eta) * (p_low - p_up)
+            adjusted_high = p_up + float(eta) * (p_high - p_up)
+            action_row = {**row, "_p_up_high": adjusted_high}
+            positions, known_locked_payout, known_locked_count = _positions_from_state(state, entry_ns)
             candidates = {}
             for side in ("up", "down"):
                 candidates[side] = _choose_candidate(
                     action_row, side, state, base_config, positions,
-                    p_up=p_up, p_up_low=p_low, robust=bool(spec["robust"]),
+                    p_up=p_up, p_up_low=adjusted_low, robust=bool(spec["robust"]),
                     dependent=bool(spec["dependent"]), rho=rho, z_bank=z_bank,
-                    lam=spec["lambda"],
+                    lam=spec["lambda"], known_locked_payout=known_locked_payout,
                 )
             eligible = [
                 {**candidate, "side": side}
@@ -775,7 +801,11 @@ def _simulate_advanced(
                 "cash_before_usd": cash_before,
                 "locked_cost_before_usd": locked_before,
                 "open_positions_before": len(state.pending),
-                "wealth_reference_usd": float(state.equity),
+                "available_cash_now_usd": cash_before,
+                "known_outcome_locked_position_count": known_locked_count,
+                "known_outcome_locked_payout_usd": known_locked_payout,
+                "uncertain_outcome_locked_position_count": len(positions),
+                "cost_basis_equity_reference_approx_usd": float(state.equity),
                 "rck_lambda": spec["lambda"],
                 "decision_changed_by_risk_constraint": risk_changed,
             }
@@ -820,6 +850,7 @@ def _simulate_advanced(
                 "market_start_ns": int(row["_market_ns"]),
                 "side": side,
                 "target_up": target_up,
+                "outcome_available_ns": int(row["_outcome_ns"]),
                 "fold_id": int(fold["fold_id"]),
             }
             heapq.heappush(state.pending, (
@@ -1177,6 +1208,106 @@ def _trajectory_audit() -> dict:
     local_parts = list((archive_root / "event_parts").glob("*.parquet"))
     raw_root = ROOT / "data/raw/polymarket"
     raw_files = list(raw_root.rglob("*.parquet")) if raw_root.exists() else []
+    opportunities = pd.read_parquet(OPPORTUNITIES_PATH, columns=["condition_id", "eligible", "market_start_utc", "target_polymarket_up"])
+    eligible = opportunities.loc[opportunities["eligible"].astype(bool)].copy()
+    eligible["market_start_utc"] = pd.to_datetime(eligible["market_start_utc"], utc=True)
+    market_meta = pd.read_parquet(
+        KACHO_MARKETS_PATH,
+        columns=["condition_id", "market_start", "market_end", "recorded_at", "token_up", "token_down", "outcome", "n_ticks"],
+    )
+    token_index = pd.read_parquet(
+        archive_root / "market_index.parquet",
+        columns=["condition_id", "up_token_id", "down_token_id"],
+    )
+    targets = eligible.merge(market_meta, on="condition_id", how="left", validate="one_to_one")
+    targets = targets.merge(token_index, on="condition_id", how="left", validate="one_to_one")
+    targets["token_ids_match"] = (
+        targets["token_up"].astype("string") == targets["up_token_id"].astype("string")
+    ) & (
+        targets["token_down"].astype("string") == targets["down_token_id"].astype("string")
+    )
+    ticks = pd.read_parquet(
+        KACHO_TICKS_PATH,
+        columns=["condition_id", "t", "bu", "au", "bd", "ad", "su", "sd", "sau", "sad"],
+    )
+    target_ids = set(eligible["condition_id"].astype(str))
+    ticks = ticks.loc[ticks["condition_id"].isin(target_ids)].copy()
+    start_seconds = targets.set_index("condition_id")["market_start"].astype("int64") // 1_000_000_000
+    ticks["market_start_epoch_s"] = ticks["condition_id"].map(start_seconds)
+    ticks["offset_seconds"] = ticks["t"] - ticks["market_start_epoch_s"]
+    ticks.sort_values(["condition_id", "t"], kind="stable", inplace=True)
+    ticks["gap_from_previous_seconds"] = ticks.groupby("condition_id", sort=False)["t"].diff()
+    coverage = ticks.groupby("condition_id", sort=False).agg(
+        trajectory_rows=("t", "size"),
+        unique_sample_seconds=("t", "nunique"),
+        first_offset_seconds=("offset_seconds", "min"),
+        last_offset_seconds=("offset_seconds", "max"),
+        internal_gaps=("gap_from_previous_seconds", lambda values: int((values > 1).sum())),
+        duplicate_seconds=("t", lambda values: int(values.duplicated().sum())),
+        up_bid_size_missing=("su", lambda values: int(values.isna().sum())),
+        down_bid_size_missing=("sd", lambda values: int(values.isna().sum())),
+        up_bid_price_missing=("bu", lambda values: int(values.isna().sum())),
+        down_bid_price_missing=("bd", lambda values: int(values.isna().sum())),
+    ).reset_index()
+    coverage = eligible[["condition_id", "market_start_utc"]].merge(coverage, on="condition_id", how="left", validate="one_to_one")
+    coverage = coverage.merge(targets[["condition_id", "market_start", "market_end", "recorded_at", "n_ticks", "token_ids_match", "outcome", "target_polymarket_up"]], on="condition_id", how="left", validate="one_to_one")
+    coverage["expected_300s_coverage"] = (
+        coverage["trajectory_rows"].eq(300)
+        & coverage["unique_sample_seconds"].eq(300)
+        & coverage["first_offset_seconds"].eq(0)
+        & coverage["last_offset_seconds"].eq(299)
+        & coverage["internal_gaps"].eq(0)
+        & coverage["duplicate_seconds"].eq(0)
+    )
+    coverage.to_csv(TRAJECTORY_COVERAGE_PATH, index=False)
+    complete = coverage["expected_300s_coverage"].fillna(False)
+    nonnull_outcome = coverage["outcome"].notna()
+    outcome_match = coverage.loc[nonnull_outcome, "outcome"].str.lower().eq(
+        coverage.loc[nonnull_outcome, "target_polymarket_up"].map({1: "up", 0: "down"})
+    )
+    pmxt_check = {}
+    if ENTRY_SNAPSHOTS_PATH.is_file():
+        entry_quotes = pd.read_parquet(
+            ENTRY_SNAPSHOTS_PATH,
+            columns=["condition_id", "entry_case", "up_best_bid", "up_best_ask", "down_best_bid", "down_best_ask"],
+        )
+        entry_quotes = entry_quotes.loc[
+            entry_quotes["entry_case"].eq("market_start_c45_o5") & entry_quotes["condition_id"].isin(target_ids)
+        ].drop(columns="entry_case")
+        at_five = ticks.loc[ticks["offset_seconds"].eq(5), ["condition_id", "bu", "au", "bd", "ad"]]
+        compared = entry_quotes.merge(at_five, on="condition_id", how="inner", validate="one_to_one")
+        pmxt_check = {"markets_compared_at_market_start_plus_5s": int(len(compared)), "median_absolute_price_difference_by_side": {}}
+        for local, sampled in (("up_best_bid", "bu"), ("up_best_ask", "au"), ("down_best_bid", "bd"), ("down_best_ask", "ad")):
+            difference = (compared[local].astype(float) - compared[sampled].astype(float)).abs()
+            pmxt_check["median_absolute_price_difference_by_side"][local] = float(difference.median()) if len(difference) else None
+    orderbook_files = [path for path in raw_files if "orderbooks" in path.parts]
+    resolution_files = [path for path in raw_files if "resolutions" in path.parts]
+    eligible_token_index = token_index.loc[token_index["condition_id"].isin(target_ids)]
+    target_token_ids = set(eligible_token_index["up_token_id"].astype(str)) | set(eligible_token_index["down_token_id"].astype(str))
+    raw_orderbook_audit = []
+    for path in orderbook_files:
+        frame = pd.read_parquet(path, columns=["condition_id", "token_id", "timestamp"])
+        ids = set(frame["condition_id"].dropna().astype(str)) | set(frame["token_id"].dropna().astype(str))
+        raw_orderbook_audit.append({
+            "path": path.relative_to(ROOT).as_posix(),
+            "rows": int(len(frame)),
+            "first_timestamp_utc": pd.to_datetime(frame["timestamp"], utc=True).min().isoformat(),
+            "last_timestamp_utc": pd.to_datetime(frame["timestamp"], utc=True).max().isoformat(),
+            "target_condition_or_token_ids": int(len(ids & (target_ids | target_token_ids))),
+        })
+    raw_resolution_ids = set()
+    for path in resolution_files:
+        resolution_ids = pd.read_parquet(path, columns=["condition_id"])["condition_id"].dropna().astype(str)
+        raw_resolution_ids.update(resolution_ids)
+    raw_orderbook_time_overlap_count = sum(
+        pd.Timestamp(item["first_timestamp_utc"]) <= eligible["market_start_utc"].max()
+        and pd.Timestamp(item["last_timestamp_utc"]) >= eligible["market_start_utc"].min()
+        for item in raw_orderbook_audit
+    )
+    target_range = {
+        "start_utc": eligible["market_start_utc"].min().isoformat(),
+        "end_utc": eligible["market_start_utc"].max().isoformat(),
+    }
     return {
         "local_event_partitions": len(local_parts),
         "local_event_partition_bytes": int(sum(path.stat().st_size for path in local_parts)),
@@ -1185,17 +1316,44 @@ def _trajectory_audit() -> dict:
         "snapshot_rows": int(replay["snapshot_rows"]),
         "local_cutoff": extraction["row_group_filter"],
         "full_hourly_files_downloaded": bool(extraction["full_hourly_files_downloaded"]),
-        "post_entry_trajectory_available": False,
-        "eligible_markets_requiring_trajectory": 4454,
-        "local_coverage_end_per_market": "market_start + 5 seconds",
-        "required_end": "market_start + 300 seconds / market resolution",
-        "missing_post_entry_seconds_per_market": 295,
-        "missing_market_window": "2026-04-15T17:05:00Z through 2026-05-18T10:30:00Z, for each otherwise eligible market from T+5s to resolution",
-        "full_local_hourly_parquet_files_found": len(raw_files),
+        "eligible_markets_requiring_trajectory": int(len(eligible)),
+        "target_market_start_range": target_range,
+        "post_entry_source": "local Kacho 1-second top-of-book observations from market start through market end; existing PMXT event replay supplies pre-start exit decisions",
+        "post_entry_trajectory_available": bool(len(eligible) and complete.all()),
+        "post_entry_market_rows": int(coverage["trajectory_rows"].fillna(0).sum()),
+        "post_entry_markets_with_exact_300_second_coverage": int(complete.sum()),
+        "post_entry_markets_with_gaps_or_incomplete_coverage": int((~complete).sum()),
+        "post_entry_observation_seconds": {"first": 0, "last": 299, "nominal_market_end_offset": 300, "decision_grid_seconds": 5},
+        "markets_with_up_bid_size_missing_samples": int(coverage["up_bid_size_missing"].fillna(0).gt(0).sum()),
+        "markets_with_down_bid_size_missing_samples": int(coverage["down_bid_size_missing"].fillna(0).gt(0).sum()),
+        "up_bid_size_missing_samples": int(coverage["up_bid_size_missing"].fillna(0).sum()),
+        "down_bid_size_missing_samples": int(coverage["down_bid_size_missing"].fillna(0).sum()),
+        "kacho_market_ids_matched": int(targets["market_start"].notna().sum()),
+        "kacho_start_matches": int((targets["market_start"] == targets["market_start_utc"]).sum()),
+        "kacho_token_ids_match_pmxt": int(targets["token_ids_match"].fillna(False).sum()),
+        "kacho_market_end_duration_seconds": sorted((targets["market_end"] - targets["market_start"]).dropna().dt.total_seconds().unique().tolist()),
+        "kacho_recorded_outcome_nonnull": int(nonnull_outcome.sum()),
+        "kacho_recorded_outcome_matches_official_label": int(outcome_match.sum()),
+        "kacho_recorded_outcome_used_for_pnl": False,
+        "quote_source_crosscheck": pmxt_check,
+        "per_market_coverage_csv": TRAJECTORY_COVERAGE_PATH.relative_to(ROOT).as_posix(),
+        "other_local_parquet_files_found": len(raw_files),
+        "other_local_orderbook_parquet_files": len(orderbook_files),
+        "other_local_resolution_parquet_files": len(resolution_files),
+        "other_local_orderbook_market_time_overlap_files": int(raw_orderbook_time_overlap_count),
+        "other_local_orderbook_target_condition_or_token_ids": int(sum(item["target_condition_or_token_ids"] for item in raw_orderbook_audit)),
+        "other_local_resolution_target_condition_ids": int(len(raw_resolution_ids & target_ids)),
+        "other_local_orderbook_audit": raw_orderbook_audit,
         "recovery_source_pattern_in_existing_extractor": "https://r2v2.pmxt.dev/polymarket_orderbook_{hour}.parquet",
-        "recovery_assessment": "potentially retrievable from the same hourly PMXT archive, but the full hourly source files are not retained locally; no data was downloaded again",
+        "recovery_assessment": "selective PMXT HTTP range access is available, but the local 1-second Kacho trajectories cover all eligible post-entry windows; no additional data download was needed",
+        "outcome_availability_proxy": "outcome_available_at_utc equals resolved_at_utc from shared_market_evaluation; it is a market-resolution timestamp, not an observed label-receipt timestamp",
+        "trajectory_sampling_limitations": [
+            "Kacho records one cached top-of-book sample per second; websocket receive timestamps are not included.",
+            "Sale feasibility uses the sampled best bid and its displayed top-level quantity; deeper levels are not present in this source.",
+            "The exact timestamp cross-check with the independent PMXT replay differs by a median of one to two price ticks; the exit study uses Kacho snapshots as a single consistent trajectory source after market start and does not forward-fill missing quotes.",
+        ],
         "hold_to_resolution_available": True,
-        "trained_or_simple_exit_policy_evaluable": False,
+        "trained_or_simple_exit_policy_evaluable": bool(len(eligible) and complete.all()),
     }
 
 
@@ -1298,7 +1456,7 @@ def _make_report(summary: dict) -> str:
         "## RCK",
         "",
         rck_conclusion,
-        "RCK używa wspólnych scenariuszy AR(1) copula oraz wariantu niezależnego, a także trzech intensywności α=0.5/0.7/0.8 przy β=0.1. Mianownikiem jest cost-basis equity zamrożone przed decyzją; środki z otwartych pozycji wchodzą do terminalnych wypłat scenariuszowych raz, lecz nie finansują bieżącego zakupu. Gdy scenariuszowy portfel już narusza lokalny limit, dodatkowy zakup jest blokowany.",
+        "RCK używa wspólnych scenariuszy AR(1) copula oraz wariantu niezależnego, a także trzech intensywności α=0.5/0.7/0.8 przy β=0.1. Mianownikiem jest cost-basis equity zamrożone przed decyzją; to jawne przybliżenie wartości majątku, a nie wycena mark-to-market. Środki z otwartych pozycji wchodzą do terminalnych wypłat scenariuszowych raz, lecz nie finansują bieżącego zakupu. Gdy scenariuszowy portfel już narusza lokalny limit, dodatkowy zakup jest blokowany.",
         "",
         "## 1. Pełne polityki na wspólnej populacji",
         "",
@@ -1321,10 +1479,10 @@ def _make_report(summary: dict) -> str:
         "| Reguła wyjścia | Wynik |",
         "|---|---|",
         f"| Hold-to-resolution | dostępna kontrola; zakupy i rozliczenia z ledgeru |",
-        f"| Prosta reguła sprzedaży | nieoceniona; brak trajektorii bid/ilość po T+5s |",
-        f"| Regresyjne OS | nie trenowano; brak trajektorii kontynuacji |",
+        "| Prosta reguła sprzedaży | oceniona w osobnym raporcie `optimal_stopping_20261007.md` |",
+        "| Regresyjne OS | oceniono w osobnym raporcie `optimal_stopping_20261007.md` |",
         "",
-        f"Lokalny cache kończy się na T+5 s. Brakuje dalszych 295 sekund zdarzeń dla {trajectory['eligible_markets_requiring_trajectory']} kwalifikujących się rynków. Pełne pliki godzinne nie są lokalne; znany wzorzec odzyskania to `{trajectory['recovery_source_pattern_in_existing_extractor']}`. Nie pobierano ich ponownie. Analiza identycznych zakupów i pełny portfel OS nie są dostępne bez tych danych.",
+        f"Audyt znalazł {trajectory['post_entry_markets_with_exact_300_second_coverage']}/{trajectory['eligible_markets_requiring_trajectory']} rynków z 300 próbkami jedn-sekundowymi i bez luk. Dane Kacho zawierają bid, ask i ilość na najlepszym poziomie; brak ilości oznacza brak wykonalnej sprzedaży na tym poziomie. `resolved_at_utc` jest jawnym przybliżeniem dostępności wyniku, a nie zarejestrowanym czasem odbioru etykiety. Per-market coverage: `{trajectory['per_market_coverage_csv']}`. Dodatkowe pobranie PMXT nie było potrzebne; szczegóły OS są w osobnym raporcie kontynuacji.",
         "",
         "## Kalibracja i zależność scenariuszy",
         "",
@@ -1358,6 +1516,17 @@ def _run() -> None:
     base_config = json.loads(BASE_CONFIG_PATH.read_text(encoding="utf-8"))
     study = json.loads(SOURCE_STUDY_PATH.read_text(encoding="utf-8"))
     rows, folds, row_metadata = ledger._load_rows(base_config, study)
+    opportunity_times = pd.read_parquet(OPPORTUNITIES_PATH, columns=["eligible", "resolved_at_utc", "outcome_available_at_utc"])
+    eligible_times = opportunity_times.loc[opportunity_times["eligible"].astype(bool)]
+    row_metadata["outcome_availability"] = {
+        "field": "outcome_available_at_utc",
+        "source_field": "resolved_at_utc in shared_market_evaluation.parquet",
+        "eligible_rows_equal_to_resolved_at": int((eligible_times["outcome_available_at_utc"] == eligible_times["resolved_at_utc"]).sum()),
+        "eligible_rows": int(len(eligible_times)),
+        "observed_label_receipt_timestamp": False,
+        "interpretation": "resolved_at_utc is an explicit proxy for result availability; the source does not record when the strategy first observed the label",
+        "purge_rule": "labels strictly before fit/refit; an open position becomes deterministic when the proxy timestamp is at or before a decision",
+    }
     for row in rows:
         row["_market_ns"] = int(pd.Timestamp(row["market_start_utc"]).value)
     if int(config["entry"]["relative_to_market_start"].replace("T-", "").replace("s", "")) != 59:
@@ -1450,7 +1619,7 @@ def _run() -> None:
     trajectory = _trajectory_audit()
     summary = {
         "experiment_id": config["experiment_id"],
-        "status": "drk_rck_executed_os_blocked_by_missing_local_post_entry_trajectory",
+        "status": "corrected_position_state_evaluated; complete_local_post_entry_trajectory_available",
         "evaluation_label": config["evaluation_label"],
         "coverage": {**coverage, **row_metadata, "outer_start_utc": folds[0]["evaluation"]["decision_start_utc"], "outer_end_utc": folds[-1]["evaluation"]["decision_end_utc"]},
         "frozen_config": config,
@@ -1464,9 +1633,9 @@ def _run() -> None:
         "sizing_comparison": sizing_comparison,
         "exit_comparison": {
             "hold_to_resolution": "available control; same settlement and +60s release as shared ledger",
-            "simple_exit_rule": "not evaluated",
-            "regression_optimal_stopping": "not trained or evaluated",
-            "reason": "The local event cache contains target-market events only through T+5s; continuation values and causal executable bids after this point are missing.",
+            "simple_exit_rule": "trajectory data audited; evaluated in the separate exit-policy continuation run",
+            "regression_optimal_stopping": "trajectory data audited; evaluated in the separate exit-policy continuation run",
+            "reason": "The local 1-second Kacho top-of-book file covers every eligible market for its full 300-second window; existing PMXT event replay supplies the pre-start interval.",
         },
         "optimal_stopping_data_audit": trajectory,
         "fold_results": fold_rows,

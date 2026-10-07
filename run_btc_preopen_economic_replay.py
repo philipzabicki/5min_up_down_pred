@@ -378,9 +378,10 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
     down_direct = _direct_book(state["tokens"].get(str(down_token_id)))
     if up_direct is not None and down_direct is not None:
         up_bbo, down_bbo = _bbo(up_direct), _bbo(down_direct)
-        state["complement_checks"] += 1
-        if abs(up_bbo[0] - (1.0 - down_bbo[1])) > 1e-6 or abs(up_bbo[1] - (1.0 - down_bbo[0])) > 1e-6:
-            state["complement_mismatches"] += 1
+        if up_bbo is not None and down_bbo is not None:
+            state["complement_checks"] += 1
+            if abs(up_bbo[0] - (1.0 - down_bbo[1])) > 1e-6 or abs(up_bbo[1] - (1.0 - down_bbo[0])) > 1e-6:
+                state["complement_mismatches"] += 1
 
 
 def _walk_asks(asks, fee_rate_bps, fee_collection_mode):

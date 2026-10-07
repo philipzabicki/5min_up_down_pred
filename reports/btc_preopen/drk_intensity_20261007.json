@@ -1,0 +1,795 @@
+{
+  "status": "completed",
+  "eta_grid": [
+    0.0,
+    0.25,
+    0.5,
+    0.75,
+    1.0
+  ],
+  "internal_selection": [
+    {
+      "fold_id": 1,
+      "validation_start_utc": "2026-04-21T18:19:01+00:00",
+      "validation_end_utc": "2026-04-28T19:24:01+00:00",
+      "fallback": "point_only_insufficient_prior_history",
+      "train_rows": 889,
+      "validation_rows": 891,
+      "prior_three_day_blocks": 3,
+      "interval_expansions": 0,
+      "bootstrap_models_completed": 0,
+      "residual_dependence": {
+        "raw_lag_one_correlation": 0.08048240096036814,
+        "shrunk_lag_one_correlation": 0.05944125038249412,
+        "adjacent_pairs": 565
+      },
+      "eta_scores": [
+        {
+          "eta": 0.0,
+          "mean_daily_log_growth": 0.0023323120036132126,
+          "pnl_usd": 1.8833653461384756,
+          "trades": 22
+        },
+        {
+          "eta": 0.25,
+          "mean_daily_log_growth": 0.0023323120036132126,
+          "pnl_usd": 1.8833653461384756,
+          "trades": 22
+        },
+        {
+          "eta": 0.5,
+          "mean_daily_log_growth": 0.0023323120036132126,
+          "pnl_usd": 1.8833653461384756,
+          "trades": 22
+        },
+        {
+          "eta": 0.75,
+          "mean_daily_log_growth": 0.0023323120036132126,
+          "pnl_usd": 1.8833653461384756,
+          "trades": 22
+        },
+        {
+          "eta": 1.0,
+          "mean_daily_log_growth": 0.0023323120036132126,
+          "pnl_usd": 1.8833653461384756,
+          "trades": 22
+        }
+      ],
+      "selected_eta": 0.0,
+      "tie_rule": "smallest eta"
+    },
+    {
+      "fold_id": 2,
+      "validation_start_utc": "2026-04-28T19:34:01+00:00",
+      "validation_end_utc": "2026-05-05T14:39:01+00:00",
+      "fallback": null,
+      "train_rows": 1781,
+      "validation_rows": 890,
+      "prior_three_day_blocks": 6,
+      "interval_expansions": 0,
+      "bootstrap_models_completed": 500,
+      "fixed_C": 1.0,
+      "residual_dependence": {
+        "raw_lag_one_correlation": 0.025795353806101103,
+        "shrunk_lag_one_correlation": 0.021863135238097884,
+        "adjacent_pairs": 1112
+      },
+      "eta_scores": [
+        {
+          "eta": 0.0,
+          "mean_daily_log_growth": -0.04489796002965582,
+          "pnl_usd": -30.175391443466395,
+          "trades": 648
+        },
+        {
+          "eta": 0.25,
+          "mean_daily_log_growth": -0.03558382668092971,
+          "pnl_usd": -24.773800149834827,
+          "trades": 593
+        },
+        {
+          "eta": 0.5,
+          "mean_daily_log_growth": -0.04047777852653839,
+          "pnl_usd": -27.66211727025737,
+          "trades": 466
+        },
+        {
+          "eta": 0.75,
+          "mean_daily_log_growth": -0.03598920731951902,
+          "pnl_usd": -25.017366946778466,
+          "trades": 257
+        },
+        {
+          "eta": 1.0,
+          "mean_daily_log_growth": -0.0733733730914443,
+          "pnl_usd": -44.39999999999998,
+          "trades": 58
+        }
+      ],
+      "selected_eta": 0.25,
+      "tie_rule": "smallest eta"
+    },
+    {
+      "fold_id": 3,
+      "validation_start_utc": "2026-05-05T14:44:01+00:00",
+      "validation_end_utc": "2026-05-11T23:49:01+00:00",
+      "fallback": null,
+      "train_rows": 2671,
+      "validation_rows": 891,
+      "prior_three_day_blocks": 8,
+      "interval_expansions": 0,
+      "bootstrap_models_completed": 500,
+      "fixed_C": 1.0,
+      "residual_dependence": {
+        "raw_lag_one_correlation": 0.014056896673459909,
+        "shrunk_lag_one_correlation": 0.012522300966750312,
+        "adjacent_pairs": 1632
+      },
+      "eta_scores": [
+        {
+          "eta": 0.0,
+          "mean_daily_log_growth": 0.05663294729665819,
+          "pnl_usd": 48.65093168472072,
+          "trades": 472
+        },
+        {
+          "eta": 0.25,
+          "mean_daily_log_growth": 0.08420973669046437,
+          "pnl_usd": 80.30292315765226,
+          "trades": 477
+        },
+        {
+          "eta": 0.5,
+          "mean_daily_log_growth": 0.028312659525419025,
+          "pnl_usd": 21.91923321433103,
+          "trades": 344
+        },
+        {
+          "eta": 0.75,
+          "mean_daily_log_growth": 0.014346346140696931,
+          "pnl_usd": 10.56400775694921,
+          "trades": 222
+        },
+        {
+          "eta": 1.0,
+          "mean_daily_log_growth": -0.011721187475126574,
+          "pnl_usd": -7.8772549019605265,
+          "trades": 110
+        }
+      ],
+      "selected_eta": 0.25,
+      "tie_rule": "smallest eta"
+    }
+  ],
+  "selected_eta_by_fold": {
+    "1": 0.0,
+    "2": 0.25,
+    "3": 0.25
+  },
+  "outer_interval_expansions": [
+    {
+      "fold_id": 1,
+      "interval_expansions": 0,
+      "selected_eta": 0.0
+    },
+    {
+      "fold_id": 2,
+      "interval_expansions": 0,
+      "selected_eta": 0.25
+    },
+    {
+      "fold_id": 3,
+      "interval_expansions": 0,
+      "selected_eta": 0.25
+    }
+  ],
+  "outer": {
+    "point_eta0": {
+      "summary": {
+        "initial_cost_basis_equity_usd": 100.0,
+        "ending_cash_usd": 412.084230447424,
+        "ending_locked_cost_basis_usd": 0.0,
+        "ending_cost_basis_equity_usd": 412.084230447424,
+        "net_pnl_usd": 312.084230447424,
+        "trade_count": 1824,
+        "eligible_decisions_seen": 2673,
+        "gross_turnover_usd": 9838.760000000031,
+        "cash_debit_total_usd": 9838.760000000031,
+        "fees_paid_usd": 0.0,
+        "legacy_fee_shares": 0.0,
+        "expected_net_profit_at_entry_usd": 515.13877438732,
+        "mean_daily_log_growth": 0.06743131358568573,
+        "daily_log_growth_days": 21,
+        "max_drawdown_cost_basis": 0.8613893668150923,
+        "maximum_time_underwater_seconds": 1133399.0,
+        "maximum_concurrent_cost_basis_exposure_usd": 40.0,
+        "maximum_concurrent_positions": 2,
+        "minimum_free_cash_usd": 24.25973676166199,
+        "stake_usd_quantiles": {},
+        "stake_to_cost_basis_equity_quantiles": {},
+        "decisions_skipped_no_positive_policy_edge": 849,
+        "decisions_skipped_minimum_purchase": 0,
+        "decisions_skipped_insufficient_cash": 0,
+        "decisions_skipped_insufficient_top_of_book": 0,
+        "executed_orders_limited_by_top_of_book": 0,
+        "executed_orders_limited_by_cash": 0,
+        "executed_orders_limited_by_policy_cap": 0,
+        "daily_equity_path": [
+          {
+            "date_utc": "2026-04-28",
+            "equity_usd": 101.95666666666666,
+            "daily_log_growth": 0.019377700426236495
+          },
+          {
+            "date_utc": "2026-04-29",
+            "equity_usd": 92.08922368947583,
+            "daily_log_growth": -0.10178995662780321
+          },
+          {
+            "date_utc": "2026-04-30",
+            "equity_usd": 158.33560261259814,
+            "daily_log_growth": 0.5419589177673941
+          },
+          {
+            "date_utc": "2026-05-01",
+            "equity_usd": 98.8375874065156,
+            "daily_log_growth": -0.47123887581158985
+          },
+          {
+            "date_utc": "2026-05-02",
+            "equity_usd": 125.4391320243628,
+            "daily_log_growth": 0.238342665387191
+          },
+          {
+            "date_utc": "2026-05-03",
+            "equity_usd": 71.56459687697047,
+            "daily_log_growth": -0.5612201424726583
+          },
+          {
+            "date_utc": "2026-05-04",
+            "equity_usd": 88.73009875261197,
+            "daily_log_growth": 0.21499866914605945
+          },
+          {
+            "date_utc": "2026-05-05",
+            "equity_usd": 78.20515154295896,
+            "daily_log_growth": -0.12626364191299094
+          },
+          {
+            "date_utc": "2026-05-06",
+            "equity_usd": 37.840913232250166,
+            "daily_log_growth": -0.7259446439528078
+          },
+          {
+            "date_utc": "2026-05-07",
+            "equity_usd": 52.45816813421105,
+            "daily_log_growth": 0.32662517660504753
+          },
+          {
+            "date_utc": "2026-05-08",
+            "equity_usd": 72.3769999746396,
+            "daily_log_growth": 0.3218725144702566
+          },
+          {
+            "date_utc": "2026-05-09",
+            "equity_usd": 75.14039505110274,
+            "daily_log_growth": 0.03746972865354867
+          },
+          {
+            "date_utc": "2026-05-10",
+            "equity_usd": 121.30789024205131,
+            "daily_log_growth": 0.47897356350614645
+          },
+          {
+            "date_utc": "2026-05-11",
+            "equity_usd": 170.53177271811873,
+            "daily_log_growth": 0.340589768443294
+          },
+          {
+            "date_utc": "2026-05-12",
+            "equity_usd": 97.52008175113366,
+            "daily_log_growth": -0.5588633061415444
+          },
+          {
+            "date_utc": "2026-05-13",
+            "equity_usd": 141.47058533718354,
+            "daily_log_growth": 0.3720334945241691
+          },
+          {
+            "date_utc": "2026-05-14",
+            "equity_usd": 203.26269110256652,
+            "daily_log_growth": 0.36240736932956674
+          },
+          {
+            "date_utc": "2026-05-15",
+            "equity_usd": 226.40037475129952,
+            "daily_log_growth": 0.10780581426197447
+          },
+          {
+            "date_utc": "2026-05-16",
+            "equity_usd": 294.6174107964868,
+            "daily_log_growth": 0.26337260047703354
+          },
+          {
+            "date_utc": "2026-05-17",
+            "equity_usd": 389.6485441729142,
+            "daily_log_growth": 0.2795675619729729
+          },
+          {
+            "date_utc": "2026-05-18",
+            "equity_usd": 412.084230447424,
+            "daily_log_growth": 0.05598260724790355
+          }
+        ],
+        "policy_id": "drk_eta",
+        "family": "drk",
+        "calibration": "btc_market",
+        "robust_probability_interval": true,
+        "scenario_dependence": "ar1_gaussian_copula",
+        "rck_alpha": null,
+        "rck_beta": null,
+        "rck_lambda": null,
+        "risk_constraint_changed_decisions": 0,
+        "outer_markets": 2673
+      },
+      "folds": [
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 1,
+          "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+          "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 649,
+          "realized_pnl_on_block_entries_usd": -27.725391443466613,
+          "mean_expected_log_growth_at_entry": 0.0012478681669110822,
+          "starting_cost_basis_equity_usd": 100.0,
+          "cost_basis_equity_after_last_decision_usd": 69.8246085565336,
+          "cash_after_last_decision_usd": 67.27460855653361,
+          "open_positions_after_last_decision": 1,
+          "risk_constraint_changed_decisions": 0
+        },
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 2,
+          "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+          "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 505,
+          "realized_pnl_on_block_entries_usd": 98.25716416158465,
+          "mean_expected_log_growth_at_entry": 0.0018458468605543077,
+          "starting_cost_basis_equity_usd": 69.8246085565336,
+          "cost_basis_equity_after_last_decision_usd": 167.91177271811873,
+          "cash_after_last_decision_usd": 165.29177271811872,
+          "open_positions_after_last_decision": 1,
+          "risk_constraint_changed_decisions": 0
+        },
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 3,
+          "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+          "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 670,
+          "realized_pnl_on_block_entries_usd": 241.55245772930567,
+          "mean_expected_log_growth_at_entry": 0.0019590954932991,
+          "starting_cost_basis_equity_usd": 167.91177271811873,
+          "cost_basis_equity_after_last_decision_usd": 430.764230447424,
+          "cash_after_last_decision_usd": 412.084230447424,
+          "open_positions_after_last_decision": 1,
+          "risk_constraint_changed_decisions": 0
+        }
+      ],
+      "trade_count": 1824,
+      "decisions_path": "data/analysis/polymarket/BTC/preopen_v1/drk_intensity_20261007/point_eta0_decisions.parquet",
+      "trades_path": "data/analysis/polymarket/BTC/preopen_v1/drk_intensity_20261007/point_eta0_trades.parquet"
+    },
+    "full_interval_eta1": {
+      "summary": {
+        "initial_cost_basis_equity_usd": 100.0,
+        "ending_cash_usd": 50.93150175019246,
+        "ending_locked_cost_basis_usd": 0.0,
+        "ending_cost_basis_equity_usd": 50.93150175019246,
+        "net_pnl_usd": -49.06849824980754,
+        "trade_count": 285,
+        "eligible_decisions_seen": 2673,
+        "gross_turnover_usd": 794.8899999999995,
+        "cash_debit_total_usd": 794.8899999999995,
+        "fees_paid_usd": 0.0,
+        "legacy_fee_shares": 0.0,
+        "expected_net_profit_at_entry_usd": 72.28455523216245,
+        "mean_daily_log_growth": -0.032128026617731065,
+        "daily_log_growth_days": 21,
+        "max_drawdown_cost_basis": 0.7023999999999987,
+        "maximum_time_underwater_seconds": 1694234.0,
+        "maximum_concurrent_cost_basis_exposure_usd": 15.41,
+        "maximum_concurrent_positions": 2,
+        "minimum_free_cash_usd": 27.160000000000135,
+        "stake_usd_quantiles": {},
+        "stake_to_cost_basis_equity_quantiles": {},
+        "decisions_skipped_no_positive_policy_edge": 2388,
+        "decisions_skipped_minimum_purchase": 0,
+        "decisions_skipped_insufficient_cash": 0,
+        "decisions_skipped_insufficient_top_of_book": 0,
+        "executed_orders_limited_by_top_of_book": 0,
+        "executed_orders_limited_by_cash": 0,
+        "executed_orders_limited_by_policy_cap": 0,
+        "daily_equity_path": [
+          {
+            "date_utc": "2026-04-28",
+            "equity_usd": 100.0,
+            "daily_log_growth": 0.0
+          },
+          {
+            "date_utc": "2026-04-29",
+            "equity_usd": 87.5,
+            "daily_log_growth": -0.13353139262452263
+          },
+          {
+            "date_utc": "2026-04-30",
+            "equity_usd": 82.5,
+            "daily_log_growth": -0.058840500022933465
+          },
+          {
+            "date_utc": "2026-05-01",
+            "equity_usd": 79.95,
+            "daily_log_growth": -0.03139685406067204
+          },
+          {
+            "date_utc": "2026-05-02",
+            "equity_usd": 85.0,
+            "daily_log_growth": 0.06124981721035308
+          },
+          {
+            "date_utc": "2026-05-03",
+            "equity_usd": 50.56,
+            "daily_log_growth": -0.5194905066517144
+          },
+          {
+            "date_utc": "2026-05-04",
+            "equity_usd": 53.16,
+            "daily_log_growth": 0.05014548400644254
+          },
+          {
+            "date_utc": "2026-05-05",
+            "equity_usd": 50.61,
+            "daily_log_growth": -0.04915704861905785
+          },
+          {
+            "date_utc": "2026-05-06",
+            "equity_usd": 42.460000000000036,
+            "daily_log_growth": -0.17558672895087576
+          },
+          {
+            "date_utc": "2026-05-07",
+            "equity_usd": 49.36000000000006,
+            "daily_log_growth": 0.15057792332202272
+          },
+          {
+            "date_utc": "2026-05-08",
+            "equity_usd": 48.86000000000009,
+            "daily_log_growth": -0.010181313767537352
+          },
+          {
+            "date_utc": "2026-05-09",
+            "equity_usd": 41.2100000000001,
+            "daily_log_growth": -0.17027812047886792
+          },
+          {
+            "date_utc": "2026-05-10",
+            "equity_usd": 41.2100000000001,
+            "daily_log_growth": 0.0
+          },
+          {
+            "date_utc": "2026-05-11",
+            "equity_usd": 45.660000000000124,
+            "daily_log_growth": 0.10254169575092371
+          },
+          {
+            "date_utc": "2026-05-12",
+            "equity_usd": 44.178461538461704,
+            "daily_log_growth": -0.03298526629495765
+          },
+          {
+            "date_utc": "2026-05-13",
+            "equity_usd": 55.55846153846173,
+            "daily_log_growth": 0.2291984526035893
+          },
+          {
+            "date_utc": "2026-05-14",
+            "equity_usd": 66.74090497737582,
+            "daily_log_growth": 0.18338220556592952
+          },
+          {
+            "date_utc": "2026-05-15",
+            "equity_usd": 55.71985770796013,
+            "daily_log_growth": -0.1804814377656413
+          },
+          {
+            "date_utc": "2026-05-16",
+            "equity_usd": 46.79887731580329,
+            "daily_log_growth": -0.1744773815532734
+          },
+          {
+            "date_utc": "2026-05-17",
+            "equity_usd": 48.48150175019246,
+            "daily_log_growth": 0.03532310431938143
+          },
+          {
+            "date_utc": "2026-05-18",
+            "equity_usd": 50.93150175019246,
+            "daily_log_growth": 0.04929930903905904
+          }
+        ],
+        "policy_id": "drk_eta",
+        "family": "drk",
+        "calibration": "btc_market",
+        "robust_probability_interval": true,
+        "scenario_dependence": "ar1_gaussian_copula",
+        "rck_alpha": null,
+        "rck_beta": null,
+        "rck_lambda": null,
+        "risk_constraint_changed_decisions": 0,
+        "outer_markets": 2673
+      },
+      "folds": [
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 1,
+          "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+          "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 55,
+          "realized_pnl_on_block_entries_usd": -46.839999999999996,
+          "mean_expected_log_growth_at_entry": 0.001360261251808856,
+          "starting_cost_basis_equity_usd": 100.0,
+          "cost_basis_equity_after_last_decision_usd": 53.16,
+          "cash_after_last_decision_usd": 53.16,
+          "open_positions_after_last_decision": 0,
+          "risk_constraint_changed_decisions": 0
+        },
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 2,
+          "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+          "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 48,
+          "realized_pnl_on_block_entries_usd": -7.499999999999992,
+          "mean_expected_log_growth_at_entry": 0.00041866872058452317,
+          "starting_cost_basis_equity_usd": 53.16,
+          "cost_basis_equity_after_last_decision_usd": 45.660000000000124,
+          "cash_after_last_decision_usd": 45.660000000000124,
+          "open_positions_after_last_decision": 0,
+          "risk_constraint_changed_decisions": 0
+        },
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 3,
+          "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+          "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 182,
+          "realized_pnl_on_block_entries_usd": 5.271501750192103,
+          "mean_expected_log_growth_at_entry": 0.0012109108704442368,
+          "starting_cost_basis_equity_usd": 45.660000000000124,
+          "cost_basis_equity_after_last_decision_usd": 50.93150175019246,
+          "cash_after_last_decision_usd": 50.93150175019246,
+          "open_positions_after_last_decision": 0,
+          "risk_constraint_changed_decisions": 0
+        }
+      ],
+      "trade_count": 285,
+      "decisions_path": "data/analysis/polymarket/BTC/preopen_v1/drk_intensity_20261007/full_interval_eta1_decisions.parquet",
+      "trades_path": "data/analysis/polymarket/BTC/preopen_v1/drk_intensity_20261007/full_interval_eta1_trades.parquet"
+    },
+    "selected_eta": {
+      "summary": {
+        "initial_cost_basis_equity_usd": 100.0,
+        "ending_cash_usd": 330.42881525035295,
+        "ending_locked_cost_basis_usd": 0.0,
+        "ending_cost_basis_equity_usd": 330.42881525035295,
+        "net_pnl_usd": 230.42881525035295,
+        "trade_count": 1595,
+        "eligible_decisions_seen": 2673,
+        "gross_turnover_usd": 7518.1300000000365,
+        "cash_debit_total_usd": 7518.1300000000365,
+        "fees_paid_usd": 0.0,
+        "legacy_fee_shares": 0.0,
+        "expected_net_profit_at_entry_usd": 417.03764994865656,
+        "mean_daily_log_growth": 0.056915288813492365,
+        "daily_log_growth_days": 21,
+        "max_drawdown_cost_basis": 0.8332390471677715,
+        "maximum_time_underwater_seconds": 1295097.0,
+        "maximum_concurrent_cost_basis_exposure_usd": 39.69,
+        "maximum_concurrent_positions": 2,
+        "minimum_free_cash_usd": 30.124412478102425,
+        "stake_usd_quantiles": {},
+        "stake_to_cost_basis_equity_quantiles": {},
+        "decisions_skipped_no_positive_policy_edge": 1078,
+        "decisions_skipped_minimum_purchase": 0,
+        "decisions_skipped_insufficient_cash": 0,
+        "decisions_skipped_insufficient_top_of_book": 0,
+        "executed_orders_limited_by_top_of_book": 0,
+        "executed_orders_limited_by_cash": 0,
+        "executed_orders_limited_by_policy_cap": 0,
+        "daily_equity_path": [
+          {
+            "date_utc": "2026-04-28",
+            "equity_usd": 101.95666666666666,
+            "daily_log_growth": 0.019377700426236495
+          },
+          {
+            "date_utc": "2026-04-29",
+            "equity_usd": 92.08922368947583,
+            "daily_log_growth": -0.10178995662780321
+          },
+          {
+            "date_utc": "2026-04-30",
+            "equity_usd": 158.33560261259814,
+            "daily_log_growth": 0.5419589177673941
+          },
+          {
+            "date_utc": "2026-05-01",
+            "equity_usd": 98.8375874065156,
+            "daily_log_growth": -0.47123887581158985
+          },
+          {
+            "date_utc": "2026-05-02",
+            "equity_usd": 125.4391320243628,
+            "daily_log_growth": 0.238342665387191
+          },
+          {
+            "date_utc": "2026-05-03",
+            "equity_usd": 71.56459687697047,
+            "daily_log_growth": -0.5612201424726583
+          },
+          {
+            "date_utc": "2026-05-04",
+            "equity_usd": 88.73009875261197,
+            "daily_log_growth": 0.21499866914605945
+          },
+          {
+            "date_utc": "2026-05-05",
+            "equity_usd": 74.22460855653367,
+            "daily_log_growth": -0.17850341690855084
+          },
+          {
+            "date_utc": "2026-05-06",
+            "equity_usd": 48.657745811435696,
+            "daily_log_growth": -0.4222847359010752
+          },
+          {
+            "date_utc": "2026-05-07",
+            "equity_usd": 56.15794188986717,
+            "daily_log_growth": 0.1433571007925333
+          },
+          {
+            "date_utc": "2026-05-08",
+            "equity_usd": 74.56186899917249,
+            "daily_log_growth": 0.2834611253263213
+          },
+          {
+            "date_utc": "2026-05-09",
+            "equity_usd": 89.84136841577514,
+            "daily_log_growth": 0.18641630490033537
+          },
+          {
+            "date_utc": "2026-05-10",
+            "equity_usd": 127.88391675586587,
+            "daily_log_growth": 0.35307741007941496
+          },
+          {
+            "date_utc": "2026-05-11",
+            "equity_usd": 149.35977794649594,
+            "daily_log_growth": 0.15523506044051516
+          },
+          {
+            "date_utc": "2026-05-12",
+            "equity_usd": 83.54088067818695,
+            "daily_log_growth": -0.5810219115248543
+          },
+          {
+            "date_utc": "2026-05-13",
+            "equity_usd": 114.72412351378273,
+            "daily_log_growth": 0.31719421935557274
+          },
+          {
+            "date_utc": "2026-05-14",
+            "equity_usd": 155.35100134183688,
+            "daily_log_growth": 0.30315676117022394
+          },
+          {
+            "date_utc": "2026-05-15",
+            "equity_usd": 173.2112497626194,
+            "daily_log_growth": 0.10882486492572432
+          },
+          {
+            "date_utc": "2026-05-16",
+            "equity_usd": 223.8638492639584,
+            "daily_log_growth": 0.2565261048151583
+          },
+          {
+            "date_utc": "2026-05-17",
+            "equity_usd": 323.87195250525497,
+            "daily_log_growth": 0.3693101780855858
+          },
+          {
+            "date_utc": "2026-05-18",
+            "equity_usd": 330.42881525035295,
+            "daily_log_growth": 0.02004302171160498
+          }
+        ],
+        "policy_id": "drk_eta",
+        "family": "drk",
+        "calibration": "btc_market",
+        "robust_probability_interval": true,
+        "scenario_dependence": "ar1_gaussian_copula",
+        "rck_alpha": null,
+        "rck_beta": null,
+        "rck_lambda": null,
+        "risk_constraint_changed_decisions": 0,
+        "outer_markets": 2673
+      },
+      "folds": [
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 1,
+          "evaluation_start_utc": "2026-04-28T19:34:01+00:00",
+          "evaluation_end_utc": "2026-05-05T14:39:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 649,
+          "realized_pnl_on_block_entries_usd": -27.725391443466613,
+          "mean_expected_log_growth_at_entry": 0.0012478681669110822,
+          "starting_cost_basis_equity_usd": 100.0,
+          "cost_basis_equity_after_last_decision_usd": 69.8246085565336,
+          "cash_after_last_decision_usd": 67.27460855653361,
+          "open_positions_after_last_decision": 1,
+          "risk_constraint_changed_decisions": 0
+        },
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 2,
+          "evaluation_start_utc": "2026-05-05T14:44:01+00:00",
+          "evaluation_end_utc": "2026-05-11T23:49:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 398,
+          "realized_pnl_on_block_entries_usd": 77.08516938996209,
+          "mean_expected_log_growth_at_entry": 0.0013860731865162589,
+          "starting_cost_basis_equity_usd": 69.8246085565336,
+          "cost_basis_equity_after_last_decision_usd": 149.35977794649594,
+          "cash_after_last_decision_usd": 149.35977794649594,
+          "open_positions_after_last_decision": 0,
+          "risk_constraint_changed_decisions": 0
+        },
+        {
+          "policy_id": "drk_eta",
+          "fold_id": 3,
+          "evaluation_start_utc": "2026-05-11T23:59:01+00:00",
+          "evaluation_end_utc": "2026-05-18T10:04:01+00:00",
+          "eligible_markets": 891,
+          "decisions": 891,
+          "trades_entered": 548,
+          "realized_pnl_on_block_entries_usd": 181.06903730385733,
+          "mean_expected_log_growth_at_entry": 0.0017471024246498174,
+          "starting_cost_basis_equity_usd": 149.35977794649594,
+          "cost_basis_equity_after_last_decision_usd": 342.54881525035296,
+          "cash_after_last_decision_usd": 330.42881525035295,
+          "open_positions_after_last_decision": 1,
+          "risk_constraint_changed_decisions": 0
+        }
+      ],
+      "trade_count": 1595,
+      "decisions_path": "data/analysis/polymarket/BTC/preopen_v1/drk_intensity_20261007/selected_eta_decisions.parquet",
+      "trades_path": "data/analysis/polymarket/BTC/preopen_v1/drk_intensity_20261007/selected_eta_trades.parquet"
+    }
+  },
+  "interpretation": "Development-period walk-forward; each eta was selected only on the immediately preceding internal validation block. The internal calibrator used fixed C=1.0 and prior labels only. This is not an independent holdout."
+}

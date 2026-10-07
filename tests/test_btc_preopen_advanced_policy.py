@@ -1,8 +1,12 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
+import pandas as pd
 
 import run_btc_preopen_advanced_policy as advanced
+import run_btc_preopen_policy_continuation as continuation
 import run_btc_preopen_policy_optimization as ledger
 
 
@@ -36,6 +40,88 @@ def _opportunity():
 
 
 class AdvancedPolicyTests(unittest.TestCase):
+    def test_premarket_replay_uses_nanosecond_receive_times_without_future_event(self):
+        start = pd.Timestamp("2026-01-01T00:01:00Z")
+        entry = start - pd.Timedelta(seconds=59)
+        market_id = "market"
+        row = {
+            "condition_id": market_id, "_entry_ns": entry.value, "_market_ns": start.value,
+            "up_token_id": "up", "down_token_id": "down",
+            "up_best_bid": 0.4, "up_best_ask": 0.6,
+            "down_best_bid": 0.3, "down_best_ask": 0.7,
+        }
+        events = [
+            {"market": market_id, "timestamp_received": pd.Timestamp("2026-01-01T00:00:02Z").as_unit("us"), "timestamp": pd.Timestamp("2026-01-01T00:00:02Z").as_unit("us"), "event_type": "book", "asset_id": "up", "bids": "[[0.4, 10.0]]", "asks": "[[0.6, 10.0]]", "price": None, "size": None, "side": None, "best_bid": None, "best_ask": None, "fee_rate_bps": None},
+            {"market": market_id, "timestamp_received": pd.Timestamp("2026-01-01T00:00:02Z").as_unit("us"), "timestamp": pd.Timestamp("2026-01-01T00:00:02Z").as_unit("us"), "event_type": "book", "asset_id": "down", "bids": "[[0.3, 10.0]]", "asks": "[[0.7, 10.0]]", "price": None, "size": None, "side": None, "best_bid": None, "best_ask": None, "fee_rate_bps": None},
+            {"market": market_id, "timestamp_received": pd.Timestamp("2026-01-01T00:00:06.2Z").as_unit("us"), "timestamp": pd.Timestamp("2026-01-01T00:00:06.2Z").as_unit("us"), "event_type": "price_change", "asset_id": "up", "bids": None, "asks": None, "price": 0.45, "size": 12.0, "side": "BUY", "best_bid": 0.45, "best_ask": 0.6, "fee_rate_bps": None},
+        ]
+        previous_dir = continuation.PMXT_DIR
+        try:
+            with TemporaryDirectory() as temp_dir:
+                continuation.PMXT_DIR = Path(temp_dir)
+                pd.DataFrame(events).to_parquet(continuation.PMXT_DIR / "2026-01-01T00.parquet", index=False)
+                quotes = continuation._pmxt_premarket_quotes([row])[market_id]
+        finally:
+            continuation.PMXT_DIR = previous_dir
+
+        self.assertAlmostEqual(quotes[-54]["up"]["bid"], 0.4)
+        self.assertAlmostEqual(quotes[-54]["up"]["bid_size"], 10.0)
+        self.assertAlmostEqual(quotes[-54]["up"]["bid_age_seconds"], 4.0)
+        self.assertAlmostEqual(quotes[-49]["up"]["bid"], 0.45)
+        self.assertAlmostEqual(quotes[-49]["up"]["bid_size"], 12.0)
+
+    def test_drk_intensity_interpolates_expanded_interval_toward_point(self):
+        source = {"market": {"p_btc_market": 0.60, "p_btc_market_low": 0.65, "p_btc_market_high": 0.72}}
+        point = continuation._eta_predictions(source, 0.0)["market"]
+        half = continuation._eta_predictions(source, 0.5)["market"]
+        full = continuation._eta_predictions(source, 1.0)["market"]
+        self.assertAlmostEqual(point["p_btc_market_low"], 0.60)
+        self.assertAlmostEqual(point["p_btc_market_high"], 0.60)
+        self.assertAlmostEqual(half["p_btc_market_low"], 0.60)
+        self.assertAlmostEqual(half["p_btc_market_high"], 0.66)
+        self.assertAlmostEqual(full["p_btc_market_low"], 0.60)
+        self.assertAlmostEqual(full["p_btc_market_high"], 0.72)
+
+    def test_exit_requires_fresh_bid_and_capacity_for_full_position(self):
+        quote = {"bid": 0.6, "bid_size": 9.99, "bid_age_seconds": 0.0}
+        self.assertFalse(continuation._valid_sale_quote(quote, 10.0))
+        quote["bid_size"] = 10.0
+        self.assertTrue(continuation._valid_sale_quote(quote, 10.0))
+        quote["bid_age_seconds"] = 30.01
+        self.assertFalse(continuation._valid_sale_quote(quote, 10.0))
+
+    def test_prestart_entry_snapshot_without_update_time_is_not_a_fresh_quote(self):
+        quote = {"bid": 0.6, "ask": 0.61, "bid_size": 20.0, "ask_size": 20.0, "bid_age_seconds": None}
+        trade = {"net_shares": 10.0, "p_win": 0.6, "entry_bid": 0.59, "entry_price": 0.61, "gross_purchase_usd": 5.0, "side": "up"}
+        self.assertIsNone(continuation._features(trade, quote, -54))
+        self.assertFalse(continuation._valid_sale_quote(quote, 10.0))
+
+    def test_exit_fee_uses_entry_fee_mode_and_is_deducted_from_sale_proceeds(self):
+        trade = {"net_shares": 10.0, "fee_rate_bps": 1000.0, "fee_collection_mode": "outcome_shares"}
+        self.assertAlmostEqual(continuation._sale_proceeds(trade, {"bid": 0.6}), 5.6)
+
+    def test_sold_position_is_not_settled_again_at_its_later_release(self):
+        start_ns = 1_000_000_000_000
+        row = {
+            "condition_id": "market", "market_start_utc": "1970-01-01T00:16:40Z",
+            "p_candidate_platt": 0.7, "target_polymarket_up": 1,
+            "_entry_ns": start_ns - 59_000_000_000, "_market_ns": start_ns,
+            "_outcome_ns": start_ns + 320_000_000_000, "_release_ns": start_ns + 380_000_000_000,
+            "fee_rate_bps": 0.0, "fee_collection_mode": "maintenance_pause", "fold_id": 1,
+            "up_best_bid": 0.5, "up_best_ask": 0.5, "down_best_bid": 0.5, "down_best_ask": 0.5,
+            "up_fill_5usd_gross_usd": 5.0, "up_fill_5usd_gross_shares": 10.0,
+            "up_fill_5usd_net_shares": 10.0, "up_fill_5usd_cash_debit_usd": 5.0,
+            "up_fill_5usd_fee_usd": 0.0, "up_fill_5usd_fee_shares": 0.0, "up_fill_5usd_cash_fee_usd": 0.0,
+            "down_fill_5usd_gross_usd": 5.0, "down_fill_5usd_gross_shares": 10.0,
+            "down_fill_5usd_net_shares": 10.0, "down_fill_5usd_cash_debit_usd": 5.0,
+            "down_fill_5usd_fee_usd": 0.0, "down_fill_5usd_fee_shares": 0.0, "down_fill_5usd_cash_fee_usd": 0.0,
+        }
+        quote = {"bid": 0.99, "ask": 0.99, "bid_size": 100.0, "bid_age_seconds": 0.0}
+        result = continuation._full_portfolio("simple_expected_value", [row], {"market": {-54: {"up": quote}}}, {})
+        self.assertEqual(result["trade_count"], 1)
+        self.assertEqual(result["sold_positions"], 1)
+        self.assertAlmostEqual(result["net_pnl_usd"], 4.9)
+
     def test_zero_width_drk_matches_point_binary_kelly(self):
         point = advanced.single_bet_kelly_fraction(0.63, 0.52)
         robust = advanced.single_bet_drk_fraction(0.63, 0.63, 0.52)
@@ -85,6 +171,103 @@ class AdvancedPolicyTests(unittest.TestCase):
         outcomes = np.asarray([[0], [1]], dtype=np.int8)
         wealth = advanced._scenario_base_wealth(state, positions, outcomes)
         np.testing.assert_array_equal(wealth, np.asarray([50.0, 70.0]))
+
+    def test_position_outcome_is_random_before_availability_and_deterministic_at_boundary(self):
+        position = {
+            "net_shares": 20.0, "side": "up", "target_up": 1,
+            "outcome_available_ns": 100,
+        }
+        state = ledger.Portfolio(
+            cash=90.0, locked_cost=10.0,
+            pending=[(200, 1, 10.0, 20.0, "market", position)],
+        )
+        uncertain, locked_payout, known_count = advanced._positions_from_state(state, 99)
+        self.assertEqual(uncertain, [position])
+        self.assertEqual(locked_payout, 0.0)
+        self.assertEqual(known_count, 0)
+        outcomes = np.asarray([[0], [1]], dtype=np.int8)
+        np.testing.assert_array_equal(
+            advanced._scenario_base_wealth(state, uncertain, outcomes, locked_payout),
+            np.asarray([90.0, 110.0]),
+        )
+
+        uncertain, locked_payout, known_count = advanced._positions_from_state(state, 100)
+        self.assertEqual(uncertain, [])
+        self.assertEqual(locked_payout, 20.0)
+        self.assertEqual(known_count, 1)
+        self.assertEqual(state.cash, 90.0)
+        np.testing.assert_array_equal(
+            advanced._scenario_base_wealth(state, uncertain, np.empty((2, 0)), locked_payout),
+            np.asarray([110.0, 110.0]),
+        )
+
+    def test_known_locked_loss_has_zero_deterministic_payout_and_release_is_not_double_counted(self):
+        position = {
+            "net_shares": 20.0, "side": "up", "target_up": 0,
+            "outcome_available_ns": 100,
+        }
+        state = ledger.Portfolio(
+            cash=90.0, locked_cost=10.0,
+            pending=[(200, 1, 10.0, 0.0, "market", position)],
+        )
+        uncertain, locked_payout, known_count = advanced._positions_from_state(state, 100)
+        self.assertEqual(uncertain, [])
+        self.assertEqual(locked_payout, 0.0)
+        self.assertEqual(known_count, 1)
+        np.testing.assert_array_equal(
+            advanced._scenario_base_wealth(state, uncertain, np.empty((2, 0)), locked_payout),
+            np.asarray([90.0, 90.0]),
+        )
+        self.assertEqual(state.cash, 90.0)
+
+        metrics = ledger.RunMetrics(initial_equity=100.0, start_ns=0)
+        advanced._close_advanced(state, metrics, 200, inclusive=True)
+        self.assertEqual(state.cash, 90.0)
+        self.assertEqual(state.pending, [])
+        self.assertEqual(state.locked_cost, 0.0)
+        uncertain, locked_payout, known_count = advanced._positions_from_state(state, 200)
+        self.assertEqual((uncertain, locked_payout, known_count), ([], 0.0, 0))
+
+    def test_known_win_moves_from_locked_receivable_to_available_cash_at_release(self):
+        position = {
+            "net_shares": 20.0, "side": "up", "target_up": 1,
+            "outcome_available_ns": 100,
+        }
+        state = ledger.Portfolio(
+            cash=90.0, locked_cost=10.0,
+            pending=[(200, 1, 10.0, 20.0, "market", position)],
+        )
+        metrics = ledger.RunMetrics(initial_equity=100.0, start_ns=0)
+        advanced._close_advanced(state, metrics, 199, inclusive=True)
+        self.assertEqual(state.cash, 90.0)
+        self.assertEqual(advanced._positions_from_state(state, 199)[1:], (20.0, 1))
+        advanced._close_advanced(state, metrics, 200, inclusive=True)
+        self.assertEqual(state.cash, 110.0)
+        self.assertEqual(advanced._positions_from_state(state, 200), ([], 0.0, 0))
+
+    def test_known_locked_payout_does_not_increase_cash_order_cap(self):
+        position = {
+            "net_shares": 100.0, "side": "up", "target_up": 1,
+            "outcome_available_ns": 100,
+        }
+        state = ledger.Portfolio(
+            cash=2.0, locked_cost=98.0,
+            pending=[(200, 1, 98.0, 100.0, "market", position)],
+        )
+        uncertain, locked_payout, _ = advanced._positions_from_state(state, 100)
+        row = {
+            **_opportunity(), "fee_rate_bps": 0.0, "_market_ns": 300,
+            "_p_up_high": 0.95,
+        }
+        result = advanced._choose_candidate(
+            row, "up", state, _execution_config(), uncertain,
+            p_up=0.95, p_up_low=0.95, robust=False, dependent=False,
+            rho=0.0, z_bank=np.zeros((512, 16)), lam=None,
+            known_locked_payout=locked_payout,
+        )
+        self.assertEqual(result["admitted_gross_usd"], 0.0)
+        self.assertLessEqual(advanced._max_gross(row, "up", state, _execution_config()), state.cash + 1e-9)
+        self.assertEqual(state.cash, 2.0)
 
     def test_fee_calculation_and_cash_cap_follow_shared_ledger(self):
         row = {**_opportunity(), "fee_rate_bps": 100.0}
@@ -198,12 +381,14 @@ class AdvancedPolicyTests(unittest.TestCase):
         self.assertEqual(state.locked_cost, 0.0)
         self.assertEqual(state.pending, [])
 
-    def test_local_archive_audit_identifies_missing_post_entry_window(self):
+    def test_local_archive_audit_measures_complete_post_entry_source_coverage(self):
         audit = advanced._trajectory_audit()
-        self.assertFalse(audit["post_entry_trajectory_available"])
-        self.assertEqual(audit["local_coverage_end_per_market"], "market_start + 5 seconds")
-        self.assertEqual(audit["missing_post_entry_seconds_per_market"], 295)
-        self.assertEqual(audit["eligible_markets_requiring_trajectory"], 4454)
+        self.assertTrue(audit["post_entry_trajectory_available"])
+        self.assertEqual(audit["post_entry_markets_with_exact_300_second_coverage"], audit["eligible_markets_requiring_trajectory"])
+        self.assertEqual(audit["post_entry_markets_with_gaps_or_incomplete_coverage"], 0)
+        self.assertEqual(audit["kacho_token_ids_match_pmxt"], audit["eligible_markets_requiring_trajectory"])
+        self.assertEqual(audit["other_local_parquet_files_found"], 25)
+        self.assertEqual(audit["other_local_orderbook_market_time_overlap_files"], 0)
 
 
 if __name__ == "__main__":

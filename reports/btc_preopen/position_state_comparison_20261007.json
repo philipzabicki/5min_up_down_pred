@@ -1,0 +1,293 @@
+{
+  "status": "completed",
+  "v1_report": "reports/btc_preopen/advanced_policy_study_20261007.json",
+  "corrected_report": "reports/btc_preopen/advanced_policy_state_v2_20261007.json",
+  "policies": [
+    {
+      "policy_id": "no_trade",
+      "v1": {
+        "pnl_usd": 0.0,
+        "max_drawdown_cost_basis": 0.0,
+        "trades": 0,
+        "max_open_cost_basis_usd": 0.0
+      },
+      "state_v2": {
+        "pnl_usd": 0.0,
+        "max_drawdown_cost_basis": 0.0,
+        "trades": 0,
+        "max_open_cost_basis_usd": 0.0
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "legacy_best_level_fixed_5",
+      "v1": {
+        "pnl_usd": 461.15150901010657,
+        "max_drawdown_cost_basis": 0.6381581722861385,
+        "trades": 2244,
+        "max_open_cost_basis_usd": 15.0
+      },
+      "state_v2": {
+        "pnl_usd": 461.15150901010657,
+        "max_drawdown_cost_basis": 0.6381581722861385,
+        "trades": 2244,
+        "max_open_cost_basis_usd": 15.0
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "legacy_exact_fixed_5",
+      "v1": {
+        "pnl_usd": 461.4239689971789,
+        "max_drawdown_cost_basis": 0.7536616916425988,
+        "trades": 2285,
+        "max_open_cost_basis_usd": 15.0
+      },
+      "state_v2": {
+        "pnl_usd": 461.4239689971789,
+        "max_drawdown_cost_basis": 0.7536616916425988,
+        "trades": 2285,
+        "max_open_cost_basis_usd": 15.0
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "fractional_kelly_half_10pct",
+      "v1": {
+        "pnl_usd": 209.64612706239114,
+        "max_drawdown_cost_basis": 0.3262120728404721,
+        "trades": 529,
+        "max_open_cost_basis_usd": 23.33
+      },
+      "state_v2": {
+        "pnl_usd": 209.64612706239114,
+        "max_drawdown_cost_basis": 0.3262120728404721,
+        "trades": 529,
+        "max_open_cost_basis_usd": 23.33
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "point_kelly_btc_only",
+      "v1": {
+        "pnl_usd": 453.8685358468492,
+        "max_drawdown_cost_basis": 0.8951680491995543,
+        "trades": 1779,
+        "max_open_cost_basis_usd": 40.0
+      },
+      "state_v2": {
+        "pnl_usd": 453.8685358468492,
+        "max_drawdown_cost_basis": 0.8951680491995543,
+        "trades": 1779,
+        "max_open_cost_basis_usd": 40.0
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "drk_btc_only",
+      "v1": {
+        "pnl_usd": -14.389492797118521,
+        "max_drawdown_cost_basis": 0.6219918367346935,
+        "trades": 265,
+        "max_open_cost_basis_usd": 17.4
+      },
+      "state_v2": {
+        "pnl_usd": -14.389492797118521,
+        "max_drawdown_cost_basis": 0.6219918367346935,
+        "trades": 265,
+        "max_open_cost_basis_usd": 17.4
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "point_kelly_btc_market",
+      "v1": {
+        "pnl_usd": 312.084230447424,
+        "max_drawdown_cost_basis": 0.8613893668150923,
+        "trades": 1824,
+        "max_open_cost_basis_usd": 40.0
+      },
+      "state_v2": {
+        "pnl_usd": 312.084230447424,
+        "max_drawdown_cost_basis": 0.8613893668150923,
+        "trades": 1824,
+        "max_open_cost_basis_usd": 40.0
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "drk_btc_market",
+      "v1": {
+        "pnl_usd": -49.06849824980754,
+        "max_drawdown_cost_basis": 0.7023999999999987,
+        "trades": 285,
+        "max_open_cost_basis_usd": 15.41
+      },
+      "state_v2": {
+        "pnl_usd": -49.06849824980754,
+        "max_drawdown_cost_basis": 0.7023999999999987,
+        "trades": 285,
+        "max_open_cost_basis_usd": 15.41
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "portfolio_kelly_independent",
+      "v1": {
+        "pnl_usd": 319.18836186567415,
+        "max_drawdown_cost_basis": 0.863612420231302,
+        "trades": 1827,
+        "max_open_cost_basis_usd": 40.0
+      },
+      "state_v2": {
+        "pnl_usd": 319.18836186567415,
+        "max_drawdown_cost_basis": 0.863612420231302,
+        "trades": 1827,
+        "max_open_cost_basis_usd": 40.0
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "rck_alpha_0.5_correlated",
+      "v1": {
+        "pnl_usd": 33.52349907193965,
+        "max_drawdown_cost_basis": 0.3976979230483063,
+        "trades": 303,
+        "max_open_cost_basis_usd": 24.27
+      },
+      "state_v2": {
+        "pnl_usd": 33.52349907193965,
+        "max_drawdown_cost_basis": 0.3976979230483063,
+        "trades": 303,
+        "max_open_cost_basis_usd": 24.27
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 43
+    },
+    {
+      "policy_id": "rck_alpha_0.5_independent",
+      "v1": {
+        "pnl_usd": 29.881478885802977,
+        "max_drawdown_cost_basis": 0.427873030671748,
+        "trades": 281,
+        "max_open_cost_basis_usd": 24.259999999999998
+      },
+      "state_v2": {
+        "pnl_usd": 29.881478885802977,
+        "max_drawdown_cost_basis": 0.427873030671748,
+        "trades": 281,
+        "max_open_cost_basis_usd": 24.259999999999998
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 39
+    },
+    {
+      "policy_id": "rck_alpha_0.7_correlated",
+      "v1": {
+        "pnl_usd": -4.182742795495258,
+        "max_drawdown_cost_basis": 0.21861568627450964,
+        "trades": 26,
+        "max_open_cost_basis_usd": 12.87
+      },
+      "state_v2": {
+        "pnl_usd": -4.182742795495258,
+        "max_drawdown_cost_basis": 0.21861568627450964,
+        "trades": 26,
+        "max_open_cost_basis_usd": 12.87
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 2
+    },
+    {
+      "policy_id": "rck_alpha_0.7_independent",
+      "v1": {
+        "pnl_usd": -4.22235063863252,
+        "max_drawdown_cost_basis": 0.21861568627450964,
+        "trades": 26,
+        "max_open_cost_basis_usd": 12.87
+      },
+      "state_v2": {
+        "pnl_usd": -4.22235063863252,
+        "max_drawdown_cost_basis": 0.21861568627450964,
+        "trades": 26,
+        "max_open_cost_basis_usd": 12.87
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 2
+    },
+    {
+      "policy_id": "rck_alpha_0.8_correlated",
+      "v1": {
+        "pnl_usd": -5.949230769230795,
+        "max_drawdown_cost_basis": 0.10860000000000014,
+        "trades": 4,
+        "max_open_cost_basis_usd": 9.12
+      },
+      "state_v2": {
+        "pnl_usd": -5.949230769230795,
+        "max_drawdown_cost_basis": 0.10860000000000014,
+        "trades": 4,
+        "max_open_cost_basis_usd": 9.12
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    },
+    {
+      "policy_id": "rck_alpha_0.8_independent",
+      "v1": {
+        "pnl_usd": -5.949230769230795,
+        "max_drawdown_cost_basis": 0.10860000000000014,
+        "trades": 4,
+        "max_open_cost_basis_usd": 9.12
+      },
+      "state_v2": {
+        "pnl_usd": -5.949230769230795,
+        "max_drawdown_cost_basis": 0.10860000000000014,
+        "trades": 4,
+        "max_open_cost_basis_usd": 9.12
+      },
+      "changed_decisions": 0,
+      "decision_moments_with_known_locked_payout": 0,
+      "known_locked_position_moments_total": 0,
+      "rck_candidate_rejections": 0
+    }
+  ],
+  "conclusion": "The corrected known-outcome state has zero decision moments with known-but-locked positions in this schedule; policy decisions, trades, PnL, drawdown and cost-basis exposure therefore match v1."
+}
