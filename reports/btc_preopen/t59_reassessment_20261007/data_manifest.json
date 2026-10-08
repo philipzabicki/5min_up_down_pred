@@ -1,0 +1,230 @@
+{
+  "analysis_name": "BTC Polymarket T-59 frozen-model execution reassessment",
+  "cutoff_utc": "2026-10-07T00:00:00+00:00",
+  "large_market_calendar_and_execution_data_remain_outside_git": true,
+  "outputs": [
+    {
+      "artifact_class": "analysis_data_or_trace",
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/coverage_calendar.parquet",
+      "sha256": "51a90f8fef77d9059ecc619a922eb6e51e883632ea2243a1a8e3c1d736d8e372",
+      "size_bytes": 16174031
+    },
+    {
+      "artifact_class": "analysis_data_or_trace",
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/coverage_daily.csv",
+      "sha256": "59ea9a5355b288aab156b202759e4de2a83b25c36556e620deb8725151e641bb",
+      "size_bytes": 16799
+    },
+    {
+      "artifact_class": "analysis_data_or_trace",
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/coverage_monthly.csv",
+      "sha256": "debe565278f101f73bf9fd380ea22f50d73ae4ee2dfb2e88b5dbf06b2741b29b",
+      "size_bytes": 761
+    },
+    {
+      "artifact_class": "analysis_data_or_trace",
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/ask_rejection_reasons.csv",
+      "sha256": "1ba82e9fb6e1a0176b7ae4a43f64b5126c31f5b13f07dec11326fc318af66d6a",
+      "size_bytes": 607
+    },
+    {
+      "artifact_class": "analysis_data_or_trace",
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/t59_ask_ladders.parquet",
+      "sha256": "f0bf4160980b06afcf31f8fc196b4f76379d8342e34fc17f9b18d03114e04637",
+      "size_bytes": 16854625
+    },
+    {
+      "artifact_class": "analysis_data_or_trace",
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/portfolio_trades.parquet",
+      "sha256": "11e25c7d68631de9384c3ace79b7a091a307ac18b9fd88a95e29861fe892998c",
+      "size_bytes": 3654265
+    },
+    {
+      "artifact_class": "analysis_data_or_trace",
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/portfolio_decisions.parquet",
+      "sha256": "e135eb5af7913967a52a8b76ed72bd1764a4b52e9b3e1758bcc9174f27bc7c94",
+      "size_bytes": 7262429
+    },
+    {
+      "artifact_class": "analysis_data_or_trace",
+      "path": "reports/btc_preopen/t59_reassessment_20261007/t59_representative_book_traces_20261007.json",
+      "sha256": "f4c7c9ed73534d4e2004b80c1c640482266d4c85e7700617f12be40a0c1c82b9",
+      "size_bytes": 3017273
+    },
+    {
+      "artifact_class": "small_report_or_config",
+      "path": "configs/research/btc_preopen_t59_reassessment_20261007.json",
+      "sha256": "c7bc9c525dc7934a4ad05675b3174dd7bfcd0b2af0f14e3225c6d1f6bdfe0ce2",
+      "size_bytes": 73358
+    },
+    {
+      "artifact_class": "small_report_or_config",
+      "path": "reports/btc_preopen/t59_reassessment_20261007/t59_reassessment_20261007.md",
+      "sha256": "35c56ed1e78a62152e755883ca04542fbac4ebeed3d4876c22ffb5b5e3472039",
+      "size_bytes": 12896
+    }
+  ],
+  "sources": {
+    "binance": {
+      "elapsed_seconds_this_run": 3.0142593000200577,
+      "opened_end_inclusive_utc": "2026-10-06T23:59:00+00:00",
+      "opened_start_utc": "2026-10-02T18:01:00+00:00",
+      "rows": 6119,
+      "sha256": "5feec1a328047fc1527247aef153e24f22c0f7e670935a23400df5c1f26ffeab",
+      "source_index_params": {
+        "interval": "1m",
+        "pair": "BTCUSD"
+      },
+      "source_index_url": "https://dapi.binance.com/dapi/v1/indexPriceKlines",
+      "source_semantics": "COIN-M BTCUSD index OHLC plus UM BTCUSDT trade volume and auxiliary OHLC, matching the frozen hybrid input columns",
+      "source_volume_and_auxiliary_params": {
+        "interval": "1m",
+        "symbol": "BTCUSDT"
+      },
+      "source_volume_and_auxiliary_url": "https://fapi.binance.com/fapi/v1/klines",
+      "transfer_bytes": 1545572
+    },
+    "gamma": {
+      "elapsed_seconds_this_run": 0.6108737000031397,
+      "first_creation_day_utc": "2025-12-17",
+      "first_market_start_utc": "2025-12-18T04:25:00+00:00",
+      "last_creation_day_exclusive_utc": "2026-10-08",
+      "last_market_start_utc": "2026-10-08T13:10:00+00:00",
+      "market_start_cutoff_exclusive_utc": "2026-10-07T00:00:00+00:00",
+      "markets_returned_before_cutoff": 79680,
+      "markets_total_in_creation_window": 80127,
+      "pages": 860,
+      "series_id": "10684",
+      "sha256": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+      "source_url": "https://gamma-api.polymarket.com/events/keyset",
+      "transfer_bytes": 509325465
+    },
+    "pmxt": {
+      "event_parts_dir": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/pmxt/event_parts",
+      "local_parts_reused": {
+        "copied": 0,
+        "hardlinked": 0,
+        "local_part_files": 0
+      },
+      "market_index_sha256": "451ef6bb0d712efaec318e7ac084a9d1a481f5289fd1c1db2e7ac20cd1596683",
+      "market_input_sha256": "4e64f2919c1650a6a011bdb6ff6acff6053002c930b0f64ff83bd84acc20dd68",
+      "missing_historical_condition_ids_from_old_market_index": [
+        "0x5056cff0e18713addc30310bd48fc1450bf56bd2a27a5388bb493e507a3f5c98",
+        "0x541740b23b6f3c4825d1743240e1c4ab52b5407e19a580128c2824fc7f34d775",
+        "0xdd595c2513ba7d7439ed1bd6c528d54c4b3552e25c8d2d41bc878123aa0082ac",
+        "0xbc953572b951b8f5993173c0705cdc3fc6f57caa7106e6b910a8dc4018ee15c5",
+        "0x6ba0ead8f6d1eabf1cdb218e964929d66eff1d052aebd4d8ea1a20d1094e7584",
+        "0xe0800bc248fe5b09bffae523b19799190d233e7d8da10ac658f6fd9fb8b38d5b",
+        "0x3a3569768abd0444c8ebd3ed92baa70e5241d688079da0cb9665c040958aee1a",
+        "0x2d9e5658a8bd3522ccfef0ca082144fafe13ec35510e2becf5176b938566521c",
+        "0x1c81d91ddf3a4def1862f2a37b972e02dd354975dd540d53c43436609781afcc",
+        "0x2807e43c7a267ec673ee30b368cabad5c1479c573ef543d824841bed52ee5ff1",
+        "0x52b396687ac258c7fec28653bb4b83aadcbd829c632f3955da7b98435feb0efc",
+        "0xb076a39fe4226142e4892b068ea55d521aca81209e6741a359f307ecc4c8663f",
+        "0x926f3abb666e279bc7d711923853cd95a468c36ef6506992e34dbe50e4afd660",
+        "0x7f197868825accdbde5c4876fd41ed448407a3071849018047166a027d8a87df",
+        "0x351f99be99dc9a82e19c585d8bd13deb4a2b4135cc5defc951c53aea6089358d",
+        "0x3a5c10bebc92d5bf39ccda7f827b148348d9478f7ff8f4a74f438821acd639d9",
+        "0xc369592a02e6477a42ff1868fcd38a0ec467bf248c6a5ba921e80ba7de4cf28c"
+      ],
+      "missing_ids_archive_hours": 79,
+      "missing_ids_merged_hour_parts": 0,
+      "missing_ids_selected_event_rows": 0,
+      "old_market_index_rows": 9407,
+      "pmxt_extraction": {
+        "elapsed_seconds_this_run": 10.497265300000436,
+        "event_parts": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/pmxt/event_parts",
+        "full_hourly_files_downloaded": false,
+        "hour_retry_attempts": 0,
+        "hours_missing_archive_file": 3,
+        "hours_requested": 2816,
+        "hours_retried": [],
+        "hours_with_target_events": 2221,
+        "hours_without_target_events": 592,
+        "identity": {
+          "entry_event_cutoff": "market_start_minus_59_seconds",
+          "first_market_start_utc": "2026-04-15T17:05:00+00:00",
+          "history_lookback_hours": 25,
+          "last_market_start_utc": "2026-08-10T00:00:00+00:00",
+          "market_index_sha256": "451ef6bb0d712efaec318e7ac084a9d1a481f5289fd1c1db2e7ac20cd1596683",
+          "market_start_fallback_horizon_seconds": 0,
+          "max_compute_delay_seconds": 0,
+          "max_order_delay_seconds": 1,
+          "rows": 33482,
+          "source_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/pmxt_market_input.parquet",
+          "source_sha256": "4e64f2919c1650a6a011bdb6ff6acff6053002c930b0f64ff83bd84acc20dd68",
+          "token_map_sha256": "4fefea6a34eeadca0b615815e7699c6c740880ddc19642fe748496ddb059ed24"
+        },
+        "missing_archive_hours": [
+          {
+            "error": "FileNotFoundError('https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-11T04.parquet')",
+            "hour_utc": "2026-06-11T04",
+            "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-11T04.parquet"
+          },
+          {
+            "error": "FileNotFoundError('https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-11T05.parquet')",
+            "hour_utc": "2026-06-11T05",
+            "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-11T05.parquet"
+          },
+          {
+            "error": "FileNotFoundError('https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-11T06.parquet')",
+            "hour_utc": "2026-06-11T06",
+            "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-11T06.parquet"
+          }
+        ],
+        "row_group_filter": "market condition_id min/max statistics then exact id and timestamp_received cutoff through market start plus max order delay",
+        "selected_event_rows": 275826343
+      },
+      "post_local_boundary_hours_extended": 26,
+      "post_local_boundary_markets_requiring_local_hour_history": 305,
+      "post_local_boundary_selected_event_rows": 0,
+      "post_local_window_market_rows_extracted_once": 24058,
+      "selected_market_rows": 33482
+    },
+    "prediction_bundle": {
+      "all_causal_prediction_rows": 50196,
+      "candidate_calibration": {
+        "coefficient": 0.9673715586800833,
+        "intercept": -0.008572066772185114,
+        "label_source": "Binance COIN-M BTCUSD index proxy",
+        "latest_target_available_at": "2026-04-15T17:00:00+00:00",
+        "rows": 30155
+      },
+      "candidate_meta_path": "configs/runtime/btc_preopen_candidate_model_meta.json",
+      "candidate_model_path": "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt",
+      "candidate_saved_prediction_rows_reproduced": 9426,
+      "feature_dataset_last_opened_utc": "2026-10-02T18:00:00+00:00",
+      "feature_dataset_path": "data/analysis/polymarket/BTC/preopen_v1/nightly_v1/06dc69ccb35a63b3/stages/final_feature_dataset_1d21891c3f3f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_preopen_v1.parquet",
+      "frozen_rows": 48972,
+      "post_cutoff_live_feature_anchor": {
+        "chaikin_state_rebuilt_through_utc": "2026-10-02T18:00:00+00:00",
+        "feature_mask_mismatches": 0,
+        "feature_value_mismatches": 0,
+        "live_profile_state_as_of_utc": "2026-10-02T18:00:00",
+        "opened_utc": "2026-10-02T18:00:00+00:00",
+        "rows_generated_after_frozen_cutoff": 1224
+      },
+      "prediction_origin_counts": {
+        "frozen_candidate_feature_dataset_and_model": 48972,
+        "frozen_candidate_model_live_causal_features": 1224
+      },
+      "prediction_sha256": "ce6b4439ab689636e506bbc8628ec437211336cc7b2ef53112bc8264c66b01da",
+      "saved_prediction_platt_max_abs_delta": 0.0,
+      "saved_prediction_raw_max_abs_delta": 0.0
+    },
+    "t59_replay": {
+      "archive_fingerprint_sha256": "1c2895b4df6efbdd82bbf083c63a97c9b4b9e4038e712f6ddd2c7d34b2d994bc",
+      "current_archive_fingerprint_sha256": "22ff1b0a7407211fb789dabf7918f5b0dc56fad1c2be148649aedced065c6b7c",
+      "elapsed_seconds": 29959.9045125,
+      "event_rows_applied": 228429351,
+      "markets": 33482,
+      "partitions_scanned": 2813,
+      "replay_archive_fingerprint_matches_current": false,
+      "reused_verified_complete_snapshot_artifact": true,
+      "semantics": "single T-59 replay, native token asks retained separately from bids; events grouped by receive timestamp and source-ordered within equal receive times; no later receive events accepted",
+      "snapshot_sha256": "f0bf4160980b06afcf31f8fc196b4f76379d8342e34fc17f9b18d03114e04637",
+      "status": "complete"
+    }
+  },
+  "status": "complete"
+}

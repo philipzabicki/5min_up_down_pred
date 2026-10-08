@@ -45,6 +45,8 @@ EVENT_COLUMNS = [
     "fee_rate_bps", "transaction_hash",
 ]
 ENTRY_CUTOFF_OFFSET = timedelta(seconds=MAX_ORDER_DELAY_SECONDS)
+ENTRY_EVENT_CUTOFF_NAME = "market_start_plus_max_order_delay"
+MARKET_START_FALLBACK_HORIZON_SECONDS = MAX_ORDER_DELAY_SECONDS
 
 
 def _sha256(path: Path) -> str:
@@ -254,6 +256,17 @@ def _extract_hour(hour, cutoffs, sorted_market_bytes):
     }
 
 
+def _archive_http_status(url):
+    request = urllib.request.Request(
+        url, method="HEAD", headers={"User-Agent": USER_AGENT},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            return int(response.status)
+    except urllib.error.HTTPError as error:
+        return int(error.code)
+
+
 def _extract_hour_with_retries(hour, cutoffs, sorted_market_bytes, previous_error=None):
     errors = [f"previous checkpoint: {previous_error}"] if previous_error else []
     for attempt in range(1, MAX_HOUR_ATTEMPTS + 1):
@@ -262,6 +275,43 @@ def _extract_hour_with_retries(hour, cutoffs, sorted_market_bytes, previous_erro
             result["attempt_count"] = attempt + int(previous_error is not None)
             result["retry_errors"] = errors
             return result
+        except FileNotFoundError as error:
+            hour_text = hour.strftime("%Y-%m-%dT%H")
+            url = ARCHIVE_URL.format(hour=hour_text)
+            if url in str(error):
+                try:
+                    status = _archive_http_status(url)
+                except Exception as probe_error:
+                    errors.append(
+                        f"{error!r}; archive HTTP status check failed: {probe_error!r}"
+                    )
+                else:
+                    if status in {404, 410}:
+                        return {
+                            "hour_utc": hour_text,
+                            "status": "archive_file_not_found",
+                            "url": url,
+                            "error": repr(error),
+                            "http_status": status,
+                            "selected_event_rows": 0,
+                            "attempt_count": attempt + int(previous_error is not None),
+                            "retry_errors": errors,
+                        }
+                    errors.append(
+                        f"{error!r}; archive HTTP status check returned {status}"
+                    )
+            else:
+                errors.append(repr(error))
+            if attempt == MAX_HOUR_ATTEMPTS:
+                raise RuntimeError(
+                    f"Hour {hour_text} failed after {attempt} attempts: {errors}"
+                ) from error
+            delay = min(30.0, 2.0 ** attempt)
+            print(
+                f"[pmxt] retry {hour_text} after attempt {attempt}: {error!r}",
+                flush=True,
+            )
+            time.sleep(delay)
         except Exception as error:
             errors.append(repr(error))
             if attempt == MAX_HOUR_ATTEMPTS:
@@ -299,8 +349,13 @@ def extract_archive():
                 "target_binance_proxy_up": row.target_binance_proxy_up,
                 "up_token_id": mapping["up_token_id"],
                 "down_token_id": mapping["down_token_id"],
-                "entry_deadline_prestart_compute45_order5s_utc": row.market_start_utc + pd.Timedelta(seconds=-10),
-                "entry_deadline_market_start_order5s_utc": row.market_start_utc + pd.Timedelta(seconds=5),
+                f"entry_deadline_prestart_compute{MAX_COMPUTE_DELAY_SECONDS}_order{MAX_ORDER_DELAY_SECONDS}s_utc": (
+                    row.market_start_utc - pd.Timedelta(minutes=1)
+                    + pd.Timedelta(seconds=MAX_COMPUTE_DELAY_SECONDS + MAX_ORDER_DELAY_SECONDS)
+                ),
+                f"entry_deadline_market_start_order{MAX_ORDER_DELAY_SECONDS}s_utc": (
+                    row.market_start_utc + pd.Timedelta(seconds=MARKET_START_FALLBACK_HORIZON_SECONDS)
+                ),
             }
         )
     indexed = pd.DataFrame(token_index)
@@ -314,8 +369,8 @@ def extract_archive():
         "max_order_delay_seconds": MAX_ORDER_DELAY_SECONDS,
         "max_compute_delay_seconds": MAX_COMPUTE_DELAY_SECONDS,
         "history_lookback_hours": HISTORY_LOOKBACK_HOURS,
-        "entry_event_cutoff": "market_start_plus_max_order_delay",
-        "market_start_fallback_horizon_seconds": MAX_ORDER_DELAY_SECONDS,
+        "entry_event_cutoff": ENTRY_EVENT_CUTOFF_NAME,
+        "market_start_fallback_horizon_seconds": MARKET_START_FALLBACK_HORIZON_SECONDS,
     }
     checkpoint_identity_path = OUTPUT_DIR / "archive_identity.json"
     if checkpoint_identity_path.exists():
@@ -352,7 +407,7 @@ def extract_archive():
             hour_text = hour.strftime("%Y-%m-%dT%H")
             old = saved.get(hour_text)
             if old and old.get("status") in {"complete", "no_target_events_before_entry"}:
-                path = ROOT / old["output_path"]
+                path = ROOT / old.get("output_path", "")
                 if path.is_file() and _sha256(path) == old.get("output_sha256"):
                     done_hours.append(old)
                     continue
@@ -389,6 +444,12 @@ def extract_archive():
             "hours_requested": len(hours),
             "hours_with_target_events": sum(item.get("selected_event_rows", 0) > 0 for item in saved.values()),
             "hours_without_target_events": sum(item.get("status") == "no_target_events_before_entry" for item in saved.values()),
+            "hours_missing_archive_file": sum(item.get("status") == "archive_file_not_found" for item in saved.values()),
+            "missing_archive_hours": [
+                {"hour_utc": item["hour_utc"], "url": item["url"], "error": item.get("error")}
+                for item in saved.values()
+                if item.get("status") == "archive_file_not_found"
+            ],
             "selected_event_rows": sum(item.get("selected_event_rows", 0) for item in saved.values()),
             "hour_retry_attempts": sum(max(0, int(item.get("attempt_count", 1)) - 1) for item in saved.values()),
             "hours_retried": [

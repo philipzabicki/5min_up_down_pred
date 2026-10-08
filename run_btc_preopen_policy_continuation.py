@@ -810,6 +810,53 @@ def _evaluate_fixed_buys(trades: list[dict], quotes: dict, models: dict) -> dict
     return {"summary": rows, "folds": per_fold}
 
 
+def _daily_log_growth_summary(path: list[dict], start_ns: int, end_ns: int) -> dict:
+    first_day = pd.Timestamp(start_ns, unit="ns", tz="UTC").floor("D")
+    last_day = pd.Timestamp(end_ns, unit="ns", tz="UTC").floor("D")
+    days = pd.date_range(first_day, last_day, freq="D", tz="UTC")
+    ordered = sorted(path, key=lambda item: int(item["timestamp_ns"]))
+    path_index = 0
+    equity = INITIAL_CASH_USD
+    previous = INITIAL_CASH_USD
+    daily_values = []
+    daily_growth = []
+    ruin_day = None
+    for day in days:
+        end_exclusive_ns = int((day + pd.Timedelta(days=1)).value)
+        while path_index < len(ordered) and int(ordered[path_index]["timestamp_ns"]) < end_exclusive_ns:
+            equity = float(ordered[path_index]["cost_basis_equity_usd"])
+            path_index += 1
+        daily_values.append(equity)
+        if equity <= 0.0:
+            daily_growth.append(-math.inf)
+            if ruin_day is None:
+                ruin_day = day.date().isoformat()
+        elif previous <= 0.0:
+            daily_growth.append(math.nan)
+        else:
+            daily_growth.append(math.log(equity / previous))
+        previous = equity
+
+    ruined = ruin_day is not None
+    total_growth = -math.inf if ruined else math.fsum(daily_growth)
+    final_value = daily_values[-1] if daily_values else INITIAL_CASH_USD
+    terminal_growth = -math.inf if final_value <= 0.0 else math.log(final_value / INITIAL_CASH_USD)
+    identity_error = None if ruined else abs(total_growth - terminal_growth)
+    return {
+        "daily_utc_grid_days": len(days),
+        "daily_utc_first_day": days[0].date().isoformat() if len(days) else None,
+        "daily_utc_last_day": days[-1].date().isoformat() if len(days) else None,
+        "daily_utc_closing_equity": daily_values,
+        "daily_log_growth_sum": "-Infinity" if ruined else total_growth,
+        "mean_daily_log_growth": "-Infinity" if ruined else (float(np.mean(daily_growth)) if daily_growth else 0.0),
+        "terminal_log_growth": "-Infinity" if final_value <= 0.0 else terminal_growth,
+        "daily_log_growth_identity_error": identity_error,
+        "daily_log_growth_identity_verified": bool(not ruined and identity_error <= 1e-10),
+        "ruin": ruined,
+        "ruin_day_utc": ruin_day,
+    }
+
+
 def _full_portfolio(strategy: str, rows: list[dict], quotes: dict, models: dict) -> dict:
     event_times = set()
     entries = defaultdict(list)
@@ -922,15 +969,10 @@ def _full_portfolio(strategy: str, rows: list[dict], quotes: dict, models: dict)
     if open_positions:
         raise AssertionError("The full portfolio replay ended with unresolved cash-release records")
     end_equity = cash
-    if path:
-        dates = pd.to_datetime([item["timestamp_ns"] for item in path], unit="ns", utc=True).date
-        daily = {}
-        for date, item in zip(dates, path):
-            daily[str(date)] = float(item["cost_basis_equity_usd"])
-        daily_values = list(daily.values())
-        daily_growth = [math.log(daily_values[i] / daily_values[i - 1]) for i in range(1, len(daily_values)) if daily_values[i] > 0 and daily_values[i - 1] > 0]
-    else:
-        daily_growth = []
+    daily_metrics = (
+        _daily_log_growth_summary(path, min(event_times), max(event_times))
+        if event_times else _daily_log_growth_summary([], 0, 0)
+    )
     liq_dd = None
     if liq_path:
         liq_peak, liq_dd = liq_path[0]["liquidation_equity_usd"], 0.0
@@ -942,7 +984,7 @@ def _full_portfolio(strategy: str, rows: list[dict], quotes: dict, models: dict)
     return {
         "strategy": strategy, "trade_count": trade_count, "sold_positions": realized_sales,
         "net_pnl_usd": end_equity - INITIAL_CASH_USD,
-        "mean_daily_log_growth": float(np.mean(daily_growth)) if daily_growth else 0.0,
+        **daily_metrics,
         "max_drawdown_cost_basis": max_dd, "max_drawdown_liquidation": liq_dd,
         "liquidation_coverage_events": len(liq_path), "liquidation_total_events": len(path),
         "liquidation_coverage_fraction": len(liq_path) / len(path) if path else 0.0,

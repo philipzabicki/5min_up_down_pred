@@ -88,6 +88,13 @@ def _book_top(book):
     return bid, ask, float(book["bids"][bid]), float(book["asks"][ask])
 
 
+def _book_ask_top(book):
+    if not book or not book["asks"]:
+        return None
+    ask = min(book["asks"])
+    return ask, float(book["asks"][ask])
+
+
 def _fee_collection_mode(entry_time):
     entry_time = pd.Timestamp(entry_time)
     if entry_time.tzinfo is None:
@@ -143,6 +150,12 @@ def _new_state():
         "complement_mismatches": 0,
         "out_of_order_price_changes": 0,
         "out_of_order_book_events": 0,
+        "equal_source_timestamp_price_changes": 0,
+        "equal_source_timestamp_book_events": 0,
+        "empty_bid_book_snapshots": 0,
+        "empty_ask_book_snapshots": 0,
+        "cross_side_late_price_changes": 0,
+        "cross_side_late_asks": 0,
     }
 
 
@@ -154,6 +167,11 @@ def _token_state(state, token_id):
             "bids": {},
             "asks": {},
             "initialized": False,
+            "bid_last_source_ns": None,
+            "ask_last_source_ns": None,
+            "bid_order_ambiguous": False,
+            "ask_order_ambiguous": False,
+            "max_source_ns_seen": None,
             "book_source_ns": None,
             "last_source_ns": None,
             "book_receive_ns": None,
@@ -219,6 +237,11 @@ def _update_event(state, row, received_ns, expected_bbo):
     event_type = row.event_type
     token_id = str(row.asset_id)
     source_ns = int(row.timestamp.value) if not pd.isna(row.timestamp) else received_ns
+    token = _token_state(state, token_id)
+    token["max_source_ns_seen"] = (
+        source_ns if token["max_source_ns_seen"] is None
+        else max(token["max_source_ns_seen"], source_ns)
+    )
     if event_type == "last_trade_price":
         fee_rate = _float(row.fee_rate_bps)
         if fee_rate is not None and (
@@ -229,16 +252,40 @@ def _update_event(state, row, received_ns, expected_bbo):
             state["fee_source_ns"] = source_ns
         return
     if event_type == "book":
-        token = _token_state(state, token_id)
-        if token["last_source_ns"] is not None and source_ns < token["last_source_ns"]:
+        prior_sources = [
+            value for value in (token["bid_last_source_ns"], token["ask_last_source_ns"])
+            if value is not None
+        ]
+        latest_side_source_ns = max(prior_sources) if prior_sources else None
+        if latest_side_source_ns is not None and source_ns < latest_side_source_ns:
             state["out_of_order_book_events"] += 1
             return
-        token["bids"] = _levels(row.bids)
-        token["asks"] = _levels(row.asks)
-        token["initialized"] = bool(token["bids"] and token["asks"])
+        tied_snapshot = latest_side_source_ns is not None and source_ns == latest_side_source_ns
+        if tied_snapshot:
+            state["equal_source_timestamp_book_events"] += 1
+        new_bids = _levels(row.bids)
+        new_asks = _levels(row.asks)
+        bid_tied = token["bid_last_source_ns"] == source_ns
+        ask_tied = token["ask_last_source_ns"] == source_ns
+        if bid_tied and token["bids"] != new_bids:
+            token["bid_order_ambiguous"] = True
+        elif not bid_tied:
+            token["bid_order_ambiguous"] = False
+        if ask_tied and token["asks"] != new_asks:
+            token["ask_order_ambiguous"] = True
+        elif not ask_tied:
+            token["ask_order_ambiguous"] = False
+        token["bids"] = new_bids
+        token["asks"] = new_asks
+        token["initialized"] = True
         token["book_source_ns"] = source_ns
-        token["last_source_ns"] = source_ns
+        token["last_source_ns"] = (
+            source_ns if token["last_source_ns"] is None
+            else max(token["last_source_ns"], source_ns)
+        )
         token["book_receive_ns"] = received_ns
+        token["bid_last_source_ns"] = source_ns
+        token["ask_last_source_ns"] = source_ns
         token["bid_update_ns"] = received_ns
         token["ask_update_ns"] = received_ns
         token["bid_source_update_ns"] = source_ns
@@ -249,43 +296,59 @@ def _update_event(state, row, received_ns, expected_bbo):
         token["ask_book_source_ns"] = source_ns
         token["book_count"] += 1
         state["book_count"] += 1
+        state["empty_bid_book_snapshots"] += int(not token["bids"])
+        state["empty_ask_book_snapshots"] += int(not token["asks"])
         return
     if event_type != "price_change":
         return
 
-    token = _token_state(state, token_id)
-    if token["last_source_ns"] is not None and source_ns < token["last_source_ns"]:
-        state["out_of_order_price_changes"] += 1
-        return
-    if token["book_source_ns"] is not None and source_ns <= token["book_source_ns"]:
-        return
     bid, ask = _float(row.best_bid), _float(row.best_ask)
-    if bid is not None and ask is not None:
+    prior_report_source_ns = token["reported_source_ns"]
+    if bid is not None and ask is not None and (
+        prior_report_source_ns is None or source_ns >= prior_report_source_ns
+    ):
         expected_bbo[token_id] = (source_ns, bid, ask)
         token["reported_best_bid"] = bid
         token["reported_best_ask"] = ask
         token["reported_source_ns"] = source_ns
         token["reported_receive_ns"] = received_ns
     if not token["initialized"]:
-        token["last_source_ns"] = source_ns
         state["uninitialized_price_changes"] += 1
         return
 
-    prior_top = _book_top(token)
     price, size = _float(row.price), _float(row.size)
     side = str(row.side).upper()
     if price is None or size is None or not 0.0 < price < 1.0 or side not in {"BUY", "SELL"}:
         return
     levels = token["bids"] if side == "BUY" else token["asks"]
+    source_key = "bid_last_source_ns" if side == "BUY" else "ask_last_source_ns"
+    side_last_source_ns = token[source_key]
+    if side_last_source_ns is not None and source_ns < side_last_source_ns:
+        state["out_of_order_price_changes"] += 1
+        return
+    if (
+        token["last_source_ns"] is not None
+        and source_ns < token["last_source_ns"]
+        and (side_last_source_ns is None or source_ns >= side_last_source_ns)
+    ):
+        state["cross_side_late_price_changes"] += 1
+        state["cross_side_late_asks"] += int(side == "SELL")
     price = round(price, 8)
     old_size = levels.get(price)
     if size <= 0.0:
         levels.pop(price, None)
     else:
         levels[price] = size
-    token["last_source_ns"] = source_ns
     changed = (old_size is None) != (size <= 0.0) or (
         old_size is not None and size > 0.0 and old_size != size
+    )
+    token[source_key] = (
+        source_ns if side_last_source_ns is None
+        else max(side_last_source_ns, source_ns)
+    )
+    token["last_source_ns"] = (
+        source_ns if token["last_source_ns"] is None
+        else max(token["last_source_ns"], source_ns)
     )
     if changed and side == "BUY":
         token["bid_book_update_ns"] = received_ns
@@ -293,23 +356,76 @@ def _update_event(state, row, received_ns, expected_bbo):
     elif changed and side == "SELL":
         token["ask_book_update_ns"] = received_ns
         token["ask_book_source_ns"] = source_ns
-    current_top = _book_top(token)
-    if prior_top is None or current_top is None:
+    if changed and side == "BUY":
         token["bid_update_ns"] = received_ns
+        token["bid_source_update_ns"] = source_ns
+    elif changed and side == "SELL":
         token["ask_update_ns"] = received_ns
-    else:
-        if (prior_top[0], prior_top[2]) != (current_top[0], current_top[2]):
-            token["bid_update_ns"] = received_ns
-            token["bid_source_update_ns"] = source_ns
-        if (prior_top[1], prior_top[3]) != (current_top[1], current_top[3]):
-            token["ask_update_ns"] = received_ns
-            token["ask_source_update_ns"] = source_ns
+        token["ask_source_update_ns"] = source_ns
+
+
+def _same_receive_group_conflicts(group):
+    books = {}
+    updates = {}
+    conflicting_sides = set()
+    conflict_count = 0
+    for row in group:
+        token_id = str(row.asset_id)
+        source_ns = int(row.timestamp.value) if not pd.isna(row.timestamp) else None
+        if source_ns is None:
+            continue
+        if row.event_type == "book":
+            key = (token_id, source_ns)
+            levels = (_levels(row.bids), _levels(row.asks))
+            books.setdefault(key, []).append(levels)
+        elif row.event_type == "price_change":
+            side = str(row.side).upper()
+            price, size = _float(row.price), _float(row.size)
+            if side not in {"BUY", "SELL"} or price is None or size is None:
+                continue
+            key = (token_id, source_ns, side, round(price, 8))
+            updates.setdefault(key, set()).add(None if size <= 0.0 else size)
+
+    for (token_id, source_ns), snapshots in books.items():
+        first_bids, first_asks = snapshots[0]
+        for bids, asks in snapshots[1:]:
+            if bids != first_bids:
+                conflicting_sides.add((token_id, "BUY"))
+            if asks != first_asks:
+                conflicting_sides.add((token_id, "SELL"))
+
+    for (token_id, source_ns, side, price), sizes in updates.items():
+        book_levels = [
+            snapshot[0 if side == "BUY" else 1]
+            for snapshot in books.get((token_id, source_ns), [])
+        ]
+        has_conflict = len(sizes) > 1
+        if book_levels and len(sizes) == 1:
+            requested_size = next(iter(sizes))
+            has_conflict = any(
+                (levels.get(price) is None) != (requested_size is None)
+                or (
+                    levels.get(price) is not None and requested_size is not None
+                    and abs(levels[price] - requested_size) > 1e-9
+                )
+                for levels in book_levels
+            )
+        if has_conflict:
+            conflicting_sides.add((token_id, side))
+            conflict_count += 1
+    return conflicting_sides, conflict_count
 
 
 def _process_receive_group(state, group, received_ns, up_token_id, down_token_id):
+    rows = list(group.itertuples(index=False))
+    conflicting_sides, conflict_count = _same_receive_group_conflicts(rows)
     expected = {}
-    for row in group.itertuples(index=False):
+    for row in rows:
         _update_event(state, row, received_ns, expected)
+    for token_id, side in conflicting_sides:
+        token = _token_state(state, token_id)
+        token["bid_order_ambiguous" if side == "BUY" else "ask_order_ambiguous"] = True
+    state["equal_source_timestamp_price_changes"] += conflict_count
     up_book = _effective_book(state, up_token_id, down_token_id)
     down_book = _effective_book(state, down_token_id, up_token_id)
     up_bbo, down_bbo = _bbo(up_book), _bbo(down_book)
@@ -322,19 +438,30 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
         if book is not None and book["source_token_id"] != token_id:
             continue
         source_token = state["tokens"].get(book["source_token_id"]) if book else None
-        side_source_timestamps = (
-            source_token["bid_book_source_ns"],
-            source_token["ask_book_source_ns"],
-        ) if source_token is not None else ()
-        latest_side_source_ns = (
-            max(value for value in side_source_timestamps if value is not None)
-            if any(value is not None for value in side_source_timestamps)
-            else None
+        if source_token is None:
+            continue
+        actual_bid = max(source_token["bids"]) if source_token["bids"] else None
+        actual_ask = min(source_token["asks"]) if source_token["asks"] else None
+        comparable_bid = (
+            source_token["bid_last_source_ns"] is not None
+            and source_token["bid_last_source_ns"] <= source_ns
         )
-        if latest_side_source_ns is not None and source_ns <= latest_side_source_ns:
+        comparable_ask = (
+            source_token["ask_last_source_ns"] is not None
+            and source_token["ask_last_source_ns"] <= source_ns
+        )
+        latest_sources = [
+            value for value in (source_token["bid_last_source_ns"], source_token["ask_last_source_ns"])
+            if value is not None
+        ]
+        latest_side_source_ns = max(latest_sources) if latest_sources else None
+        tied_sides = int(source_token["bid_last_source_ns"] == source_ns) + int(
+            source_token["ask_last_source_ns"] == source_ns
+        )
+        state["bbo_tied_with_side_state"] += tied_sides
+        if not comparable_bid and not comparable_ask:
             state["bbo_not_newer_than_side_state"] += 1
             if len(state["bbo_not_newer_side_samples"]) < 5:
-                actual = _bbo(book)
                 state["bbo_not_newer_side_samples"].append({
                     "token_id": token_id,
                     "received_at_utc": pd.Timestamp(received_ns, unit="ns", tz="UTC").isoformat(),
@@ -342,21 +469,19 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
                     "latest_side_source_timestamp_utc": pd.Timestamp(
                         latest_side_source_ns, unit="ns", tz="UTC"
                     ).isoformat(),
-                    "relation": "older" if source_ns < latest_side_source_ns else "tied",
+                    "relation": "older",
                     "reported_bbo": [expected_bid, expected_ask],
-                    "reconstructed_bbo": None if actual is None else [actual[0], actual[1]],
+                    "reconstructed_bbo": [actual_bid, actual_ask],
                 })
-            if source_ns < latest_side_source_ns:
-                state["bbo_older_than_side_state"] += 1
-            else:
-                state["bbo_tied_with_side_state"] += 1
-            continue
-        actual = _bbo(book)
-        if actual is None:
+            state["bbo_older_than_side_state"] += 1
             continue
         state["bbo_checks"] += 1
-        bid_mismatch = abs(actual[0] - expected_bid) > 1e-6
-        ask_mismatch = abs(actual[1] - expected_ask) > 1e-6
+        bid_mismatch = comparable_bid and (
+            actual_bid is None or abs(actual_bid - expected_bid) > 1e-6
+        )
+        ask_mismatch = comparable_ask and (
+            actual_ask is None or abs(actual_ask - expected_ask) > 1e-6
+        )
         if bid_mismatch or ask_mismatch:
             state["bbo_mismatches"] += 1
             state["bbo_bid_mismatches"] += int(bid_mismatch)
@@ -367,12 +492,12 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
                     "received_at_utc": pd.Timestamp(received_ns, unit="ns", tz="UTC").isoformat(),
                     "source_timestamp_utc": pd.Timestamp(source_ns, unit="ns", tz="UTC").isoformat(),
                     "reported_bbo": [expected_bid, expected_ask],
-                    "reconstructed_bbo": [actual[0], actual[1]],
+                    "reconstructed_bbo": [actual_bid, actual_ask],
                     "source_token_id": book["source_token_id"],
                     "complemented": bool(book["complemented"]),
                     "latest_side_source_timestamp_utc": pd.Timestamp(
                         latest_side_source_ns, unit="ns", tz="UTC"
-                    ).isoformat(),
+                    ).isoformat() if latest_side_source_ns is not None else None,
                 })
     up_direct = _direct_book(state["tokens"].get(str(up_token_id)))
     down_direct = _direct_book(state["tokens"].get(str(down_token_id)))
@@ -384,8 +509,11 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
                 state["complement_mismatches"] += 1
 
 
-def _walk_asks(asks, fee_rate_bps, fee_collection_mode):
-    remaining = GROSS_ORDER_USD
+def _walk_asks(asks, fee_rate_bps, fee_collection_mode, gross_order_usd=GROSS_ORDER_USD):
+    gross_order_usd = float(gross_order_usd)
+    if not math.isfinite(gross_order_usd) or gross_order_usd <= 0.0:
+        raise ValueError("gross_order_usd must be a positive finite amount")
+    remaining = gross_order_usd
     gross_shares = 0.0
     raw_fee_cash = 0.0
     raw_fee_shares = 0.0
@@ -433,7 +561,7 @@ def _walk_asks(asks, fee_rate_bps, fee_collection_mode):
         "fee_usd": fee_usd,
         "fee_shares": fee_shares,
         "fee_cash_usd": fee_cash,
-        "cash_debit_usd": GROSS_ORDER_USD + fee_cash,
+        "cash_debit_usd": gross + fee_cash,
         "vwap": gross / gross_shares if gross_shares > 0.0 else None,
     }
 
@@ -448,6 +576,16 @@ def _valid_reconstructed_quote(bid, ask, ask_size):
         and 0.0 < ask_value < 1.0
         and size_value > 0.0
         and bid_value <= ask_value
+    )
+
+
+def _valid_reconstructed_ask(ask, ask_size):
+    ask_value, size_value = _float(ask), _float(ask_size)
+    return (
+        ask_value is not None
+        and size_value is not None
+        and 0.0 < ask_value < 1.0
+        and size_value > 0.0
     )
 
 
@@ -470,7 +608,8 @@ def _snapshot(state, market, case):
     entry_bbo_older_than_side_state = 0
     entry_bbo_tied_with_side_state = 0
     for outcome, book in (("up", up_book), ("down", down_book)):
-        top = _book_top(book)
+        bid_top = (max(book["bids"]), float(book["bids"][max(book["bids"]) ])) if book and book["bids"] else None
+        ask_top = _book_ask_top(book)
         ask_update_ns = book["ask_book_source_ns"] if book else None
         ask_receive_ns = book["ask_book_update_ns"] if book else None
         ask_age = (entry_ns - ask_update_ns) / 1e9 if ask_update_ns is not None else None
@@ -478,9 +617,18 @@ def _snapshot(state, market, case):
         reported_token = state["tokens"].get(up_token_id if outcome == "up" else down_token_id)
         sides[outcome] = {
             "book": book,
-            "best_bid": top[0] if top else None,
-            "best_ask": top[1] if top else None,
-            "best_ask_size_shares": top[3] if top else None,
+            "best_bid": bid_top[0] if bid_top else None,
+            "best_ask": ask_top[0] if ask_top else None,
+            "best_ask_size_shares": ask_top[1] if ask_top else None,
+            "ask_levels": sorted(
+                ((float(price), float(size)) for price, size in book["asks"].items()),
+                key=lambda item: item[0],
+            ) if book else [],
+            "ask_order_ambiguous": bool(
+                state["tokens"].get(up_token_id if outcome == "up" else down_token_id, {}).get("ask_order_ambiguous", False)
+            ),
+            "bbo_ask_comparable": False,
+            "bbo_ask_mismatch": False,
             "ask_age_seconds": ask_age,
             "ask_received_age_seconds": ask_receive_age,
             "quote_source_token_id": book["source_token_id"] if book else None,
@@ -495,51 +643,51 @@ def _snapshot(state, market, case):
             ),
         }
         source_token = state["tokens"].get(book["source_token_id"]) if book else None
-        side_state_source_ns = (
-            max(
-                value
-                for value in (
-                    source_token["bid_book_source_ns"],
-                    source_token["ask_book_source_ns"],
-                )
-                if value is not None
-            )
-            if source_token is not None
-            and any((
-                source_token["bid_book_source_ns"] is not None,
-                source_token["ask_book_source_ns"] is not None,
-            ))
-            else None
-        )
+        report_source_ns = reported_token["reported_source_ns"] if reported_token else None
         if (
             book is not None
-            and top is not None
             and reported_token is not None
             and reported_token["reported_receive_ns"] is not None
             and reported_token["reported_receive_ns"] <= entry_ns
             and source_token is not None
             and book["source_token_id"] == (up_token_id if outcome == "up" else down_token_id)
-            and source_token is not None
         ):
-            if (
-                side_state_source_ns is None
-                or reported_token["reported_source_ns"] is None
-                or reported_token["reported_source_ns"] <= side_state_source_ns
-            ):
+            bid_comparable = (
+                report_source_ns is not None
+                and source_token["bid_last_source_ns"] is not None
+                and source_token["bid_last_source_ns"] <= report_source_ns
+            )
+            ask_comparable = (
+                report_source_ns is not None
+                and source_token["ask_last_source_ns"] is not None
+                and source_token["ask_last_source_ns"] <= report_source_ns
+            )
+            if not bid_comparable and not ask_comparable:
                 entry_bbo_not_newer_than_side_state += 1
-                if (
-                    side_state_source_ns is not None
-                    and reported_token["reported_source_ns"] is not None
-                ):
-                    if reported_token["reported_source_ns"] < side_state_source_ns:
+                latest_source_values = [
+                    value for value in (
+                        source_token["bid_last_source_ns"], source_token["ask_last_source_ns"]
+                    ) if value is not None
+                ]
+                if latest_source_values and report_source_ns is not None:
+                    latest_source_ns = max(latest_source_values)
+                    if report_source_ns < latest_source_ns:
                         entry_bbo_older_than_side_state += 1
-                    else:
+                    elif report_source_ns == latest_source_ns:
                         entry_bbo_tied_with_side_state += 1
                 continue
             entry_bbo_checks += 1
-            bid_mismatch = abs(top[0] - reported_token["reported_best_bid"]) > 1e-6
-            ask_mismatch = abs(top[1] - reported_token["reported_best_ask"]) > 1e-6
-            entry_bbo_ask_checks += 1
+            bid_mismatch = bid_comparable and (
+                bid_top is None
+                or abs(bid_top[0] - reported_token["reported_best_bid"]) > 1e-6
+            )
+            ask_mismatch = ask_comparable and (
+                ask_top is None
+                or abs(ask_top[0] - reported_token["reported_best_ask"]) > 1e-6
+            )
+            sides[outcome]["bbo_ask_comparable"] = bool(ask_comparable)
+            sides[outcome]["bbo_ask_mismatch"] = bool(ask_mismatch)
+            entry_bbo_ask_checks += int(ask_comparable)
             entry_bbo_ask_mismatches += int(ask_mismatch)
             if bid_mismatch or ask_mismatch:
                 entry_bbo_mismatches += 1
@@ -548,7 +696,7 @@ def _snapshot(state, market, case):
         for token in (state["tokens"].get(up_token_id), state["tokens"].get(down_token_id))
     )
     no_future_source_event = all(
-        token["last_source_ns"] is None or token["last_source_ns"] <= entry_ns
+        token["max_source_ns_seen"] is None or token["max_source_ns_seen"] <= entry_ns
         for token in state["tokens"].values()
     ) and (state["fee_source_ns"] is None or state["fee_source_ns"] <= entry_ns)
     bbo_valid = all(
@@ -599,6 +747,12 @@ def _snapshot(state, market, case):
         "no_future_source_event_at_entry": no_future_source_event,
         "max_inter_event_gap_seconds": state["max_inter_event_gap_seconds"],
         "uninitialized_price_change_count": state["uninitialized_price_changes"],
+        "market_out_of_order_price_change_count": state["out_of_order_price_changes"],
+        "market_cross_side_late_price_change_count": state["cross_side_late_price_changes"],
+        "market_cross_side_late_ask_count": state["cross_side_late_asks"],
+        "market_equal_source_timestamp_price_change_count": state["equal_source_timestamp_price_changes"],
+        "market_empty_bid_snapshot_count": state["empty_bid_book_snapshots"],
+        "market_empty_ask_snapshot_count": state["empty_ask_book_snapshots"],
         "bbo_reconciliation_checks": state["bbo_checks"],
         "bbo_reconciliation_mismatches": state["bbo_mismatches"],
         "complement_checks": state["complement_checks"],
@@ -607,6 +761,30 @@ def _snapshot(state, market, case):
             "best_bid", "best_ask", "best_ask_size_shares", "ask_age_seconds", "ask_received_age_seconds",
             "quote_source_token_id", "quote_complemented", "reported_best_bid", "reported_best_ask",
         )},
+        "up_ask_levels": sides["up"]["ask_levels"],
+        "down_ask_levels": sides["down"]["ask_levels"],
+        "up_ask_order_ambiguous": sides["up"]["ask_order_ambiguous"],
+        "down_ask_order_ambiguous": sides["down"]["ask_order_ambiguous"],
+        "up_bbo_ask_comparable": sides["up"]["bbo_ask_comparable"],
+        "down_bbo_ask_comparable": sides["down"]["bbo_ask_comparable"],
+        "up_bbo_ask_mismatch": sides["up"]["bbo_ask_mismatch"],
+        "down_bbo_ask_mismatch": sides["down"]["bbo_ask_mismatch"],
+        "up_bid_ask_crossed": bool(
+            sides["up"]["best_bid"] is not None and sides["up"]["best_ask"] is not None
+            and sides["up"]["best_bid"] > sides["up"]["best_ask"]
+        ),
+        "down_bid_ask_crossed": bool(
+            sides["down"]["best_bid"] is not None and sides["down"]["best_ask"] is not None
+            and sides["down"]["best_bid"] > sides["down"]["best_ask"]
+        ),
+        "up_bid_ask_locked": bool(
+            sides["up"]["best_bid"] is not None and sides["up"]["best_ask"] is not None
+            and sides["up"]["best_bid"] == sides["up"]["best_ask"]
+        ),
+        "down_bid_ask_locked": bool(
+            sides["down"]["best_bid"] is not None and sides["down"]["best_ask"] is not None
+            and sides["down"]["best_bid"] == sides["down"]["best_ask"]
+        ),
         "up_fill": sides["up"]["fill"],
         "down_fill": sides["down"]["fill"],
     }
@@ -785,7 +963,6 @@ def _extract_snapshots(index):
         grouped = frame.groupby("_received_ns", sort=False)
         for received_ns, receive_group in grouped:
             emit_before(int(received_ns), inclusive=False)
-            receive_group = receive_group.sort_values(["_source_ns", "market", "asset_id", "event_type"], kind="stable")
             for condition_id, event_group in receive_group.groupby("market", sort=False):
                 market = market_by_id.get(condition_id)
                 if market is None:
