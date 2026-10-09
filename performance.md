@@ -13,12 +13,14 @@ For a material change: baseline → profile → reduce complexity and repeated w
 - Use small cases for development and equivalence checks, then representative data for performance conclusions. Do not substitute a toy workload for the authorized full run.
 - Reducing coverage, folds, trials, features, precision, or quote frequency changes the experiment. Report and obtain the relevant methodological authorization separately; do not label it a pure implementation speedup.
 - Keep changes local. Do not introduce a new storage system, framework, or dependency without a measured reason.
+- Before a multi-hour stage, measure representative partitions and report throughput, memory, and estimated remaining time including later stages. Reuse valid measurements; a live process or growing checkpoint is not performance evidence.
 
 ## 2. Data layout, I/O, and reuse
 
 - Read only required Parquet/Arrow columns and partitions; apply supported filtering early. Use bounded batches when the full decompressed dataset plus temporary arrays will not fit comfortably.
 - Load, normalize, sort, and index shared immutable inputs once per suitable run or worker. Avoid rescanning raw history or rebuilding the same joins per feature, fold, trial, policy, or latency scenario.
 - Prefer native column operations and compact NumPy/Arrow representations for large regular computations. Profile Python row loops, repeated DataFrame concatenation, object columns, and large intermediate copies.
+- In large event loops, avoid per-event or per-small-group DataFrame/Series creation, nested pandas grouping, and repeated row conversions unless measurements justify them. Consider Polars/Arrow for bulk preparation and NumPy with Numba or another compiled kernel for stateful numeric loops; include conversion and compilation costs and preserve event ordering.
 - Vectorization is not automatically memory-efficient. Avoid materializing huge broadcast arrays or a full rows × features × trials/scenarios tensor.
 - Batch predictions where appropriate. Reuse loaded models; do not reload an artifact for each row or market window.
 - Write large outputs incrementally. Keep JSON for small configuration, manifests, and summaries rather than duplicating full tables or order books in every result.
@@ -73,6 +75,10 @@ Detect the actual interpreter, installed libraries, CPU availability, RAM, free 
 - Hash immutable large inputs once per run or validated manifest, not inside every fold or candidate evaluation. Do not trust file names alone as identity.
 - Distinguish reusable immutable preprocessing from fold-specific learned state and time-sensitive live data.
 - Write checkpoints atomically with completed partitions/tasks and sufficient state to resume. Validate identity and completeness before reuse; incomplete outputs must not appear final.
+- Validate partial checkpoints against completed work, not the full target set. Test the actual runner: interrupt after a checkpoint, resume without reprocessing completed inputs, and compare outputs with an uninterrupted run.
+- Scope invalidation to affected dependencies. Transport settings, retries, logs, and unrelated later inputs must not invalidate an unchanged replay prefix. Changed earlier events require recomputing dependent state from a valid preceding boundary.
+- Preserve existing checkpoints before changing code or schema. Migrate only after verifying input identity and state/semantic compatibility; never bypass validation or invent provenance. Before a full restart, identify the failed dependency and explain why narrower recovery is impossible.
+- Freeze an explicit input manifest before expensive replay. Resolve transient download failures with bounded retries or record exclusions and their affected windows; later repairs must trigger targeted invalidation rather than an unexplained full rebuild.
 - Long runs should expose progress, throughput, failures, and resource pressure. Support orderly interruption without losing completed work or corrupting source files.
 - Record seeds and task identities so scheduling changes do not silently change the experiment. State any unavoidable backend nondeterminism.
 
