@@ -227,6 +227,24 @@ class BtcPreopenEconomicReplayTests(unittest.TestCase):
         self.assertEqual(snapshot["bbo_at_entry_checks"], 1)
         self.assertEqual(snapshot["bbo_at_entry_not_newer_than_side_state"], 0)
 
+    def test_best_bid_ask_event_updates_reference_bbo_without_mutating_depth(self):
+        receive = pd.Timestamp("2026-04-15T17:03:05Z")
+        row = self.event(
+            receive, receive, "best_bid_ask", "up",
+            best_bid=0.42, best_ask=0.47,
+        )
+        state = _new_state()
+        expected = {}
+        from run_btc_preopen_economic_replay import _update_event
+        _update_event(state, SimpleNamespace(**row), int(receive.value), expected)
+
+        token = state["tokens"]["up"]
+        self.assertEqual(expected["up"], (int(receive.value), 0.42, 0.47))
+        self.assertEqual(token["reported_best_bid"], 0.42)
+        self.assertEqual(token["reported_best_ask"], 0.47)
+        self.assertEqual(token["bids"], {})
+        self.assertEqual(token["asks"], {})
+
     def test_empty_bid_snapshot_still_initializes_native_ask_book(self):
         receive = pd.Timestamp("2026-04-15T17:03:05Z")
         row = self.event(

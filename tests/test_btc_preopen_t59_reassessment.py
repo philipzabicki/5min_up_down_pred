@@ -49,36 +49,81 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         self.assertGreater(len(trace["state_transitions"]), 0)
         self.assertEqual(trace["corrected_t59_snapshot"]["up_best_ask"], 0.5)
 
+    def _write_complete_replay_cache(self, root, index, *, reconstruction_version=None):
+        parts_dir = root / "pmxt" / "event_parts"
+        parts_dir.mkdir(parents=True, exist_ok=True)
+        part = parts_dir / "2026-04-15T16.parquet"
+        rows = []
+        market_start = pd.Timestamp("2026-04-15T17:05:00Z")
+        for token_id in ("up-token", "down-token"):
+            row = {column: None for column in assessment.pmxt.EVENT_COLUMNS}
+            row.update({
+                "timestamp_received": pd.Timestamp("2026-04-15T17:04:00Z"),
+                "timestamp": pd.Timestamp("2026-04-15T17:04:00Z"),
+                "market": b"market-id", "event_type": "book", "asset_id": token_id,
+                "bids": "[[0.45, 10]]", "asks": "[[0.50, 10]]",
+            })
+            rows.append(row)
+        pq.write_table(pa.Table.from_pylist(rows), part)
+        part_records = assessment._part_paths_dependency_records([part])
+        dependency_manifest = assessment._replay_dependency_manifest(
+            index, part_records, reconstruction_version=reconstruction_version,
+        )
+        assessment._write_json(root / "t59_replay_dependencies.json", dependency_manifest)
+        snapshots = pd.DataFrame([{
+            "condition_id": "market-id",
+            "market_start_utc": market_start,
+            "entry_time_utc": market_start - pd.Timedelta(seconds=59),
+        }])
+        snapshot_path = root / "t59_ask_ladders.parquet"
+        snapshots.to_parquet(snapshot_path, index=False)
+        assessment._write_json(root / "t59_replay_manifest.json", {
+            "status": "complete", "markets": 1,
+            "snapshot_sha256": assessment._sha256(snapshot_path),
+            "archive_fingerprint_sha256": assessment._part_paths_fingerprint(
+                [part], part_records,
+            ),
+            "current_archive_metadata_fingerprint_sha256": assessment._part_paths_metadata_fingerprint(
+                [part], part_records,
+            ),
+            "replay_dependency_sha256": dependency_manifest["dependency_sha256"],
+        })
+        with (root / "t59_replay_checkpoint.pkl").open("wb") as stream:
+            pickle.dump({
+                "identity": dependency_manifest["dependency_sha256"],
+                "non_partition_dependencies_sha256": dependency_manifest[
+                    "non_partition_dependencies_sha256"
+                ],
+                "part_index": 0,
+                "processed_prefix_fingerprint": assessment._part_paths_fingerprint(
+                    [part], part_records,
+                ),
+                "last_processed_part": part.name, "next_capture": 1,
+                "snapshots": {"market-id": {}}, "states": {},
+            }, stream)
+        return part
+
+    @staticmethod
+    def _single_market_index():
+        market_start = pd.Timestamp("2026-04-15T17:05:00Z")
+        return pd.DataFrame([{
+            "condition_id": "market-id", "market_start_utc": market_start,
+            "resolved_at_utc": market_start + pd.Timedelta(minutes=5),
+            "market_slug": "btc-updown-5m-test", "target_polymarket_up": 1,
+            "p_model_raw": 0.55, "p_model_platt": 0.54,
+            "up_token_id": "up-token", "down_token_id": "down-token",
+        }])
+
     def test_complete_snapshot_artifact_resumes_when_partition_metadata_changed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            parts_dir = root / "pmxt" / "event_parts"
-            parts_dir.mkdir(parents=True)
-            part = parts_dir / "2026-04-15T16.parquet"
-            part.write_bytes(b"re-extracted-part")
-            market_start = pd.Timestamp("2026-04-15T17:05:00Z")
-            snapshots = pd.DataFrame([{
-                "condition_id": "market-id",
-                "market_start_utc": market_start,
-                "entry_time_utc": market_start - pd.Timedelta(seconds=59),
-            }])
-            snapshot_path = root / "t59_ask_ladders.parquet"
-            snapshots.to_parquet(snapshot_path, index=False)
-            assessment._write_json(root / "t59_replay_manifest.json", {
-                "status": "complete", "markets": 1,
-                "snapshot_sha256": assessment._sha256(snapshot_path),
-                "archive_fingerprint_sha256": "old-archive-fingerprint",
-            })
-            with (root / "t59_replay_checkpoint.pkl").open("wb") as stream:
-                pickle.dump({
-                    "identity": "old-archive-fingerprint", "part_index": 0,
-                    "last_processed_part": part.name, "next_capture": 1,
-                    "snapshots": {"market-id": {}}, "states": {},
-                }, stream)
-            index = pd.DataFrame([{
-                "condition_id": "market-id", "market_start_utc": market_start,
-                "resolved_at_utc": market_start + pd.Timedelta(minutes=5),
-            }])
+            index = self._single_market_index()
+            part = self._write_complete_replay_cache(root, index)
+            previous_metadata_fingerprint = json.loads(
+                (root / "t59_replay_manifest.json").read_text()
+            )["current_archive_metadata_fingerprint_sha256"]
+            previous_mtime_ns = part.stat().st_mtime_ns
+            os.utime(part, ns=(previous_mtime_ns + 10_000, previous_mtime_ns + 10_000))
 
             with mock.patch.object(assessment, "OUT_DIR", root):
                 loaded, manifest = assessment._replay_t59(index)
@@ -86,8 +131,83 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
 
         self.assertEqual(len(loaded), 1)
         self.assertTrue(manifest["reused_verified_complete_snapshot_artifact"])
-        self.assertFalse(manifest["replay_archive_fingerprint_matches_current"])
+        self.assertTrue(manifest["snapshot_artifact_integrity_verified"])
+        self.assertTrue(manifest["replay_provenance_verified"])
+        self.assertNotEqual(
+            previous_metadata_fingerprint,
+            manifest["current_archive_metadata_fingerprint_sha256"],
+        )
         self.assertTrue(persisted_manifest["reused_verified_complete_snapshot_artifact"])
+
+    def test_complete_snapshot_is_rebuilt_when_partition_content_changed(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            index = self._single_market_index()
+            part = self._write_complete_replay_cache(root, index)
+            rows = []
+            for token_id in ("up-token", "down-token"):
+                row = {column: None for column in assessment.pmxt.EVENT_COLUMNS}
+                row.update({
+                    "timestamp_received": pd.Timestamp("2026-04-15T17:04:00Z"),
+                    "timestamp": pd.Timestamp("2026-04-15T17:04:00Z"),
+                    "market": b"market-id", "event_type": "book", "asset_id": token_id,
+                    "bids": "[[0.45, 10]]", "asks": "[[0.60, 10]]",
+                })
+                rows.append(row)
+            pq.write_table(pa.Table.from_pylist(rows), part)
+
+            with mock.patch.object(assessment, "OUT_DIR", root):
+                loaded, manifest = assessment._replay_t59(index)
+
+        self.assertFalse(manifest["reused_verified_complete_snapshot_artifact"])
+        self.assertTrue(manifest["cached_snapshot_integrity_verified"])
+        self.assertFalse(manifest["cached_snapshot_provenance_verified"])
+        self.assertEqual(float(loaded.iloc[0]["up_best_ask"]), 0.6)
+
+    def test_complete_snapshot_is_rebuilt_when_token_mapping_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            index = self._single_market_index()
+            self._write_complete_replay_cache(root, index)
+            changed_index = index.copy()
+            changed_index.loc[0, "up_token_id"] = "different-up-token"
+
+            with mock.patch.object(assessment, "OUT_DIR", root):
+                loaded, manifest = assessment._replay_t59(changed_index)
+
+        self.assertFalse(manifest["reused_verified_complete_snapshot_artifact"])
+        self.assertFalse(manifest["cached_snapshot_provenance_verified"])
+        self.assertIn("book_snapshot_token_count", loaded.columns)
+
+    def test_snapshot_without_dependency_manifest_is_not_provenance_verified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            index = self._single_market_index()
+            self._write_complete_replay_cache(root, index)
+            (root / "t59_replay_dependencies.json").unlink()
+
+            with mock.patch.object(assessment, "OUT_DIR", root):
+                loaded, manifest = assessment._replay_t59(index)
+
+        self.assertEqual(len(loaded), 1)
+        self.assertTrue(manifest["cached_snapshot_integrity_verified"])
+        self.assertFalse(manifest["cached_snapshot_provenance_verified"])
+        self.assertFalse(manifest["reused_verified_complete_snapshot_artifact"])
+
+    def test_complete_snapshot_is_rebuilt_when_reconstruction_version_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            index = self._single_market_index()
+            self._write_complete_replay_cache(
+                root, index, reconstruction_version="older-reconstruction",
+            )
+
+            with mock.patch.object(assessment, "OUT_DIR", root):
+                loaded, manifest = assessment._replay_t59(index)
+
+        self.assertEqual(len(loaded), 1)
+        self.assertFalse(manifest["reused_verified_complete_snapshot_artifact"])
+        self.assertFalse(manifest["cached_snapshot_provenance_verified"])
 
     def test_market_status_merge_preserves_multiple_unconfirmed_calendar_slots(self):
         markets = pd.DataFrame({
@@ -119,8 +239,8 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             prefix = root / "2026-04-15T16.parquet"
             later = root / "2026-05-17T09.parquet"
             checkpoint = root / "checkpoint.pkl"
-            prefix.write_bytes(b"processed")
-            later.write_bytes(b"unprocessed")
+            pq.write_table(pa.table({"market": ["processed"]}), prefix)
+            pq.write_table(pa.table({"market": ["unprocessed"]}), later)
             checkpoint.write_bytes(b"checkpoint")
             os.utime(prefix, ns=(1_000_000_000, 1_000_000_000))
             os.utime(checkpoint, ns=(2_000_000_000, 2_000_000_000))
@@ -128,27 +248,50 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             paths = [prefix, later]
 
             legacy_checkpoint = {"part_index": 0}
-            self.assertTrue(assessment._replay_checkpoint_prefix_unchanged(
-                paths, legacy_checkpoint, checkpoint.stat().st_mtime_ns,
-            ))
+            self.assertFalse(assessment._replay_checkpoint_prefix_unchanged(paths, legacy_checkpoint))
             os.utime(prefix, ns=(4_000_000_000, 4_000_000_000))
-            self.assertFalse(assessment._replay_checkpoint_prefix_unchanged(
-                paths, legacy_checkpoint, checkpoint.stat().st_mtime_ns,
-            ))
+            self.assertFalse(assessment._replay_checkpoint_prefix_unchanged(paths, legacy_checkpoint))
 
             os.utime(prefix, ns=(1_000_000_000, 1_000_000_000))
+            records = assessment._part_paths_dependency_records(paths)
             checkpoint_with_fingerprint = {
                 "part_index": 0,
-                "processed_prefix_fingerprint": assessment._part_paths_fingerprint([prefix]),
+                "processed_prefix_fingerprint": assessment._part_paths_fingerprint(
+                    [prefix], records[:1],
+                ),
             }
             os.utime(later, ns=(5_000_000_000, 5_000_000_000))
             self.assertTrue(assessment._replay_checkpoint_prefix_unchanged(
-                paths, checkpoint_with_fingerprint, checkpoint.stat().st_mtime_ns,
+                paths, checkpoint_with_fingerprint, records,
             ))
             os.utime(prefix, ns=(6_000_000_000, 6_000_000_000))
-            self.assertFalse(assessment._replay_checkpoint_prefix_unchanged(
-                paths, checkpoint_with_fingerprint, checkpoint.stat().st_mtime_ns,
+            changed_records = assessment._part_paths_dependency_records(paths)
+            self.assertTrue(assessment._replay_checkpoint_prefix_unchanged(
+                paths, checkpoint_with_fingerprint, changed_records,
             ))
+            pq.write_table(pa.table({"market": ["changed-content"]}), prefix)
+            changed_records = assessment._part_paths_dependency_records(paths)
+            self.assertFalse(assessment._replay_checkpoint_prefix_unchanged(
+                paths, checkpoint_with_fingerprint, changed_records,
+            ))
+
+    def test_replay_dependency_manifest_tracks_market_index_and_token_mapping(self):
+        index = self._single_market_index()
+        with tempfile.TemporaryDirectory() as directory:
+            part = Path(directory) / "part.parquet"
+            pq.write_table(pa.table({"market": ["same-data"]}), part)
+            records = assessment._part_paths_dependency_records([part])
+            original = assessment._replay_dependency_manifest(index, records)
+            changed_token_map = index.copy()
+            changed_token_map.loc[0, "down_token_id"] = "another-down-token"
+            changed = assessment._replay_dependency_manifest(changed_token_map, records)
+            changed_logic = assessment._replay_dependency_manifest(
+                index, records, reconstruction_version="other-logic",
+            )
+
+        self.assertNotEqual(original["token_mapping_sha256"], changed["token_mapping_sha256"])
+        self.assertNotEqual(original["dependency_sha256"], changed["dependency_sha256"])
+        self.assertNotEqual(original["dependency_sha256"], changed_logic["dependency_sha256"])
 
     def test_selective_pmxt_hour_merge_is_idempotent(self):
         schema = pa.schema([
@@ -183,43 +326,100 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             self.assertEqual(second_merge_rows, 0)
             self.assertEqual(pq.read_table(destination).num_rows, 2)
 
-    def test_legacy_recovery_attribution_requires_the_same_ask_side(self):
-        old = pd.DataFrame([
-            {
-                "condition_id": "same-side", "entry_case": "prestart_c0_o1",
-                "quote_valid": False, "has_full_snapshot": True,
-                "up_best_bid": 0.60, "up_best_ask": 0.50,
-                "down_best_bid": 0.45, "down_best_ask": 0.55,
-                "up_reported_best_ask": 0.54, "down_reported_best_ask": 0.55,
-                "bbo_at_entry_ask_mismatches": 1,
-            },
-            {
-                "condition_id": "other-side", "entry_case": "prestart_c0_o1",
-                "quote_valid": False, "has_full_snapshot": True,
-                "up_best_bid": 0.60, "up_best_ask": 0.50,
-                "down_best_bid": 0.45, "down_best_ask": 0.55,
-                "up_reported_best_ask": 0.54, "down_reported_best_ask": 0.55,
-                "bbo_at_entry_ask_mismatches": 1,
-            },
-        ])
-        fixed5 = {
-            "same-side": {"priceable_side_count": 1, "sides": {"up": {"priceable": True}, "down": {"priceable": False}}},
-            "other-side": {"priceable_side_count": 1, "sides": {"up": {"priceable": False}, "down": {"priceable": True}}},
-        }
-        snapshots = {
-            cid: {
-                "up_bbo_ask_comparable": True, "up_bbo_ask_mismatch": False,
-                "down_bbo_ask_comparable": True, "down_bbo_ask_mismatch": False,
+    def test_archive_history_coverage_uses_union_of_adjacent_public_sources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            base_parts = root / "base"
+            extended_parts = root / "extended"
+            base_parts.mkdir()
+            extended_parts.mkdir()
+            hours = list(pd.date_range("2025-12-31T01:00:00Z", "2026-01-01T02:00:00Z", freq="h"))
+            pmxt_hours, ag6_hours = hours[:13], hours[13:]
+            ag6_results = {}
+            for hour in pmxt_hours:
+                pq.write_table(
+                    pa.table({"market": pa.array([], type=pa.string())}),
+                    base_parts / f"{hour.strftime('%Y-%m-%dT%H')}.parquet",
+                )
+            for hour in ag6_hours:
+                path = extended_parts / f"{hour.strftime('%Y-%m-%dT%H')}.parquet"
+                pq.write_table(pa.table({"market": pa.array([], type=pa.string())}), path)
+                ag6_results[hour.strftime("%Y-%m-%dT%H")] = {
+                    "status": "processed", "source_archive": "ag6_v2",
+                    "merged_output_path": str(path), "merged_output_sha256": assessment._sha256(path),
+                }
+            archive_manifest = {
+                "pmxt_v2": {"available_hours_utc": [hour.isoformat() for hour in pmxt_hours]},
+                "ag6_v2": {"available_hours_utc": [hour.isoformat() for hour in ag6_hours]},
+                "v3": {"available_hours_utc": []},
+                "hour_results": ag6_results,
             }
-            for cid in fixed5
+            index = pd.DataFrame([{
+                "condition_id": "condition",
+                "market_start_utc": pd.Timestamp("2026-01-01T02:05:00Z"),
+                "archive_source": "ag6_v2",
+            }])
+
+            covered, _ = assessment._add_archive_coverage_to_index(index, archive_manifest, base_parts)
+
+        row = covered.iloc[0]
+        self.assertEqual(row.archive_window_hours_expected, 26)
+        self.assertEqual(row.archive_window_hours_source_available, 26)
+        self.assertEqual(row.archive_window_hours_processed, 26)
+        self.assertTrue(row.archive_history_complete)
+
+    def test_legacy_recovery_comparison_keeps_old_provenance_unresolved(self):
+        condition_id = "market-id"
+        market_start = pd.Timestamp("2026-04-15T17:05:00Z")
+        old = pd.DataFrame([{
+            "condition_id": condition_id, "entry_case": "prestart_c0_o1",
+            "quote_valid": False, "has_full_snapshot": True,
+            "market_start_utc": market_start,
+            "entry_time_utc": market_start - pd.Timedelta(seconds=59),
+            "up_best_bid": 0.60, "up_best_ask": 0.50,
+            "down_best_bid": 0.45, "down_best_ask": 0.55,
+            "up_quote_source_token_id": "up-token", "down_quote_source_token_id": "down-token",
+            "up_quote_complemented": False, "down_quote_complemented": False,
+            "up_ask_levels": [(0.50, 100.0)], "down_ask_levels": [(0.55, 100.0)],
+            "up_ask_age_seconds": 1.0, "down_ask_age_seconds": 1.0,
+            "up_ask_order_ambiguous": False, "down_ask_order_ambiguous": False,
+            "up_bbo_ask_comparable": False, "down_bbo_ask_comparable": False,
+            "up_bbo_ask_mismatch": False, "down_bbo_ask_mismatch": False,
+            "no_future_event_at_entry": True, "no_future_source_event_at_entry": True,
+            "fee_known": True, "fee_collection_mode": "outcome_shares", "fee_rate_bps": 0.0,
+        }])
+        market = {
+            "condition_id": condition_id,
+            "up_token_id": "up-token", "down_token_id": "down-token",
+            "order_min_size_shares_current": 5.0, "p_candidate_platt": 0.8,
+        }
+        current_snapshot = {
+            "up_best_ask": 0.50, "up_ask_levels": [(0.50, 100.0)],
+            "down_best_ask": 0.55, "down_ask_levels": [(0.55, 100.0)],
+        }
+        side = {
+            "priceable": True, "reason": "priceable", "fill": {
+                "vwap": 0.50, "gross_shares": 10.0, "shares": 10.0,
+                "fee_usd": 0.0, "fee_cash_usd": 0.0, "cash_debit_usd": 5.0,
+            },
+            "ev_usd": 3.0,
+        }
+        unavailable = {"priceable": False, "reason": "no_native_book_snapshot", "fill": None, "ev_usd": None}
+        new_eval = {
+            "priceable_side_count": 1, "positive_ev_side_count": 1,
+            "chosen_side": "up", "sides": {"up": side, "down": unavailable},
         }
 
-        diagnosis = assessment._legacy_rejection_diagnosis(old, fixed5, snapshots)
+        comparison, summary = assessment._legacy_controlled_comparison(
+            old, {condition_id: new_eval}, {condition_id: current_snapshot},
+            {condition_id: market},
+        )
 
-        self.assertEqual(diagnosis["recovered_by_corrected_native_ask_replay_at_fixed5"], 2)
-        self.assertEqual(diagnosis["implementation_signal_recovered_markets"], 1)
-        self.assertEqual(diagnosis["changed_qualification_recovered_markets_bid_not_required"], 1)
-        self.assertEqual(diagnosis["recovered_with_unresolved_old_ask_mismatch_attribution"], 0)
+        self.assertEqual(summary["old_full_snapshot_invalid_count"], 1)
+        self.assertEqual(summary["recovered_with_any_fixed5_native_ask"], 1)
+        self.assertEqual(comparison.iloc[0].recovery_class, "qualification_compatible_old_ask_already_priceable")
+        self.assertFalse(comparison.iloc[0].old_replay_provenance_verified)
+        self.assertIn("content hashes", summary["attribution_limit"])
 
     @staticmethod
     def _market_and_snapshot(condition_id, market_start, resolved_at, *, price=0.5, outcome=1):
@@ -313,6 +513,30 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         self.assertAlmostEqual(sum(trade["payout_usd"] for trade in trades), summary["ending_cash_after_settlement_usd"])
         self.assertTrue(summary["daily_log_growth"]["daily_log_growth_identity_verified"])
         self.assertEqual(decisions[-1]["skip_reason"], "insufficient_free_cash_for_cash_debit")
+
+    def test_portfolio_accounting_audit_checks_cash_fees_and_settlement_once(self):
+        start = pd.Timestamp("2026-04-15T17:05:00Z")
+        market, snapshot = self._market_and_snapshot(
+            "audit", start, start + pd.Timedelta(minutes=5), price=0.5, outcome=1,
+        )
+        market["p_candidate_platt"] = 1.0
+        summary, trades, decisions = self._run(
+            "fixed_5_usd",
+            [{
+                "condition_id": "audit", "market_start_utc": start,
+                "resolved_at_utc": start + pd.Timedelta(minutes=5),
+                "target_polymarket_up": 1, "p_candidate_platt": 1.0,
+            }],
+            {"audit": market}, {"audit": snapshot},
+        )
+        equity_path = summary.pop("_equity_path")
+
+        audit = assessment._portfolio_accounting_audit(
+            summary, trades, decisions, equity_path, {"audit": snapshot},
+        )
+
+        self.assertEqual(audit["status"], "passed")
+        self.assertAlmostEqual(summary["ending_cash_after_settlement_usd"], 105.0)
 
 
 if __name__ == "__main__":

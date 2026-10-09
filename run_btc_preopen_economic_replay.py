@@ -118,6 +118,7 @@ def _complement(book):
         "ask_source_update_ns": book["bid_source_update_ns"],
         "bid_book_update_ns": book["ask_book_update_ns"],
         "ask_book_update_ns": book["bid_book_update_ns"],
+        "book_init_receive_ns": book.get("book_init_receive_ns"),
         "bid_book_source_ns": book["ask_book_source_ns"],
         "ask_book_source_ns": book["bid_book_source_ns"],
         "source_token_id": book.get("source_token_id", book.get("token_id")),
@@ -204,6 +205,7 @@ def _direct_book(token):
         "ask_source_update_ns": token["ask_source_update_ns"],
         "bid_book_update_ns": token["bid_book_update_ns"],
         "ask_book_update_ns": token["ask_book_update_ns"],
+        "book_init_receive_ns": token["book_receive_ns"],
         "bid_book_source_ns": token["bid_book_source_ns"],
         "ask_book_source_ns": token["ask_book_source_ns"],
         "source_token_id": token["token_id"],
@@ -250,6 +252,20 @@ def _update_event(state, row, received_ns, expected_bbo):
             state["fee_rate_bps"] = fee_rate
             state["fee_event_ns"] = received_ns
             state["fee_source_ns"] = source_ns
+        return
+    if event_type == "best_bid_ask":
+        bid, ask = _float(row.best_bid), _float(row.best_ask)
+        prior_report_source_ns = token["reported_source_ns"]
+        if (
+            bid is not None and ask is not None
+            and 0.0 <= bid < 1.0 and 0.0 < ask <= 1.0
+            and (prior_report_source_ns is None or source_ns >= prior_report_source_ns)
+        ):
+            expected_bbo[token_id] = (source_ns, bid, ask)
+            token["reported_best_bid"] = bid
+            token["reported_best_ask"] = ask
+            token["reported_source_ns"] = source_ns
+            token["reported_receive_ns"] = received_ns
         return
     if event_type == "book":
         prior_sources = [
@@ -725,6 +741,14 @@ def _snapshot(state, market, case):
         "p_model_platt": market["p_model_platt"],
         "p_candidate_raw": market["p_candidate_raw"],
         "p_candidate_platt": market["p_candidate_platt"],
+        "archive_source": market.get("archive_source"),
+        "archive_entry_hour_available": market.get("archive_entry_hour_available"),
+        "archive_freshness_window_available": market.get("archive_freshness_window_available"),
+        "archive_window_hours_expected": market.get("archive_window_hours_expected"),
+        "archive_window_hours_source_available": market.get("archive_window_hours_source_available"),
+        "archive_window_hours_processed": market.get("archive_window_hours_processed"),
+        "archive_window_missing_source_hours": market.get("archive_window_missing_source_hours"),
+        "archive_window_unprocessed_hours": market.get("archive_window_unprocessed_hours"),
         "book_snapshot_token_count": direct_book_count,
         "has_full_snapshot": direct_book_count == 2,
         "quote_valid": bbo_valid,
@@ -739,6 +763,7 @@ def _snapshot(state, market, case):
         "fee_known": fee_known,
         "fee_rate_bps": rate if fee_known else None,
         "fee_age_seconds": fee_age,
+        "fee_event_ns": state["fee_event_ns"] if fee_known else None,
         "market_event_count": state["event_count"],
         "market_book_snapshot_count": state["book_count"],
         "market_first_event_utc": pd.Timestamp(state["first_event_ns"], unit="ns", tz="UTC") if state["first_event_ns"] is not None else pd.NaT,
@@ -763,6 +788,12 @@ def _snapshot(state, market, case):
         )},
         "up_ask_levels": sides["up"]["ask_levels"],
         "down_ask_levels": sides["down"]["ask_levels"],
+        "up_book_init_receive_ns": (
+            sides["up"]["book"].get("book_init_receive_ns") if sides["up"]["book"] else None
+        ),
+        "down_book_init_receive_ns": (
+            sides["down"]["book"].get("book_init_receive_ns") if sides["down"]["book"] else None
+        ),
         "up_ask_order_ambiguous": sides["up"]["ask_order_ambiguous"],
         "down_ask_order_ambiguous": sides["down"]["ask_order_ambiguous"],
         "up_bbo_ask_comparable": sides["up"]["bbo_ask_comparable"],
