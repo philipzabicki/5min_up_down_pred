@@ -16,8 +16,7 @@ from utils import polymarket_btc5m_fee_rules as fee_rules
 
 EXIT_DECISION_OFFSETS = tuple(range(5, 300, 5))
 ORDER_DELAY_SECONDS = 1
-FRESH_BID_SECONDS = 1
-CACHE_VERSION = "btc_exit_quotes_v1"
+CACHE_VERSION = "btc_exit_quotes_v2_persistent_bid_until_source_gap"
 ROOT = Path(__file__).resolve().parents[1]
 INPUT_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008"
 PMXT_DIR = INPUT_DIR / "pmxt_extended/event_parts"
@@ -65,7 +64,8 @@ def _cache_identity(
         "fee_registry_sha256": _sha256(fee_rules.REGISTRY_PATH),
         "decision_offsets_seconds": list(EXIT_DECISION_OFFSETS),
         "order_delay_seconds": ORDER_DELAY_SECONDS,
-        "fresh_bid_limit_seconds": FRESH_BID_SECONDS,
+        "bid_persists_until_change": True,
+        "invalidate_after_missing_hour_partition": True,
     }
 
 
@@ -131,7 +131,7 @@ def _commit_cache_shard(cache_dir: Path, identity: dict, manifest: dict, rows: l
     _write_json(output_dir / "manifest.json", manifest)
 
 
-def _quote_at(state: dict, token_id: str, asof_ns: int, *, freshness_seconds: int = FRESH_BID_SECONDS) -> dict | None:
+def _quote_at(state: dict, token_id: str, asof_ns: int) -> dict | None:
     token = state["tokens"].get(str(token_id))
     if token is None or not token.get("initialized"):
         return None
@@ -139,7 +139,7 @@ def _quote_at(state: dict, token_id: str, asof_ns: int, *, freshness_seconds: in
     if update_ns is None or int(update_ns) > int(asof_ns):
         return None
     age_ns = int(asof_ns) - int(update_ns)
-    if age_ns < 0 or age_ns > int(freshness_seconds) * 1_000_000_000:
+    if age_ns < 0:
         return None
     levels = [list(item) for item in sorted(
         ((float(price), float(size)) for price, size in token["bids"].items() if float(size) > 0.0),
@@ -200,6 +200,12 @@ def quote_path_from_events(
     sample_points.sort()
     quotes = {str(offset): {"decision": {}, "arrival": {}} for offset in EXIT_DECISION_OFFSETS}
     point_index = 0
+    gap_starts = []
+    for hour in sorted(set(missing_hours or [])):
+        timestamp = pd.Timestamp(hour)
+        timestamp = timestamp.tz_localize("UTC") if timestamp.tzinfo is None else timestamp.tz_convert("UTC")
+        gap_starts.append(int(timestamp.value))
+    gap_index = 0
 
     def record_due(through_ns: int) -> None:
         nonlocal point_index
@@ -210,6 +216,19 @@ def quote_path_from_events(
                 "down": _quote_at(state, down_id, point_ns),
             }
             point_index += 1
+
+    def invalidate_gaps_through(through_ns: int) -> None:
+        nonlocal gap_index
+        while gap_index < len(gap_starts) and gap_starts[gap_index] <= through_ns:
+            gap_ns = gap_starts[gap_index]
+            record_due(gap_ns - 1)
+            for token in state["tokens"].values():
+                token["bids"].clear()
+                token["bid_update_ns"] = None
+                token["bid_source_update_ns"] = None
+                token["bid_book_update_ns"] = None
+                token["bid_book_source_ns"] = None
+            gap_index += 1
 
     if not events.empty:
         frame = events.copy()
@@ -222,10 +241,13 @@ def quote_path_from_events(
         frame.sort_values(["_received_ns", "_source_ns", "asset_id", "event_type"], kind="stable", inplace=True)
         for received_ns, group in frame.groupby("_received_ns", sort=False):
             received_ns = int(received_ns)
+            invalidate_gaps_through(received_ns)
             record_due(received_ns - 1)
             replay_module._process_receive_group(state, group, received_ns, up_id, down_id)
             record_due(received_ns)
-    record_due(start_ns + 300 * 1_000_000_000)
+    stop_ns = start_ns + 300 * 1_000_000_000
+    invalidate_gaps_through(stop_ns)
+    record_due(stop_ns)
     return {
         "condition_id": cid,
         "source": "pmxt_event_replay",

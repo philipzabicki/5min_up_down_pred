@@ -33,7 +33,6 @@ DECISION_OFFSETS = tuple(range(-54, 0, 5)) + tuple(range(1, 300, 5))
 PRESTART_OFFSETS = tuple(range(-54, 0, 5))
 POSTSTART_OFFSETS = tuple(range(1, 300, 5))
 FEE_EXPONENT = 1.0
-MAX_BID_AGE_SECONDS = 30.0
 INITIAL_CASH_USD = 100.0
 FIXED_GROSS_USD = 5.0
 MAX_GROSS_USD = 20.0
@@ -457,6 +456,25 @@ def _pmxt_premarket_quotes(rows: list[dict]) -> dict[str, dict[int, dict]]:
         if not path.is_file():
             if hour_index % 12 == 0 or hour_index == len(hours):
                 print(f"PMXT pre-start replay {hour_index}/{len(hours)} hours; missing hour file", flush=True)
+            hour_start_ns = int(hour.value)
+            hour_end_ns = hour_start_ns + 3_600_000_000_000
+            gap_id_start = int(np.searchsorted(ordered_starts, hour_start_ns, side="right"))
+            gap_id_stop = int(np.searchsorted(
+                ordered_starts, hour_end_ns + 59_000_000_000, side="left",
+            ))
+            for condition_id in ordered_ids[gap_id_start:gap_id_stop]:
+                row = rows_by_id[condition_id]
+                if int(row["_entry_ns"]) < hour_end_ns and int(row["_market_ns"]) > hour_start_ns:
+                    for token in states[condition_id]["tokens"].values():
+                        token["bids"].clear()
+                        token["bid_update_ns"] = None
+                        token["bid_source_update_ns"] = None
+                        token["bid_book_update_ns"] = None
+                        token["bid_book_source_ns"] = None
+                        token["reported_best_bid"] = None
+                        token["reported_best_ask"] = None
+                        token["reported_source_ns"] = None
+                        token["reported_receive_ns"] = None
             continue
         hour_ns = int(hour.value)
         id_start = int(np.searchsorted(ordered_starts, hour_ns, side="right"))
@@ -559,7 +577,7 @@ def _load_trajectories(rows: list[dict]) -> tuple[dict, dict]:
             for side in ("up", "down"):
                 quote = sides.get(side)
                 bid, ask, age = (_num(quote.get(key)) if quote else None for key in ("bid", "ask", "bid_age_seconds"))
-                valid_bbo.append(bid is not None and ask is not None and age is not None and 0.0 < bid <= ask < 1.0 and age <= MAX_BID_AGE_SECONDS)
+                valid_bbo.append(bid is not None and ask is not None and age is not None and 0.0 < bid <= ask < 1.0)
             fresh_two_sided_pre += int(all(valid_bbo))
             executable_pre += int(any(_valid_sale_quote(sides.get(side), 1.0) for side in ("up", "down")))
             if reference_trade is not None and _valid_sale_quote(sides.get(reference_side), reference_trade["net_shares"]):
@@ -594,7 +612,7 @@ def _valid_sale_quote(quote: dict | None, shares: float) -> bool:
     if not quote:
         return False
     bid, size, age = _num(quote.get("bid")), _num(quote.get("bid_size")), _num(quote.get("bid_age_seconds"))
-    return bid is not None and 0.0 < bid < 1.0 and size is not None and size + 1e-9 >= float(shares) and age is not None and age <= MAX_BID_AGE_SECONDS
+    return bid is not None and 0.0 < bid < 1.0 and size is not None and size + 1e-9 >= float(shares) and age is not None and age >= 0.0
 
 
 def _sale_proceeds(trade: dict, quote: dict) -> float:
@@ -635,7 +653,7 @@ def _features(trade: dict, quote: dict | None, offset: int) -> np.ndarray | None
         return None
     bid, ask, bid_size, ask_size = (_num(quote.get(name)) for name in ("bid", "ask", "bid_size", "ask_size"))
     age = _num(quote.get("bid_age_seconds"))
-    if bid is None or ask is None or age is None or not 0.0 < bid < 1.0 or not 0.0 < ask < 1.0 or bid > ask or age > MAX_BID_AGE_SECONDS:
+    if bid is None or ask is None or age is None or age < 0.0 or not 0.0 < bid < 1.0 or not 0.0 < ask < 1.0 or bid > ask:
         return None
     shares = max(float(trade["net_shares"]), 1e-12)
     entry_bid = float(trade["entry_bid"])

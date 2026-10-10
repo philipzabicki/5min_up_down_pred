@@ -516,9 +516,7 @@ def run_entry_study() -> dict:
 
 
 def _fresh_sale(quote: dict | None, shares: float, rule: dict) -> dict | None:
-    if not quote or quote.get("age_seconds") is None:
-        return None
-    if float(quote["age_seconds"]) > exit_quotes.FRESH_BID_SECONDS:
+    if not quote:
         return None
     result = fee_rules.walk_bids(quote.get("levels", ()), shares, rule)
     return result if result["depth_sufficient"] else None
@@ -1176,7 +1174,8 @@ def run_exit_study() -> dict:
                 "entry_scenario_id": scenario["scenario_id"],
                 "sample": "common_quote_coverage",
                 "common_quote_market_ids": len(common_ids),
-                "source_quote_freshness_limit_seconds": exit_quotes.FRESH_BID_SECONDS,
+                "source_quote_age_is_descriptive_only": True,
+                "active_bid_invalidated_after_missing_hour_partition": True,
                 "order_delay_seconds": exit_quotes.ORDER_DELAY_SECONDS,
                 "cash_reuse_after_sale": "available after the sale event; same-timestamp entries are processed before sales",
             })

@@ -37,7 +37,8 @@ GAMMA_LAST_CREATION_DAY_EXCLUSIVE = dt.date(2026, 10, 8)
 MARKET_START_CUTOFF_UTC = pd.Timestamp("2026-10-07T00:00:00Z")
 FIRST_CAUSAL_MARKET_START_UTC = pd.Timestamp("2026-04-15T17:05:00Z")
 T59_ENTRY_OFFSET_SECONDS = -59
-ASK_AGE_CONTROL_SECONDS = 30.0
+T60_DECISION_OFFSET_SECONDS = -60
+LEGACY_ASK_AGE_CONTROL_SECONDS = 30.0
 INITIAL_CASH_USD = 100.0
 STAKE_FRACTION = 0.05
 FIXED_GROSS_USD = 5.0
@@ -75,7 +76,7 @@ BINANCE_APPEND_END_OPEN_UTC = pd.Timestamp("2026-10-07T00:00:00Z")
 GAMMA_WORKERS = 4
 TRACE_MARKET_COUNT = 9
 T59_REPLAY_DEPENDENCY_MANIFEST_VERSION = 3
-T59_RECONSTRUCTION_VERSION = "native-asks-v3-source-sequence"
+T59_RECONSTRUCTION_VERSION = "native-asks-v4-t60-decision-and-t59-execution"
 T59_REPLAY_CHECKPOINT_INTERVAL_PARTS = 12
 T59_REPLAY_WORKERS = 16
 LEGACY_T59_RECONSTRUCTION_SOURCE_SHA256 = "dba0792299ae7f815b2eea0267da1875fa94a930ba6baf5bb140f5d917fd5930"
@@ -356,6 +357,8 @@ def _replay_checkpoint_state_is_valid(
     deadlines: dict[str, int],
     sorted_ids: list[str],
     part_paths: list[Path],
+    decision_deadlines: dict[str, int] | None = None,
+    decision_sorted_ids: list[str] | None = None,
 ) -> tuple[bool, str]:
     try:
         part_index = int(saved["part_index"])
@@ -376,6 +379,9 @@ def _replay_checkpoint_state_is_valid(
         states = saved.get("states")
         if not isinstance(snapshots, dict) or not isinstance(states, dict):
             return False, "snapshot or active-state payload is not a dictionary"
+        decision_snapshots = saved.get("decision_snapshots", {})
+        if not isinstance(decision_snapshots, dict):
+            return False, "decision snapshots are not a dictionary"
         snapshot_ids = [str(key).lower() for key in snapshots]
         if len(snapshot_ids) != len(set(snapshot_ids)):
             return False, "snapshot keys collide after condition-id normalization"
@@ -400,6 +406,39 @@ def _replay_checkpoint_state_is_valid(
                 timestamp = timestamp.tz_localize("UTC") if timestamp.tzinfo is None else timestamp.tz_convert("UTC")
                 if int(timestamp.value) != expected:
                     return False, f"snapshot {field} does not match the market index"
+
+        if decision_deadlines is not None:
+            decision_sorted_ids = decision_sorted_ids or sorted_ids
+            expected_next_decision_capture = sum(
+                decision_deadlines[cid] < part_end_ns for cid in decision_sorted_ids
+            )
+            next_decision_capture = int(saved["next_decision_capture"])
+            if next_decision_capture != expected_next_decision_capture:
+                return False, "next_decision_capture does not match the saved partition boundary"
+            decision_ids = [str(key).lower() for key in decision_snapshots]
+            if len(decision_ids) != len(set(decision_ids)):
+                return False, "decision snapshot keys collide after condition-id normalization"
+            completed_decision_ids = set(decision_sorted_ids[:next_decision_capture])
+            if set(decision_ids) != completed_decision_ids:
+                return False, "decision snapshots do not match the completed capture prefix"
+            for key, snapshot in decision_snapshots.items():
+                condition_id = str(key).lower()
+                market = market_by_id.get(condition_id)
+                if not isinstance(snapshot, dict) or market is None:
+                    return False, "decision snapshot is malformed or refers to an unknown market"
+                if str(snapshot.get("condition_id", "")).lower() != condition_id:
+                    return False, "decision snapshot condition id does not match its key"
+                for field, expected in (
+                    ("market_start_utc", int(market["market_start_utc"].value)),
+                    ("entry_time_utc", decision_deadlines[condition_id]),
+                ):
+                    value = snapshot.get(field)
+                    if value is None:
+                        return False, f"decision snapshot is missing {field}"
+                    timestamp = pd.Timestamp(value)
+                    timestamp = timestamp.tz_localize("UTC") if timestamp.tzinfo is None else timestamp.tz_convert("UTC")
+                    if int(timestamp.value) != expected:
+                        return False, f"decision snapshot {field} does not match the market index"
 
         state_ids = [str(key).lower() for key in states]
         if len(state_ids) != len(set(state_ids)):
@@ -1275,7 +1314,7 @@ def _build_market_index(gamma: pd.DataFrame, predictions: pd.DataFrame) -> pd.Da
     pred["market_start_utc"] = pd.to_datetime(pred.market_start_utc, utc=True, errors="raise")
     expected = expected.merge(pred, on="market_start_utc", how="left", validate="one_to_one")
     markets = expected
-    markets["prediction_available_at_utc"] = markets.market_start_utc - pd.Timedelta(minutes=1)
+    markets["prediction_available_at_utc"] = markets.market_start_utc - pd.Timedelta(seconds=59)
     markets["entry_time_utc"] = markets.market_start_utc + pd.Timedelta(seconds=T59_ENTRY_OFFSET_SECONDS)
     markets["market_confirmed"] = markets.condition_id.notna()
     markets["outcome_available"] = markets.target_polymarket_up.notna() & markets.resolved_at_utc.notna()
@@ -1734,16 +1773,36 @@ def _prepare_pmxt_archive(markets: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 def _replay_t59_market_shard(
     market_by_id: dict[str, dict],
     deadlines: dict[str, int],
+    decision_deadlines: dict[str, int],
     capture_ids: list[str],
     states: dict[str, dict],
     partition_frames: list[tuple[int, pd.DataFrame]],
 ) -> dict:
     snapshots = {}
+    decision_snapshots = {}
     next_capture = 0
+    next_decision_capture = 0
     event_rows_total = 0
 
     def capture_deadlines(cutoff_ns: int, *, inclusive: bool) -> None:
-        nonlocal next_capture
+        nonlocal next_capture, next_decision_capture
+        while next_decision_capture < len(capture_ids):
+            condition_id = capture_ids[next_decision_capture]
+            deadline = decision_deadlines[condition_id]
+            if deadline > cutoff_ns or (deadline == cutoff_ns and not inclusive):
+                break
+            market = market_by_id[condition_id]
+            case = {
+                "case_id": "t60_decision_book", "kind": "prestart",
+                "compute_delay_seconds": 0, "order_delay_seconds": 0,
+                "prediction_available_at": market["decision_time_utc"],
+                "entry_time": market["decision_time_utc"],
+            }
+            state = states.get(condition_id)
+            if state is None:
+                state = replay._new_state()
+            decision_snapshots[condition_id] = replay._snapshot(state, market, case)
+            next_decision_capture += 1
         while next_capture < len(capture_ids):
             condition_id = capture_ids[next_capture]
             deadline = deadlines[condition_id]
@@ -1794,6 +1853,7 @@ def _replay_t59_market_shard(
     return {
         "states": states,
         "snapshots": snapshots,
+        "decision_snapshots": decision_snapshots,
         "event_rows_total": event_rows_total,
     }
 
@@ -1816,7 +1876,8 @@ def _replay_t59(
     market_rows = index.copy()
     for column in ("market_start_utc", "resolved_at_utc"):
         market_rows[column] = pd.to_datetime(market_rows[column], utc=True, errors="coerce")
-    market_rows["entry_time_utc"] = market_rows.market_start_utc - pd.Timedelta(seconds=59)
+    market_rows["decision_time_utc"] = market_rows.market_start_utc + pd.Timedelta(seconds=T60_DECISION_OFFSET_SECONDS)
+    market_rows["entry_time_utc"] = market_rows.market_start_utc + pd.Timedelta(seconds=T59_ENTRY_OFFSET_SECONDS)
     market_by_id = {
         str(row.condition_id): row._asdict() for row in market_rows.itertuples(index=False)
     }
@@ -1824,13 +1885,18 @@ def _replay_t59(
         market["p_candidate_raw"] = market.get("p_model_raw")
         market["p_candidate_platt"] = market.get("p_model_platt")
     deadlines = {cid: int(row["entry_time_utc"].value) for cid, row in market_by_id.items()}
+    decision_deadlines = {cid: int(row["decision_time_utc"].value) for cid, row in market_by_id.items()}
     sorted_ids = sorted(deadlines, key=lambda cid: deadlines[cid])
+    decision_sorted_ids = sorted(decision_deadlines, key=lambda cid: decision_deadlines[cid])
     states = {}
     snapshots = {}
+    decision_snapshots = {}
     next_capture = 0
+    next_decision_capture = 0
     event_rows_total = 0
     checkpoint_path = OUT_DIR / "t59_replay_checkpoint.pkl"
     snapshot_path = OUT_DIR / "t59_ask_ladders.parquet"
+    decision_snapshot_path = OUT_DIR / "t60_decision_books.parquet"
     manifest_path = OUT_DIR / "t59_replay_manifest.json"
     replay_identity = dependency_manifest["dependency_sha256"]
     try:
@@ -1841,11 +1907,16 @@ def _replay_t59(
         cached_dependency_manifest = json.loads(dependency_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         cached_dependency_manifest = {}
-    cached_snapshot_integrity_verified = (
+    cached_t59_integrity_verified = (
         snapshot_path.is_file()
         and cached_manifest.get("status") == "complete"
         and cached_manifest.get("snapshot_sha256") == _sha256(snapshot_path)
     )
+    cached_t60_integrity_verified = (
+        decision_snapshot_path.is_file()
+        and cached_manifest.get("decision_snapshot_sha256") == _sha256(decision_snapshot_path)
+    )
+    cached_snapshot_integrity_verified = cached_t59_integrity_verified and cached_t60_integrity_verified
     cached_snapshot_provenance_verified = (
         cached_snapshot_integrity_verified
         and cached_manifest.get("replay_dependency_sha256") == replay_identity
@@ -1868,26 +1939,48 @@ def _replay_t59(
                     int(saved.get("part_index", -1)) == len(part_paths) - 1
                     and saved.get("last_processed_part") == part_paths[-1].name
                     and int(saved.get("next_capture", -1)) == len(index)
+                    and int(saved.get("next_decision_capture", -1)) == len(index)
                     and len(saved.get("snapshots", {})) == len(index)
+                    and len(saved.get("decision_snapshots", {})) == len(index)
                 ) and snapshot_path.is_file() and cached_snapshot_provenance_verified:
                     cached = pd.read_parquet(snapshot_path)
+                    cached_decision = pd.read_parquet(decision_snapshot_path)
                     expected_starts = pd.to_datetime(index.market_start_utc, utc=True).astype("int64")
                     actual_starts = pd.to_datetime(cached.market_start_utc, utc=True).astype("int64")
+                    actual_decision_starts = pd.to_datetime(cached_decision.market_start_utc, utc=True).astype("int64")
+                    expected_t59 = pd.to_datetime(index.market_start_utc, utc=True).sub(
+                        pd.Timedelta(seconds=59),
+                    ).astype("int64")
+                    expected_t60 = pd.to_datetime(index.market_start_utc, utc=True).sub(
+                        pd.Timedelta(seconds=60),
+                    ).astype("int64")
+                    actual_t59 = pd.to_datetime(cached.entry_time_utc, utc=True).astype("int64")
+                    actual_t60 = pd.to_datetime(cached_decision.entry_time_utc, utc=True).astype("int64")
                     expected_pairs = set(zip(
                         index.condition_id.astype(str).str.lower(), expected_starts,
                     ))
                     actual_pairs = set(zip(
                         cached.condition_id.astype(str).str.lower(), actual_starts,
                     ))
+                    actual_decision_pairs = set(zip(
+                        cached_decision.condition_id.astype(str).str.lower(), actual_decision_starts,
+                    ))
                     if (
                         len(cached) == len(index)
+                        and len(cached_decision) == len(index)
                         and len(expected_pairs) == len(index)
                         and actual_pairs == expected_pairs
+                        and actual_decision_pairs == expected_pairs
+                        and np.array_equal(actual_t59.to_numpy(), expected_t59.to_numpy())
+                        and np.array_equal(actual_t60.to_numpy(), expected_t60.to_numpy())
                     ):
                         cached = _refresh_snapshot_market_metadata(cached, index)
+                        cached_decision = _refresh_snapshot_market_metadata(cached_decision, index)
                         cached.to_parquet(snapshot_path, index=False, compression="zstd")
+                        cached_decision.to_parquet(decision_snapshot_path, index=False, compression="zstd")
                         saved_manifest = cached_manifest
                         saved_manifest["snapshot_sha256"] = _sha256(snapshot_path)
+                        saved_manifest["decision_snapshot_sha256"] = _sha256(decision_snapshot_path)
                         saved_manifest["current_archive_content_fingerprint_sha256"] = archive_content_fingerprint
                         saved_manifest["current_archive_metadata_fingerprint_sha256"] = archive_metadata_fingerprint
                         saved_manifest["replay_dependency_sha256"] = replay_identity
@@ -1917,6 +2010,7 @@ def _replay_t59(
                 dependencies_match, needs_migration, prefix_matches = False, False, False
             state_valid, state_reason = _replay_checkpoint_state_is_valid(
                 saved, market_by_id, deadlines, sorted_ids, part_paths,
+                decision_deadlines, decision_sorted_ids,
             )
             if dependencies_match and prefix_matches and state_valid:
                 if needs_migration:
@@ -1956,6 +2050,8 @@ def _replay_t59(
                 )
                 start_part = int(saved["part_index"]) + 1
                 states, snapshots, next_capture = saved["states"], saved["snapshots"], int(saved["next_capture"])
+                decision_snapshots = saved["decision_snapshots"]
+                next_decision_capture = int(saved["next_decision_capture"])
                 event_rows_total = int(saved.get("event_rows_total", 0))
             else:
                 reason = state_reason if not state_valid else (
@@ -1973,7 +2069,24 @@ def _replay_t59(
     _write_json(dependency_path, dependency_manifest)
 
     def capture_deadlines(cutoff_ns: int, *, inclusive: bool) -> None:
-        nonlocal next_capture
+        nonlocal next_capture, next_decision_capture
+        while next_decision_capture < len(decision_sorted_ids):
+            cid = decision_sorted_ids[next_decision_capture]
+            deadline = decision_deadlines[cid]
+            if deadline > cutoff_ns or (deadline == cutoff_ns and not inclusive):
+                break
+            market = market_by_id[cid]
+            case = {
+                "case_id": "t60_decision_book", "kind": "prestart",
+                "compute_delay_seconds": 0, "order_delay_seconds": 0,
+                "prediction_available_at": market["decision_time_utc"],
+                "entry_time": market["decision_time_utc"],
+            }
+            state = states.get(cid)
+            if state is None:
+                state = replay._new_state()
+            decision_snapshots[cid] = replay._snapshot(state, market, case)
+            next_decision_capture += 1
         while next_capture < len(sorted_ids):
             cid = sorted_ids[next_capture]
             deadline = deadlines[cid]
@@ -2007,6 +2120,10 @@ def _replay_t59(
         ]
         worker_deadlines = [
             {condition_id: deadlines[condition_id] for condition_id in condition_ids}
+            for condition_ids in assigned_ids
+        ]
+        worker_decision_deadlines = [
+            {condition_id: decision_deadlines[condition_id] for condition_id in condition_ids}
             for condition_ids in assigned_ids
         ]
         worker_states = [
@@ -2071,7 +2188,8 @@ def _replay_t59(
                     ]
                     futures.append(executor.submit(
                         _replay_t59_market_shard,
-                        worker_market_by_id[worker_id], worker_deadlines[worker_id], capture_ids,
+                        worker_market_by_id[worker_id], worker_deadlines[worker_id],
+                        worker_decision_deadlines[worker_id], capture_ids,
                         worker_states[worker_id], frames_by_worker[worker_id],
                     ))
 
@@ -2081,6 +2199,12 @@ def _replay_t59(
                     if overlap:
                         raise RuntimeError(f"parallel replay captured duplicate markets: {sorted(overlap)[:3]}")
                     snapshots.update(shard["snapshots"])
+                    decision_overlap = decision_snapshots.keys() & shard["decision_snapshots"].keys()
+                    if decision_overlap:
+                        raise RuntimeError(
+                            f"parallel replay captured duplicate decision markets: {sorted(decision_overlap)[:3]}"
+                        )
+                    decision_snapshots.update(shard["decision_snapshots"])
                     worker_states[worker_id] = shard["states"]
                     event_rows_total += shard["event_rows_total"]
 
@@ -2094,9 +2218,13 @@ def _replay_t59(
                     (pd.Timestamp(last_path.stem.replace("T", " "), tz="UTC") + pd.Timedelta(hours=1)).value
                 )
                 next_capture = sum(deadlines[condition_id] < part_end_ns for condition_id in sorted_ids)
-                if len(snapshots) != next_capture:
+                next_decision_capture = sum(
+                    decision_deadlines[condition_id] < part_end_ns for condition_id in decision_sorted_ids
+                )
+                if len(snapshots) != next_capture or len(decision_snapshots) != next_decision_capture:
                     raise RuntimeError(
-                        f"parallel replay captured {len(snapshots)} markets at boundary {next_capture}"
+                        "parallel replay capture counts do not match partition boundary: "
+                        f"T-59={len(snapshots)}/{next_capture}, T-60={len(decision_snapshots)}/{next_decision_capture}"
                     )
 
                 import pickle
@@ -2113,12 +2241,15 @@ def _replay_t59(
                         ),
                         "last_processed_part": last_path.name,
                         "states": states, "snapshots": snapshots,
-                        "next_capture": next_capture, "event_rows_total": event_rows_total,
+                        "next_capture": next_capture, "decision_snapshots": decision_snapshots,
+                        "next_decision_capture": next_decision_capture,
+                        "event_rows_total": event_rows_total,
                     }, stream, protocol=pickle.HIGHEST_PROTOCOL)
                 os.replace(temporary, checkpoint_path)
                 print(
                     f"[t59-replay] parts={block_end:,}/{len(part_paths):,} "
-                    f"rows={event_rows_total:,} captured={len(snapshots):,}/{len(index):,} "
+                    f"rows={event_rows_total:,} captured T-60={len(decision_snapshots):,}/{len(index):,} "
+                    f"T-59={len(snapshots):,}/{len(index):,} "
                     f"workers={worker_count} elapsed_s={time.perf_counter()-replay_started:.1f}", flush=True,
                 )
                 part_cursor = block_end
@@ -2185,6 +2316,12 @@ def _replay_t59(
             import pickle
             temporary = checkpoint_path.with_suffix(".pkl.tmp")
             with temporary.open("wb") as stream:
+                if len(snapshots) != next_capture or len(decision_snapshots) != next_decision_capture:
+                    raise RuntimeError(
+                        "serial replay capture counts do not match partition boundary: "
+                        f"T-60={len(decision_snapshots)}/{next_decision_capture}, "
+                        f"T-59={len(snapshots)}/{next_capture}"
+                    )
                 pickle.dump({
                     "identity": replay_identity, "part_index": part_position,
                     "dependency_manifest_version": T59_REPLAY_DEPENDENCY_MANIFEST_VERSION,
@@ -2195,22 +2332,33 @@ def _replay_t59(
                     ),
                     "last_processed_part": path.name,
                     "states": states, "snapshots": snapshots,
-                    "next_capture": next_capture, "event_rows_total": event_rows_total,
+                    "next_capture": next_capture, "decision_snapshots": decision_snapshots,
+                    "next_decision_capture": next_decision_capture,
+                    "event_rows_total": event_rows_total,
                 }, stream, protocol=pickle.HIGHEST_PROTOCOL)
             os.replace(temporary, checkpoint_path)
             print(
                 f"[t59-replay] parts={part_position + 1:,}/{len(part_paths):,} "
-                f"rows={event_rows_total:,} captured={len(snapshots):,}/{len(index):,} "
+                f"rows={event_rows_total:,} captured T-60={len(decision_snapshots):,}/{len(index):,} "
+                f"T-59={len(snapshots):,}/{len(index):,} "
                 f"elapsed_s={time.perf_counter()-replay_started:.1f}", flush=True,
             )
         del table, frame
     capture_deadlines(2**63 - 1, inclusive=True)
-    if len(snapshots) != len(index):
-        raise RuntimeError(f"T-59 replay captured {len(snapshots)} of {len(index)} indexed markets")
+    if len(snapshots) != len(index) or len(decision_snapshots) != len(index):
+        raise RuntimeError(
+            f"Replay captured T-60={len(decision_snapshots)} and T-59={len(snapshots)} "
+            f"of {len(index)} indexed markets"
+        )
     result = pd.DataFrame(snapshots.values()).sort_values("market_start_utc", kind="stable").reset_index(drop=True)
     result = _refresh_snapshot_market_metadata(result, index)
+    decision_result = pd.DataFrame(decision_snapshots.values()).sort_values(
+        "market_start_utc", kind="stable",
+    ).reset_index(drop=True)
+    decision_result = _refresh_snapshot_market_metadata(decision_result, index)
     target = OUT_DIR / "t59_ask_ladders.parquet"
     result.to_parquet(target, index=False, compression="zstd")
+    decision_result.to_parquet(decision_snapshot_path, index=False, compression="zstd")
     summary = {
         "status": "complete", "markets": len(result), "event_rows_applied": event_rows_total,
         "partitions_scanned": len(part_paths),
@@ -2234,7 +2382,15 @@ def _replay_t59(
         "checkpoint_migration": checkpoint_migration,
         "elapsed_seconds": time.perf_counter() - replay_started,
         "snapshot_sha256": _sha256(target),
-        "semantics": "single T-59 replay, native token asks retained separately from bids; events grouped by receive timestamp and source-ordered within equal receive times; no later receive events accepted",
+        "decision_snapshot_path": (
+            decision_snapshot_path.relative_to(ROOT).as_posix()
+            if decision_snapshot_path.is_relative_to(ROOT) else decision_snapshot_path.as_posix()
+        ),
+        "decision_snapshot_sha256": _sha256(decision_snapshot_path),
+        "decision_snapshot_markets": len(decision_result),
+        "decision_time_semantics": "T-60 decision snapshot captured before any event with receive timestamp later than market_start - 60 seconds",
+        "execution_time_semantics": "T-59 execution snapshot captured before any event with receive timestamp later than market_start - 59 seconds",
+        "semantics": "single chronological replay captures T-60 decision and T-59 execution snapshots; native token asks retained separately from bids; events grouped by receive timestamp and source-ordered within equal receive times; no later receive events accepted at either snapshot",
     }
     _write_json(OUT_DIR / "t59_replay_manifest.json", summary)
     return result, summary
@@ -2272,7 +2428,8 @@ def _ask_base_reason(snapshot: dict, side: str, token_id: str) -> str:
     if bool(snapshot.get("archive_gap_after_fee_update")):
         return "archive_gap_after_fee_update"
     levels = _ask_levels(snapshot.get(f"{side}_ask_levels"))
-    if not levels:
+    best_ask = _float_or_none(snapshot.get(f"{side}_best_ask"))
+    if (best_ask is None or not 0.0 < best_ask < 1.0) and not levels:
         return "observed_empty_ask_book"
     if not bool(snapshot.get("no_future_event_at_entry")):
         return "future_receive_event_at_entry"
@@ -2285,44 +2442,93 @@ def _ask_base_reason(snapshot: dict, side: str, token_id: str) -> str:
         return "missing_ask_update_timestamp"
     if age < -1e-6:
         return "future_ask_update_timestamp"
-    if age > ASK_AGE_CONTROL_SECONDS:
-        return "stale_ask_30s_control"
+    if bool(snapshot.get(f"{side}_bid_ask_crossed")):
+        return "crossed_token_book_at_entry"
     if bool(snapshot.get(f"{side}_bbo_ask_comparable")) and bool(snapshot.get(f"{side}_bbo_ask_mismatch")):
         return "native_ask_bbo_reconciliation_mismatch"
     if not bool(snapshot.get("fee_known")):
         return "unknown_historical_fee"
     if str(snapshot.get("fee_collection_mode")) == "maintenance_pause":
         return "exchange_maintenance_pause"
-    return "ask_valid_under_30s_control"
+    return "ask_valid_within_source_coverage"
+
+
+def _full_depth_is_known(snapshot: dict, side: str) -> bool:
+    initialized_at = snapshot.get(f"{side}_book_init_receive_ns")
+    gap_after_init = snapshot.get(f"archive_gap_after_{side}_book_init")
+    if initialized_at is None or gap_after_init is None:
+        return False
+    try:
+        if pd.isna(initialized_at) or pd.isna(gap_after_init):
+            return False
+    except (TypeError, ValueError):
+        return False
+    return not bool(gap_after_init)
 
 
 def _price_side(snapshot: dict, market: dict, side: str, gross_usd: float) -> dict:
     token_id = market.get(f"{side}_token_id") or market.get(f"{side}_token_id_current")
     base_reason = _ask_base_reason(snapshot, side, str(token_id or ""))
-    if base_reason != "ask_valid_under_30s_control":
+    if base_reason != "ask_valid_within_source_coverage":
         return {"priceable": False, "reason": base_reason, "base_reason": base_reason, "fill": None}
     levels = _ask_levels(snapshot.get(f"{side}_ask_levels"))
-    fill = replay._walk_asks(
-        levels,
-        float(snapshot["fee_rate_bps"]),
-        str(snapshot["fee_collection_mode"]),
-        gross_order_usd=float(gross_usd),
+    best_ask = _float_or_none(snapshot.get(f"{side}_best_ask"))
+    if best_ask is None or not 0.0 < best_ask < 1.0:
+        best_ask = min(levels) if levels else None
+    if best_ask is None:
+        return {"priceable": False, "reason": "observed_empty_ask_book", "base_reason": base_reason, "fill": None}
+    depth_known = _full_depth_is_known(snapshot, side) and bool(levels)
+    if depth_known:
+        fill = replay._walk_asks(
+            levels,
+            float(snapshot["fee_rate_bps"]),
+            str(snapshot["fee_collection_mode"]),
+            gross_order_usd=float(gross_usd),
+            allow_partial=True,
+        )
+        execution_assumption = "replayed_full_book_vwap_fak_partial_allowed"
+    else:
+        proxy_size = float(gross_usd) / float(best_ask) + 1e-9
+        fill = replay._walk_asks(
+            {float(best_ask): proxy_size},
+            float(snapshot["fee_rate_bps"]),
+            str(snapshot["fee_collection_mode"]),
+            gross_order_usd=float(gross_usd),
+            allow_partial=True,
+        )
+        execution_assumption = "top_of_book_price_proxy_assumed_full_requested_fill"
+    if fill.get("shares") is None or float(fill.get("gross_shares") or 0.0) <= 0.0:
+        return {"priceable": False, "reason": "no_executable_ask_liquidity", "base_reason": base_reason, "fill": fill}
+    source = snapshot.get("archive_source")
+    fill["execution_source"] = (
+        str(source) if source is not None and not pd.isna(source) and str(source).strip()
+        else "recorded_best_ask"
     )
-    if not fill["depth_sufficient"]:
-        return {"priceable": False, "reason": "insufficient_ask_depth_for_requested_amount", "base_reason": base_reason, "fill": fill}
+    fill["depth_known"] = depth_known
+    fill["execution_assumption"] = execution_assumption
+    fill["quote_age_seconds"] = _float_or_none(snapshot.get(f"{side}_ask_age_seconds"))
     minimum = _float_or_none(market.get("order_min_size_shares_current"))
     minimum_source = "current_gamma_metadata" if minimum is not None and minimum > 0.0 else "fallback_5_shares"
     if minimum is None or minimum <= 0.0:
         minimum = MIN_ORDER_SHARES_FALLBACK
-    if float(fill["gross_shares"]) + 1e-9 < minimum:
+    requested_shares_at_best_ask = float(gross_usd) / float(best_ask)
+    if requested_shares_at_best_ask + 1e-9 < minimum:
         return {
             "priceable": False, "reason": "below_current_minimum_order_shares",
             "base_reason": base_reason, "minimum_order_size_shares": minimum,
-            "minimum_order_size_source": minimum_source, "fill": fill,
+            "minimum_order_size_source": minimum_source,
+            "requested_shares_at_best_ask": requested_shares_at_best_ask,
+            "fill": fill,
         }
     return {
-        "priceable": True, "reason": "priceable", "base_reason": base_reason,
+        "priceable": True,
+        "reason": "partial_fill" if fill.get("partial_fill") else "priceable",
+        "base_reason": base_reason,
         "minimum_order_size_shares": minimum, "minimum_order_size_source": minimum_source,
+        "requested_shares_at_best_ask": requested_shares_at_best_ask,
+        "depth_known": depth_known,
+        "execution_source": fill["execution_source"],
+        "execution_assumption": execution_assumption,
         "fill": fill,
     }
 
@@ -2353,7 +2559,11 @@ def _evaluate_market_sides(market: dict, snapshot: dict, gross_usd: float) -> di
     }
 
 
-def _market_statuses(markets: pd.DataFrame, snapshots: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, dict]]:
+def _market_statuses(
+    markets: pd.DataFrame,
+    snapshots: pd.DataFrame,
+    decision_snapshots: pd.DataFrame | None = None,
+) -> tuple[pd.DataFrame, dict[str, dict]]:
     snapshot_fields = [
         "condition_id", "entry_time_utc", "fee_collection_mode", "fee_rate_bps", "fee_known",
         "fee_event_ns", "archive_source", "archive_entry_hour_available",
@@ -2419,8 +2629,9 @@ def _market_statuses(markets: pd.DataFrame, snapshots: pd.DataFrame) -> tuple[pd
             "t59_snapshot_not_replayed", "no_archive_events_observed_by_t59",
         ], default="archive_events_observed_by_t59",
     )
-    snapshot_by_id = {
-        str(row.condition_id): row._asdict() for row in snapshots.itertuples(index=False)
+    selection_snapshots = decision_snapshots if decision_snapshots is not None else snapshots
+    selection_snapshot_by_id = {
+        str(row.condition_id): row._asdict() for row in selection_snapshots.itertuples(index=False)
     }
     market_by_id = {
         str(row.condition_id): row._asdict()
@@ -2428,11 +2639,15 @@ def _market_statuses(markets: pd.DataFrame, snapshots: pd.DataFrame) -> tuple[pd
     }
     fixed5 = {}
     for cid, market in market_by_id.items():
-        snapshot = snapshot_by_id.get(cid)
+        snapshot = selection_snapshot_by_id.get(cid)
         if snapshot is None:
             continue
         result = _evaluate_market_sides(market, snapshot, FIXED_GROSS_USD)
         fixed5[cid] = result
+    if decision_snapshots is not None:
+        calendar["t60_decision_snapshot_available"] = calendar.condition_id.isin(
+            selection_snapshot_by_id
+        )
     for side in ("up", "down"):
         calendar[f"{side}_fixed5_ask_status"] = calendar.condition_id.map(
             {cid: item["sides"][side]["reason"] for cid, item in fixed5.items()}
@@ -2491,6 +2706,7 @@ def _portfolio_for_policy(
     snapshot_by_id: dict[str, dict],
     market_by_id: dict[str, dict],
     *,
+    decision_snapshot_by_id: dict[str, dict] | None = None,
     side_selection_by_id: dict[str, str] | None = None,
     output_policy: str | None = None,
 ) -> tuple[dict, list[dict], list[dict]]:
@@ -2561,19 +2777,26 @@ def _portfolio_for_policy(
             continue
         market = market_by_id[cid]
         policy_label = output_policy or policy
+        decision_time = pd.Timestamp(row.market_start_utc) - pd.Timedelta(seconds=60)
+        decision_ns = int(decision_time.value)
         entry = pd.Timestamp(row.market_start_utc) - pd.Timedelta(seconds=59)
         entry_ns = int(entry.value)
         first_entry_ns = entry_ns if first_entry_ns is None else min(first_entry_ns, entry_ns)
         last_entry_ns = entry_ns if last_entry_ns is None else max(last_entry_ns, entry_ns)
-        release_until(entry_ns, inclusive=True)
+        release_until(decision_ns, inclusive=True)
         p_up = _float_or_none(row.p_candidate_platt)
         outcome = _float_or_none(row.target_polymarket_up)
         resolved = pd.Timestamp(row.resolved_at_utc) if pd.notna(row.resolved_at_utc) else pd.NaT
         snapshot = snapshot_by_id.get(cid)
+        decision_snapshot = (
+            decision_snapshot_by_id.get(cid)
+            if decision_snapshot_by_id is not None else snapshot
+        )
         decision = {
         "policy": policy_label, "condition_id": cid, "market_start_utc": row.market_start_utc,
+        "decision_time_utc": decision_time,
         "entry_time_utc": entry,
-        "prediction_available_at_utc": pd.Timestamp(row.market_start_utc) - pd.Timedelta(minutes=1),
+        "prediction_available_at_utc": entry,
         "prediction_probability_up": p_up,
             "target_polymarket_up": outcome, "fee_collection_mode": None,
             "requested_gross_usd": None, "chosen_side": None, "decision": None,
@@ -2582,6 +2805,11 @@ def _portfolio_for_policy(
         if snapshot is None:
             rejected["missing_t59_market_snapshot"] += 1
             decision.update(decision="skip", skip_reason="missing_t59_market_snapshot")
+            decisions.append(decision)
+            continue
+        if decision_snapshot is None:
+            rejected["missing_t60_decision_snapshot"] += 1
+            decision.update(decision="skip", skip_reason="missing_t60_decision_snapshot")
             decisions.append(decision)
             continue
         decision["fee_collection_mode"] = snapshot.get("fee_collection_mode")
@@ -2611,10 +2839,15 @@ def _portfolio_for_policy(
             decision.update(decision="skip", skip_reason="no_free_cash")
             decisions.append(decision)
             continue
-        fixed5_evaluation = _evaluate_market_sides(market, snapshot, FIXED_GROSS_USD)
-        fill_evaluation = _evaluate_market_sides(market, snapshot, desired)
+        fixed5_evaluation = _evaluate_market_sides(market, decision_snapshot, FIXED_GROSS_USD)
+        selection_evaluation = _evaluate_market_sides(market, decision_snapshot, desired)
+        execution_evaluation = _evaluate_market_sides(market, snapshot, desired)
         for side_name in ("up", "down"):
-            for label, evaluation in (("fixed5", fixed5_evaluation), ("requested", fill_evaluation)):
+            for label, evaluation in (
+                ("decision_fixed5", fixed5_evaluation),
+                ("decision_requested", selection_evaluation),
+                ("execution", execution_evaluation),
+            ):
                 side_result = evaluation["sides"][side_name]
                 fill_result = side_result.get("fill") or {}
                 prefix = f"{side_name}_{label}"
@@ -2627,24 +2860,29 @@ def _portfolio_for_policy(
                 decision[f"{prefix}_fee_usd"] = fill_result.get("fee_usd")
                 decision[f"{prefix}_fee_cash_usd"] = fill_result.get("fee_cash_usd")
                 decision[f"{prefix}_cash_debit_usd"] = fill_result.get("cash_debit_usd")
+                decision[f"{prefix}_execution_source"] = fill_result.get("execution_source")
+                decision[f"{prefix}_depth_known"] = fill_result.get("depth_known")
+                decision[f"{prefix}_execution_assumption"] = fill_result.get("execution_assumption")
+                decision[f"{prefix}_fill_status"] = fill_result.get("fill_status")
+                decision[f"{prefix}_unfilled_gross_usd"] = fill_result.get("unfilled_gross_usd")
                 decision[f"{prefix}_minimum_order_shares"] = side_result.get("minimum_order_size_shares")
                 decision[f"{prefix}_minimum_order_source"] = side_result.get("minimum_order_size_source")
-        decision["priceable_sides_at_requested_amount"] = fill_evaluation["priceable_side_count"]
-        decision["up_price_reason"] = fill_evaluation["sides"]["up"]["reason"]
-        decision["down_price_reason"] = fill_evaluation["sides"]["down"]["reason"]
+        decision["priceable_sides_at_requested_amount"] = selection_evaluation["priceable_side_count"]
+        decision["up_price_reason"] = execution_evaluation["sides"]["up"]["reason"]
+        decision["down_price_reason"] = execution_evaluation["sides"]["down"]["reason"]
         side = (
-            fill_evaluation["chosen_side"]
+            selection_evaluation["chosen_side"]
             if side_selection_by_id is None
             else side_selection_by_id.get(cid)
         )
         if side_selection_by_id is not None:
             decision["side_selection_rule"] = "frozen fixed-$5 chosen side; no side substitution"
         decision["fixed5_chosen_side"] = fixed5_evaluation["chosen_side"]
-        decision["requested_amount_chosen_side"] = fill_evaluation["chosen_side"]
-        decision["requested_amount_chosen_ev_usd"] = fill_evaluation["chosen_ev_usd"]
+        decision["requested_amount_chosen_side"] = selection_evaluation["chosen_side"]
+        decision["requested_amount_chosen_ev_usd"] = selection_evaluation["chosen_ev_usd"]
         if side is None:
-            if fill_evaluation["priceable_side_count"] == 0:
-                reasons = [fill_evaluation["sides"][s]["reason"] for s in ("up", "down")]
+            if selection_evaluation["priceable_side_count"] == 0:
+                reasons = [selection_evaluation["sides"][s]["reason"] for s in ("up", "down")]
                 if "insufficient_ask_depth_for_requested_amount" in reasons:
                     reason = "insufficient_depth_for_requested_amount"
                 elif "below_current_minimum_order_shares" in reasons:
@@ -2663,23 +2901,32 @@ def _portfolio_for_policy(
                 decision.update(decision="skip", skip_reason=reason)
             decisions.append(decision)
             continue
-        if not fill_evaluation["sides"][side]["priceable"]:
-            reason = fill_evaluation["sides"][side]["reason"]
+        if not selection_evaluation["sides"][side]["priceable"]:
+            reason = selection_evaluation["sides"][side]["reason"]
             rejected[reason] += 1
             decision.update(decision="skip", chosen_side=side, skip_reason=reason)
             decisions.append(decision)
             continue
-        if fill_evaluation["sides"][side]["ev_usd"] is None or fill_evaluation["sides"][side]["ev_usd"] <= 0.0:
+        if selection_evaluation["sides"][side]["ev_usd"] is None or selection_evaluation["sides"][side]["ev_usd"] <= 0.0:
             reason = "frozen_side_no_positive_ev_at_requested_amount" if side_selection_by_id is not None else "no_positive_net_expected_value"
             rejected[reason] += 1
             decision.update(decision="skip", chosen_side=side, skip_reason=reason)
             decisions.append(decision)
             continue
-        chosen = fill_evaluation["sides"][side]
-        fill = chosen["fill"]
+        chosen = selection_evaluation["sides"][side]
+        execution = execution_evaluation["sides"][side]
+        if not execution["priceable"]:
+            reason = execution["reason"]
+            rejected[reason] += 1
+            decision.update(decision="skip", chosen_side=side, skip_reason=reason)
+            decisions.append(decision)
+            continue
+        fill = execution["fill"]
         decision["chosen_side"] = side
         decision["chosen_side_ev_usd"] = chosen["ev_usd"]
+        decision["execution_ev_usd_at_t59"] = execution.get("ev_usd")
         debit = float(fill["cash_debit_usd"])
+        release_until(entry_ns, inclusive=True)
         if cash + 1e-9 < debit:
             rejected["insufficient_free_cash_for_cash_debit"] += 1
             decision.update(decision="skip", skip_reason="insufficient_free_cash_for_cash_debit")
@@ -2711,6 +2958,10 @@ def _portfolio_for_policy(
             **decision, "decision": "buy", "skip_reason": None,
             "chosen_side": side, "probability_side": chosen["probability"],
             "gross_usd": float(fill["gross_usd"]), "cash_debit_usd": debit,
+            "execution_source": fill.get("execution_source"),
+            "depth_known": fill.get("depth_known"),
+            "execution_assumption": fill.get("execution_assumption"),
+            "fill_status": fill.get("fill_status"),
             "fee_usd": position["fee_usd"], "fee_cash_usd": position["fee_cash_usd"],
             "fee_shares": position["fee_shares"],
             "gross_shares": position["gross_shares"], "net_shares": position["net_shares"],
@@ -2868,7 +3119,14 @@ def _monthly_portfolio_diagnostics(trades: list[dict], decisions: list[dict], eq
     return rows
 
 
-def _portfolio_accounting_audit(summary: dict, trades: list[dict], decisions: list[dict], equity_path: list[dict], snapshots_by_id: dict[str, dict]) -> dict:
+def _portfolio_accounting_audit(
+    summary: dict,
+    trades: list[dict],
+    decisions: list[dict],
+    equity_path: list[dict],
+    snapshots_by_id: dict[str, dict],
+    decision_snapshots_by_id: dict[str, dict] | None = None,
+) -> dict:
     tolerance = 1e-8
     checks = {
         "free_cash_never_negative": all(float(item["cash_usd"]) >= -tolerance for item in equity_path),
@@ -2936,7 +3194,23 @@ def _portfolio_accounting_audit(summary: dict, trades: list[dict], decisions: li
             pd.Timestamp(item["prediction_available_at_utc"]) <= pd.Timestamp(item["entry_time_utc"])
             for item in trades
         ),
+        "prediction_computed_within_one_second": all(
+            pd.Timestamp(item["prediction_available_at_utc"]) - pd.Timestamp(item["decision_time_utc"])
+            == pd.Timedelta(seconds=1)
+            for item in trades
+        ),
+        "decision_to_execution_is_one_second": all(
+            pd.Timestamp(item["entry_time_utc"]) - pd.Timestamp(item["decision_time_utc"])
+            == pd.Timedelta(seconds=1)
+            for item in trades
+        ),
     }
+    if decision_snapshots_by_id is not None:
+        checks["trades_have_no_future_t60_snapshot_events"] = all(
+            bool(decision_snapshots_by_id[str(item["condition_id"])].get("no_future_event_at_entry"))
+            and bool(decision_snapshots_by_id[str(item["condition_id"])].get("no_future_source_event_at_entry"))
+            for item in trades
+        )
     if not all(checks.values()):
         raise RuntimeError(f"Portfolio accounting audit failed: {[key for key, value in checks.items() if not value]}")
     return {
@@ -3093,7 +3367,7 @@ def _legacy_controlled_comparison(
         else:
             recovery_class = "not_recovered_at_fixed5"
         try:
-            old_data_reason = replay._data_reason(prior, ASK_AGE_CONTROL_SECONDS)
+            old_data_reason = replay._data_reason(prior, LEGACY_ASK_AGE_CONTROL_SECONDS)
         except Exception as error:
             old_data_reason = f"unavailable:{type(error).__name__}"
         rows.append({
@@ -3450,7 +3724,7 @@ def _frozen_legacy_diagnostic(old_snapshots: pd.DataFrame, new_by_id: dict[str, 
     for row in rows.itertuples(index=False):
         old = row._asdict()
         try:
-            if replay._data_reason(row, ASK_AGE_CONTROL_SECONDS) != "eligible":
+            if replay._data_reason(row, LEGACY_ASK_AGE_CONTROL_SECONDS) != "eligible":
                 continue
         except Exception:
             continue
@@ -3987,7 +4261,7 @@ def _write_config_and_report(
         "execution": {
             "entry_rule": "market start minus 59 seconds (decision at minus 60 seconds plus 1-second order delay)",
             "hold": "to official resolution; release cash at max(Gamma closedTime, market start + 5 minutes) + 60 seconds",
-            "ask_age_control_seconds": ASK_AGE_CONTROL_SECONDS,
+            "legacy_ask_age_threshold_for_attribution_seconds": LEGACY_ASK_AGE_CONTROL_SECONDS,
             "native_token_asks_only": True,
             "opposite_token_complements_executable": False,
             "fixed_gross_usd": FIXED_GROSS_USD,
@@ -4222,10 +4496,17 @@ def main() -> None:
     snapshots = _add_archive_state_coverage_to_snapshots(
         snapshots, archive_index, archive_manifest, base_parts,
     )
+    decision_snapshot_path = OUT_DIR / "t60_decision_books.parquet"
+    decision_snapshots = pd.read_parquet(decision_snapshot_path)
+    decision_snapshots = _add_archive_state_coverage_to_snapshots(
+        decision_snapshots, archive_index, archive_manifest, base_parts,
+    )
+    decision_snapshots.to_parquet(decision_snapshot_path, index=False, compression="zstd")
     snapshot_path = OUT_DIR / "t59_ask_ladders.parquet"
     snapshots.to_parquet(snapshot_path, index=False, compression="zstd")
     replay_manifest.update({
         "snapshot_sha256": _sha256(snapshot_path),
+        "decision_snapshot_sha256": _sha256(decision_snapshot_path),
         "snapshot_artifact_integrity_verified": True,
         "replay_provenance_verified": True,
         "archive_source_manifest_sha256": archive_manifest["archive_dependency_sha256"],
@@ -4240,11 +4521,15 @@ def main() -> None:
         flush=True,
     )
 
-    calendar, fixed5 = _market_statuses(market_calendar, snapshots)
+    calendar, fixed5 = _market_statuses(market_calendar, snapshots, decision_snapshots)
     calendar["market_start_warsaw"] = pd.to_datetime(calendar.market_start_utc, utc=True).dt.tz_convert("Europe/Warsaw")
     snapshot_by_id = {
         str(row.condition_id).lower(): row._asdict()
         for row in snapshots.itertuples(index=False)
+    }
+    decision_snapshot_by_id = {
+        str(row.condition_id).lower(): row._asdict()
+        for row in decision_snapshots.itertuples(index=False)
     }
     market_by_id = {
         str(row.condition_id).lower(): row._asdict()
@@ -4267,12 +4552,13 @@ def main() -> None:
     def simulate(policy: str, *, side_selection: dict[str, str] | None = None, output_policy: str | None = None) -> dict:
         summary, trades, decisions = _portfolio_for_policy(
             policy, policy_rows, snapshot_by_id, market_by_id,
+            decision_snapshot_by_id=decision_snapshot_by_id,
             side_selection_by_id=side_selection, output_policy=output_policy,
         )
         equity_path = summary.pop("_equity_path")
         summary["monthly_diagnostics"] = _monthly_portfolio_diagnostics(trades, decisions, equity_path)
         summary["accounting_audit"] = _portfolio_accounting_audit(
-            summary, trades, decisions, equity_path, snapshot_by_id,
+            summary, trades, decisions, equity_path, snapshot_by_id, decision_snapshot_by_id,
         )
         summary["drawdown_contributors"] = _drawdown_contributors(trades, equity_path)
         summary["monthly_continuous_portfolio"] = summary["monthly_continuous_portfolio"]

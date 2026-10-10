@@ -527,7 +527,10 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
                 state["complement_mismatches"] += 1
 
 
-def _walk_asks(asks, fee_rate_bps, fee_collection_mode, gross_order_usd=GROSS_ORDER_USD):
+def _walk_asks(
+    asks, fee_rate_bps, fee_collection_mode, gross_order_usd=GROSS_ORDER_USD,
+    *, allow_partial=False,
+):
     gross_order_usd = float(gross_order_usd)
     if not math.isfinite(gross_order_usd) or gross_order_usd <= 0.0:
         raise ValueError("gross_order_usd must be a positive finite amount")
@@ -558,8 +561,24 @@ def _walk_asks(asks, fee_rate_bps, fee_collection_mode, gross_order_usd=GROSS_OR
         remaining -= notional
         if remaining <= 1e-8:
             break
-    if remaining > 1e-6:
-        return {"depth_sufficient": False, "gross_usd": gross, "gross_shares": gross_shares, "shares": None, "fee_usd": None, "fee_shares": None, "fee_cash_usd": None, "cash_debit_usd": None, "vwap": None}
+    depth_sufficient = remaining <= 1e-6
+    partial_fill = not depth_sufficient and gross_shares > 0.0
+    if not depth_sufficient and (not allow_partial or not partial_fill):
+        return {
+            "depth_sufficient": False,
+            "partial_fill": False,
+            "fill_status": "none",
+            "requested_gross_usd": gross_order_usd,
+            "unfilled_gross_usd": max(remaining, 0.0),
+            "gross_usd": gross,
+            "gross_shares": gross_shares,
+            "shares": None,
+            "fee_usd": None,
+            "fee_shares": None,
+            "fee_cash_usd": None,
+            "cash_debit_usd": None,
+            "vwap": None,
+        }
     if fee_collection_mode == "outcome_shares":
         fee_shares = raw_fee_shares
         fee_cash = 0.0
@@ -572,7 +591,11 @@ def _walk_asks(asks, fee_rate_bps, fee_collection_mode, gross_order_usd=GROSS_OR
         fee_shares = 0.0
         net_shares = gross_shares
     return {
-        "depth_sufficient": True,
+        "depth_sufficient": depth_sufficient,
+        "partial_fill": partial_fill,
+        "fill_status": "partial" if partial_fill else "full",
+        "requested_gross_usd": gross_order_usd,
+        "unfilled_gross_usd": max(remaining, 0.0),
         "gross_usd": gross,
         "gross_shares": gross_shares,
         "shares": net_shares,

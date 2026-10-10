@@ -14,6 +14,84 @@ import run_btc_preopen_t59_reassessment as assessment
 
 
 class BtcPreopenT59ReassessmentTests(unittest.TestCase):
+    def _entry_snapshot(self, **updates):
+        snapshot = {
+            "up_quote_source_token_id": "up-token",
+            "up_quote_complemented": False,
+            "archive_entry_hour_available": True,
+            "archive_gap_after_up_book_init": False,
+            "archive_gap_after_fee_update": False,
+            "up_best_ask": 0.50,
+            "up_ask_levels": [(0.50, 100.0)],
+            "no_future_event_at_entry": True,
+            "no_future_source_event_at_entry": True,
+            "up_ask_order_ambiguous": False,
+            "up_ask_age_seconds": 31.0,
+            "up_bbo_ask_comparable": False,
+            "up_bbo_ask_mismatch": False,
+            "up_bid_ask_crossed": False,
+            "fee_known": True,
+            "fee_collection_mode": "outcome_shares",
+            "fee_rate_bps": 0.0,
+            "archive_source": "v3",
+        }
+        snapshot.update(updates)
+        return snapshot
+
+    def test_unchanged_active_ask_is_eligible_after_one_second(self):
+        reason = assessment._ask_base_reason(
+            self._entry_snapshot(up_book_init_receive_ns=1), "up", "up-token",
+        )
+        self.assertEqual(reason, "ask_valid_within_source_coverage")
+
+    def test_documented_source_gap_rejects_an_active_ask(self):
+        reason = assessment._ask_base_reason(
+            self._entry_snapshot(archive_gap_after_up_book_init=True), "up", "up-token",
+        )
+        self.assertEqual(reason, "archive_gap_after_book_initialization")
+
+    def test_sampled_top_of_book_prices_unknown_depth_as_a_proxy(self):
+        result = assessment._price_side(
+            self._entry_snapshot(
+                up_best_ask=0.50, up_best_ask_size_shares=2.0,
+                up_ask_levels=[], up_book_init_receive_ns=None,
+            ),
+            {"up_token_id": "up-token", "order_min_size_shares_current": 5.0},
+            "up", 5.0,
+        )
+        self.assertTrue(result["priceable"])
+        self.assertFalse(result["depth_known"])
+        self.assertEqual(result["execution_source"], "v3")
+        self.assertEqual(
+            result["execution_assumption"],
+            "top_of_book_price_proxy_assumed_full_requested_fill",
+        )
+        self.assertAlmostEqual(result["fill"]["gross_usd"], 5.0)
+        self.assertAlmostEqual(result["fill"]["vwap"], 0.50)
+
+    def test_known_incomplete_depth_uses_fak_partial_fill(self):
+        result = assessment._price_side(
+            self._entry_snapshot(
+                up_ask_levels=[(0.50, 4.0)], up_book_init_receive_ns=1,
+            ),
+            {"up_token_id": "up-token", "order_min_size_shares_current": 5.0},
+            "up", 5.0,
+        )
+        self.assertTrue(result["priceable"])
+        self.assertTrue(result["depth_known"])
+        self.assertEqual(result["fill"]["fill_status"], "partial")
+        self.assertAlmostEqual(result["fill"]["gross_usd"], 2.0)
+
+    def test_future_source_observation_cannot_qualify_a_quote(self):
+        reason = assessment._ask_base_reason(
+            self._entry_snapshot(
+                up_book_init_receive_ns=1,
+                no_future_source_event_at_entry=False,
+            ),
+            "up", "up-token",
+        )
+        self.assertEqual(reason, "future_source_timestamp_at_entry")
+
     def test_trace_replays_receive_groups_with_scalar_timestamp_keys(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -77,9 +155,17 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         }])
         snapshot_path = root / "t59_ask_ladders.parquet"
         snapshots.to_parquet(snapshot_path, index=False)
+        decision_snapshots = pd.DataFrame([{
+            "condition_id": "market-id",
+            "market_start_utc": market_start,
+            "entry_time_utc": market_start - pd.Timedelta(seconds=60),
+        }])
+        decision_snapshot_path = root / "t60_decision_books.parquet"
+        decision_snapshots.to_parquet(decision_snapshot_path, index=False)
         assessment._write_json(root / "t59_replay_manifest.json", {
             "status": "complete", "markets": 1,
             "snapshot_sha256": assessment._sha256(snapshot_path),
+            "decision_snapshot_sha256": assessment._sha256(decision_snapshot_path),
             "archive_fingerprint_sha256": assessment._part_paths_fingerprint(
                 [part], part_records,
             ),
@@ -100,6 +186,8 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
                 ),
                 "last_processed_part": part.name, "next_capture": 1,
                 "snapshots": {"market-id": {}}, "states": {},
+                "next_decision_capture": 1,
+                "decision_snapshots": {"market-id": {}},
             }, stream)
         return part
 
@@ -193,6 +281,84 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             serial_manifest["event_rows_applied"], parallel_manifest["event_rows_applied"],
         )
         self.assertEqual(len(parallel), len(index))
+
+    def test_replay_captures_t60_before_t59_book_change(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parts_dir = root / "parts"
+            parts_dir.mkdir()
+            market_start = pd.Timestamp("2026-04-15T17:05:00Z")
+            rows = []
+            for token_id in ("up-token", "down-token"):
+                book = {column: None for column in assessment.pmxt.EVENT_COLUMNS}
+                book.update({
+                    "timestamp_received": market_start - pd.Timedelta(seconds=61),
+                    "timestamp": market_start - pd.Timedelta(seconds=61),
+                    "market": b"market-id", "event_type": "book", "asset_id": token_id,
+                    "bids": "[[0.45, 100]]", "asks": "[[0.50, 100]]",
+                    "sequence": len(rows),
+                })
+                rows.append(book)
+            for price, size in ((0.50, 0.0), (0.90, 100.0)):
+                update = {column: None for column in assessment.pmxt.EVENT_COLUMNS}
+                update.update({
+                    "timestamp_received": market_start - pd.Timedelta(seconds=59.5),
+                    "timestamp": market_start - pd.Timedelta(seconds=59.5),
+                    "market": b"market-id", "event_type": "price_change", "asset_id": "up-token",
+                    "side": "SELL", "price": price, "size": size,
+                    "best_bid": 0.45, "best_ask": 0.90, "sequence": len(rows),
+                })
+                rows.append(update)
+            pq.write_table(pa.Table.from_pylist(rows), parts_dir / "2026-04-15T17.parquet")
+            index = self._single_market_index()
+
+            with mock.patch.object(assessment, "OUT_DIR", root / "output"), \
+                 mock.patch.object(assessment, "T59_REPLAY_WORKERS", 1):
+                t59, manifest = assessment._replay_t59(index, parts_dir)
+                t60 = pd.read_parquet(root / "output" / "t60_decision_books.parquet")
+
+        decision = t60.iloc[0]
+        execution = t59.iloc[0]
+        self.assertEqual(
+            pd.Timestamp(execution.entry_time_utc) - pd.Timestamp(decision.entry_time_utc),
+            pd.Timedelta(seconds=1),
+        )
+        self.assertAlmostEqual(float(decision.up_best_ask), 0.50)
+        self.assertAlmostEqual(float(execution.up_best_ask), 0.90)
+        self.assertTrue(bool(decision.no_future_event_at_entry))
+        self.assertTrue(bool(decision.no_future_source_event_at_entry))
+        self.assertEqual(manifest["decision_snapshot_markets"], 1)
+
+    def test_t60_side_choice_is_not_reversed_by_t59_execution_price(self):
+        start = pd.Timestamp("2026-04-15T17:05:00Z")
+        market, execution_snapshot = self._market_and_snapshot(
+            "m1", start, start + pd.Timedelta(minutes=5), outcome=1,
+        )
+        market["p_candidate_platt"] = 0.8
+        execution_snapshot.update({
+            "up_ask_levels": [(0.90, 1_000.0)],
+            "down_ask_levels": [(0.50, 1_000.0)],
+        })
+        decision_snapshot = dict(execution_snapshot)
+        decision_snapshot.update({
+            "entry_time_utc": start - pd.Timedelta(seconds=60),
+            "up_ask_levels": [(0.50, 1_000.0)],
+            "down_ask_levels": [(0.50, 1_000.0)],
+        })
+
+        summary, trades, decisions = assessment._portfolio_for_policy(
+            "fixed_5_usd", pd.DataFrame([market]), {"m1": execution_snapshot}, {"m1": market},
+            decision_snapshot_by_id={"m1": decision_snapshot},
+        )
+
+        self.assertEqual(len(trades), 1)
+        self.assertEqual(trades[0]["chosen_side"], "up")
+        self.assertGreater(trades[0]["chosen_side_ev_usd"], 0.0)
+        self.assertLess(trades[0]["execution_ev_usd_at_t59"], 0.0)
+        self.assertEqual(
+            pd.Timestamp(decisions[0]["entry_time_utc"]) - pd.Timestamp(decisions[0]["decision_time_utc"]),
+            pd.Timedelta(seconds=1),
+        )
 
     def _interrupt_after_first_replay_checkpoint(self, root, parts_dir, index):
         original_replace = os.replace

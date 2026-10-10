@@ -1,6 +1,6 @@
 # BTC research execution status
 
-Updated: 2026-10-10 (Europe/Warsaw)
+Updated: 2026-10-11 (Europe/Warsaw)
 
 ## Objective
 
@@ -10,29 +10,33 @@ Implement and evaluate the decisions in [BTC_RESEARCH_CONTRACT.md](BTC_RESEARCH_
 
 - Development market starts: `< 2026-07-01T00:00:00Z`.
 - Holdout market starts: `>= 2026-07-01T00:00:00Z` and `< 2026-10-07T00:00:00Z` for the currently verified archive snapshot.
-- Existing verified T−59 source manifest: `data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json`; 50,184 Gamma-confirmed market starts and 84,331 calendar slots, starting `2025-12-18T04:25:00Z`. The archive's exclusive cutoff is `2026-10-07T00:00:00Z`. Preserve its source-part hashes and coverage gaps.
-- Existing price-model dataset is present at `data/datasets/modeling/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_model_ready.parquet` (about 6.25 GiB compressed). Its time coverage and causal row availability still need independent verification for the new development split.
+- Existing verified T-59 source manifest: `data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json`; 50,184 Gamma-confirmed market starts and 84,331 calendar slots, starting `2025-12-18T04:25:00Z`. Preserve its source-part hashes and coverage gaps.
+- The BTC price source and model-ready dataset each have 3,321,148 minute rows. The raw hybrid candle file ends at `2026-10-02T18:00:00Z`; a complete price-proxy holdout through the market cutoff requires only the missing 6,119 minute rows through `2026-10-06T23:59:00Z` (the last target label becomes available at the exclusive cutoff).
+- The verified market index has 50,183 official outcomes among 50,184 markets. It spans `2026-04-15T17:05:00Z` through `2026-10-06T23:55:00Z`.
 - The existing historical Polymarket experiment and pre-open holdout reports used prior boundaries/filters. They are not results for this contract.
 
 ## Completed
 
 - Read repository instructions, performance guidance, and current BTC experiment documentation.
-- Confirmed branch `main`, upstream `origin/main`, clean initial working tree, no staged user changes.
+- Confirmed branch `main`, upstream `origin/main`, clean initial working tree, and no staged user changes.
 - Confirmed the prior verified book replay/checkpoint and its local cutoff; no broad archive download or training run started.
-- Recorded the binding research decisions in `docs/BTC_RESEARCH_CONTRACT.md`, linked it from `AGENTS.md` and `README.md`.
+- Recorded the binding research decisions in `docs/BTC_RESEARCH_CONTRACT.md`, linked it from `AGENTS.md` and `README.md`, and pushed that documentation commit.
+- Changed the entry replay to capture causal T-60 decision and T-59 execution snapshots in one resumable chronological pass. Portfolio side and stake selection use T-60 information; T-59 is used only for FAK execution, with one second between nominal decision and prediction availability.
+- Removed ask-age eligibility rejection. Unknown depth is priced as an explicitly marked top-of-book proxy; verified book depth uses VWAP and permits the configured FAK partial-fill behavior.
+- Audited earlier exits: active bids persist until change, a documented missing hourly partition clears them, and age remains descriptive. No live configuration was changed.
+- Focused regression suites passed: 29 T-59 reassessment tests, 22 economic-replay tests, 6 exit-quote tests, and 24 continuation-policy tests. Changed modules compile and `git diff --check` passes.
 
 ## In progress / next
 
-1. Identify the active training, calibration, policy, quote-replay, and live order paths; verify the complete/partial fill semantics without changing live configuration.
-2. Add quote continuity, T−59, depth-proxy, label-purge, calibration, and holdout-exclusion regression tests, then implement the smallest corresponding fixes.
-3. Build the resumable nested/phase walk-forward pipeline and freeze exact input/fold identities.
-4. Measure representative development/replay workloads and record runtime, throughput, memory, cache hits, and a full-run estimate before long computation.
-5. Run full development selection and fit, freeze the evaluated bundle, run holdout and the prescribed portfolio/slippage analyses, then prepare (but do not execute) the deployment refit.
-6. Write the complete report, update this status at checkpoints, validate, commit focused changes, and push `main` normally.
+1. Build the resumable outer walk-forward pipeline, OOF calibration, and development-only policy selection; add label-purge and holdout-exclusion tests.
+2. Extend only the missing 6,119 Binance hybrid minutes to the frozen cutoff and hash the extension; verify time continuity and target availability.
+3. Measure representative development/replay workloads and record throughput, memory, cache use, and full-run estimate before long computation.
+4. Replay the required T-60 snapshots, run full development selection and fit, freeze the evaluated bundle, and run holdout with a separate `$100` account and the required slippage analyses. Prepare, but do not execute, the deployment refit.
+5. Write the complete report, update this status at checkpoints, validate, commit focused changes, and push `main` normally.
 
 ## Run and checkpoint record
 
-- Long computations started: none.
-- Full-run runtime estimate: pending representative measurement; previous 521-million-event book replay took about 9,928 seconds from a verified checkpoint and is not an estimate for any new training work.
-- Resume command: pending identification of the contract-compliant runner. Existing archive-only replay entry point is `python run_btc_preopen_t59_reassessment.py`; it is not yet the new complete experiment runner.
+- Long computations started: none. The new T-60 artifact is not present, so the existing T-59 cache cannot satisfy the new replay identity.
+- Full-run runtime estimate: pending representative measurement. A previous 521-million-event continuation took about 9,928 seconds from a verified checkpoint; this does not estimate a full replay or training run.
+- Resume command: pending identification of the contract-compliant runner. Existing archive-only replay entry point is `python run_btc_preopen_t59_reassessment.py`; it is not yet the complete experiment runner.
 - Code/report commit and push: pending.

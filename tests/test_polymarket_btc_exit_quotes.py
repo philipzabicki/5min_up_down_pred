@@ -57,7 +57,33 @@ class PolymarketBtcExitQuoteTests(unittest.TestCase):
         self.assertEqual(sample["decision"]["up"]["levels"], [[0.49, 10.0]])
         self.assertEqual(sample["arrival"]["up"]["levels"], [[0.48, 12.0]])
         self.assertEqual(sample["arrival"]["up"]["quote_received_ns"], start_ns + 6_000_000_000)
-        self.assertIsNone(result["quotes"]["10"]["decision"]["up"])
+        later_quote = result["quotes"]["10"]["decision"]["up"]
+        self.assertEqual(later_quote["levels"], [[0.48, 12.0], [0.47, 14.0]])
+        self.assertEqual(later_quote["age_seconds"], 3.5)
+
+    def test_active_bid_remains_available_after_legacy_one_second_age_limit(self):
+        market = self._market()
+        start_ns = market["market_start_ns"]
+        events = pd.DataFrame([self._price_change(start_ns + 1_000_000_000, 0.49, 10.0)])
+
+        result = exit_quotes.quote_path_from_events(market, events, source_complete=True)
+
+        quote = result["quotes"]["5"]["decision"]["up"]
+        self.assertEqual(quote["levels"], [[0.49, 10.0]])
+        self.assertEqual(quote["age_seconds"], 4.0)
+
+    def test_missing_hour_partition_invalidates_an_unchanged_active_bid(self):
+        market = self._market()
+        market_start = pd.Timestamp("2026-04-15T17:59:55Z")
+        market["market_start_ns"] = int(market_start.value)
+        market["entry_ns"] = int((market_start - pd.Timedelta(seconds=59)).value)
+        events = pd.DataFrame([self._price_change(int(market_start.value) + 1_000_000_000, 0.49, 10.0)])
+
+        result = exit_quotes.quote_path_from_events(
+            market, events, source_complete=False, missing_hours=["2026-04-15T18"],
+        )
+
+        self.assertIsNone(result["quotes"]["5"]["decision"]["up"])
 
     def test_actual_cache_stage_resumes_and_extracts_only_new_ids(self):
         with tempfile.TemporaryDirectory() as temp:

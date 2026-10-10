@@ -122,6 +122,20 @@ class BtcPreopenEconomicReplayTests(unittest.TestCase):
         self.assertAlmostEqual(result["gross_usd"], 4.0)
         self.assertIsNone(result["cash_debit_usd"])
 
+    def test_fak_can_return_a_partial_fill_from_known_depth(self):
+        result = _walk_asks(
+            {0.5: 8.0}, 0.0, "outcome_shares", gross_order_usd=6.0,
+            allow_partial=True,
+        )
+        self.assertFalse(result["depth_sufficient"])
+        self.assertTrue(result["partial_fill"])
+        self.assertEqual(result["fill_status"], "partial")
+        self.assertAlmostEqual(result["requested_gross_usd"], 6.0)
+        self.assertAlmostEqual(result["unfilled_gross_usd"], 2.0)
+        self.assertAlmostEqual(result["gross_usd"], 4.0)
+        self.assertAlmostEqual(result["shares"], 8.0)
+        self.assertAlmostEqual(result["cash_debit_usd"], 4.0)
+
     def test_collateral_fee_is_added_to_cash_debit(self):
         filled = _walk_asks({0.5: 20.0}, 1000.0, "cash_collateral")
         self.assertTrue(filled["depth_sufficient"])

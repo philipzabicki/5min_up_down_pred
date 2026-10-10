@@ -82,13 +82,13 @@ class AdvancedPolicyTests(unittest.TestCase):
         self.assertAlmostEqual(full["p_btc_market_low"], 0.60)
         self.assertAlmostEqual(full["p_btc_market_high"], 0.72)
 
-    def test_exit_requires_fresh_bid_and_capacity_for_full_position(self):
+    def test_exit_accepts_active_bid_after_legacy_age_limit_with_full_capacity(self):
         quote = {"bid": 0.6, "bid_size": 9.99, "bid_age_seconds": 0.0}
         self.assertFalse(continuation._valid_sale_quote(quote, 10.0))
         quote["bid_size"] = 10.0
         self.assertTrue(continuation._valid_sale_quote(quote, 10.0))
         quote["bid_age_seconds"] = 30.01
-        self.assertFalse(continuation._valid_sale_quote(quote, 10.0))
+        self.assertTrue(continuation._valid_sale_quote(quote, 10.0))
 
     def test_prestart_entry_snapshot_without_update_time_is_not_a_fresh_quote(self):
         quote = {"bid": 0.6, "ask": 0.61, "bid_size": 20.0, "ask_size": 20.0, "bid_age_seconds": None}
