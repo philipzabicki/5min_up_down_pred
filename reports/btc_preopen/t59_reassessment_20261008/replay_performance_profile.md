@@ -23,6 +23,14 @@ The two smaller samples cut replay-loop time by roughly 30–33%. The large V3 s
 
 The V3 file contains 657,198 receive-time groups and 657,236 receive-time/market groups. It replays substantially more groups per row than the smaller samples, which explains why its result is the more relevant estimate for the V3-heavy archive.
 
+## Independent-market parallel replay
+
+The replay state is isolated by market, so the runner now assigns markets to 12 worker processes while preserving the existing sort order and receive-group handling within each market. A single real-partition comparison used `2026-08-24T03.parquet`, selecting 11 markets and applying 95,406 rows. Serial replay took 34.01 seconds; the 11-worker run took 10.15 seconds end to end, including process startup (3.35x in this sample). Snapshot frames matched exactly (`check_exact=True`, `check_dtype=False`).
+
+This was one serial-first comparison with uncontrolled OS cache state, so it is directional rather than a stable speedup estimate. The full resumed replay is the workload-level measurement; peak aggregate worker memory is recorded there.
+
+The first full-run parallel block processed 2,053,957 rows from 12 hourly partitions in 138.0 seconds (14.9k rows/s). The immediately preceding serial block processed 2,094,006 rows in 849.3 seconds (2.47k rows/s), a directional 6.0x comparison across neighboring, not identical, time ranges. A second parallel block processed 1,951,754 rows in 125.2 seconds (15.6k rows/s). During active processing, the sampled aggregate working set of the coordinator and 12 workers peaked at 5.85 GB on the 64 GB machine; over a 60-second sample, the replay process tree accumulated 753 CPU-seconds (about 12.5 logical CPUs in use). Serial and parallel snapshot outputs remain exactly equal in the fixture and real-partition comparisons.
+
 ## Checkpoint writing
 
 The sampled one-part scratch checkpoints were about 0.17–1.13 MB and wrote in 0.002–0.005 seconds; those payloads are too small to represent a full replay checkpoint. For a more representative measure, the preserved 552-part checkpoint (6,322 snapshots, 285 active states, 25,098,522 bytes) was serialized and atomically replaced three times per version in a temporary directory. Median times were 0.206 seconds for the old payload and 0.200 seconds with the new version field. The runs did not call `fsync`; the small difference is not meaningful evidence of a checkpoint speedup.

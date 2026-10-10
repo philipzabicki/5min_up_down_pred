@@ -174,6 +174,26 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             pq.write_table(pa.Table.from_pylist(rows), parts_dir / filename)
         return index
 
+    def test_parallel_market_replay_matches_serial_snapshots(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parts_dir = root / "parts"
+            index = self._write_resume_fixture(parts_dir)
+            with mock.patch.object(assessment, "OUT_DIR", root / "serial"), \
+                 mock.patch.object(assessment, "T59_REPLAY_WORKERS", 1), \
+                 mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1):
+                serial, serial_manifest = assessment._replay_t59(index, parts_dir)
+            with mock.patch.object(assessment, "OUT_DIR", root / "parallel"), \
+                 mock.patch.object(assessment, "T59_REPLAY_WORKERS", 2), \
+                 mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1):
+                parallel, parallel_manifest = assessment._replay_t59(index, parts_dir)
+
+        pd.testing.assert_frame_equal(serial, parallel, check_exact=True, check_dtype=False)
+        self.assertEqual(
+            serial_manifest["event_rows_applied"], parallel_manifest["event_rows_applied"],
+        )
+        self.assertEqual(len(parallel), len(index))
+
     def _interrupt_after_first_replay_checkpoint(self, root, parts_dir, index):
         original_replace = os.replace
         checkpoint_path = root / "t59_replay_checkpoint.pkl"
@@ -189,6 +209,7 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         root.mkdir(parents=True, exist_ok=True)
         with mock.patch.object(assessment, "OUT_DIR", root), \
              mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1), \
+             mock.patch.object(assessment, "T59_REPLAY_WORKERS", 2), \
              mock.patch.object(assessment.os, "replace", side_effect=replace_then_interrupt):
             with self.assertRaises(ReplayInterrupted):
                 assessment._replay_t59(index, parts_dir)

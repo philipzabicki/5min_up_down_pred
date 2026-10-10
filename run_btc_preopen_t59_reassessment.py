@@ -77,6 +77,7 @@ TRACE_MARKET_COUNT = 9
 T59_REPLAY_DEPENDENCY_MANIFEST_VERSION = 3
 T59_RECONSTRUCTION_VERSION = "native-asks-v3-source-sequence"
 T59_REPLAY_CHECKPOINT_INTERVAL_PARTS = 12
+T59_REPLAY_WORKERS = 12
 LEGACY_T59_RECONSTRUCTION_SOURCE_SHA256 = "dba0792299ae7f815b2eea0267da1875fa94a930ba6baf5bb140f5d917fd5930"
 T59_REPLAY_MARKET_COLUMNS = (
     "condition_id", "market_start_utc", "up_token_id", "down_token_id",
@@ -1715,6 +1716,73 @@ def _prepare_pmxt_archive(markets: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     return indexed, manifest
 
 
+def _replay_t59_market_shard(
+    market_by_id: dict[str, dict],
+    deadlines: dict[str, int],
+    capture_ids: list[str],
+    states: dict[str, dict],
+    partition_frames: list[tuple[int, pd.DataFrame]],
+) -> dict:
+    snapshots = {}
+    next_capture = 0
+    event_rows_total = 0
+
+    def capture_deadlines(cutoff_ns: int, *, inclusive: bool) -> None:
+        nonlocal next_capture
+        while next_capture < len(capture_ids):
+            condition_id = capture_ids[next_capture]
+            deadline = deadlines[condition_id]
+            if deadline > cutoff_ns or (deadline == cutoff_ns and not inclusive):
+                break
+            market = market_by_id[condition_id]
+            case = {
+                "case_id": "t59_native_asks", "kind": "prestart",
+                "compute_delay_seconds": 0, "order_delay_seconds": 1,
+                "prediction_available_at": market["market_start_utc"] - pd.Timedelta(minutes=1),
+                "entry_time": market["entry_time_utc"],
+            }
+            state = states.pop(condition_id, None)
+            if state is None:
+                state = replay._new_state()
+            snapshots[condition_id] = replay._snapshot(state, market, case)
+            next_capture += 1
+
+    for hour_end_ns, frame in partition_frames:
+        if not frame.empty:
+            last_received_ns = None
+            for (received_ns, condition_id), event_group in frame.groupby(
+                ["_received_ns", "market"], sort=False,
+            ):
+                received_ns = int(received_ns)
+                if received_ns != last_received_ns:
+                    if last_received_ns is not None:
+                        capture_deadlines(last_received_ns, inclusive=True)
+                    capture_deadlines(received_ns, inclusive=False)
+                    last_received_ns = received_ns
+                condition_id = str(condition_id)
+                market = market_by_id.get(condition_id)
+                if market is None:
+                    continue
+                state = states.get(condition_id)
+                if state is None:
+                    state = replay._new_state()
+                    states[condition_id] = state
+                replay._process_receive_group(
+                    state, event_group, received_ns,
+                    str(market["up_token_id"]), str(market["down_token_id"]),
+                )
+                event_rows_total += len(event_group)
+            if last_received_ns is not None:
+                capture_deadlines(last_received_ns, inclusive=True)
+        capture_deadlines(hour_end_ns, inclusive=False)
+
+    return {
+        "states": states,
+        "snapshots": snapshots,
+        "event_rows_total": event_rows_total,
+    }
+
+
 def _replay_t59(
     index: pd.DataFrame,
     parts_dir: Path | None = None,
@@ -1910,9 +1978,138 @@ def _replay_t59(
             next_capture += 1
 
     replay_started = time.perf_counter()
-    for part_position, path in enumerate(part_paths):
-        if part_position < start_part:
-            continue
+    worker_count = min(T59_REPLAY_WORKERS, len(sorted_ids))
+    if worker_count > 1:
+        assigned_ids = [sorted_ids[worker_id::worker_count] for worker_id in range(worker_count)]
+        worker_for_market = {
+            condition_id: worker_id
+            for worker_id, condition_ids in enumerate(assigned_ids)
+            for condition_id in condition_ids
+        }
+        worker_market_by_id = [
+            {condition_id: market_by_id[condition_id] for condition_id in condition_ids}
+            for condition_ids in assigned_ids
+        ]
+        worker_deadlines = [
+            {condition_id: deadlines[condition_id] for condition_id in condition_ids}
+            for condition_ids in assigned_ids
+        ]
+        worker_states = [
+            {condition_id: states[condition_id] for condition_id in condition_ids if condition_id in states}
+            for condition_ids in assigned_ids
+        ]
+        states = {}
+        with concurrent.futures.ProcessPoolExecutor(max_workers=worker_count) as executor:
+            part_cursor = start_part
+            while part_cursor < len(part_paths):
+                next_checkpoint = ((part_cursor // T59_REPLAY_CHECKPOINT_INTERVAL_PARTS) + 1) * (
+                    T59_REPLAY_CHECKPOINT_INTERVAL_PARTS
+                )
+                block_end = min(next_checkpoint, len(part_paths))
+                frames_by_worker = [[] for _ in range(worker_count)]
+                for part_position in range(part_cursor, block_end):
+                    path = part_paths[part_position]
+                    parquet_schema = pq.ParquetFile(path).schema_arrow
+                    available_columns = [column for column in pmxt.EVENT_COLUMNS if column in parquet_schema.names]
+                    if "sequence" in parquet_schema.names:
+                        available_columns.append("sequence")
+                    table = pq.read_table(path, columns=available_columns)
+                    frame = pd.DataFrame()
+                    if table.num_rows:
+                        frame = table.to_pandas()
+                        if isinstance(frame.market.iloc[0], bytes):
+                            frame["market"] = frame.market.str.decode("ascii")
+                        frame["_received_ns"] = replay._timestamp_ns(frame.timestamp_received)
+                        frame["_source_ns"] = replay._timestamp_ns(frame.timestamp)
+                        row_deadlines = frame.market.map(deadlines)
+                        frame = frame.loc[
+                            row_deadlines.notna()
+                            & frame._received_ns.le(row_deadlines.fillna(-1))
+                        ].copy()
+                        sort_keys = (
+                            ["_received_ns", "sequence"]
+                            if "sequence" in frame and frame.sequence.notna().all()
+                            else ["_received_ns", "_source_ns", "market", "asset_id", "event_type"]
+                        )
+                        frame.sort_values(sort_keys, kind="stable", inplace=True)
+                        if not frame.empty:
+                            frame["_worker_id"] = frame.market.map(worker_for_market)
+                    hour_end_ns = int(
+                        (pd.Timestamp(path.stem.replace("T", " "), tz="UTC") + pd.Timedelta(hours=1)).value
+                    )
+                    for worker_id in range(worker_count):
+                        if frame.empty:
+                            worker_frame = pd.DataFrame()
+                        else:
+                            worker_frame = frame.loc[
+                                frame._worker_id.eq(worker_id), frame.columns.drop("_worker_id"),
+                            ].copy()
+                        frames_by_worker[worker_id].append((hour_end_ns, worker_frame))
+                    del table, frame
+
+                active_capture_ids = set(sorted_ids[next_capture:])
+                futures = []
+                for worker_id in range(worker_count):
+                    capture_ids = [
+                        condition_id for condition_id in assigned_ids[worker_id]
+                        if condition_id in active_capture_ids
+                    ]
+                    futures.append(executor.submit(
+                        _replay_t59_market_shard,
+                        worker_market_by_id[worker_id], worker_deadlines[worker_id], capture_ids,
+                        worker_states[worker_id], frames_by_worker[worker_id],
+                    ))
+
+                for worker_id, future in enumerate(futures):
+                    shard = future.result()
+                    overlap = snapshots.keys() & shard["snapshots"].keys()
+                    if overlap:
+                        raise RuntimeError(f"parallel replay captured duplicate markets: {sorted(overlap)[:3]}")
+                    snapshots.update(shard["snapshots"])
+                    worker_states[worker_id] = shard["states"]
+                    event_rows_total += shard["event_rows_total"]
+
+                states = {
+                    condition_id: state
+                    for worker_state in worker_states
+                    for condition_id, state in worker_state.items()
+                }
+                last_path = part_paths[block_end - 1]
+                part_end_ns = int(
+                    (pd.Timestamp(last_path.stem.replace("T", " "), tz="UTC") + pd.Timedelta(hours=1)).value
+                )
+                next_capture = sum(deadlines[condition_id] < part_end_ns for condition_id in sorted_ids)
+                if len(snapshots) != next_capture:
+                    raise RuntimeError(
+                        f"parallel replay captured {len(snapshots)} markets at boundary {next_capture}"
+                    )
+
+                import pickle
+                temporary = checkpoint_path.with_suffix(".pkl.tmp")
+                with temporary.open("wb") as stream:
+                    pickle.dump({
+                        "identity": replay_identity, "part_index": block_end - 1,
+                        "dependency_manifest_version": T59_REPLAY_DEPENDENCY_MANIFEST_VERSION,
+                        "non_partition_dependencies_sha256": dependency_manifest[
+                            "non_partition_dependencies_sha256"
+                        ],
+                        "processed_prefix_fingerprint": _part_paths_fingerprint(
+                            part_paths[:block_end], part_dependency_records[:block_end],
+                        ),
+                        "last_processed_part": last_path.name,
+                        "states": states, "snapshots": snapshots,
+                        "next_capture": next_capture, "event_rows_total": event_rows_total,
+                    }, stream, protocol=pickle.HIGHEST_PROTOCOL)
+                os.replace(temporary, checkpoint_path)
+                print(
+                    f"[t59-replay] parts={block_end:,}/{len(part_paths):,} "
+                    f"rows={event_rows_total:,} captured={len(snapshots):,}/{len(index):,} "
+                    f"workers={worker_count} elapsed_s={time.perf_counter()-replay_started:.1f}", flush=True,
+                )
+                part_cursor = block_end
+
+    for part_position in (range(start_part, len(part_paths)) if worker_count == 1 else []):
+        path = part_paths[part_position]
         parquet_schema = pq.ParquetFile(path).schema_arrow
         available_columns = [column for column in pmxt.EVENT_COLUMNS if column in parquet_schema.names]
         if "sequence" in parquet_schema.names:
