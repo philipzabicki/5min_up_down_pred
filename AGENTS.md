@@ -73,6 +73,8 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 **Performance is part of correctness for substantial data and compute paths.** Read [performance.md](performance.md) before changing dataset construction, features, training/tuning, OOF generation, historical replay, or live inference.
 
+Before changing BTC model training, features, calibration, trading policy, or Polymarket replay, read and follow [docs/BTC_RESEARCH_CONTRACT.md](docs/BTC_RESEARCH_CONTRACT.md).
+
 - Complete the authorized workload. Do not silently reduce history, features, folds, trials, scenarios, or precision to make an implementation appear faster.
 - Use available local CPU, RAM, GPU, and disk proactively when useful. Routine local computation within the task does not require repeated approval. This does not authorize paid services, cloud provisioning, or unrelated experiments.
 - Detect actual resources and active workloads before a heavy run. The user's reference workstation is an i7-13650HX (14 cores / 20 threads), 64 GB RAM, and an RTX 4060 Laptop GPU (8 GB VRAM); other environments may differ.
