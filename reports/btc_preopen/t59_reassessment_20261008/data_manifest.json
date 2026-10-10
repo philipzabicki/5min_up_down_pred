@@ -1,0 +1,3224 @@
+{
+  "archive_source_dependency_sha256": "c29070f4fca5d7aeb3231dee1b673d6f3e57bd22e5a5285b425925e5970b10ff",
+  "artifact_files": {
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_calendar.parquet": {
+      "sha256": "3f94aa8f1df7516f487800f6aea91d12a61c26e345482b662d3ddb4fb5611b60",
+      "size_bytes": 19636191
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_daily.csv": {
+      "sha256": "bce422097c8ba9e52f2dfb6dac765207d3816d34c2ad1be2b17ba223664373c8",
+      "size_bytes": 24633
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_monthly.csv": {
+      "sha256": "d247b1dc8c468d2144bed81d30a8a3d1ba890d0b8ef44770bafb01502eb1f1b3",
+      "size_bytes": 1387
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/legacy_recovery_comparison.parquet": {
+      "sha256": "1be0dfb3dbe274eb0407dc64d16c96b0d0d5f16086c354f3595e2d5d7dd3c3cd",
+      "size_bytes": 343046
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json": {
+      "sha256": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+      "size_bytes": 2234325
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet": {
+      "sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+      "size_bytes": 7486947
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/portfolio_decisions.parquet": {
+      "sha256": "8e80be1efc5ab2fd250011f61dffdd2e6b7338df16f6796fbd9575707647efaa",
+      "size_bytes": 16731966
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/portfolio_trades.parquet": {
+      "sha256": "e1bc71190c0ec00834abaac139dfdf64bb18d75b5d26675921f5fe90bbbf0408",
+      "size_bytes": 9882937
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/sizing_opportunities.parquet": {
+      "sha256": "8e80be1efc5ab2fd250011f61dffdd2e6b7338df16f6796fbd9575707647efaa",
+      "size_bytes": 16731966
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet": {
+      "sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+      "size_bytes": 26049036
+    },
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_replay_dependencies.json": {
+      "sha256": "22d1117ce726db7ec1917ff6362e1439ecc78f2499f32aa2caa5cba7874de009",
+      "size_bytes": 1500013
+    }
+  },
+  "created_at_utc": "2026-10-10T08:03:54.663793+00:00",
+  "input_identity": {
+    "base_pmxt_last_market_start_utc": "2026-08-10T00:00:00+00:00",
+    "base_pmxt_local_verification": {
+      "actual_part_file_count": 2813,
+      "checkpoint_identity_sha256": "39f6ed0dbef39789ddcb801735fb89fc0a968cb29a50f35f1c6ba7d3478fe38d",
+      "checkpoint_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/pmxt/hour_checkpoint.json",
+      "content_sha256_verified_part_count": 2813,
+      "current_legacy_metadata_fingerprint_sha256": "22ff1b0a7407211fb789dabf7918f5b0dc56fad1c2be148649aedced065c6b7c",
+      "expected_existing_part_count": 2813,
+      "mismatched_parts": [],
+      "missing_parts": [],
+      "uncheckpointed_parts": []
+    },
+    "base_pmxt_market_index_rows": 33482,
+    "base_pmxt_market_index_sha256": "451ef6bb0d712efaec318e7ac084a9d1a481f5289fd1c1db2e7ac20cd1596683",
+    "cached_inputs": {
+      "btc_ohlcv_extension": {
+        "actual_sha256": "5feec1a328047fc1527247aef153e24f22c0f7e670935a23400df5c1f26ffeab",
+        "expected_sha256": "5feec1a328047fc1527247aef153e24f22c0f7e670935a23400df5c1f26ffeab",
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/btc_ohlcv_extension.parquet"
+      },
+      "causal_predictions": {
+        "actual_sha256": "ce6b4439ab689636e506bbc8628ec437211336cc7b2ef53112bc8264c66b01da",
+        "expected_sha256": "ce6b4439ab689636e506bbc8628ec437211336cc7b2ef53112bc8264c66b01da",
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/causal_predictions.parquet"
+      },
+      "gamma_markets": {
+        "actual_sha256": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+        "expected_sha256": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet"
+      }
+    },
+    "calendar_first_market_start_utc": "2025-12-18T04:25:00+00:00",
+    "calendar_last_market_start_utc": "2026-10-06T23:55:00+00:00",
+    "calendar_slots": 84331,
+    "causal_gamma_market_count": 50184,
+    "causal_prediction_rows": 50196,
+    "frozen_model_and_calibrator_sha256": {
+      "configs/runtime/btc_preopen_candidate_model_meta.json": "c6b8368fab9c988386e40c36f9b1b8e94a8ed780815a0e14bd297c0b63b24fbd",
+      "data/models/BTC/btc_preopen_candidate_20261005/candidate_calibrator.json": "de2ec02fddae11ca0fed2b0cdb12c2f1842f57a3eb534eddaff8640bc536109e",
+      "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986"
+    },
+    "gamma_confirmed_slots": 79680,
+    "gamma_rows": 80127,
+    "mode": "cached_inputs_only_no_gamma_or_binance_refetch_no_model_inference_or_fit",
+    "run_times": {
+      "archive_extension_seconds": 43.74301459999697,
+      "input_verification_seconds": 9.864699500001734,
+      "portfolio_seconds": 162.06992300000275,
+      "replay_seconds": 9927.544105,
+      "total_seconds": 275.8565113000004
+    },
+    "saved_calendar_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/coverage_calendar_before_pmxt.parquet",
+    "saved_calendar_reproduced_exactly": true,
+    "saved_calendar_sha256": "41192bb7e55b21b1679f2bb3215bfe8bbfac2fa5fbda15ac5034d676a8117fb9",
+    "t59_snapshot_count": 50184,
+    "warsaw_boundaries": {
+      "cutoff_exclusive": "2026-10-07T02:00:00+02:00",
+      "first_slot": "2025-12-18T05:25:00+01:00",
+      "last_slot": "2026-10-07T01:55:00+02:00"
+    }
+  },
+  "july_policy_comparison": [
+    {
+      "actual_side_at_5_vs_fixed5_chooser_market_side_counts": {
+        "common_market_count": 1995,
+        "different_side_count": 0,
+        "left_only_count": 0,
+        "right_only_count": 2931,
+        "same_side_count": 1995
+      },
+      "actual_vs_actual_side_at_5_net_pnl_delta_usd": -732.9815820974044,
+      "actual_vs_frozen_fixed5_side_market_side_counts": {
+        "common_market_count": 1995,
+        "different_side_count": 0,
+        "left_only_count": 0,
+        "right_only_count": 0,
+        "same_side_count": 1995
+      },
+      "actual_vs_frozen_fixed5_side_net_pnl_delta_usd": 0.0,
+      "july_actual": {
+        "cash_spent_usd": 31051.33037836656,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 31051.33037836656,
+        "mean_vwap": 0.4973926296103883,
+        "median_stake_usd": 13.534532357578946,
+        "net_pnl_usd": -829.2778558265495,
+        "pnl_per_dollar_spent": -0.02670667716074113,
+        "trade_count": 1995
+      },
+      "july_actual_side_frozen_at_5usd_stake": {
+        "cash_spent_usd": 9975.0,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 9975.0,
+        "mean_vwap": 0.4972032079527469,
+        "median_stake_usd": 5.0,
+        "net_pnl_usd": -96.29627372914508,
+        "pnl_per_dollar_spent": -0.009653761777357904,
+        "trade_count": 1995
+      },
+      "july_actual_trade_fee_cash_usd": 0.0,
+      "july_actual_trade_fee_shares": 0.0,
+      "july_actual_trade_fee_usd": 0.0,
+      "july_actual_trade_max_vwap_change_vs_same_side_5usd": 0.01342686372923696,
+      "july_actual_trade_median_vwap_change_vs_same_side_5usd": 0.0,
+      "july_decisions_with_positive_ev_choice_at_both_sizes": 1995,
+      "july_first_minimum_order_skip_utc": "2026-07-18T04:19:01+00:00",
+      "july_fixed5_actual_chooser": {
+        "cash_spent_usd": 24630.0,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 24630.0,
+        "mean_vwap": 0.4981877276950992,
+        "median_stake_usd": 5.0,
+        "net_pnl_usd": 142.14129686510563,
+        "pnl_per_dollar_spent": 0.005771063616122844,
+        "trade_count": 4926
+      },
+      "july_frozen_fixed5_side_same_sizing_rule": {
+        "cash_spent_usd": 31051.33037836656,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 31051.33037836656,
+        "mean_vwap": 0.4973926296103883,
+        "median_stake_usd": 13.534532357578946,
+        "net_pnl_usd": -829.2778558265495,
+        "pnl_per_dollar_spent": -0.02670667716074113,
+        "trade_count": 1995
+      },
+      "july_max_requested_stake_usd": 68.86939679012085,
+      "july_median_requested_stake_usd": 5.759000605683848,
+      "july_minimum_order_skip_count": 3761,
+      "july_requested_size_changed_selected_side_count": 0,
+      "july_requested_size_changed_selected_side_rate": 0.0,
+      "policy": "cost_basis_equity_5pct"
+    },
+    {
+      "actual_side_at_5_vs_fixed5_chooser_market_side_counts": {
+        "common_market_count": 2115,
+        "different_side_count": 0,
+        "left_only_count": 0,
+        "right_only_count": 2811,
+        "same_side_count": 2115
+      },
+      "actual_vs_actual_side_at_5_net_pnl_delta_usd": -1877.3420766991744,
+      "actual_vs_frozen_fixed5_side_market_side_counts": {
+        "common_market_count": 2115,
+        "different_side_count": 0,
+        "left_only_count": 1,
+        "right_only_count": 4,
+        "same_side_count": 2115
+      },
+      "actual_vs_frozen_fixed5_side_net_pnl_delta_usd": 0.5603662651387822,
+      "july_actual": {
+        "cash_spent_usd": 86533.4580196371,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 86533.4580196371,
+        "mean_vwap": 0.4950352100514087,
+        "median_stake_usd": 31.212220844818624,
+        "net_pnl_usd": -2028.8575597708932,
+        "pnl_per_dollar_spent": -0.023445931853439662,
+        "trade_count": 2116
+      },
+      "july_actual_side_frozen_at_5usd_stake": {
+        "cash_spent_usd": 10575.0,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 10575.0,
+        "mean_vwap": 0.49433254437230895,
+        "median_stake_usd": 5.0,
+        "net_pnl_usd": -151.51548307171873,
+        "pnl_per_dollar_spent": -0.014327705255008864,
+        "trade_count": 2115
+      },
+      "july_actual_trade_fee_cash_usd": 0.0,
+      "july_actual_trade_fee_shares": 0.0,
+      "july_actual_trade_fee_usd": 0.0,
+      "july_actual_trade_max_vwap_change_vs_same_side_5usd": 0.025067810159717763,
+      "july_actual_trade_median_vwap_change_vs_same_side_5usd": 0.0,
+      "july_decisions_with_positive_ev_choice_at_both_sizes": 2115,
+      "july_first_minimum_order_skip_utc": "2026-07-18T18:24:01+00:00",
+      "july_fixed5_actual_chooser": {
+        "cash_spent_usd": 24630.0,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 24630.0,
+        "mean_vwap": 0.4981877276950992,
+        "median_stake_usd": 5.0,
+        "net_pnl_usd": 142.14129686510563,
+        "pnl_per_dollar_spent": 0.005771063616122844,
+        "trade_count": 4926
+      },
+      "july_frozen_fixed5_side_same_sizing_rule": {
+        "cash_spent_usd": 86540.39436164011,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 86540.39436164011,
+        "mean_vwap": 0.49478849292930777,
+        "median_stake_usd": 31.121850930377022,
+        "net_pnl_usd": -2029.417926036032,
+        "pnl_per_dollar_spent": -0.023450527825831027,
+        "trade_count": 2119
+      },
+      "july_max_requested_stake_usd": 168.63821481602412,
+      "july_median_requested_stake_usd": 18.053713588932638,
+      "july_minimum_order_skip_count": 3575,
+      "july_requested_size_changed_selected_side_count": 0,
+      "july_requested_size_changed_selected_side_rate": 0.0,
+      "policy": "free_cash_5pct"
+    },
+    {
+      "actual_side_at_5_vs_fixed5_chooser_market_side_counts": {
+        "common_market_count": 4874,
+        "different_side_count": 0,
+        "left_only_count": 0,
+        "right_only_count": 52,
+        "same_side_count": 4874
+      },
+      "actual_vs_actual_side_at_5_net_pnl_delta_usd": 516.5224460196936,
+      "actual_vs_frozen_fixed5_side_market_side_counts": {
+        "common_market_count": 4874,
+        "different_side_count": 0,
+        "left_only_count": 0,
+        "right_only_count": 0,
+        "same_side_count": 4874
+      },
+      "actual_vs_frozen_fixed5_side_net_pnl_delta_usd": 0.0,
+      "july_actual": {
+        "cash_spent_usd": 97480.0,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 97480.0,
+        "mean_vwap": 0.4984603010153214,
+        "median_stake_usd": 20.0,
+        "net_pnl_usd": 707.4879556106639,
+        "pnl_per_dollar_spent": 0.007257775498673204,
+        "trade_count": 4874
+      },
+      "july_actual_side_frozen_at_5usd_stake": {
+        "cash_spent_usd": 24370.0,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 24370.0,
+        "mean_vwap": 0.4981653265108969,
+        "median_stake_usd": 5.0,
+        "net_pnl_usd": 190.96550959097036,
+        "pnl_per_dollar_spent": 0.007836089847803462,
+        "trade_count": 4874
+      },
+      "july_actual_trade_fee_cash_usd": 0.0,
+      "july_actual_trade_fee_shares": 0.0,
+      "july_actual_trade_fee_usd": 0.0,
+      "july_actual_trade_max_vwap_change_vs_same_side_5usd": 0.027447700315440027,
+      "july_actual_trade_median_vwap_change_vs_same_side_5usd": 0.0,
+      "july_decisions_with_positive_ev_choice_at_both_sizes": 4874,
+      "july_first_minimum_order_skip_utc": NaN,
+      "july_fixed5_actual_chooser": {
+        "cash_spent_usd": 24630.0,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 24630.0,
+        "mean_vwap": 0.4981877276950992,
+        "median_stake_usd": 5.0,
+        "net_pnl_usd": 142.14129686510563,
+        "pnl_per_dollar_spent": 0.005771063616122844,
+        "trade_count": 4926
+      },
+      "july_frozen_fixed5_side_same_sizing_rule": {
+        "cash_spent_usd": 97480.0,
+        "fees_usd": 0.0,
+        "gross_turnover_usd": 97480.0,
+        "mean_vwap": 0.4984603010153214,
+        "median_stake_usd": 20.0,
+        "net_pnl_usd": 707.4879556106639,
+        "pnl_per_dollar_spent": 0.007257775498673204,
+        "trade_count": 4874
+      },
+      "july_max_requested_stake_usd": 20.0,
+      "july_median_requested_stake_usd": 20.0,
+      "july_minimum_order_skip_count": 0,
+      "july_requested_size_changed_selected_side_count": 0,
+      "july_requested_size_changed_selected_side_rate": 0.0,
+      "policy": "free_cash_5pct_cap20_control"
+    }
+  ],
+  "large_artifacts_are_local_and_gitignored": true,
+  "legacy_4830_diagnosis": {
+    "candidate_rows_without_gamma_market_record": 2,
+    "changed_qualification_recovered_markets_bid_not_required": 2283,
+    "classification_note": "Recovery partitions require a new $5 native ask fill. Implementation signal means an old ask-BBO mismatch disappeared under side-specific causal replay; qualification recovery means the old rejection is not supported by the ask path (typically crossed/missing bid) and the native ask qualifies. Remaining cases are not credited.",
+    "implementation_signal_recovered_markets": 0,
+    "newly_confirmed_gamma_markets_missing_from_old_market_index": 17,
+    "not_recovered_reasons": {
+      "ambiguous_equal_source_timestamp_order": 501,
+      "ambiguous_equal_source_timestamp_order;native_ask_bbo_reconciliation_mismatch": 1434,
+      "ambiguous_equal_source_timestamp_order;stale_ask_30s_control": 3,
+      "native_ask_bbo_reconciliation_mismatch": 608,
+      "stale_ask_30s_control": 1
+    },
+    "old_ask_bbo_mismatch_resolved_by_side_specific_replay": 0,
+    "old_full_snapshot_invalid_count_user_reported": 4830,
+    "old_invalid_full_snapshot_ask_bbo_mismatch_counts": {
+      "0": 76,
+      "1": 3312,
+      "2": 1442
+    },
+    "old_invalid_full_snapshot_both_tokens_crossed_count": 4425,
+    "old_invalid_full_snapshot_crossed_down_count": 4445,
+    "old_invalid_full_snapshot_crossed_up_count": 4810,
+    "old_invalid_full_snapshot_down_only_crossed_count": 20,
+    "old_invalid_full_snapshot_neither_token_crossed_count": 0,
+    "old_invalid_full_snapshot_no_ask_bbo_mismatch_count": 76,
+    "old_invalid_full_snapshot_up_only_crossed_count": 385,
+    "old_invalid_full_snapshot_with_no_native_ask_on_either_token_count": 0,
+    "old_quote_valid_false_total_including_missing_full_snapshot": 4838,
+    "old_t59_market_count": 9407,
+    "recovered_by_corrected_native_ask_replay_at_fixed5": 2283,
+    "recovered_with_unresolved_old_ask_mismatch_attribution": 0
+  },
+  "legacy_comparison": {
+    "attribution_limit": "The historical replay manifest stored only aggregate name/size/mtime fingerprints and a snapshot SHA. It did not store the per-file fingerprint records or content hashes needed to prove that the old snapshot used these exact event bytes. Side-by-side ask prices and quantities are reported; exact old-code versus new-code causal attribution remains unresolved.",
+    "old_full_snapshot_invalid_count": 5817,
+    "old_replay_provenance_verified": false,
+    "recovered_with_any_fixed5_native_ask": 2439,
+    "recovered_with_positive_ev_side": 1173,
+    "recovery_classes": {
+      "not_recovered_at_fixed5": 3378,
+      "qualification_compatible_old_ask_already_priceable": 2439
+    }
+  },
+  "manifest_version": 1,
+  "model_retrained_or_retuned": false,
+  "new_policy_search_run": false,
+  "portfolio_policy_summaries": [
+    {
+      "accounting_audit": {
+        "checks": {
+          "cash_debit_equals_gross_plus_cash_fee": true,
+          "cost_basis_exposure_never_negative": true,
+          "daily_log_growth_reconciles_to_final_equity": true,
+          "ending_cash_matches_sum_of_trade_pnl": true,
+          "equity_equals_cash_plus_locked_cost": true,
+          "fee_mode_matches_cash_or_share_collection": true,
+          "free_cash_never_negative": true,
+          "one_entry_and_one_settlement_per_trade": true,
+          "payout_matches_resolved_outcome": true,
+          "prediction_available_before_entry": true,
+          "requested_stake_uses_only_policy_capital_base": true,
+          "shares_reconcile_with_share_fees": true,
+          "trades_have_no_future_snapshot_events": true
+        },
+        "decision_count": 50184,
+        "ending_cash_usd": 1724.9926976245945,
+        "minimum_cash_usd": 35.99546831991566,
+        "status": "passed",
+        "trade_count": 21726,
+        "trade_pnl_sum_usd": 1624.9926976247793
+      },
+      "ask_vwap_quantiles": {
+        "median": 0.5,
+        "p25": 0.49,
+        "p75": 0.51
+      },
+      "daily_log_growth": {
+        "daily_log_growth_identity_error": 4.440892098500626e-16,
+        "daily_log_growth_identity_verified": true,
+        "daily_log_growth_sum": 2.8478079102073033,
+        "daily_utc_closing_equity": [
+          95.0,
+          111.65584528427128,
+          107.48031415661171,
+          102.70758752024807,
+          93.17270449699225,
+          88.17270449699225,
+          83.17270449699225,
+          93.83330580640214,
+          78.83330580640214,
+          65.99546831991566,
+          54.88522082302125,
+          56.3549633505981,
+          66.60268954473358,
+          137.62034360436718,
+          166.78638689984635,
+          244.424901992745,
+          268.474790366218,
+          336.59364149360357,
+          396.5418577748031,
+          459.8849765358163,
+          428.24138226492903,
+          443.37924808038895,
+          443.5431501039649,
+          470.1360258854281,
+          426.5807428516679,
+          429.43746767867896,
+          412.03644074099054,
+          569.2905812216566,
+          680.1263547617092,
+          769.2051984759466,
+          754.7943560740503,
+          764.9589501609051,
+          764.1156659898006,
+          755.9748281674034,
+          787.7165398668126,
+          852.2311695966467,
+          822.654183853228,
+          812.654183853228,
+          811.5368309291523,
+          801.5368309291523,
+          812.210317715171,
+          848.8251062139552,
+          838.6197787069449,
+          884.1409679821295,
+          826.4637412405466,
+          835.4107062030251,
+          899.4748246863437,
+          934.2010814723967,
+          998.9748715413276,
+          979.5364756089376,
+          970.000683355287,
+          1029.7912593532997,
+          1117.2001100301306,
+          1147.3256199471725,
+          1100.6657419570583,
+          1210.4960843791744,
+          1127.4772104949245,
+          1115.7350723884615,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1118.5731356006531,
+          1123.5811388019335,
+          1123.809730238508,
+          1150.9272656691185,
+          1102.2976680798429,
+          1127.9995011998917,
+          1088.434178478429,
+          1114.5805552149006,
+          1153.893983840413,
+          1059.0839762961057,
+          1100.4891288510353,
+          1100.4891288510353,
+          1100.4891288510353,
+          1100.4891288510353,
+          1100.4891288510353,
+          1100.4891288510353,
+          1095.4891288510353,
+          1067.8864442886224,
+          1071.1427692271768,
+          1051.7086778903515,
+          911.0299063039986,
+          980.3346331877813,
+          1045.181186257614,
+          971.182139626539,
+          940.3426506232747,
+          957.2606354694152,
+          1080.6230741404638,
+          1131.8755587213197,
+          1173.023158692739,
+          1272.846747014418,
+          1320.706109076957,
+          1209.4138030787446,
+          1230.2442122531322,
+          1266.1471055349352,
+          1353.9954996210913,
+          1356.3211716605292,
+          1231.2744678039594,
+          1263.4865622796328,
+          1192.3729434327772,
+          1095.8010950287294,
+          1119.6393990907707,
+          1207.405583589464,
+          1186.4044246137578,
+          1181.0122677510126,
+          1181.4289344176793,
+          1210.848702324842,
+          1206.052783957495,
+          1226.2813753940695,
+          1231.085296962697,
+          1231.085296962697,
+          1231.085296962697,
+          1283.77438998108,
+          1193.3832317400766,
+          1245.531521514782,
+          1212.41156625865,
+          1244.9169999357484,
+          1250.4278506288115,
+          1261.564031802398,
+          1301.8790426070752,
+          1350.2944390121936,
+          1416.0923065085362,
+          1410.8693826148015,
+          1440.238559238437,
+          1469.0166540422538,
+          1551.3153851716431,
+          1518.6982477692568,
+          1523.7467510628824,
+          1616.99220050108,
+          1614.0354374234782,
+          1577.463849901537,
+          1762.4321516244281,
+          1796.519158060982,
+          1794.0057151879141,
+          1814.4918958347607,
+          1806.4927064728615,
+          1709.7172114498221,
+          1769.67353147233,
+          1832.3771493728668,
+          1889.8755881328323,
+          1970.358560257629,
+          2015.361996470367,
+          1999.654178173146,
+          1992.558426986,
+          2061.703393215315,
+          2139.1627774707567,
+          2082.1696758888556,
+          2024.523892696181,
+          2051.9830273484527,
+          2056.790385854793,
+          1994.6485737269822,
+          1958.5728779272897,
+          1987.095234230768,
+          2062.1961731493607,
+          2024.090504769374,
+          2087.1325353751427,
+          2006.405544018045,
+          1990.540102505255,
+          1963.339067388223,
+          1900.5421618360292,
+          1795.9658574645152,
+          1729.9926976245945,
+          1724.9926976245945
+        ],
+        "daily_utc_first_day": "2026-04-15",
+        "daily_utc_grid_days": 176,
+        "daily_utc_last_day": "2026-10-07",
+        "mean_daily_log_growth": 0.016180726762541495,
+        "ruin": false,
+        "ruin_day_utc": null,
+        "terminal_log_growth": 2.8478079102073037
+      },
+      "drawdown_accounting": "cash plus original gross cost basis of unsettled positions; settlement changes equity to cash payout, and no interim mark-to-market is imputed",
+      "drawdown_contributors": {
+        "contributors": [
+          {
+            "cash_release_at_utc": "2026-09-22 22:26:53+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x9ed1da23efe51ddee450c3c5c1322376384fb942f1067b84ef4bd4e324740e3e",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-09-22 22:19:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-09-22 22:20:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-09-29 15:31:53+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xee63e71cef6096afdaebac36d53a6b2383fa78b5f768f5eda235510b59bee62d",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-09-29 15:24:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-09-29 15:25:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-10-01 05:16:54+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x3678b56b4fb9f9e4e0530935751fdd916033cb32b6f16cfbc552c9c44a705255",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-10-01 05:09:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-10-01 05:10:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-10-01 05:26:53+00:00",
+            "chosen_side": "down",
+            "condition_id": "0xa40e09f8ff8ee72ef1c75466f45db467e177e01e3be51d104f52060cbd994527",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-10-01 05:19:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-10-01 05:20:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-10-01 07:32:27+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x13e8ab5af668745d535fbfbdb39a935ea0f60bd3e53018a10bd49530dba1484d",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-10-01 07:24:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-10-01 07:25:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-10-03 12:51:53+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x49bdb10a1b0326c1a34f186e39c0a59d61a4c6cb30808b8414be396e23dbc0ae",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-10-03 12:44:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-10-03 12:45:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-10-05 04:31:55+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xfc950bdd93ef50de619bf23d5e99b178bd28b0d068a6a88521add40aa3cc07c5",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-10-05 04:24:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-10-05 04:25:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-10-05 04:42:28+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x10651bb97308accaa1c7f9fedab3998876cf3a0bcddf778ef7429568e6c7430f",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-10-05 04:34:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-10-05 04:35:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-10-05 15:11:53+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xc70d1e53d3075937fc417a1594fdba2aca784294a79d99d20f86de4c80e78ddc",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-10-05 15:04:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-10-05 15:05:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          },
+          {
+            "cash_release_at_utc": "2026-10-06 06:11:52+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x39e92b8822061d33235714e77b91996955ec922e008b1dd301a6b65e3eb92b17",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -5.000000000000001,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -5.000000000000001,
+            "entry_time_utc": "2026-10-06 06:04:01+00:00",
+            "gross_usd": 5.000000000000001,
+            "market_start_utc": "2026-10-06 06:05:00+00:00",
+            "net_pnl_usd": -5.000000000000001
+          }
+        ],
+        "equity_change_usd": -471.797323051137,
+        "max_drawdown_usd": 471.797323051137,
+        "peak_utc": "2026-09-21T04:06:54+00:00",
+        "sum_of_trade_event_contributions_usd": -471.7973230511213,
+        "trough_utc": "2026-10-06T22:41:53+00:00"
+      },
+      "ending_cash_after_settlement_usd": 1724.9926976245945,
+      "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; no edge threshold beyond EV > 0",
+      "fees_paid_estimated_usd": 26.49999030000001,
+      "gross_stake_quantiles_usd": {
+        "median": 5.0,
+        "p0": 4.999999999999999,
+        "p100": 5.000000000000001,
+        "p25": 5.0,
+        "p75": 5.0
+      },
+      "gross_turnover_usd": 108630.0,
+      "initial_cash_usd": 100.0,
+      "max_drawdown_cost_basis_equity": 0.6362670054263138,
+      "max_drawdown_peak_utc": "2026-04-18T06:51:20+00:00",
+      "max_drawdown_trough_utc": "2026-04-25T07:46:18+00:00",
+      "maximum_concurrent_cost_basis_exposure_usd": 40.0,
+      "maximum_concurrent_positions": 8,
+      "minimum_free_cash_usd": 35.99546831991566,
+      "minimum_order_diagnostic": {
+        "evaluated_side_minimum_source_counts": {
+          "current_gamma_metadata": 56239
+        },
+        "first_minimum_order_shares": null,
+        "first_minimum_order_skip_cash_before_usd": null,
+        "first_minimum_order_skip_chosen_side": null,
+        "first_minimum_order_skip_reason": null,
+        "first_minimum_order_skip_requested_usd": null,
+        "first_minimum_order_skip_utc": null,
+        "first_minimum_order_source": null,
+        "minimum_order_skip_count": 0
+      },
+      "monthly_continuous_portfolio": [
+        {
+          "closing_equity_usd": 244.424901992745,
+          "month_utc": "2026-04",
+          "net_pnl_usd": 144.424901992745,
+          "opening_equity_usd": 100.0
+        },
+        {
+          "closing_equity_usd": 899.4748246863437,
+          "month_utc": "2026-05",
+          "net_pnl_usd": 655.0499226935988,
+          "opening_equity_usd": 244.424901992745
+        },
+        {
+          "closing_equity_usd": 1123.809730238508,
+          "month_utc": "2026-06",
+          "net_pnl_usd": 224.3349055521644,
+          "opening_equity_usd": 899.4748246863437
+        },
+        {
+          "closing_equity_usd": 1266.1471055349352,
+          "month_utc": "2026-07",
+          "net_pnl_usd": 142.33737529642713,
+          "opening_equity_usd": 1123.809730238508
+        },
+        {
+          "closing_equity_usd": 1551.3153851716431,
+          "month_utc": "2026-08",
+          "net_pnl_usd": 285.1682796367079,
+          "opening_equity_usd": 1266.1471055349352
+        },
+        {
+          "closing_equity_usd": 2087.1325353751427,
+          "month_utc": "2026-09",
+          "net_pnl_usd": 535.8171502034995,
+          "opening_equity_usd": 1551.3153851716431
+        },
+        {
+          "closing_equity_usd": 1724.9926976245945,
+          "month_utc": "2026-10",
+          "net_pnl_usd": -362.13983775054817,
+          "opening_equity_usd": 2087.1325353751427
+        }
+      ],
+      "monthly_diagnostics": [
+        {
+          "cash_spent_including_cash_fees_usd": 1520.0,
+          "closing_cost_basis_equity_usd": 244.424901992745,
+          "entry_cohort_net_pnl_usd": 144.42490199274474,
+          "entry_cohort_pnl_per_dollar_spent": 0.09501638288996364,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 63.637828,
+          "fee_usd": 26.4999903,
+          "gross_turnover_usd": 1520.0,
+          "month_utc": "2026-04",
+          "monthly_equity_pnl_usd": 144.424901992745,
+          "monthly_max_drawdown": 0.6362670054263138,
+          "monthly_max_drawdown_peak_utc": "2026-04-18T06:51:20+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-04-25T07:46:18+00:00",
+          "opening_cost_basis_equity_usd": 100.0,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 2294,
+            "no_priceable_native_ask_side": 1804
+          },
+          "stake_median_usd": 5.0,
+          "stake_p0_usd": 5.0,
+          "stake_p100_usd": 5.0,
+          "stake_p25_usd": 5.0,
+          "stake_p75_usd": 5.0,
+          "trade_count": 304
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 18055.0,
+          "closing_cost_basis_equity_usd": 899.4748246863437,
+          "entry_cohort_net_pnl_usd": 664.6577658308695,
+          "entry_cohort_pnl_per_dollar_spent": 0.036812947429015204,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 18055.0,
+          "month_utc": "2026-05",
+          "monthly_equity_pnl_usd": 655.0499226935988,
+          "monthly_max_drawdown": 0.2699459126964826,
+          "monthly_max_drawdown_peak_utc": "2026-05-04T14:51:54+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-05-06T11:56:18+00:00",
+          "opening_cost_basis_equity_usd": 244.424901992745,
+          "skip_reason_counts": {
+            "missing_official_outcome_or_settlement_time": 10,
+            "no_positive_net_expected_value": 1840,
+            "no_priceable_native_ask_side": 3466
+          },
+          "stake_median_usd": 5.0,
+          "stake_p0_usd": 4.999999999999999,
+          "stake_p100_usd": 5.000000000000001,
+          "stake_p25_usd": 5.0,
+          "stake_p75_usd": 5.0,
+          "trade_count": 3611
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 9495.0,
+          "closing_cost_basis_equity_usd": 1123.809730238508,
+          "entry_cohort_net_pnl_usd": 214.72706241492835,
+          "entry_cohort_pnl_per_dollar_spent": 0.022614751175874498,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 9495.0,
+          "month_utc": "2026-06",
+          "monthly_equity_pnl_usd": 224.3349055521644,
+          "monthly_max_drawdown": 0.14864585606220326,
+          "monthly_max_drawdown_peak_utc": "2026-06-09T15:31:34+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-06-11T17:21:19+00:00",
+          "opening_cost_basis_equity_usd": 899.4748246863437,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 550,
+            "no_priceable_native_ask_side": 6185
+          },
+          "stake_median_usd": 5.0,
+          "stake_p0_usd": 5.0,
+          "stake_p100_usd": 5.000000000000001,
+          "stake_p25_usd": 5.0,
+          "stake_p75_usd": 5.0,
+          "trade_count": 1899
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 24630.0,
+          "closing_cost_basis_equity_usd": 1266.1471055349352,
+          "entry_cohort_net_pnl_usd": 142.14129686510574,
+          "entry_cohort_pnl_per_dollar_spent": 0.005771063616122848,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 24630.0,
+          "month_utc": "2026-07",
+          "monthly_equity_pnl_usd": 142.33737529642713,
+          "monthly_max_drawdown": 0.33165199627716724,
+          "monthly_max_drawdown_peak_utc": "2026-07-06T13:00:40+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-07-23T13:07:25+00:00",
+          "opening_cost_basis_equity_usd": 1123.809730238508,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 1521,
+            "no_priceable_native_ask_side": 2480
+          },
+          "stake_median_usd": 5.0,
+          "stake_p0_usd": 4.999999999999999,
+          "stake_p100_usd": 5.000000000000001,
+          "stake_p25_usd": 5.0,
+          "stake_p75_usd": 5.0,
+          "trade_count": 4926
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 21845.0,
+          "closing_cost_basis_equity_usd": 1551.3153851716431,
+          "entry_cohort_net_pnl_usd": 285.36435806812926,
+          "entry_cohort_pnl_per_dollar_spent": 0.013063142964894909,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 21845.0,
+          "month_utc": "2026-08",
+          "monthly_equity_pnl_usd": 285.1682796367079,
+          "monthly_max_drawdown": 0.2116647218526992,
+          "monthly_max_drawdown_peak_utc": "2026-08-03T00:21:24+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-08-06T23:41:18+00:00",
+          "opening_cost_basis_equity_usd": 1266.1471055349352,
+          "skip_reason_counts": {
+            "missing_official_outcome_or_settlement_time": 1,
+            "no_positive_net_expected_value": 1942,
+            "no_priceable_native_ask_side": 2616
+          },
+          "stake_median_usd": 5.0,
+          "stake_p0_usd": 5.0,
+          "stake_p100_usd": 5.000000000000001,
+          "stake_p25_usd": 5.0,
+          "stake_p75_usd": 5.0,
+          "trade_count": 4369
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 26585.0,
+          "closing_cost_basis_equity_usd": 2087.1325353751427,
+          "entry_cohort_net_pnl_usd": 525.8171502035356,
+          "entry_cohort_pnl_per_dollar_spent": 0.01977871544869421,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 26585.0,
+          "month_utc": "2026-09",
+          "monthly_equity_pnl_usd": 535.8171502034995,
+          "monthly_max_drawdown": 0.12086991430942133,
+          "monthly_max_drawdown_peak_utc": "2026-09-10T09:56:54+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-09-12T03:03:31+00:00",
+          "opening_cost_basis_equity_usd": 1551.3153851716431,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 3212,
+            "no_priceable_native_ask_side": 110
+          },
+          "stake_median_usd": 5.0,
+          "stake_p0_usd": 5.0,
+          "stake_p100_usd": 5.000000000000001,
+          "stake_p25_usd": 5.0,
+          "stake_p75_usd": 5.0,
+          "trade_count": 5317
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 6500.0,
+          "closing_cost_basis_equity_usd": 1724.9926976245945,
+          "entry_cohort_net_pnl_usd": -352.13983775053396,
+          "entry_cohort_pnl_per_dollar_spent": -0.0541753596539283,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 6500.0,
+          "month_utc": "2026-10",
+          "monthly_equity_pnl_usd": -362.13983775054817,
+          "monthly_max_drawdown": 0.1893495777922021,
+          "monthly_max_drawdown_peak_utc": "2026-10-01T01:26:54+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-10-06T22:41:53+00:00",
+          "opening_cost_basis_equity_usd": 2087.1325353751427,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 424,
+            "no_priceable_native_ask_side": 3
+          },
+          "stake_median_usd": 5.0,
+          "stake_p0_usd": 5.0,
+          "stake_p100_usd": 5.000000000000001,
+          "stake_p25_usd": 5.0,
+          "stake_p75_usd": 5.0,
+          "trade_count": 1300
+        }
+      ],
+      "net_pnl_usd": 1624.9926976245945,
+      "policy": "fixed_5_usd",
+      "rejections_by_reason": {
+        "missing_official_outcome_or_settlement_time": 11,
+        "no_positive_net_expected_value": 11783,
+        "no_priceable_native_ask_side": 16664
+      },
+      "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+      "side_selection_rule": "positive net EV side at requested amount",
+      "sizing_policy": "fixed_5_usd",
+      "trade_count": 21726
+    },
+    {
+      "accounting_audit": {
+        "checks": {
+          "cash_debit_equals_gross_plus_cash_fee": true,
+          "cost_basis_exposure_never_negative": true,
+          "daily_log_growth_reconciles_to_final_equity": true,
+          "ending_cash_matches_sum_of_trade_pnl": true,
+          "equity_equals_cash_plus_locked_cost": true,
+          "fee_mode_matches_cash_or_share_collection": true,
+          "free_cash_never_negative": true,
+          "one_entry_and_one_settlement_per_trade": true,
+          "payout_matches_resolved_outcome": true,
+          "prediction_available_before_entry": true,
+          "requested_stake_uses_only_policy_capital_base": true,
+          "shares_reconcile_with_share_fees": true,
+          "trades_have_no_future_snapshot_events": true
+        },
+        "decision_count": 50184,
+        "ending_cash_usd": 25.79768472711246,
+        "minimum_cash_usd": 25.796841851133923,
+        "status": "passed",
+        "trade_count": 7510,
+        "trade_pnl_sum_usd": -74.20231527289778
+      },
+      "ask_vwap_quantiles": {
+        "median": 0.5,
+        "p25": 0.48783830828349284,
+        "p75": 0.51
+      },
+      "daily_log_growth": {
+        "daily_log_growth_identity_error": 2.220446049250313e-16,
+        "daily_log_growth_identity_verified": true,
+        "daily_log_growth_sum": -1.35488543734651,
+        "daily_utc_closing_equity": [
+          95.0,
+          111.43771255291362,
+          106.15919410035956,
+          100.8168537244747,
+          91.16177946520199,
+          86.60369049194189,
+          82.27350596734479,
+          90.90176181061597,
+          77.93689803237686,
+          68.02663764060253,
+          60.04650063217683,
+          60.13160485832349,
+          66.4508967956149,
+          125.01385254690784,
+          151.3193123017732,
+          270.09771534404666,
+          294.3709623858139,
+          453.5793664725218,
+          721.4597002605522,
+          946.8468050924997,
+          654.2653609378116,
+          718.3312435743851,
+          463.4074428302289,
+          548.1568749227388,
+          305.28861277099105,
+          249.57466027645407,
+          185.04466555821094,
+          705.8487366324952,
+          1504.9282833474133,
+          3339.79162033167,
+          2341.9834779696566,
+          2777.8004840553344,
+          1714.124764019095,
+          1281.8110616679414,
+          1709.5176865568203,
+          2525.560067493112,
+          1850.0868660098984,
+          1669.7033965739333,
+          1560.3255474614512,
+          1482.3092700883785,
+          1642.4000974922951,
+          2580.4133411298094,
+          2051.6022087347105,
+          2700.216204170691,
+          826.6479822986597,
+          575.2298836921154,
+          743.875111264811,
+          960.5012863098386,
+          1386.1457045823374,
+          794.4810912691428,
+          571.3545754490333,
+          905.8456466842182,
+          1865.1856821076856,
+          2330.4693846154564,
+          1253.7644560788917,
+          4455.032594251304,
+          2170.9551830304194,
+          1755.6911065377326,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2099.8021550157155,
+          2090.427934386251,
+          2062.1962485404565,
+          2732.1519907217703,
+          1333.5647427954618,
+          1363.5832074591444,
+          1138.7713988870414,
+          1070.1988277702578,
+          1496.8368064250935,
+          464.85322801542486,
+          576.3791106375563,
+          576.3791106375563,
+          576.3791106375563,
+          576.3791106375563,
+          576.3791106375563,
+          576.3791106375563,
+          547.5601551056785,
+          376.39050153786997,
+          305.57695750827287,
+          185.76408326549657,
+          43.523504255312716,
+          37.158965799326246,
+          37.158965799326246,
+          37.158965799326246,
+          37.158965799326246,
+          37.158965799326246,
+          37.158965799326246,
+          33.3386887695646,
+          33.3386887695646,
+          33.3386887695646,
+          33.3386887695646,
+          33.3386887695646,
+          33.3386887695646,
+          33.3386887695646,
+          28.583758283805537,
+          27.154570369615293,
+          27.154570369615293,
+          27.154570369615293,
+          27.154570369615293,
+          27.154570369615293,
+          27.154570369615293,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097,
+          25.797684727113097
+        ],
+        "daily_utc_first_day": "2026-04-15",
+        "daily_utc_grid_days": 175,
+        "daily_utc_last_day": "2026-10-06",
+        "mean_daily_log_growth": -0.007742202499122917,
+        "ruin": false,
+        "ruin_day_utc": null,
+        "terminal_log_growth": -1.3548854373465102
+      },
+      "drawdown_accounting": "cash plus original gross cost basis of unsettled positions; settlement changes equity to cash payout, and no interim mark-to-market is imputed",
+      "drawdown_contributors": {
+        "contributors": [
+          {
+            "cash_release_at_utc": "2026-06-09 22:56:18+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x1bc7565ee1a546ece1cb7911fda2b43db2243bf4acd870181a65d3b2b62892f1",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -268.8782282576978,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -268.8782282576978,
+            "entry_time_utc": "2026-06-09 22:49:01+00:00",
+            "gross_usd": 268.8782282576978,
+            "market_start_utc": "2026-06-09 22:50:00+00:00",
+            "net_pnl_usd": -268.8782282576978
+          },
+          {
+            "cash_release_at_utc": "2026-06-09 23:01:18+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xc35b49887163093559195d0eb493f4c2482d31924480289b282ac91358a77925",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -255.43431684481294,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -255.43431684481294,
+            "entry_time_utc": "2026-06-09 22:54:01+00:00",
+            "gross_usd": 255.43431684481294,
+            "market_start_utc": "2026-06-09 22:55:00+00:00",
+            "net_pnl_usd": -255.43431684481294
+          },
+          {
+            "cash_release_at_utc": "2026-06-09 23:16:21+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x022628b9b710f8f9f1dba9d92bb45eaf38c0fc5ab47e303e3130352f7cccd92f",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -247.89772479147746,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -247.89772479147746,
+            "entry_time_utc": "2026-06-09 23:09:01+00:00",
+            "gross_usd": 247.89772479147746,
+            "market_start_utc": "2026-06-09 23:10:00+00:00",
+            "net_pnl_usd": -247.89772479147746
+          },
+          {
+            "cash_release_at_utc": "2026-06-09 23:36:21+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x7dda97925d245d79850c6348c07a511d4f550f833cadadaa730e2fe90a168510",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -235.5028385519036,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -235.5028385519036,
+            "entry_time_utc": "2026-06-09 23:29:01+00:00",
+            "gross_usd": 235.5028385519036,
+            "market_start_utc": "2026-06-09 23:30:00+00:00",
+            "net_pnl_usd": -235.5028385519036
+          },
+          {
+            "cash_release_at_utc": "2026-06-10 01:51:25+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x116caad3ab7b8140a3dcb38b48a46ed3334deee692ed33f2aa19b0dc3b96e065",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -231.57632342582264,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -231.57632342582264,
+            "entry_time_utc": "2026-06-10 01:44:01+00:00",
+            "gross_usd": 231.57632342582264,
+            "market_start_utc": "2026-06-10 01:45:00+00:00",
+            "net_pnl_usd": -231.57632342582264
+          },
+          {
+            "cash_release_at_utc": "2026-06-09 23:11:19+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x5a894daaac7e860acd9741f51c5b6d90ed22c966a05eed2f83a27d8aff4b7584",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -230.52947095244366,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -230.52947095244366,
+            "entry_time_utc": "2026-06-09 23:04:01+00:00",
+            "gross_usd": 230.52947095244366,
+            "market_start_utc": "2026-06-09 23:05:00+00:00",
+            "net_pnl_usd": -230.52947095244366
+          },
+          {
+            "cash_release_at_utc": "2026-06-09 23:51:18+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xba38e38b9ffaf8c3cdcc6abbf55b77e772da15ad207293f5a1e6edab55e50eab",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -223.72769662430844,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -223.72769662430844,
+            "entry_time_utc": "2026-06-09 23:44:01+00:00",
+            "gross_usd": 223.72769662430844,
+            "market_start_utc": "2026-06-09 23:45:00+00:00",
+            "net_pnl_usd": -223.72769662430844
+          },
+          {
+            "cash_release_at_utc": "2026-06-10 00:11:21+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x89f9fdba8e82537c24aeaf30b1fe52ad69f4d0de08c73c1d82e39b4792e8945a",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -221.818635865944,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -221.818635865944,
+            "entry_time_utc": "2026-06-10 00:04:01+00:00",
+            "gross_usd": 221.818635865944,
+            "market_start_utc": "2026-06-10 00:05:00+00:00",
+            "net_pnl_usd": -221.818635865944
+          },
+          {
+            "cash_release_at_utc": "2026-06-10 02:06:19+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xbcfddacac49a1ce52745a4dc8b9fb656fa0d09485df88cdfd766566a2ac39859",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -219.99750725453146,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -219.99750725453146,
+            "entry_time_utc": "2026-06-10 01:59:01+00:00",
+            "gross_usd": 219.99750725453146,
+            "market_start_utc": "2026-06-10 02:00:00+00:00",
+            "net_pnl_usd": -219.99750725453146
+          },
+          {
+            "cash_release_at_utc": "2026-06-10 02:16:21+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x46b34bf3bd61c8c61fd229b51cc80cc521a38ce864ed164d6cb46d55503acb4b",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -208.9976318918049,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -208.9976318918049,
+            "entry_time_utc": "2026-06-10 02:09:01+00:00",
+            "gross_usd": 208.9976318918049,
+            "market_start_utc": "2026-06-10 02:10:00+00:00",
+            "net_pnl_usd": -208.9976318918049
+          }
+        ],
+        "equity_change_usd": -5351.766880426844,
+        "max_drawdown_usd": 5351.766880426844,
+        "peak_utc": "2026-06-09T22:31:21+00:00",
+        "sum_of_trade_event_contributions_usd": -5351.766880426847,
+        "trough_utc": "2026-08-08T21:32:25+00:00"
+      },
+      "ending_cash_after_settlement_usd": 25.79768472711246,
+      "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; no edge threshold beyond EV > 0",
+      "fees_paid_estimated_usd": 20.967620009999994,
+      "gross_stake_quantiles_usd": {
+        "median": 45.645739377960936,
+        "p0": 1.3577285184807328,
+        "p100": 268.8782282576978,
+        "p25": 23.708422740824368,
+        "p75": 85.96077233776906
+      },
+      "gross_turnover_usd": 437637.1011766208,
+      "initial_cash_usd": 100.0,
+      "max_drawdown_cost_basis_equity": 0.9952027196671372,
+      "max_drawdown_peak_utc": "2026-06-09T22:31:21+00:00",
+      "max_drawdown_trough_utc": "2026-08-08T21:32:25+00:00",
+      "maximum_concurrent_cost_basis_exposure_usd": 524.3125451025112,
+      "maximum_concurrent_positions": 4,
+      "minimum_free_cash_usd": 25.796841851133923,
+      "minimum_order_diagnostic": {
+        "evaluated_side_minimum_source_counts": {
+          "current_gamma_metadata": 56239
+        },
+        "first_minimum_order_shares": 5.0,
+        "first_minimum_order_skip_cash_before_usd": 49.17612332982407,
+        "first_minimum_order_skip_chosen_side": "up",
+        "first_minimum_order_skip_reason": "below_minimum_order_shares",
+        "first_minimum_order_skip_requested_usd": 2.458806166491204,
+        "first_minimum_order_skip_utc": "2026-07-18T18:24:01+00:00",
+        "first_minimum_order_source": "current_gamma_metadata",
+        "minimum_order_skip_count": 20129
+      },
+      "monthly_continuous_portfolio": [
+        {
+          "closing_equity_usd": 270.09771534404666,
+          "month_utc": "2026-04",
+          "net_pnl_usd": 170.09771534404666,
+          "opening_equity_usd": 100.0
+        },
+        {
+          "closing_equity_usd": 743.875111264811,
+          "month_utc": "2026-05",
+          "net_pnl_usd": 473.7773959207644,
+          "opening_equity_usd": 270.09771534404666
+        },
+        {
+          "closing_equity_usd": 2062.1962485404565,
+          "month_utc": "2026-06",
+          "net_pnl_usd": 1318.3211372756455,
+          "opening_equity_usd": 743.875111264811
+        },
+        {
+          "closing_equity_usd": 33.3386887695646,
+          "month_utc": "2026-07",
+          "net_pnl_usd": -2028.8575597708918,
+          "opening_equity_usd": 2062.1962485404565
+        },
+        {
+          "closing_equity_usd": 25.797684727113097,
+          "month_utc": "2026-08",
+          "net_pnl_usd": -7.541004042451501,
+          "opening_equity_usd": 33.3386887695646
+        },
+        {
+          "closing_equity_usd": 25.797684727113097,
+          "month_utc": "2026-09",
+          "net_pnl_usd": 0.0,
+          "opening_equity_usd": 25.797684727113097
+        },
+        {
+          "closing_equity_usd": 25.797684727113097,
+          "month_utc": "2026-10",
+          "net_pnl_usd": 0.0,
+          "opening_equity_usd": 25.797684727113097
+        }
+      ],
+      "monthly_diagnostics": [
+        {
+          "cash_spent_including_cash_fees_usd": 2456.3256732622117,
+          "closing_cost_basis_equity_usd": 270.09771534404666,
+          "entry_cohort_net_pnl_usd": 170.0977153440471,
+          "entry_cohort_pnl_per_dollar_spent": 0.06924884480735109,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 50.248334,
+          "fee_usd": 20.96762001,
+          "gross_turnover_usd": 2456.3256732622117,
+          "month_utc": "2026-04",
+          "monthly_equity_pnl_usd": 170.09771534404666,
+          "monthly_max_drawdown": 0.5287936844159316,
+          "monthly_max_drawdown_peak_utc": "2026-04-18T06:51:20+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-04-25T07:46:18+00:00",
+          "opening_cost_basis_equity_usd": 100.0,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 2299,
+            "no_priceable_native_ask_side": 1804
+          },
+          "stake_median_usd": 6.826710651816254,
+          "stake_p0_usd": 2.6318857724259113,
+          "stake_p100_usd": 19.298822915066953,
+          "stake_p25_usd": 5.04567839200943,
+          "stake_p75_usd": 12.021888850248779,
+          "trade_count": 299
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 211583.41317457677,
+          "closing_cost_basis_equity_usd": 743.875111264811,
+          "entry_cohort_net_pnl_usd": 540.2278082293317,
+          "entry_cohort_pnl_per_dollar_spent": 0.002553261619726266,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 211583.41317457677,
+          "month_utc": "2026-05",
+          "monthly_equity_pnl_usd": 473.7773959207644,
+          "monthly_max_drawdown": 0.8958531300950139,
+          "monthly_max_drawdown_peak_utc": "2026-05-28T15:26:17+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-05-30T21:16:16+00:00",
+          "opening_cost_basis_equity_usd": 270.09771534404666,
+          "skip_reason_counts": {
+            "missing_official_outcome_or_settlement_time": 10,
+            "no_positive_net_expected_value": 2112,
+            "no_priceable_native_ask_side": 3466
+          },
+          "stake_median_usd": 44.654400959891106,
+          "stake_p0_usd": 7.9678706268389385,
+          "stake_p100_usd": 193.93133899580397,
+          "stake_p25_usd": 25.588197110216882,
+          "stake_p75_usd": 98.80374707359563,
+          "trade_count": 3339
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 137048.8203688865,
+          "closing_cost_basis_equity_usd": 2062.1962485404565,
+          "entry_cohort_net_pnl_usd": 1251.870724967068,
+          "entry_cohort_pnl_per_dollar_spent": 0.009134487415487993,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 137048.8203688865,
+          "month_utc": "2026-06",
+          "monthly_equity_pnl_usd": 1318.3211372756455,
+          "monthly_max_drawdown": 0.7758749395116652,
+          "monthly_max_drawdown_peak_utc": "2026-06-09T22:31:21+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-06-11T17:21:19+00:00",
+          "opening_cost_basis_equity_usd": 743.875111264811,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 703,
+            "no_priceable_native_ask_side": 6185
+          },
+          "stake_median_usd": 63.86940299227035,
+          "stake_p0_usd": 22.391454220230635,
+          "stake_p100_usd": 268.8782282576978,
+          "stake_p25_usd": 42.6111162708086,
+          "stake_p75_usd": 103.70840548335919,
+          "trade_count": 1746
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 86533.45801963708,
+          "closing_cost_basis_equity_usd": 33.3386887695646,
+          "entry_cohort_net_pnl_usd": -2028.8575597708932,
+          "entry_cohort_pnl_per_dollar_spent": -0.023445931853439666,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 86533.45801963708,
+          "month_utc": "2026-07",
+          "monthly_equity_pnl_usd": -2028.8575597708918,
+          "monthly_max_drawdown": 0.990115322079893,
+          "monthly_max_drawdown_peak_utc": "2026-07-01T22:34:01+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-07-25T14:06:18+00:00",
+          "opening_cost_basis_equity_usd": 2062.1962485404565,
+          "skip_reason_counts": {
+            "below_minimum_order_shares": 3575,
+            "no_positive_net_expected_value": 756,
+            "no_priceable_native_ask_side": 2480
+          },
+          "stake_median_usd": 31.212220844818624,
+          "stake_p0_usd": 1.7546678299770506,
+          "stake_p100_usd": 168.63821481602412,
+          "stake_p25_usd": 18.43700820376377,
+          "stake_p75_usd": 56.74894663979512,
+          "trade_count": 2116
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 15.083940256233348,
+          "closing_cost_basis_equity_usd": 25.797684727113097,
+          "entry_cohort_net_pnl_usd": -7.541004042451499,
+          "entry_cohort_pnl_per_dollar_spent": -0.49993595269878005,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 15.083940256233348,
+          "month_utc": "2026-08",
+          "monthly_equity_pnl_usd": -7.541004042451501,
+          "monthly_max_drawdown": 0.22621906249999574,
+          "monthly_max_drawdown_peak_utc": "2026-08-08T17:32:25+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-08-08T21:32:25+00:00",
+          "opening_cost_basis_equity_usd": 33.3386887695646,
+          "skip_reason_counts": {
+            "below_minimum_order_shares": 6301,
+            "missing_official_outcome_or_settlement_time": 1,
+            "no_priceable_native_ask_side": 2616
+          },
+          "stake_median_usd": 1.504432907952949,
+          "stake_p0_usd": 1.3577285184807328,
+          "stake_p100_usd": 1.6669889032457885,
+          "stake_p25_usd": 1.4291995883727733,
+          "stake_p75_usd": 1.5836265227011963,
+          "trade_count": 10
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 0,
+          "closing_cost_basis_equity_usd": 25.797684727113097,
+          "entry_cohort_net_pnl_usd": 0,
+          "entry_cohort_pnl_per_dollar_spent": null,
+          "fee_cash_usd": 0,
+          "fee_shares": 0,
+          "fee_usd": 0,
+          "gross_turnover_usd": 0,
+          "month_utc": "2026-09",
+          "monthly_equity_pnl_usd": 0.0,
+          "monthly_max_drawdown": 0.0,
+          "monthly_max_drawdown_peak_utc": null,
+          "monthly_max_drawdown_trough_utc": null,
+          "opening_cost_basis_equity_usd": 25.797684727113097,
+          "skip_reason_counts": {
+            "below_minimum_order_shares": 8529,
+            "no_priceable_native_ask_side": 110
+          },
+          "stake_median_usd": null,
+          "stake_p0_usd": null,
+          "stake_p100_usd": null,
+          "stake_p25_usd": null,
+          "stake_p75_usd": null,
+          "trade_count": 0
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 0,
+          "closing_cost_basis_equity_usd": 25.797684727113097,
+          "entry_cohort_net_pnl_usd": 0,
+          "entry_cohort_pnl_per_dollar_spent": null,
+          "fee_cash_usd": 0,
+          "fee_shares": 0,
+          "fee_usd": 0,
+          "gross_turnover_usd": 0,
+          "month_utc": "2026-10",
+          "monthly_equity_pnl_usd": 0.0,
+          "monthly_max_drawdown": 0.0,
+          "monthly_max_drawdown_peak_utc": null,
+          "monthly_max_drawdown_trough_utc": null,
+          "opening_cost_basis_equity_usd": 25.797684727113097,
+          "skip_reason_counts": {
+            "below_minimum_order_shares": 1724,
+            "no_priceable_native_ask_side": 3
+          },
+          "stake_median_usd": null,
+          "stake_p0_usd": null,
+          "stake_p100_usd": null,
+          "stake_p25_usd": null,
+          "stake_p75_usd": null,
+          "trade_count": 0
+        }
+      ],
+      "net_pnl_usd": -74.20231527288755,
+      "policy": "free_cash_5pct",
+      "rejections_by_reason": {
+        "below_minimum_order_shares": 20129,
+        "missing_official_outcome_or_settlement_time": 11,
+        "no_positive_net_expected_value": 5870,
+        "no_priceable_native_ask_side": 16664
+      },
+      "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+      "side_selection_rule": "positive net EV side at requested amount",
+      "sizing_policy": "free_cash_5pct",
+      "trade_count": 7510
+    },
+    {
+      "accounting_audit": {
+        "checks": {
+          "cash_debit_equals_gross_plus_cash_fee": true,
+          "cost_basis_exposure_never_negative": true,
+          "daily_log_growth_reconciles_to_final_equity": true,
+          "ending_cash_matches_sum_of_trade_pnl": true,
+          "equity_equals_cash_plus_locked_cost": true,
+          "fee_mode_matches_cash_or_share_collection": true,
+          "free_cash_never_negative": true,
+          "one_entry_and_one_settlement_per_trade": true,
+          "payout_matches_resolved_outcome": true,
+          "prediction_available_before_entry": true,
+          "requested_stake_uses_only_policy_capital_base": true,
+          "shares_reconcile_with_share_fees": true,
+          "trades_have_no_future_snapshot_events": true
+        },
+        "decision_count": 50184,
+        "ending_cash_usd": 24.950941519588024,
+        "minimum_cash_usd": 24.950941519588024,
+        "status": "passed",
+        "trade_count": 7442,
+        "trade_pnl_sum_usd": -75.04905848041155
+      },
+      "ask_vwap_quantiles": {
+        "median": 0.5,
+        "p25": 0.48861831399511274,
+        "p75": 0.51
+      },
+      "daily_log_growth": {
+        "daily_log_growth_identity_error": 4.440892098500626e-16,
+        "daily_log_growth_identity_verified": true,
+        "daily_log_growth_sum": -1.3882586282465492,
+        "daily_utc_closing_equity": [
+          95.0,
+          111.43771255291362,
+          106.15919410035956,
+          100.8168537244747,
+          91.16177946520199,
+          86.60369049194189,
+          82.27350596734479,
+          90.90176181061597,
+          77.93689803237686,
+          68.02663764060253,
+          59.88016672960458,
+          60.121816446795464,
+          66.44007969159118,
+          126.68594497329998,
+          151.26302447891703,
+          271.9769663353729,
+          279.5891623873002,
+          430.7317174945699,
+          674.5216162079419,
+          873.8835081236991,
+          570.6780536829718,
+          642.3542432490256,
+          412.78852055740606,
+          488.71274902518047,
+          268.51820513554276,
+          243.16238076547785,
+          178.46465980342236,
+          710.1018767049379,
+          1730.1028063649806,
+          3479.8677742453588,
+          2432.085711449749,
+          2754.315854739326,
+          1878.0421600504021,
+          1358.745020929157,
+          1735.9413597307255,
+          2744.0605760480844,
+          1984.5047133214905,
+          1791.0155037726452,
+          1673.6908196810139,
+          1590.0062786969631,
+          1757.0109572321755,
+          2787.014527441162,
+          1933.244942707648,
+          2619.5071974781235,
+          752.5806333115615,
+          583.9279910898483,
+          691.742408218702,
+          901.3795059158617,
+          1237.3078346022949,
+          678.7135451499746,
+          485.8679069517196,
+          760.8291256349769,
+          1512.4195433109576,
+          1556.6374814445194,
+          807.3076729945502,
+          2254.5483383924848,
+          978.8853536346228,
+          725.8646140810127,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          828.6730117437806,
+          865.1675617119372,
+          856.9234251438479,
+          1089.1311186733933,
+          488.38046451873254,
+          496.1297030331028,
+          320.17234996215217,
+          370.59087129900126,
+          468.6068070673916,
+          139.3910584317671,
+          179.57754084231078,
+          179.57754084231078,
+          179.57754084231078,
+          179.57754084231078,
+          179.57754084231078,
+          179.57754084231078,
+          170.59866380019525,
+          122.20294956201037,
+          96.52837077900661,
+          62.345212346857046,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          27.645569317299994,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          26.264148967986777,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438,
+          24.950941519587438
+        ],
+        "daily_utc_first_day": "2026-04-15",
+        "daily_utc_grid_days": 175,
+        "daily_utc_last_day": "2026-10-06",
+        "mean_daily_log_growth": -0.007932906447123142,
+        "ruin": false,
+        "ruin_day_utc": null,
+        "terminal_log_growth": -1.3882586282465488
+      },
+      "drawdown_accounting": "cash plus original gross cost basis of unsettled positions; settlement changes equity to cash payout, and no interim mark-to-market is imputed",
+      "drawdown_contributors": {
+        "contributors": [
+          {
+            "cash_release_at_utc": "2026-05-26 18:26:15+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x925b68c7f6ad8083a4db45fc55107597eaba0c0953e54ae4bec2cae42934b9f4",
+            "contribution_events": [
+              {
+                "contribution_usd": -208.40494189398493,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -208.40494189398493,
+            "entry_time_utc": "2026-05-26 18:19:01+00:00",
+            "gross_usd": 208.40494189398493,
+            "market_start_utc": "2026-05-26 18:20:00+00:00",
+            "net_pnl_usd": -208.40494189398493
+          },
+          {
+            "cash_release_at_utc": "2026-05-26 18:41:17+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x8655243623a97e387756b4aefcdf27d389fc4a8d648b77953b27c180e586ef61",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -207.99630475301635,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -207.99630475301635,
+            "entry_time_utc": "2026-05-26 18:34:01+00:00",
+            "gross_usd": 207.99630475301635,
+            "market_start_utc": "2026-05-26 18:35:00+00:00",
+            "net_pnl_usd": -207.99630475301635
+          },
+          {
+            "cash_release_at_utc": "2026-05-26 18:46:26+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xc7fd19a13299e5d758f132331f29325ba473569bd5142748c1186a8eaadaee00",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -207.99630475301635,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -207.99630475301635,
+            "entry_time_utc": "2026-05-26 18:39:01+00:00",
+            "gross_usd": 207.99630475301635,
+            "market_start_utc": "2026-05-26 18:40:00+00:00",
+            "net_pnl_usd": -207.99630475301635
+          },
+          {
+            "cash_release_at_utc": "2026-05-26 18:51:15+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x277293676b9b86605b1d0f8293c8a10f7e007c877e9e8337495bc4e48e7a5b6a",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -197.59648951536553,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -197.59648951536553,
+            "entry_time_utc": "2026-05-26 18:44:01+00:00",
+            "gross_usd": 197.59648951536553,
+            "market_start_utc": "2026-05-26 18:45:00+00:00",
+            "net_pnl_usd": -197.59648951536553
+          },
+          {
+            "cash_release_at_utc": "2026-05-28 13:56:18+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x278aa9f472f370bb021140440bd92c4d4887d6c18603746a8b050940be7c6e36",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -193.2237737949168,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -193.2237737949168,
+            "entry_time_utc": "2026-05-28 13:49:01+00:00",
+            "gross_usd": 193.2237737949168,
+            "market_start_utc": "2026-05-28 13:50:00+00:00",
+            "net_pnl_usd": -193.2237737949168
+          },
+          {
+            "cash_release_at_utc": "2026-05-28 14:56:18+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x1849345b018ec73c119a07d2b97d4e299221b62812ed3c61eae1968b2b300d57",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -191.16815180076776,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -191.16815180076776,
+            "entry_time_utc": "2026-05-28 14:49:01+00:00",
+            "gross_usd": 191.16815180076776,
+            "market_start_utc": "2026-05-28 14:50:00+00:00",
+            "net_pnl_usd": -191.16815180076776
+          },
+          {
+            "cash_release_at_utc": "2026-05-28 15:31:18+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x351247970042fa0f86bab34c19711b4e2587c29ec2ff48ac1263a84b06582709",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -191.06086355230818,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -191.06086355230818,
+            "entry_time_utc": "2026-05-28 15:24:01+00:00",
+            "gross_usd": 191.06086355230818,
+            "market_start_utc": "2026-05-28 15:25:00+00:00",
+            "net_pnl_usd": -191.06086355230818
+          },
+          {
+            "cash_release_at_utc": "2026-05-27 10:21:18+00:00",
+            "chosen_side": "down",
+            "condition_id": "0xd0b4294a2bcd708335e41038f9bee26e66cae7c2b86aaf78371bc66e61f2f0b6",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -190.31237981892198,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -190.31237981892198,
+            "entry_time_utc": "2026-05-27 10:14:01+00:00",
+            "gross_usd": 190.31237981892198,
+            "market_start_utc": "2026-05-27 10:15:00+00:00",
+            "net_pnl_usd": -190.31237981892198
+          },
+          {
+            "cash_release_at_utc": "2026-05-28 15:41:17+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x68153964498c15eb1f64bfa5d79827cc88eef2aafead0d25f7327111c7796857",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -190.23221004756115,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -190.23221004756115,
+            "entry_time_utc": "2026-05-28 15:34:01+00:00",
+            "gross_usd": 190.23221004756115,
+            "market_start_utc": "2026-05-28 15:35:00+00:00",
+            "net_pnl_usd": -190.23221004756115
+          },
+          {
+            "cash_release_at_utc": "2026-05-28 15:46:18+00:00",
+            "chosen_side": "down",
+            "condition_id": "0x9779729f4887fe77110075458488181d2bb6797561e4951f783cdee827c91719",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -190.23221004756113,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -190.23221004756113,
+            "entry_time_utc": "2026-05-28 15:39:01+00:00",
+            "gross_usd": 190.23221004756113,
+            "market_start_utc": "2026-05-28 15:40:00+00:00",
+            "net_pnl_usd": -190.23221004756113
+          }
+        ],
+        "equity_change_usd": -4343.380095434724,
+        "max_drawdown_usd": 4343.380095434724,
+        "peak_utc": "2026-05-26T18:21:25+00:00",
+        "sum_of_trade_event_contributions_usd": -4343.380095434725,
+        "trough_utc": "2026-08-29T14:11:54+00:00"
+      },
+      "ending_cash_after_settlement_usd": 24.950941519588024,
+      "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; no edge threshold beyond EV > 0",
+      "fees_paid_estimated_usd": 20.99161615999999,
+      "gross_stake_quantiles_usd": {
+        "median": 32.04407892496778,
+        "p0": 1.313207448399339,
+        "p100": 208.40494189398493,
+        "p25": 15.979902884591752,
+        "p75": 69.66780004089833
+      },
+      "gross_turnover_usd": 350319.92722736154,
+      "initial_cash_usd": 100.0,
+      "max_drawdown_cost_basis_equity": 0.9942882209913781,
+      "max_drawdown_peak_utc": "2026-05-26T18:21:25+00:00",
+      "max_drawdown_trough_utc": "2026-08-29T14:11:54+00:00",
+      "maximum_concurrent_cost_basis_exposure_usd": 416.80988378796985,
+      "maximum_concurrent_positions": 4,
+      "minimum_free_cash_usd": 24.950941519588024,
+      "minimum_order_diagnostic": {
+        "evaluated_side_minimum_source_counts": {
+          "current_gamma_metadata": 56239
+        },
+        "first_minimum_order_shares": 5.0,
+        "first_minimum_order_skip_cash_before_usd": 46.832870496291534,
+        "first_minimum_order_skip_chosen_side": "up",
+        "first_minimum_order_skip_reason": "below_minimum_order_shares",
+        "first_minimum_order_skip_requested_usd": 2.4721375912128813,
+        "first_minimum_order_skip_utc": "2026-07-18T04:19:01+00:00",
+        "first_minimum_order_source": "current_gamma_metadata",
+        "minimum_order_skip_count": 20318
+      },
+      "monthly_continuous_portfolio": [
+        {
+          "closing_equity_usd": 271.9769663353729,
+          "month_utc": "2026-04",
+          "net_pnl_usd": 171.97696633537288,
+          "opening_equity_usd": 100.0
+        },
+        {
+          "closing_equity_usd": 691.742408218702,
+          "month_utc": "2026-05",
+          "net_pnl_usd": 419.7654418833292,
+          "opening_equity_usd": 271.9769663353729
+        },
+        {
+          "closing_equity_usd": 856.9234251438479,
+          "month_utc": "2026-06",
+          "net_pnl_usd": 165.18101692514585,
+          "opening_equity_usd": 691.742408218702
+        },
+        {
+          "closing_equity_usd": 27.645569317299994,
+          "month_utc": "2026-07",
+          "net_pnl_usd": -829.2778558265479,
+          "opening_equity_usd": 856.9234251438479
+        },
+        {
+          "closing_equity_usd": 24.950941519587438,
+          "month_utc": "2026-08",
+          "net_pnl_usd": -2.694627797712556,
+          "opening_equity_usd": 27.645569317299994
+        },
+        {
+          "closing_equity_usd": 24.950941519587438,
+          "month_utc": "2026-09",
+          "net_pnl_usd": 0.0,
+          "opening_equity_usd": 24.950941519587438
+        },
+        {
+          "closing_equity_usd": 24.950941519587438,
+          "month_utc": "2026-10",
+          "net_pnl_usd": 0.0,
+          "opening_equity_usd": 24.950941519587438
+        }
+      ],
+      "monthly_diagnostics": [
+        {
+          "cash_spent_including_cash_fees_usd": 2527.003638384716,
+          "closing_cost_basis_equity_usd": 271.9769663353729,
+          "entry_cohort_net_pnl_usd": 171.97696633537325,
+          "entry_cohort_pnl_per_dollar_spent": 0.06805568607938473,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 50.311068999999996,
+          "fee_usd": 20.99161616,
+          "gross_turnover_usd": 2527.003638384716,
+          "month_utc": "2026-04",
+          "monthly_equity_pnl_usd": 171.97696633537288,
+          "monthly_max_drawdown": 0.5300989650685191,
+          "monthly_max_drawdown_peak_utc": "2026-04-18T06:51:20+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-04-25T07:46:18+00:00",
+          "opening_cost_basis_equity_usd": 100.0,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 2299,
+            "no_priceable_native_ask_side": 1804
+          },
+          "stake_median_usd": 7.074324775409889,
+          "stake_p0_usd": 2.624595230120022,
+          "stake_p100_usd": 19.655597282898302,
+          "stake_p25_usd": 5.18192779651367,
+          "stake_p75_usd": 12.649221242830489,
+          "trade_count": 299
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 215708.09817460077,
+          "closing_cost_basis_equity_usd": 691.742408218702,
+          "entry_cohort_net_pnl_usd": 484.56542924146555,
+          "entry_cohort_pnl_per_dollar_spent": 0.002246394239910471,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 215708.09817460077,
+          "month_utc": "2026-05",
+          "monthly_equity_pnl_usd": 419.7654418833292,
+          "monthly_max_drawdown": 0.903130092822645,
+          "monthly_max_drawdown_peak_utc": "2026-05-26T18:21:25+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-05-30T21:16:16+00:00",
+          "opening_cost_basis_equity_usd": 271.9769663353729,
+          "skip_reason_counts": {
+            "missing_official_outcome_or_settlement_time": 10,
+            "no_positive_net_expected_value": 2116,
+            "no_priceable_native_ask_side": 3466
+          },
+          "stake_median_usd": 43.04609429083024,
+          "stake_p0_usd": 7.6749858474138355,
+          "stake_p100_usd": 208.40494189398493,
+          "stake_p25_usd": 24.31928231291116,
+          "stake_p75_usd": 102.28892498065785,
+          "trade_count": 3335
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 101023.12108340127,
+          "closing_cost_basis_equity_usd": 856.9234251438479,
+          "entry_cohort_net_pnl_usd": 100.38102956701171,
+          "entry_cohort_pnl_per_dollar_spent": 0.0009936441132534454,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 101023.12108340127,
+          "month_utc": "2026-06",
+          "monthly_equity_pnl_usd": 165.18101692514585,
+          "monthly_max_drawdown": 0.8499577397467376,
+          "monthly_max_drawdown_peak_utc": "2026-06-09T15:31:34+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-06-11T17:21:19+00:00",
+          "opening_cost_basis_equity_usd": 691.742408218702,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 643,
+            "no_priceable_native_ask_side": 6185
+          },
+          "stake_median_usd": 50.1760014208313,
+          "stake_p0_usd": 21.526621963812033,
+          "stake_p100_usd": 147.20229444641345,
+          "stake_p25_usd": 36.00573827362522,
+          "stake_p75_usd": 70.24345681647048,
+          "trade_count": 1806
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 31051.330378366565,
+          "closing_cost_basis_equity_usd": 27.645569317299994,
+          "entry_cohort_net_pnl_usd": -829.2778558265495,
+          "entry_cohort_pnl_per_dollar_spent": -0.026706677160741127,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 31051.330378366565,
+          "month_utc": "2026-07",
+          "monthly_equity_pnl_usd": -829.2778558265479,
+          "monthly_max_drawdown": 0.9799289883418395,
+          "monthly_max_drawdown_peak_utc": "2026-07-01T21:01:26+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-07-18T16:26:21+00:00",
+          "opening_cost_basis_equity_usd": 856.9234251438479,
+          "skip_reason_counts": {
+            "below_minimum_order_shares": 3761,
+            "no_positive_net_expected_value": 691,
+            "no_priceable_native_ask_side": 2480
+          },
+          "stake_median_usd": 13.534532357578946,
+          "stake_p0_usd": 1.4550299640684208,
+          "stake_p100_usd": 67.70638119242659,
+          "stake_p25_usd": 6.705537090702833,
+          "stake_p75_usd": 20.747985150962094,
+          "trade_count": 1995
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 10.373952608073672,
+          "closing_cost_basis_equity_usd": 24.950941519587438,
+          "entry_cohort_net_pnl_usd": -2.694627797712563,
+          "entry_cohort_pnl_per_dollar_spent": -0.25974938381879936,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 10.373952608073672,
+          "month_utc": "2026-08",
+          "monthly_equity_pnl_usd": -2.694627797712556,
+          "monthly_max_drawdown": 0.26490810937500003,
+          "monthly_max_drawdown_peak_utc": "2026-08-08T17:32:25+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-08-29T14:11:54+00:00",
+          "opening_cost_basis_equity_usd": 27.645569317299994,
+          "skip_reason_counts": {
+            "below_minimum_order_shares": 6304,
+            "missing_official_outcome_or_settlement_time": 1,
+            "no_priceable_native_ask_side": 2616
+          },
+          "stake_median_usd": 1.455077505151622,
+          "stake_p0_usd": 1.313207448399339,
+          "stake_p100_usd": 1.6971307830898057,
+          "stake_p25_usd": 1.3823010478795204,
+          "stake_p75_usd": 1.5719673878369327,
+          "trade_count": 7
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 0,
+          "closing_cost_basis_equity_usd": 24.950941519587438,
+          "entry_cohort_net_pnl_usd": 0,
+          "entry_cohort_pnl_per_dollar_spent": null,
+          "fee_cash_usd": 0,
+          "fee_shares": 0,
+          "fee_usd": 0,
+          "gross_turnover_usd": 0,
+          "month_utc": "2026-09",
+          "monthly_equity_pnl_usd": 0.0,
+          "monthly_max_drawdown": 0.0,
+          "monthly_max_drawdown_peak_utc": null,
+          "monthly_max_drawdown_trough_utc": null,
+          "opening_cost_basis_equity_usd": 24.950941519587438,
+          "skip_reason_counts": {
+            "below_minimum_order_shares": 8529,
+            "no_priceable_native_ask_side": 110
+          },
+          "stake_median_usd": null,
+          "stake_p0_usd": null,
+          "stake_p100_usd": null,
+          "stake_p25_usd": null,
+          "stake_p75_usd": null,
+          "trade_count": 0
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 0,
+          "closing_cost_basis_equity_usd": 24.950941519587438,
+          "entry_cohort_net_pnl_usd": 0,
+          "entry_cohort_pnl_per_dollar_spent": null,
+          "fee_cash_usd": 0,
+          "fee_shares": 0,
+          "fee_usd": 0,
+          "gross_turnover_usd": 0,
+          "month_utc": "2026-10",
+          "monthly_equity_pnl_usd": 0.0,
+          "monthly_max_drawdown": 0.0,
+          "monthly_max_drawdown_peak_utc": null,
+          "monthly_max_drawdown_trough_utc": null,
+          "opening_cost_basis_equity_usd": 24.950941519587438,
+          "skip_reason_counts": {
+            "below_minimum_order_shares": 1724,
+            "no_priceable_native_ask_side": 3
+          },
+          "stake_median_usd": null,
+          "stake_p0_usd": null,
+          "stake_p100_usd": null,
+          "stake_p25_usd": null,
+          "stake_p75_usd": null,
+          "trade_count": 0
+        }
+      ],
+      "net_pnl_usd": -75.04905848041197,
+      "policy": "cost_basis_equity_5pct",
+      "rejections_by_reason": {
+        "below_minimum_order_shares": 20318,
+        "missing_official_outcome_or_settlement_time": 11,
+        "no_positive_net_expected_value": 5749,
+        "no_priceable_native_ask_side": 16664
+      },
+      "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+      "side_selection_rule": "positive net EV side at requested amount",
+      "sizing_policy": "cost_basis_equity_5pct",
+      "trade_count": 7442
+    },
+    {
+      "accounting_audit": {
+        "checks": {
+          "cash_debit_equals_gross_plus_cash_fee": true,
+          "cost_basis_exposure_never_negative": true,
+          "daily_log_growth_reconciles_to_final_equity": true,
+          "ending_cash_matches_sum_of_trade_pnl": true,
+          "equity_equals_cash_plus_locked_cost": true,
+          "fee_mode_matches_cash_or_share_collection": true,
+          "free_cash_never_negative": true,
+          "one_entry_and_one_settlement_per_trade": true,
+          "payout_matches_resolved_outcome": true,
+          "prediction_available_before_entry": true,
+          "requested_stake_uses_only_policy_capital_base": true,
+          "shares_reconcile_with_share_fees": true,
+          "trades_have_no_future_snapshot_events": true
+        },
+        "decision_count": 50184,
+        "ending_cash_usd": 6053.504398628053,
+        "minimum_cash_usd": 50.00582967609231,
+        "status": "passed",
+        "trade_count": 21145,
+        "trade_pnl_sum_usd": 5953.504398628734
+      },
+      "ask_vwap_quantiles": {
+        "median": 0.5,
+        "p25": 0.49,
+        "p75": 0.51
+      },
+      "daily_log_growth": {
+        "daily_log_growth_identity_error": 0.0,
+        "daily_log_growth_identity_verified": true,
+        "daily_log_growth_sum": 4.103222436785037,
+        "daily_utc_closing_equity": [
+          95.0,
+          111.43771255291362,
+          106.15919410035956,
+          100.8168537244747,
+          91.16177946520199,
+          86.60369049194189,
+          82.27350596734479,
+          90.90176181061597,
+          77.93689803237686,
+          68.02663764060253,
+          60.04650063217683,
+          60.13160485832349,
+          66.4508967956149,
+          125.01385254690784,
+          151.3193123017732,
+          270.09771534404666,
+          294.3709623858139,
+          480.8926402937003,
+          752.2091400316436,
+          1000.8276825033149,
+          867.3190252719178,
+          967.2190639639292,
+          905.3401724583919,
+          1006.979226172441,
+          830.5760682084879,
+          814.8265729104833,
+          720.7374889035713,
+          1346.7043096530188,
+          1783.8020529339215,
+          2139.1566589568106,
+          2057.940883395624,
+          2135.8547855315437,
+          2086.8772921257996,
+          2030.5347363454966,
+          2134.6410189174435,
+          2409.4825194100335,
+          2290.7247050827436,
+          2250.7247050827436,
+          2246.255293386441,
+          2206.255293386441,
+          2248.9492405305155,
+          2374.8755007494133,
+          2313.2495110619902,
+          2530.6553790223998,
+          2294.832518020888,
+          2362.696802402313,
+          2604.964148863252,
+          2784.617793492911,
+          3056.630937195412,
+          2972.467073790175,
+          2914.4136144286654,
+          3152.6037175311294,
+          3521.970274084607,
+          3661.2423589727073,
+          3474.5638915069753,
+          3911.488207266383,
+          3579.043893886043,
+          3571.3825708734075,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3621.0893590203355,
+          3641.121371825457,
+          3641.6116199246962,
+          3769.196418154155,
+          3553.0709229586246,
+          3654.8894703220044,
+          3551.454183563991,
+          3713.6628658374757,
+          3928.3245293015616,
+          3548.3766974652076,
+          3713.240916168321,
+          3713.240916168321,
+          3713.240916168321,
+          3713.240916168321,
+          3713.240916168321,
+          3713.240916168321,
+          3693.240916168321,
+          3563.2223347814156,
+          3572.272264804736,
+          3471.778278731063,
+          2943.0779899248405,
+          3175.1997750265273,
+          3432.4723448947243,
+          3153.1245914267342,
+          3068.1847408353096,
+          3131.3562776711137,
+          3644.8022228314976,
+          3868.496614936434,
+          4030.3463646698447,
+          4404.813583595292,
+          4596.251031845448,
+          4147.475609774652,
+          4229.7414201416705,
+          4349.883889260668,
+          4685.697529025369,
+          4731.99186652468,
+          4223.777039663505,
+          4333.309659548306,
+          4028.7347168103092,
+          3660.10897876127,
+          3736.2990036639785,
+          4055.4001568319663,
+          3952.4033633918684,
+          3930.8347359408876,
+          3932.501402607554,
+          4050.1804742362046,
+          4030.9968007668167,
+          4090.244499846448,
+          4109.460186120958,
+          4109.460186120958,
+          4109.460186120958,
+          4316.602586251454,
+          3946.5806527145437,
+          4227.45927777481,
+          4012.899640968355,
+          4133.087914434054,
+          4145.834312632566,
+          4182.317260187013,
+          4259.1056289450225,
+          4488.8567392337945,
+          4809.360788879077,
+          4775.845686724732,
+          4896.576146844591,
+          4988.73011967928,
+          5271.36343586096,
+          5056.256835940546,
+          5112.524846078633,
+          5539.88504337433,
+          5523.072685101537,
+          5427.029985011422,
+          6115.651147768227,
+          6268.220365043797,
+          6254.950206585457,
+          6309.470668325155,
+          6235.200379966847,
+          5887.947253031338,
+          6119.891242906764,
+          6319.01816410656,
+          6508.485165834068,
+          6747.817391381518,
+          6959.2651428945965,
+          6785.3157008687585,
+          6753.326245087059,
+          7005.807313761123,
+          7243.053105986152,
+          7030.1958589173255,
+          6778.122251263894,
+          6923.6172147335565,
+          6935.563842134258,
+          6725.291713519262,
+          6663.927396470272,
+          6789.487148142329,
+          7139.33501411748,
+          7082.578391400535,
+          7305.440229979457,
+          7057.633142911912,
+          6989.43028300976,
+          6932.049175934725,
+          6588.507598141606,
+          6263.777792206692,
+          6073.504398628053,
+          6053.504398628053
+        ],
+        "daily_utc_first_day": "2026-04-15",
+        "daily_utc_grid_days": 176,
+        "daily_utc_last_day": "2026-10-07",
+        "mean_daily_log_growth": 0.02331376384536953,
+        "ruin": false,
+        "ruin_day_utc": null,
+        "terminal_log_growth": 4.103222436785037
+      },
+      "drawdown_accounting": "cash plus original gross cost basis of unsettled positions; settlement changes equity to cash payout, and no interim mark-to-market is imputed",
+      "drawdown_contributors": {
+        "contributors": [
+          {
+            "cash_release_at_utc": "2026-07-06 13:06:20+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x3b8b6ec02c4b77a6fc5881e77b2c6005015cc9f3d553cc9e0b2e1c52ac858b0c",
+            "contribution_events": [
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-06 12:59:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-06 13:00:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-08 08:41:19+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x7c1787f9d517cc044dfe63755080ff3d135968470a2d6a149e290242a674e263",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-08 08:34:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-08 08:35:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-08 13:16:53+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x8f14021ff2b6c57f02bcbebbd816629287719f3285852fc2798b96848257a6aa",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-08 13:09:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-08 13:10:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-08 13:21:19+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x93e6a6de955d8dd2620fe9dd236e9c958075da5b4781cd926c51d047a9435f57",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-08 13:14:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-08 13:15:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-16 23:36:26+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xca539a0eda6737cfc1f1cd7da04d7f3c84548e316f636380f80b9a1a76eea4d2",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-16 23:29:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-16 23:30:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-17 00:41:26+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x3c77271f05eac9e7e7f98672edaa54932b429447793b1163e563d980e53c526c",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-17 00:34:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-17 00:35:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-17 11:56:22+00:00",
+            "chosen_side": "down",
+            "condition_id": "0xa515a3c3f67b9d3d2cc043b3f97e9836d2341ecbd6f2caddc7c72c1eeb356595",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-17 11:49:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-17 11:50:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-20 06:46:21+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xd94b2ae665b567f64357b546e4cbe4601587debc3c8b3036a390c451ae8813a3",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-20 06:39:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-20 06:40:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-22 05:26:16+00:00",
+            "chosen_side": "up",
+            "condition_id": "0xb5dc964aa5466e7e517d66176e827e83424dfdd4244f9e577cd66c368ce654a3",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-22 05:19:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-22 05:20:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          },
+          {
+            "cash_release_at_utc": "2026-07-23 01:26:25+00:00",
+            "chosen_side": "up",
+            "condition_id": "0x0288010c6f691fa0ce339d1a44348c6e031b652cc18c2db77d37e0c3b50575fb",
+            "contribution_events": [
+              {
+                "contribution_usd": -0.0,
+                "event": "cash_fee_at_entry"
+              },
+              {
+                "contribution_usd": -20.000000000000004,
+                "event": "settlement_payout_minus_locked_cost"
+              }
+            ],
+            "drawdown_window_contribution_usd": -20.000000000000004,
+            "entry_time_utc": "2026-07-23 01:19:01+00:00",
+            "gross_usd": 20.000000000000004,
+            "market_start_utc": "2026-07-23 01:20:00+00:00",
+            "net_pnl_usd": -20.000000000000004
+          }
+        ],
+        "equity_change_usd": -1603.0497182009094,
+        "max_drawdown_usd": 1603.0497182009094,
+        "peak_utc": "2026-07-06T13:00:40+00:00",
+        "sum_of_trade_event_contributions_usd": -1603.049718200836,
+        "trough_utc": "2026-07-23T13:07:25+00:00"
+      },
+      "ending_cash_after_settlement_usd": 6053.504398628053,
+      "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; no edge threshold beyond EV > 0",
+      "fees_paid_estimated_usd": 20.967620009999994,
+      "gross_stake_quantiles_usd": {
+        "median": 20.0,
+        "p0": 2.6318857724259113,
+        "p100": 20.000000000000004,
+        "p25": 20.0,
+        "p75": 20.0
+      },
+      "gross_turnover_usd": 418566.4258793061,
+      "initial_cash_usd": 100.0,
+      "max_drawdown_cost_basis_equity": 0.5287936844159316,
+      "max_drawdown_peak_utc": "2026-04-18T06:51:20+00:00",
+      "max_drawdown_trough_utc": "2026-04-25T07:46:18+00:00",
+      "maximum_concurrent_cost_basis_exposure_usd": 139.99999999999997,
+      "maximum_concurrent_positions": 7,
+      "minimum_free_cash_usd": 50.00582967609231,
+      "minimum_order_diagnostic": {
+        "evaluated_side_minimum_source_counts": {
+          "current_gamma_metadata": 56239
+        },
+        "first_minimum_order_shares": null,
+        "first_minimum_order_skip_cash_before_usd": null,
+        "first_minimum_order_skip_chosen_side": null,
+        "first_minimum_order_skip_reason": null,
+        "first_minimum_order_skip_requested_usd": null,
+        "first_minimum_order_skip_utc": null,
+        "first_minimum_order_source": null,
+        "minimum_order_skip_count": 0
+      },
+      "monthly_continuous_portfolio": [
+        {
+          "closing_equity_usd": 270.09771534404666,
+          "month_utc": "2026-04",
+          "net_pnl_usd": 170.09771534404666,
+          "opening_equity_usd": 100.0
+        },
+        {
+          "closing_equity_usd": 2604.964148863252,
+          "month_utc": "2026-05",
+          "net_pnl_usd": 2334.866433519205,
+          "opening_equity_usd": 270.09771534404666
+        },
+        {
+          "closing_equity_usd": 3641.6116199246962,
+          "month_utc": "2026-06",
+          "net_pnl_usd": 1036.6474710614443,
+          "opening_equity_usd": 2604.964148863252
+        },
+        {
+          "closing_equity_usd": 4349.883889260668,
+          "month_utc": "2026-07",
+          "net_pnl_usd": 708.2722693359719,
+          "opening_equity_usd": 3641.6116199246962
+        },
+        {
+          "closing_equity_usd": 5271.36343586096,
+          "month_utc": "2026-08",
+          "net_pnl_usd": 921.4795466002915,
+          "opening_equity_usd": 4349.883889260668
+        },
+        {
+          "closing_equity_usd": 7305.440229979457,
+          "month_utc": "2026-09",
+          "net_pnl_usd": 2034.0767941184977,
+          "opening_equity_usd": 5271.36343586096
+        },
+        {
+          "closing_equity_usd": 6053.504398628053,
+          "month_utc": "2026-10",
+          "net_pnl_usd": -1251.935831351404,
+          "opening_equity_usd": 7305.440229979457
+        }
+      ],
+      "monthly_diagnostics": [
+        {
+          "cash_spent_including_cash_fees_usd": 2456.3256732622117,
+          "closing_cost_basis_equity_usd": 270.09771534404666,
+          "entry_cohort_net_pnl_usd": 170.0977153440471,
+          "entry_cohort_pnl_per_dollar_spent": 0.06924884480735109,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 50.248334,
+          "fee_usd": 20.96762001,
+          "gross_turnover_usd": 2456.3256732622117,
+          "month_utc": "2026-04",
+          "monthly_equity_pnl_usd": 170.09771534404666,
+          "monthly_max_drawdown": 0.5287936844159316,
+          "monthly_max_drawdown_peak_utc": "2026-04-18T06:51:20+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-04-25T07:46:18+00:00",
+          "opening_cost_basis_equity_usd": 100.0,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 2299,
+            "no_priceable_native_ask_side": 1804
+          },
+          "stake_median_usd": 6.826710651816254,
+          "stake_p0_usd": 2.6318857724259113,
+          "stake_p100_usd": 19.298822915066953,
+          "stake_p25_usd": 5.04567839200943,
+          "stake_p75_usd": 12.021888850248779,
+          "trade_count": 299
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 69870.1002060439,
+          "closing_cost_basis_equity_usd": 2604.964148863252,
+          "entry_cohort_net_pnl_usd": 2373.2978060682613,
+          "entry_cohort_pnl_per_dollar_spent": 0.033967287853738704,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 69870.1002060439,
+          "month_utc": "2026-05",
+          "monthly_equity_pnl_usd": 2334.866433519205,
+          "monthly_max_drawdown": 0.44621608971290605,
+          "monthly_max_drawdown_peak_utc": "2026-05-04T14:51:54+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-05-06T10:56:20+00:00",
+          "opening_cost_basis_equity_usd": 270.09771534404666,
+          "skip_reason_counts": {
+            "missing_official_outcome_or_settlement_time": 10,
+            "no_positive_net_expected_value": 1917,
+            "no_priceable_native_ask_side": 3466
+          },
+          "stake_median_usd": 20.0,
+          "stake_p0_usd": 11.158277997069133,
+          "stake_p100_usd": 20.000000000000004,
+          "stake_p25_usd": 20.0,
+          "stake_p75_usd": 20.0,
+          "trade_count": 3534
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 37500.0,
+          "closing_cost_basis_equity_usd": 3641.6116199246962,
+          "entry_cohort_net_pnl_usd": 998.2160985124907,
+          "entry_cohort_pnl_per_dollar_spent": 0.026619095960333086,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 37500.0,
+          "month_utc": "2026-06",
+          "monthly_equity_pnl_usd": 1036.6474710614443,
+          "monthly_max_drawdown": 0.18284452486884184,
+          "monthly_max_drawdown_peak_utc": "2026-06-09T15:31:34+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-06-11T17:21:19+00:00",
+          "opening_cost_basis_equity_usd": 2604.964148863252,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 574,
+            "no_priceable_native_ask_side": 6185
+          },
+          "stake_median_usd": 20.0,
+          "stake_p0_usd": 19.999999999999996,
+          "stake_p100_usd": 20.000000000000004,
+          "stake_p25_usd": 20.0,
+          "stake_p75_usd": 20.0,
+          "trade_count": 1875
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 97480.0,
+          "closing_cost_basis_equity_usd": 4349.883889260668,
+          "entry_cohort_net_pnl_usd": 707.487955610664,
+          "entry_cohort_pnl_per_dollar_spent": 0.007257775498673205,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 97480.0,
+          "month_utc": "2026-07",
+          "monthly_equity_pnl_usd": 708.2722693359719,
+          "monthly_max_drawdown": 0.3820390665635084,
+          "monthly_max_drawdown_peak_utc": "2026-07-06T13:00:40+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-07-23T13:07:25+00:00",
+          "opening_cost_basis_equity_usd": 3641.6116199246962,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 1573,
+            "no_priceable_native_ask_side": 2480
+          },
+          "stake_median_usd": 20.0,
+          "stake_p0_usd": 20.0,
+          "stake_p100_usd": 20.000000000000004,
+          "stake_p25_usd": 20.0,
+          "stake_p75_usd": 20.0,
+          "trade_count": 4874
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 84140.0,
+          "closing_cost_basis_equity_usd": 5271.36343586096,
+          "entry_cohort_net_pnl_usd": 922.263860325936,
+          "entry_cohort_pnl_per_dollar_spent": 0.010961063231827144,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 84140.0,
+          "month_utc": "2026-08",
+          "monthly_equity_pnl_usd": 921.4795466002915,
+          "monthly_max_drawdown": 0.2484569282898203,
+          "monthly_max_drawdown_peak_utc": "2026-08-03T00:21:24+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-08-06T23:41:18+00:00",
+          "opening_cost_basis_equity_usd": 4349.883889260668,
+          "skip_reason_counts": {
+            "missing_official_outcome_or_settlement_time": 1,
+            "no_positive_net_expected_value": 2104,
+            "no_priceable_native_ask_side": 2616
+          },
+          "stake_median_usd": 20.0,
+          "stake_p0_usd": 19.999999999999996,
+          "stake_p100_usd": 20.000000000000004,
+          "stake_p25_usd": 20.0,
+          "stake_p75_usd": 20.0,
+          "trade_count": 4207
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 102320.0,
+          "closing_cost_basis_equity_usd": 7305.440229979457,
+          "entry_cohort_net_pnl_usd": 1994.076794118679,
+          "entry_cohort_pnl_per_dollar_spent": 0.019488631686069964,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 102320.0,
+          "month_utc": "2026-09",
+          "monthly_equity_pnl_usd": 2034.0767941184977,
+          "monthly_max_drawdown": 0.13583144157317958,
+          "monthly_max_drawdown_peak_utc": "2026-09-10T09:56:54+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-09-12T03:03:31+00:00",
+          "opening_cost_basis_equity_usd": 5271.36343586096,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 3413,
+            "no_priceable_native_ask_side": 110
+          },
+          "stake_median_usd": 20.0,
+          "stake_p0_usd": 19.999999999999996,
+          "stake_p100_usd": 20.000000000000004,
+          "stake_p25_usd": 20.0,
+          "stake_p75_usd": 20.0,
+          "trade_count": 5116
+        },
+        {
+          "cash_spent_including_cash_fees_usd": 24800.0,
+          "closing_cost_basis_equity_usd": 6053.504398628053,
+          "entry_cohort_net_pnl_usd": -1211.9358313513437,
+          "entry_cohort_pnl_per_dollar_spent": -0.04886838029642515,
+          "fee_cash_usd": 0.0,
+          "fee_shares": 0.0,
+          "fee_usd": 0.0,
+          "gross_turnover_usd": 24800.0,
+          "month_utc": "2026-10",
+          "monthly_equity_pnl_usd": -1251.935831351404,
+          "monthly_max_drawdown": 0.18703167040714447,
+          "monthly_max_drawdown_peak_utc": "2026-10-01T01:21:54+00:00",
+          "monthly_max_drawdown_trough_utc": "2026-10-06T22:41:53+00:00",
+          "opening_cost_basis_equity_usd": 7305.440229979457,
+          "skip_reason_counts": {
+            "no_positive_net_expected_value": 484,
+            "no_priceable_native_ask_side": 3
+          },
+          "stake_median_usd": 20.0,
+          "stake_p0_usd": 20.0,
+          "stake_p100_usd": 20.000000000000004,
+          "stake_p25_usd": 20.0,
+          "stake_p75_usd": 20.0,
+          "trade_count": 1240
+        }
+      ],
+      "net_pnl_usd": 5953.504398628053,
+      "policy": "free_cash_5pct_cap20_control",
+      "rejections_by_reason": {
+        "missing_official_outcome_or_settlement_time": 11,
+        "no_positive_net_expected_value": 12364,
+        "no_priceable_native_ask_side": 16664
+      },
+      "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+      "side_selection_rule": "positive net EV side at requested amount",
+      "sizing_policy": "free_cash_5pct_cap20_control",
+      "trade_count": 21145
+    }
+  ],
+  "public_archive_manifest_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json",
+  "public_archive_manifest_sha256": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+  "replay_dependency_manifest": {
+    "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_replay_dependencies.json",
+    "sha256": "22d1117ce726db7ec1917ff6362e1439ecc78f2499f32aa2caa5cba7874de009"
+  },
+  "replay_manifest": {
+    "archive_fingerprint_sha256": "415770d055d94112081a582a0261ad61839c07c53701cc309a9689069ac15c53",
+    "archive_source_manifest_sha256": "c29070f4fca5d7aeb3231dee1b673d6f3e57bd22e5a5285b425925e5970b10ff",
+    "archive_state_coverage_added_after_snapshot": true,
+    "cached_snapshot_integrity_verified": false,
+    "cached_snapshot_provenance_verified": false,
+    "checkpoint_migration": null,
+    "current_archive_content_fingerprint_sha256": "415770d055d94112081a582a0261ad61839c07c53701cc309a9689069ac15c53",
+    "current_archive_metadata_fingerprint_sha256": "d2f3843130d6924f062b19a9947502b36fb98eccabed13b51e7999d10d0008e4",
+    "elapsed_seconds": 9927.544105,
+    "event_rows_applied": 521429475,
+    "markets": 50184,
+    "partitions_replayed_this_session": 717,
+    "partitions_scanned": 4137,
+    "replay_dependencies_match_current": true,
+    "replay_dependency_manifest_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_replay_dependencies.json",
+    "replay_dependency_manifest_version": 3,
+    "replay_dependency_sha256": "131704cf793b6a2cee896af858bf2d9ec7056d5d5409890b614f52b0eee2d935",
+    "replay_provenance_verified": true,
+    "resumed_after_partition_count": 3420,
+    "resumed_suffix_source_rows": 201051794,
+    "reused_verified_complete_snapshot_artifact": true,
+    "semantics": "single T-59 replay, native token asks retained separately from bids; events grouped by receive timestamp and source-ordered within equal receive times; no later receive events accepted",
+    "snapshot_artifact_integrity_verified": true,
+    "snapshot_sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+    "status": "complete"
+  },
+  "status": "complete",
+  "tracked_diagnostic_tables": [
+    "monthly_coverage.csv",
+    "monthly_portfolios.csv",
+    "policy_summary.csv",
+    "july_policy_attribution.csv",
+    "legacy_recovery_classes.csv",
+    "before_after.csv",
+    "source_coverage.csv",
+    "drawdown_contributors.csv"
+  ],
+  "trade_orders_sent": false
+}

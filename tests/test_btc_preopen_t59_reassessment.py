@@ -661,7 +661,7 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         condition_id = "market-id"
         market_start = pd.Timestamp("2026-04-15T17:05:00Z")
         old = pd.DataFrame([{
-            "condition_id": condition_id, "entry_case": "prestart_c0_o1",
+            "condition_id": condition_id, "entry_case": "t59_native_asks",
             "quote_valid": False, "has_full_snapshot": True,
             "market_start_utc": market_start,
             "entry_time_utc": market_start - pd.Timedelta(seconds=59),
@@ -709,6 +709,53 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         self.assertEqual(comparison.iloc[0].recovery_class, "qualification_compatible_old_ask_already_priceable")
         self.assertFalse(comparison.iloc[0].old_replay_provenance_verified)
         self.assertIn("content hashes", summary["attribution_limit"])
+
+    def test_market_statuses_does_not_duplicate_snapshot_fields(self):
+        markets = pd.DataFrame([{
+            "condition_id": "market-id",
+            "market_start_utc": pd.Timestamp("2026-04-15T17:05:00Z"),
+            "market_confirmed": False,
+            "causal_prediction_available": False,
+            "prediction_source": "none",
+            "order_min_size_shares_current": None,
+        }])
+        snapshots = pd.DataFrame(columns=[
+            "condition_id", "entry_time_utc", "archive_freshness_window_available",
+            "market_event_count",
+        ])
+
+        calendar, _ = assessment._market_statuses(markets, snapshots)
+
+        self.assertTrue(calendar.columns.is_unique)
+
+    def test_archive_state_coverage_is_idempotent(self):
+        entry_time = pd.Timestamp("2026-04-15T17:04:01Z")
+        init_time = pd.Timestamp("2026-04-15T16:00:00Z")
+        snapshots = pd.DataFrame([{
+            "condition_id": "market-id",
+            "entry_time_utc": entry_time,
+            "up_book_init_receive_ns": init_time.value,
+            "down_book_init_receive_ns": init_time.value,
+            "fee_event_ns": init_time.value,
+        }])
+        index = pd.DataFrame([{
+            "condition_id": "market-id", "archive_source": "pmxt_v2",
+        }])
+        processed = pd.date_range("2026-04-15T16:00:00Z", periods=2, freq="h")
+
+        with mock.patch.object(
+            assessment, "_source_hour_sets",
+            return_value=({}, {"combined": set(processed)}),
+        ):
+            once = assessment._add_archive_state_coverage_to_snapshots(
+                snapshots, index, {}, Path("unused"),
+            )
+            twice = assessment._add_archive_state_coverage_to_snapshots(
+                once, index, {}, Path("unused"),
+            )
+
+        pd.testing.assert_frame_equal(once, twice)
+        self.assertTrue(twice.columns.is_unique)
 
     @staticmethod
     def _market_and_snapshot(condition_id, market_start, resolved_at, *, price=0.5, outcome=1):

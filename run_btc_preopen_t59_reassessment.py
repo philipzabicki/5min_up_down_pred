@@ -657,9 +657,24 @@ def _add_archive_state_coverage_to_snapshots(
             fee_gap = any(hour not in available_hours for hour in expected_after_fee)
         state["archive_gap_after_fee_update"] = bool(fee_gap)
         updates.append(state)
-    return snapshots.merge(
-        pd.DataFrame(updates), on="condition_id", how="left", validate="one_to_one",
-    )
+    updates = pd.DataFrame(updates)
+    existing_columns = [
+        column for column in updates.columns
+        if column != "condition_id" and column in snapshots.columns
+    ]
+    if existing_columns:
+        updates_by_id = updates.set_index("condition_id")
+        for column in existing_columns:
+            expected = snapshots.condition_id.map(updates_by_id[column])
+            actual = snapshots[column]
+            if not actual.fillna(False).astype(bool).reset_index(drop=True).equals(
+                expected.fillna(False).astype(bool).reset_index(drop=True)
+            ):
+                raise RuntimeError(f"Cached {column} disagrees with verified archive coverage")
+        updates = updates.drop(columns=existing_columns)
+        if len(updates.columns) == 1:
+            return snapshots
+    return snapshots.merge(updates, on="condition_id", how="left", validate="one_to_one")
     if any(key not in manifest for key in identity_keys):
         return False
     identity = {key: manifest[key] for key in identity_keys}
@@ -2345,7 +2360,7 @@ def _market_statuses(markets: pd.DataFrame, snapshots: pd.DataFrame) -> tuple[pd
         "archive_freshness_window_available",
         "archive_window_hours_expected", "archive_window_hours_source_available",
         "archive_window_hours_processed", "archive_window_missing_source_hours",
-        "archive_window_unprocessed_hours", "archive_freshness_window_available",
+        "archive_window_unprocessed_hours",
         "archive_gap_after_up_book_init", "archive_gap_after_down_book_init",
         "archive_gap_after_fee_update", "archive_history_complete",
         "up_book_init_receive_ns", "down_book_init_receive_ns",
@@ -3029,7 +3044,7 @@ def _legacy_controlled_comparison(
     market_by_id: dict[str, dict],
 ) -> tuple[pd.DataFrame, dict]:
     old = old_snapshots.loc[
-        old_snapshots.entry_case.eq("prestart_c0_o1")
+        old_snapshots.entry_case.eq("t59_native_asks")
         & old_snapshots.has_full_snapshot.astype(bool)
         & ~old_snapshots.quote_valid.astype(bool)
     ].copy()
@@ -3239,7 +3254,9 @@ def _write_verified_report(
     portfolio_summaries: list[dict],
     monthly_coverage: pd.DataFrame,
     coverage_counts: dict,
+    legacy_4830_diagnosis: dict,
     legacy_summary: dict,
+    resumed_suffix_source_rows: int,
     july_comparison: pd.DataFrame,
     source_coverage: pd.DataFrame,
     before_after: pd.DataFrame,
@@ -3307,7 +3324,7 @@ def _write_verified_report(
         "| Czy dawny wynik +$3,872.40 został potwierdzony? | Nie. To wynik historyczny bez potwierdzonego pochodzenia wejść; poniższe wyniki pochodzą z nowego pełnego replayu. |",
         f"| Ile slotów obejmuje kalendarz? | {input_manifest['calendar_slots']:,} kolejnych slotów 5-minutowych; Gamma potwierdziła {input_manifest['gamma_confirmed_slots']:,}, a {input_manifest['causal_gamma_market_count']:,} łączy potwierdzony rynek i przyczynową predykcję. |",
         f"| Jak daleko sięga wykonawcze archiwum? | T−59 oceniono do cutoffu {MARKET_START_CUTOFF_UTC.isoformat()}; lokalnie rozszerzone zdarzenia obejmują rynki po PMXT dzięki AG6/V3, z luką pełnego venue opisaną poniżej. |",
-        f"| Ile dawnych 4,830 odrzuceń odzyskano? | {legacy_summary.get('recovered_with_any_fixed5_native_ask', 0):,} ma co najmniej jedną wykonalną wycenę natywnego asku $5. Dokładny podział przyczyn na starą rekonstrukcję i stare zasady kwalifikacji pozostaje nierozstrzygnięty, bo nie zachowano pochodzenia starego cache’u. |",
+        f"| Ile dawnych 4,830 odrzuceń odzyskano? | {legacy_4830_diagnosis['recovered_by_corrected_native_ask_replay_at_fixed5']:,} z 4,830 ma obecnie wykonalną wycenę asku $5; sygnał zmiany rekonstrukcji: {legacy_4830_diagnosis['implementation_signal_recovered_markets']:,}, wyjaśnienie kwalifikacją ask-side: {legacy_4830_diagnosis['changed_qualification_recovered_markets_bid_not_required']:,}. Pochodzenie starego cache’u pozostaje niezweryfikowane. |",
         "", "## Granice czasu i wejścia", "",
         f"Kalendarz: {input_manifest['calendar_slots']:,} slotów od {first_utc.isoformat()} ({first_warsaw.isoformat()} Europe/Warsaw) do {last_utc.isoformat()} ({last_warsaw.isoformat()} Europe/Warsaw). Cutoff startu rynku jest wyłączny: {MARKET_START_CUTOFF_UTC.isoformat()} ({cutoff_warsaw.isoformat()} Europe/Warsaw). Ostatni slot to 6 października 23:55 UTC / 7 października 01:55 Europe/Warsaw.", "",
         f"Dane Gamma ({input_manifest['cached_inputs']['gamma_markets']['actual_sha256']}), predykcje ({input_manifest['cached_inputs']['causal_predictions']['actual_sha256']}) i rozszerzenie BTC ({input_manifest['cached_inputs']['btc_ohlcv_extension']['actual_sha256']}) zostały wczytane z lokalnych, wcześniej zapisanych plików i zweryfikowane ich hashami. Zapisany kalendarz odtworzył się dokładnie. Nie pobierano ponownie Gamma/Binance, nie uruchamiano inferencji ani fitu modelu.", "",
@@ -3401,12 +3418,18 @@ def _write_verified_report(
         "Decyzje zachowują obie strony przy $5 i przy stawce żądanej przez portfel: EV w dolarach, VWAP, udziały brutto/netto, opłatę, debet, minimalne udziały i przyczynę niewykonalności. Lokalne `sizing_opportunities.parquet` pozwala sprawdzić wspólne wejścia i wejścia wykonalne tylko dla części polityk. `drawdown_contributors.csv` pokazuje transakcje z największym ujemnym wkładem w rzeczywistym przedziale peak→trough; wkład sumuje opłatę gotówkową przy wejściu i payout minus zablokowany koszt przy rozliczeniu.", "",
         f"Najwcześniejsze pominięcie przez minimalny rozmiar, według bieżącego `orderMinSize` z Gamma lub fallbacku 5 udziałów, zapisano per polityka w `july_policy_attribution.csv`; wartości nie są historycznym odczytem minimów. Minimalny rozmiar jest w udziałach brutto, przed potrąceniem opłaty udziałowej; zakupione udziały netto zapisano osobno.", "",
         "## Dawne 4,830 odrzuceń", "",
-        f"Nowy replay wykazał wykonalny natywny ask za $5 dla {legacy_summary.get('recovered_with_any_fixed5_native_ask', 0):,} dawnych snapshotów z pełnym bookiem, ale `old_replay_provenance_verified=false`. Z tych porównań {legacy_summary.get('recovery_classes', {}).get('qualification_compatible_old_ask_already_priceable', 0):,} są zgodne z wyjaśnieniem kwalifikacyjnym (zapisany dawny ask sam przechodzi obecne reguły ask-side), a pozostałe klasy mają niezgodność asku lub niepełny stary stan i pozostają nierozstrzygnięte. Nie nazywam tych liczb dokładną atrybucją kodu, ponieważ historyczne perplikowe input hash i wersja starego replayu nie istnieją.", "",
-        "Pełne porównanie per market zachowuje dawny i nowy best ask, VWAP, ilość brutto/netto, status obu stron i powód odrzucenia w lokalnym `legacy_recovery_comparison.parquet`. Klasy odzyskania i limity atrybucji są w `legacy_recovery_classes.csv`.", "",
+        f"Pierwotny zestaw obejmuje {legacy_4830_diagnosis['old_t59_market_count']:,} rynków; 4,830 miało dwa zainicjalizowane booki, ale `quote_valid=false`. W nowym replayu wykonalny ask $5 ma {legacy_4830_diagnosis['recovered_by_corrected_native_ask_replay_at_fixed5']:,} z nich. Dla {legacy_4830_diagnosis['implementation_signal_recovered_markets']:,} nie stwierdzono sygnału naprawy rekonstrukcji po porównaniu BBO; {legacy_4830_diagnosis['changed_qualification_recovered_markets_bid_not_required']:,} przechodzi obecną ocenę ask-side mimo dawnego odrzucenia połączonego quote. Pozostałe {legacy_4830_diagnosis['old_full_snapshot_invalid_count_user_reported'] - legacy_4830_diagnosis['recovered_by_corrected_native_ask_replay_at_fixed5']:,} nie mają obecnie wykonalnej wyceny $5. Poprzednia diagnoza podała ten sam wynik 2,283. Nie dowodzi to, że stary kod był poprawny ani błędny: historyczny cache nie ma perplikowych hashy treści ani identyfikatora logiki.", "",
+        f"To inna kohorta niż dodatkowy plik `historical_unverified_20261007/t59_ask_ladders.parquet`: ma on {legacy_summary['old_full_snapshot_invalid_count']:,} pełnych snapshotów z `quote_valid=false`, z czego {legacy_summary['recovered_with_any_fixed5_native_ask']:,} mają obecnie ask $5; wszystkie należą do klasy `{legacy_summary['recovery_classes'].get('qualification_compatible_old_ask_already_priceable', 0):,}`. `old_replay_provenance_verified=false`; tych 5,817 snapshotów nie należy utożsamiać z pierwotnymi 4,830.", "",
+        "Porównanie per market dla tej dodatkowej kohorty zachowuje dawny i nowy best ask, VWAP, ilość brutto/netto, status obu stron i powód odrzucenia w lokalnym `legacy_recovery_comparison.parquet`. Klasy odzyskania i limity atrybucji są w `legacy_recovery_classes.csv`.", "",
+        "## Wydajność i odzyskanie checkpointu", "",
+        f"Replay użył {T59_REPLAY_WORKERS} workerów. Zweryfikowany checkpoint po partycji {replay_manifest.get('resumed_after_partition_count', 0):,} zachował ten prefiks; w kontynuacji przetworzono {replay_manifest.get('partitions_replayed_this_session', 0):,} z {replay_manifest.get('partitions_scanned', 0):,} partycji, bez ponownego replayu ukończonego prefiksu. Partie kontynuacji zawierały {resumed_suffix_source_rows:,} wierszy źródłowych ({resumed_suffix_source_rows / replay_manifest['elapsed_seconds']:,.0f} wierszy/s) i zajęły {replay_manifest['elapsed_seconds']:.1f}s.",
+        "Na tym samym teście z 95,406 zdarzeniami i 11 rynkami serial trwał 34.01s, a równoległy replay z 11 workerami 10.15s (3.35×); snapshoty były identyczne. Sprzęt: i7-13650HX (14 rdzeni/20 wątków), 63.7 GiB RAM; GPU nie użyto. Przy checkpointcie 4,032 łączny RSS procesu i workerów wynosił ok. 11 GiB, a system miał 37.8 GiB wolnej RAM; to próbka, nie pomiar szczytowy. Całkowite obciążenie CPU w próbkach wynosiło 79–96% przy równoległym lokalnym workloadzie, którego nie przerywano.",
+        "Szczegółowe czasy odczytu, konwersji/filtrowania, sortowania, pętli grupującej i aktualizacji booków oraz zapisu checkpointu są w `replay_performance_profile.md`.", "",
         "## Rachunkowość, minimum i testy", "",
         "Każdy portfel przeszedł automatyczny audyt: brak ujemnej wolnej gotówki i ujemnej ekspozycji, equity = cash + zablokowany koszt, jeden debit zakupu i jedna wypłata na trade, cash debit = gross + fee cash, brutto−netto = fee shares, payout zgodny z wynikiem, brak przyszłego receive/source eventu przy T−59 i zgodność dziennych log-growth z końcowym kapitałem. Opłata w udziałach zmniejsza payout; fee cash zwiększa debit; oba nie są naliczane drugi raz.", "",
+        "Testy regresyjne: `python -m unittest discover -s tests -p 'test_btc_preopen_t59_reassessment.py'` — 22 testy, OK (21.1s). Obejmują rzeczywiste wznowienie po częściowym checkpointcie, zgodność serial/parallel, historyczny filtr i idempotencję metadanych pokrycia.", "",
         "Minimalny rozmiar pochodzi z bieżącego pola Gamma `orderMinSize` jeżeli jest dostępne; fallback to 5 udziałów. Brak historycznego archiwum minimów oznacza, że to przybliżenie wykonawcze, nie pomiar historyczny. Nie obniżamy zlecenia przy braku głębokości i nie zastępujemy wybranej strony inną.", "",
-        f"Czas: weryfikacja zapisanych wejść i PMXT {run_times['input_verification_seconds']:.1f}s; odczyt indeksów i selektywna ekstrakcja archiwum {run_times['archive_extension_seconds']:.1f}s; replay {replay_manifest['elapsed_seconds']:.1f}s; przeliczenie portfeli i diagnostyk {run_times['portfolio_seconds']:.1f}s; cały przebieg {run_times['total_seconds']:.1f}s.", "",
+        f"Czas: weryfikacja zapisanych wejść i PMXT {run_times['input_verification_seconds']:.1f}s; odczyt indeksów i selektywna ekstrakcja archiwum {run_times['archive_extension_seconds']:.1f}s; kontynuacja replayu od checkpointu po {replay_manifest.get('resumed_after_partition_count', 0):,} partycjach {replay_manifest['elapsed_seconds']:.1f}s; portfele i diagnostyki {run_times['portfolio_seconds']:.1f}s. Końcowe uruchomienie raportujące z ponownym użyciem zweryfikowanego artefaktu trwało {run_times['total_seconds']:.1f}s. Łącznego wall-clock czasu wcześniejszych prób i przerw nie zapisano.", "",
         "## Zmiany względem historycznego wyniku", "",
         "| Obszar | Przed | Po | Powód |", "|---|---|---|---|",
     ])
@@ -4188,6 +4211,14 @@ def main() -> None:
         archive_index, extended_parts,
         archive_source_manifest_sha256=archive_manifest["archive_dependency_sha256"],
     )
+    part_paths = sorted(extended_parts.glob("*.parquet"))
+    resumed_after_partition_count = int(replay_manifest.get("resumed_after_partition_count", 0))
+    resumed_suffix_parts = part_paths[resumed_after_partition_count:]
+    resumed_suffix_source_rows = sum(
+        pq.ParquetFile(path).metadata.num_rows for path in resumed_suffix_parts
+    )
+    if len(resumed_suffix_parts) != int(replay_manifest.get("partitions_replayed_this_session", 0)):
+        raise RuntimeError("Replay continuation partition count does not match the saved manifest")
     snapshots = _add_archive_state_coverage_to_snapshots(
         snapshots, archive_index, archive_manifest, base_parts,
     )
@@ -4199,6 +4230,7 @@ def main() -> None:
         "replay_provenance_verified": True,
         "archive_source_manifest_sha256": archive_manifest["archive_dependency_sha256"],
         "archive_state_coverage_added_after_snapshot": True,
+        "resumed_suffix_source_rows": resumed_suffix_source_rows,
     })
     _write_json(OUT_DIR / "t59_replay_manifest.json", replay_manifest)
     perf["replay_seconds"] = replay_manifest["elapsed_seconds"]
@@ -4300,6 +4332,9 @@ def main() -> None:
 
     old_snapshot_path = SOURCE_OUT_DIR / "historical_unverified_20261007/t59_ask_ladders.parquet"
     old_snapshots = pd.read_parquet(old_snapshot_path)
+    legacy_4830_diagnosis = _legacy_rejection_diagnosis(
+        pd.read_parquet(LOCAL_SNAPSHOT_PATH), fixed5, snapshot_by_id,
+    )
     legacy_comparison, legacy_summary = _legacy_controlled_comparison(
         old_snapshots, fixed5, snapshot_by_id, market_by_id,
     )
@@ -4383,6 +4418,18 @@ def main() -> None:
     old_policies = {item["policy"]: item for item in old_summary.get("strategies", [])}
     before_after = pd.DataFrame([
         {
+            "area": "Reported 4,830 rejection cohort",
+            "before": f"4,830 full snapshots rejected; {old_summary['legacy_diagnosis']['recovered_by_corrected_native_ask_replay_at_fixed5']:,} recovered in the prior diagnosis",
+            "after": f"{legacy_4830_diagnosis['recovered_by_corrected_native_ask_replay_at_fixed5']:,}/4,830 currently priceable at $5; implementation signal {legacy_4830_diagnosis['implementation_signal_recovered_markets']:,}; ask-side qualification {legacy_4830_diagnosis['changed_qualification_recovered_markets_bid_not_required']:,}",
+            "reason": "The same cohort was re-evaluated against the verified replay; the old cache still lacks per-file content hashes and replay-code identity.",
+        },
+        {
+            "area": "Separate historical T−59 full-invalid cohort",
+            "before": f"{legacy_summary['old_full_snapshot_invalid_count']:,} full snapshots with quote_valid=false",
+            "after": f"{legacy_summary['recovered_with_any_fixed5_native_ask']:,} have a current $5 native-ask price",
+            "reason": "This historical snapshot file is a different cohort from the reported 4,830; old replay provenance is unverified.",
+        },
+        {
             "area": "Replay cache provenance",
             "before": f"status={old_replay_manifest.get('status')}; reused={old_replay_manifest.get('reused_verified_complete_snapshot_artifact')}; fingerprints_match={old_replay_manifest.get('replay_archive_fingerprint_matches_current')}",
             "after": f"full replay of {len(snapshots):,} indexed markets; content/schema, index, token map, configuration, logic and source identity verified",
@@ -4405,12 +4452,6 @@ def main() -> None:
             "before": f"PnL ${old_policies.get('free_cash_5pct', {}).get('net_pnl_usd', float('nan')):,.2f}; ending cash ${old_policies.get('free_cash_5pct', {}).get('ending_cash_after_settlement_usd', float('nan')):,.2f}",
             "after": f"PnL ${actual_results['free_cash_5pct']['summary']['net_pnl_usd']:,.2f}; ending cash ${actual_results['free_cash_5pct']['summary']['ending_cash_after_settlement_usd']:,.2f}",
             "reason": "Recomputed from verified snapshots and continuous settlement accounting; July controls quantify sizing and selection effects.",
-        },
-        {
-            "area": "Old rejected full books",
-            "before": "4,830 full snapshots rejected by old combined quote validation",
-            "after": f"{legacy_summary['recovered_with_any_fixed5_native_ask']:,} have a current $5 native-ask price; exact causal split unresolved",
-            "reason": "Old per-file content hashes and old replay code identity were not saved; no retrospective provenance is invented.",
         },
     ])
     before_after.to_csv(REPORT_DIR / "before_after.csv", index=False)
@@ -4450,6 +4491,7 @@ def main() -> None:
             "sha256": _sha256(OUT_DIR / "t59_replay_dependencies.json"),
         },
         "portfolio_policy_summaries": strategy_summaries,
+        "legacy_4830_diagnosis": legacy_4830_diagnosis,
         "legacy_comparison": legacy_summary,
         "july_policy_comparison": july_comparison.to_dict(orient="records"),
         "artifact_files": artifact_records,
@@ -4485,7 +4527,10 @@ def main() -> None:
         archive_coverage=archive_coverage, replay_manifest=replay_manifest,
         portfolio_summaries=strategy_summaries,
         monthly_coverage=monthly_coverage, coverage_counts=longest,
-        legacy_summary=legacy_summary, july_comparison=july_comparison,
+        legacy_4830_diagnosis=legacy_4830_diagnosis,
+        legacy_summary=legacy_summary,
+        resumed_suffix_source_rows=resumed_suffix_source_rows,
+        july_comparison=july_comparison,
         source_coverage=source_coverage, before_after=before_after,
         run_times=perf, old_replay_manifest=old_replay_manifest,
         old_summary=old_summary,
@@ -4501,6 +4546,7 @@ def main() -> None:
         "replay_manifest": replay_manifest,
         "archive_coverage": archive_coverage,
         "strategies": strategy_summaries,
+        "legacy_4830_diagnosis": legacy_4830_diagnosis,
         "legacy_comparison": legacy_summary,
         "july_policy_comparison": july_comparison.to_dict(orient="records"),
         "run_times": perf,

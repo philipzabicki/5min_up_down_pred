@@ -1,0 +1,20 @@
+{
+  "analysis_name": "BTC Polymarket T-59 verified public archive reassessment",
+  "entry_time": "market start minus 59 seconds",
+  "execution": "native token asks, size-specific depth VWAP, hold to resolution, continuous cash after settlement",
+  "initial_cash_usd": 100.0,
+  "market_start_cutoff_exclusive_utc": "2026-10-07T00:00:00+00:00",
+  "minimum_order_size": "current Gamma orderMinSize shares when available; otherwise 5 gross shares; not historical metadata",
+  "model_retrained_or_retuned": false,
+  "new_policy_search_run": false,
+  "policies": [
+    "fixed_5_usd",
+    "free_cash_5pct",
+    "cost_basis_equity_5pct",
+    "free_cash_5pct_cap20_control"
+  ],
+  "replay_dependency_sha256": "131704cf793b6a2cee896af858bf2d9ec7056d5d5409890b614f52b0eee2d935",
+  "source_manifest_sha256": "c29070f4fca5d7aeb3231dee1b673d6f3e57bd22e5a5285b425925e5970b10ff",
+  "status": "complete",
+  "trade_orders_sent": false
+}

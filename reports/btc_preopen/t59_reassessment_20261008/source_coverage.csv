@@ -1,0 +1,5 @@
+source,published_hours,locally_processed_hours,processed_event_rows,status
+PMXT V2,2835,2813,275826343,2026-04-13T19:00:00+00:00 .. 2026-08-10T00:00:00+00:00; existing local output reused; missing index hours=3
+AG6 V2,136,134,16021217,2026-08-01T13:00:00+00:00 .. 2026-08-15T09:00:00+00:00; sparse mirror; missing within span=197
+V3,1194,1194,276978907,2026-08-18T06:00:00+00:00 .. 2026-10-06T23:00:00+00:00; selected row groups only; missing within span=0
+full venue archive gap,0,0,0,68 hours: 2026-08-15T10:00:00+00:00 .. 2026-08-18T05:00:00+00:00
