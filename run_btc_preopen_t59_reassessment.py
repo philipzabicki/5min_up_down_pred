@@ -74,8 +74,21 @@ BINANCE_APPEND_START_UTC = pd.Timestamp("2026-10-02T18:01:00Z")
 BINANCE_APPEND_END_OPEN_UTC = pd.Timestamp("2026-10-07T00:00:00Z")
 GAMMA_WORKERS = 4
 TRACE_MARKET_COUNT = 9
-T59_REPLAY_DEPENDENCY_MANIFEST_VERSION = 2
+T59_REPLAY_DEPENDENCY_MANIFEST_VERSION = 3
 T59_RECONSTRUCTION_VERSION = "native-asks-v3-source-sequence"
+T59_REPLAY_CHECKPOINT_INTERVAL_PARTS = 12
+LEGACY_T59_RECONSTRUCTION_SOURCE_SHA256 = "dba0792299ae7f815b2eea0267da1875fa94a930ba6baf5bb140f5d917fd5930"
+T59_REPLAY_MARKET_COLUMNS = (
+    "condition_id", "market_start_utc", "up_token_id", "down_token_id",
+)
+T59_SNAPSHOT_METADATA_COLUMNS = (
+    "condition_id", "market_slug", "market_start_utc", "resolved_at_utc",
+    "target_polymarket_up", "p_model_raw", "p_model_platt",
+    "archive_source", "archive_entry_hour_available",
+    "archive_freshness_window_available", "archive_window_hours_expected",
+    "archive_window_hours_source_available", "archive_window_hours_processed",
+    "archive_window_missing_source_hours", "archive_window_unprocessed_hours",
+)
 
 
 def _sha256(path: Path) -> str:
@@ -144,16 +157,25 @@ def _legacy_part_metadata_fingerprint(paths: list[Path]) -> str:
 
 def _reconstruction_logic_sha256() -> str:
     functions = (
-        _replay_t59,
+        replay._float,
+        replay._timestamp_ns,
+        replay._levels,
+        replay._book_top,
+        replay._book_ask_top,
+        replay._fee_collection_mode,
+        replay._complement,
         replay._new_state,
+        replay._token_state,
+        replay._direct_book,
+        replay._effective_book,
+        replay._bbo,
         replay._update_event,
         replay._same_receive_group_conflicts,
         replay._process_receive_group,
+        replay._walk_asks,
+        replay._valid_reconstructed_quote,
+        replay._valid_reconstructed_ask,
         replay._snapshot,
-        _add_archive_coverage_to_index,
-        _add_archive_state_coverage_to_snapshots,
-        public_archive._json_book_levels,
-        public_archive.normalize_v3_rows,
     )
     source = "\n".join(inspect.getsource(function) for function in functions)
     return hashlib.sha256(source.encode("utf-8")).hexdigest()
@@ -166,7 +188,7 @@ def _replay_dependency_manifest(
     reconstruction_version: str | None = None,
     archive_source_manifest_sha256: str | None = None,
 ) -> dict:
-    index_frame = index.copy()
+    index_frame = index.loc[:, list(T59_REPLAY_MARKET_COLUMNS)].copy()
     if "condition_id" in index_frame:
         index_frame["condition_id"] = index_frame.condition_id.astype("string").str.lower()
         index_frame.sort_values("condition_id", kind="stable", inplace=True, na_position="last")
@@ -219,13 +241,13 @@ def _replay_dependency_manifest(
         "token_mapping_sha256": token_mapping_sha256,
         "replay_configuration": replay_configuration,
         "reconstruction_logic": logic_identity,
-        "archive_source_manifest_sha256": archive_source_manifest_sha256,
     }
     core_identity = {
         key: value for key, value in identity.items() if key != "partitions"
     }
     return {
         **identity,
+        "archive_source_manifest_sha256": archive_source_manifest_sha256,
         "dependency_sha256": _canonical_sha256(identity),
         "non_partition_dependencies_sha256": _canonical_sha256(core_identity),
         "partition_metadata": [
@@ -239,7 +261,6 @@ def _replay_dependency_manifest_is_valid(manifest: dict) -> bool:
     identity_keys = (
         "manifest_version", "partitions", "market_index_sha256",
         "token_mapping_sha256", "replay_configuration", "reconstruction_logic",
-        "archive_source_manifest_sha256",
     )
     if any(key not in manifest for key in identity_keys):
         return False
@@ -256,6 +277,184 @@ def _replay_dependency_manifest_is_valid(manifest: dict) -> bool:
             for item in manifest["partitions"]
         )
     )
+
+
+def _legacy_replay_dependency_manifest_is_valid(manifest: dict) -> bool:
+    identity_keys = (
+        "manifest_version", "partitions", "market_index_sha256",
+        "token_mapping_sha256", "replay_configuration", "reconstruction_logic",
+        "archive_source_manifest_sha256",
+    )
+    if any(key not in manifest for key in identity_keys):
+        return False
+    identity = {key: manifest[key] for key in identity_keys}
+    core_identity = {key: value for key, value in identity.items() if key != "partitions"}
+    return (
+        manifest.get("manifest_version") == 2
+        and manifest.get("dependency_sha256") == _canonical_sha256(identity)
+        and manifest.get("non_partition_dependencies_sha256") == _canonical_sha256(core_identity)
+        and isinstance(manifest.get("partitions"), list)
+        and all(
+            isinstance(item, dict)
+            and all(key in item for key in ("path", "content_sha256", "schema_sha256"))
+            for item in manifest["partitions"]
+        )
+    )
+
+
+def _replay_checkpoint_dependency_compatible(
+    saved: dict,
+    previous_manifest: dict,
+    current_manifest: dict,
+    prefix_count: int,
+) -> tuple[bool, bool]:
+    checkpoint_version = saved.get("dependency_manifest_version")
+    if checkpoint_version == T59_REPLAY_DEPENDENCY_MANIFEST_VERSION:
+        previous_valid = _replay_dependency_manifest_is_valid(previous_manifest)
+        previous_parts = previous_manifest.get("partitions", [])
+        current_parts = current_manifest.get("partitions", [])
+        compatible = (
+            previous_valid
+            and saved.get("identity") == previous_manifest.get("dependency_sha256")
+            and saved.get("non_partition_dependencies_sha256")
+            == previous_manifest.get("non_partition_dependencies_sha256")
+            and previous_manifest.get("non_partition_dependencies_sha256")
+            == current_manifest.get("non_partition_dependencies_sha256")
+            and len(previous_parts[:prefix_count]) == prefix_count
+            and previous_parts[:prefix_count] == current_parts[:prefix_count]
+        )
+        return compatible, False
+    if checkpoint_version != 2 or not _legacy_replay_dependency_manifest_is_valid(previous_manifest):
+        return False, False
+    previous_logic = previous_manifest.get("reconstruction_logic", {})
+    current_logic = current_manifest.get("reconstruction_logic", {})
+    previous_parts = previous_manifest.get("partitions", [])
+    current_parts = current_manifest.get("partitions", [])
+    legacy_prefix = previous_parts[:prefix_count]
+    current_prefix = current_parts[:prefix_count]
+    compatible = (
+        saved.get("identity") == previous_manifest.get("dependency_sha256")
+        and saved.get("non_partition_dependencies_sha256")
+        == previous_manifest.get("non_partition_dependencies_sha256")
+        and previous_logic.get("version") == T59_RECONSTRUCTION_VERSION
+        and previous_logic.get("source_sha256") == LEGACY_T59_RECONSTRUCTION_SOURCE_SHA256
+        and current_logic.get("version") == previous_logic.get("version")
+        and previous_manifest.get("token_mapping_sha256")
+        == current_manifest.get("token_mapping_sha256")
+        and previous_manifest.get("replay_configuration")
+        == current_manifest.get("replay_configuration")
+        and len(legacy_prefix) == prefix_count
+        and legacy_prefix == current_prefix
+    )
+    return compatible, compatible
+
+
+def _replay_checkpoint_state_is_valid(
+    saved: dict,
+    market_by_id: dict[str, dict],
+    deadlines: dict[str, int],
+    sorted_ids: list[str],
+    part_paths: list[Path],
+) -> tuple[bool, str]:
+    try:
+        part_index = int(saved["part_index"])
+        if part_index < 0 or part_index >= len(part_paths):
+            return False, "partition index is outside the current archive"
+        part = part_paths[part_index]
+        if saved.get("last_processed_part") != part.name:
+            return False, "last processed partition does not match the checkpoint boundary"
+        part_end_ns = int(
+            (pd.Timestamp(part.stem.replace("T", " "), tz="UTC") + pd.Timedelta(hours=1)).value
+        )
+        expected_next_capture = sum(deadlines[cid] < part_end_ns for cid in sorted_ids)
+        next_capture = int(saved["next_capture"])
+        if next_capture != expected_next_capture:
+            return False, "next_capture does not match the saved partition boundary"
+
+        snapshots = saved.get("snapshots")
+        states = saved.get("states")
+        if not isinstance(snapshots, dict) or not isinstance(states, dict):
+            return False, "snapshot or active-state payload is not a dictionary"
+        snapshot_ids = [str(key).lower() for key in snapshots]
+        if len(snapshot_ids) != len(set(snapshot_ids)):
+            return False, "snapshot keys collide after condition-id normalization"
+        completed_ids = set(sorted_ids[:next_capture])
+        if set(snapshot_ids) != completed_ids:
+            return False, "snapshots do not exactly match the completed capture prefix"
+        for key, snapshot in snapshots.items():
+            condition_id = str(key).lower()
+            market = market_by_id.get(condition_id)
+            if not isinstance(snapshot, dict) or market is None:
+                return False, "snapshot is malformed or refers to an unknown market"
+            if str(snapshot.get("condition_id", "")).lower() != condition_id:
+                return False, "snapshot condition id does not match its key"
+            for field, expected in (
+                ("market_start_utc", int(market["market_start_utc"].value)),
+                ("entry_time_utc", deadlines[condition_id]),
+            ):
+                value = snapshot.get(field)
+                if value is None:
+                    return False, f"snapshot is missing {field}"
+                timestamp = pd.Timestamp(value)
+                timestamp = timestamp.tz_localize("UTC") if timestamp.tzinfo is None else timestamp.tz_convert("UTC")
+                if int(timestamp.value) != expected:
+                    return False, f"snapshot {field} does not match the market index"
+
+        state_ids = [str(key).lower() for key in states]
+        if len(state_ids) != len(set(state_ids)):
+            return False, "active-state keys collide after condition-id normalization"
+        if set(state_ids) & completed_ids:
+            return False, "active state exists for an already captured market"
+        for key, state in states.items():
+            condition_id = str(key).lower()
+            if condition_id not in deadlines or condition_id in completed_ids:
+                return False, "active state refers to an unknown or completed market"
+            if deadlines[condition_id] < part_end_ns:
+                return False, "active market should have been captured before this partition boundary"
+            if not isinstance(state, dict) or not isinstance(state.get("tokens"), dict) or not state["tokens"]:
+                return False, "active market state has no valid token map"
+            event_count = state.get("event_count")
+            first_event_ns, last_event_ns = state.get("first_event_ns"), state.get("last_event_ns")
+            if (
+                isinstance(event_count, bool) or not isinstance(event_count, (int, np.integer))
+                or event_count < 1 or not isinstance(first_event_ns, (int, np.integer))
+                or not isinstance(last_event_ns, (int, np.integer))
+                or first_event_ns > last_event_ns or last_event_ns >= part_end_ns
+                or last_event_ns > deadlines[condition_id]
+            ):
+                return False, "active market event counters or timestamps are inconsistent"
+            for token_id, token in state["tokens"].items():
+                if (
+                    not isinstance(token, dict)
+                    or str(token.get("token_id", "")) != str(token_id)
+                    or not isinstance(token.get("bids"), dict)
+                    or not isinstance(token.get("asks"), dict)
+                ):
+                    return False, "active token state is malformed"
+        return True, "valid"
+    except (KeyError, TypeError, ValueError, OverflowError, AttributeError) as error:
+        return False, f"checkpoint payload is malformed: {error}"
+
+
+def _refresh_snapshot_market_metadata(
+    snapshots: pd.DataFrame,
+    index: pd.DataFrame,
+) -> pd.DataFrame:
+    columns = [column for column in T59_SNAPSHOT_METADATA_COLUMNS if column in index.columns]
+    metadata = index.loc[:, columns].copy()
+    metadata["condition_id"] = metadata.condition_id.astype(str).str.lower()
+    metadata = metadata.drop_duplicates("condition_id").set_index("condition_id")
+    result = snapshots.copy()
+    condition_ids = result.condition_id.astype(str).str.lower()
+    for column in columns:
+        if column == "condition_id":
+            continue
+        result[column] = condition_ids.map(metadata[column])
+    if "p_model_raw" in metadata:
+        result["p_candidate_raw"] = condition_ids.map(metadata["p_model_raw"])
+    if "p_model_platt" in metadata:
+        result["p_candidate_platt"] = condition_ids.map(metadata["p_model_platt"])
+    return result
 
 
 def _build_t59_market_index(
@@ -1551,14 +1750,14 @@ def _replay_t59(
     snapshot_path = OUT_DIR / "t59_ask_ladders.parquet"
     manifest_path = OUT_DIR / "t59_replay_manifest.json"
     replay_identity = dependency_manifest["dependency_sha256"]
-    cached_manifest = (
-        json.loads(manifest_path.read_text(encoding="utf-8"))
-        if manifest_path.is_file() else {}
-    )
-    cached_dependency_manifest = (
-        json.loads(dependency_path.read_text(encoding="utf-8"))
-        if dependency_path.is_file() else {}
-    )
+    try:
+        cached_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        cached_manifest = {}
+    try:
+        cached_dependency_manifest = json.loads(dependency_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        cached_dependency_manifest = {}
     cached_snapshot_integrity_verified = (
         snapshot_path.is_file()
         and cached_manifest.get("status") == "complete"
@@ -1571,19 +1770,23 @@ def _replay_t59(
         and cached_dependency_manifest.get("dependency_sha256") == replay_identity
     )
     start_part = 0
+    checkpoint_migration = None
     if checkpoint_path.is_file():
         import pickle
-        with checkpoint_path.open("rb") as stream:
-            saved = pickle.load(stream)
-        if part_paths and (
-            int(saved.get("part_index", -1)) == len(part_paths) - 1
-            and saved.get("last_processed_part") == part_paths[-1].name
-            and int(saved.get("next_capture", -1)) == len(index)
-            and len(saved.get("snapshots", {})) == len(index)
-        ):
-            if snapshot_path.is_file() and manifest_path.is_file():
-                if cached_snapshot_provenance_verified:
-                    saved_manifest = cached_manifest
+        try:
+            with checkpoint_path.open("rb") as stream:
+                saved = pickle.load(stream)
+        except (OSError, pickle.PickleError, EOFError, ValueError, TypeError, AttributeError, ImportError) as error:
+            saved = None
+            print(f"[t59-replay] rejecting unreadable checkpoint: {error}", flush=True)
+        if isinstance(saved, dict):
+            try:
+                if part_paths and (
+                    int(saved.get("part_index", -1)) == len(part_paths) - 1
+                    and saved.get("last_processed_part") == part_paths[-1].name
+                    and int(saved.get("next_capture", -1)) == len(index)
+                    and len(saved.get("snapshots", {})) == len(index)
+                ) and snapshot_path.is_file() and cached_snapshot_provenance_verified:
                     cached = pd.read_parquet(snapshot_path)
                     expected_starts = pd.to_datetime(index.market_start_utc, utc=True).astype("int64")
                     actual_starts = pd.to_datetime(cached.market_start_utc, utc=True).astype("int64")
@@ -1598,6 +1801,10 @@ def _replay_t59(
                         and len(expected_pairs) == len(index)
                         and actual_pairs == expected_pairs
                     ):
+                        cached = _refresh_snapshot_market_metadata(cached, index)
+                        cached.to_parquet(snapshot_path, index=False, compression="zstd")
+                        saved_manifest = cached_manifest
+                        saved_manifest["snapshot_sha256"] = _sha256(snapshot_path)
                         saved_manifest["current_archive_content_fingerprint_sha256"] = archive_content_fingerprint
                         saved_manifest["current_archive_metadata_fingerprint_sha256"] = archive_metadata_fingerprint
                         saved_manifest["replay_dependency_sha256"] = replay_identity
@@ -1612,40 +1819,73 @@ def _replay_t59(
                             flush=True,
                         )
                         return cached, saved_manifest
-        core_matches = (
-            saved.get("non_partition_dependencies_sha256")
-            == dependency_manifest["non_partition_dependencies_sha256"]
-        )
-        expected_snapshot_ids = set(index.condition_id.astype(str).str.lower())
-        saved_snapshots = saved.get("snapshots", {})
-        checkpoint_snapshots_complete = (
-            isinstance(saved_snapshots, dict)
-            and set(str(key).lower() for key in saved_snapshots) == expected_snapshot_ids
-            and all(
-                isinstance(value, dict)
-                and str(value.get("condition_id", "")).lower() == str(key).lower()
-                and value.get("market_start_utc") is not None
-                and value.get("entry_time_utc") is not None
-                for key, value in saved_snapshots.items()
+            except (KeyError, TypeError, ValueError, AttributeError):
+                pass
+
+            try:
+                prefix_count = int(saved["part_index"]) + 1
+                dependencies_match, needs_migration = _replay_checkpoint_dependency_compatible(
+                    saved, cached_dependency_manifest, dependency_manifest, prefix_count,
+                )
+                prefix_matches = _replay_checkpoint_prefix_unchanged(
+                    part_paths, saved, part_dependency_records,
+                )
+            except (KeyError, TypeError, ValueError, OverflowError):
+                dependencies_match, needs_migration, prefix_matches = False, False, False
+            state_valid, state_reason = _replay_checkpoint_state_is_valid(
+                saved, market_by_id, deadlines, sorted_ids, part_paths,
             )
-        )
-        prefix_matches = core_matches and _replay_checkpoint_prefix_unchanged(
-            part_paths, saved, part_dependency_records,
-        ) and checkpoint_snapshots_complete
-        if prefix_matches:
-            print(
-                "[t59-replay] processed partition contents and reconstruction dependencies match; resuming",
-                flush=True,
-            )
-            start_part = int(saved["part_index"]) + 1
-            states, snapshots, next_capture = saved["states"], saved["snapshots"], saved["next_capture"]
-            event_rows_total = int(saved.get("event_rows_total", 0))
-        else:
-            print(
-                "[t59-replay] saved checkpoint lacks matching dependency evidence; "
-                "rebuilding from the beginning of the available archive",
-                flush=True,
-            )
+            if dependencies_match and prefix_matches and state_valid:
+                if needs_migration:
+                    import shutil
+                    legacy_backup_path = checkpoint_path.with_name(
+                        "t59_replay_checkpoint.pkl.v2.bak"
+                    )
+                    if not legacy_backup_path.exists():
+                        shutil.copy2(checkpoint_path, legacy_backup_path)
+                    legacy_identity = saved.get("identity")
+                    saved["identity"] = replay_identity
+                    saved["dependency_manifest_version"] = T59_REPLAY_DEPENDENCY_MANIFEST_VERSION
+                    saved["non_partition_dependencies_sha256"] = dependency_manifest[
+                        "non_partition_dependencies_sha256"
+                    ]
+                    temporary = checkpoint_path.with_suffix(".pkl.migrate.tmp")
+                    with temporary.open("wb") as stream:
+                        pickle.dump(saved, stream, protocol=pickle.HIGHEST_PROTOCOL)
+                    os.replace(temporary, checkpoint_path)
+                    checkpoint_migration = {
+                        "status": "migrated_verified_v2_checkpoint",
+                        "from_dependency_sha256": legacy_identity,
+                        "to_dependency_sha256": replay_identity,
+                        "legacy_checkpoint_backup_path": (
+                            legacy_backup_path.relative_to(ROOT).as_posix()
+                            if legacy_backup_path.is_relative_to(ROOT)
+                            else legacy_backup_path.as_posix()
+                        ),
+                        "completed_partitions_preserved": prefix_count,
+                        "migration_basis": "matching reconstruction version, token mapping and replay configuration; exact processed partition contents; validated snapshot timestamps and active state; output-only market metadata refreshed from the current index",
+                    }
+                    _write_json(OUT_DIR / "t59_replay_checkpoint_migration.json", checkpoint_migration)
+                print(
+                    f"[t59-replay] verified checkpoint; resuming after partition {saved['part_index'] + 1:,} "
+                    f"of {len(part_paths):,} (captured={int(saved['next_capture']):,})",
+                    flush=True,
+                )
+                start_part = int(saved["part_index"]) + 1
+                states, snapshots, next_capture = saved["states"], saved["snapshots"], int(saved["next_capture"])
+                event_rows_total = int(saved.get("event_rows_total", 0))
+            else:
+                reason = state_reason if not state_valid else (
+                    "dependency or processed-prefix mismatch" if not (dependencies_match and prefix_matches)
+                    else "unknown validation failure"
+                )
+                print(
+                    f"[t59-replay] rejecting inconsistent checkpoint ({reason}); "
+                    "rebuilding from the earliest available partition",
+                    flush=True,
+                )
+        elif saved is not None:
+            print("[t59-replay] rejecting checkpoint with invalid top-level payload", flush=True)
 
     _write_json(dependency_path, dependency_manifest)
 
@@ -1663,7 +1903,9 @@ def _replay_t59(
                 "prediction_available_at": market["market_start_utc"] - pd.Timedelta(minutes=1),
                 "entry_time": market["entry_time_utc"],
             }
-            state = states.pop(cid, replay._new_state())
+            state = states.pop(cid, None)
+            if state is None:
+                state = replay._new_state()
             snapshots[cid] = replay._snapshot(state, market, case)
             next_capture += 1
 
@@ -1695,24 +1937,39 @@ def _replay_t59(
             )
             frame.sort_values(sort_keys, kind="stable", inplace=True)
             if not frame.empty:
-                for received_ns, receive_group in frame.groupby("_received_ns", sort=False):
-                    capture_deadlines(int(received_ns), inclusive=False)
-                    for cid, event_group in receive_group.groupby("market", sort=False):
-                        market = market_by_id.get(str(cid))
-                        if market is None:
-                            continue
-                        state = states.setdefault(str(cid), replay._new_state())
-                        replay._process_receive_group(
-                            state, event_group, int(received_ns),
-                            str(market["up_token_id"]), str(market["down_token_id"]),
-                        )
-                    event_rows_total += len(receive_group)
-                    capture_deadlines(int(received_ns), inclusive=True)
+                last_received_ns = None
+                for (received_ns, cid), event_group in frame.groupby(
+                    ["_received_ns", "market"], sort=False,
+                ):
+                    received_ns = int(received_ns)
+                    if received_ns != last_received_ns:
+                        if last_received_ns is not None:
+                            capture_deadlines(last_received_ns, inclusive=True)
+                        capture_deadlines(received_ns, inclusive=False)
+                        last_received_ns = received_ns
+                    market = market_by_id.get(str(cid))
+                    if market is None:
+                        continue
+                    condition_id = str(cid)
+                    state = states.get(condition_id)
+                    if state is None:
+                        state = replay._new_state()
+                        states[condition_id] = state
+                    replay._process_receive_group(
+                        state, event_group, received_ns,
+                        str(market["up_token_id"]), str(market["down_token_id"]),
+                    )
+                    event_rows_total += len(event_group)
+                if last_received_ns is not None:
+                    capture_deadlines(last_received_ns, inclusive=True)
         hour_end_ns = int(
             (pd.Timestamp(path.stem.replace("T", " "), tz="UTC") + pd.Timedelta(hours=1)).value
         )
         capture_deadlines(hour_end_ns, inclusive=False)
-        if (part_position + 1) % 12 == 0 or part_position + 1 == len(part_paths):
+        if (
+            (part_position + 1) % T59_REPLAY_CHECKPOINT_INTERVAL_PARTS == 0
+            or part_position + 1 == len(part_paths)
+        ):
             import pickle
             temporary = checkpoint_path.with_suffix(".pkl.tmp")
             with temporary.open("wb") as stream:
@@ -1739,6 +1996,7 @@ def _replay_t59(
     if len(snapshots) != len(index):
         raise RuntimeError(f"T-59 replay captured {len(snapshots)} of {len(index)} indexed markets")
     result = pd.DataFrame(snapshots.values()).sort_values("market_start_utc", kind="stable").reset_index(drop=True)
+    result = _refresh_snapshot_market_metadata(result, index)
     target = OUT_DIR / "t59_ask_ladders.parquet"
     result.to_parquet(target, index=False, compression="zstd")
     summary = {
@@ -1759,6 +2017,9 @@ def _replay_t59(
         "cached_snapshot_integrity_verified": cached_snapshot_integrity_verified,
         "cached_snapshot_provenance_verified": cached_snapshot_provenance_verified,
         "reused_verified_complete_snapshot_artifact": False,
+        "resumed_after_partition_count": start_part,
+        "partitions_replayed_this_session": len(part_paths) - start_part,
+        "checkpoint_migration": checkpoint_migration,
         "elapsed_seconds": time.perf_counter() - replay_started,
         "snapshot_sha256": _sha256(target),
         "semantics": "single T-59 replay, native token asks retained separately from bids; events grouped by receive timestamp and source-ordered within equal receive times; no later receive events accepted",

@@ -161,10 +161,11 @@ def _new_state():
 
 
 def _token_state(state, token_id):
-    return state["tokens"].setdefault(
-        str(token_id),
-        {
-            "token_id": str(token_id),
+    token_id = str(token_id)
+    token = state["tokens"].get(token_id)
+    if token is None:
+        token = {
+            "token_id": token_id,
             "bids": {},
             "asks": {},
             "initialized": False,
@@ -189,8 +190,9 @@ def _token_state(state, token_id):
             "reported_best_ask": None,
             "reported_source_ns": None,
             "reported_receive_ns": None,
-        },
-    )
+        }
+        state["tokens"][token_id] = token
+    return token
 
 
 def _direct_book(token):

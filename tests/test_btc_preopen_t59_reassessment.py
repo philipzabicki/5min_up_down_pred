@@ -114,6 +114,253 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             "up_token_id": "up-token", "down_token_id": "down-token",
         }])
 
+    @staticmethod
+    def _write_resume_fixture(parts_dir):
+        parts_dir.mkdir(parents=True, exist_ok=True)
+        starts = [
+            pd.Timestamp("2026-04-15T17:05:00Z"),
+            pd.Timestamp("2026-04-15T18:05:00Z"),
+            pd.Timestamp("2026-04-15T19:05:00Z"),
+            pd.Timestamp("2026-04-15T20:05:00Z"),
+        ]
+        index = pd.DataFrame([
+            {
+                "condition_id": f"m-{letter}", "market_start_utc": start,
+                "resolved_at_utc": start + pd.Timedelta(minutes=5),
+                "market_slug": f"btc-updown-5m-{letter}", "target_polymarket_up": 1,
+                "p_model_raw": 0.55, "p_model_platt": 0.54,
+                "up_token_id": f"up-{letter}", "down_token_id": f"down-{letter}",
+            }
+            for letter, start in zip("abcd", starts)
+        ])
+        index["archive_source"] = "v3"
+        index["archive_entry_hour_available"] = True
+        index["archive_window_hours_processed"] = 1
+
+        def book_rows(condition_id, received_at, *, ask_up=0.5, ask_down=0.5, sequence=0, conflict=False):
+            rows = []
+            timestamp = pd.Timestamp(received_at)
+            for token_side, ask in (("up", ask_up), ("down", ask_down)):
+                values = [ask, ask + 0.01] if token_side == "up" and conflict else [ask]
+                for offset, level in enumerate(values):
+                    row = {column: None for column in assessment.pmxt.EVENT_COLUMNS}
+                    row.update({
+                        "timestamp_received": timestamp,
+                        "timestamp": timestamp,
+                        "market": condition_id.encode("ascii"),
+                        "event_type": "book", "asset_id": f"{token_side}-{condition_id[-1]}",
+                        "bids": "[[0.45, 10]]", "asks": f"[[{level}, 10]]",
+                        "sequence": sequence + offset,
+                    })
+                    rows.append(row)
+                sequence += len(values)
+            return rows
+
+        parts = {
+            "2026-04-15T17.parquet": (
+                book_rows("m-a", "2026-04-15T17:04:00Z", sequence=1)
+                + book_rows("m-b", "2026-04-15T17:59:00Z", ask_up=0.6, ask_down=0.4, sequence=3, conflict=True)
+                + book_rows("m-c", "2026-04-15T17:58:00Z", ask_up=0.55, ask_down=0.45, sequence=5)
+            ),
+            "2026-04-15T18.parquet": (
+                book_rows("m-b", "2026-04-15T18:03:00Z", ask_up=0.52, ask_down=0.48, sequence=1)
+                + book_rows("m-c", "2026-04-15T18:59:00Z", ask_up=0.54, ask_down=0.46, sequence=3)
+            ),
+            "2026-04-15T19.parquet": book_rows(
+                "m-c", "2026-04-15T19:03:00Z", ask_up=0.53, ask_down=0.47, sequence=1,
+            ),
+        }
+        for filename, rows in parts.items():
+            pq.write_table(pa.Table.from_pylist(rows), parts_dir / filename)
+        return index
+
+    def _interrupt_after_first_replay_checkpoint(self, root, parts_dir, index):
+        original_replace = os.replace
+        checkpoint_path = root / "t59_replay_checkpoint.pkl"
+
+        class ReplayInterrupted(Exception):
+            pass
+
+        def replace_then_interrupt(source, destination):
+            original_replace(source, destination)
+            if Path(destination) == checkpoint_path:
+                raise ReplayInterrupted
+
+        root.mkdir(parents=True, exist_ok=True)
+        with mock.patch.object(assessment, "OUT_DIR", root), \
+             mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1), \
+             mock.patch.object(assessment.os, "replace", side_effect=replace_then_interrupt):
+            with self.assertRaises(ReplayInterrupted):
+                assessment._replay_t59(index, parts_dir)
+
+    def test_runner_resumes_partial_checkpoint_without_replaying_completed_partition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parts_dir = root / "parts"
+            index = self._write_resume_fixture(parts_dir)
+            resumed_root = root / "resumed"
+            self._interrupt_after_first_replay_checkpoint(resumed_root, parts_dir, index)
+
+            with (resumed_root / "t59_replay_checkpoint.pkl").open("rb") as stream:
+                saved = pickle.load(stream)
+            self.assertEqual(saved["part_index"], 0)
+            self.assertEqual(saved["next_capture"], 1)
+            self.assertEqual(set(saved["snapshots"]), {"m-a"})
+            self.assertEqual(set(saved["states"]), {"m-b", "m-c"})
+
+            # A later, unprocessed event change must leave the captured prefix reusable.
+            later_path = parts_dir / "2026-04-15T18.parquet"
+            later_rows = pq.read_table(later_path).to_pylist()
+            for row in later_rows:
+                if row["market"] == b"m-c" and row["asset_id"] == "up-c":
+                    row["asks"] = "[[0.57, 10]]"
+            pq.write_table(pa.Table.from_pylist(later_rows), later_path)
+            index["archive_source"] = "updated-v3-index"
+            index["archive_window_hours_processed"] = 2
+
+            with mock.patch.object(assessment, "OUT_DIR", root / "uninterrupted"), \
+                 mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1):
+                expected, _ = assessment._replay_t59(index, parts_dir)
+
+            actual_reads = []
+            original_read_table = assessment.pq.read_table
+
+            def track_read_table(source, *args, **kwargs):
+                if isinstance(source, (str, Path)):
+                    actual_reads.append(Path(source).name)
+                return original_read_table(source, *args, **kwargs)
+
+            with mock.patch.object(assessment, "OUT_DIR", resumed_root), \
+                 mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1), \
+                 mock.patch.object(assessment.pq, "read_table", side_effect=track_read_table):
+                actual, manifest = assessment._replay_t59(
+                    index, parts_dir, archive_source_manifest_sha256="updated-source-index-and-retry-state",
+                )
+
+        pd.testing.assert_frame_equal(expected, actual)
+        self.assertEqual(manifest["resumed_after_partition_count"], 1)
+        self.assertEqual(manifest["partitions_replayed_this_session"], 2)
+        self.assertNotIn("2026-04-15T17.parquet", actual_reads)
+        self.assertEqual(actual_reads, ["2026-04-15T18.parquet", "2026-04-15T19.parquet"])
+
+    def test_runner_rejects_checkpoint_with_inconsistent_capture_boundary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parts_dir = root / "parts"
+            index = self._write_resume_fixture(parts_dir)
+            resumed_root = root / "resumed"
+            self._interrupt_after_first_replay_checkpoint(resumed_root, parts_dir, index)
+
+            checkpoint_path = resumed_root / "t59_replay_checkpoint.pkl"
+            with checkpoint_path.open("rb") as stream:
+                saved = pickle.load(stream)
+            saved["next_capture"] = 0
+            with checkpoint_path.open("wb") as stream:
+                pickle.dump(saved, stream, protocol=pickle.HIGHEST_PROTOCOL)
+
+            actual_reads = []
+            original_read_table = assessment.pq.read_table
+
+            def track_read_table(source, *args, **kwargs):
+                if isinstance(source, (str, Path)):
+                    actual_reads.append(Path(source).name)
+                return original_read_table(source, *args, **kwargs)
+
+            with mock.patch.object(assessment, "OUT_DIR", resumed_root), \
+                 mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1), \
+                 mock.patch.object(assessment.pq, "read_table", side_effect=track_read_table):
+                actual, manifest = assessment._replay_t59(index, parts_dir)
+
+        self.assertEqual(manifest["resumed_after_partition_count"], 0)
+        self.assertIn("2026-04-15T17.parquet", actual_reads)
+        self.assertEqual(len(actual), len(index))
+
+    def test_runner_replays_from_start_when_a_processed_partition_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parts_dir = root / "parts"
+            index = self._write_resume_fixture(parts_dir)
+            resumed_root = root / "resumed"
+            self._interrupt_after_first_replay_checkpoint(resumed_root, parts_dir, index)
+
+            first_path = parts_dir / "2026-04-15T17.parquet"
+            first_rows = pq.read_table(first_path).to_pylist()
+            for row in first_rows:
+                if row["market"] == b"m-a" and row["asset_id"] == "up-a":
+                    row["asks"] = "[[0.65, 10]]"
+            pq.write_table(pa.Table.from_pylist(first_rows), first_path)
+
+            with mock.patch.object(assessment, "OUT_DIR", root / "uninterrupted"), \
+                 mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1):
+                expected, _ = assessment._replay_t59(index, parts_dir)
+
+            actual_reads = []
+            original_read_table = assessment.pq.read_table
+
+            def track_read_table(source, *args, **kwargs):
+                if isinstance(source, (str, Path)):
+                    actual_reads.append(Path(source).name)
+                return original_read_table(source, *args, **kwargs)
+
+            with mock.patch.object(assessment, "OUT_DIR", resumed_root), \
+                 mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1), \
+                 mock.patch.object(assessment.pq, "read_table", side_effect=track_read_table):
+                actual, manifest = assessment._replay_t59(index, parts_dir)
+
+        pd.testing.assert_frame_equal(expected, actual)
+        self.assertEqual(manifest["resumed_after_partition_count"], 0)
+        self.assertIn("2026-04-15T17.parquet", actual_reads)
+
+    def test_runner_migrates_only_a_verified_legacy_checkpoint(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            parts_dir = root / "parts"
+            index = self._write_resume_fixture(parts_dir)
+            resumed_root = root / "resumed"
+            self._interrupt_after_first_replay_checkpoint(resumed_root, parts_dir, index)
+
+            dependency_path = resumed_root / "t59_replay_dependencies.json"
+            dependency = json.loads(dependency_path.read_text(encoding="utf-8"))
+            checkpoint_path = resumed_root / "t59_replay_checkpoint.pkl"
+            with checkpoint_path.open("rb") as stream:
+                saved = pickle.load(stream)
+            identity_keys = (
+                "manifest_version", "partitions", "market_index_sha256",
+                "token_mapping_sha256", "replay_configuration", "reconstruction_logic",
+                "archive_source_manifest_sha256",
+            )
+            legacy = {key: dependency.get(key) for key in identity_keys}
+            legacy["manifest_version"] = 2
+            legacy["archive_source_manifest_sha256"] = "legacy-archive-manifest-hash"
+            legacy["reconstruction_logic"] = {
+                "version": assessment.T59_RECONSTRUCTION_VERSION,
+                "source_sha256": assessment.LEGACY_T59_RECONSTRUCTION_SOURCE_SHA256,
+            }
+            legacy_core = {key: value for key, value in legacy.items() if key != "partitions"}
+            dependency.update(legacy)
+            dependency["dependency_sha256"] = assessment._canonical_sha256(legacy)
+            dependency["non_partition_dependencies_sha256"] = assessment._canonical_sha256(legacy_core)
+            dependency_path.write_text(json.dumps(dependency), encoding="utf-8")
+            saved["identity"] = dependency["dependency_sha256"]
+            saved["dependency_manifest_version"] = 2
+            saved["non_partition_dependencies_sha256"] = dependency["non_partition_dependencies_sha256"]
+            with checkpoint_path.open("wb") as stream:
+                pickle.dump(saved, stream, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with mock.patch.object(assessment, "OUT_DIR", resumed_root), \
+                 mock.patch.object(assessment, "T59_REPLAY_CHECKPOINT_INTERVAL_PARTS", 1):
+                result, manifest = assessment._replay_t59(index, parts_dir)
+
+            backup_path = resumed_root / "t59_replay_checkpoint.pkl.v2.bak"
+            self.assertTrue(backup_path.is_file())
+            with checkpoint_path.open("rb") as stream:
+                migrated = pickle.load(stream)
+
+        self.assertEqual(len(result), len(index))
+        self.assertEqual(manifest["resumed_after_partition_count"], 1)
+        self.assertEqual(manifest["checkpoint_migration"]["status"], "migrated_verified_v2_checkpoint")
+        self.assertEqual(migrated["dependency_manifest_version"], 3)
+
     def test_complete_snapshot_artifact_resumes_when_partition_metadata_changed(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -264,6 +511,11 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             self.assertTrue(assessment._replay_checkpoint_prefix_unchanged(
                 paths, checkpoint_with_fingerprint, records,
             ))
+            pq.write_table(pa.table({"market": ["changed-unprocessed-content"]}), later)
+            changed_later_records = assessment._part_paths_dependency_records(paths)
+            self.assertTrue(assessment._replay_checkpoint_prefix_unchanged(
+                paths, checkpoint_with_fingerprint, changed_later_records,
+            ))
             os.utime(prefix, ns=(6_000_000_000, 6_000_000_000))
             changed_records = assessment._part_paths_dependency_records(paths)
             self.assertTrue(assessment._replay_checkpoint_prefix_unchanged(
@@ -282,16 +534,32 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             pq.write_table(pa.table({"market": ["same-data"]}), part)
             records = assessment._part_paths_dependency_records([part])
             original = assessment._replay_dependency_manifest(index, records)
+            changed_archive_provenance = assessment._replay_dependency_manifest(
+                index, records, archive_source_manifest_sha256="different-transport-and-source-index-state",
+            )
             changed_token_map = index.copy()
             changed_token_map.loc[0, "down_token_id"] = "another-down-token"
             changed = assessment._replay_dependency_manifest(changed_token_map, records)
             changed_logic = assessment._replay_dependency_manifest(
                 index, records, reconstruction_version="other-logic",
             )
+            changed_archive_metadata = index.assign(
+                archive_source="new-v3-source", archive_window_hours_processed=17,
+                order_min_size_shares_current=10.0,
+            )
+            archive_metadata_changed = assessment._replay_dependency_manifest(
+                changed_archive_metadata, records,
+            )
 
         self.assertNotEqual(original["token_mapping_sha256"], changed["token_mapping_sha256"])
         self.assertNotEqual(original["dependency_sha256"], changed["dependency_sha256"])
         self.assertNotEqual(original["dependency_sha256"], changed_logic["dependency_sha256"])
+        self.assertEqual(original["dependency_sha256"], changed_archive_provenance["dependency_sha256"])
+        self.assertEqual(
+            original["non_partition_dependencies_sha256"],
+            changed_archive_provenance["non_partition_dependencies_sha256"],
+        )
+        self.assertEqual(original["dependency_sha256"], archive_metadata_changed["dependency_sha256"])
 
     def test_selective_pmxt_hour_merge_is_idempotent(self):
         schema = pa.schema([
