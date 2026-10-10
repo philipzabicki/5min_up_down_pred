@@ -48,6 +48,7 @@ OFFICIAL_MARKETS_PATH = (
     / "data/analysis/polymarket/BTC/new_model_comparison/runs/"
     / "d794ac2dea5a25a2/shared_market_evaluation.parquet"
 )
+DEFAULT_OFFICIAL_MARKETS_PATH = OFFICIAL_MARKETS_PATH
 DATA_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_v1"
 MODEL_DIR = ROOT / "data/models/BTC/btc_preopen_v1"
 FEATURE_CACHE_PATH = DATA_DIR / "causal_minute_features.parquet"
@@ -407,24 +408,71 @@ def _paired_block_interval(y, first_p, second_p):
     }
 
 
-def _fit_calibrator(model, frame, x, y, identity, *, minimum_rows=1000):
+def _fit_calibrator(
+    model, frame, x, y, identity, *, minimum_rows=1000,
+    oof_predictions_path=None,
+):
     if CALIBRATOR_PATH.is_file():
         existing = json.loads(CALIBRATOR_PATH.read_text(encoding="utf-8"))
         if existing.get("input_identity") == identity:
             print("[preopen] resuming verified Platt calibration checkpoint", flush=True)
             return existing
 
-    target = y.astype(np.float64, copy=False)
-    decision = frame["nominal_decision_at"]
-    mask = (
-        frame[DECISION_COL].to_numpy(dtype=np.bool_, copy=False)
-        & np.isfinite(target)
-        & np.isfinite(x).all(axis=1)
-        & decision.ge(CALIBRATION_START).to_numpy()
-        & decision.lt(CALIBRATION_END).to_numpy()
-        & frame[TARGET_AVAILABLE_COL].le(TEST_FIRST_DECISION).to_numpy()
-    )
-    rows = np.flatnonzero(mask)
+    if oof_predictions_path is not None:
+        oof_path = Path(oof_predictions_path)
+        oof = pd.read_parquet(oof_path)
+        required = {
+            "nominal_decision_at", TARGET_AVAILABLE_COL, TARGET_COL, "p_model_raw",
+            DECISION_COL, "fold_id", "prediction_provenance",
+            "fit_label_available_through_utc",
+        }
+        missing = sorted(required.difference(oof.columns))
+        if missing:
+            raise RuntimeError(f"OOF calibration input is missing columns: {missing}")
+        decision = pd.to_datetime(oof["nominal_decision_at"], utc=True, errors="raise")
+        available = pd.to_datetime(oof[TARGET_AVAILABLE_COL], utc=True, errors="coerce")
+        target = pd.to_numeric(oof[TARGET_COL], errors="coerce").to_numpy(dtype=np.float64)
+        raw_probability = pd.to_numeric(oof["p_model_raw"], errors="coerce").to_numpy(dtype=np.float64)
+        if oof["fold_id"].astype(str).eq("evaluated_holdout").any():
+            raise RuntimeError("Holdout rows cannot be used to fit a Platt calibrator")
+        if not oof["prediction_provenance"].astype(str).eq(
+            "full_pipeline_chronological_out_of_fold"
+        ).all():
+            raise RuntimeError("Calibration rows must come from full-pipeline chronological OOF predictions")
+        fit_label_available = pd.to_datetime(
+            oof["fit_label_available_through_utc"], utc=True, errors="raise",
+        )
+        if fit_label_available.gt(decision).any():
+            raise RuntimeError("An OOF model used labels unavailable at its prediction decision")
+        decision_rows = oof[DECISION_COL].to_numpy(dtype=np.bool_, copy=False)
+        mask = (
+            decision_rows
+            & np.isfinite(target)
+            & np.isfinite(raw_probability)
+            & available.notna().to_numpy()
+            & decision.lt(TEST_FIRST_DECISION).to_numpy()
+            & available.le(TEST_FIRST_DECISION).to_numpy()
+        )
+        rows = np.flatnonzero(mask)
+        if len(rows):
+            decision = decision.iloc[rows].reset_index(drop=True)
+            available = available.iloc[rows].reset_index(drop=True)
+            target = target[rows]
+            raw_probability = raw_probability[rows]
+            rows = np.arange(len(target), dtype=np.int64)
+    else:
+        target = y.astype(np.float64, copy=False)
+        decision = frame["nominal_decision_at"]
+        available = frame[TARGET_AVAILABLE_COL]
+        mask = (
+            frame[DECISION_COL].to_numpy(dtype=np.bool_, copy=False)
+            & np.isfinite(target)
+            & np.isfinite(x).all(axis=1)
+            & decision.ge(CALIBRATION_START).to_numpy()
+            & decision.lt(CALIBRATION_END).to_numpy()
+            & available.le(TEST_FIRST_DECISION).to_numpy()
+        )
+        rows = np.flatnonzero(mask)
     if len(rows) < int(minimum_rows):
         raise RuntimeError(
             f"Too few point-in-time calibration decisions: {len(rows)}; "
@@ -432,18 +480,27 @@ def _fit_calibrator(model, frame, x, y, identity, *, minimum_rows=1000):
         )
     if np.unique(target[rows]).size != 2:
         raise RuntimeError("Calibration period must contain both proxy target classes")
-    raw_probability = np.clip(model.predict(x[rows]), 1e-6, 1.0 - 1e-6)
+    if oof_predictions_path is None:
+        raw_probability = model.predict(x[rows])
+    raw_probability = np.clip(raw_probability, 1e-6, 1.0 - 1e-6)
     logit_probability = np.log(raw_probability / (1.0 - raw_probability)).reshape(-1, 1)
     calibrator = LogisticRegression(C=1e6, solver="lbfgs", random_state=SEED)
     calibrator.fit(logit_probability, target[rows].astype(np.int8))
+    calibration_decisions = decision.iloc[rows]
+    calibration_label_times = available.iloc[rows]
     payload = {
         "method": "Platt logistic calibration of raw model logit",
         "input_identity": identity,
         "label_source": "Binance COIN-M BTCUSD index price proxy",
+        "calibration_source": (
+            "earlier-fold out-of-fold raw predictions"
+            if oof_predictions_path is not None
+            else "chronological post-fit prediction interval"
+        ),
         "training_rows": int(len(rows)),
-        "calibration_start_decision_at": decision.iloc[rows[0]],
-        "calibration_end_decision_at": decision.iloc[rows[-1]],
-        "latest_label_available_at": frame[TARGET_AVAILABLE_COL].iloc[rows].max(),
+        "calibration_start_decision_at": calibration_decisions.min(),
+        "calibration_end_decision_at": calibration_decisions.max(),
+        "latest_label_available_at": calibration_label_times.max(),
         "first_external_test_decision_at": TEST_FIRST_DECISION,
         "coefficient": float(calibrator.coef_[0, 0]),
         "intercept": float(calibrator.intercept_[0]),
@@ -1042,8 +1099,7 @@ def _evaluate_preopen_external(
         test_history_status,
 ):
     mask = (
-        valid
-        & frame[DECISION_COL].to_numpy(dtype=np.bool_, copy=False)
+        frame[DECISION_COL].to_numpy(dtype=np.bool_, copy=False)
         & frame["market_start_utc"].ge(TEST_MARKET_START).to_numpy()
         & frame["market_start_utc"].le(TEST_LAST_MARKET_START).to_numpy()
     )
@@ -1061,7 +1117,9 @@ def _evaluate_preopen_external(
         + pd.to_timedelta(float(PREDICTION_COMPUTE_BUDGET_SECONDS), unit="s")
     )
     sample["prediction_timestamp_basis"] = "nominal candle close + configured compute budget; historical receive latency unavailable"
-    y_proxy = sample[TARGET_COL].to_numpy(dtype=np.int8, copy=False)
+    y_proxy = pd.to_numeric(sample[TARGET_COL], errors="coerce").to_numpy(dtype=np.float64)
+    proxy_valid = np.isfinite(y_proxy)
+    y_proxy_valid = y_proxy[proxy_valid].astype(np.int8, copy=False)
     probabilities = {
         "constant_0_5": sample["p_constant_0_5"].to_numpy(dtype=np.float64),
         "development_proxy_prevalence": sample["p_development_proxy_prevalence"].to_numpy(dtype=np.float64),
@@ -1070,14 +1128,19 @@ def _evaluate_preopen_external(
     }
     metrics = {
         "label_source": "Binance COIN-M BTCUSD index price proxy; not official Polymarket settlement",
-        "price_proxy": {name: _score(y_proxy, value) for name, value in probabilities.items()},
+        "price_proxy_rows_scored": int(proxy_valid.sum()),
+        "price_proxy": {
+            name: _score(y_proxy_valid, value[proxy_valid])
+            for name, value in probabilities.items()
+        } if proxy_valid.any() else {name: None for name in probabilities},
         "paired_uncertainty": {
             f"{model_name}_minus_{baseline_name}": _paired_block_interval(
-                y_proxy, probabilities[model_name], probabilities[baseline_name]
+                y_proxy_valid, probabilities[model_name][proxy_valid],
+                probabilities[baseline_name][proxy_valid],
             )
             for model_name in ("raw_model", "platt_model")
             for baseline_name in ("constant_0_5", "development_proxy_prevalence")
-        },
+        } if int(proxy_valid.sum()) >= 2 else {},
     }
     official_summary = {
         "status": "unavailable",
@@ -1129,6 +1192,7 @@ def _evaluate_preopen_external(
     sample.to_parquet(PREDICTIONS_PATH, index=False, compression="zstd")
     external = {
         "rows": int(len(sample)),
+        "complete_price_proxy_label_rows": int(proxy_valid.sum()),
         "market_start_first": sample["market_start_utc"].min(),
         "market_start_last": sample["market_start_utc"].max(),
         "historically_exposed": str(test_history_status).startswith("historically exposed"),
@@ -1445,7 +1509,7 @@ def _run_bundle_raw_replay_fresh_process(bundle_path, prediction_path, verificat
 
 
 def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
-    global SEED
+    global SEED, OFFICIAL_MARKETS_PATH
     import contextlib
     import importlib
     import optuna
@@ -1469,6 +1533,10 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
     raw_path = Path(profile.get("raw_data_path", RAW_CANDLES_PATH))
     if not raw_path.is_absolute():
         raw_path = ROOT / raw_path
+    official_path = Path(profile.get("official_markets_path", DEFAULT_OFFICIAL_MARKETS_PATH))
+    if not official_path.is_absolute():
+        official_path = ROOT / official_path
+    OFFICIAL_MARKETS_PATH = official_path
     if not raw_path.is_file():
         raise FileNotFoundError(f"BTC raw candle input not found: {raw_path}")
     raw_identity = _file_identity(raw_path)
@@ -1477,6 +1545,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         {
             "contract": contract,
             "raw_data_sha256": raw_identity["sha256"],
+            "official_markets_sha256": _sha256(official_path) if official_path.is_file() else None,
             "dataset_profile": profile["dataset_profile"],
             "modeling_profile": profile["modeling_profile"],
             "indicator_fit_profile": profile["indicator_fit_profile"],
@@ -2596,6 +2665,12 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "first_external_test_decision": TEST_FIRST_DECISION.isoformat(),
             "contract_sha256": contract_identity["sha256"],
             "minimum_rows": int(profile.get("minimum_calibration_rows", 1000)),
+            "oof_predictions_path": profile.get("oof_calibration_predictions_path"),
+            "oof_predictions_sha256": (
+                _sha256(ROOT / profile["oof_calibration_predictions_path"])
+                if profile.get("oof_calibration_predictions_path")
+                else None
+            ),
         }
         calibration_evaluation_deadline = deadline_for("calibration_evaluation_bundle")
 
@@ -2608,6 +2683,11 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 final_model, frame, features.loc[:, selected_features].to_numpy(dtype=np.float32, copy=False),
                 y, calibration_identity,
                 minimum_rows=int(profile.get("minimum_calibration_rows", 1000)),
+                oof_predictions_path=(
+                    ROOT / profile["oof_calibration_predictions_path"]
+                    if profile.get("oof_calibration_predictions_path")
+                    else None
+                ),
             )
             return {"training_rows": int(calibration["training_rows"]), "calibrator_path": CALIBRATOR_PATH.resolve().relative_to(ROOT).as_posix()}, [CALIBRATOR_PATH]
 
@@ -2624,6 +2704,62 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             raise RuntimeError("Completed calibrator is missing")
         calibration = json.loads(CALIBRATOR_PATH.read_text(encoding="utf-8"))
         prediction_matrix = features.loc[:, selected_features].to_numpy(dtype=np.float32, copy=False)
+        evaluated_freeze_path = None
+        evaluated_freeze_sha256 = None
+        frozen_policy_path = profile.get("frozen_policy_path")
+        if frozen_policy_path:
+            policy_path = Path(frozen_policy_path)
+            if not policy_path.is_absolute():
+                policy_path = ROOT / policy_path
+            if not policy_path.is_file():
+                raise FileNotFoundError(f"Frozen development policy is missing: {policy_path}")
+            policy_sha256 = _sha256(policy_path)
+            freeze_payload = {
+                "status": "frozen_before_external_holdout_evaluation",
+                "evaluation_period": {
+                    "market_start_first_utc": TEST_MARKET_START,
+                    "market_start_last_inclusive_utc": TEST_LAST_MARKET_START,
+                    "exclusive_source_cutoff_utc": split.get("data_cutoff_exclusive_utc"),
+                    "historically_exposed": str(split["test_history_status"]).startswith("historically exposed"),
+                },
+                "contract_path": contract_path.resolve().relative_to(ROOT).as_posix(),
+                "contract_sha256": contract_identity["sha256"],
+                "raw_candles_path": raw_path.resolve().relative_to(ROOT).as_posix(),
+                "raw_candles_sha256": raw_identity["sha256"],
+                "official_markets_path": official_path.resolve().relative_to(ROOT).as_posix(),
+                "official_markets_sha256": _sha256(official_path),
+                "model_path": final_model_path.resolve().relative_to(ROOT).as_posix(),
+                "model_sha256": final_model_result["model_sha256"],
+                "calibrator_path": CALIBRATOR_PATH.resolve().relative_to(ROOT).as_posix(),
+                "calibrator_sha256": _sha256(CALIBRATOR_PATH),
+                "calibration_source": calibration.get("calibration_source"),
+                "oof_calibration_predictions_sha256": calibration_identity["oof_predictions_sha256"],
+                "feature_order": selected_features,
+                "selected_model_parameters": tuned_params,
+                "selected_best_iteration": int(model_tuning_result["best_iteration"]),
+                "target_decision_weight": float(weight_result["decision_weight"]),
+                "reaction_profile_config": rp_result["best_config"],
+                "volume_profile_config": vp_result["best_config"],
+                "indicator_fit_result_sha256": {
+                    record["path"]: record["sha256"]
+                    for record in indicator_outputs if record["path"].endswith(".json")
+                },
+                "learned_profile_state_sha256": {
+                    record["path"]: record["sha256"]
+                    for record in dataset_outputs if record["path"].endswith(".npz")
+                },
+                "policy_path": policy_path.resolve().relative_to(ROOT).as_posix(),
+                "policy_sha256": policy_sha256,
+                "training_code_sha256": _sha256(Path(__file__)),
+            }
+            evaluated_freeze_path = run_root / "evaluated_bundle_freeze.json"
+            if evaluated_freeze_path.is_file():
+                previous_freeze = json.loads(evaluated_freeze_path.read_text(encoding="utf-8"))
+                if previous_freeze != freeze_payload:
+                    raise RuntimeError("Existing evaluated-bundle freeze differs from this holdout run")
+            else:
+                _write_json(evaluated_freeze_path, freeze_payload)
+            evaluated_freeze_sha256 = _sha256(evaluated_freeze_path)
         evaluation_identity = {
             "final_model_signature": final_model_sig,
             "calibration_signature": calibration_sig,
@@ -2631,6 +2767,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "test_start": TEST_MARKET_START,
             "test_end": TEST_LAST_MARKET_START,
             "official_markets_sha256": _sha256(OFFICIAL_MARKETS_PATH) if OFFICIAL_MARKETS_PATH.is_file() else None,
+            "evaluated_bundle_freeze_sha256": evaluated_freeze_sha256,
         }
 
         def evaluation_action(stage_dir):
@@ -2759,6 +2896,11 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             ],
             "verification_tolerance_abs": 1e-6,
             "status": "verification_pending",
+            "evaluated_bundle_freeze_path": (
+                evaluated_freeze_path.resolve().relative_to(ROOT).as_posix()
+                if evaluated_freeze_path is not None else None
+            ),
+            "evaluated_bundle_freeze_sha256": evaluated_freeze_sha256,
             "prediction_compute_budget_seconds": PREDICTION_COMPUTE_BUDGET_SECONDS,
             "activated": False,
         }

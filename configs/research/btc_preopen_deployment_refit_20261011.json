@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "candidate_id": "btc_preopen_deployment_candidate_20261011",
+  "research_config_path": "configs/research/btc_preopen_walk_forward_20261011.json",
+  "research_manifest_path": "data/analysis/polymarket/BTC/preopen_research_20261011/research_manifest.json",
+  "holdout_manifest_path": "data/analysis/polymarket/BTC/preopen_research_20261011/evaluated_holdout_manifest.json",
+  "output_dir": "data/analysis/polymarket/BTC/preopen_research_20261011/deployment_candidate",
+  "fit_label_availability_cutoff_inclusive_utc": "2026-10-07T00:00:00Z",
+  "initial_history_start_utc": "2020-06-09T09:33:00Z",
+  "calibration_source": "frozen development-only chronological walk-forward OOF predictions",
+  "policy_source": "frozen development-only selected_development_policy.json",
+  "activation_authorized": false,
+  "live_orders_authorized": false
+}

@@ -2708,6 +2708,7 @@ def _portfolio_for_policy(
     *,
     decision_snapshot_by_id: dict[str, dict] | None = None,
     side_selection_by_id: dict[str, str] | None = None,
+    minimum_net_ev_fraction: float = 0.0,
     output_policy: str | None = None,
 ) -> tuple[dict, list[dict], list[dict]]:
     import heapq
@@ -2834,6 +2835,7 @@ def _portfolio_for_policy(
         else:
             raise ValueError(f"Unknown policy: {policy}")
         decision["requested_gross_usd"] = desired
+        decision["minimum_net_ev_fraction"] = float(minimum_net_ev_fraction)
         if desired <= 1e-8:
             rejected["no_free_cash"] += 1
             decision.update(decision="skip", skip_reason="no_free_cash")
@@ -2851,6 +2853,10 @@ def _portfolio_for_policy(
                 side_result = evaluation["sides"][side_name]
                 fill_result = side_result.get("fill") or {}
                 prefix = f"{side_name}_{label}"
+                age_snapshot = decision_snapshot if label.startswith("decision") else snapshot
+                decision[f"{prefix}_ask_age_seconds"] = _float_or_none(
+                    age_snapshot.get(f"{side_name}_ask_age_seconds")
+                )
                 decision[f"{prefix}_priceable"] = bool(side_result["priceable"])
                 decision[f"{prefix}_reason"] = side_result["reason"]
                 decision[f"{prefix}_ev_usd"] = side_result.get("ev_usd")
@@ -2914,6 +2920,14 @@ def _portfolio_for_policy(
             decisions.append(decision)
             continue
         chosen = selection_evaluation["sides"][side]
+        net_ev_fraction = float(chosen["ev_usd"]) / float(desired)
+        decision["net_ev_fraction_at_decision"] = net_ev_fraction
+        if net_ev_fraction + 1e-12 < float(minimum_net_ev_fraction):
+            reason = "below_minimum_net_ev_fraction"
+            rejected[reason] += 1
+            decision.update(decision="skip", chosen_side=side, skip_reason=reason)
+            decisions.append(decision)
+            continue
         execution = execution_evaluation["sides"][side]
         if not execution["priceable"]:
             reason = execution["reason"]
@@ -3042,7 +3056,8 @@ def _portfolio_for_policy(
         "monthly_continuous_portfolio": monthly,
         "drawdown_accounting": "cash plus original gross cost basis of unsettled positions; settlement changes equity to cash payout, and no interim mark-to-market is imputed",
         "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
-        "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; no edge threshold beyond EV > 0",
+        "minimum_net_ev_fraction": float(minimum_net_ev_fraction),
+        "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
         "_equity_path": path,
     }
     return summary, trades, decisions

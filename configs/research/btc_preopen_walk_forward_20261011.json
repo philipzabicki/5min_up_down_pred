@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_preopen_walk_forward_20261011",
+  "source_contract_path": "configs/btc_preopen_v1.json",
+  "raw_data_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+  "official_markets_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+  "output_dir": "data/analysis/polymarket/BTC/preopen_research_20261011",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "data_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+  "folds": [
+    {
+      "fold_id": "calibration_seed",
+      "fit_end_exclusive_utc": "2025-10-01T00:00:00Z",
+      "calibration_start_utc": "2025-10-01T00:00:00Z",
+      "market_start_first_utc": "2026-01-01T00:00:00Z",
+      "market_start_last_inclusive_utc": "2026-04-15T17:00:00Z",
+      "calibration_source": "chronological_post-fit_proxy_labels",
+      "policy_selection_fold": false
+    },
+    {
+      "fold_id": "dev_2026q2_a",
+      "market_start_first_utc": "2026-04-15T17:05:00Z",
+      "market_start_last_inclusive_utc": "2026-04-30T23:55:00Z",
+      "calibration_source": "earlier_fold_oof",
+      "policy_selection_fold": true
+    },
+    {
+      "fold_id": "dev_2026q2_b",
+      "market_start_first_utc": "2026-05-01T00:00:00Z",
+      "market_start_last_inclusive_utc": "2026-05-31T23:55:00Z",
+      "calibration_source": "earlier_fold_oof",
+      "policy_selection_fold": true
+    },
+    {
+      "fold_id": "dev_2026q2_c",
+      "market_start_first_utc": "2026-06-01T00:00:00Z",
+      "market_start_last_inclusive_utc": "2026-06-30T23:55:00Z",
+      "calibration_source": "earlier_fold_oof",
+      "policy_selection_fold": true
+    },
+    {
+      "fold_id": "evaluated_holdout",
+      "market_start_first_utc": "2026-07-01T00:00:00Z",
+      "market_start_last_inclusive_utc": "2026-10-06T23:55:00Z",
+      "calibration_source": "development_walk_forward_oof",
+      "policy_selection_fold": false
+    }
+  ],
+  "policy_selection": {
+    "sizing_policy": "free_cash_5pct",
+    "minimum_net_ev_fraction_candidates": [0.0, 0.0025, 0.005, 0.01, 0.02],
+    "selection_metric": "highest development final settled cash after fees, with tie-break by lower max drawdown then fewer trades",
+    "initial_cash_usd": 100.0,
+    "development_start_market_utc": "2026-04-15T17:05:00Z",
+    "development_end_exclusive_utc": "2026-07-01T00:00:00Z"
+  }
+}

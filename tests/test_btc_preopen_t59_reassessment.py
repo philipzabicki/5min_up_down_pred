@@ -360,6 +360,29 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             pd.Timedelta(seconds=1),
         )
 
+    def test_net_ev_hurdle_is_checked_at_t60(self):
+        start = pd.Timestamp("2026-04-15T17:05:00Z")
+        market, execution_snapshot = self._market_and_snapshot(
+            "m1", start, start + pd.Timedelta(minutes=5), outcome=1,
+        )
+        market["p_candidate_platt"] = 0.8
+        execution_snapshot["up_ask_levels"] = [(0.90, 1_000.0)]
+        decision_snapshot = dict(execution_snapshot)
+        decision_snapshot.update({
+            "entry_time_utc": start - pd.Timedelta(seconds=60),
+            "up_ask_levels": [(0.50, 1_000.0)],
+        })
+
+        summary, trades, decisions = assessment._portfolio_for_policy(
+            "fixed_5_usd", pd.DataFrame([market]), {"m1": execution_snapshot}, {"m1": market},
+            decision_snapshot_by_id={"m1": decision_snapshot},
+            minimum_net_ev_fraction=0.7,
+        )
+
+        self.assertEqual(trades, [])
+        self.assertEqual(decisions[0]["skip_reason"], "below_minimum_net_ev_fraction")
+        self.assertGreater(decisions[0]["net_ev_fraction_at_decision"], 0.5)
+
     def _interrupt_after_first_replay_checkpoint(self, root, parts_dir, index):
         original_replace = os.replace
         checkpoint_path = root / "t59_replay_checkpoint.pkl"
