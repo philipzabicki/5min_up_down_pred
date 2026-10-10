@@ -1,0 +1,4 @@
+metric,n,p50_ms,p95_ms,p99_ms,status,source,limitation
+candidate_warm_candle_update_to_feature_vector_model_and_platt,422,14.846,22.73671,28.000333,measured_local_cpu_only,reports/btc_preopen/live_feature_parity.json,"Candidate runtime, saved local data; excludes live feed availability, market lookup/book, order serialization/signing, network, response, ACK and fill."
+live_market_data_available_to_ready_order_request,0,,,,not_observed,No active-candidate live shadow sample in repository.,Requires bounded no-order shadow on the exact frozen active bundle with synchronized data-receive and request-ready timestamps.
+exchange_ack_and_first_or_final_fill_latency,0,,,,not_observed,No authenticated current V2 CLOB client/observed live order.,Client HTTP response is not exchange ACK or fill; actual order fills are not authorized in this review.

@@ -1,0 +1,9 @@
+row_type,fee_rate_counts,fee_age_p50_seconds,fee_age_p95_seconds,fee_age_p99_seconds,notes,shares,price_usd,formula,fee_usd_before_rounding,fee_usd_after_5dp,fee_shares,net_shares,fee_usd_share_equivalent,cash_debit_usd
+saved_event_fee_audit,"{""known_0_bps"": 37961, ""known_1000_bps"": 3674, ""unknown_rate"": 8549}",3.662,37.8615617,233.47672,"An archived event value, including zero, is an observed payload field only; it does not prove the fee that a present-day match would charge.",,,,,,,,,
+independent_current_fee_example,,,,,,10,0.5,shares * 0.07 * price * (1-price),0.175,0.175,,,,
+independent_current_fee_example,,,,,,10,0.3,shares * 0.07 * price * (1-price),0.147,0.147,,,,
+independent_current_fee_example,,,,,,10,0.7,shares * 0.07 * price * (1-price),0.147,0.147,,,,
+independent_current_fee_example,,,,,,100,0.5,shares * 0.07 * price * (1-price),1.75,1.75,,,,
+independent_legacy_1000bps_share_fee_example,,,,,,10,0.5,"floor(shares * (1000/10000) * min(p,1-p) / p, 6 decimals)",,,1,9,0.5,5
+independent_legacy_1000bps_share_fee_example,,,,,,10,0.3,"floor(shares * (1000/10000) * min(p,1-p) / p, 6 decimals)",,,1,9,0.3,3
+independent_legacy_1000bps_share_fee_example,,,,,,10,0.7,"floor(shares * (1000/10000) * min(p,1-p) / p, 6 decimals)",,,0.428571,9.571429,0.2999997,7

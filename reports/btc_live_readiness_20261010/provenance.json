@@ -1,0 +1,248 @@
+{
+  "generated_at_utc": "2026-10-10T15:29:23.241830+00:00",
+  "input_provenance": {
+    "analysis_manifest_created_at_utc": "2026-10-10T08:03:54.663793+00:00",
+    "manifest_artifacts_checked": 11,
+    "manifest_artifacts": [
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_calendar.parquet",
+        "sha256": "3f94aa8f1df7516f487800f6aea91d12a61c26e345482b662d3ddb4fb5611b60",
+        "size_bytes": 19636191
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_daily.csv",
+        "sha256": "bce422097c8ba9e52f2dfb6dac765207d3816d34c2ad1be2b17ba223664373c8",
+        "size_bytes": 24633
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_monthly.csv",
+        "sha256": "d247b1dc8c468d2144bed81d30a8a3d1ba890d0b8ef44770bafb01502eb1f1b3",
+        "size_bytes": 1387
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/legacy_recovery_comparison.parquet",
+        "sha256": "1be0dfb3dbe274eb0407dc64d16c96b0d0d5f16086c354f3595e2d5d7dd3c3cd",
+        "size_bytes": 343046
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json",
+        "sha256": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+        "size_bytes": 2234325
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+        "sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+        "size_bytes": 7486947
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/portfolio_decisions.parquet",
+        "sha256": "8e80be1efc5ab2fd250011f61dffdd2e6b7338df16f6796fbd9575707647efaa",
+        "size_bytes": 16731966
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/portfolio_trades.parquet",
+        "sha256": "e1bc71190c0ec00834abaac139dfdf64bb18d75b5d26675921f5fe90bbbf0408",
+        "size_bytes": 9882937
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/sizing_opportunities.parquet",
+        "sha256": "8e80be1efc5ab2fd250011f61dffdd2e6b7338df16f6796fbd9575707647efaa",
+        "size_bytes": 16731966
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet",
+        "sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+        "size_bytes": 26049036
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_replay_dependencies.json",
+        "sha256": "22d1117ce726db7ec1917ff6362e1439ecc78f2499f32aa2caa5cba7874de009",
+        "size_bytes": 1500013
+      }
+    ],
+    "replay_status": "complete",
+    "replay_dependencies_match_current": true,
+    "replay_provenance_verified": true,
+    "snapshot_artifact_integrity_verified": true,
+    "snapshot_rows": 50184,
+    "source_event_rows_already_replayed": 521429475,
+    "source_partitions_replayed_this_session": 717,
+    "snapshot_sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+    "replay_dependency_sha256": "131704cf793b6a2cee896af858bf2d9ec7056d5d5409890b614f52b0eee2d935"
+  },
+  "input_quality": {
+    "calendar_slots": 84331,
+    "confirmed_markets": 79680,
+    "causal_predictions_in_calendar": 50195,
+    "eligible_confirmed_causal_markets": 50184,
+    "snapshot_rows": 50184,
+    "matched_snapshot_count": 50184,
+    "outcome_missing_count": 1,
+    "resolved_time_missing_count": 11,
+    "from_utc": "2026-04-15T17:05:00+00:00",
+    "through_utc": "2026-10-06T23:55:00+00:00"
+  },
+  "runtime_audit": {
+    "runtime_active_model_meta": "data/models/BTC/20261003_043549/lgbm_meta_20261003_043549.json",
+    "active_feature_count": 256,
+    "active_model_file": null,
+    "candidate_model_meta": "configs/runtime/btc_preopen_candidate_model_meta.json",
+    "candidate_feature_count": 112,
+    "common_feature_name_count": 44,
+    "ordered_features_identical": false,
+    "same_model_meta": false,
+    "active_calibration_sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "candidate_calibration_sha256": "33d6cc6ca054348b6db25228dfa55897c49c923811c65143c52be80ae38aafe2",
+    "calibrations_identical": false,
+    "active_live_profile": "polymarket_live",
+    "paper_mode": false,
+    "order_submission_disabled": false,
+    "execution_mode": "fak",
+    "configured_per_order_stake_cap_usdc": 100.0,
+    "configured_absolute_order_price_cap": 0.95,
+    "py_clob_client_v2_installed": false,
+    "candidate_has_separate_runtime_config": true,
+    "candidate_is_active": false
+  },
+  "current_api_fee_tick_sample": {
+    "captured_at_utc": "2026-10-10T15:12:26.463632+00:00",
+    "read_only_public_endpoints": [
+      "https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1791645000",
+      "https://gamma-api.polymarket.com/markets?slug=btc-updown-5m-1791645300",
+      "https://clob.polymarket.com/fee-rate?token_id=<sampled-token>",
+      "https://clob.polymarket.com/book?token_id=<sampled-token>"
+    ],
+    "samples": [
+      {
+        "slug": "btc-updown-5m-1791645000",
+        "condition_id": "0x24c2d9ec745aa5f22f08bba00fc958f36b6afeb9c929cdd2eb0e7187f6d350bf",
+        "fees_enabled": true,
+        "fee_rate": 0.07,
+        "min_shares": 5,
+        "tick_size": 0.01,
+        "clob_base_fee": 1000
+      },
+      {
+        "slug": "btc-updown-5m-1791645300",
+        "condition_id": "0x31c070e5f796fce5c0a668c18edd18cb2f09aae0a419c99e6da4e851e8831df3",
+        "fees_enabled": true,
+        "fee_rate": 0.07,
+        "min_shares": 5,
+        "tick_size": 0.01,
+        "clob_base_fee": 1000
+      }
+    ],
+    "note": "Point-in-time metadata sample; not an order or fee/fill observation."
+  },
+  "current_fee_examples": [
+    {
+      "shares": 10.0,
+      "price_usd": 0.5,
+      "formula": "shares * 0.07 * price * (1-price)",
+      "fee_usd_before_rounding": 0.17500000000000002,
+      "fee_usd_after_5dp": 0.175,
+      "row_type": "independent_current_fee_example"
+    },
+    {
+      "shares": 10.0,
+      "price_usd": 0.3,
+      "formula": "shares * 0.07 * price * (1-price)",
+      "fee_usd_before_rounding": 0.147,
+      "fee_usd_after_5dp": 0.147,
+      "row_type": "independent_current_fee_example"
+    },
+    {
+      "shares": 10.0,
+      "price_usd": 0.7,
+      "formula": "shares * 0.07 * price * (1-price)",
+      "fee_usd_before_rounding": 0.14700000000000002,
+      "fee_usd_after_5dp": 0.147,
+      "row_type": "independent_current_fee_example"
+    },
+    {
+      "shares": 100.0,
+      "price_usd": 0.5,
+      "formula": "shares * 0.07 * price * (1-price)",
+      "fee_usd_before_rounding": 1.7500000000000002,
+      "fee_usd_after_5dp": 1.75,
+      "row_type": "independent_current_fee_example"
+    },
+    {
+      "row_type": "independent_legacy_1000bps_share_fee_example",
+      "shares": 10.0,
+      "price_usd": 0.5,
+      "formula": "floor(shares * (1000/10000) * min(p,1-p) / p, 6 decimals)",
+      "fee_shares": 1.0,
+      "net_shares": 9.0,
+      "fee_usd_share_equivalent": 0.5,
+      "cash_debit_usd": 5.0
+    },
+    {
+      "row_type": "independent_legacy_1000bps_share_fee_example",
+      "shares": 10.0,
+      "price_usd": 0.3,
+      "formula": "floor(shares * (1000/10000) * min(p,1-p) / p, 6 decimals)",
+      "fee_shares": 1.0,
+      "net_shares": 9.0,
+      "fee_usd_share_equivalent": 0.3,
+      "cash_debit_usd": 3.0
+    },
+    {
+      "row_type": "independent_legacy_1000bps_share_fee_example",
+      "shares": 10.0,
+      "price_usd": 0.7,
+      "formula": "floor(shares * (1000/10000) * min(p,1-p) / p, 6 decimals)",
+      "fee_shares": 0.428571,
+      "net_shares": 9.571429,
+      "fee_usd_share_equivalent": 0.2999997,
+      "cash_debit_usd": 7.0
+    }
+  ],
+  "latency_evidence": [
+    {
+      "metric": "candidate_warm_candle_update_to_feature_vector_model_and_platt",
+      "n": 422,
+      "p50_ms": 14.846,
+      "p95_ms": 22.73670999999999,
+      "p99_ms": 28.000333000000015,
+      "status": "measured_local_cpu_only",
+      "source": "reports/btc_preopen/live_feature_parity.json",
+      "limitation": "Candidate runtime, saved local data; excludes live feed availability, market lookup/book, order serialization/signing, network, response, ACK and fill."
+    },
+    {
+      "metric": "live_market_data_available_to_ready_order_request",
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "status": "not_observed",
+      "source": "No active-candidate live shadow sample in repository.",
+      "limitation": "Requires bounded no-order shadow on the exact frozen active bundle with synchronized data-receive and request-ready timestamps."
+    },
+    {
+      "metric": "exchange_ack_and_first_or_final_fill_latency",
+      "n": 0,
+      "p50_ms": null,
+      "p95_ms": null,
+      "p99_ms": null,
+      "status": "not_observed",
+      "source": "No authenticated current V2 CLOB client/observed live order.",
+      "limitation": "Client HTTP response is not exchange ACK or fill; actual order fills are not authorized in this review."
+    }
+  ],
+  "current_fee_known_count_disagreement_note": "Gamma feeSchedule rate 0.07 and CLOB /fee-rate base_fee 1000 are different API values; no private SDK order handshake was possible.",
+  "new_data_cutoff_utc": "2026-10-06T23:55:00+00:00",
+  "model_training_performed": false,
+  "full_event_replay_performed": false,
+  "orders_sent": false,
+  "wall_seconds": 124.11340460000793,
+  "official_sources": {
+    "fees": "https://docs.polymarket.com/trading/fees",
+    "maker_rebates": "https://help.polymarket.com/en/articles/13364471-maker-rebates-program",
+    "place_orders": "https://docs.polymarket.com/trading/place-orders",
+    "market_details": "https://docs.polymarket.com/market-data/market-details",
+    "exchange_upgrade": "https://help.polymarket.com/en/articles/14762452-polymarket-exchange-upgrade-april-28-2026",
+    "resolution": "https://docs.polymarket.com/concepts/resolution",
+    "legacy_fee_contract": "https://github.com/Polymarket/ctf-exchange/blob/main/src/exchange/libraries/CalculatorHelper.sol"
+  }
+}

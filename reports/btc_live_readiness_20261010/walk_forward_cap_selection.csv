@@ -1,0 +1,8 @@
+evaluation_month_utc,selection_data_through_month_utc,selected_policy,selected_cap_usd,selected_policy_prior_month_pnl_usd,selection_rule,status
+2026-04,,free_cash_5pct_cap20,20,,seeded to existing $20 control; no prior evaluation month,retrospective_chronological_diagnostic_not_OOS
+2026-05,2026-04,free_cash_5pct_cap15,15,-59.31967532,highest prior-month cap-portfolio net PnL; ties prefer smaller cap,retrospective_chronological_diagnostic_not_OOS
+2026-06,2026-05,free_cash_5pct_cap10,10,-9.194700621,highest prior-month cap-portfolio net PnL; ties prefer smaller cap,retrospective_chronological_diagnostic_not_OOS
+2026-07,2026-06,free_cash_5pct_cap5,5,0,highest prior-month cap-portfolio net PnL; ties prefer smaller cap,retrospective_chronological_diagnostic_not_OOS
+2026-08,2026-07,free_cash_5pct_cap15,15,-1.555853327,highest prior-month cap-portfolio net PnL; ties prefer smaller cap,retrospective_chronological_diagnostic_not_OOS
+2026-09,2026-08,free_cash_5pct_cap15,15,-3.184038704,highest prior-month cap-portfolio net PnL; ties prefer smaller cap,retrospective_chronological_diagnostic_not_OOS
+2026-10,2026-09,free_cash_5pct_cap5,5,0,highest prior-month cap-portfolio net PnL; ties prefer smaller cap,retrospective_chronological_diagnostic_not_OOS
