@@ -1,0 +1,129 @@
+{
+  "registry_id": "polymarket_btc5m_fee_regimes",
+  "version": 1,
+  "scope": "Polymarket BTC 5-minute up/down CLOB markets, series 10684",
+  "captured_at_utc": "2026-10-10T17:00:21.674495+00:00",
+  "market_fee_schedule_source": "Gamma per-market feesEnabled and feeSchedule fields, keyed by condition_id; https://gamma-api.polymarket.com/markets?condition_ids=<condition_id>&closed=true&limit=100; the 79,680-market scan is summarized in reports/btc_fee_history_20261010/gamma_fee_regime_market_counts.csv",
+  "market_fee_schedule_selection": "Use the selected market's own Gamma metadata; market identity, not market-creation time or the order/entry timestamp, selects the fee schedule. Match/entry time selects the exchange collection unit. Do not select a fee schedule from last_trade_price.fee_rate_bps.",
+  "market_fee_regimes_observed": [
+    {
+      "rule_id": "btc5m.fee_disabled.observed_examples",
+      "fees_enabled": false,
+      "rate": null,
+      "exponent": null,
+      "taker_only": null,
+      "first_observed_market_start_utc": "2025-12-18T04:25:00Z",
+      "last_observed_before_market_gap_utc": "2026-01-26T23:20:00Z",
+      "next_market_after_gap_start_utc": "2026-02-12T00:35:00Z",
+      "observed_market_count": 11431,
+      "status": "confirmed_for_each_listed_market;activation_boundary_unresolved_inside_no_market_gap",
+      "confidence": "high_for_listed_market_metadata_medium_for_activation_boundary",
+      "notes": "All 11,431 confirmed market records from 2025-12-18T04:25Z through 2026-01-26T23:20Z had feesEnabled=false. The saved market calendar contains no markets from 2026-01-26T23:25Z through 2026-02-12T00:30Z. The first enabled BTC 5m market is 2026-02-12T00:35Z, so activation within that no-market gap cannot affect a traded market and is not assigned a fabricated boundary."
+    },
+    {
+      "rule_id": "btc5m.crypto.rate_0p25.exponent_2",
+      "fees_enabled": true,
+      "rate": 0.25,
+      "exponent": 2,
+      "taker_only": true,
+      "first_confirmed_market_start_utc": "2026-02-12T00:35:00Z",
+      "last_confirmed_market_start_before_next_regime_utc": "2026-03-29T23:55:00Z",
+      "market_created_at_first_confirmed_utc": "2026-02-12T00:37:26.706933Z",
+      "observed_market_count": 13241,
+      "fee_type_examples": [
+        "crypto_15_min",
+        "crypto_fees"
+      ],
+      "status": "confirmed_for_each_listed_market;first_active_boundary_bounded_by_no_market_gap",
+      "confidence": "high_for_listed_markets_medium_for_activation_boundary",
+      "notes": "Market fee type label changed while rate and exponent remained the same; feeType is not treated as a separate economic regime."
+    },
+    {
+      "rule_id": "btc5m.crypto.rate_0p07.exponent_1",
+      "fees_enabled": true,
+      "rate": 0.07,
+      "exponent": 1,
+      "taker_only": true,
+      "first_confirmed_market_start_utc": "2026-03-30T00:00:00Z",
+      "first_confirmed_market_created_at_utc": "2026-03-29T00:06:58.718802Z",
+      "last_confirmed_market_start_utc": "2026-10-06T23:55:00Z",
+      "observed_market_count": 55008,
+      "status": "confirmed_per_market_for_listed_market_records",
+      "confidence": "high_for_captured_market_metadata",
+      "notes": "All 50,184 T-59 opportunity markets carry this schedule; the full Gamma capture includes all 79,680 confirmed market records in the saved calendar."
+    }
+  ],
+  "fee_calculation": {
+    "documented_formula": "fee_amount = shares * rate * (price * (1 - price)) ** exponent",
+    "source": "https://docs.polymarket.com/trading/fees and official py-clob-client-v2 fee calculation",
+    "cash_collateral": {
+      "collection_unit": "USDC/pUSD collateral",
+      "rounding": "round half up to 0.00001 per modeled order",
+      "minimum_fee": 1e-05,
+      "status": "confirmed_by_current_official_docs_and_v2_sdk; historical_market_schedule_still_depends_on_captured_per_market_metadata",
+      "confidence": "high_from_current_official_docs_and_sdk"
+    },
+    "outcome_shares": {
+      "collection_unit": "outcome shares",
+      "share_precision_decimals": 6,
+      "rounding": "floor to 6 decimals per aggregate price level in the saved ladder",
+      "status": "historical_amount_unresolved; estimated_legacy_fee_math; share_collection_unit_confirmed_until_exchange_upgrade",
+      "confidence": "low_for_actual_historical_fee_amount",
+      "notes": "Legacy CTF contract uses per-order feeRateBps as a maximum bound and the fee module refunds excess; archive feeRateBps is therefore not the actual operator fee. Historical per-match operator fee amounts and maker-fill decomposition are absent. The replay converts the documented rate/exponent fee amount to shares as a transparent estimate; it is not labeled as a confirmed V1 fee ledger."
+    }
+  },
+  "execution_collection_regimes": [
+    {
+      "rule_id": "polymarket.exchange_v1.outcome_shares",
+      "entry_utc_before": "2026-04-28T11:00:00Z",
+      "collection_unit": "outcome_shares",
+      "status": "confirmed_for_unit; exact_cutover_second_unresolved",
+      "decision_time": "match/entry time; market identity selects the fee schedule",
+      "source": "https://help.polymarket.com/en/articles/14762452-polymarket-exchange-upgrade-april-28-2026",
+      "confidence": "high_for_unit_medium_for_exact_cutover_second"
+    },
+    {
+      "rule_id": "polymarket.exchange_upgrade.maintenance_pause",
+      "entry_utc_from": "2026-04-28T11:00:00Z",
+      "entry_utc_before": "2026-04-28T12:00:00Z",
+      "collection_unit": "none_trading_paused",
+      "status": "approximate_public_window; exact_pause_boundaries_unresolved",
+      "decision_time": "match/entry time; new entries excluded in this approximate window",
+      "source": "https://help.polymarket.com/en/articles/14762452-polymarket-exchange-upgrade-april-28-2026",
+      "confidence": "medium_approximate_public_window"
+    },
+    {
+      "rule_id": "polymarket.exchange_v2.cash_collateral",
+      "entry_utc_from": "2026-04-28T12:00:00Z",
+      "collection_unit": "USDC/pUSD collateral",
+      "status": "confirmed_for_unit; exact_reopen_second_unresolved",
+      "decision_time": "match time in V2; market identity selects the fee schedule",
+      "source": "https://help.polymarket.com/en/articles/14762452-polymarket-exchange-upgrade-april-28-2026",
+      "confidence": "high_for_unit_medium_for_exact_cutover_second"
+    }
+  ],
+  "rebates": {
+    "credited_in_replay": false,
+    "reason": "The modeled orders are takers and the market fee schedules are takerOnly. Gamma rebateRate metadata is not evidence of a rebate earned by these taker orders.",
+    "source": "https://help.polymarket.com/en/articles/13364471-maker-rebates-program"
+  },
+  "archive_field_audit": {
+    "field": "last_trade_price.fee_rate_bps",
+    "known_zero_values": "explicit payload zero (the archive converter preserves missing as null); post-migration feeRateBps meaning is unverified and is not evidence of fee-free trading",
+    "known_1000_values": "legacy order maximum/cap in bps; not actual fee amount",
+    "null_values": "unknown; never defaulted to zero",
+    "sources": [
+      "https://github.com/Polymarket/ctf-exchange/blob/main/src/exchange/libraries/CalculatorHelper.sol",
+      "https://github.com/Polymarket/exchange-fee-module/blob/main/src/FeeModule.sol"
+    ]
+  },
+  "known_uncertainties": [
+    "The public upgrade announcement gives an approximate one-hour window; exact cutover second is not independently confirmed.",
+    "No per-match legacy fee amounts or maker-fill decomposition are present in the saved T-59 snapshots.",
+    "For the saved T-59 history from 2026-04-15 17:05 UTC through 2026-10-06 23:55 UTC, Gamma feeSchedule was captured on 2026-10-10; original market-creation or match-time feeSchedule values are absent, so historical rate/exponent immutability is unresolved.",
+    "The exact V1-to-V2 cutover second within approximately 2026-04-28 11:00-12:00 UTC is unresolved; the replay excludes entries in that window.",
+    "The saved ladders aggregate depth by price and do not preserve maker order identities; exact simulated cash-fee rounding/minimum behavior per historical match cannot be reconstructed.",
+    "Historical Gamma metadata is captured now from each market record; the archive did not preserve the feeSchedule fields at original market creation.",
+    "The official maker-rebate page and exchange-upgrade notice describe buy-side fee collection differently; no maker rebate is credited, and the post-upgrade collateral rule follows the upgrade notice plus current fee documentation."
+  ]
+}

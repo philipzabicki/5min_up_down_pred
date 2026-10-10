@@ -1,0 +1,3 @@
+policy,current_counterfactual_trades,schedule_estimate_trades,common_entry_count,chosen_side_changed_on_common_entries,median_vwap_change_usd_schedule_minus_current,interpretation
+fixed_5_usd,457,657,439,0,0,path-dependent portfolio comparison; overlapping entries are not an additive fee attribution
+free_cash_5pct_cap20,417,439,397,0,0,path-dependent portfolio comparison; overlapping entries are not an additive fee attribution

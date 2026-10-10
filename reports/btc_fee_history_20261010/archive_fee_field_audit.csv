@@ -1,0 +1,7 @@
+fee_known,fee_rate_bps_literal,archive_fee_collection_mode,snapshot_count,interpretation
+False,,cash_collateral,8541,"missing event rate; unknown, never treated as zero"
+True,0.0,cash_collateral,37961,"explicit payload zero; archive conversion preserves missing as null, but the post-migration field meaning is unverified and market metadata says fees are enabled"
+False,,maintenance_pause,6,"missing event rate; unknown, never treated as zero"
+True,1000.0,maintenance_pause,6,legacy order feeRateBps maximum/cap; not the operator fee amount
+False,,outcome_shares,2,"missing event rate; unknown, never treated as zero"
+True,1000.0,outcome_shares,3668,legacy order feeRateBps maximum/cap; not the operator fee amount

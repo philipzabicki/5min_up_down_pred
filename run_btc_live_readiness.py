@@ -16,6 +16,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from utils import polymarket_btc5m_fee_rules
 
 ROOT = Path(__file__).resolve().parent
 INPUT_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008"
@@ -27,6 +28,7 @@ CAPS_USD = (5.0, 10.0, 15.0, 20.0, 30.0, 50.0, 75.0, 100.0, None)
 AGE_LIMITS_SECONDS = (1.0, 5.0, 30.0)
 FEE_ARCHIVED = "archived_event_bps_literal"
 FEE_CURRENT = "current_gamma_schedule_0p07_counterfactual"
+FEE_HISTORICAL = "market_schedule_with_historical_collection_unit"
 CURRENT_TAKER_RATE = 0.07
 CURRENT_MIN_SHARES = 5.0
 RELEASE_DELAYS_SECONDS = (60, 300, 900)
@@ -145,7 +147,8 @@ def current_cash_fee(shares: float, price: float, rate: float = CURRENT_TAKER_RA
 def walk_asks(
     levels: tuple[tuple[float, float], ...], gross_usd: float, *,
     fee_scenario: str, fee_rate_bps: float | None = None,
-    fee_collection_mode: str | None = None, price_shift: float = 0.0,
+    fee_collection_mode: str | None = None, fee_rule: dict | None = None,
+    price_shift: float = 0.0,
     depth_fraction: float = 1.0, max_price: float | None = None,
 ) -> dict:
     """Walk all available levels; default contract is full requested gross or no fill."""
@@ -169,6 +172,19 @@ def walk_asks(
         gross += notional
         if fee_scenario == FEE_CURRENT:
             raw_fee_cash += take * CURRENT_TAKER_RATE * price * (1.0 - price)
+        elif fee_scenario == FEE_HISTORICAL:
+            if fee_rule is None:
+                raise polymarket_btc5m_fee_rules.UnknownFeeRuleError("Historical fee rule is missing")
+            fee_level = polymarket_btc5m_fee_rules.fee_for_price_level(take, price, fee_rule)
+            if fee_rule["collection_mode"] == "outcome_shares":
+                raw_fee_shares += fee_level["fee_shares"]
+                fee_usd += fee_level["fee_usd_entry_equivalent"]
+            elif fee_rule["collection_mode"] == "cash_collateral":
+                raw_fee_cash += fee_level["fee_cash_usd"]
+            elif fee_rule["collection_mode"] != "maintenance_pause":
+                raise polymarket_btc5m_fee_rules.UnknownFeeRuleError(
+                    f"Unsupported historical collection mode: {fee_rule['collection_mode']}"
+                )
         elif fee_scenario == FEE_ARCHIVED:
             if fee_rate_bps is None or not math.isfinite(float(fee_rate_bps)):
                 return {"depth_sufficient": False, "reason": "unknown_archived_fee"}
@@ -200,14 +216,23 @@ def walk_asks(
     if gross <= 0:
         return {"depth_sufficient": False, "gross_usd": 0.0, "gross_shares": 0.0, "reason": "no_fill"}
 
-    if fee_scenario == FEE_CURRENT:
+    if fee_scenario == FEE_CURRENT or (
+        fee_scenario == FEE_HISTORICAL and fee_rule["collection_mode"] == "cash_collateral"
+    ):
         # Price varies across levels, so round the accumulated order fee once.
-        fee_cash = float(Decimal(str(raw_fee_cash)).quantize(Decimal("0.00001"), rounding=ROUND_HALF_UP))
-        if fee_cash < 0.00001:
+        precision = 5 if fee_scenario == FEE_CURRENT else int(fee_rule["fee_precision_decimals"])
+        minimum_fee = 0.00001 if fee_scenario == FEE_CURRENT else float(fee_rule["minimum_fee"])
+        quantum = Decimal(1).scaleb(-precision)
+        fee_cash = float(Decimal(str(raw_fee_cash)).quantize(quantum, rounding=ROUND_HALF_UP))
+        if fee_cash < minimum_fee:
             fee_cash = 0.0
         fee_shares = 0.0
         net_shares = gross_shares
         fee_usd = fee_cash
+    elif fee_scenario == FEE_HISTORICAL and fee_rule["collection_mode"] == "outcome_shares":
+        fee_cash = 0.0
+        fee_shares = raw_fee_shares
+        net_shares = gross_shares - fee_shares
     elif fee_collection_mode == "outcome_shares":
         fee_cash = 0.0
         fee_shares = raw_fee_shares
@@ -259,6 +284,12 @@ def side_base_reason(snapshot: dict, market: dict, side: str, fee_scenario: str,
         return f"ask_source_age_over_{age_limit:g}s"
     if bool(snapshot.get(f"{side}_bbo_ask_comparable")) and bool(snapshot.get(f"{side}_bbo_ask_mismatch")):
         return "native_ask_bbo_reconciliation_mismatch"
+    if fee_scenario == FEE_HISTORICAL:
+        rule = market.get("fee_rule")
+        if not rule or str(rule.get("status", "")).startswith("unresolved"):
+            return "unknown_historical_fee_rule"
+        if rule.get("collection_mode") == "maintenance_pause":
+            return "exchange_maintenance_pause"
     if fee_scenario == FEE_ARCHIVED:
         if not bool(snapshot.get("fee_known")):
             return "unknown_archived_fee"
@@ -290,6 +321,7 @@ def _price_side(
         levels, gross_usd, fee_scenario=fee_scenario,
         fee_rate_bps=_finite(snapshot.get("fee_rate_bps")),
         fee_collection_mode=str(snapshot.get("fee_collection_mode")),
+        fee_rule=market.get("fee_rule") if fee_scenario == FEE_HISTORICAL else None,
         price_shift=float(execution.get("price_shift", 0.0)),
         depth_fraction=float(execution.get("depth_fraction", 1.0)),
         max_price=max_price,
@@ -413,20 +445,25 @@ def simulate(
     execution: dict | None = None,
     cap_schedule: dict[str, float | None] | None = None,
     keep_path: bool = False, keep_trades: bool = False,
+    initial_cash_usd: float = INITIAL_CASH_USD,
 ) -> tuple[dict, list[dict], list[dict], list[dict]]:
     execution = execution or {"absolute_order_price_cap": 0.95}
-    cash = INITIAL_CASH_USD
+    initial_cash_usd = float(initial_cash_usd)
+    if not math.isfinite(initial_cash_usd) or initial_cash_usd < 0:
+        raise ValueError("initial_cash_usd must be finite and nonnegative")
+    cash = initial_cash_usd
     locked = fees_paid = turnover = 0.0
-    peak_equity = INITIAL_CASH_USD
+    peak_equity = initial_cash_usd
     peak_ns = None
     max_dd = 0.0
     dd_peak_equity = None
     dd_peak_ns = dd_trough_ns = dd_recovery_ns = None
     max_exposure = min_free_cash = 0.0
-    min_free_cash = INITIAL_CASH_USD
+    min_free_cash = initial_cash_usd
     max_positions = 0
     positions = []
     skip_reasons = Counter()
+    monthly_skip_reasons = defaultdict(Counter)
     daily_pnl = defaultdict(float)
     trade_rows = []
     equity_events = []
@@ -435,6 +472,9 @@ def simulate(
     gross_sizes = []
     vwap_values = []
     monthly_trade_counts = Counter()
+    monthly_fee_totals = Counter()
+    monthly_turnover = Counter()
+    first_insufficient_cash = None
 
     def record(now_ns: int, event_type: str, cid: str = ""):
         nonlocal peak_equity, peak_ns, max_dd, dd_peak_equity
@@ -475,6 +515,11 @@ def simulate(
             cash += pos["payout_usd"]
             record(release_ns, "settlement", cid)
 
+    def record_skip(reason: str, market: dict):
+        skip_reasons[reason] += 1
+        month = pd.Timestamp(market["market_start_ns"], unit="ns", tz="UTC").strftime("%Y-%m")
+        monthly_skip_reasons[month][reason] += 1
+
     if markets:
         record(markets[0]["entry_ns"], "initial")
     for market in markets:
@@ -484,13 +529,13 @@ def simulate(
         release_until(entry_ns)
         snapshot = market["snapshot"]
         if snapshot is None:
-            skip_reasons["missing_t59_market_snapshot"] += 1
+            record_skip("missing_t59_market_snapshot", market)
             continue
         if market["outcome"] is None or market["resolved_ns"] is None:
-            skip_reasons["missing_official_outcome_or_resolution_time"] += 1
+            record_skip("missing_official_outcome_or_resolution_time", market)
             continue
         if market["p_candidate_platt"] is None or not 0 <= market["p_candidate_platt"] <= 1:
-            skip_reasons["missing_causal_prediction"] += 1
+            record_skip("missing_causal_prediction", market)
             continue
         active_cap = cap_usd
         if cap_schedule is not None:
@@ -498,7 +543,7 @@ def simulate(
             active_cap = cap_schedule[month]
         desired = FIXED_STAKE_USD if policy == "fixed_5_usd" else desired_stake(cash, active_cap)
         if desired <= 1e-8:
-            skip_reasons["no_free_cash"] += 1
+            record_skip("no_free_cash", market)
             continue
         chosen, evaluations, decision_reason = _evaluate_sides(
             snapshot, market, desired,
@@ -507,13 +552,20 @@ def simulate(
             execution=execution,
         )
         if chosen is None:
-            skip_reasons[decision_reason] += 1
+            record_skip(decision_reason, market)
             continue
         selected = evaluations[chosen]
         fill = selected["fill"]
         debit = float(fill["cash_debit_usd"])
         if cash + 1e-9 < debit:
-            skip_reasons["insufficient_free_cash_for_cash_debit"] += 1
+            if first_insufficient_cash is None:
+                first_insufficient_cash = {
+                    "time_utc": pd.Timestamp(entry_ns, unit="ns", tz="UTC").isoformat(),
+                    "condition_id": cid,
+                    "available_cash_usd": cash,
+                    "required_cash_usd": debit,
+                }
+            record_skip("insufficient_free_cash_for_cash_debit", market)
             continue
         won = int(market["outcome"]) == int(chosen == "up")
         payout = float(fill["shares"]) if won else 0.0
@@ -532,6 +584,8 @@ def simulate(
         trade_month = pd.Timestamp(start_ns, unit="ns", tz="UTC").strftime("%Y-%m")
         daily_pnl[pd.Timestamp(start_ns, unit="ns", tz="UTC").strftime("%Y-%m-%d")] += trade_pnl
         monthly_trade_counts[trade_month] += 1
+        monthly_fee_totals[trade_month] += float(fill.get("fee_usd") or 0.0)
+        monthly_turnover[trade_month] += float(fill["gross_usd"])
         record(entry_ns, "entry", cid)
         if keep_trades:
             trade_rows.append({
@@ -544,6 +598,26 @@ def simulate(
                 "entry_time_utc": pd.Timestamp(entry_ns, unit="ns", tz="UTC").isoformat(),
                 "resolved_at_utc": market["resolved_at_utc"].isoformat(),
                 "cash_release_assumption_utc": pd.Timestamp(release_ns, unit="ns", tz="UTC").isoformat(),
+                "fee_rule_id": (market.get("fee_rule") or {}).get("rule_id"),
+                "market_fee_rule_id": (market.get("fee_rule") or {}).get("market_fee_rule_id"),
+                "fee_rule_status": (market.get("fee_rule") or {}).get("status") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_collection_mode": (market.get("fee_rule") or {}).get("collection_mode") if fee_scenario == FEE_HISTORICAL else snapshot.get("fee_collection_mode"),
+                "fee_collection_rule_id": (market.get("fee_rule") or {}).get("collection_rule_id") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_rate": (market.get("fee_rule") or {}).get("rate") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_exponent": (market.get("fee_rule") or {}).get("exponent") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_precision_decimals": (market.get("fee_rule") or {}).get("fee_precision_decimals") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_minimum": (market.get("fee_rule") or {}).get("minimum_fee") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_taker_only": (market.get("fee_rule") or {}).get("taker_only") if fee_scenario == FEE_HISTORICAL else None,
+                "market_metadata_confidence": (market.get("fee_rule") or {}).get("market_metadata_confidence") if fee_scenario == FEE_HISTORICAL else None,
+                "rebate_rate_observed": (market.get("fee_rule") or {}).get("rebate_rate") if fee_scenario == FEE_HISTORICAL else None,
+                "rebate_credited": (market.get("fee_rule") or {}).get("rebate_credited", False) if fee_scenario == FEE_HISTORICAL else False,
+                "fee_calculation_status": (market.get("fee_rule") or {}).get("calculation_status") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_amount_reconstruction_confidence": (market.get("fee_rule") or {}).get("fee_amount_reconstruction_confidence") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_rule_confidence": (market.get("fee_rule") or {}).get("confidence") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_rule_source": (market.get("fee_rule") or {}).get("source") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_collection_source": (market.get("fee_rule") or {}).get("collection_source") if fee_scenario == FEE_HISTORICAL else None,
+                "fee_collection_confidence": (market.get("fee_rule") or {}).get("collection_confidence") if fee_scenario == FEE_HISTORICAL else None,
+                "archive_fee_rate_bps_literal": _finite(snapshot.get("fee_rate_bps")),
                 "chosen_side": chosen,
                 "probability_side": selected["probability"],
                 "outcome_up": int(market["outcome"]), "won": won,
@@ -569,33 +643,69 @@ def simulate(
         if analysis_end_ns > equity_events[-1][0]:
             record(analysis_end_ns, "analysis_end")
 
-    if abs((cash - INITIAL_CASH_USD) - sum(daily_pnl.values())) > 1e-6:
+    if abs((cash - initial_cash_usd) - sum(daily_pnl.values())) > 1e-6:
         raise RuntimeError("Ledger PnL does not reconcile to ending cash")
     if min_free_cash < -1e-8 or locked < -1e-8:
         raise RuntimeError("Cash or locked cost became negative")
     monthly_rows = []
     if equity_events:
         monthly_closing_equity = {}
-        for event_ns, equity, _, _, _, _ in equity_events:
+        monthly_closing_cash = {}
+        monthly_closing_locked = {}
+        monthly_equities = defaultdict(list)
+        monthly_max_exposure = Counter()
+        monthly_min_free_cash = {}
+        monthly_max_positions = Counter()
+        for event_ns, equity, event_cash, event_locked, _, _ in equity_events:
             month_label = pd.Timestamp(event_ns, unit="ns", tz="UTC").strftime("%Y-%m")
             monthly_closing_equity[month_label] = equity
+            monthly_closing_cash[month_label] = event_cash
+            monthly_closing_locked[month_label] = event_locked
+            monthly_equities[month_label].append(equity)
+        for event_ns, _, event_cash, event_locked, event_positions, _ in equity_events:
+            month_label = pd.Timestamp(event_ns, unit="ns", tz="UTC").strftime("%Y-%m")
+            monthly_max_exposure[month_label] = max(monthly_max_exposure[month_label], event_locked)
+            monthly_min_free_cash[month_label] = min(monthly_min_free_cash.get(month_label, event_cash), event_cash)
+            monthly_max_positions[month_label] = max(monthly_max_positions[month_label], event_positions)
         first_timestamp = markets[0]["market_start_utc"]
         last_timestamp = pd.Timestamp(max(markets[-1]["market_start_ns"], equity_events[-1][0]), unit="ns", tz="UTC")
         first_month = pd.Timestamp(first_timestamp.year, first_timestamp.month, 1, tz="UTC")
         last_month = pd.Timestamp(last_timestamp.year, last_timestamp.month, 1, tz="UTC")
         months = pd.date_range(first_month, last_month, freq="MS", tz="UTC")
-        previous = INITIAL_CASH_USD
+        previous = initial_cash_usd
+        previous_cash = initial_cash_usd
+        previous_locked = 0.0
         for month in months:
             label = month.strftime("%Y-%m")
             closing = float(monthly_closing_equity.get(label, previous))
+            closing_cash = float(monthly_closing_cash.get(label, previous_cash))
+            closing_locked = float(monthly_closing_locked.get(label, previous_locked))
+            month_peak = -math.inf
+            month_max_drawdown = 0.0
+            for equity in monthly_equities.get(label, []):
+                month_peak = max(month_peak, equity)
+                if month_peak > 0:
+                    month_max_drawdown = max(month_max_drawdown, (month_peak - equity) / month_peak)
             monthly_rows.append({
                 "month_utc": label,
                 "opening_cost_basis_equity_usd": previous,
                 "closing_cost_basis_equity_usd": closing,
+                "opening_free_cash_usd": previous_cash,
+                "closing_free_cash_usd": closing_cash,
+                "closing_locked_cost_basis_usd": closing_locked,
                 "net_pnl_usd": closing - previous,
                 "entry_count": monthly_trade_counts.get(label, 0),
+                "gross_turnover_usd": monthly_turnover.get(label, 0.0),
+                "fees_paid_estimated_usd": monthly_fee_totals.get(label, 0.0),
+                "monthly_max_drawdown_cost_basis_equity": month_max_drawdown,
+                "minimum_free_cash_usd": monthly_min_free_cash.get(label, previous_cash),
+                "maximum_cost_basis_exposure_usd": monthly_max_exposure.get(label, 0.0),
+                "maximum_concurrent_positions": monthly_max_positions.get(label, 0),
+                "skip_reasons": json.dumps(dict(monthly_skip_reasons.get(label, {})), sort_keys=True),
             })
             previous = closing
+            previous_cash = closing_cash
+            previous_locked = closing_locked
 
     total_positive_daily = sum(value for value in daily_pnl.values() if value > 0)
     top_day, top_day_pnl = max(daily_pnl.items(), key=lambda item: item[1], default=(None, 0.0))
@@ -605,11 +715,15 @@ def simulate(
         "policy": policy, "cap_usd": cap_usd, "fee_scenario": fee_scenario,
         "ask_age_limit_seconds": age_limit, "release_delay_seconds": release_delay,
         "execution_assumption": execution_name,
-        "initial_cash_usd": INITIAL_CASH_USD,
+        "initial_cash_usd": initial_cash_usd,
         "ending_cash_after_assumed_release_usd": cash,
-        "net_pnl_usd": cash - INITIAL_CASH_USD,
+        "net_pnl_usd": cash - initial_cash_usd,
         "trade_pnl_sum_usd": total_trade_pnl,
         "trade_count": trade_count, "skip_count": int(sum(skip_reasons.values())),
+        "first_insufficient_cash_entry_time_utc": first_insufficient_cash["time_utc"] if first_insufficient_cash else None,
+        "first_insufficient_cash_condition_id": first_insufficient_cash["condition_id"] if first_insufficient_cash else None,
+        "first_insufficient_cash_available_usd": first_insufficient_cash["available_cash_usd"] if first_insufficient_cash else None,
+        "first_insufficient_cash_required_usd": first_insufficient_cash["required_cash_usd"] if first_insufficient_cash else None,
         "gross_turnover_usd": turnover, "fees_paid_estimated_usd": fees_paid,
         "max_drawdown_cost_basis_equity": max_dd,
         "max_drawdown_peak_utc": pd.Timestamp(dd_peak_ns, unit="ns", tz="UTC").isoformat() if dd_peak_ns is not None else None,

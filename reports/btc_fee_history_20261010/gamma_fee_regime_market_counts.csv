@@ -1,0 +1,5 @@
+fees_enabled,fee_rate,fee_exponent,taker_only,fee_type,markets
+False,,,,,11431
+True,0.07,1.0,True,crypto_fees_v2,55008
+True,0.25,2.0,True,crypto_15_min,5679
+True,0.25,2.0,True,crypto_fees,7562
