@@ -1,0 +1,17 @@
+{
+  "status": "separate_estimate_only",
+  "source_url": "https://docs.polymarket.com/programs/taker-rebates",
+  "source_sha256": "9CF901163C8B81B337E993FF1E6C8F29A5CD47F7C7BDA2AABA04DC55990F7B1B",
+  "source_capture_date_utc": "2026-10-10",
+  "program_go_live_utc": "2026-05-28T00:00:00+00:00",
+  "historical_launch_terms_confirmed": false,
+  "maker_rebates_credited": false,
+  "policy_selection_uses_rebates": false,
+  "weighted_volume_formula": "trade_size_usd * (1 - entry_vwap) * crypto_category_weight_2.3 * assumed_bonus_multiplier_1.0",
+  "tier_update_assumption": "Current page rolling 30-day wV evaluated at daily UTC midnight; the tier then applies to that day's trades.",
+  "payout_assumption": "Current page daily midnight pUSD payout with a $1 accrued minimum; unpaid accrual carries forward and is not added to strategy cash before payout.",
+  "rebate_amount_assumption": "The page shows tier percentages but does not state their monetary base; this scenario applies them to reconstructed executed taker fee equivalents and is illustrative only. Exit transaction eligibility is unconfirmed.",
+  "bonus_assumption": "Current page one-time tier bonuses paid at the midnight tier update; historical bonus terms and eligibility at launch remain unconfirmed.",
+  "summary_rows": 5,
+  "cashflow_rows": 0
+}

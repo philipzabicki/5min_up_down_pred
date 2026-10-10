@@ -1,0 +1,67 @@
+{
+  "capture_date_utc": "2026-10-10",
+  "notes": [
+    "Archived Polymarket documentation is primary evidence for the listed rates and formula on the archived dates, not for the exact intervening rate-change date.",
+    "The assumed 2026-05-06T00:00:00Z rate transition is an estimate and is tested over the predeclared daily range 2026-04-23 through 2026-05-15.",
+    "The live Taker Rebate page was captured on 2026-10-10; it confirms the program start and current tier mechanics but does not establish the historical terms at launch or explicitly state the monetary base to which its rebate percentages apply."
+  ],
+  "sources": [
+    {
+      "title": "Polymarket Fees, archived 2026-04-14",
+      "role": "historical rate and formula evidence",
+      "archived_at_utc": "2026-04-14T21:09:10Z",
+      "archive_url": "https://web.archive.org/web/20260414210910/https://docs.polymarket.com/trading/fees",
+      "original_url": "https://docs.polymarket.com/trading/fees",
+      "local_path": "reports/btc_fee_policy_20261010/sources/fees_20260414.html",
+      "sha256": "CCB6765B4579F98BC2D3856CA30FF464CA246D5AE0D4E1BBCC549F5D2C4A2EA6",
+      "supports": "Crypto rate 0.072 and fee_usdc = shares * feeRate * p * (1-p)."
+    },
+    {
+      "title": "Polymarket Fees, archived 2026-04-22",
+      "role": "historical rate and formula evidence",
+      "archived_at_utc": "2026-04-22T23:25:54Z",
+      "archive_url": "https://web.archive.org/web/20260422232554/https://docs.polymarket.com/trading/fees",
+      "original_url": "https://docs.polymarket.com/trading/fees",
+      "local_path": "reports/btc_fee_policy_20261010/sources/fees_20260422.html",
+      "sha256": "0BA705114910AC91F8324515837604292A9AB2CCE71AB6204F793E382D425210",
+      "supports": "Crypto rate 0.072 and the same fee formula."
+    },
+    {
+      "title": "Polymarket Maker Rebates, archived 2026-05-04",
+      "role": "historical rate evidence",
+      "archived_at_utc": "2026-05-04T21:19:35Z",
+      "archive_url": "https://web.archive.org/web/20260504211935/https://docs.polymarket.com/market-makers/maker-rebates",
+      "original_url": "https://docs.polymarket.com/market-makers/maker-rebates",
+      "local_path": "reports/btc_fee_policy_20261010/sources/maker_rebates_20260504.html",
+      "sha256": "0CE4C3145D3BBD3EB549A01D059CD12FE2C99B851F7FFEBAE31EC70428787EE6",
+      "supports": "Crypto rate 0.072 remained listed on 2026-05-04."
+    },
+    {
+      "title": "Polymarket Fees, archived 2026-05-10",
+      "role": "historical rate evidence",
+      "archived_at_utc": "2026-05-10T04:49:16Z",
+      "archive_url": "https://web.archive.org/web/20260510044916/https://docs.polymarket.com/trading/fees.md",
+      "original_url": "https://docs.polymarket.com/trading/fees.md",
+      "local_path": "reports/btc_fee_policy_20261010/sources/fees_20260510.md",
+      "sha256": "ED96FC0700529DFBFD73DA07CAEFF9084D438A59EE6CF60C6652F0C2115EB98A",
+      "supports": "Crypto rate 0.07 was listed by 2026-05-10."
+    },
+    {
+      "title": "Polymarket Exchange Upgrade, 2026-04-28",
+      "role": "CLOB V1 to V2 collection-unit transition and maintenance notice",
+      "original_url": "https://help.polymarket.com/en/articles/14762452-polymarket-exchange-upgrade-april-28-2026",
+      "local_path": "reports/btc_fee_policy_20261010/sources/exchange_upgrade_2026.html",
+      "sha256": "1380B2BABC60C5F8EC706C5022A71B57DDD4819F37294A0F3E89583F721F5105",
+      "supports": "V2 fees are collected in USDC/pUSD; the published notice describes an approximately one-hour migration pause. Exact fee cutover second is unresolved."
+    },
+    {
+      "title": "Polymarket Taker Rebate Program, current page captured 2026-10-10",
+      "role": "current rebate mechanics; not historical launch terms",
+      "captured_at_utc_date": "2026-10-10",
+      "original_url": "https://docs.polymarket.com/programs/taker-rebates",
+      "local_path": "reports/btc_fee_policy_20261010/sources/taker_rebates_20261010.html",
+      "sha256": "9CF901163C8B81B337E993FF1E6C8F29A5CD47F7C7BDA2AABA04DC55990F7B1B",
+      "supports": "Program go-live date 2026-05-28, current rolling 30-day weighted-volume tiers, crypto category weight, displayed rebate percentages, current daily pUSD payout mechanics, and bonuses. Monetary base for the rebate percentages and historical terms at launch are not stated in this capture."
+    }
+  ]
+}

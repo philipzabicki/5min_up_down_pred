@@ -1,0 +1,58 @@
+{
+  "study_id": "btc_historical_policy_study_20261010",
+  "status": "predeclared parameter space; research only",
+  "data_cutoff_utc": "2026-10-06T23:55:00Z",
+  "decision_anchor": "T-59 entry-time snapshot; preserve saved 1 second order delay",
+  "entry_freshness_limit_seconds": 1,
+  "entry_after_cost_return_thresholds": [0.0, 0.02, 0.04, 0.08],
+  "entry_edge_definition": "best executable-side expected net profit divided by that order's cash debit (gross notional plus cash fee); V1 share fees reduce net shares and therefore expected payout, not entry cash debit",
+  "sizing": {
+    "fixed_gross_usd": 5,
+    "free_cash_fraction": 0.05,
+    "free_cash_caps_usd": [5, 10, 15, 20, 30, 50, 75, 100, null],
+    "percentage_base": "free cash after locked positions and released settlements, before the new order",
+    "cap_includes_fee": false,
+    "fee_cash_must_fit_free_cash": true
+  },
+  "portfolio": {
+    "initial_cash_usd": 100,
+    "credit_or_deposits": false,
+    "minimum_gross_order_shares": 5,
+    "minimum_order_source_status": "current Gamma constraint; historical minimum is not archived",
+    "entry_absolute_price_cap_usd": 0.95,
+    "depth_rule": "full requested amount or no entry; do not shrink to available liquidity",
+    "settlement_release_delay_seconds": 60,
+    "settlement_time": "max(official Gamma resolved_at, market_start + 5 minutes) + 60 seconds"
+  },
+  "exit_family": {
+    "control": "hold to official resolution",
+    "fixed_close_market_start_offsets_seconds": [60, 180, 240],
+    "take_profit_stop_loss_net_liquidation_returns": [
+      {"take_profit": 0.1, "stop_loss": -0.1},
+      {"take_profit": 0.2, "stop_loss": -0.2}
+    ],
+    "decision_sampling_seconds": 5,
+    "order_delay_seconds": 1,
+    "fresh_bid_limit_seconds": 1,
+    "liquidation_quote_rule": "walk timestamped executable bid depth for the full open position; no forward fill; retry a triggered threshold only at a later causal decision quote"
+  },
+  "chronological_selection": {
+    "training_period_start_utc": "2026-04-15T17:05:00Z",
+    "training_period_end_inclusive_utc": "2026-05-31T23:59:59Z",
+    "out_of_sample_period_start_utc": "2026-06-01T00:00:00Z",
+    "selection_metric": "maximum single-account cost-basis equity at the training cutoff, among configurations above the $100 no-trade control; if none exceed it, choose no trade",
+    "tie_break": "higher after-cost edge threshold, then lower per-order cap, then fewer trades",
+    "portfolio_state": "one continuous $100 path for every full-history comparison; no mid-run reset; training cutoff uses cash plus locked cost basis and does not recognize later outcomes"
+  },
+  "rebates": {
+    "maker_rebates": false,
+    "taker_rebates_in_policy_selection": false,
+    "current_taker_rebate_terms": "separate estimate only; historical thresholds and execution timing are unconfirmed"
+  },
+  "known_execution_limits": [
+    "The T-59 ladder is the latest saved executable-side quote, not a guaranteed order-arrival fill after the saved one-second delay.",
+    "Historical fill acknowledgement and partial-fill records are absent; entry simulation remains full-request-or-skip.",
+    "Current minimum-size metadata is used because historical minimums are absent.",
+    "Taker fees are reconstructed from aggregate price levels; individual maker matches and exact per-match rounding are absent."
+  ]
+}

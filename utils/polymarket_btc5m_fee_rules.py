@@ -1,13 +1,13 @@
-"""Versioned fee-rule selection and calculation for BTC 5-minute Polymarket markets."""
+"""Date-assigned BTC 5-minute Polymarket fee rules and ladder accounting."""
 from __future__ import annotations
 
 import json
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_DOWN
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-REGISTRY_PATH = ROOT / "configs/polymarket_btc5m_fee_regimes_v1.json"
+REGISTRY_PATH = ROOT / "configs/polymarket_btc5m_fee_regimes_v2.json"
 
 
 class UnknownFeeRuleError(ValueError):
@@ -42,182 +42,210 @@ def _metadata_bool(value):
     return None
 
 
-def _schedule_regime(registry: dict, rate: float, exponent: float) -> dict | None:
-    for regime in registry.get("market_fee_regimes_observed", []):
-        if regime.get("fees_enabled") is not True:
-            continue
-        if regime.get("rate") == rate and regime.get("exponent") == exponent:
-            return regime
-    return None
+def resolve_market_fee_rule(
+    metadata: dict | None,
+    entry_time_utc,
+    registry: dict | None = None,
+    *,
+    transition_utc=None,
+) -> dict:
+    """Assign a date-based historical rule without treating current Gamma as history.
 
-
-def resolve_market_fee_rule(metadata: dict | None, entry_time_utc, registry: dict | None = None) -> dict:
-    """Resolve a market's own Gamma fee schedule and match-time collection unit.
-
-    Missing or malformed market metadata stays unresolved. ``fee_rate_bps`` from
-    archived trade messages is intentionally not an input to this function.
+    Gamma metadata is retained for audit only. The effective rate comes from dated
+    archived fee documents; the change date remains an explicit estimate.
     """
     registry = registry or load_registry()
-    if metadata is None or _metadata_bool(metadata.get("metadata_missing")) is True:
-        return {
-            "rule_id": "btc5m.fee_rule.unknown",
-            "status": "unresolved_missing_market_metadata",
-            "confidence": "none",
-            "source": "Gamma per-market market fee metadata snapshot",
-            "rate": None,
-            "exponent": None,
-            "collection_mode": "unknown",
-            "collection_rule_id": "unknown",
-        }
-
-    fee_enabled = _metadata_bool(metadata.get("fees_enabled", metadata.get("feesEnabled")))
-    if fee_enabled is None:
-        return {
-            "rule_id": "btc5m.fee_rule.unknown",
-            "status": "unresolved_missing_feesEnabled",
-            "confidence": "none",
-            "source": "Gamma per-market market fee metadata snapshot",
-            "rate": None,
-            "exponent": None,
-            "collection_mode": "unknown",
-            "collection_rule_id": "unknown",
-        }
-
     entry_at = _utc_timestamp(entry_time_utc)
-    billing = registry["execution_collection_regimes"]
-    pause = next(row for row in billing if row["collection_unit"] == "none_trading_paused")
-    v2_cash = next(row for row in billing if row["collection_unit"] == "USDC/pUSD collateral")
-    v1_shares = next(row for row in billing if row["collection_unit"] == "outcome_shares")
-    pause_from = _utc_timestamp(pause["entry_utc_from"])
-    pause_before = _utc_timestamp(pause["entry_utc_before"])
-    v2_from = _utc_timestamp(v2_cash["entry_utc_from"])
-    if pause_from <= entry_at < pause_before:
-        collection_mode, collection_rule = "maintenance_pause", pause
-    elif entry_at < v2_from:
-        collection_mode, collection_rule = "outcome_shares", v1_shares
+    estimated_transition = _utc_timestamp(
+        transition_utc or registry["rate_transition"]["assumed_utc"]
+    )
+    if entry_at < estimated_transition:
+        rate_row = registry["historical_rate_regimes"][0]
     else:
-        collection_mode, collection_rule = "cash_collateral", v2_cash
-    collection_rule_id = collection_rule["rule_id"]
+        rate_row = registry["historical_rate_regimes"][1]
 
-    if not fee_enabled:
-        return {
-            "rule_id": "btc5m.fee_disabled.market_metadata",
-            "status": "fee_free_confirmed_for_market_metadata",
-            "confidence": "high_for_listed_market_metadata",
-            "source": "Gamma per-market feesEnabled=false",
-            "rate": 0.0,
-            "exponent": None,
-            "taker_only": None,
-            "collection_mode": collection_mode,
-            "collection_rule_id": collection_rule_id,
-            "collection_source": collection_rule["source"],
-            "calculation_status": "no_fee",
-            "rebate_rate": None,
-        }
+    collection = registry["collection_regimes"]
+    pause = collection[1]
+    if _utc_timestamp(pause["from_utc"]) <= entry_at < _utc_timestamp(pause["before_utc"]):
+        collection_mode = "maintenance_pause"
+        collection_status = pause["status"]
+        collection_rule_id = "polymarket.exchange_upgrade.maintenance_pause"
+    elif entry_at < _utc_timestamp(collection[0]["before_utc"]):
+        collection_mode = "outcome_shares"
+        collection_status = collection[0]["status"]
+        collection_rule_id = "polymarket.exchange_v1.side_specific_collection"
+    else:
+        collection_mode = "cash_collateral"
+        collection_status = collection[2]["status"]
+        collection_rule_id = "polymarket.exchange_v2.cash_collateral"
 
-    fee_schedule = metadata.get("feeSchedule") or {}
-    rate_value = metadata.get("fee_rate", fee_schedule.get("rate"))
-    exponent_value = metadata.get("fee_exponent", fee_schedule.get("exponent"))
-    taker_only_value = metadata.get("taker_only", fee_schedule.get("takerOnly"))
-    try:
-        rate = float(rate_value)
-        exponent = float(exponent_value)
-    except (TypeError, ValueError):
-        rate = exponent = None
-    taker_only = _metadata_bool(taker_only_value)
-    regime = _schedule_regime(registry, rate, exponent) if rate is not None and exponent is not None else None
-    if regime is None or taker_only is not True:
-        return {
-            "rule_id": "btc5m.fee_rule.unknown",
-            "status": "unresolved_fee_schedule_or_taker_flag",
-            "confidence": "none",
-            "source": "Gamma per-market feesEnabled and feeSchedule",
-            "rate": rate,
-            "exponent": exponent,
-            "taker_only": taker_only,
-            "collection_mode": collection_mode,
-            "collection_rule_id": collection_rule_id,
-        }
-
-    if collection_mode == "cash_collateral":
-        calculation_status = "documented_cash_fee_rule_on_aggregated_order"
-        calculation_confidence = "high"
-        amount_confidence = "high_for_formula_low_for_actual_match_amount"
-        collection_confidence = "high_for_unit_medium_for_exact_cutover_second"
-        precision_decimals = 5
-        minimum_fee = 0.00001
+    metadata_missing = metadata is None or _metadata_bool(
+        metadata.get("metadata_missing")
+    ) is True
+    if collection_mode == "maintenance_pause":
+        calculation_status = "no_trade_during_approximate_maintenance_window"
     elif collection_mode == "outcome_shares":
-        calculation_status = "estimated_legacy_share_fee_from_market_schedule"
-        calculation_confidence = "low_actual_fee_amount_unverified"
-        amount_confidence = "low_actual_v1_operator_fee_unverified"
-        collection_confidence = "high_for_unit_medium_for_exact_cutover_second"
-        precision_decimals = 6
-        minimum_fee = None
+        calculation_status = "historical_rule_assigned_v1_fee_amount_estimated"
     else:
-        calculation_status = "no_entry_during_exchange_maintenance"
-        calculation_confidence = "medium_approximate_maintenance_window"
-        amount_confidence = "not_applicable_no_entry"
-        collection_confidence = "medium_approximate_maintenance_window"
-        precision_decimals = None
-        minimum_fee = None
+        calculation_status = "historical_rule_assigned_v2_fee_amount_estimated"
 
     return {
-        "rule_id": f"{regime['rule_id']}+{collection_rule_id}",
-        "market_fee_rule_id": regime["rule_id"],
-        "status": "schedule_captured_billing_formula_estimated" if collection_mode == "outcome_shares" else "confirmed_for_captured_market_metadata",
-        "confidence": calculation_confidence,
-        "market_metadata_confidence": regime.get("confidence"),
-        "source": "https://gamma-api.polymarket.com/markets?condition_ids=<condition_id>&closed=true&limit=100",
-        "rate": rate,
-        "exponent": exponent,
-        "taker_only": taker_only,
+        "rule_id": f"btc5m.crypto.{rate_row['rate']}+{collection_rule_id}",
+        "status": "historical_rule_assigned_transition_date_estimate",
+        "rate_status": rate_row["rate_status"],
+        "rate_transition_utc": estimated_transition.isoformat().replace("+00:00", "Z"),
+        "rate_transition_is_estimate": True,
+        "rate_evidence": rate_row["evidence"],
+        "rate": float(rate_row["rate"]),
+        "exponent": int(rate_row["exponent"]),
+        "taker_only": True,
+        "fee_enabled_status": "BTC crypto fee schedule assigned from archived category documentation; per-market historical enabled flag unavailable",
+        "metadata_missing_as_of_2026_10_10_capture": metadata_missing,
+        "captured_metadata_rate_ignored_for_historical_assignment": (
+            None if metadata is None else metadata.get("fee_rate", (metadata.get("feeSchedule") or {}).get("rate"))
+        ),
         "collection_mode": collection_mode,
         "collection_rule_id": collection_rule_id,
-        "collection_source": collection_rule["source"],
-        "collection_confidence": collection_confidence,
+        "collection_source": "reports/btc_fee_policy_20261010/source_provenance.json",
+        "collection_confidence": "unit supported; exact cutover second unresolved",
+        "collection_status": collection_status,
+        "confidence": "historical rate assigned; transition date and per-match amount estimated",
+        "market_metadata_confidence": "current capture is audit context only, not historical evidence",
         "calculation_status": calculation_status,
-        "fee_amount_reconstruction_confidence": amount_confidence,
-        "fee_precision_decimals": precision_decimals,
-        "minimum_fee": minimum_fee,
-        "rebate_rate": metadata.get("rebate_rate", fee_schedule.get("rebateRate")),
+        "amount_status": "estimated_from_documented_formula; per-match fills and maker allocation unavailable",
+        "formula": "shares_traded * rate * price * (1-price)**exponent",
+        "v1_buy_fee_unit": "outcome shares",
+        "v1_sell_fee_unit": "cash collateral proceeds",
+        "v2_fee_unit": "USDC/pUSD collateral",
+        "v1_share_precision_decimals": 6,
+        "v1_cash_precision_decimals": 6,
+        "v2_cash_precision_decimals": 5,
+        "fee_precision_decimals": 6 if collection_mode == "outcome_shares" else 5,
+        "v2_minimum_fee": 0.00001,
+        "minimum_fee": None if collection_mode == "outcome_shares" else 0.00001,
+        "rebate_rate": None,
         "rebate_credited": False,
+        "source": "reports/btc_fee_policy_20261010/source_provenance.json",
     }
 
 
-def fee_for_price_level(shares: float, price: float, rule: dict) -> dict:
-    """Calculate schedule fee for one aggregate ladder price level.
-
-    V1 share precision is rounded down per saved price level as a transparent
-    approximation; the archive does not contain individual maker fills.
-    """
-    if rule.get("status", "").startswith("unresolved") or rule.get("collection_mode") == "unknown":
-        raise UnknownFeeRuleError(f"Cannot calculate fee with unresolved rule {rule.get('rule_id')}")
+def fee_for_price_level(
+    shares: float,
+    price: float,
+    rule: dict,
+    *,
+    side: str = "buy",
+) -> dict:
+    """Estimate a single matched ladder-level fee in the appropriate unit."""
+    if side not in {"buy", "sell"}:
+        raise ValueError("side must be 'buy' or 'sell'")
     if rule.get("collection_mode") == "maintenance_pause":
-        raise UnknownFeeRuleError("No order can be priced during the exchange maintenance pause")
-    if rule.get("status") == "fee_free_confirmed_for_market_metadata":
-        return {"fee_cash_usd": 0.0, "fee_shares": 0.0, "fee_usd_entry_equivalent": 0.0}
+        raise UnknownFeeRuleError("No order can be priced during the exchange pause")
+    if rule.get("collection_mode") not in {"outcome_shares", "cash_collateral"}:
+        raise UnknownFeeRuleError(f"Unknown collection mode: {rule.get('collection_mode')}")
     if not rule.get("taker_only"):
         raise UnknownFeeRuleError("This replay models taker orders only")
 
-    share_amount = Decimal(str(shares))
+    shares_value = Decimal(str(shares))
     price_value = Decimal(str(price))
+    if shares_value <= 0 or not Decimal(0) < price_value < Decimal(1):
+        raise ValueError("shares must be positive and price must be between zero and one")
     rate = Decimal(str(rule["rate"]))
     exponent = Decimal(str(rule["exponent"]))
-    raw_cash_fee = share_amount * rate * (price_value * (Decimal(1) - price_value)) ** exponent
+    raw_cash_equivalent = (
+        shares_value * rate * price_value * (Decimal(1) - price_value) ** exponent
+    )
 
-    if rule["collection_mode"] == "outcome_shares":
-        precision = int(rule["fee_precision_decimals"])
-        quantum = Decimal(1).scaleb(-precision)
-        raw_share_fee = raw_cash_fee / price_value
-        share_fee = raw_share_fee.quantize(quantum, rounding=ROUND_DOWN)
-        return {
-            "fee_cash_usd": 0.0,
-            "fee_shares": float(share_fee),
-            "fee_usd_entry_equivalent": float(share_fee * price_value),
-        }
+    if rule["collection_mode"] == "outcome_shares" and side == "buy":
+        quantum = Decimal("0.000001")
+        fee_shares = (raw_cash_equivalent / price_value).quantize(
+            quantum, rounding=ROUND_DOWN,
+        )
+        fee_cash = Decimal(0)
+        fee_equivalent = fee_shares * price_value
+    elif rule["collection_mode"] == "outcome_shares":
+        quantum = Decimal("0.000001")
+        fee_cash = raw_cash_equivalent.quantize(quantum, rounding=ROUND_DOWN)
+        fee_shares = Decimal(0)
+        fee_equivalent = fee_cash
+    else:
+        fee_cash = raw_cash_equivalent
+        fee_shares = Decimal(0)
+        fee_equivalent = raw_cash_equivalent
 
     return {
-        "fee_cash_usd": float(raw_cash_fee),
-        "fee_shares": 0.0,
-        "fee_usd_entry_equivalent": float(raw_cash_fee),
+        "fee_cash_usd": float(fee_cash),
+        "fee_shares": float(fee_shares),
+        "fee_usd_entry_equivalent": float(fee_equivalent),
+        "raw_fee_usdc_equivalent": float(raw_cash_equivalent),
+    }
+
+
+def round_v2_cash_fee(raw_fee_cash: float, rule: dict) -> float:
+    fee = Decimal(str(raw_fee_cash)).quantize(
+        Decimal("0.00001"), rounding=ROUND_HALF_UP,
+    )
+    minimum = Decimal(str(rule.get("v2_minimum_fee", 0.00001)))
+    return float(fee) if fee >= minimum else 0.0
+
+
+def walk_bids(
+    levels,
+    shares: float,
+    rule: dict,
+    *,
+    depth_fraction: float = 1.0,
+) -> dict:
+    """Walk an executable bid ladder to sell a whole position or report no fill."""
+    if depth_fraction <= 0 or depth_fraction > 1:
+        raise ValueError("depth_fraction must be in (0, 1]")
+    requested = float(shares)
+    if requested <= 0:
+        raise ValueError("shares must be positive")
+    remaining = requested
+    gross_cash = raw_v2_fee = fee_cash = 0.0
+    sold_shares = 0.0
+    price_levels = []
+    for price, size in sorted(levels, key=lambda item: float(item[0]), reverse=True):
+        price, size = float(price), float(size) * depth_fraction
+        if not 0 < price < 1 or size <= 0:
+            continue
+        take = min(remaining, size)
+        if take <= 0:
+            continue
+        level_fee = fee_for_price_level(take, price, rule, side="sell")
+        gross_cash += take * price
+        raw_v2_fee += level_fee["raw_fee_usdc_equivalent"]
+        if rule["collection_mode"] == "outcome_shares":
+            fee_cash += level_fee["fee_cash_usd"]
+        sold_shares += take
+        remaining -= take
+        price_levels.append((price, take))
+        if remaining <= 1e-8:
+            break
+
+    if remaining > 1e-6:
+        return {
+            "depth_sufficient": False,
+            "requested_shares": requested,
+            "sold_shares": sold_shares,
+            "unfilled_shares": remaining,
+            "gross_proceeds_usd": gross_cash,
+            "fee_cash_usd": None,
+            "net_proceeds_usd": None,
+            "vwap": gross_cash / sold_shares if sold_shares else None,
+            "price_levels": price_levels,
+        }
+    if rule["collection_mode"] == "cash_collateral":
+        fee_cash = round_v2_cash_fee(raw_v2_fee, rule)
+    return {
+        "depth_sufficient": True,
+        "requested_shares": requested,
+        "sold_shares": sold_shares,
+        "unfilled_shares": 0.0,
+        "gross_proceeds_usd": gross_cash,
+        "fee_cash_usd": fee_cash,
+        "net_proceeds_usd": gross_cash - fee_cash,
+        "vwap": gross_cash / sold_shares,
+        "price_levels": price_levels,
     }

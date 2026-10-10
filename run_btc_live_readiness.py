@@ -333,7 +333,10 @@ def _price_side(
     return {"priceable": True, "reason": "priceable", "fill": fill}
 
 
-def _evaluate_sides(snapshot, market, gross_usd, *, fee_scenario, age_limit, execution):
+def _evaluate_sides(
+    snapshot, market, gross_usd, *, fee_scenario, age_limit, execution,
+    minimum_net_return=0.0,
+):
     p_up = _finite(market.get("p_candidate_platt"))
     if p_up is None or not 0 <= p_up <= 1:
         return None, {}, "missing_causal_prediction"
@@ -354,6 +357,10 @@ def _evaluate_sides(snapshot, market, gross_usd, *, fee_scenario, age_limit, exe
     positive = [side for side in ("up", "down") if evaluations[side]["priceable"] and evaluations[side]["ev_usd"] > 0]
     if positive:
         chosen = max(positive, key=lambda side: (evaluations[side]["ev_usd"], side == "up"))
+        selected = evaluations[chosen]
+        edge = float(selected["ev_usd"]) / float(selected["fill"]["cash_debit_usd"])
+        if edge + 1e-12 < float(minimum_net_return):
+            return None, evaluations, "below_minimum_after_cost_return"
         return chosen, evaluations, "positive_ev"
     reasons = [evaluations[side]["reason"] for side in ("up", "down")]
     if all(reason == "below_current_minimum_order_shares" for reason in reasons):
@@ -444,6 +451,7 @@ def simulate(
     execution_name: str = "full_ladder_snapshot_upper_bound",
     execution: dict | None = None,
     cap_schedule: dict[str, float | None] | None = None,
+    minimum_net_return: float = 0.0,
     keep_path: bool = False, keep_trades: bool = False,
     initial_cash_usd: float = INITIAL_CASH_USD,
 ) -> tuple[dict, list[dict], list[dict], list[dict]]:
@@ -550,6 +558,7 @@ def simulate(
             fee_scenario=fee_scenario,
             age_limit=age_limit,
             execution=execution,
+            minimum_net_return=minimum_net_return,
         )
         if chosen is None:
             record_skip(decision_reason, market)
@@ -622,6 +631,8 @@ def simulate(
                 "probability_side": selected["probability"],
                 "outcome_up": int(market["outcome"]), "won": won,
                 "requested_gross_usd": desired,
+                "minimum_net_return": float(minimum_net_return),
+                "predicted_net_return": float(selected["ev_usd"]) / debit,
                 "gross_usd": float(fill["gross_usd"]),
                 "gross_shares": float(fill["gross_shares"]),
                 "net_shares": float(fill["shares"]),

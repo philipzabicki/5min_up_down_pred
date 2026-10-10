@@ -1,0 +1,76 @@
+{
+  "registry_id": "polymarket_btc5m_fee_regimes",
+  "version": 2,
+  "scope": "BTC 5-minute T-59 predictions available in the frozen 2026-04-15 through 2026-10-06 sample",
+  "source_provenance": "reports/btc_fee_policy_20261010/source_provenance.json",
+  "historical_rate_regimes": [
+    {
+      "rate": 0.072,
+      "exponent": 1,
+      "effective_before_utc": "2026-05-06T00:00:00Z",
+      "rate_status": "historical_rate_assigned; transition date estimated",
+      "evidence": [
+        "2026-04-14 archived Polymarket Fees page: crypto rate 0.072 and fee = C × feeRate × p × (1-p)",
+        "2026-04-22 archived Polymarket Fees page: same crypto rate and formula",
+        "2026-05-04 archived Maker Rebates page: crypto rate 0.072"
+      ]
+    },
+    {
+      "rate": 0.07,
+      "exponent": 1,
+      "effective_from_utc": "2026-05-06T00:00:00Z",
+      "rate_status": "historical_rate_assigned; transition date estimated",
+      "evidence": [
+        "2026-05-08 and 2026-05-10 archived Polymarket Fees documentation: crypto rate 0.07"
+      ]
+    }
+  ],
+  "rate_transition": {
+    "assumed_utc": "2026-05-06T00:00:00Z",
+    "status": "estimate, not a confirmed historical boundary",
+    "sensitivity_dates_inclusive": {
+      "from": "2026-04-23T00:00:00Z",
+      "through": "2026-05-15T00:00:00Z",
+      "step": "1 day"
+    },
+    "selection_rule": "Use the predeclared midpoint estimate. Do not select a transition date by PnL."
+  },
+  "fee_formula": {
+    "expression": "fee_usdc = shares_traded × rate × price × (1-price)",
+    "exponent": 1,
+    "unit_of_formula": "USDC-equivalent amount before collection-unit conversion",
+    "source_status": "formula and listed rates supported by the dated official archived pages; no per-match amounts retained"
+  },
+  "collection_regimes": [
+    {
+      "unit": "outcome shares for BUY; collateral proceeds for SELL",
+      "from_utc": null,
+      "before_utc": "2026-04-28T11:00:00Z",
+      "status": "V1 collection behavior assigned from the archived legacy order flow; amount and exact per-match rounding remain estimates"
+    },
+    {
+      "unit": "trading paused; new entry excluded",
+      "from_utc": "2026-04-28T11:00:00Z",
+      "before_utc": "2026-04-28T12:00:00Z",
+      "status": "approximate public maintenance window; exact cutover time unresolved"
+    },
+    {
+      "unit": "USDC/pUSD collateral",
+      "from_utc": "2026-04-28T12:00:00Z",
+      "before_utc": null,
+      "status": "collection unit supported by the official April 28 upgrade notice; exact cutover second unresolved"
+    }
+  ],
+  "rounding": {
+    "v1_buy_fee_shares": "floor fee-equivalent shares to 6 decimals per saved aggregate price level; individual maker matches are unavailable",
+    "v1_sell_fee_cash": "floor cash fee to 6 decimals per saved aggregate price level; individual maker matches are unavailable",
+    "v2_fee_cash": "round half up to 5 decimals per modeled order; apply 0.00001 minimum",
+    "historical_fill_level": "Saved ladders aggregate size by price, so these are transparent reconstructions rather than actual per-match fee records."
+  },
+  "rebates": {
+    "maker_rebates_credited": false,
+    "taker_rebate_program_go_live_utc": "2026-05-28T00:00:00Z",
+    "historical_terms_status": "not confirmed by a dated pre-launch source in the repository; current terms are estimates only",
+    "selection_basis": "exclude rebates and one-time bonuses"
+  }
+}

@@ -1,0 +1,415 @@
+{
+  "study_id": "btc_historical_policy_study_20261010",
+  "created_at_utc": "2026-10-10T18:23:20.441324+00:00",
+  "reference_commit": "28e1e4897804d2499e7b4bcc28b7b675ac23b6ed",
+  "git_branch": "main",
+  "frozen_model_artifact_sha256": {
+    "configs/runtime/btc_preopen_candidate_model_meta.json": "c6b8368fab9c988386e40c36f9b1b8e94a8ed780815a0e14bd297c0b63b24fbd",
+    "data/models/BTC/btc_preopen_candidate_20261005/candidate_calibrator.json": "de2ec02fddae11ca0fed2b0cdb12c2f1842f57a3eb534eddaff8640bc536109e",
+    "data/models/BTC/btc_preopen_candidate_20261005/candidate_model.txt": "19be11d61db42e32aa94c294b516d5ca615cde7377375f5eb265e57423943986"
+  },
+  "causal_prediction_artifact": {
+    "actual_sha256": "ce6b4439ab689636e506bbc8628ec437211336cc7b2ef53112bc8264c66b01da",
+    "expected_sha256": "ce6b4439ab689636e506bbc8628ec437211336cc7b2ef53112bc8264c66b01da",
+    "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/causal_predictions.parquet"
+  },
+  "gamma_market_artifact": {
+    "actual_sha256": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+    "expected_sha256": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+    "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet"
+  },
+  "frozen_t59_snapshot_sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+  "replay_dependency_sha256": "131704cf793b6a2cee896af858bf2d9ec7056d5d5409890b614f52b0eee2d935",
+  "replay_source_rows_already_replayed_before_this_study": 521429475,
+  "model_retrained_or_retuned": false,
+  "new_full_event_replay_performed": false,
+  "orders_sent": false,
+  "sample": {
+    "calendar_slots": 84331,
+    "confirmed_markets": 79680,
+    "causal_predictions_in_calendar": 50195,
+    "eligible_confirmed_causal_markets": 50184,
+    "snapshot_rows": 50184,
+    "matched_snapshot_count": 50184,
+    "outcome_missing_count": 1,
+    "resolved_time_missing_count": 11,
+    "from_utc": "2026-04-15T17:05:00+00:00",
+    "through_utc": "2026-10-06T23:55:00+00:00"
+  },
+  "input_verification": {
+    "analysis_manifest_created_at_utc": "2026-10-10T08:03:54.663793+00:00",
+    "manifest_artifacts_checked": 11,
+    "manifest_artifacts": [
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_calendar.parquet",
+        "sha256": "3f94aa8f1df7516f487800f6aea91d12a61c26e345482b662d3ddb4fb5611b60",
+        "size_bytes": 19636191
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_daily.csv",
+        "sha256": "bce422097c8ba9e52f2dfb6dac765207d3816d34c2ad1be2b17ba223664373c8",
+        "size_bytes": 24633
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_monthly.csv",
+        "sha256": "d247b1dc8c468d2144bed81d30a8a3d1ba890d0b8ef44770bafb01502eb1f1b3",
+        "size_bytes": 1387
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/legacy_recovery_comparison.parquet",
+        "sha256": "1be0dfb3dbe274eb0407dc64d16c96b0d0d5f16086c354f3595e2d5d7dd3c3cd",
+        "size_bytes": 343046
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json",
+        "sha256": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+        "size_bytes": 2234325
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+        "sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+        "size_bytes": 7486947
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/portfolio_decisions.parquet",
+        "sha256": "8e80be1efc5ab2fd250011f61dffdd2e6b7338df16f6796fbd9575707647efaa",
+        "size_bytes": 16731966
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/portfolio_trades.parquet",
+        "sha256": "e1bc71190c0ec00834abaac139dfdf64bb18d75b5d26675921f5fe90bbbf0408",
+        "size_bytes": 9882937
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/sizing_opportunities.parquet",
+        "sha256": "8e80be1efc5ab2fd250011f61dffdd2e6b7338df16f6796fbd9575707647efaa",
+        "size_bytes": 16731966
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet",
+        "sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+        "size_bytes": 26049036
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_replay_dependencies.json",
+        "sha256": "22d1117ce726db7ec1917ff6362e1439ecc78f2499f32aa2caa5cba7874de009",
+        "size_bytes": 1500013
+      }
+    ],
+    "replay_status": "complete",
+    "replay_dependencies_match_current": true,
+    "replay_provenance_verified": true,
+    "snapshot_artifact_integrity_verified": true,
+    "snapshot_rows": 50184,
+    "source_event_rows_already_replayed": 521429475,
+    "source_partitions_replayed_this_session": 717,
+    "snapshot_sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+    "replay_dependency_sha256": "131704cf793b6a2cee896af858bf2d9ec7056d5d5409890b614f52b0eee2d935"
+  },
+  "frozen_execution_and_portfolio_assumptions": {
+    "study_id": "btc_historical_policy_study_20261010",
+    "status": "predeclared parameter space; research only",
+    "data_cutoff_utc": "2026-10-06T23:55:00Z",
+    "decision_anchor": "T-59 entry-time snapshot; preserve saved 1 second order delay",
+    "entry_freshness_limit_seconds": 1,
+    "entry_after_cost_return_thresholds": [
+      0.0,
+      0.02,
+      0.04,
+      0.08
+    ],
+    "entry_edge_definition": "best executable-side expected net profit divided by that order's cash debit (gross notional plus cash fee); V1 share fees reduce net shares and therefore expected payout, not entry cash debit",
+    "sizing": {
+      "fixed_gross_usd": 5,
+      "free_cash_fraction": 0.05,
+      "free_cash_caps_usd": [
+        5,
+        10,
+        15,
+        20,
+        30,
+        50,
+        75,
+        100,
+        null
+      ],
+      "percentage_base": "free cash after locked positions and released settlements, before the new order",
+      "cap_includes_fee": false,
+      "fee_cash_must_fit_free_cash": true
+    },
+    "portfolio": {
+      "initial_cash_usd": 100,
+      "credit_or_deposits": false,
+      "minimum_gross_order_shares": 5,
+      "minimum_order_source_status": "current Gamma constraint; historical minimum is not archived",
+      "entry_absolute_price_cap_usd": 0.95,
+      "depth_rule": "full requested amount or no entry; do not shrink to available liquidity",
+      "settlement_release_delay_seconds": 60,
+      "settlement_time": "max(official Gamma resolved_at, market_start + 5 minutes) + 60 seconds"
+    },
+    "exit_family": {
+      "control": "hold to official resolution",
+      "fixed_close_market_start_offsets_seconds": [
+        60,
+        180,
+        240
+      ],
+      "take_profit_stop_loss_net_liquidation_returns": [
+        {
+          "take_profit": 0.1,
+          "stop_loss": -0.1
+        },
+        {
+          "take_profit": 0.2,
+          "stop_loss": -0.2
+        }
+      ],
+      "decision_sampling_seconds": 5,
+      "order_delay_seconds": 1,
+      "fresh_bid_limit_seconds": 1,
+      "liquidation_quote_rule": "walk timestamped executable bid depth for the full open position; no forward fill; retry a triggered threshold only at a later causal decision quote"
+    },
+    "chronological_selection": {
+      "training_period_start_utc": "2026-04-15T17:05:00Z",
+      "training_period_end_inclusive_utc": "2026-05-31T23:59:59Z",
+      "out_of_sample_period_start_utc": "2026-06-01T00:00:00Z",
+      "selection_metric": "maximum single-account cost-basis equity at the training cutoff, among configurations above the $100 no-trade control; if none exceed it, choose no trade",
+      "tie_break": "higher after-cost edge threshold, then lower per-order cap, then fewer trades",
+      "portfolio_state": "one continuous $100 path for every full-history comparison; no mid-run reset; training cutoff uses cash plus locked cost basis and does not recognize later outcomes"
+    },
+    "rebates": {
+      "maker_rebates": false,
+      "taker_rebates_in_policy_selection": false,
+      "current_taker_rebate_terms": "separate estimate only; historical thresholds and execution timing are unconfirmed"
+    },
+    "known_execution_limits": [
+      "The T-59 ladder is the latest saved executable-side quote, not a guaranteed order-arrival fill after the saved one-second delay.",
+      "Historical fill acknowledgement and partial-fill records are absent; entry simulation remains full-request-or-skip.",
+      "Current minimum-size metadata is used because historical minimums are absent.",
+      "Taker fees are reconstructed from aggregate price levels; individual maker matches and exact per-match rounding are absent."
+    ]
+  },
+  "fee_transition_assumption": "2026-05-06T00:00:00Z",
+  "fee_source_provenance_path": "reports/btc_fee_policy_20261010/source_provenance.json",
+  "fee_source_provenance_sha256": "3da0df20f4d26c9e906780fdf17806b7507b85d54ec6de2c8a26fbff0e76a7e9",
+  "current_gamma_metadata_is_historical_fee_evidence": false,
+  "archived_history_is_untouched_test": false,
+  "study_input_rows": 50184,
+  "performance": {
+    "entry_scenario_count": 40,
+    "scenario_cache_identity": "e139b9aa923746316dd2ea17d398ba9d554bb7da48f1b18b72b76f4e350defe5",
+    "full_book_replay_repeated": false
+  },
+  "generated_wall_seconds": 124.67433569999412,
+  "historical_fee_audit_rows": 50184,
+  "unresolved_fee_rule_count": 0,
+  "fee_source_captured_market_rate_is_not_used_as_historical_rate": true,
+  "walk_forward_selection": {
+    "selected": {
+      "scenario_id": "no_trade",
+      "policy": "no_trade",
+      "cap_usd": null,
+      "sizing_id": "no_trade",
+      "minimum_net_return": 1.0,
+      "training_equity_at_2026_05_31_usd": 100.0,
+      "training_trade_count_through_cutoff": 0
+    },
+    "best_active_challenger": {
+      "scenario_id": "fixed_5_usd|edge=0.0800|cap=none",
+      "policy": "fixed_5_usd",
+      "cap_usd": null,
+      "sizing_id": "fixed_5_usd",
+      "minimum_net_return": 0.08,
+      "training_equity_at_2026_05_31_usd": 78.29107077971223,
+      "training_trade_count_through_cutoff": 217
+    },
+    "candidate_count": 40,
+    "train_cutoff": "2026-05-31T23:59:59Z",
+    "out_of_sample_start": "2026-06-01T00:00:00Z",
+    "selected_policy_monthly_state": [
+      {
+        "scenario_id": "no_trade",
+        "sizing_id": "no_trade",
+        "policy": "no_trade",
+        "cap_usd": null,
+        "minimum_net_return": 1.0,
+        "month_utc": "2026-04",
+        "opening_cost_basis_equity_usd": 100.0,
+        "closing_cost_basis_equity_usd": 100.0,
+        "opening_free_cash_usd": 100.0,
+        "closing_free_cash_usd": 100.0,
+        "closing_locked_cost_basis_usd": 0.0,
+        "net_pnl_usd": 0.0,
+        "entry_count": 0,
+        "gross_turnover_usd": 0.0,
+        "fees_paid_estimated_usd": 0.0,
+        "monthly_max_drawdown_cost_basis_equity": 0.0,
+        "minimum_free_cash_usd": 100.0,
+        "maximum_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "skip_reasons": "{}"
+      },
+      {
+        "scenario_id": "no_trade",
+        "sizing_id": "no_trade",
+        "policy": "no_trade",
+        "cap_usd": null,
+        "minimum_net_return": 1.0,
+        "month_utc": "2026-05",
+        "opening_cost_basis_equity_usd": 100.0,
+        "closing_cost_basis_equity_usd": 100.0,
+        "opening_free_cash_usd": 100.0,
+        "closing_free_cash_usd": 100.0,
+        "closing_locked_cost_basis_usd": 0.0,
+        "net_pnl_usd": 0.0,
+        "entry_count": 0,
+        "gross_turnover_usd": 0.0,
+        "fees_paid_estimated_usd": 0.0,
+        "monthly_max_drawdown_cost_basis_equity": 0.0,
+        "minimum_free_cash_usd": 100.0,
+        "maximum_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "skip_reasons": "{}"
+      },
+      {
+        "scenario_id": "no_trade",
+        "sizing_id": "no_trade",
+        "policy": "no_trade",
+        "cap_usd": null,
+        "minimum_net_return": 1.0,
+        "month_utc": "2026-06",
+        "opening_cost_basis_equity_usd": 100.0,
+        "closing_cost_basis_equity_usd": 100.0,
+        "opening_free_cash_usd": 100.0,
+        "closing_free_cash_usd": 100.0,
+        "closing_locked_cost_basis_usd": 0.0,
+        "net_pnl_usd": 0.0,
+        "entry_count": 0,
+        "gross_turnover_usd": 0.0,
+        "fees_paid_estimated_usd": 0.0,
+        "monthly_max_drawdown_cost_basis_equity": 0.0,
+        "minimum_free_cash_usd": 100.0,
+        "maximum_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "skip_reasons": "{}"
+      },
+      {
+        "scenario_id": "no_trade",
+        "sizing_id": "no_trade",
+        "policy": "no_trade",
+        "cap_usd": null,
+        "minimum_net_return": 1.0,
+        "month_utc": "2026-07",
+        "opening_cost_basis_equity_usd": 100.0,
+        "closing_cost_basis_equity_usd": 100.0,
+        "opening_free_cash_usd": 100.0,
+        "closing_free_cash_usd": 100.0,
+        "closing_locked_cost_basis_usd": 0.0,
+        "net_pnl_usd": 0.0,
+        "entry_count": 0,
+        "gross_turnover_usd": 0.0,
+        "fees_paid_estimated_usd": 0.0,
+        "monthly_max_drawdown_cost_basis_equity": 0.0,
+        "minimum_free_cash_usd": 100.0,
+        "maximum_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "skip_reasons": "{}"
+      },
+      {
+        "scenario_id": "no_trade",
+        "sizing_id": "no_trade",
+        "policy": "no_trade",
+        "cap_usd": null,
+        "minimum_net_return": 1.0,
+        "month_utc": "2026-08",
+        "opening_cost_basis_equity_usd": 100.0,
+        "closing_cost_basis_equity_usd": 100.0,
+        "opening_free_cash_usd": 100.0,
+        "closing_free_cash_usd": 100.0,
+        "closing_locked_cost_basis_usd": 0.0,
+        "net_pnl_usd": 0.0,
+        "entry_count": 0,
+        "gross_turnover_usd": 0.0,
+        "fees_paid_estimated_usd": 0.0,
+        "monthly_max_drawdown_cost_basis_equity": 0.0,
+        "minimum_free_cash_usd": 100.0,
+        "maximum_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "skip_reasons": "{}"
+      },
+      {
+        "scenario_id": "no_trade",
+        "sizing_id": "no_trade",
+        "policy": "no_trade",
+        "cap_usd": null,
+        "minimum_net_return": 1.0,
+        "month_utc": "2026-09",
+        "opening_cost_basis_equity_usd": 100.0,
+        "closing_cost_basis_equity_usd": 100.0,
+        "opening_free_cash_usd": 100.0,
+        "closing_free_cash_usd": 100.0,
+        "closing_locked_cost_basis_usd": 0.0,
+        "net_pnl_usd": 0.0,
+        "entry_count": 0,
+        "gross_turnover_usd": 0.0,
+        "fees_paid_estimated_usd": 0.0,
+        "monthly_max_drawdown_cost_basis_equity": 0.0,
+        "minimum_free_cash_usd": 100.0,
+        "maximum_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "skip_reasons": "{}"
+      },
+      {
+        "scenario_id": "no_trade",
+        "sizing_id": "no_trade",
+        "policy": "no_trade",
+        "cap_usd": null,
+        "minimum_net_return": 1.0,
+        "month_utc": "2026-10",
+        "opening_cost_basis_equity_usd": 100.0,
+        "closing_cost_basis_equity_usd": 100.0,
+        "opening_free_cash_usd": 100.0,
+        "closing_free_cash_usd": 100.0,
+        "closing_locked_cost_basis_usd": 0.0,
+        "net_pnl_usd": 0.0,
+        "entry_count": 0,
+        "gross_turnover_usd": 0.0,
+        "fees_paid_estimated_usd": 0.0,
+        "monthly_max_drawdown_cost_basis_equity": 0.0,
+        "minimum_free_cash_usd": 100.0,
+        "maximum_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "skip_reasons": "{}"
+      }
+    ],
+    "selection_rule": "maximum single-account cost-basis equity at the training cutoff, among configurations above the $100 no-trade control; if none exceed it, choose no trade",
+    "cash_and_locked_cost_basis_carried_continuously": true
+  },
+  "fee_transition_sensitivity_dates": [
+    "2026-04-23T00:00:00Z",
+    "2026-04-24T00:00:00Z",
+    "2026-04-25T00:00:00Z",
+    "2026-04-26T00:00:00Z",
+    "2026-04-27T00:00:00Z",
+    "2026-04-28T00:00:00Z",
+    "2026-04-29T00:00:00Z",
+    "2026-04-30T00:00:00Z",
+    "2026-05-01T00:00:00Z",
+    "2026-05-02T00:00:00Z",
+    "2026-05-03T00:00:00Z",
+    "2026-05-04T00:00:00Z",
+    "2026-05-05T00:00:00Z",
+    "2026-05-06T00:00:00Z",
+    "2026-05-07T00:00:00Z",
+    "2026-05-08T00:00:00Z",
+    "2026-05-09T00:00:00Z",
+    "2026-05-10T00:00:00Z",
+    "2026-05-11T00:00:00Z",
+    "2026-05-12T00:00:00Z",
+    "2026-05-13T00:00:00Z",
+    "2026-05-14T00:00:00Z",
+    "2026-05-15T00:00:00Z"
+  ],
+  "rebates_used_for_policy_selection": false,
+  "maker_rebates_credited": false
+}

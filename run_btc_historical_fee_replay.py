@@ -31,7 +31,12 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _attach_fee_rules(markets: list[dict], metadata_path: Path = MARKET_METADATA_PATH) -> tuple[list[dict], pd.DataFrame]:
+def _attach_fee_rules(
+    markets: list[dict],
+    metadata_path: Path = MARKET_METADATA_PATH,
+    *,
+    transition_utc=None,
+) -> tuple[list[dict], pd.DataFrame]:
     metadata = pd.read_csv(metadata_path, low_memory=False)
     if metadata.condition_id.astype(str).str.lower().duplicated().any():
         raise RuntimeError("Gamma market fee metadata contains duplicate condition IDs")
@@ -43,7 +48,9 @@ def _attach_fee_rules(markets: list[dict], metadata_path: Path = MARKET_METADATA
         cid = str(market["condition_id"]).lower()
         fee_metadata = metadata_by_id.loc[cid].to_dict() if cid in metadata_by_id.index else None
         entry_at = pd.Timestamp(market["entry_ns"], unit="ns", tz="UTC")
-        rule = fee_rules.resolve_market_fee_rule(fee_metadata, entry_at, registry)
+        rule = fee_rules.resolve_market_fee_rule(
+            fee_metadata, entry_at, registry, transition_utc=transition_utc,
+        )
         market["fee_metadata"] = fee_metadata
         market["fee_rule"] = rule
         snapshot = market.get("snapshot") or {}
@@ -64,6 +71,12 @@ def _attach_fee_rules(markets: list[dict], metadata_path: Path = MARKET_METADATA
             "fee_rule_id": rule.get("rule_id"),
             "market_fee_rule_id": rule.get("market_fee_rule_id"),
             "fee_rule_status": rule.get("status"),
+            "fee_rate_status": rule.get("rate_status"),
+            "fee_rate_transition_utc": rule.get("rate_transition_utc"),
+            "fee_rate_transition_is_estimate": rule.get("rate_transition_is_estimate"),
+            "fee_rate_evidence": json.dumps(rule.get("rate_evidence"), ensure_ascii=False),
+            "gamma_captured_rate_is_not_historical_evidence": rule.get("captured_metadata_rate_ignored_for_historical_assignment"),
+            "fee_enabled_status": rule.get("fee_enabled_status"),
             "fee_rule_confidence": rule.get("confidence"),
             "market_metadata_confidence": rule.get("market_metadata_confidence"),
             "fee_rate": rule.get("rate"),
