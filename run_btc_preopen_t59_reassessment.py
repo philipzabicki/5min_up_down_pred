@@ -78,7 +78,7 @@ TRACE_MARKET_COUNT = 9
 T59_REPLAY_DEPENDENCY_MANIFEST_VERSION = 3
 T59_RECONSTRUCTION_VERSION = "native-asks-v4-t60-decision-and-t59-execution"
 T59_REPLAY_CHECKPOINT_INTERVAL_PARTS = 12
-T59_REPLAY_WORKERS = 16
+T59_REPLAY_WORKERS = 6
 LEGACY_T59_RECONSTRUCTION_SOURCE_SHA256 = "dba0792299ae7f815b2eea0267da1875fa94a930ba6baf5bb140f5d917fd5930"
 T59_REPLAY_MARKET_COLUMNS = (
     "condition_id", "market_start_utc", "up_token_id", "down_token_id",
@@ -2379,6 +2379,7 @@ def _replay_t59(
         "reused_verified_complete_snapshot_artifact": False,
         "resumed_after_partition_count": start_part,
         "partitions_replayed_this_session": len(part_paths) - start_part,
+        "worker_count_this_session": worker_count,
         "checkpoint_migration": checkpoint_migration,
         "elapsed_seconds": time.perf_counter() - replay_started,
         "snapshot_sha256": _sha256(target),
