@@ -17,13 +17,13 @@
         "model_tuning_and_fit": 2700,
         "calibration_evaluation_bundle": 7200
       },
-      "threads": 4,
+      "threads": 20,
       "seed": 20261004,
       "compute_backend": "gpu",
       "indicator_fit": {
         "population_size": 64,
         "generations": 8,
-        "workers": 4
+        "workers": 20
       },
       "reaction_profile_trials": 24,
       "volume_profile_trials": 24,
