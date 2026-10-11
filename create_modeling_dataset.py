@@ -92,7 +92,7 @@ FIT_RESULT_BASE_RE = re.compile(
     r"_pop(?P<pop>\d+)(?:_.*)?$"
 )
 BASE_DATA_FILE_SYMBOL_INTERVAL_RE = re.compile(
-    r"^(?P<symbol>[A-Za-z0-9_]+?)(?P<interval>\d+[mhdwM])$"
+    r"^(?P<symbol>[A-Za-z0-9_]+?)(?P<interval>\d+[mhdwM])(?:_.*)?$"
 )
 
 
