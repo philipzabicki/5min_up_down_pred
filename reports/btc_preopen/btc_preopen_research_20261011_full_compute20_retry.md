@@ -1,3 +1,5 @@
+> **Superseded for fee and portfolio valuation.** The effective historical fee schedule and minimum-order units were corrected in [the 2026-10-12 fee-correction report](btc_preopen_research_fee_correction_20261012.md). Use that report for corrected policy and portfolio results; this file is retained as the original run record.
+
 # BTC 5-minute pre-open research — btc_preopen_walk_forward_20261011
 
 ## Conclusion

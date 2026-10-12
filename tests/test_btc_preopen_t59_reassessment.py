@@ -56,7 +56,10 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
                 up_best_ask=0.50, up_best_ask_size_shares=2.0,
                 up_ask_levels=[], up_book_init_receive_ns=None,
             ),
-            {"up_token_id": "up-token", "order_min_size_shares_current": 5.0},
+            {
+                "up_token_id": "up-token", "order_min_size_usd_current": 5.0,
+                "market_start_utc": pd.Timestamp("2026-04-15T17:05:00Z"),
+            },
             "up", 5.0,
         )
         self.assertTrue(result["priceable"])
@@ -74,13 +77,32 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             self._entry_snapshot(
                 up_ask_levels=[(0.50, 4.0)], up_book_init_receive_ns=1,
             ),
-            {"up_token_id": "up-token", "order_min_size_shares_current": 5.0},
+            {
+                "up_token_id": "up-token", "order_min_size_usd_current": 5.0,
+                "market_start_utc": pd.Timestamp("2026-04-15T17:05:00Z"),
+            },
             "up", 5.0,
         )
         self.assertTrue(result["priceable"])
         self.assertTrue(result["depth_known"])
         self.assertEqual(result["fill"]["fill_status"], "partial")
         self.assertAlmostEqual(result["fill"]["gross_usd"], 2.0)
+        self.assertAlmostEqual(result["requested_order_usd"], 5.0)
+        self.assertLess(result["fill"]["gross_usd"], result["minimum_order_size_usd"])
+
+    def test_fak_minimum_is_requested_usdc_not_share_count(self):
+        result = assessment._price_side(
+            self._entry_snapshot(),
+            {
+                "up_token_id": "up-token", "order_min_size_usd_current": 5.0,
+                "market_start_utc": pd.Timestamp("2026-04-15T17:05:00Z"),
+            },
+            "up", 4.0,
+        )
+        self.assertGreater(result["requested_shares_at_best_ask"], 5.0)
+        self.assertFalse(result["priceable"])
+        self.assertEqual(result["reason"], "below_minimum_order_usd")
+        self.assertEqual(result["requested_order_usd"], 4.0)
 
     def test_future_source_observation_cannot_qualify_a_quote(self):
         reason = assessment._ask_base_reason(
@@ -870,6 +892,7 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             "condition_id": condition_id,
             "up_token_id": "up-token", "down_token_id": "down-token",
             "order_min_size_shares_current": 5.0, "p_candidate_platt": 0.8,
+            "market_start_utc": market_start,
         }
         current_snapshot = {
             "up_best_ask": 0.50, "up_ask_levels": [(0.50, 100.0)],
@@ -962,7 +985,7 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
             "target_polymarket_up": outcome,
             "up_token_id": f"up-{condition_id}",
             "down_token_id": f"down-{condition_id}",
-            "order_min_size_shares_current": 5.0,
+            "order_min_size_usd_current": 5.0,
         }
         snapshot = {
             "condition_id": condition_id,
@@ -1006,10 +1029,31 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
 
         summary, trades, _ = self._run("free_cash_5pct", rows, markets, snapshots)
 
-        self.assertEqual([trade["gross_usd"] for trade in trades], [5.0, 5.25])
+        self.assertEqual([trade["gross_usd"] for trade in trades], [5.0, 5.232])
         self.assertEqual(summary["trade_count"], 2)
-        self.assertAlmostEqual(summary["ending_cash_after_settlement_usd"], 110.25)
+        self.assertAlmostEqual(summary["ending_cash_after_settlement_usd"], 109.495296)
         self.assertTrue(summary["daily_log_growth"]["daily_log_growth_identity_verified"])
+
+    def test_five_percent_free_cash_is_not_increased_to_meet_order_minimum(self):
+        first_start = pd.Timestamp("2026-04-15T17:05:00Z")
+        second_start = first_start + pd.Timedelta(minutes=10)
+        first, first_snapshot = self._market_and_snapshot(
+            "m1", first_start, first_start + pd.Timedelta(minutes=5), outcome=0,
+        )
+        second, second_snapshot = self._market_and_snapshot(
+            "m2", second_start, second_start + pd.Timedelta(minutes=5), outcome=1,
+        )
+        markets = {"m1": first, "m2": second}
+        snapshots = {"m1": first_snapshot, "m2": second_snapshot}
+
+        summary, trades, decisions = self._run(
+            "free_cash_5pct", [first, second], markets, snapshots,
+        )
+
+        self.assertEqual(summary["trade_count"], 1)
+        self.assertEqual([trade["gross_usd"] for trade in trades], [5.0])
+        self.assertEqual(decisions[1]["requested_gross_usd"], 4.75)
+        self.assertEqual(decisions[1]["skip_reason"], "below_minimum_order_usd")
 
     def test_cost_basis_equity_policy_never_borrows_locked_cash_and_settles_once(self):
         first_start = pd.Timestamp("2026-04-15T17:05:00Z")
@@ -1061,7 +1105,13 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         )
 
         self.assertEqual(audit["status"], "passed")
-        self.assertAlmostEqual(summary["ending_cash_after_settlement_usd"], 105.0)
+        self.assertAlmostEqual(summary["ending_cash_after_settlement_usd"], 104.64)
+        self.assertAlmostEqual(decisions[0]["chosen_side_ev_usd"], 4.64)
+        self.assertAlmostEqual(decisions[0]["up_decision_requested_fee_shares"], 0.36)
+        self.assertAlmostEqual(decisions[0]["up_execution_fee_shares"], 0.36)
+        self.assertAlmostEqual(decisions[0]["execution_fee_shares"], 0.36)
+        self.assertAlmostEqual(trades[0]["fee_shares"], 0.36)
+        self.assertEqual(trades[0]["fee_rule_id"], "btc5m.crypto.0.072+polymarket.exchange_v1.side_specific_collection")
 
 
 if __name__ == "__main__":

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pandas as pd
 
 from run_btc_preopen_economic_replay import (
+    _cached_fee_rule,
     _accumulate_event_type_counts,
     _complement,
     _data_reason,
@@ -16,9 +17,23 @@ from run_btc_preopen_economic_replay import (
     _valid_reconstructed_quote,
     _walk_asks,
 )
+from utils import polymarket_btc5m_fee_rules
 
 
 class BtcPreopenEconomicReplayTests(unittest.TestCase):
+    def test_cached_fee_rules_match_shared_resolver_at_both_boundaries(self):
+        for value in (
+            "2026-04-28T10:59:59Z",
+            "2026-04-28T11:00:00Z",
+            "2026-04-28T12:00:00Z",
+            "2026-05-05T23:59:59Z",
+            "2026-05-06T00:00:00Z",
+        ):
+            timestamp = pd.Timestamp(value)
+            cached = _cached_fee_rule(timestamp.isoformat())
+            direct = polymarket_btc5m_fee_rules.resolve_market_fee_rule(None, timestamp)
+            self.assertEqual(cached, direct)
+
     @staticmethod
     def event(received, source, event_type, asset_id, **values):
         row = {
@@ -92,32 +107,50 @@ class BtcPreopenEconomicReplayTests(unittest.TestCase):
         self.assertTrue(up["complemented"])
 
     def test_legacy_fee_is_deducted_in_shares_and_preserves_five_dollar_cash_debit(self):
-        filled = _walk_asks({0.5: 20.0}, 1000.0, "outcome_shares")
+        entry = "2026-04-15T17:04:01Z"
+        filled = _walk_asks(
+            {0.5: 20.0}, 1000.0, "outcome_shares", entry_time_utc=entry,
+        )
         self.assertTrue(filled["depth_sufficient"])
         self.assertAlmostEqual(filled["gross_usd"], 5.0)
         self.assertAlmostEqual(filled["gross_shares"], 10.0)
-        self.assertAlmostEqual(filled["fee_shares"], 1.0)
-        self.assertAlmostEqual(filled["shares"], 9.0)
-        self.assertAlmostEqual(filled["fee_usd"], 0.5)
+        self.assertAlmostEqual(filled["fee_shares"], 0.36)
+        self.assertAlmostEqual(filled["shares"], 9.64)
+        self.assertAlmostEqual(filled["fee_usd"], 0.18)
+        self.assertEqual(filled["fee_rule_id"], "btc5m.crypto.0.072+polymarket.exchange_v1.side_specific_collection")
+        self.assertEqual(filled["observed_snapshot_fee_rate_bps"], 1000.0)
         self.assertAlmostEqual(filled["cash_debit_usd"], 5.0)
-        short = _walk_asks({0.5: 8.0}, 1000.0, "outcome_shares")
+        short = _walk_asks(
+            {0.5: 8.0}, 1000.0, "outcome_shares", entry_time_utc=entry,
+        )
         self.assertFalse(short["depth_sufficient"])
 
     def test_order_amount_walks_multiple_levels_and_reports_vwap_and_fees(self):
         asks = {0.4: 5.0, 0.5: 8.0}
-        legacy = _walk_asks(asks, 1000.0, "outcome_shares", gross_order_usd=6.0)
+        legacy = _walk_asks(
+            asks, 0.0, "cash_collateral", gross_order_usd=6.0,
+            entry_time_utc="2026-04-15T17:04:01Z",
+        )
         self.assertTrue(legacy["depth_sufficient"])
         self.assertAlmostEqual(legacy["gross_usd"], 6.0)
         self.assertAlmostEqual(legacy["gross_shares"], 13.0)
         self.assertAlmostEqual(legacy["vwap"], 6.0 / 13.0)
-        self.assertAlmostEqual(legacy["fee_shares"], 1.3)
+        self.assertAlmostEqual(legacy["fee_shares"], 0.504)
+        self.assertAlmostEqual(legacy["fee_usd_entry_equivalent"], 0.2304)
         self.assertAlmostEqual(legacy["cash_debit_usd"], 6.0)
-        collateral = _walk_asks(asks, 1000.0, "cash_collateral", gross_order_usd=6.0)
-        self.assertAlmostEqual(collateral["fee_cash_usd"], 0.32)
-        self.assertAlmostEqual(collateral["cash_debit_usd"], 6.32)
+        collateral = _walk_asks(
+            asks, 1000.0, "outcome_shares", gross_order_usd=6.0,
+            entry_time_utc="2026-05-10T12:00:00Z",
+        )
+        self.assertAlmostEqual(collateral["fee_cash_usd"], 0.224)
+        self.assertAlmostEqual(collateral["fee_usd_entry_equivalent"], 0.224)
+        self.assertAlmostEqual(collateral["cash_debit_usd"], 6.224)
 
     def test_requested_amount_is_not_silently_reduced_when_depth_is_short(self):
-        result = _walk_asks({0.5: 8.0}, 0.0, "outcome_shares", gross_order_usd=6.0)
+        result = _walk_asks(
+            {0.5: 8.0}, 0.0, "outcome_shares", gross_order_usd=6.0,
+            entry_time_utc="2026-04-15T17:04:01Z",
+        )
         self.assertFalse(result["depth_sufficient"])
         self.assertAlmostEqual(result["gross_usd"], 4.0)
         self.assertIsNone(result["cash_debit_usd"])
@@ -125,7 +158,7 @@ class BtcPreopenEconomicReplayTests(unittest.TestCase):
     def test_fak_can_return_a_partial_fill_from_known_depth(self):
         result = _walk_asks(
             {0.5: 8.0}, 0.0, "outcome_shares", gross_order_usd=6.0,
-            allow_partial=True,
+            entry_time_utc="2026-04-15T17:04:01Z", allow_partial=True,
         )
         self.assertFalse(result["depth_sufficient"])
         self.assertTrue(result["partial_fill"])
@@ -133,15 +166,35 @@ class BtcPreopenEconomicReplayTests(unittest.TestCase):
         self.assertAlmostEqual(result["requested_gross_usd"], 6.0)
         self.assertAlmostEqual(result["unfilled_gross_usd"], 2.0)
         self.assertAlmostEqual(result["gross_usd"], 4.0)
-        self.assertAlmostEqual(result["shares"], 8.0)
+        self.assertAlmostEqual(result["shares"], 7.712)
         self.assertAlmostEqual(result["cash_debit_usd"], 4.0)
+        self.assertAlmostEqual(result["fee_shares"], 0.288)
+        self.assertAlmostEqual(result["fee_usd_entry_equivalent"], 0.144)
 
     def test_collateral_fee_is_added_to_cash_debit(self):
-        filled = _walk_asks({0.5: 20.0}, 1000.0, "cash_collateral")
+        filled = _walk_asks(
+            {0.5: 20.0}, 0.0, "outcome_shares",
+            entry_time_utc="2026-05-10T12:00:00Z",
+        )
         self.assertTrue(filled["depth_sufficient"])
         self.assertAlmostEqual(filled["shares"], 10.0)
-        self.assertAlmostEqual(filled["fee_usd"], 0.25)
-        self.assertAlmostEqual(filled["cash_debit_usd"], 5.25)
+        self.assertAlmostEqual(filled["fee_usd"], 0.175)
+        self.assertAlmostEqual(filled["fee_cash_usd"], 0.175)
+        self.assertAlmostEqual(filled["cash_debit_usd"], 5.175)
+        self.assertEqual(filled["observed_snapshot_fee_rate_bps"], 0.0)
+        self.assertEqual(filled["fee_rule_id"], "btc5m.crypto.0.07+polymarket.exchange_v2.cash_collateral")
+
+    def test_partial_fak_fee_uses_only_filled_shares_across_price_levels(self):
+        result = _walk_asks(
+            {0.3: 2.0, 0.6: 2.0}, 0.0, "outcome_shares", gross_order_usd=5.0,
+            entry_time_utc="2026-05-10T12:00:00Z", allow_partial=True,
+        )
+        self.assertEqual(result["fill_status"], "partial")
+        self.assertAlmostEqual(result["gross_usd"], 1.8)
+        self.assertAlmostEqual(result["gross_shares"], 4.0)
+        self.assertAlmostEqual(result["fee_raw_usd_equivalent"], 0.063)
+        self.assertAlmostEqual(result["fee_cash_usd"], 0.063)
+        self.assertAlmostEqual(result["cash_debit_usd"], 1.863)
 
     def test_exchange_upgrade_pause_bounds_are_half_open_utc(self):
         self.assertEqual(_fee_collection_mode("2026-04-28T10:59:59Z"), "outcome_shares")

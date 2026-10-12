@@ -6,6 +6,7 @@ import math
 import os
 import pickle
 from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +15,17 @@ import pyarrow.parquet as pq
 from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score
 
 import run_btc_preopen_experiment as original_runner
+from utils import polymarket_btc5m_fee_rules as btc5m_fee_rules
+
+
+_FEE_RULE_REGISTRY = btc5m_fee_rules.load_registry()
+
+
+@lru_cache(maxsize=256)
+def _cached_fee_rule(entry_time_iso: str) -> dict:
+    return btc5m_fee_rules.resolve_market_fee_rule(
+        None, entry_time_iso, registry=_FEE_RULE_REGISTRY,
+    )
 
 
 ROOT = Path(__file__).resolve().parent
@@ -529,17 +541,30 @@ def _process_receive_group(state, group, received_ns, up_token_id, down_token_id
 
 def _walk_asks(
     asks, fee_rate_bps, fee_collection_mode, gross_order_usd=GROSS_ORDER_USD,
-    *, allow_partial=False,
+    *, entry_time_utc, allow_partial=False,
 ):
     gross_order_usd = float(gross_order_usd)
     if not math.isfinite(gross_order_usd) or gross_order_usd <= 0.0:
         raise ValueError("gross_order_usd must be a positive finite amount")
     remaining = gross_order_usd
     gross_shares = 0.0
-    raw_fee_cash = 0.0
-    raw_fee_shares = 0.0
-    fee_usd = 0.0
+    raw_fee_usd_equivalent = 0.0
+    actual_fee_cash = 0.0
+    actual_fee_shares = 0.0
+    fee_usd_equivalent = 0.0
     gross = 0.0
+    fee_rule = _cached_fee_rule(pd.Timestamp(entry_time_utc).isoformat())
+    collection_mode = fee_rule["collection_mode"]
+    fee_fields = {
+        "fee_rule_id": fee_rule["rule_id"],
+        "fee_rate": fee_rule["rate"],
+        "fee_exponent": fee_rule["exponent"],
+        "fee_charge_unit": fee_rule["v1_buy_fee_unit"] if collection_mode == "outcome_shares" else fee_rule["v2_fee_unit"],
+        "fee_collection_mode": collection_mode,
+        "fee_precision_decimals": fee_rule["fee_precision_decimals"],
+        "observed_snapshot_fee_rate_bps": fee_rate_bps,
+        "observed_snapshot_fee_collection_mode": fee_collection_mode,
+    }
     for price in sorted(asks):
         available = float(asks[price])
         if not 0.0 < price < 1.0 or available <= 0.0:
@@ -548,16 +573,11 @@ def _walk_asks(
         notional = take * price
         gross_shares += take
         gross += notional
-        fee_rate = float(fee_rate_bps) / 10_000.0
-        if fee_collection_mode == "outcome_shares":
-            fee_shares = take * fee_rate * min(price, 1.0 - price) / price
-            fee_shares = math.floor(fee_shares * (10 ** LEGACY_FEE_SHARE_DECIMALS) + 1e-9) / (10 ** LEGACY_FEE_SHARE_DECIMALS)
-            raw_fee_shares += fee_shares
-            fee_usd += fee_shares * price
-        elif fee_collection_mode == "cash_collateral":
-            raw_fee_cash += take * fee_rate * (price * (1.0 - price)) ** FEE_EXPONENT_ASSUMPTION
-        else:
-            raise ValueError(f"Unsupported fee collection mode: {fee_collection_mode}")
+        level_fee = btc5m_fee_rules.fee_for_price_level(take, price, fee_rule, side="buy")
+        raw_fee_usd_equivalent += level_fee["raw_fee_usdc_equivalent"]
+        actual_fee_cash += level_fee["fee_cash_usd"]
+        actual_fee_shares += level_fee["fee_shares"]
+        fee_usd_equivalent += level_fee["fee_usd_entry_equivalent"]
         remaining -= notional
         if remaining <= 1e-8:
             break
@@ -578,18 +598,17 @@ def _walk_asks(
             "fee_cash_usd": None,
             "cash_debit_usd": None,
             "vwap": None,
+            **fee_fields,
         }
-    if fee_collection_mode == "outcome_shares":
-        fee_shares = raw_fee_shares
-        fee_cash = 0.0
+    if collection_mode == "outcome_shares":
+        fee_shares = actual_fee_shares
+        fee_cash = actual_fee_cash
         net_shares = gross_shares - fee_shares
     else:
-        fee_cash = round(raw_fee_cash, FEE_ROUND_DECIMALS)
-        if fee_cash < FEE_MINIMUM_USD:
-            fee_cash = 0.0
-        fee_usd = fee_cash
+        fee_cash = btc5m_fee_rules.round_v2_cash_fee(raw_fee_usd_equivalent, fee_rule)
         fee_shares = 0.0
         net_shares = gross_shares
+        fee_usd_equivalent = fee_cash
     return {
         "depth_sufficient": depth_sufficient,
         "partial_fill": partial_fill,
@@ -599,11 +618,14 @@ def _walk_asks(
         "gross_usd": gross,
         "gross_shares": gross_shares,
         "shares": net_shares,
-        "fee_usd": fee_usd,
+        "fee_usd": fee_usd_equivalent,
         "fee_shares": fee_shares,
         "fee_cash_usd": fee_cash,
         "cash_debit_usd": gross + fee_cash,
         "vwap": gross / gross_shares if gross_shares > 0.0 else None,
+        "fee_usd_entry_equivalent": fee_usd_equivalent,
+        "fee_raw_usd_equivalent": raw_fee_usd_equivalent,
+        **fee_fields,
     }
 
 
@@ -678,7 +700,10 @@ def _snapshot(state, market, case):
             "reported_best_ask": reported_token["reported_best_ask"] if reported_token else None,
             "reported_bbo_receive_ns": reported_token["reported_receive_ns"] if reported_token else None,
             "fill": (
-                _walk_asks(book["asks"], rate, fee_collection_mode)
+                _walk_asks(
+                    book["asks"], rate, fee_collection_mode,
+                    entry_time_utc=pd.Timestamp(entry_ns, unit="ns", tz="UTC"),
+                )
                 if book and fee_known and fee_collection_mode != "maintenance_pause"
                 else None
             ),

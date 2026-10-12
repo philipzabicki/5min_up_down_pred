@@ -23,6 +23,7 @@ import requests
 import run_btc_preopen_economic_replay as replay
 import run_btc_preopen_pmxt_extract as pmxt
 import run_btc_preopen_public_archive as public_archive
+from utils import polymarket_btc5m_fee_rules
 
 
 ROOT = Path(__file__).resolve().parent
@@ -43,7 +44,7 @@ INITIAL_CASH_USD = 100.0
 STAKE_FRACTION = 0.05
 FIXED_GROSS_USD = 5.0
 FREE_CASH_CAP_CONTROL_USD = 20.0
-MIN_ORDER_SHARES_FALLBACK = 5.0
+MIN_ORDER_USD_FALLBACK = 5.0
 LOCAL_PMXT_INDEX_FIRST_MARKET_START_UTC = pd.Timestamp("2026-04-15T17:05:00Z")
 LOCAL_PMXT_INDEX_LAST_MARKET_START_UTC = pd.Timestamp("2026-05-18T10:30:00Z")
 BASE_PMXT_MARKET_INDEX_LAST_START_UTC = pd.Timestamp("2026-08-10T00:00:00Z")
@@ -531,7 +532,7 @@ def _build_t59_market_index(
         "target_binance_proxy_up": eligible.target_binance_proxy_up,
         "up_token_id": eligible.up_token_id.astype(str),
         "down_token_id": eligible.down_token_id.astype(str),
-        "order_min_size_shares_current": eligible.order_min_size_shares_current,
+        "order_min_size_usd_current": _gamma_order_minimum_usdc(eligible),
         "entry_deadline_prestart_compute0_order1s_utc": eligible.market_start_utc - pd.Timedelta(seconds=59),
         "archive_source": eligible.archive_source,
     })
@@ -801,6 +802,13 @@ def _float_or_none(value):
     return number if math.isfinite(number) else None
 
 
+def _gamma_order_minimum_usdc(frame: pd.DataFrame) -> pd.Series:
+    for column in ("order_min_size_usd_current", "order_min_size_shares_current"):
+        if column in frame.columns:
+            return pd.to_numeric(frame[column], errors="coerce")
+    return pd.Series(np.nan, index=frame.index, dtype="float64")
+
+
 def _market_start_from_slug(slug: str):
     try:
         epoch = int(str(slug).rsplit("-", 1)[-1])
@@ -870,7 +878,7 @@ def _compact_gamma_event(event: dict) -> dict | None:
         "target_polymarket_up": target_up,
         "up_token_id": token_ids[up_index],
         "down_token_id": token_ids[down_index],
-        "order_min_size_shares_current": min_order,
+        "order_min_size_usd_current": min_order,
         "market_closed_current": bool(market.get("closed", event.get("closed", False))),
         "outcomes": outcomes,
         "outcome_prices_current": outcome_prices,
@@ -1406,7 +1414,7 @@ def _write_market_input(markets: pd.DataFrame) -> Path:
         "target_binance_proxy_up": pmxt_markets.target_binance_proxy_up,
         "up_token_id": pmxt_markets.up_token_id.astype(str),
         "down_token_id": pmxt_markets.down_token_id.astype(str),
-        "order_min_size_shares_current": pmxt_markets.order_min_size_shares_current,
+        "order_min_size_usd_current": _gamma_order_minimum_usdc(pmxt_markets),
     })
     if payload.condition_id.duplicated().any() or payload.market_start_utc.duplicated().any():
         raise RuntimeError("Prediction matched multiple Gamma markets for a market start")
@@ -1653,12 +1661,13 @@ def _prepare_pmxt_archive(markets: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
             freq="h",
         )
 
+        market_input["order_min_size_usd_current"] = _gamma_order_minimum_usdc(market_input)
         token_map = {
             str(row.condition_id).lower(): {
                 "condition_id": str(row.condition_id).lower(),
                 "up_token_id": str(row.up_token_id),
                 "down_token_id": str(row.down_token_id),
-                "minimum_order_size_shares_current": row.order_min_size_shares_current,
+                "minimum_order_size_usd_current": row.order_min_size_usd_current,
                 "status": "mapped", "source": "Gamma series market record",
             }
             for row in market_input.itertuples(index=False)
@@ -2482,9 +2491,10 @@ def _price_side(snapshot: dict, market: dict, side: str, gross_usd: float) -> di
     if depth_known:
         fill = replay._walk_asks(
             levels,
-            float(snapshot["fee_rate_bps"]),
-            str(snapshot["fee_collection_mode"]),
+            _float_or_none(snapshot.get("fee_rate_bps")),
+            snapshot.get("fee_collection_mode"),
             gross_order_usd=float(gross_usd),
+            entry_time_utc=pd.Timestamp(market["market_start_utc"]) + pd.Timedelta(seconds=T59_ENTRY_OFFSET_SECONDS),
             allow_partial=True,
         )
         execution_assumption = "replayed_full_book_vwap_fak_partial_allowed"
@@ -2492,9 +2502,10 @@ def _price_side(snapshot: dict, market: dict, side: str, gross_usd: float) -> di
         proxy_size = float(gross_usd) / float(best_ask) + 1e-9
         fill = replay._walk_asks(
             {float(best_ask): proxy_size},
-            float(snapshot["fee_rate_bps"]),
-            str(snapshot["fee_collection_mode"]),
+            _float_or_none(snapshot.get("fee_rate_bps")),
+            snapshot.get("fee_collection_mode"),
             gross_order_usd=float(gross_usd),
+            entry_time_utc=pd.Timestamp(market["market_start_utc"]) + pd.Timedelta(seconds=T59_ENTRY_OFFSET_SECONDS),
             allow_partial=True,
         )
         execution_assumption = "top_of_book_price_proxy_assumed_full_requested_fill"
@@ -2508,16 +2519,19 @@ def _price_side(snapshot: dict, market: dict, side: str, gross_usd: float) -> di
     fill["depth_known"] = depth_known
     fill["execution_assumption"] = execution_assumption
     fill["quote_age_seconds"] = _float_or_none(snapshot.get(f"{side}_ask_age_seconds"))
-    minimum = _float_or_none(market.get("order_min_size_shares_current"))
-    minimum_source = "current_gamma_metadata" if minimum is not None and minimum > 0.0 else "fallback_5_shares"
+    minimum = _float_or_none(
+        market.get("order_min_size_usd_current", market.get("order_min_size_shares_current"))
+    )
+    minimum_source = "current_gamma_orderMinSize_usdc" if minimum is not None and minimum > 0.0 else "fallback_5_usdc_assumption"
     if minimum is None or minimum <= 0.0:
-        minimum = MIN_ORDER_SHARES_FALLBACK
+        minimum = MIN_ORDER_USD_FALLBACK
     requested_shares_at_best_ask = float(gross_usd) / float(best_ask)
-    if requested_shares_at_best_ask + 1e-9 < minimum:
+    if float(gross_usd) + 1e-9 < minimum:
         return {
-            "priceable": False, "reason": "below_current_minimum_order_shares",
-            "base_reason": base_reason, "minimum_order_size_shares": minimum,
+            "priceable": False, "reason": "below_minimum_order_usd",
+            "base_reason": base_reason, "minimum_order_size_usd": minimum,
             "minimum_order_size_source": minimum_source,
+            "requested_order_usd": float(gross_usd),
             "requested_shares_at_best_ask": requested_shares_at_best_ask,
             "fill": fill,
         }
@@ -2525,7 +2539,8 @@ def _price_side(snapshot: dict, market: dict, side: str, gross_usd: float) -> di
         "priceable": True,
         "reason": "partial_fill" if fill.get("partial_fill") else "priceable",
         "base_reason": base_reason,
-        "minimum_order_size_shares": minimum, "minimum_order_size_source": minimum_source,
+        "minimum_order_size_usd": minimum, "minimum_order_size_source": minimum_source,
+        "requested_order_usd": float(gross_usd),
         "requested_shares_at_best_ask": requested_shares_at_best_ask,
         "depth_known": depth_known,
         "execution_source": fill["execution_source"],
@@ -2599,16 +2614,22 @@ def _market_statuses(
     calendar["t59_snapshot_available"] = calendar.snapshot_entry_time_utc.notna()
     if "causal_prediction_available" not in calendar:
         calendar["causal_prediction_available"] = calendar.prediction_source.ne("none")
+    minimum_column = (
+        "order_min_size_usd_current"
+        if "order_min_size_usd_current" in calendar
+        else "order_min_size_shares_current"
+    )
     minimums = pd.to_numeric(
-        calendar.get("order_min_size_shares_current", pd.Series(index=calendar.index, dtype="float64")),
+        calendar.get(minimum_column, pd.Series(index=calendar.index, dtype="float64")),
         errors="coerce",
     )
     has_current_minimum = minimums.notna() & minimums.gt(0.0)
-    calendar["minimum_order_size_source"] = np.where(
-        has_current_minimum, "current_gamma_metadata", "fallback_5_shares",
+    calendar["order_min_size_usd_current"] = minimums
+    calendar["minimum_order_size_usd_source"] = np.where(
+        has_current_minimum, "current_gamma_orderMinSize_usdc", "fallback_5_usdc_assumption",
     )
-    calendar["minimum_order_size_shares_applied"] = np.where(
-        has_current_minimum, minimums, MIN_ORDER_SHARES_FALLBACK,
+    calendar["minimum_order_size_usd_applied"] = np.where(
+        has_current_minimum, minimums, MIN_ORDER_USD_FALLBACK,
     )
     if "archive_source" not in calendar:
         calendar["archive_source"] = "pmxt_v2"
@@ -2814,7 +2835,17 @@ def _portfolio_for_policy(
             decision.update(decision="skip", skip_reason="missing_t60_decision_snapshot")
             decisions.append(decision)
             continue
-        decision["fee_collection_mode"] = snapshot.get("fee_collection_mode")
+        assigned_fee_rule = polymarket_btc5m_fee_rules.resolve_market_fee_rule(None, entry)
+        decision["fee_rule_id"] = assigned_fee_rule["rule_id"]
+        decision["fee_rate"] = assigned_fee_rule["rate"]
+        decision["fee_collection_mode"] = assigned_fee_rule["collection_mode"]
+        decision["fee_charge_unit"] = (
+            assigned_fee_rule["v1_buy_fee_unit"]
+            if assigned_fee_rule["collection_mode"] == "outcome_shares"
+            else assigned_fee_rule["v2_fee_unit"]
+        )
+        decision["observed_snapshot_fee_rate_bps"] = snapshot.get("fee_rate_bps")
+        decision["observed_snapshot_fee_collection_mode"] = snapshot.get("fee_collection_mode")
         if outcome is None or pd.isna(resolved):
             rejected["missing_official_outcome_or_settlement_time"] += 1
             decision.update(decision="skip", skip_reason="missing_official_outcome_or_settlement_time")
@@ -2866,14 +2897,23 @@ def _portfolio_for_policy(
                 decision[f"{prefix}_net_shares"] = fill_result.get("shares")
                 decision[f"{prefix}_fee_usd"] = fill_result.get("fee_usd")
                 decision[f"{prefix}_fee_cash_usd"] = fill_result.get("fee_cash_usd")
+                decision[f"{prefix}_fee_shares"] = fill_result.get("fee_shares")
+                decision[f"{prefix}_fee_usd_entry_equivalent"] = fill_result.get("fee_usd_entry_equivalent")
+                decision[f"{prefix}_fee_raw_usd_equivalent"] = fill_result.get("fee_raw_usd_equivalent")
+                decision[f"{prefix}_fee_rule_id"] = fill_result.get("fee_rule_id")
+                decision[f"{prefix}_fee_rate"] = fill_result.get("fee_rate")
+                decision[f"{prefix}_fee_charge_unit"] = fill_result.get("fee_charge_unit")
+                decision[f"{prefix}_observed_snapshot_fee_rate_bps"] = fill_result.get("observed_snapshot_fee_rate_bps")
+                decision[f"{prefix}_observed_snapshot_fee_collection_mode"] = fill_result.get("observed_snapshot_fee_collection_mode")
                 decision[f"{prefix}_cash_debit_usd"] = fill_result.get("cash_debit_usd")
                 decision[f"{prefix}_execution_source"] = fill_result.get("execution_source")
                 decision[f"{prefix}_depth_known"] = fill_result.get("depth_known")
                 decision[f"{prefix}_execution_assumption"] = fill_result.get("execution_assumption")
                 decision[f"{prefix}_fill_status"] = fill_result.get("fill_status")
                 decision[f"{prefix}_unfilled_gross_usd"] = fill_result.get("unfilled_gross_usd")
-                decision[f"{prefix}_minimum_order_shares"] = side_result.get("minimum_order_size_shares")
+                decision[f"{prefix}_minimum_order_usd"] = side_result.get("minimum_order_size_usd")
                 decision[f"{prefix}_minimum_order_source"] = side_result.get("minimum_order_size_source")
+                decision[f"{prefix}_requested_order_usd"] = side_result.get("requested_order_usd")
         decision["priceable_sides_at_requested_amount"] = selection_evaluation["priceable_side_count"]
         decision["up_price_reason"] = execution_evaluation["sides"]["up"]["reason"]
         decision["down_price_reason"] = execution_evaluation["sides"]["down"]["reason"]
@@ -2892,8 +2932,8 @@ def _portfolio_for_policy(
                 reasons = [selection_evaluation["sides"][s]["reason"] for s in ("up", "down")]
                 if "insufficient_ask_depth_for_requested_amount" in reasons:
                     reason = "insufficient_depth_for_requested_amount"
-                elif "below_current_minimum_order_shares" in reasons:
-                    reason = "below_minimum_order_shares"
+                elif "below_minimum_order_usd" in reasons:
+                    reason = "below_minimum_order_usd"
                 else:
                     reason = "no_priceable_native_ask_side"
                 rejected[reason] += 1
@@ -2921,6 +2961,16 @@ def _portfolio_for_policy(
             decisions.append(decision)
             continue
         chosen = selection_evaluation["sides"][side]
+        decision_fee = chosen.get("fill") or {}
+        decision.update({
+            "decision_fee_estimate_rule_id": decision_fee.get("fee_rule_id"),
+            "decision_fee_estimate_rate": decision_fee.get("fee_rate"),
+            "decision_fee_estimate_charge_unit": decision_fee.get("fee_charge_unit"),
+            "decision_fee_estimate_cash_usd": decision_fee.get("fee_cash_usd"),
+            "decision_fee_estimate_shares": decision_fee.get("fee_shares"),
+            "decision_fee_estimate_usd_equivalent": decision_fee.get("fee_usd_entry_equivalent"),
+            "decision_fee_estimate_raw_usd_equivalent": decision_fee.get("fee_raw_usd_equivalent"),
+        })
         net_ev_fraction = float(chosen["ev_usd"]) / float(desired)
         decision["net_ev_fraction_at_decision"] = net_ev_fraction
         if net_ev_fraction + 1e-12 < float(minimum_net_ev_fraction):
@@ -2937,6 +2987,15 @@ def _portfolio_for_policy(
             decisions.append(decision)
             continue
         fill = execution["fill"]
+        decision.update({
+            "execution_fee_rule_id": fill.get("fee_rule_id"),
+            "execution_fee_rate": fill.get("fee_rate"),
+            "execution_fee_charge_unit": fill.get("fee_charge_unit"),
+            "execution_fee_cash_usd": fill.get("fee_cash_usd"),
+            "execution_fee_shares": fill.get("fee_shares"),
+            "execution_fee_usd_equivalent": fill.get("fee_usd_entry_equivalent"),
+            "execution_fee_raw_usd_equivalent": fill.get("fee_raw_usd_equivalent"),
+        })
         decision["chosen_side"] = side
         decision["chosen_side_ev_usd"] = chosen["ev_usd"]
         decision["execution_ev_usd_at_t59"] = execution.get("ev_usd")
@@ -2979,6 +3038,13 @@ def _portfolio_for_policy(
             "fill_status": fill.get("fill_status"),
             "fee_usd": position["fee_usd"], "fee_cash_usd": position["fee_cash_usd"],
             "fee_shares": position["fee_shares"],
+            "fee_usd_entry_equivalent": float(fill.get("fee_usd_entry_equivalent") or 0.0),
+            "fee_raw_usd_equivalent": float(fill.get("fee_raw_usd_equivalent") or 0.0),
+            "fee_rule_id": fill.get("fee_rule_id"),
+            "fee_rate": fill.get("fee_rate"),
+            "fee_charge_unit": fill.get("fee_charge_unit"),
+            "observed_snapshot_fee_rate_bps": fill.get("observed_snapshot_fee_rate_bps"),
+            "observed_snapshot_fee_collection_mode": fill.get("observed_snapshot_fee_collection_mode"),
             "gross_shares": position["gross_shares"], "net_shares": position["net_shares"],
             "vwap": position["vwap"], "outcome_up": int(outcome), "won": won,
             "payout_usd": payout, "net_pnl_usd": payout - debit,
@@ -3298,12 +3364,12 @@ def _drawdown_contributors(trades: list[dict], equity_path: list[dict], limit: i
 
 
 def _minimum_order_diagnostic(decisions: list[dict]) -> dict:
-    minimum_reasons = {"below_minimum_order_shares", "below_current_minimum_order_shares"}
+    minimum_reasons = {"below_minimum_order_usd"}
     limited = [item for item in decisions if item.get("skip_reason") in minimum_reasons]
     sources = Counter()
     for item in decisions:
         for side in ("up", "down"):
-            source = item.get(f"{side}_requested_minimum_order_source")
+            source = item.get(f"{side}_decision_requested_minimum_order_source")
             if source:
                 sources[str(source)] += 1
     first = min(limited, key=lambda item: pd.Timestamp(item["entry_time_utc"])) if limited else None
@@ -3311,7 +3377,7 @@ def _minimum_order_diagnostic(decisions: list[dict]) -> dict:
     if first and first_side is None:
         minimum_sides = [
             side for side in ("up", "down")
-            if first.get(f"{side}_requested_reason") == "below_current_minimum_order_shares"
+            if first.get(f"{side}_decision_requested_reason") == "below_minimum_order_usd"
         ]
         first_side = minimum_sides[0] if minimum_sides else None
     return {
@@ -3321,8 +3387,8 @@ def _minimum_order_diagnostic(decisions: list[dict]) -> dict:
         "first_minimum_order_skip_cash_before_usd": first.get("cash_before_usd") if first else None,
         "first_minimum_order_skip_reason": first.get("skip_reason") if first else None,
         "first_minimum_order_skip_chosen_side": first_side,
-        "first_minimum_order_shares": first.get(f"{first_side}_requested_minimum_order_shares") if first and first_side else None,
-        "first_minimum_order_source": first.get(f"{first_side}_requested_minimum_order_source") if first and first_side else None,
+        "first_minimum_order_usd": first.get(f"{first_side}_decision_requested_minimum_order_usd") if first and first_side else None,
+        "first_minimum_order_source": first.get(f"{first_side}_decision_requested_minimum_order_source") if first and first_side else None,
         "evaluated_side_minimum_source_counts": dict(sources),
     }
 
@@ -3454,7 +3520,7 @@ def _july_policy_comparison(
         return frame.loc[times.ge(start) & times.lt(end)].copy()
 
     all_policies = set(actual_results) - {"fixed_5_usd"}
-    minimum_reasons = {"below_minimum_order_shares", "below_current_minimum_order_shares"}
+    minimum_reasons = {"below_minimum_order_usd"}
     for policy in sorted(all_policies):
         actual = pick_july(as_frame(actual_results[policy]))
         frozen = pick_july(as_frame(frozen_side_results[policy]))
@@ -3701,12 +3767,12 @@ def _write_verified_report(
     for summary in portfolio_summaries:
         item = summary["minimum_order_diagnostic"]
         lines.append(
-            f"| {summary['policy']} | {item['minimum_order_skip_count']:,} | {item['first_minimum_order_skip_utc']} | {fmt_money(item['first_minimum_order_skip_cash_before_usd'])} | {fmt_money(item['first_minimum_order_skip_requested_usd'])} | {item['first_minimum_order_shares']} | {item['first_minimum_order_source']} |"
+            f"| {summary['policy']} | {item['minimum_order_skip_count']:,} | {item['first_minimum_order_skip_utc']} | {fmt_money(item['first_minimum_order_skip_cash_before_usd'])} | {fmt_money(item['first_minimum_order_skip_requested_usd'])} | {item['first_minimum_order_usd']} | {item['first_minimum_order_source']} |"
         )
     lines.extend([
         "",
         "Decyzje zachowują obie strony przy $5 i przy stawce żądanej przez portfel: EV w dolarach, VWAP, udziały brutto/netto, opłatę, debet, minimalne udziały i przyczynę niewykonalności. Lokalne `sizing_opportunities.parquet` pozwala sprawdzić wspólne wejścia i wejścia wykonalne tylko dla części polityk. `drawdown_contributors.csv` pokazuje transakcje z największym ujemnym wkładem w rzeczywistym przedziale peak→trough; wkład sumuje opłatę gotówkową przy wejściu i payout minus zablokowany koszt przy rozliczeniu.", "",
-        f"Najwcześniejsze pominięcie przez minimalny rozmiar, według bieżącego `orderMinSize` z Gamma lub fallbacku 5 udziałów, zapisano per polityka w `july_policy_attribution.csv`; wartości nie są historycznym odczytem minimów. Minimalny rozmiar jest w udziałach brutto, przed potrąceniem opłaty udziałowej; zakupione udziały netto zapisano osobno.", "",
+        f"Najwcześniejsze pominięcie przez minimalną kwotę zlecenia, według bieżącego `orderMinSize` z Gamma lub fallbacku $5 USDC, zapisano per polityka w `july_policy_attribution.csv`; wartości nie są historycznym odczytem minimów. Próg dotyczy żądanej kwoty market BUY w USDC; wielkość fillu FAK nie jest ponownie porównywana z minimum.", "",
         "## Dawne 4,830 odrzuceń", "",
         f"Pierwotny zestaw obejmuje {legacy_4830_diagnosis['old_t59_market_count']:,} rynków; 4,830 miało dwa zainicjalizowane booki, ale `quote_valid=false`. W nowym replayu wykonalny ask $5 ma {legacy_4830_diagnosis['recovered_by_corrected_native_ask_replay_at_fixed5']:,} z nich. Dla {legacy_4830_diagnosis['implementation_signal_recovered_markets']:,} nie stwierdzono sygnału naprawy rekonstrukcji po porównaniu BBO; {legacy_4830_diagnosis['changed_qualification_recovered_markets_bid_not_required']:,} przechodzi obecną ocenę ask-side mimo dawnego odrzucenia połączonego quote. Pozostałe {legacy_4830_diagnosis['old_full_snapshot_invalid_count_user_reported'] - legacy_4830_diagnosis['recovered_by_corrected_native_ask_replay_at_fixed5']:,} nie mają obecnie wykonalnej wyceny $5. Poprzednia diagnoza podała ten sam wynik 2,283. Nie dowodzi to, że stary kod był poprawny ani błędny: historyczny cache nie ma perplikowych hashy treści ani identyfikatora logiki.", "",
         f"To inna kohorta niż dodatkowy plik `historical_unverified_20261007/t59_ask_ladders.parquet`: ma on {legacy_summary['old_full_snapshot_invalid_count']:,} pełnych snapshotów z `quote_valid=false`, z czego {legacy_summary['recovered_with_any_fixed5_native_ask']:,} mają obecnie ask $5; wszystkie należą do klasy `{legacy_summary['recovery_classes'].get('qualification_compatible_old_ask_already_priceable', 0):,}`. `old_replay_provenance_verified=false`; tych 5,817 snapshotów nie należy utożsamiać z pierwotnymi 4,830.", "",
@@ -3718,7 +3784,7 @@ def _write_verified_report(
         "## Rachunkowość, minimum i testy", "",
         "Każdy portfel przeszedł automatyczny audyt: brak ujemnej wolnej gotówki i ujemnej ekspozycji, equity = cash + zablokowany koszt, jeden debit zakupu i jedna wypłata na trade, cash debit = gross + fee cash, brutto−netto = fee shares, payout zgodny z wynikiem, brak przyszłego receive/source eventu przy T−59 i zgodność dziennych log-growth z końcowym kapitałem. Opłata w udziałach zmniejsza payout; fee cash zwiększa debit; oba nie są naliczane drugi raz.", "",
         "Testy regresyjne: `python -m unittest discover -s tests -p 'test_btc_preopen_t59_reassessment.py'` — 22 testy, OK (21.1s). Obejmują rzeczywiste wznowienie po częściowym checkpointcie, zgodność serial/parallel, historyczny filtr i idempotencję metadanych pokrycia.", "",
-        "Minimalny rozmiar pochodzi z bieżącego pola Gamma `orderMinSize` jeżeli jest dostępne; fallback to 5 udziałów. Brak historycznego archiwum minimów oznacza, że to przybliżenie wykonawcze, nie pomiar historyczny. Nie obniżamy zlecenia przy braku głębokości i nie zastępujemy wybranej strony inną.", "",
+        "Minimalna kwota pochodzi z bieżącego pola Gamma `orderMinSize` jeżeli jest dostępne; fallback to $5 USDC. Oficjalna dokumentacja opisuje `orderMinSize` w USDC, a `min_order_size` w CLOB book jako liczbę udziałów dla zlecenia limit. Live składa BUY jako FAK market order z kwotą w USDC. Brak historycznego archiwum minimów oznacza, że to przybliżenie wykonawcze, nie pomiar historyczny. Nie podnosimy stawki ponad regułę strategii; FAK może wykonać częściowo zlecenie, którego żądana kwota spełnia próg.", "",
         f"Czas: weryfikacja zapisanych wejść i PMXT {run_times['input_verification_seconds']:.1f}s; odczyt indeksów i selektywna ekstrakcja archiwum {run_times['archive_extension_seconds']:.1f}s; kontynuacja replayu od checkpointu po {replay_manifest.get('resumed_after_partition_count', 0):,} partycjach {replay_manifest['elapsed_seconds']:.1f}s; portfele i diagnostyki {run_times['portfolio_seconds']:.1f}s. Końcowe uruchomienie raportujące z ponownym użyciem zweryfikowanego artefaktu trwało {run_times['total_seconds']:.1f}s. Łącznego wall-clock czasu wcześniejszych prób i przerw nie zapisano.", "",
         "## Zmiany względem historycznego wyniku", "",
         "| Obszar | Przed | Po | Powód |", "|---|---|---|---|",
@@ -4285,10 +4351,10 @@ def _write_config_and_report(
             "cost_basis_equity_definition": "cash plus gross cost basis of unsettled positions",
             "free_cash_cap20_control_usd": FREE_CASH_CAP_CONTROL_USD,
             "initial_cash_usd": INITIAL_CASH_USD,
-            "minimum_order_size": "Gamma current orderMinSize when present; otherwise 5 shares as a stated current-metadata fallback, not historical metadata",
+            "minimum_order_size": "Gamma current orderMinSize in USDC when present; otherwise a stated $5 USDC fallback, not historical metadata; checked against requested FAK BUY amount, not partial fill size",
             "insufficient_depth": "skip the entire requested stake; no implicit downsize",
             "ev_rule": "choose the priceable side with greater positive net expected payout; skip when neither has positive EV; no other edge filter",
-            "fee_assumption": "T-59 PMXT fee rate when observed; historical collection mode/exponent/rounding from existing replay assumptions; cash fees debit cash, outcome-share fees reduce shares",
+            "fee_assumption": "accepted date-assigned BTC5m fee schedule via utils/polymarket_btc5m_fee_rules.py; PMXT fee_rate_bps and collection metadata are retained for audit only and do not override the assigned rule",
             "trade_orders_sent": False,
         },
         "data_sources": {
@@ -4368,7 +4434,7 @@ def _write_config_and_report(
         "## Artefakty i odtwarzalność", "",
         f"Konfiguracja: `{CONFIG_PATH.relative_to(ROOT).as_posix()}`. Manifest źródeł i sum kontrolnych: `{(REPORT_DIR / 'data_manifest.json').relative_to(ROOT).as_posix()}`. Kalendarz, drabinki ask, decyzje, transakcje i pokrycie dzienne/miesięczne są zapisane według ścieżek z manifestu poza Git; raport, manifest i konfiguracja pozostają małe i wersjonowalne.", "",
         "## Ograniczenia", "",
-        "- PMXT to historyczny snapshot archiwum; aktualne `orderMinSize` z Gamma jest używane tylko jako bieżące metadata, a przy braku przyjęto 5 udziałów. Nie odtwarza historycznych minimów.",
+        "- PMXT to historyczny snapshot archiwum; aktualne `orderMinSize` z Gamma jest używane tylko jako bieżąca metadata, a przy braku przyjęto $5 USDC. Nie odtwarza historycznych minimów. Próg dotyczy kwoty składanego FAK BUY w USDC i nie blokuje fillu częściowego poniżej tej kwoty.",
         "- Modelowe predykcje przed kalibracyjną granicą 15 kwietnia są celowo puste. Nie zastępujemy ich innym modelem ani OOF z niezgodnym zadaniem.",
         "- PMXT T−59 nie jest dostępny po 9 sierpnia 23:00; wzrost po tej dacie nie jest mierzalny strategią wykonania. Szeroki kalendarz pokazuje tę lukę.",
         "- Book BBO i opłaty odzwierciedlają dostępne archiwalne zdarzenia oraz zachowane założenia fee; rozliczenie gotówki używa `closedTime` jako proxy oficjalnej dostępności wyniku.",
@@ -4816,7 +4882,7 @@ def main() -> None:
         "entry_time": "market start minus 59 seconds",
         "policies": list(policies),
         "initial_cash_usd": INITIAL_CASH_USD,
-        "minimum_order_size": "current Gamma orderMinSize shares when available; otherwise 5 gross shares; not historical metadata",
+        "minimum_order_size": "current Gamma orderMinSize USDC when available; otherwise $5 USDC; checked against requested FAK BUY amount, not historical metadata",
         "execution": "native token asks, size-specific depth VWAP, hold to resolution, continuous cash after settlement",
         "source_manifest_sha256": archive_manifest["archive_dependency_sha256"],
         "replay_dependency_sha256": replay_manifest["replay_dependency_sha256"],

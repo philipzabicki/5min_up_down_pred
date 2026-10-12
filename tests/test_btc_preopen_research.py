@@ -9,6 +9,37 @@ import run_btc_preopen_research as research
 
 
 class BtcPreopenResearchTests(unittest.TestCase):
+    def test_no_trade_baseline_wins_when_all_active_candidates_lose_cash(self):
+        challenger, no_trade, selected = research._compare_active_challenger_to_no_trade([
+            {
+                "policy": "active_a", "ending_cash_after_settlement_usd": 80.0,
+                "max_drawdown_cost_basis_equity": 0.3, "trade_count": 100,
+            },
+            {
+                "policy": "active_b", "ending_cash_after_settlement_usd": 92.0,
+                "max_drawdown_cost_basis_equity": 0.1, "trade_count": 20,
+            },
+        ], 100.0)
+
+        self.assertEqual(challenger["policy"], "active_b")
+        self.assertEqual(no_trade["ending_cash_after_settlement_usd"], 100.0)
+        self.assertEqual(selected["policy"], "no_trade")
+
+    def test_best_active_candidate_is_selected_only_when_it_beats_no_trade(self):
+        challenger, _no_trade, selected = research._compare_active_challenger_to_no_trade([
+            {
+                "policy": "active_a", "ending_cash_after_settlement_usd": 101.0,
+                "max_drawdown_cost_basis_equity": 0.2, "trade_count": 100,
+            },
+            {
+                "policy": "active_b", "ending_cash_after_settlement_usd": 103.0,
+                "max_drawdown_cost_basis_equity": 0.25, "trade_count": 50,
+            },
+        ], 100.0)
+
+        self.assertEqual(challenger["policy"], "active_b")
+        self.assertEqual(selected["policy"], "active_b")
+
     def test_market_calendar_keeps_holdout_and_oof_prediction_sources_distinct(self):
         market_start = pd.Timestamp("2026-08-01T00:00:00Z")
         base = pd.DataFrame({

@@ -20,6 +20,16 @@ def market_metadata(rate=0.07, exponent=1, fees_enabled=True):
 
 
 class PolymarketBtc5mFeeRuleTests(unittest.TestCase):
+    def test_accepted_rate_gives_0175_raw_fee_equivalent_for_ten_half_dollar_shares(self):
+        rule = fee_rules.resolve_market_fee_rule(
+            market_metadata(0.0), "2026-05-10T12:00:00Z",
+        )
+        fee = fee_rules.fee_for_price_level(10.0, 0.5, rule, side="buy")
+        self.assertEqual(rule["rate"], 0.07)
+        self.assertAlmostEqual(fee["raw_fee_usdc_equivalent"], 0.175)
+        self.assertAlmostEqual(fee["fee_cash_usd"], 0.175)
+        self.assertAlmostEqual(fee_rules.round_v2_cash_fee(0.175, rule), 0.175)
+
     def test_archived_rate_date_assignment_ignores_current_gamma_rate(self):
         before = fee_rules.resolve_market_fee_rule(
             market_metadata(0.25, 2), "2026-04-22T23:59:59Z",

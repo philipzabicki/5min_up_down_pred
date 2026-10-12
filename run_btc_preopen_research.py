@@ -381,6 +381,36 @@ def _threshold_name(value: float) -> str:
     return f"free_cash_5pct_ev_{float(value):.4%}".replace("%", "pct")
 
 
+def _compare_active_challenger_to_no_trade(candidates: list[dict], initial_cash: float) -> tuple[dict, dict, dict]:
+    challenger = max(
+        candidates,
+        key=lambda item: (
+            item["ending_cash_after_settlement_usd"],
+            -item["max_drawdown_cost_basis_equity"],
+            -item["trade_count"],
+        ),
+    )
+    no_trade = {
+        "policy": "no_trade",
+        "minimum_net_ev_fraction": None,
+        "ending_cash_after_settlement_usd": float(initial_cash),
+        "net_pnl_usd": 0.0,
+        "max_drawdown_cost_basis_equity": 0.0,
+        "trade_count": 0,
+        "gross_turnover_usd": 0.0,
+        "fees_paid_estimated_usd": 0.0,
+        "rejections_by_reason": {},
+    }
+    challenger_key = (
+        challenger["ending_cash_after_settlement_usd"],
+        -challenger["max_drawdown_cost_basis_equity"],
+        -challenger["trade_count"],
+    )
+    no_trade_key = (no_trade["ending_cash_after_settlement_usd"], 0.0, 0)
+    selected = challenger if challenger_key > no_trade_key else no_trade
+    return challenger, no_trade, selected
+
+
 def _select_development_policy(manifest: dict) -> dict:
     cached_stage = manifest.get("stages", {}).get("development_policy_selection", {})
     cached_policy = _read_json(POLICY_PATH) if POLICY_PATH.is_file() else {}
@@ -475,14 +505,12 @@ def _select_development_policy(manifest: dict) -> dict:
         results[name] = {"summary": summary, "trades": trades, "decisions": decisions}
         result_summaries.append({"policy": name, **summary})
 
-    selected = max(
+    challenger, no_trade, selected = _compare_active_challenger_to_no_trade(
         candidates,
-        key=lambda item: (
-            item["ending_cash_after_settlement_usd"],
-            -item["max_drawdown_cost_basis_equity"],
-            -item["trade_count"],
-        ),
+        float(CONFIG["policy_selection"]["initial_cash_usd"]),
     )
+    no_trade["rejections_by_reason"] = {"no_trade_policy": int(len(market_rows))}
+    candidate_rows = [*candidates, no_trade]
     freeze_identity = {
         "experiment_id": CONFIG["experiment_id"],
         "development_start_utc": DEVELOPMENT_START_UTC,
@@ -500,21 +528,27 @@ def _select_development_policy(manifest: dict) -> dict:
         "input_identity": freeze_identity,
         "selected_policy": {
             "name": selected["policy"],
-            "sizing_policy": "free_cash_5pct",
+            "sizing_policy": "no_trade" if selected["policy"] == "no_trade" else "free_cash_5pct",
             "minimum_net_ev_fraction": selected["minimum_net_ev_fraction"],
-            "definition": "5% of free cash at T-60, no dollar cap, hold to settlement; trade only when T-60 net EV divided by requested gross stake meets the frozen hurdle",
+            "definition": (
+                "No trades; preserve the $100 development baseline"
+                if selected["policy"] == "no_trade"
+                else "5% of free cash at T-60, no dollar cap, hold to settlement; trade only when T-60 net EV divided by requested gross stake meets the frozen hurdle"
+            ),
         },
         "selection_metric": CONFIG["policy_selection"]["selection_metric"],
         "development_period": period_summary,
         "development_calendar": calendar_summary,
+        "no_trade_baseline": no_trade,
+        "best_active_challenger": challenger,
         "required_controls": {
             "fixed_5_usd": fixed5,
             "free_cash_5pct": free_cash,
         },
-        "candidate_results": candidates,
+        "candidate_results": candidate_rows,
         "selected_candidate_result": selected,
-        "development_execution_recovery": _execution_recovery_summary(
-            results[selected["policy"]]["trades"],
+        "challenger_execution_recovery": _execution_recovery_summary(
+            results[challenger["policy"]]["trades"],
         ),
         "holdout_inputs_used_for_selection": False,
     }
@@ -527,7 +561,7 @@ def _select_development_policy(manifest: dict) -> dict:
         policy_payload = old_policy
     else:
         _write_json(POLICY_PATH, policy_payload)
-    candidate_frame = pd.DataFrame(candidates)
+    candidate_frame = pd.DataFrame(candidate_rows)
     candidate_frame.to_parquet(POLICY_OUTPUT_DIR / "candidate_results.parquet", index=False, compression="zstd")
     result = {
         "policy_path": POLICY_PATH.resolve().relative_to(ROOT).as_posix(),
@@ -535,7 +569,7 @@ def _select_development_policy(manifest: dict) -> dict:
         "selected_policy": policy_payload["selected_policy"],
         "policy_sha256": _sha256(POLICY_PATH),
         "prediction_identity": prediction_identity,
-        "candidate_count": len(candidates),
+        "candidate_count": len(candidate_rows),
         "development_period": period_summary,
         "development_calendar": calendar_summary,
         "candidate_summaries_path": (POLICY_OUTPUT_DIR / "candidate_results.parquet").resolve().relative_to(ROOT).as_posix(),
@@ -647,7 +681,7 @@ def _slippage_sensitivity(
             "rejections_by_reason": summary["rejections_by_reason"],
         })
     return {
-        "assumption": "shift every executable T-59 ask level upward by a fixed price amount; preserve T-60 side, stake rule, and EV hurdle",
+        "assumption": "full chronological portfolio re-simulation from $100 for each fixed T-59 price shift; T-60 decisions stay causal and unchanged, while execution eligibility, later free-cash stakes, fills, and trades are recalculated; trade sets can differ",
         "points": points,
         "break_even": _break_even_slippage(points),
     }
@@ -1071,7 +1105,7 @@ Accounting audit: `{json.dumps(holdout_summary['accounting_audit'], sort_keys=Tr
 
 ## Adverse execution-price sensitivity
 
-Every executable T-59 ask level was shifted upward while preserving the T-60 chosen side, stake, and EV hurdle. This is a fixed price increment per share, not a fitted cost model.
+Each price-shift point is a full chronological portfolio re-simulation from a separate $100. T-60 decisions stay causal and unchanged; shifted T-59 execution can change fills and cash, which changes later free-cash stakes and trades. These points do not compare costs for an identical transaction set. The fixed price increment per share is not a fitted cost model.
 
 | Added price/share | Trades | Net PnL | Ending cash |
 |---:|---:|---:|---:|
