@@ -107,7 +107,8 @@ def _fold_contract(base_contract: dict, fold: dict) -> dict:
 def _oof_columns(frame: pd.DataFrame, fold_id: str, fit_label_available_through_utc) -> pd.DataFrame:
     required = [
         "Opened", "nominal_decision_at", "market_start_utc", experiment.TARGET_COL,
-        experiment.TARGET_AVAILABLE_COL, "p_model_raw", "p_model_platt",
+        experiment.TARGET_AVAILABLE_COL, experiment.DECISION_COL,
+        "p_model_raw", "p_model_platt",
         "prediction_available_at_utc",
     ]
     missing = [column for column in required if column not in frame]
