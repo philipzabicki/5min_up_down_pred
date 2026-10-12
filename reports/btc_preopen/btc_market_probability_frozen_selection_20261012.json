@@ -1,0 +1,434 @@
+{
+  "active_challenger": {
+    "ending_cash_after_settlement_usd": 143.34432412497603,
+    "fees_paid_estimated_usd": 2.5139,
+    "forecast": "C_market_logistic",
+    "gross_turnover_usd": 58.93000975277616,
+    "max_drawdown_cost_basis_equity": 0.05442588047272718,
+    "minimum_net_ev_fraction": 0.0,
+    "net_pnl_usd": 43.344324124976026,
+    "policy": "C_market_logistic_ev_0.0000%",
+    "portfolio_audit": "passed",
+    "trade_count": 10
+  },
+  "candidate_portfolios": [
+    {
+      "ending_cash_after_settlement_usd": 94.8164,
+      "fees_paid_estimated_usd": 0.1836,
+      "forecast": "A_BTC_calibrated",
+      "gross_turnover_usd": 5.0,
+      "max_drawdown_cost_basis_equity": 0.051835999999999986,
+      "minimum_net_ev_fraction": 0.0,
+      "net_pnl_usd": -5.183599999999998,
+      "policy": "A_BTC_calibrated_ev_0.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 1
+    },
+    {
+      "ending_cash_after_settlement_usd": 94.8164,
+      "fees_paid_estimated_usd": 0.1836,
+      "forecast": "A_BTC_calibrated",
+      "gross_turnover_usd": 5.0,
+      "max_drawdown_cost_basis_equity": 0.051835999999999986,
+      "minimum_net_ev_fraction": 0.0025,
+      "net_pnl_usd": -5.183599999999998,
+      "policy": "A_BTC_calibrated_ev_0.2500%",
+      "portfolio_audit": "passed",
+      "trade_count": 1
+    },
+    {
+      "ending_cash_after_settlement_usd": 94.8164,
+      "fees_paid_estimated_usd": 0.1836,
+      "forecast": "A_BTC_calibrated",
+      "gross_turnover_usd": 5.0,
+      "max_drawdown_cost_basis_equity": 0.051835999999999986,
+      "minimum_net_ev_fraction": 0.005,
+      "net_pnl_usd": -5.183599999999998,
+      "policy": "A_BTC_calibrated_ev_0.5000%",
+      "portfolio_audit": "passed",
+      "trade_count": 1
+    },
+    {
+      "ending_cash_after_settlement_usd": 94.82,
+      "fees_paid_estimated_usd": 0.18,
+      "forecast": "A_BTC_calibrated",
+      "gross_turnover_usd": 5.0,
+      "max_drawdown_cost_basis_equity": 0.05180000000000007,
+      "minimum_net_ev_fraction": 0.01,
+      "net_pnl_usd": -5.180000000000007,
+      "policy": "A_BTC_calibrated_ev_1.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 1
+    },
+    {
+      "ending_cash_after_settlement_usd": 99.39031999999999,
+      "fees_paid_estimated_usd": 0.36868,
+      "forecast": "A_BTC_calibrated",
+      "gross_turnover_usd": 10.241,
+      "max_drawdown_cost_basis_equity": 0.05180003816065641,
+      "minimum_net_ev_fraction": 0.02,
+      "net_pnl_usd": -0.6096800000000115,
+      "policy": "A_BTC_calibrated_ev_2.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 2
+    },
+    {
+      "ending_cash_after_settlement_usd": 100.0,
+      "fees_paid_estimated_usd": 0.0,
+      "forecast": "B_market_reference",
+      "gross_turnover_usd": 0.0,
+      "max_drawdown_cost_basis_equity": 0.0,
+      "minimum_net_ev_fraction": 0.0,
+      "net_pnl_usd": 0.0,
+      "policy": "B_market_reference_ev_0.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 0
+    },
+    {
+      "ending_cash_after_settlement_usd": 100.0,
+      "fees_paid_estimated_usd": 0.0,
+      "forecast": "B_market_reference",
+      "gross_turnover_usd": 0.0,
+      "max_drawdown_cost_basis_equity": 0.0,
+      "minimum_net_ev_fraction": 0.0025,
+      "net_pnl_usd": 0.0,
+      "policy": "B_market_reference_ev_0.2500%",
+      "portfolio_audit": "passed",
+      "trade_count": 0
+    },
+    {
+      "ending_cash_after_settlement_usd": 100.0,
+      "fees_paid_estimated_usd": 0.0,
+      "forecast": "B_market_reference",
+      "gross_turnover_usd": 0.0,
+      "max_drawdown_cost_basis_equity": 0.0,
+      "minimum_net_ev_fraction": 0.005,
+      "net_pnl_usd": 0.0,
+      "policy": "B_market_reference_ev_0.5000%",
+      "portfolio_audit": "passed",
+      "trade_count": 0
+    },
+    {
+      "ending_cash_after_settlement_usd": 100.0,
+      "fees_paid_estimated_usd": 0.0,
+      "forecast": "B_market_reference",
+      "gross_turnover_usd": 0.0,
+      "max_drawdown_cost_basis_equity": 0.0,
+      "minimum_net_ev_fraction": 0.01,
+      "net_pnl_usd": 0.0,
+      "policy": "B_market_reference_ev_1.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 0
+    },
+    {
+      "ending_cash_after_settlement_usd": 100.0,
+      "fees_paid_estimated_usd": 0.0,
+      "forecast": "B_market_reference",
+      "gross_turnover_usd": 0.0,
+      "max_drawdown_cost_basis_equity": 0.0,
+      "minimum_net_ev_fraction": 0.02,
+      "net_pnl_usd": 0.0,
+      "policy": "B_market_reference_ev_2.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 0
+    },
+    {
+      "ending_cash_after_settlement_usd": 143.34432412497603,
+      "fees_paid_estimated_usd": 2.5139,
+      "forecast": "C_market_logistic",
+      "gross_turnover_usd": 58.93000975277616,
+      "max_drawdown_cost_basis_equity": 0.05442588047272718,
+      "minimum_net_ev_fraction": 0.0,
+      "net_pnl_usd": 43.344324124976026,
+      "policy": "C_market_logistic_ev_0.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 10
+    },
+    {
+      "ending_cash_after_settlement_usd": 143.34432412497603,
+      "fees_paid_estimated_usd": 2.5139,
+      "forecast": "C_market_logistic",
+      "gross_turnover_usd": 58.93000975277616,
+      "max_drawdown_cost_basis_equity": 0.05442588047272718,
+      "minimum_net_ev_fraction": 0.0025,
+      "net_pnl_usd": 43.344324124976026,
+      "policy": "C_market_logistic_ev_0.2500%",
+      "portfolio_audit": "passed",
+      "trade_count": 10
+    },
+    {
+      "ending_cash_after_settlement_usd": 143.34432412497603,
+      "fees_paid_estimated_usd": 2.5139,
+      "forecast": "C_market_logistic",
+      "gross_turnover_usd": 58.93000975277616,
+      "max_drawdown_cost_basis_equity": 0.05442588047272718,
+      "minimum_net_ev_fraction": 0.005,
+      "net_pnl_usd": 43.344324124976026,
+      "policy": "C_market_logistic_ev_0.5000%",
+      "portfolio_audit": "passed",
+      "trade_count": 10
+    },
+    {
+      "ending_cash_after_settlement_usd": 94.7935,
+      "fees_paid_estimated_usd": 0.2065,
+      "forecast": "C_market_logistic",
+      "gross_turnover_usd": 5.0,
+      "max_drawdown_cost_basis_equity": 0.052065000000000056,
+      "minimum_net_ev_fraction": 0.01,
+      "net_pnl_usd": -5.2065000000000055,
+      "policy": "C_market_logistic_ev_1.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 1
+    },
+    {
+      "ending_cash_after_settlement_usd": 124.06411866591301,
+      "fees_paid_estimated_usd": 1.4745100000000002,
+      "forecast": "C_market_logistic",
+      "gross_turnover_usd": 33.64341310449526,
+      "max_drawdown_cost_basis_equity": 0.054425891196317085,
+      "minimum_net_ev_fraction": 0.02,
+      "net_pnl_usd": 24.064118665913014,
+      "policy": "C_market_logistic_ev_2.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 6
+    },
+    {
+      "ending_cash_after_settlement_usd": 95.88173817728183,
+      "fees_paid_estimated_usd": 2.3184400000000003,
+      "forecast": "D_market_plus_BTC",
+      "gross_turnover_usd": 65.16350932226811,
+      "max_drawdown_cost_basis_equity": 0.20428510998529953,
+      "minimum_net_ev_fraction": 0.0,
+      "net_pnl_usd": -4.118261822718168,
+      "policy": "D_market_plus_BTC_ev_0.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 12
+    },
+    {
+      "ending_cash_after_settlement_usd": 95.88173817728183,
+      "fees_paid_estimated_usd": 2.3184400000000003,
+      "forecast": "D_market_plus_BTC",
+      "gross_turnover_usd": 65.16350932226811,
+      "max_drawdown_cost_basis_equity": 0.20428510998529953,
+      "minimum_net_ev_fraction": 0.0025,
+      "net_pnl_usd": -4.118261822718168,
+      "policy": "D_market_plus_BTC_ev_0.2500%",
+      "portfolio_audit": "passed",
+      "trade_count": 12
+    },
+    {
+      "ending_cash_after_settlement_usd": 96.46623922408892,
+      "fees_paid_estimated_usd": 1.9459199999999999,
+      "forecast": "D_market_plus_BTC",
+      "gross_turnover_usd": 54.703439936114364,
+      "max_drawdown_cost_basis_equity": 0.19796162248574511,
+      "minimum_net_ev_fraction": 0.005,
+      "net_pnl_usd": -3.5337607759110767,
+      "policy": "D_market_plus_BTC_ev_0.5000%",
+      "portfolio_audit": "passed",
+      "trade_count": 10
+    },
+    {
+      "ending_cash_after_settlement_usd": 97.23284164465099,
+      "fees_paid_estimated_usd": 1.51939,
+      "forecast": "D_market_plus_BTC",
+      "gross_turnover_usd": 42.62420168168983,
+      "max_drawdown_cost_basis_equity": 0.1541784789474706,
+      "minimum_net_ev_fraction": 0.01,
+      "net_pnl_usd": -2.767158355349011,
+      "policy": "D_market_plus_BTC_ev_1.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 8
+    },
+    {
+      "ending_cash_after_settlement_usd": 98.7843573,
+      "fees_paid_estimated_usd": 0.75398,
+      "forecast": "D_market_plus_BTC",
+      "gross_turnover_usd": 20.943662699999997,
+      "max_drawdown_cost_basis_equity": 0.10091679778856033,
+      "minimum_net_ev_fraction": 0.02,
+      "net_pnl_usd": -1.2156427000000036,
+      "policy": "D_market_plus_BTC_ev_2.0000%",
+      "portfolio_audit": "passed",
+      "trade_count": 4
+    }
+  ],
+  "configuration": {
+    "chronological_cv": {
+      "C_and_D_use_identical_validation_rows": true,
+      "estimator": "sklearn LogisticRegression(penalty=l2, solver=lbfgs, fit_intercept=true, class_weight=null, max_iter=2000)",
+      "folds": [
+        {
+          "end_exclusive_utc": "2026-05-01T00:00:00Z",
+          "fold_id": "dev_2026q2_a",
+          "reason": "no earlier development book-labelled sample for fitting C or D",
+          "start_inclusive_utc": "2026-04-15T17:05:00Z",
+          "used_for_meta_model_parameter_selection": false
+        },
+        {
+          "end_exclusive_utc": "2026-06-01T00:00:00Z",
+          "fold_id": "dev_2026q2_b",
+          "start_inclusive_utc": "2026-05-01T00:00:00Z",
+          "used_for_meta_model_parameter_selection": true
+        },
+        {
+          "end_exclusive_utc": "2026-07-01T00:00:00Z",
+          "fold_id": "dev_2026q2_c",
+          "start_inclusive_utc": "2026-06-01T00:00:00Z",
+          "used_for_meta_model_parameter_selection": true
+        }
+      ],
+      "inverse_regularization_C_grid": [
+        0.01,
+        0.1,
+        1.0,
+        10.0,
+        100.0
+      ],
+      "selection_metric": "lowest pooled chronological out-of-fold log loss across eligible folds; exact ties prefer lower C (stronger regularization)",
+      "training_label_availability_rule": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds <= validation_start_utc"
+    },
+    "common_sample": {
+      "ask_age_filter_seconds": null,
+      "decision_snapshot": "T-60",
+      "excludes_documented_source_gaps_and_future_events": true,
+      "price_bounds": "0 <= bid <= ask < 1 and ask > 0",
+      "proxy_quotes": "include and report source and proxy flag",
+      "requires_finite_up_down_bid_and_ask": true,
+      "requires_official_outcome_and_causal_btc_prediction": true,
+      "requires_quote_valid": true,
+      "requires_source_hour_available": true
+    },
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "development_market_data_start_utc": "2026-04-15T17:05:00Z",
+    "experiment_id": "btc_market_probability_experiment_20261012",
+    "final_portfolio_selection": {
+      "candidates": "A, B, C and D crossed with every frozen EV threshold, plus no-trade",
+      "development_predictions": "chronological out-of-fold rows from the same eligible folds used for C/D selection; A and B scored on those identical rows",
+      "holdout_selection_permitted": false,
+      "holdout_simulation_capitals_usd": [
+        100.0,
+        500.0,
+        1000.0
+      ],
+      "initial_cash_usd": 100.0,
+      "selection_metric": "highest final settled cash; ties prefer lower max drawdown, fewer trades, then no-trade",
+      "sizing": "5% of free cash at T-60, no additional cap"
+    },
+    "forecast_models": {
+      "A": "existing calibrated causal BTC probability",
+      "B": "p_market",
+      "C": "L2 logistic regression with intercept on logit(p_market)",
+      "D": "L2 logistic regression with intercept on logit(p_market) and logit(existing calibrated p_BTC)",
+      "btc_raw_probability_reported_as_diagnostic": true
+    },
+    "historically_exposed_holdout": true,
+    "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+    "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+    "independent_order_economics": {
+      "ev_thresholds": [
+        0.0,
+        0.0025,
+        0.005,
+        0.01,
+        0.02
+      ],
+      "execution_rule": "same T-60 side and requested amount; ask-side fee-adjusted FAK fill from actual T-59 snapshot, preserving current minimum, partial-fill, depth and proxy rules",
+      "execution_time": "T-59",
+      "gross_order_usd": 5.0,
+      "portfolio_cash_shared": false,
+      "side_and_threshold_decision_time": "T-60"
+    },
+    "limitations": [
+      "Historical holdout has been viewed before this experiment; results are diagnostic, not independent confirmation.",
+      "Valid paired T-60 quotes begin on 2026-04-15; no earlier missing quotes are imputed.",
+      "Only two eligible chronological validation folds are available for selecting C/D regularization."
+    ],
+    "market_reference": {
+      "definition": "mid_up=(bid_up+ask_up)/2; mid_down=(bid_down+ask_down)/2; p_market=mid_up/(mid_up+mid_down)",
+      "interpretation": "probability reference only; never an execution price"
+    },
+    "paired_holdout_uncertainty": {
+      "bootstrap": "paired moving 3-day UTC blocks, 1000 replicates, seed 20261012",
+      "comparisons": [
+        "D-C",
+        "D-A"
+      ],
+      "metrics": [
+        "log_loss_difference",
+        "brier_difference",
+        "auc_difference"
+      ]
+    },
+    "probability_metrics": {
+      "calibration_bin_edges": "forecast-specific deciles fitted on development chronological out-of-fold predictions; reused unchanged on holdout",
+      "calibration_bins": 10,
+      "metrics": [
+        "log_loss",
+        "brier",
+        "auc",
+        "calibration_intercept",
+        "calibration_slope",
+        "ece"
+      ],
+      "targets": [
+        "official_polymarket_up"
+      ]
+    },
+    "status": "frozen_before_holdout_scoring"
+  },
+  "development_data_identity": {
+    "prediction_identity_sha256": "2f9a38add9ecb4cf4e6362239228af52f26f4c4429b0627f90a7d8c23dba7983",
+    "t59_snapshot_sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0",
+    "t60_snapshot_sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+    "walk_forward_manifest_sha256": "001dcd816a83ea5bda001595ddd6e57d977cee0624c2eff5a585e9b2498be88a"
+  },
+  "development_sample": {
+    "cutoff_exclusive_utc": "2026-07-01T00:00:00+00:00",
+    "latest_label_available_at_utc": "2026-07-01T00:01:26+00:00",
+    "rows": 8676,
+    "start_inclusive_utc": "2026-05-01T00:00:00+00:00"
+  },
+  "experiment_id": "btc_market_probability_experiment_20261012",
+  "frozen_before_holdout_metrics": true,
+  "holdout_used_for_selection": false,
+  "no_trade_control": {
+    "ending_cash_after_settlement_usd": 100.0,
+    "fees_paid_estimated_usd": 0.0,
+    "gross_turnover_usd": 0.0,
+    "max_drawdown_cost_basis_equity": 0.0,
+    "minimum_net_ev_fraction": null,
+    "net_pnl_usd": 0.0,
+    "policy": "no_trade",
+    "rejections_by_reason": {},
+    "trade_count": 0
+  },
+  "selected_policy": {
+    "ending_cash_after_settlement_usd": 143.34432412497603,
+    "fees_paid_estimated_usd": 2.5139,
+    "forecast": "C_market_logistic",
+    "gross_turnover_usd": 58.93000975277616,
+    "max_drawdown_cost_basis_equity": 0.05442588047272718,
+    "minimum_net_ev_fraction": 0.0,
+    "net_pnl_usd": 43.344324124976026,
+    "policy": "C_market_logistic_ev_0.0000%",
+    "portfolio_audit": "passed",
+    "trade_count": 10
+  },
+  "selected_regularization": {
+    "C": {
+      "C": 10.0,
+      "cv_pooled_log_loss": 0.6935571963093391,
+      "cv_rows": 8676,
+      "lambda_inverse_C": 0.1
+    },
+    "D": {
+      "C": 10.0,
+      "cv_pooled_log_loss": 0.6928601093348362,
+      "cv_rows": 8676,
+      "lambda_inverse_C": 0.1
+    }
+  },
+  "selection_metric": "highest ending cash after settlement; ties lower max drawdown, fewer trades, then no-trade",
+  "status": "frozen_from_development_before_holdout_scoring"
+}

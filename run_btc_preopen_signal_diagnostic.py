@@ -26,9 +26,10 @@ from utils.polymarket_policy import calibration_metrics
 ROOT = Path(__file__).resolve().parent
 CORRECTION_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_research_20261012_fee_correction"
 SOURCE_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry"
-OUTPUT_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_research_20261012_signal_diagnostic"
-REPORT_PATH = ROOT / "reports/btc_preopen/btc_preopen_signal_diagnostic_20261012.md"
-FIGURE_DIR = ROOT / "reports/btc_preopen/signal_diagnostic_20261012"
+PREVIOUS_OUTPUT_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_research_20261012_signal_diagnostic"
+OUTPUT_DIR = ROOT / "data/analysis/polymarket/BTC/preopen_research_20261012_signal_diagnostic_correction"
+REPORT_PATH = ROOT / "reports/btc_preopen/btc_preopen_signal_diagnostic_correction_20261012.md"
+FIGURE_DIR = ROOT / "reports/btc_preopen/signal_diagnostic_correction_20261012"
 DEV_START_UTC = pd.Timestamp("2026-01-01T00:00:00Z")
 DEV_CUTOFF_UTC = pd.Timestamp("2026-07-01T00:00:00Z")
 DATA_CUTOFF_UTC = pd.Timestamp("2026-10-07T00:00:00Z")
@@ -268,6 +269,79 @@ def _t60_unpriceable_reason(evaluation: dict) -> str:
     if "exchange_maintenance_pause" in reasons:
         return "exchange_maintenance_pause"
     return "no_priceable_native_ask_side"
+
+
+def _t59_execution_evaluations(
+    market_by_id: dict[str, dict],
+    t59_by_id: dict[str, dict],
+    gross_usd: float,
+) -> dict[str, dict]:
+    """Price both sides at T-59 without selecting a side or changing stake."""
+    evaluations = {}
+    for condition_id, snapshot in t59_by_id.items():
+        market = market_by_id.get(condition_id)
+        if market is None:
+            continue
+        evaluations[condition_id] = {
+            "sides": {
+                side: replay._price_side(snapshot, market, side, gross_usd)
+                for side in ("up", "down")
+            }
+        }
+    return evaluations
+
+
+def _load_existing_portfolio_diagnostics(
+    book_record: dict,
+    source_holdout: dict,
+    challenger_hurdle: float,
+) -> tuple[dict, dict] | None:
+    """Reuse the prior portfolio work, which already priced T-59 separately."""
+    manifest_path = PREVIOUS_OUTPUT_DIR / "signal_diagnostic_manifest.json"
+    if not manifest_path.is_file():
+        return None
+    manifest = research._read_json(manifest_path)
+    identity = manifest.get("source_identity", {})
+    expected = {
+        "t60_snapshot_sha256": book_record["t60_coverage_sha256"],
+        "t59_snapshot_sha256": book_record["t59_coverage_sha256"],
+        "holdout_prediction_sha256": source_holdout["predictions_sha256"],
+        "evaluated_bundle_sha256": source_holdout["evaluated_bundle_sha256"],
+    }
+    if manifest.get("status") != "completed" or any(identity.get(key) != value for key, value in expected.items()):
+        return None
+    frozen_hurdle = manifest.get("active_development_challenger", {}).get("minimum_net_ev_fraction")
+    if frozen_hurdle is None or not math.isclose(float(frozen_hurdle), challenger_hurdle, abs_tol=1e-12):
+        return None
+
+    summaries = {}
+    curves = {}
+    for capital in PORTFOLIO_CAPITALS_USD:
+        name = str(int(capital))
+        portfolio_dir = PREVIOUS_OUTPUT_DIR / "holdout_portfolios" / name
+        summary_path = portfolio_dir / "summary.json"
+        curve_path = portfolio_dir / "equity_path.csv"
+        if not summary_path.is_file() or not curve_path.is_file():
+            return None
+        summary = research._read_json(summary_path)
+        manifest_summary = manifest.get("portfolio_summaries", {}).get(name)
+        if (
+            manifest_summary != summary
+            or summary.get("accounting_audit", {}).get("status") != "passed"
+        ):
+            return None
+        curve_frame = pd.read_csv(curve_path)
+        if curve_frame.empty or not math.isclose(
+            float(curve_frame.iloc[-1]["cash_usd"]),
+            float(summary["ending_cash_after_settlement_usd"]),
+            rel_tol=0.0,
+            abs_tol=1e-8,
+        ):
+            return None
+        summaries[name] = {"summary": summary}
+        curve = curve_frame.to_dict("records")
+        curves[name] = curve
+    return summaries, curves
 
 
 def _independent_decisions(
@@ -819,6 +893,8 @@ def _render_report(
         "> Historycznie oglądany holdout (2026-07-01–2026-10-06); raport jest diagnostyką, nie niezależnym testem potwierdzającym.",
         "> Niezależne sygnały $5 nie są portfelem $100; ich łączny PnL nie jest wynikiem osiągalnym z takim depozytem.",
         "",
+        "> Korekta poprzedniego raportu: pierwotna wersja u\u017cywa\u0142a wycen T\u221260 dla niezale\u017cnych wykona\u0144 T\u221259. Ta korekta przelicza fille, PnL, bootstrap i wykresy z rzeczywistych snapshot\u00f3w T\u221259.",
+        "",
         "## Werdykt",
         "",
         diagnostics["verdict"],
@@ -940,6 +1016,8 @@ def _render_report(
         "",
         "## Wnioski do sześciu pytań",
         "",
+        f"Korekta T−59 przy hurdle 0% na holdoucie: poprzednio {diagnostics['t59_correction_delta']['previous_fills']:,} fille, EV−PnL { _fmt_usd(diagnostics['t59_correction_delta']['previous_expected_minus_realized_usd'])}; po przeliczeniu {diagnostics['t59_correction_delta']['corrected_fills']:,} filli, EV−PnL {_fmt_usd(diagnostics['t59_correction_delta']['corrected_expected_minus_realized_usd'])}. Różnica PnL netto: {_fmt_usd(diagnostics['t59_correction_delta']['net_pnl_delta_usd'])}. Portfele 5% nie zmieniły się, ponieważ ich wykonania już używały snapshotów T−59.",
+        "",
         diagnostics["answers"],
         "",
         "Dalszy krok badawczy, jeśli wskazany, musi testować konkretny mechanizm rozpoznany powyżej. Obejrzanego holdoutu nie wolno używać do strojenia i nadal nazywać niezależnym testem.",
@@ -973,11 +1051,14 @@ def main() -> dict:
     predictions, prediction_identity = research._load_model_predictions(include_holdout=True)
     t59, t60, book_record = research._load_enriched_book_snapshots(correction_manifest)
     calendar, calendar_counts = research._build_market_calendar(predictions)
-    calendar, fixed5_t59_evaluations = replay._market_statuses(calendar, t59, t60)
+    calendar, _fixed5_t60_evaluations = replay._market_statuses(calendar, t59, t60)
     calendar["market_start_utc"] = pd.to_datetime(calendar.market_start_utc, utc=True, errors="raise")
     market_by_id = research._snapshot_map(calendar.loc[calendar.condition_id.notna()])
     t59_by_id = research._snapshot_map(t59)
     t60_by_id = research._snapshot_map(t60)
+    t59_execution_evaluations = _t59_execution_evaluations(
+        market_by_id, t59_by_id, FIXED_ORDER_USD,
+    )
     print(
         f"loaded verified inputs: predictions={len(predictions):,}, markets={calendar_counts['confirmed_market_rows']:,}, "
         f"T60/T59={len(t60):,}/{len(t59):,}; model bundle={source_holdout['evaluated_bundle_sha256']}",
@@ -992,7 +1073,9 @@ def main() -> dict:
         dev_probabilities.to_numpy(float), CALIBRATION_BINS, endpoints=(0.0, 1.0),
     )
 
-    decisions = _independent_decisions(calendar, market_by_id, fixed5_t59_evaluations, t60_by_id, hurdles)
+    decisions = _independent_decisions(
+        calendar, market_by_id, t59_execution_evaluations, t60_by_id, hurdles,
+    )
     positive_dev_ev = pd.to_numeric(
         decisions.loc[
             decisions.period.eq("development") & decisions.decision_status.eq("positive_t60_net_ev"),
@@ -1039,29 +1122,56 @@ def main() -> dict:
         & calendar.market_start_utc.ge(DEV_CUTOFF_UTC)
         & calendar.market_start_utc.lt(DATA_CUTOFF_UTC)
     ].copy()
+    reused_portfolios = _load_existing_portfolio_diagnostics(
+        book_record, source_holdout, challenger_hurdle,
+    )
     portfolio_summaries: dict[str, dict] = {}
     portfolio_curves: dict[str, list[dict]] = {}
-    for capital in PORTFOLIO_CAPITALS_USD:
-        summary, trades, portfolio_decisions, curve = _run_holdout_portfolio(
-            capital, holdout_rows, t59_by_id, market_by_id, t60_by_id, challenger_hurdle,
-        )
-        name = f"{int(capital)}"
-        portfolio_summaries[name] = {
-            "summary": summary,
-            "trades": trades,
-            "decisions": portfolio_decisions,
-            "curve": curve,
-        }
-        portfolio_curves[name] = curve
-        portfolio_dir = OUTPUT_DIR / "holdout_portfolios" / name
-        portfolio_dir.mkdir(parents=True, exist_ok=True)
-        if trades:
-            pd.DataFrame(trades).to_parquet(portfolio_dir / "trades.parquet", index=False, compression="zstd")
-        if portfolio_decisions:
-            pd.DataFrame(portfolio_decisions).to_parquet(portfolio_dir / "decisions.parquet", index=False, compression="zstd")
-        pd.DataFrame(curve).to_csv(portfolio_dir / "equity_path.csv", index=False)
-        research._write_json(portfolio_dir / "summary.json", summary)
-        print(f"completed {name} USD portfolio: trades={summary['trade_count']:,}, net={summary['net_pnl_usd']:.2f}", flush=True)
+    if reused_portfolios is not None:
+        portfolio_summaries, portfolio_curves = reused_portfolios
+        print("reused verified T-59 portfolio diagnostics; no portfolio replay", flush=True)
+    else:
+        for capital in PORTFOLIO_CAPITALS_USD:
+            summary, trades, portfolio_decisions, curve = _run_holdout_portfolio(
+                capital, holdout_rows, t59_by_id, market_by_id, t60_by_id, challenger_hurdle,
+            )
+            name = f"{int(capital)}"
+            portfolio_summaries[name] = {
+                "summary": summary,
+                "trades": trades,
+                "decisions": portfolio_decisions,
+                "curve": curve,
+            }
+            portfolio_curves[name] = curve
+            portfolio_dir = OUTPUT_DIR / "holdout_portfolios" / name
+            portfolio_dir.mkdir(parents=True, exist_ok=True)
+            if trades:
+                pd.DataFrame(trades).to_parquet(portfolio_dir / "trades.parquet", index=False, compression="zstd")
+            if portfolio_decisions:
+                pd.DataFrame(portfolio_decisions).to_parquet(portfolio_dir / "decisions.parquet", index=False, compression="zstd")
+            pd.DataFrame(curve).to_csv(portfolio_dir / "equity_path.csv", index=False)
+            research._write_json(portfolio_dir / "summary.json", summary)
+            print(f"completed {name} USD portfolio: trades={summary['trade_count']:,}, net={summary['net_pnl_usd']:.2f}", flush=True)
+
+    previous_manifest = research._read_json(PREVIOUS_OUTPUT_DIR / "signal_diagnostic_manifest.json")
+    previous_holdout_zero = next(
+        row for row in previous_manifest["signal_summaries"]
+        if row["period"] == "holdout" and row["ev_hurdle_fraction"] == 0.0
+    )
+    corrected_holdout_zero = next(
+        row for row in signal_summaries
+        if row["period"] == "holdout" and row["ev_hurdle_fraction"] == 0.0
+    )
+    correction_delta = {
+        "previous_fills": int(previous_holdout_zero["fills"]),
+        "corrected_fills": int(corrected_holdout_zero["fills"]),
+        "previous_net_pnl_usd": previous_holdout_zero["pnl_after_fee_usd"],
+        "corrected_net_pnl_usd": corrected_holdout_zero["pnl_after_fee_usd"],
+        "net_pnl_delta_usd": corrected_holdout_zero["pnl_after_fee_usd"] - previous_holdout_zero["pnl_after_fee_usd"],
+        "previous_expected_minus_realized_usd": previous_holdout_zero["pnl_decomposition"]["expected_net_t59_usd"] - previous_holdout_zero["pnl_after_fee_usd"],
+        "corrected_expected_minus_realized_usd": corrected_holdout_zero["pnl_decomposition"]["expected_net_t59_usd"] - corrected_holdout_zero["pnl_after_fee_usd"],
+        "unchanged_portfolio_diagnostics_reused": reused_portfolios is not None,
+    }
 
     _create_figures(monthly_rows, calibration_bins, ev_groups, portfolio_curves)
     decisions_path = OUTPUT_DIR / "independent_signal_decisions.parquet"
@@ -1115,6 +1225,9 @@ def main() -> dict:
         "model_artifact_hashes_checked_before_after": True,
         "no_balance_state_in_independent_diagnostic": True,
         "no_refit_or_event_replay": True,
+        "t59_execution_snapshots_used_for_independent_signals": True,
+        "existing_t60_t59_portfolios_reused": reused_portfolios is not None,
+        "t59_correction_delta": correction_delta,
     }
 
     # Use measured aggregate values in the six-part conclusion; no holdout threshold is selected.

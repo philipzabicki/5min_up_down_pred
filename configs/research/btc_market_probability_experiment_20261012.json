@@ -1,0 +1,92 @@
+{
+  "experiment_id": "btc_market_probability_experiment_20261012",
+  "status": "frozen_before_holdout_scoring",
+  "historically_exposed_holdout": true,
+  "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+  "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "development_market_data_start_utc": "2026-04-15T17:05:00Z",
+  "common_sample": {
+    "requires_official_outcome_and_causal_btc_prediction": true,
+    "decision_snapshot": "T-60",
+    "requires_quote_valid": true,
+    "requires_source_hour_available": true,
+    "requires_finite_up_down_bid_and_ask": true,
+    "price_bounds": "0 <= bid <= ask < 1 and ask > 0",
+    "excludes_documented_source_gaps_and_future_events": true,
+    "ask_age_filter_seconds": null,
+    "proxy_quotes": "include and report source and proxy flag"
+  },
+  "market_reference": {
+    "definition": "mid_up=(bid_up+ask_up)/2; mid_down=(bid_down+ask_down)/2; p_market=mid_up/(mid_up+mid_down)",
+    "interpretation": "probability reference only; never an execution price"
+  },
+  "forecast_models": {
+    "A": "existing calibrated causal BTC probability",
+    "B": "p_market",
+    "C": "L2 logistic regression with intercept on logit(p_market)",
+    "D": "L2 logistic regression with intercept on logit(p_market) and logit(existing calibrated p_BTC)",
+    "btc_raw_probability_reported_as_diagnostic": true
+  },
+  "chronological_cv": {
+    "folds": [
+      {
+        "fold_id": "dev_2026q2_a",
+        "start_inclusive_utc": "2026-04-15T17:05:00Z",
+        "end_exclusive_utc": "2026-05-01T00:00:00Z",
+        "used_for_meta_model_parameter_selection": false,
+        "reason": "no earlier development book-labelled sample for fitting C or D"
+      },
+      {
+        "fold_id": "dev_2026q2_b",
+        "start_inclusive_utc": "2026-05-01T00:00:00Z",
+        "end_exclusive_utc": "2026-06-01T00:00:00Z",
+        "used_for_meta_model_parameter_selection": true
+      },
+      {
+        "fold_id": "dev_2026q2_c",
+        "start_inclusive_utc": "2026-06-01T00:00:00Z",
+        "end_exclusive_utc": "2026-07-01T00:00:00Z",
+        "used_for_meta_model_parameter_selection": true
+      }
+    ],
+    "training_label_availability_rule": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds <= validation_start_utc",
+    "estimator": "sklearn LogisticRegression(penalty=l2, solver=lbfgs, fit_intercept=true, class_weight=null, max_iter=2000)",
+    "inverse_regularization_C_grid": [0.01, 0.1, 1.0, 10.0, 100.0],
+    "selection_metric": "lowest pooled chronological out-of-fold log loss across eligible folds; exact ties prefer lower C (stronger regularization)",
+    "C_and_D_use_identical_validation_rows": true
+  },
+  "probability_metrics": {
+    "targets": ["official_polymarket_up"],
+    "metrics": ["log_loss", "brier", "auc", "calibration_intercept", "calibration_slope", "ece"],
+    "calibration_bins": 10,
+    "calibration_bin_edges": "forecast-specific deciles fitted on development chronological out-of-fold predictions; reused unchanged on holdout"
+  },
+  "paired_holdout_uncertainty": {
+    "comparisons": ["D-C", "D-A"],
+    "metrics": ["log_loss_difference", "brier_difference", "auc_difference"],
+    "bootstrap": "paired moving 3-day UTC blocks, 1000 replicates, seed 20261012"
+  },
+  "independent_order_economics": {
+    "gross_order_usd": 5.0,
+    "ev_thresholds": [0.0, 0.0025, 0.005, 0.01, 0.02],
+    "side_and_threshold_decision_time": "T-60",
+    "execution_time": "T-59",
+    "execution_rule": "same T-60 side and requested amount; ask-side fee-adjusted FAK fill from actual T-59 snapshot, preserving current minimum, partial-fill, depth and proxy rules",
+    "portfolio_cash_shared": false
+  },
+  "final_portfolio_selection": {
+    "development_predictions": "chronological out-of-fold rows from the same eligible folds used for C/D selection; A and B scored on those identical rows",
+    "initial_cash_usd": 100.0,
+    "sizing": "5% of free cash at T-60, no additional cap",
+    "candidates": "A, B, C and D crossed with every frozen EV threshold, plus no-trade",
+    "selection_metric": "highest final settled cash; ties prefer lower max drawdown, fewer trades, then no-trade",
+    "holdout_selection_permitted": false,
+    "holdout_simulation_capitals_usd": [100.0, 500.0, 1000.0]
+  },
+  "limitations": [
+    "Historical holdout has been viewed before this experiment; results are diagnostic, not independent confirmation.",
+    "Valid paired T-60 quotes begin on 2026-04-15; no earlier missing quotes are imputed.",
+    "Only two eligible chronological validation folds are available for selecting C/D regularization."
+  ]
+}

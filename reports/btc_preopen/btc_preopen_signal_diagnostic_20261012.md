@@ -1,3 +1,5 @@
+> Zastąpiony korektą z 2026-10-12: wyceny wykonania niezależnych sygnałów błędnie używały snapshotu T−60. Aktualne wartości filli, PnL, bootstrap i wykresów są w [raporcie po korekcie](btc_preopen_signal_diagnostic_correction_20261012.md). Diagnostyka portfeli 5% pozostaje bez zmian, bo korzystała z T−59.
+
 # Diagnostyka przewagi BTC 5m — 2026-10-12
 
 > Historycznie oglądany holdout (2026-07-01–2026-10-06); raport jest diagnostyką, nie niezależnym testem potwierdzającym.
