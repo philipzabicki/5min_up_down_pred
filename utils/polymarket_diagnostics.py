@@ -125,6 +125,7 @@ def block_uncertainty(t, decision_days):
     return {'method': 'three-day moving-block bootstrap; conditional on executed bets, no reselection',
             'calendar_days': len(days), 'traded_days': int((daily.stake > 0).sum()),
             'trades': len(t), 'replicates_with_turnover': len(samples),
+            'pnl_per_turnover_bootstrap_mean': float(np.mean(samples)) if samples else None,
             'pnl_per_turnover_95pct': np.quantile(samples, [.025, .975]).tolist() if samples else None}
 
 
