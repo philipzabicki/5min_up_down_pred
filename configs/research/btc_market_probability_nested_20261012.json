@@ -1,0 +1,106 @@
+{
+  "experiment_id": "btc_market_probability_nested_20261012",
+  "status": "frozen_before_holdout_scoring",
+  "selection_procedure_change": "Nested chronological probability-model selection and independent fixed-$5 policy evaluation replace the prior $100 development-balance selector. This is a new experiment, not an accounting correction.",
+  "historically_exposed_holdout": true,
+  "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+  "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+  "development_start_utc": "2026-04-15T17:05:00Z",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "development_outer_folds": [
+    {
+      "fold_id": "dev_2026q2_b",
+      "start_inclusive_utc": "2026-05-01T00:00:00Z",
+      "end_exclusive_utc": "2026-06-01T00:00:00Z",
+      "inner_validation_folds": [
+        {"fold_id": "dev_2026apr_inner_a", "start_inclusive_utc": "2026-04-22T00:00:00Z", "end_exclusive_utc": "2026-04-27T00:00:00Z"},
+        {"fold_id": "dev_2026apr_inner_b", "start_inclusive_utc": "2026-04-27T00:00:00Z", "end_exclusive_utc": "2026-05-01T00:00:00Z"}
+      ]
+    },
+    {
+      "fold_id": "dev_2026q2_c",
+      "start_inclusive_utc": "2026-06-01T00:00:00Z",
+      "end_exclusive_utc": "2026-07-01T00:00:00Z",
+      "inner_validation_folds": [
+        {"fold_id": "dev_2026may_inner_a", "start_inclusive_utc": "2026-05-01T00:00:00Z", "end_exclusive_utc": "2026-05-16T00:00:00Z"},
+        {"fold_id": "dev_2026may_inner_b", "start_inclusive_utc": "2026-05-16T00:00:00Z", "end_exclusive_utc": "2026-06-01T00:00:00Z"}
+      ]
+    }
+  ],
+  "final_development_selection_folds": [
+    {"fold_id": "dev_2026q2_b_final", "start_inclusive_utc": "2026-05-01T00:00:00Z", "end_exclusive_utc": "2026-06-01T00:00:00Z"},
+    {"fold_id": "dev_2026q2_c_final", "start_inclusive_utc": "2026-06-01T00:00:00Z", "end_exclusive_utc": "2026-07-01T00:00:00Z"}
+  ],
+  "label_availability_rule": "label_available_at_utc <= validation_start_utc; training market_start_utc < validation_start_utc",
+  "common_sample": {
+    "requires_official_outcome_and_causal_btc_prediction": true,
+    "decision_snapshot": "T-60",
+    "requires_quote_valid_and_source_coverage": true,
+    "requires_finite_up_down_bid_and_ask": true,
+    "excludes_documented_source_gaps_and_future_events": true,
+    "ask_age_filter_seconds": null,
+    "proxy_quotes": "include and report source and proxy flag"
+  },
+  "market_reference": {
+    "definition": "mid_up=(bid_up+ask_up)/2; mid_down=(bid_down+ask_down)/2; p_market=mid_up/(mid_up+mid_down)",
+    "interpretation": "probability reference only; never an execution price"
+  },
+  "btc_probability_input": "existing causal calibrated p_BTC only; do not compare raw or alternate BTC variants",
+  "model_families": {
+    "A": "existing causal calibrated BTC probability",
+    "B": "p_market reference",
+    "C": "existing L2 logistic regression with intercept on logit(p_market)",
+    "D": "existing free L2 logistic regression with intercept on logit(p_market) and logit(p_BTC)",
+    "E": "p=(1-w)*p_market+w*p_BTC; select w from the frozen grid",
+    "F": "logit(p)=logit(p_market)+a+b*(logit(p_BTC)-logit(p_market)); penalize a and b toward zero"
+  },
+  "parameter_grids": {
+    "C_inverse_regularization_C": [0.01, 0.1, 1.0, 10.0, 100.0],
+    "D_inverse_regularization_C": [0.01, 0.1, 1.0, 10.0, 100.0],
+    "E_btc_weights": [0.0, 0.1, 0.25, 0.5, 1.0],
+    "F_l2_penalty_on_a_and_b": [0.1, 1.0, 10.0],
+    "F_penalty_objective": "mean_log_loss + lambda*(a^2+b^2)/2",
+    "exact_no_correction": {"E_weight": 0.0, "F_a": 0.0, "F_b": 0.0, "equivalent_probability": "p_market"},
+    "parameter_selection_metric": "lowest pooled validation log loss over the predeclared inner folds; C/D ties choose lower C, E ties choose lower w, F ties choose exact no correction then higher lambda"
+  },
+  "probability_evaluation": {
+    "outer_development_folds": "all models compared on identical May and June market rows; C-F fitted/tuned only on each outer prefix using its configured inner folds",
+    "metrics": ["log_loss", "brier", "auc", "calibration_intercept", "calibration_slope", "ece"],
+    "calibration_bins": 10,
+    "calibration_bin_edges": "forecast-specific deciles fitted on nested development OOF predictions; reused unchanged on holdout",
+    "block_bootstrap": "paired moving 3-day UTC blocks, 1000 replicates, seed 20261012"
+  },
+  "independent_order_economics": {
+    "gross_order_usd": 5.0,
+    "ev_thresholds": [0.0, 0.0025, 0.005, 0.01, 0.02],
+    "side_and_threshold_decision_time": "T-60",
+    "execution_time": "T-59",
+    "execution_rule": "same T-60 side and requested amount; ask-side fee-adjusted FAK fill from actual T-59 snapshot, preserving accepted minimum, partial-fill, depth and proxy rules",
+    "portfolio_cash_shared": false,
+    "no_trade_control": true,
+    "policy_selection_rule": {
+      "minimum_fills": 50,
+      "minimum_active_utc_days": 15,
+      "minimum_fills_in_each_outer_fold": 10,
+      "requires_positive_net_pnl_in_each_outer_fold": true,
+      "requires_lower_95pct_three_day_block_bootstrap_total_net_pnl_above_zero": true,
+      "ranking": "highest lower 95% bootstrap bound, then higher mean daily net PnL; if none qualify select no-trade"
+    }
+  },
+  "frozen_policy_portfolio": {
+    "initial_cash_usd": 100.0,
+    "sizing": "5% of free cash at T-60, no additional dollar cap or stake increase",
+    "purpose": "holdout feasibility of the development-frozen policy only",
+    "holdout_selection_permitted": false
+  },
+  "fixed_execution_comparisons": {
+    "selector_forecasts": ["A_BTC_calibrated", "D_market_plus_BTC"],
+    "evaluation": "same filled market-side pairs selected by A or D; keep T-59 execution, fee, net shares, cash debit and realized payout fixed while rescoring p_side and expected net EV for every declared forecast"
+  },
+  "limits": [
+    "The July-October historical holdout was viewed before this experiment; all holdout metrics are diagnostic, not independent confirmation.",
+    "The nested development OOF excludes the April prefix used for early-fold fitting and covers only the two predeclared May and June outer folds.",
+    "Policy bootstrap intervals are conditional on each fixed candidate; they do not adjust for selecting across models and thresholds. The conservative no-trade gate is predeclared.",
+    "No main BTC model training, refit, book replay, live configuration change, or live order is part of this experiment."
+  ]
+}

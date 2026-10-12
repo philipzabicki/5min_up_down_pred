@@ -1,0 +1,173 @@
+{
+  "status": "frozen_from_nested_development_before_holdout_scoring",
+  "experiment_id": "btc_market_probability_nested_20261012",
+  "configuration_sha256": "3c07cb2d2e9efbd8eb6881c5750e027055ec7124d1f05498e9f711055de75bd4",
+  "selection_procedure_change": "Nested chronological probability-model selection and independent fixed-$5 policy evaluation replace the prior $100 development-balance selector. This is a new experiment, not an accounting correction.",
+  "development_data_identity": {
+    "walk_forward_manifest_sha256": "001dcd816a83ea5bda001595ddd6e57d977cee0624c2eff5a585e9b2498be88a",
+    "prediction_identity": {
+      "walk_forward_manifest_sha256": "001dcd816a83ea5bda001595ddd6e57d977cee0624c2eff5a585e9b2498be88a",
+      "prediction_sources": {
+        "calibration_seed": {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/oof/calibration_seed.parquet",
+          "sha256": "be770592fe19b1556555f664c09df80237a577406194930742d333f337ff87fd"
+        },
+        "dev_2026q2_a": {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/oof/dev_2026q2_a.parquet",
+          "sha256": "c34344a3900e2a51b835f8427969c9d2315347eb56b2cb4437839aa67fdf7e1c"
+        },
+        "dev_2026q2_b": {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/oof/dev_2026q2_b.parquet",
+          "sha256": "ab996580430378095c46ead664ed32f860f2213e0de70b75acc61b719ec595db"
+        },
+        "dev_2026q2_c": {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/oof/dev_2026q2_c.parquet",
+          "sha256": "1f39ef9bd1eaa13dba08c096e22ae1b1d51d2c2c4d9af6455dee278df135464b"
+        },
+        "evaluated_holdout": {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/external_evaluation_8ecf7dad07f7/external_test_predictions.parquet",
+          "sha256": "b8febf2da37695cae6727737abc9cd650c7a69052b97b6ac72d27254801426f6"
+        }
+      },
+      "prediction_rows": 80352,
+      "prediction_sha256": "2f9a38add9ecb4cf4e6362239228af52f26f4c4429b0627f90a7d8c23dba7983"
+    },
+    "holdout_prediction_sha256": "b8febf2da37695cae6727737abc9cd650c7a69052b97b6ac72d27254801426f6",
+    "evaluated_bundle_sha256": "4820e23493efb1743863b58b411352006a71ff7ce8c66068c17c8c88e65e4583",
+    "t60_snapshot_sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+    "t59_snapshot_sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0"
+  },
+  "development_market_cutoff_utc": "2026-07-01T00:00:00+00:00",
+  "nested_oof_rows": 8676,
+  "final_train_rows": 10794,
+  "final_choices": {
+    "C": {
+      "parameter": "C",
+      "value": 10.0,
+      "variant": "C_C_10",
+      "inner_log_loss": 0.6935571963093391,
+      "inner_brier": 0.25020220915352925,
+      "inner_rows": 8676,
+      "fit_rows": 10794,
+      "intercept": -0.02257763078712936,
+      "beta_logit_market": 0.7556057655015626,
+      "beta_logit_btc_calibrated": 0.0
+    },
+    "D": {
+      "parameter": "C",
+      "value": 10.0,
+      "variant": "D_C_10",
+      "inner_log_loss": 0.6928601093348362,
+      "inner_brier": 0.24985560342591945,
+      "inner_rows": 8676,
+      "fit_rows": 10794,
+      "intercept": -0.03247784658116818,
+      "beta_logit_market": 0.4745333979786682,
+      "beta_logit_btc_calibrated": 0.9811985806802441
+    },
+    "E": {
+      "parameter": "w",
+      "value": 1.0,
+      "variant": "E_w_1",
+      "inner_log_loss": 0.6923141389403299,
+      "inner_brier": 0.2495837679719284,
+      "inner_rows": 8676,
+      "fit_rows": 10794,
+      "mixture_weight_w": 1.0
+    },
+    "F": {
+      "parameter": "no_correction",
+      "value": null,
+      "variant": "F_no_correction",
+      "inner_log_loss": 0.6929885288707309,
+      "inner_brier": 0.249917463123525,
+      "inner_rows": 8676,
+      "fit_rows": 10794,
+      "offset_a": 0.0,
+      "btc_difference_b": 0.0
+    }
+  },
+  "nested_oof_probability_ranking_by_log_loss": [
+    {
+      "forecast": "A_BTC_calibrated",
+      "log_loss": 0.6923141389403299,
+      "brier": 0.2495837679719284,
+      "n": 8676
+    },
+    {
+      "forecast": "E_probability_mixture",
+      "log_loss": 0.692416871053145,
+      "brier": 0.24963497503251103,
+      "n": 8676
+    },
+    {
+      "forecast": "D_market_plus_BTC",
+      "log_loss": 0.6928675796677508,
+      "brier": 0.2498594489428287,
+      "n": 8676
+    },
+    {
+      "forecast": "B_market_reference",
+      "log_loss": 0.6929885288707309,
+      "brier": 0.249917463123525,
+      "n": 8676
+    },
+    {
+      "forecast": "F_regularized_logit_correction",
+      "log_loss": 0.6932186901231508,
+      "brier": 0.2500319236326498,
+      "n": 8676
+    },
+    {
+      "forecast": "C_market_logistic",
+      "log_loss": 0.6937903657002115,
+      "brier": 0.2503213801395313,
+      "n": 8676
+    }
+  ],
+  "policy_selection": {
+    "selection_metric": "highest lower 95% bootstrap bound, then higher mean daily net PnL; if none qualify select no-trade",
+    "predeclared_rule": {
+      "minimum_fills": 50,
+      "minimum_active_utc_days": 15,
+      "minimum_fills_in_each_outer_fold": 10,
+      "requires_positive_net_pnl_in_each_outer_fold": true,
+      "requires_lower_95pct_three_day_block_bootstrap_total_net_pnl_above_zero": true,
+      "ranking": "highest lower 95% bootstrap bound, then higher mean daily net PnL; if none qualify select no-trade"
+    },
+    "qualifying_active_candidates": [
+      "A_BTC_calibrated_ev_1.0000%",
+      "A_BTC_calibrated_ev_2.0000%"
+    ],
+    "selected_policy": {
+      "policy": "A_BTC_calibrated_ev_1.0000%",
+      "forecast": "A_BTC_calibrated",
+      "minimum_net_ev_fraction": 0.01,
+      "fills": 1035,
+      "active_utc_days": 43,
+      "realized_net_pnl_usd": 264.51553825621096,
+      "total_pnl_95pct": [
+        37.73631814005276,
+        537.8642159378727
+      ],
+      "reason": "Passed the predeclared active-policy gate."
+    },
+    "no_trade_control": {
+      "policy": "no_trade",
+      "forecast": null,
+      "minimum_net_ev_fraction": null,
+      "signals": 0,
+      "fills": 0,
+      "active_utc_days": 0,
+      "realized_net_pnl_usd": 0.0,
+      "net_per_turnover": null,
+      "total_pnl_95pct": [
+        0.0,
+        0.0
+      ],
+      "reason": null
+    },
+    "holdout_used_for_selection": false
+  },
+  "holdout_used_for_selection": false
+}
