@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_preopen_model_update_20261012",
+  "status": "frozen_before_new_holdout_evaluation",
+  "source_walk_forward_config": "configs/research/btc_preopen_walk_forward_20261011.json",
+  "source_contract": "configs/btc_preopen_v1.json",
+  "raw_data_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+  "official_markets_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+  "output_dir": "data/analysis/polymarket/BTC/btc_preopen_model_update_20261012",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "data_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+  "historical_holdout_status": "July-October outcomes were inspected in prior repository experiments; use as historical diagnostics only.",
+  "frozen_baseline": {
+    "name": "A_frozen",
+    "bundle_path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/final_model_148ba3133040/model_bundle.json",
+    "bundle_sha256": "4820e23493efb1743863b58b411352006a71ff7ce8c66068c17c8c88e65e4583",
+    "source_walk_forward_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/walk_forward_manifest.json",
+    "source_holdout_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/evaluated_holdout_manifest.json"
+  },
+  "variants": [
+    {
+      "name": "A_reoptimized",
+      "description": "Current fold-local selected features with the frozen bounded LightGBM search.",
+      "candidate_features": []
+    },
+    {
+      "name": "B_dynamic_price_volume",
+      "description": "The same fold-local selected features plus the listed causal price and volume features when not already selected.",
+      "candidate_features": [
+        "candle_ret_co_1m",
+        "candle_ret_co_5m_lag2",
+        "realized_volatility_1m",
+        "candle_range_ho_1m",
+        "candle_signed_vol_1m",
+        "candle_up_down_vol_log_ratio_5m_lag1"
+      ]
+    }
+  ],
+  "model_search": {
+    "requested_trials_per_variant_per_fold": 10,
+    "minimum_successful_trials_per_variant_per_fold": 5,
+    "seeded_trials_per_variant_per_fold": 1,
+    "tpe_startup_trials": 5,
+    "total_requested_trials": 100,
+    "seed_trial_params": {
+      "learning_rate": 0.04,
+      "num_leaves": 160,
+      "min_data_in_leaf": 8192,
+      "feature_fraction": 0.8,
+      "lambda_l1": 4.0,
+      "lambda_l2": 4.0
+    },
+    "search_space": {
+      "learning_rate": {
+        "type": "float",
+        "low": 0.02,
+        "high": 0.12,
+        "log": true
+      },
+      "num_leaves": {
+        "type": "int",
+        "low": 63,
+        "high": 255
+      },
+      "min_data_in_leaf": {
+        "type": "int",
+        "low": 1024,
+        "high": 65536,
+        "log": true
+      },
+      "feature_fraction": {
+        "type": "float",
+        "low": 0.65,
+        "high": 0.95
+      },
+      "lambda_l1": {
+        "type": "float",
+        "low": 0.1,
+        "high": 32.0,
+        "log": true
+      },
+      "lambda_l2": {
+        "type": "float",
+        "low": 0.1,
+        "high": 32.0,
+        "log": true
+      }
+    },
+    "maximum_estimators": 500,
+    "early_stopping_rounds": 50,
+    "model_cv_folds": 10,
+    "random_seed": 20261004
+  },
+  "outer_folds": [
+    "calibration_seed",
+    "dev_2026q2_a",
+    "dev_2026q2_b",
+    "dev_2026q2_c",
+    "evaluated_holdout"
+  ],
+  "feature_generator_budgets": {
+    "indicator_population_size": 64,
+    "indicator_generations": 8,
+    "reaction_profile_trials": 24,
+    "volume_profile_trials": 24,
+    "target_weight_candidates": 16,
+    "selector_max_sweep_evaluations": 60,
+    "selector_permutation_feature_fraction": 0.25,
+    "selector_permutation_repeats": 1,
+    "reused_between_variants_within_fold": true,
+    "selector_max_refinement_rounds": 3
+  },
+  "development_model_freeze": {
+    "score": "official Polymarket outcome log-loss on identical common development markets",
+    "bootstrap": "paired circular moving 3-UTC-day blocks, 2000 replicates, seed 20261012",
+    "candidate_gate": "Select the lowest-mean-log-loss newly trained candidate only if its Bonferroni-adjusted 97.5% paired delta-log-loss upper bound versus A_frozen is below zero; otherwise keep A_frozen.",
+    "holdout_used_for_selection": false
+  },
+  "economic_evaluation": {
+    "fixed_order_usd": 5.0,
+    "selected_policy": "A_BTC_calibrated_ev_1.0000%",
+    "ev_hurdles": [
+      0.0,
+      0.0025,
+      0.005,
+      0.01,
+      0.02
+    ],
+    "decision_time": "T-60 seconds",
+    "execution_time": "T-59 seconds",
+    "same_side_at_execution": true,
+    "portfolio_sizing": "5% of free cash at decision; stake remains locked until settlement",
+    "holdout_portfolio_starting_cash_usd": [
+      100.0,
+      500.0,
+      1000.0
+    ],
+    "portfolio_policy_hurdle": 0.01,
+    "holdout_is_diagnostic_only": true,
+    "book_replay": "reuse hash-verified T-60/T-59 snapshots; do not replay events"
+  },
+  "runtime_profile": {
+    "threads": 20,
+    "compute_backend": "gpu",
+    "per_pipeline_runtime_budget_seconds": 50400,
+    "per_model_tuning_and_fit_budget_seconds": 2700
+  },
+  "reproduction": {
+    "runner": "python run_btc_preopen_model_update.py",
+    "cli_arguments": false,
+    "resumable": true
+  }
+}

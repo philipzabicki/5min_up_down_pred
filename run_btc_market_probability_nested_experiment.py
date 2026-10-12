@@ -348,10 +348,19 @@ def _block_interval(daily_values: pd.Series, seed: int, block_days: int = 3, rep
     }
 
 
-def _economic_detail(frame: pd.DataFrame, forecasts: tuple[str, ...], t59_by_id: dict, t60_by_id: dict, market_by_id: dict, period: str) -> pd.DataFrame:
+def _economic_detail(
+    frame: pd.DataFrame,
+    forecasts: tuple[str, ...],
+    t59_by_id: dict,
+    t60_by_id: dict,
+    market_by_id: dict,
+    period: str,
+    probability_columns: dict[str, str] | None = None,
+) -> pd.DataFrame:
+    probability_columns = probability_columns or PROBABILITY_COLUMNS
     rows = []
     for forecast in forecasts:
-        probability_column = PROBABILITY_COLUMNS[forecast]
+        probability_column = probability_columns[forecast]
         print(f"[nested-probability] T-60/T-59 independent $5 orders: {period}, {forecast}", flush=True)
         for item in frame.itertuples(index=False):
             cid = str(item.condition_id).lower()
@@ -387,17 +396,29 @@ def _economic_detail(frame: pd.DataFrame, forecasts: tuple[str, ...], t59_by_id:
                 "execution_assumption": fill.get("execution_assumption") if fill else None,
                 "fill_status": fill.get("fill_status") if fill else None,
                 "filled_gross_usd": float(fill["gross_usd"]) if fill else None,
+                "gross_shares": float(fill["gross_shares"]) if fill else None,
                 "vwap": float(fill["vwap"]) if fill else None,
                 "net_shares": float(fill["shares"]) if fill else None,
                 "cash_debit_usd": float(fill["cash_debit_usd"]) if fill else None,
                 "fee_equivalent_usd": float(fill.get("fee_usd_entry_equivalent") or fill.get("fee_usd") or 0.0) if fill else None,
                 "expected_net_t59_usd": p_side * float(fill["shares"]) - float(fill["cash_debit_usd"]) if fill else None,
+                "gross_pnl_usd": (outcome_side * float(fill["gross_shares"]) - float(fill["gross_usd"])) if fill else None,
                 "net_pnl_usd": (outcome_side * float(fill["shares"]) - float(fill["cash_debit_usd"])) if fill else None,
+                "realized_fee_effect_usd": (
+                    outcome_side * float(fill["gross_shares"]) - float(fill["gross_usd"])
+                    - (outcome_side * float(fill["shares"]) - float(fill["cash_debit_usd"]))
+                ) if fill else None,
             })
     return pd.DataFrame(rows)
 
 
-def _policy_summaries(details: pd.DataFrame, frame: pd.DataFrame, hurdles: tuple[float, ...], config: dict) -> tuple[list[dict], list[dict], list[dict]]:
+def _policy_summaries(
+    details: pd.DataFrame,
+    frame: pd.DataFrame,
+    hurdles: tuple[float, ...],
+    config: dict,
+    model_names: tuple[str, ...] = MODEL_NAMES,
+) -> tuple[list[dict], list[dict], list[dict]]:
     rows = []
     fold_rows = []
     monthly_rows = []
@@ -405,7 +426,7 @@ def _policy_summaries(details: pd.DataFrame, frame: pd.DataFrame, hurdles: tuple
     last_day = frame.market_start_utc.max().floor("D")
     all_days = pd.date_range(first_day, last_day, freq="D")
     seed = int(config["probability_evaluation"]["block_bootstrap"].split("seed ")[-1])
-    for forecast in MODEL_NAMES:
+    for forecast in model_names:
         forecast_details = details.loc[details.forecast.eq(forecast)]
         for hurdle in hurdles:
             selected = forecast_details.loc[forecast_details.t60_ev_fraction.ge(hurdle - 1e-12)]
@@ -424,10 +445,16 @@ def _policy_summaries(details: pd.DataFrame, frame: pd.DataFrame, hurdles: tuple
                 "period": "development_oof" if "outer_fold_id" in frame else "holdout_diagnostic",
                 "policy": f"{forecast}_ev_{hurdle:.4%}",
                 "forecast": forecast, "ev_hurdle_fraction": float(hurdle),
+                "opportunity_markets": int(len(frame)),
                 "signals": int(len(selected)), "fills": int(len(fills)),
+                "no_trade_markets": int(len(frame) - len(selected)),
+                "no_trade_rate": float((len(frame) - len(selected)) / len(frame)) if len(frame) else None,
+                "unfilled_signals": int(len(selected) - len(fills)),
                 "active_utc_days": active_days,
                 "gross_turnover_usd": float(fills.filled_gross_usd.sum()) if len(fills) else 0.0,
                 "fee_equivalent_usd": float(fills.fee_equivalent_usd.sum()) if len(fills) else 0.0,
+                "gross_pnl_usd": float(fills.gross_pnl_usd.sum()) if len(fills) else 0.0,
+                "realized_fee_effect_usd": float(fills.realized_fee_effect_usd.sum()) if len(fills) else 0.0,
                 "expected_net_t59_usd": float(fills.expected_net_t59_usd.sum()) if len(fills) else 0.0,
                 "realized_net_pnl_usd": float(fills.net_pnl_usd.sum()) if len(fills) else 0.0,
                 "expected_minus_realized_usd": float((fills.expected_net_t59_usd - fills.net_pnl_usd).sum()) if len(fills) else 0.0,
@@ -446,10 +473,17 @@ def _policy_summaries(details: pd.DataFrame, frame: pd.DataFrame, hurdles: tuple
                     fold_pnl = float(fold_fills.net_pnl_usd.sum()) if len(fold_fills) else 0.0
                     fold_rows.append({
                         "forecast": forecast, "ev_hurdle_fraction": float(hurdle),
-                        "outer_fold_id": fold_id, "signals": int(selected.outer_fold_id.eq(fold_id).sum()),
+                        "outer_fold_id": fold_id,
+                        "opportunity_markets": int(frame.outer_fold_id.eq(fold_id).sum()),
+                        "signals": int(selected.outer_fold_id.eq(fold_id).sum()),
+                        "no_trade_markets": int(
+                            frame.outer_fold_id.eq(fold_id).sum() - selected.outer_fold_id.eq(fold_id).sum()
+                        ),
                         "fills": int(len(fold_fills)), "active_utc_days": fold_days,
                         "gross_turnover_usd": float(fold_fills.filled_gross_usd.sum()) if len(fold_fills) else 0.0,
                         "fee_equivalent_usd": float(fold_fills.fee_equivalent_usd.sum()) if len(fold_fills) else 0.0,
+                        "gross_pnl_usd": float(fold_fills.gross_pnl_usd.sum()) if len(fold_fills) else 0.0,
+                        "realized_fee_effect_usd": float(fold_fills.realized_fee_effect_usd.sum()) if len(fold_fills) else 0.0,
                         "expected_net_t59_usd": float(fold_fills.expected_net_t59_usd.sum()) if len(fold_fills) else 0.0,
                         "realized_net_pnl_usd": fold_pnl,
                         "expected_minus_realized_usd": float((fold_fills.expected_net_t59_usd - fold_fills.net_pnl_usd).sum()) if len(fold_fills) else 0.0,
@@ -461,10 +495,14 @@ def _policy_summaries(details: pd.DataFrame, frame: pd.DataFrame, hurdles: tuple
                 monthly_rows.append({
                     "period": row["period"], "month_utc": month,
                     "forecast": forecast, "ev_hurdle_fraction": float(hurdle),
+                    "opportunity_markets": int(frame.month_utc.eq(month).sum()),
                     "signals": int(len(month_signals)), "fills": int(len(month_fills)),
+                    "no_trade_markets": int(frame.month_utc.eq(month).sum() - len(month_signals)),
                     "active_utc_days": int(month_fills.day_utc.nunique()) if len(month_fills) else 0,
                     "gross_turnover_usd": float(month_fills.filled_gross_usd.sum()) if len(month_fills) else 0.0,
                     "fee_equivalent_usd": float(month_fills.fee_equivalent_usd.sum()) if len(month_fills) else 0.0,
+                    "gross_pnl_usd": float(month_fills.gross_pnl_usd.sum()) if len(month_fills) else 0.0,
+                    "realized_fee_effect_usd": float(month_fills.realized_fee_effect_usd.sum()) if len(month_fills) else 0.0,
                     "expected_net_t59_usd": float(month_fills.expected_net_t59_usd.sum()) if len(month_fills) else 0.0,
                     "realized_net_pnl_usd": float(month_fills.net_pnl_usd.sum()) if len(month_fills) else 0.0,
                 })

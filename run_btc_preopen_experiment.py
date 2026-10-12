@@ -944,6 +944,23 @@ def _configure_training_backend(threads, device_type):
     return reaction, volume, model_tuning, weight_search, selector, train_lgbm
 
 
+def merge_candidate_features(selected_features, candidate_features, available_features):
+    """Append frozen candidates while preserving the selector's original order."""
+    selected = list(selected_features)
+    candidates = list(candidate_features)
+    available = set(available_features)
+    if not selected or len(selected) != len(set(selected)):
+        raise ValueError("Selected features must be a non-empty, duplicate-free list")
+    if len(candidates) != len(set(candidates)):
+        raise ValueError("Candidate feature list contains duplicates")
+    missing = [name for name in candidates if name not in available]
+    if missing:
+        raise ValueError(f"Candidate features are absent from the generated dataset: {missing}")
+    selected_set = set(selected)
+    added = [name for name in candidates if name not in selected_set]
+    return selected + added, added
+
+
 def _run_optuna_stage(
         *,
         optuna,
@@ -1519,6 +1536,9 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
     )
     from utils.project_config import build_indicator_fit_config
 
+    model_tuning_for_restore = None
+    original_model_seed_trials = None
+
     config_path = ROOT / "configs/btc_preopen_training.json"
     training_config = json.loads(config_path.read_text(encoding="utf-8"))
     if profile_override is None:
@@ -1969,6 +1989,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         reaction, volume, model_tuning, weight_search, selector, train_lgbm = _configure_training_backend(
             NUM_THREADS, compute_backend
         )
+        model_tuning_for_restore = model_tuning
+        original_model_seed_trials = model_tuning.OPTUNA_SEED_TRIAL_PARAMS
         cv_folds = int(profile.get("cv_folds", 10))
         model_params = {
             "learning_rate": 0.05,
@@ -2429,6 +2451,10 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             deadline_monotonic=selection_deadline,
         )
         selected_features = selection_result["selected_features"]
+        candidate_features = list(profile.get("model_feature_candidate_features", []))
+        model_features, added_candidate_features = merge_candidate_features(
+            selected_features, candidate_features, development_features.columns,
+        )
 
         model_tuning.CV_FOLDS = cv_folds
         model_tuning.WF_TEST_TO_TRAIN_RATIO = 0.1
@@ -2437,15 +2463,23 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         model_tuning.PRUNING_REPORT_EVERY_N_ITER = max(1, int(profile["early_stopping_rounds"]))
         model_tuning.N_TRIALS = int(profile["model_trials"])
         model_tuning.ENABLE_FOLD_RECENCY_WEIGHTING = False
-        model_search_space = {
-            key: value for key, value in model_tuning.LGBM_OPTUNA_SEARCH_SPACE.items()
-            if key not in {"monotone_constraints_method", "monotone_penalty"}
-        }
+        model_search_space = profile.get("model_search_space_override")
+        if model_search_space is None:
+            model_search_space = {
+                key: value for key, value in model_tuning.LGBM_OPTUNA_SEARCH_SPACE.items()
+                if key not in {"monotone_constraints_method", "monotone_penalty"}
+            }
+        else:
+            model_search_space = dict(model_search_space)
+            model_tuning.validate_lgbm_search_space(model_search_space)
+        seed_trial_override = profile.get("model_seed_trial_params_override")
+        if seed_trial_override is not None:
+            model_tuning.OPTUNA_SEED_TRIAL_PARAMS = [dict(item) for item in seed_trial_override]
         if not isinstance(selected_features, list) or not selected_features:
             raise RuntimeError("Feature-selection result has no selected feature order")
         if len(set(selected_features)) != len(selected_features) or not set(selected_features).issubset(development_features.columns):
             raise RuntimeError("Feature-selection result contains missing or duplicate features")
-        tune_x = development_features.loc[:, selected_features].reset_index(drop=True)
+        tune_x = development_features.loc[:, model_features].reset_index(drop=True)
         tune_y = development_y.reset_index(drop=True)
         tune_opened = development_opened
         tune_decision_at = development_decision_at
@@ -2463,7 +2497,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             tune_x_np,
             label=tune_y_np,
             weight=tune_weights,
-            feature_name=selected_features,
+            feature_name=model_features,
             free_raw_data=False,
         )
         model_search_signature_payload = {
@@ -2482,8 +2516,11 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "auxiliary_weight": float((1.0 - decision_weight) / 4.0),
             },
             "selection_artifact_signature": selection_sig,
-            "feature_order": selected_features,
+            "feature_order": model_features,
+            "feature_candidate_features": candidate_features,
+            "added_candidate_features": added_candidate_features,
             "search_space": model_search_space,
+            "seed_trial_params": model_tuning.OPTUNA_SEED_TRIAL_PARAMS,
             "max_estimators": int(profile["maximum_estimators"]),
             "early_stopping_rounds": int(profile["early_stopping_rounds"]),
             "cv_folds": int(profile.get("model_cv_folds", cv_folds)),
@@ -2510,7 +2547,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         def tune_model_action(stage_dir):
             objective = model_tuning.make_objective(
                 train_set=tune_train_set,
-                feature_names=selected_features,
+                feature_names=model_features,
                 x_np=tune_x_np,
                 y_np=tune_y_np,
                 sample_weight_np=tune_weights,
@@ -2560,7 +2597,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             raise RuntimeError("Model tuning did not produce a positive best iteration count")
         tuned_params = dict(model_tuning_result["best_params"])
         final_rows = np.flatnonzero(fit_mask)
-        final_x = features.iloc[final_rows][selected_features].to_numpy(dtype=np.float32, copy=True)
+        final_x = features.iloc[final_rows][model_features].to_numpy(dtype=np.float32, copy=True)
         final_x[~np.isfinite(final_x)] = np.nan
         final_y = y[final_rows]
         decision_weight = float(weight_result["decision_weight"])
@@ -2569,6 +2606,9 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "tuning_artifact_signature": model_tuning_sig,
             "weight_artifact_signature": weight_sig,
             "selected_feature_signature": selection_sig,
+            "model_feature_order": model_features,
+            "feature_candidate_features": candidate_features,
+            "added_candidate_features": added_candidate_features,
             "fit_rows": int(len(final_rows)),
             "training_weight_sha256": _array_sha256(final_weights, dtype=np.float32),
             "fit_end_exclusive": FIT_END,
@@ -2609,7 +2649,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 final_x,
                 label=final_y,
                 weight=final_weights,
-                feature_name=selected_features,
+                feature_name=model_features,
                 free_raw_data=True,
             )
             model = lgb.train(
@@ -2627,7 +2667,10 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 {
                     "model_path": model_path.resolve().relative_to(ROOT).as_posix(),
                     "model_sha256": _sha256(model_path),
-                    "feature_order": selected_features,
+                    "feature_order": model_features,
+                    "selector_feature_order": selected_features,
+                    "feature_candidate_features": candidate_features,
+                    "added_candidate_features": added_candidate_features,
                     "training_rows": int(len(final_rows)),
                     "latest_label_available_at": label_available[final_rows].max(),
                     "fit_end_exclusive": FIT_END,
@@ -2658,7 +2701,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         calibration_identity = {
             "model_sha256": final_model_result["model_sha256"],
             "seed": int(profile["seed"]),
-            "feature_order": selected_features,
+            "feature_order": model_features,
             "data_sha256": raw_identity["sha256"],
             "calibration_start": CALIBRATION_START.isoformat(),
             "calibration_end_exclusive": CALIBRATION_END.isoformat(),
@@ -2680,7 +2723,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 raise TimeoutError("Calibration/evaluation budget expired before calibration fit")
             CALIBRATOR_PATH = stage_dir / "platt_calibrator.json"
             calibration = _fit_calibrator(
-                final_model, frame, features.loc[:, selected_features].to_numpy(dtype=np.float32, copy=False),
+                final_model, frame, features.loc[:, model_features].to_numpy(dtype=np.float32, copy=False),
                 y, calibration_identity,
                 minimum_rows=int(profile.get("minimum_calibration_rows", 1000)),
                 oof_predictions_path=(
@@ -2703,7 +2746,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         if not CALIBRATOR_PATH.is_file():
             raise RuntimeError("Completed calibrator is missing")
         calibration = json.loads(CALIBRATOR_PATH.read_text(encoding="utf-8"))
-        prediction_matrix = features.loc[:, selected_features].to_numpy(dtype=np.float32, copy=False)
+        prediction_matrix = features.loc[:, model_features].to_numpy(dtype=np.float32, copy=False)
         evaluated_freeze_path = None
         evaluated_freeze_sha256 = None
         frozen_policy_path = profile.get("frozen_policy_path")
@@ -2734,7 +2777,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "calibrator_sha256": _sha256(CALIBRATOR_PATH),
                 "calibration_source": calibration.get("calibration_source"),
                 "oof_calibration_predictions_sha256": calibration_identity["oof_predictions_sha256"],
-                "feature_order": selected_features,
+                "feature_order": model_features,
                 "selected_model_parameters": tuned_params,
                 "selected_best_iteration": int(model_tuning_result["best_iteration"]),
                 "target_decision_weight": float(weight_result["decision_weight"]),
@@ -2801,7 +2844,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "metrics": metrics,
                 "rows_predicted": int(len(prediction_frame)),
                 "model_sha256": final_model_result["model_sha256"],
-                "feature_count": len(selected_features),
+                "feature_count": len(model_features),
                 "elapsed_seconds": time.perf_counter() - started,
             }
             _write_json(METRICS_PATH, evaluation)
@@ -2822,10 +2865,10 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             raise TimeoutError("Calibration, evaluation, and bundle runtime budget expired before bundle writing")
         if final_features_path.is_file():
             persisted_order = json.loads(final_features_path.read_text(encoding="utf-8")).get("feature_order")
-            if persisted_order != selected_features:
+            if persisted_order != model_features:
                 raise RuntimeError("Persisted final feature order differs from feature-selection result")
         else:
-            _write_json(final_features_path, {"feature_order": selected_features})
+            _write_json(final_features_path, {"feature_order": model_features})
         _write_json(
             feature_sources_path,
             {
@@ -2836,7 +2879,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "raw_candle_path": raw_path.resolve().as_posix(),
                 "raw_candle_sha256": raw_identity["sha256"],
                 "indicator_fit_results_dir": indicator_result["fit_results_dir"],
-                "feature_order": selected_features,
+                "feature_order": model_features,
                 "history_requirement": "continuous 1-minute BTC index OHLCV history from fit start; preserve all earlier rows as warmup",
                 "reaction_profile_config": rp_result["best_config"],
                 "volume_profile_config": vp_result["best_config"],
@@ -2856,7 +2899,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "model_type": "LightGBM binary classifier with Platt calibration",
                 "target_col": TARGET_COL,
                 "target_source": "Binance COIN-M BTCUSD index price proxy; not official settlement",
-                "feature_columns": selected_features,
+                "feature_columns": model_features,
                 "training_rows": int(final_model_result["training_rows"]),
                 "training_label_available_before_utc": FIT_END,
                 "training_decision_weight": decision_weight,
@@ -2879,7 +2922,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "feature_order_path": final_features_path.resolve().relative_to(ROOT).as_posix(),
             "feature_sources_path": feature_sources_path.resolve().relative_to(ROOT).as_posix(),
             "model_meta_path": model_meta_path.resolve().relative_to(ROOT).as_posix(),
-            "feature_order": selected_features,
+            "feature_order": model_features,
             "reaction_profile_config_path": rp_result["config_path"],
             "volume_profile_config_path": vp_result["config_path"],
             "indicator_fit_result_paths": [record["path"] for record in indicator_outputs if record["path"].endswith(".json") and "indicator_stage.json" not in record["path"]],
@@ -2955,7 +2998,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "# BTC pre-open v1 training run\n\n"
             f"- Status: `{evaluation['status']}`\n"
             f"- Label: Binance COIN-M BTCUSD index price proxy; {evaluation['test_history_status']}.\n"
-            f"- Training rows: {final_model_result['training_rows']:,}; selected features: {len(selected_features)}.\n"
+            f"- Training rows: {final_model_result['training_rows']:,}; selected features: {len(model_features)}.\n"
             f"- Calibration rows: {calibration_payload['training_rows']:,}.\n"
             f"- External decision predictions: {evaluation_result['prediction_rows']:,}.\n"
             f"- Model bundle: `{bundle_manifest_path.resolve().relative_to(ROOT).as_posix()}`\n"
@@ -2988,6 +3031,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         sys.stdout, sys.stderr = original_stdout, original_stderr
         log_handle.close()
         _unlock_run(lock)
+        if model_tuning_for_restore is not None and original_model_seed_trials is not None:
+            model_tuning_for_restore.OPTUNA_SEED_TRIAL_PARAMS = original_model_seed_trials
 
 
 def run_integration_smoke():

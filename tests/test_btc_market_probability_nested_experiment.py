@@ -97,6 +97,39 @@ class BtcMarketProbabilityNestedExperimentTests(unittest.TestCase):
         self.assertEqual(first, second)
         self.assertEqual(first["total_pnl_95pct"], [0.0, 0.0])
 
+    def test_policy_summary_counts_no_trade_opportunities_and_unfilled_signals(self):
+        frame = pd.DataFrame({
+            "market_start_utc": pd.to_datetime([
+                "2026-05-01T00:00:00Z", "2026-05-01T00:05:00Z", "2026-05-01T00:10:00Z",
+            ], utc=True),
+            "month_utc": ["2026-05"] * 3,
+            "outer_fold_id": ["dev_2026q2_b"] * 3,
+        })
+        details = pd.DataFrame({
+            "forecast": ["A_frozen"] * 3,
+            "t60_ev_fraction": [0.02, 0.015, 0.0],
+            "execution_status": ["filled", "no_fill", "no_fill"],
+            "day_utc": pd.to_datetime(["2026-05-01T00:00:00Z"] * 3, utc=True),
+            "month_utc": ["2026-05"] * 3,
+            "outer_fold_id": ["dev_2026q2_b"] * 3,
+            "net_pnl_usd": [1.0, 0.0, 0.0],
+            "filled_gross_usd": [5.0, 0.0, 0.0],
+            "fee_equivalent_usd": [0.1, 0.0, 0.0],
+            "gross_pnl_usd": [1.1, 0.0, 0.0],
+            "realized_fee_effect_usd": [0.1, 0.0, 0.0],
+            "expected_net_t59_usd": [0.5, 0.0, 0.0],
+        })
+        config = json.loads(experiment.CONFIG_PATH.read_text(encoding="utf-8"))
+        summary, folds, months = experiment._policy_summaries(
+            details, frame, (0.01,), config, model_names=("A_frozen",),
+        )
+        self.assertEqual(summary[0]["opportunity_markets"], 3)
+        self.assertEqual(summary[0]["signals"], 2)
+        self.assertEqual(summary[0]["no_trade_markets"], 1)
+        self.assertEqual(summary[0]["unfilled_signals"], 1)
+        self.assertEqual(folds[0]["no_trade_markets"], 1)
+        self.assertEqual(months[0]["no_trade_markets"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

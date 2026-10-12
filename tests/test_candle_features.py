@@ -1,9 +1,11 @@
 import unittest
 
 import numpy as np
+import pandas as pd
 
 from features.candle_features import (
     SUPPORTED_CANDLE_FEATURE_COLS,
+    add_candle_derived_features,
     build_candle_derived_features_from_series,
     is_deprecated_candle_feature_col,
 )
@@ -56,6 +58,35 @@ class CandleFeatureTests(unittest.TestCase):
         self.assertNotIn("candle_log_volume_1m", supported)
         self.assertTrue(is_deprecated_candle_feature_col("candle_log_volume_1m"))
         self.assertTrue(is_deprecated_candle_feature_col("candle_log_volume_5m_lag2"))
+
+    def test_decision_time_candle_features_do_not_read_future_candles(self):
+        opened = pd.date_range("2026-01-01T00:00:00Z", periods=20, freq="min")
+        candles = pd.DataFrame({
+            "Opened": opened,
+            "Open": np.full(20, 100.0),
+            "High": np.full(20, 102.0),
+            "Low": np.full(20, 99.0),
+            "Close": np.linspace(100.1, 102.0, 20),
+            "Volume": np.full(20, 10.0),
+        })
+        columns = (
+            "candle_ret_co_1m",
+            "candle_ret_co_5m_lag2",
+            "candle_range_ho_1m",
+            "candle_signed_vol_1m",
+            "candle_up_down_vol_log_ratio_5m_lag1",
+        )
+        baseline = add_candle_derived_features(candles, columns)
+        changed = candles.copy()
+        changed.loc[changed.Opened.ge(opened[11]), ["High", "Low", "Close", "Volume"]] = [
+            130.0, 80.0, 120.0, 1000.0,
+        ]
+        future_changed = add_candle_derived_features(changed, columns)
+        np.testing.assert_allclose(
+            baseline.loc[:10, columns].to_numpy(),
+            future_changed.loc[:10, columns].to_numpy(),
+            equal_nan=True,
+        )
 
 
 if __name__ == "__main__":
