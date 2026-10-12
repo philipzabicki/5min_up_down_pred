@@ -254,18 +254,32 @@ def _build_market_calendar(predictions: pd.DataFrame) -> tuple[pd.DataFrame, dic
         "p_model_platt": "p_candidate_platt",
         experiment.TARGET_COL: "target_binance_proxy_up",
     })
+    if "fold_id" in attach:
+        attach["prediction_origin"] = np.where(
+            attach.fold_id.notna(),
+            "full_pipeline_oof_" + attach.fold_id.fillna("").astype(str),
+            "none",
+        )
+    else:
+        attach["fold_id"] = pd.Series(pd.NA, index=attach.index, dtype="string")
+        attach["prediction_origin"] = np.where(
+            attach.p_candidate_platt.notna(), "evaluated_holdout_model", "none",
+        )
     selected = [
         "market_start_utc", "Opened", "p_candidate_raw", "p_candidate_platt",
         "target_binance_proxy_up", "prediction_available_at_utc", "fold_id",
+        "prediction_origin",
     ]
     base = base.merge(
         attach.loc[:, selected],
         on="market_start_utc", how="left", validate="one_to_one",
     )
-    base["prediction_origin"] = np.where(
-        base.fold_id.notna(), "full_pipeline_oof_" + base.fold_id.fillna(""), "none",
+    base["prediction_origin"] = base["prediction_origin"].fillna("none")
+    base["prediction_source"] = np.where(
+        base.fold_id.notna(),
+        base.fold_id,
+        np.where(base.p_candidate_platt.notna(), "evaluated_holdout_model", "none"),
     )
-    base["prediction_source"] = base["fold_id"].fillna("none")
     base["causal_prediction_available"] = base.p_candidate_platt.notna()
     base["market_confirmed"] = base.condition_id.notna()
     base["outcome_available"] = base.target_polymarket_up.notna() & base.resolved_at_utc.notna()

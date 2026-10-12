@@ -1,6 +1,16 @@
 # BTC research execution status
 
-Updated: 2026-10-11 (Europe/Warsaw)
+Updated: 2026-10-12 (Europe/Warsaw)
+
+## Latest execution checkpoint — 2026-10-12 14:14 (Europe/Warsaw)
+
+- The causal T−60/T−59 book replay is complete: 50,184 markets and 521,429,475 events across all 4,137 archive partitions. The replay resumed from partition 3,372 and verified snapshot integrity and provenance.
+- Development walk-forward is complete: calibration seed plus folds A, B, and C. Calibration used 52,127 earlier-fold OOF rows, excluded holdout, and ended at label availability `2026-06-30T23:55:00Z`. Fold C evaluated all 17 target-weight candidates before feature selection and tuning.
+- The development policy was frozen before holdout evaluation: 5% of free cash, no dollar cap, 0.5% minimum net-EV hurdle, hold to settlement. From $100 it made 2,458 trades and $12,985.38 turnover, paid $1.02 estimated fees, and ended at $40.17 (−$59.83 PnL). No holdout outcomes were used for selection.
+- Evaluated holdout run `794a69e369a3f82d` completed on the frozen model profile and data through `2026-10-07T00:00:00Z`. It trained on 3,186,140 rows, evaluated 40 tuning trials, selected 48 features and decision weight `0.29`, and produced 28,224 predictions. Pipeline elapsed time was 12,690.2 s, including 270.2 s bundle verification. Bundle SHA-256: `4820e23493efb1743863b58b411352006a71ff7ce8c66068c17c8c88e65e4583`; bundle freeze: `41929b5388b20754fe28b6d313461a6b57278784f4a7830d0ba8e09130a0b039`; development policy freeze: `c539987f89b409dd340927edda6eb393098647877682e5eaf914f8b1147a75fc`.
+- The first portfolio attempt exposed a calendar-join bug: final-model holdout predictions have no OOF `fold_id`. The join now labels them `evaluated_holdout_model` and retains OOF provenance. Four focused `test_btc_preopen_research.py` tests pass. Resume verified and reused the frozen policy and model bundle without rerunning selection or training.
+- Holdout portfolio, accounting audit, and seven-point adverse-price sensitivity completed for all three policies. From separate $100 accounts: selected `free_cash_5pct_ev_0.5000pct` — 138 trades, $420.96 turnover, $25.60 ending cash (−$74.40 PnL), 75.67% max drawdown; `fixed_5_usd_control` — 109 trades, $545.00 turnover, $4.77 ending cash (−$95.23), 95.77% drawdown; `free_cash_5pct_control` — 155 trades, $540.38 turnover, $24.95 ending cash (−$75.05), 77.37% drawdown. The selected-policy accounting audit passed. Its sensitivity result reports no positive baseline edge.
+- The completed research manifest is under `data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/`. Final report: [btc_preopen_research_20261011_full_compute20_retry.md](../reports/btc_preopen/btc_preopen_research_20261011_full_compute20_retry.md), SHA-256 `f94a9021877a0a8bb4c1e3746aabe8232248686d6cf0c0e2f07e7ad2632f2693`. Deployment refit remains a separate prepared workflow and was not run; live trading remains disabled.
 
 ## Objective
 
@@ -32,11 +42,9 @@ Implement and evaluate the decisions in [BTC_RESEARCH_CONTRACT.md](BTC_RESEARCH_
 - Filled the missing BTC minute tail through the frozen data cutoff and recorded the source hashes and exact appended interval above.
 - New focused tests passed: 7 walk-forward/boundary tests, 3 research accounting/sensitivity tests, and 30 T-59 replay tests. Python compilation and `git diff --check` pass.
 
-## In progress / next
+## Remaining separate workflow
 
-1. Review and commit/push the implementation, configs, tests, and status update.
-2. Execute `python run_btc_preopen_research.py`; it resumes the full replay and five causal model runs, then selects/fixes the development policy before the holdout model and holdout portfolio evaluation.
-3. Update this status file at replay, each fold, policy freeze, evaluated-bundle freeze, and holdout/report checkpoints. The separate deployment refit remains prepared but unexecuted.
+- The research run and report are complete. The separate `python run_btc_preopen_deployment_refit.py` workflow remains prepared but unexecuted; it is not part of this holdout evaluation. Live trading remains disabled.
 
 ## Run and checkpoint record
 
