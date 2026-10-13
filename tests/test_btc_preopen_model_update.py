@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -10,6 +12,24 @@ import run_btc_preopen_model_update as model_update
 
 
 class BTCPreopenModelUpdateTests(unittest.TestCase):
+    def test_selected_feature_reload_matches_full_frame_and_preserves_order(self):
+        dataset = pd.DataFrame({
+            "unused_feature": [1.0, 2.0, 3.0],
+            "selected_a": [np.inf, 1.5, -np.inf],
+            "selected_b": [2.0, np.nan, 4.0],
+            experiment.TARGET_COL: [0.0, 1.0, 0.0],
+        })
+        feature_order = ["selected_b", "selected_a"]
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dataset_path = Path(temp_dir) / "features.parquet"
+            dataset.to_parquet(dataset_path, index=False)
+            expected = experiment._model_feature_frame(dataset).loc[:, feature_order]
+            actual = experiment._load_selected_model_features(dataset_path, feature_order)
+
+        pd.testing.assert_frame_equal(actual, expected)
+        self.assertEqual(list(actual.columns), feature_order)
+
     def test_candidate_features_append_once_after_fold_local_selection(self):
         merged, added = experiment.merge_candidate_features(
             ["base_a", "already_selected"],

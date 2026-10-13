@@ -1111,6 +1111,13 @@ def _model_feature_frame(dataset):
     return raw.replace([np.inf, -np.inf], np.nan)
 
 
+def _load_selected_model_features(dataset_path, feature_names):
+    features = pd.read_parquet(dataset_path, columns=feature_names)
+    if list(features.columns) != list(feature_names):
+        features = features.loc[:, feature_names]
+    return features.replace([np.inf, -np.inf], np.nan)
+
+
 def _evaluate_preopen_external(
         model, calibration, frame, x, valid, prior_up, official_path,
         test_history_status,
@@ -2160,13 +2167,13 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         y = y_full.copy()
         features = _model_feature_frame(feature_dataset)
         feature_names = list(features.columns)
-        del feature_dataset
         development_rows = np.flatnonzero(fit_mask)
         development_features = features.iloc[development_rows].reset_index(drop=True)
         development_y = pd.Series(y[development_rows], dtype=np.int8)
         development_decision = decision_mask[development_rows]
         development_opened = opened[development_rows]
         development_decision_at = decision_at[development_rows]
+        del feature_dataset, features, contract_frame
 
         # Refit no generators after weight selection. The fixed matrix above is
         # used by the weight, feature, and model stages.
@@ -2479,8 +2486,10 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             raise RuntimeError("Feature-selection result has no selected feature order")
         if len(set(selected_features)) != len(selected_features) or not set(selected_features).issubset(development_features.columns):
             raise RuntimeError("Feature-selection result contains missing or duplicate features")
+        features = _load_selected_model_features(dataset_path, model_features)
         tune_x = development_features.loc[:, model_features].reset_index(drop=True)
         tune_y = development_y.reset_index(drop=True)
+        del development_features, selector_x, tw_x, tw_y, development_y
         tune_opened = development_opened
         tune_decision_at = development_decision_at
         tune_folds = _purged_walk_forward_folds(
