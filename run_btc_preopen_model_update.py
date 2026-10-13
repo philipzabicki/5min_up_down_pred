@@ -618,7 +618,7 @@ def _development_freeze(dev: pd.DataFrame, baseline_identity: dict, candidate_pr
         },
         "quality_ranking_official_outcome": ranking,
         "paired_comparisons_against_frozen_A": comparisons,
-        "selection_rule": config["development_model_freeze"],
+        "selection_rule": config,
         "selected_model": selected,
         "selected_policy": {
             "name": CONFIG["economic_evaluation"]["selected_policy"],

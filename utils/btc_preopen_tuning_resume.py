@@ -70,7 +70,7 @@ def continue_until_minimum_success(
     utc_now_fn=lambda: datetime.now(timezone.utc).isoformat(),
     catch=(),
 ) -> dict:
-    """Continue the same study until its success minimum or cumulative budget ends."""
+    """Continue until both the requested trial count and success minimum are met."""
     history_path = Path(history_path)
     history = _read_history(history_path, identity)
     for item in history["attempts"]:
@@ -107,15 +107,21 @@ def continue_until_minimum_success(
     optimizer_started = time_fn()
     status = "completed"
     error = None
+    stop_reason = "criteria_reached"
     try:
-        while _successful_count(study, complete_state) < int(minimum_successful_trials):
+        while (
+            len(study.get_trials(deepcopy=False)) < int(target_trials)
+            or _successful_count(study, complete_state) < int(minimum_successful_trials)
+        ):
             now = time_fn()
-            remaining = min(
-                float(stage_budget_seconds) - used_before - (now - optimizer_started),
-                float(deadline_monotonic) - now,
-                float(overall_deadline) - now,
-            )
+            remaining_limits = {
+                "stage_budget": float(stage_budget_seconds) - used_before - (now - optimizer_started),
+                "stage_deadline": float(deadline_monotonic) - now,
+                "overall_deadline": float(overall_deadline) - now,
+            }
+            remaining = min(remaining_limits.values())
             if remaining <= 0.0:
+                stop_reason = min(remaining_limits, key=remaining_limits.get)
                 break
             before = len(study.get_trials(deepcopy=False))
             study.optimize(
@@ -129,8 +135,11 @@ def continue_until_minimum_success(
             )
             after_trials = study.get_trials(deepcopy=False)
             if len(after_trials) <= before:
+                stop_reason = "no_trial_created"
                 break
-            attempt["trial_numbers"] = [int(t.number) for t in after_trials[before:]]
+            attempt.setdefault("trial_numbers", []).extend(
+                int(t.number) for t in after_trials[before:]
+            )
             attempt["optimizer_elapsed_seconds"] = float(time_fn() - optimizer_started)
             _write_history(history_path, history)
     except BaseException as exc:
@@ -150,19 +159,32 @@ def continue_until_minimum_success(
             attempt["error"] = error
         _write_history(history_path, history)
 
-    successes = _successful_count(study, complete_state)
-    if successes < int(minimum_successful_trials):
-        attempt["status"] = "budget_exhausted"
-        history["budget_uncertain"] = bool(history.get("budget_uncertain"))
-        _write_history(history_path, history)
-    used_after = tuning_time_used(history)
     all_trials = study.get_trials(deepcopy=False)
+    successes = _successful_count(study, complete_state)
+    target_reached = len(all_trials) >= int(target_trials)
+    minimum_successful_reached = successes >= int(minimum_successful_trials)
+    used_after = tuning_time_used(history)
+    budget_exhausted = bool(
+        stop_reason in {"stage_budget", "stage_deadline", "overall_deadline"}
+        or history.get("budget_uncertain")
+        or used_after >= float(stage_budget_seconds)
+    )
+    attempt["target_reached"] = target_reached
+    attempt["minimum_successful_reached"] = minimum_successful_reached
+    attempt["budget_exhausted"] = budget_exhausted
+    attempt["stop_reason"] = stop_reason
+    if budget_exhausted:
+        attempt["status"] = "budget_exhausted"
+    _write_history(history_path, history)
     return {
         "successful_trials": successes,
         "trials_total": len(all_trials),
         "target_trials": int(target_trials),
         "minimum_successful_trials": int(minimum_successful_trials),
-        "search_complete": len(all_trials) >= int(target_trials),
+        "target_reached": target_reached,
+        "minimum_successful_reached": minimum_successful_reached,
+        "budget_exhausted": budget_exhausted,
+        "search_complete": target_reached and minimum_successful_reached,
         "stage_budget_seconds": float(stage_budget_seconds),
         "stage_time_used_seconds": used_after,
         "remaining_stage_budget_seconds": (

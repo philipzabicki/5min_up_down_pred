@@ -25,7 +25,9 @@ class _FakeStudy:
         self.optimize_calls.append(kwargs)
         state, value, user_attrs = next(self.next_states)
         self.trials.append(
-            SimpleNamespace(state=state, value=value, user_attrs=user_attrs)
+            SimpleNamespace(
+                number=len(self.trials), state=state, value=value, user_attrs=user_attrs,
+            )
         )
 
 
@@ -82,6 +84,110 @@ class ContinuationTests(unittest.TestCase):
 
 
 class DurableContinuationTests(unittest.TestCase):
+    def test_five_initial_successes_do_not_finish_a_ten_trial_search(self):
+        study = _FakeStudy([], [("COMPLETE", 0.5, {}) for _ in range(10)])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "history.json"
+            result = continue_with_durable_budget(
+                study, lambda trial: 0.5, complete_state="COMPLETE",
+                target_trials=10, minimum_successful_trials=5,
+                stage_budget_seconds=100.0, deadline_monotonic=20.0,
+                overall_deadline=20.0, history_path=path, identity="ten-five",
+                time_fn=lambda: 0.0,
+            )
+            history = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(len(study.optimize_calls), 10)
+        self.assertEqual(result["trials_total"], 10)
+        self.assertTrue(result["target_reached"])
+        self.assertTrue(result["minimum_successful_reached"])
+        self.assertTrue(result["search_complete"])
+        self.assertEqual(history["attempts"][0]["trial_numbers"], list(range(10)))
+
+    def test_ten_trials_with_four_successes_continue_to_fifth_success(self):
+        study = _FakeStudy(
+            [_trial("COMPLETE", 0.5) for _ in range(4)] + [_trial("PRUNED", None) for _ in range(6)],
+            [("COMPLETE", 0.4, {})],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = continue_with_durable_budget(
+                study, lambda trial: 0.4, complete_state="COMPLETE",
+                target_trials=10, minimum_successful_trials=5,
+                stage_budget_seconds=100.0, deadline_monotonic=20.0,
+                overall_deadline=20.0, history_path=Path(temp_dir) / "history.json",
+                identity="ten-four", time_fn=lambda: 0.0,
+            )
+        self.assertEqual(len(study.optimize_calls), 1)
+        self.assertEqual(result["trials_total"], 11)
+        self.assertTrue(result["target_reached"])
+        self.assertTrue(result["minimum_successful_reached"])
+        self.assertTrue(result["search_complete"])
+
+    def test_already_met_trial_and_success_targets_do_not_create_trials(self):
+        study = _FakeStudy(
+            [_trial("COMPLETE", 0.5) for _ in range(5)] + [_trial("PRUNED", None) for _ in range(5)],
+            [],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = continue_with_durable_budget(
+                study, lambda trial: 0.4, complete_state="COMPLETE",
+                target_trials=10, minimum_successful_trials=5,
+                stage_budget_seconds=100.0, deadline_monotonic=20.0,
+                overall_deadline=20.0, history_path=Path(temp_dir) / "history.json",
+                identity="already-complete", time_fn=lambda: 0.0,
+            )
+        self.assertEqual(study.optimize_calls, [])
+        self.assertTrue(result["search_complete"])
+        self.assertFalse(result["budget_exhausted"])
+
+    def test_resume_counts_existing_trials_toward_target(self):
+        study = _FakeStudy(
+            [_trial("COMPLETE", 0.5), _trial("COMPLETE", 0.6), _trial("PRUNED", None)],
+            [("COMPLETE", 0.4, {}) for _ in range(7)],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "history.json"
+            path.write_text(json.dumps({
+                "identity": "partial-resume",
+                "attempts": [{"status": "completed", "stage_elapsed_seconds": 25.0}],
+            }), encoding="utf-8")
+            result = continue_with_durable_budget(
+                study, lambda trial: 0.4, complete_state="COMPLETE",
+                target_trials=10, minimum_successful_trials=5,
+                stage_budget_seconds=100.0, deadline_monotonic=20.0,
+                overall_deadline=20.0, history_path=path, identity="partial-resume",
+                time_fn=lambda: 0.0,
+            )
+            history = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(len(study.optimize_calls), 7)
+        self.assertEqual(result["trials_total"], 10)
+        self.assertEqual(history["attempts"][1]["budget_used_before_seconds"], 25.0)
+        self.assertEqual(history["attempts"][1]["trial_numbers"], list(range(3, 10)))
+        self.assertTrue(result["search_complete"])
+
+    def test_exhausted_budget_reports_unmet_targets_without_search_completion(self):
+        study = _FakeStudy(
+            [_trial("COMPLETE", 0.5) for _ in range(4)] + [_trial("PRUNED", None) for _ in range(3)],
+            [],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = Path(temp_dir) / "history.json"
+            path.write_text(json.dumps({
+                "identity": "exhausted",
+                "attempts": [{"status": "completed", "stage_elapsed_seconds": 60.0}],
+            }), encoding="utf-8")
+            result = continue_with_durable_budget(
+                study, lambda trial: 0.4, complete_state="COMPLETE",
+                target_trials=10, minimum_successful_trials=5,
+                stage_budget_seconds=60.0, deadline_monotonic=20.0,
+                overall_deadline=20.0, history_path=path, identity="exhausted",
+                time_fn=lambda: 0.0,
+            )
+        self.assertEqual(study.optimize_calls, [])
+        self.assertFalse(result["target_reached"])
+        self.assertFalse(result["minimum_successful_reached"])
+        self.assertTrue(result["budget_exhausted"])
+        self.assertFalse(result["search_complete"])
+
     def test_elapsed_time_accumulates_across_resumes_without_double_counting(self):
         history = {
             "identity": "stage",

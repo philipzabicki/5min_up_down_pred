@@ -587,6 +587,10 @@ def _portfolio_rows(
                     )
                 ):
                     summary = cached_summary
+                    stop_diagnostics = (
+                        _portfolio_stop_diagnostics(destination, summary)
+                        if float(capital) == 100.0 else {}
+                    )
                     rows.append({
                         "forecast": name,
                         "starting_capital_usd": capital,
@@ -598,6 +602,7 @@ def _portfolio_rows(
                         "max_drawdown_cost_basis_equity": float(summary.get("max_drawdown_cost_basis_equity", 0.0)),
                         "accounting_audit_status": summary.get("accounting_audit", {}).get("status"),
                         "monthly_diagnostics": json.dumps(summary.get("monthly_diagnostics", []), sort_keys=True, default=str),
+                        **stop_diagnostics,
                         "ledger_path": destination.resolve().relative_to(ROOT).as_posix(),
                     })
                     continue
@@ -612,6 +617,10 @@ def _portfolio_rows(
             pd.DataFrame(curve).to_csv(destination / "equity_path.csv", index=False)
             _write_json(destination / "summary.json", summary)
             _write_json(cache_path, expected_identity)
+            stop_diagnostics = (
+                _portfolio_stop_diagnostics(destination, summary)
+                if float(capital) == 100.0 else {}
+            )
             rows.append({
                 "forecast": name,
                 "starting_capital_usd": capital,
@@ -623,9 +632,69 @@ def _portfolio_rows(
                 "max_drawdown_cost_basis_equity": float(summary.get("max_drawdown_cost_basis_equity", 0.0)),
                 "accounting_audit_status": summary.get("accounting_audit", {}).get("status"),
                 "monthly_diagnostics": json.dumps(summary.get("monthly_diagnostics", []), sort_keys=True, default=str),
+                **stop_diagnostics,
                 "ledger_path": destination.resolve().relative_to(ROOT).as_posix(),
             })
     return rows
+
+
+def _portfolio_stop_diagnostics(destination: Path, summary: dict) -> dict:
+    decisions = pd.read_parquet(
+        destination / "decisions.parquet",
+        columns=[
+            "decision_time_utc", "market_start_utc", "skip_reason", "requested_gross_usd",
+            "cash_before_usd", "locked_cost_before_usd",
+        ],
+    )
+    trades_path = destination / "trades.parquet"
+    trades = (
+        pd.read_parquet(trades_path, columns=["entry_time_utc"])
+        if trades_path.is_file() else pd.DataFrame(columns=["entry_time_utc"])
+    )
+    rejection_counts = {
+        str(reason): int(count)
+        for reason, count in summary.get("rejections_by_reason", {}).items()
+    }
+    minimum_count = rejection_counts.get("below_minimum_order_usd", 0)
+    locked_cash_count = sum(
+        count for reason, count in rejection_counts.items()
+        if reason in {"locked_cash", "insufficient_free_cash", "cash_locked"}
+    )
+    minimum_decisions = decisions.loc[
+        decisions["skip_reason"].eq("below_minimum_order_usd")
+    ]
+    if len(minimum_decisions) != minimum_count:
+        raise RuntimeError("Portfolio summary minimum-skip count differs from its decision ledger")
+    last_decision_index = pd.to_datetime(decisions["decision_time_utc"], utc=True).idxmax()
+    last_decision = decisions.loc[last_decision_index]
+    free_cash = float(last_decision["cash_before_usd"])
+    equity = free_cash + float(last_decision["locked_cost_before_usd"])
+    validated_minimum_skips = (
+        minimum_decisions["requested_gross_usd"].lt(5.0)
+        & np.isclose(
+            minimum_decisions["requested_gross_usd"],
+            0.05 * minimum_decisions["cash_before_usd"],
+            rtol=0.0,
+            atol=1e-8,
+        )
+    )
+    all_minimum_skips_valid = bool(validated_minimum_skips.all())
+    return {
+        "below_minimum_order_rejections": minimum_count,
+        "locked_cash_rejections": locked_cash_count,
+        "other_portfolio_rejections": sum(rejection_counts.values()) - minimum_count - locked_cash_count,
+        "rejections_by_reason": json.dumps(rejection_counts, sort_keys=True),
+        "last_trade_entry_time_utc": (
+            str(pd.to_datetime(trades["entry_time_utc"], utc=True).max()) if not trades.empty else None
+        ),
+        "last_decision_time_utc": pd.Timestamp(last_decision["decision_time_utc"]).isoformat(),
+        "free_cash_at_last_decision_usd": free_cash,
+        "equity_at_last_decision_usd": equity,
+        "five_percent_stake_at_last_decision_usd": 0.05 * free_cash,
+        "minimum_skip_ledger_check": "passed" if all_minimum_skips_valid else "failed",
+        "minimum_skips_below_five_usd": int(validated_minimum_skips.sum()),
+        "minimum_skip_count_for_validation": int(len(minimum_decisions)),
+    }
 
 
 def _format_table(rows: list[dict], columns: list[tuple[str, str]]) -> list[str]:
@@ -784,6 +853,10 @@ def build_report() -> dict:
         funnel = funnel_by_forecast[row["forecast"]]
         row["mean_predicted_chosen_side_probability"] = funnel["mean_predicted_chosen_side_probability"]
         row["observed_win_rate"] = funnel["observed_win_rate"]
+        turnover = float(row["gross_turnover_usd"])
+        row["net_pnl_over_turnover_pct"] = (
+            100.0 * float(row["realized_net_pnl_usd"]) / turnover if turnover > 0.0 else 0.0
+        )
     previous_ledger_comparison, previous_ledger_mismatches = _compare_previous_a_ledger(holdout_economic_detail)
     previous = pd.read_csv(model_update.PREVIOUS_ECONOMICS_PATH)
     previous_row_frame = previous.loc[
@@ -1020,7 +1093,7 @@ def _write_report(
         f"- The earlier A/EV 1% result comparison status is `{previous_comparison['status']}`. The exact row-by-row values are in `holdout_fixed_5_economics.csv`.",
         f"- Previous market-level ledger comparison: `{previous_ledger_comparison['status']}`; previous/recomputed qualified signals {previous_ledger_comparison.get('previous_signals_at_hurdle', 'n/a')}/{previous_ledger_comparison.get('recomputed_signals_at_hurdle', 'n/a')}, previous-only/recomputed-only market IDs {previous_ledger_comparison.get('previous_only_condition_ids', 'n/a')}/{previous_ledger_comparison.get('recomputed_only_condition_ids', 'n/a')}, changed common ledgers {previous_ledger_comparison.get('common_condition_ids_with_changed_ledger_fields', 'n/a')}. Any differing market rows are listed in `previous_a_ledger_mismatches.csv` before interpreting challenger results.",
         "",
-        *_format_table(holdout_economics, [("Forecast", "forecast"), ("Opportunities", "opportunity_markets"), ("Signals", "signals"), ("Fills", "fills"), ("Mean forecast P(win)", "mean_predicted_chosen_side_probability"), ("Observed win rate", "observed_win_rate"), ("Turnover USD", "gross_turnover_usd"), ("Fee equivalent USD", "fee_equivalent_usd"), ("Expected net T-59 USD", "expected_net_t59_usd"), ("Realized net PnL USD", "realized_net_pnl_usd"), ("Wins", "positive_fills")]),
+        *_format_table(holdout_economics, [("Forecast", "forecast"), ("Opportunities", "opportunity_markets"), ("Signals", "signals"), ("Fills", "fills"), ("Mean forecast P(win)", "mean_predicted_chosen_side_probability"), ("Observed win rate", "observed_win_rate"), ("Turnover USD", "gross_turnover_usd"), ("Fee equivalent USD", "fee_equivalent_usd"), ("Expected net T-59 USD", "expected_net_t59_usd"), ("Realized net PnL USD", "realized_net_pnl_usd"), ("PnL/turnover %", "net_pnl_over_turnover_pct"), ("Wins", "positive_fills")]),
         "",
         "### Funnel and EV reconciliation",
         "",
@@ -1040,6 +1113,12 @@ def _write_report(
         "",
         "Each account starts independently at USD 100/500/1,000. Its detailed monthly diagnostics, decisions, trades, equity path, and accounting audit are in the ignored local ledger directory.",
         "",
+        "### USD 100 portfolio rejection and stop audit",
+        "",
+        *_format_table([row for row in portfolios if float(row["starting_capital_usd"]) == 100.0], [("Forecast", "forecast"), ("Minimum-order skips", "below_minimum_order_rejections"), ("Locked-cash skips", "locked_cash_rejections"), ("Other skips", "other_portfolio_rejections"), ("Last trade entry UTC", "last_trade_entry_time_utc"), ("Last decision UTC", "last_decision_time_utc"), ("Free cash USD", "free_cash_at_last_decision_usd"), ("Cost-basis equity USD", "equity_at_last_decision_usd"), ("5% stake USD", "five_percent_stake_at_last_decision_usd"), ("$5 minimum check", "minimum_skip_ledger_check")]),
+        "",
+        "Both USD 100 ledgers show that every below-minimum skip requested exactly 5% of pre-decision free cash and that each requested amount was below the accepted USD 5 fallback; there were no locked-cash skips. A_frozen's 1,630 other skips were 1,625 unpriceable native asks and 5 no-positive-net-EV decisions. A_reoptimized's 1,628 were 1,625 unpriceable asks, 2 no-positive-net-EV decisions, and 1 below-minimum-net-EV decision. Historical Gamma order minimum metadata is unavailable, so the USD 5 fallback is the auditable threshold. The small portfolio losses reflect a few trades followed by stakes below minimum, not evidence of strategy robustness.",
+        "",
         *_format_table(portfolio_monthly_rows, [("Forecast", "forecast"), ("Starting cash", "starting_capital_usd"), ("Month UTC", "month_utc"), ("Trades", "trade_count"), ("Turnover USD", "gross_turnover_usd"), ("Fees USD", "fee_usd"), ("Monthly equity PnL USD", "monthly_equity_pnl_usd"), ("Closing equity USD", "closing_cost_basis_equity_usd")]),
         "",
         "## B pruning and tuning budget",
@@ -1048,7 +1127,9 @@ def _write_report(
         f"- Median observed duration was {trial_summary['median_complete_trial_seconds']:.1f}s per completed trial and {trial_summary['median_pruned_trial_seconds']:.1f}s per pruned trial. The first pruning checkpoint is iteration 25 (Optuna step 24); trial curves, all parameters, durations, best iterations, and checkpoint values are in `b_holdout_trials.csv`.",
         f"- A high pruned share alone does not prove harmful pruning. {trial_summary['completed_trials_best_after_first_checkpoint']} of {trial_summary['counts'].get('COMPLETE', 0)} completed trials recorded their best iteration after the first pruning checkpoint (iteration 25), so later gains are possible. Pruned curves end at the pruning checkpoint; their counterfactual later values are unknown. This is consistent with a possible early-pruning risk, not proof that a slower configuration was wrongly discarded.",
         f"- Budget reconstruction: the saved resume log shows {trial_summary['resume_remaining_seconds_from_log']:.1f}s remaining from the 2,430s tuning allowance, implying about {trial_summary['prior_attempt_seconds_reconstructed_from_log']:.1f}s in the first B attempt. The resumed stage manifest records {trial_summary['latest_stage_wall_seconds']:.3f}s wall time, so cumulative B-stage wall time is about {trial_summary['cumulative_b_stage_wall_seconds_estimate']:.1f}s (roughly {trial_summary['resume_overhead_after_budget_deadline_estimate_seconds']:.1f}s beyond the resumed tuning clock, with ±{trial_summary['historical_budget_estimate_uncertainty_seconds']:.2f}s rounding uncertainty). This separates tuning from resume/cleanup overhead; B final fit was not reached (0s). The 2,430s tuning allowance was exhausted before 5/5 successes; do not interpret the broader 2,700s tuning-plus-fit envelope as extra tuning budget.",
-        f"- Proposed separate diagnostic: the five fixed parameter sets below were chosen without ranking on objective value: one median-learning-rate PRUNED trial from each learning-rate quintile, ties by trial number. Complete these against the existing development fold feature datasets, with no generator/selector re-optimization and no TPE suggestions. Based on actual B development trial durations, five configurations across three folds cost about {trial_summary['development_test_cost_seconds_five_configs_across_three_folds'] / 60:.1f} minutes of model trials; reserve 15 minutes for overhead. This is a pruning diagnostic, not model selection, and it is not run here.",
+        "- The frozen runner requires at least 5 successful trials before final fit. If the budget ends after that minimum but before the requested 10 total trials, the current acceptance gate can use the best successful trial while recording `search_complete=false`; these are distinct outcomes. This B study stopped at 4/5, so it correctly produced no final model or holdout score.",
+        "- The separately authorized development-only continuation diagnostic completed 15 fixed configurations across the three development B folds, without TPE suggestions, feature selection, generator optimization, or a holdout score. It records full available validation curves, both source and continued checkpoint values, and same-fold COMPLETE-study comparisons. No hypothetical MedianPruner decision or false-prune rate is claimed; see `reports/btc_preopen/b_pruner_development_diagnostic_20261014/pruner_diagnostic_report.md`. The diagnostic did not change model or policy selection.",
+        "- Six of 15 continuations found their best iteration after the corresponding source trial's prune checkpoint; only one of those six beat its same-fold COMPLETE-study best. Development fold C / Q1 (source trial 57) reached 0.692240 at iteration 73, 0.000031 below the best COMPLETE objective. This is limited evidence that a configuration from a historically PRUNED final-fit-B trial can be competitive on a development fold. It is not evidence that a specific development-fold MedianPruner decision was wrong: the source decision came from another chronological fit, and no hypothetical pruning was replayed. The other 14 continuations did not beat their same-fold best.",
         "",
         *_format_table(test_candidates, [("Config", "test_config_id"), ("Source trial", "source_trial_number"), ("Pruned at iteration", "source_pruned_at_iteration"), ("Selection rule", "selection_rule"), ("Frozen params JSON", "params")]),
         "",

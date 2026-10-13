@@ -3,6 +3,7 @@ from __future__ import annotations
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,41 @@ import run_btc_preopen_model_update as model_update
 
 
 class BTCPreopenModelUpdateTests(unittest.TestCase):
+    def test_development_freeze_builds_payload_and_reuses_historical_rule(self):
+        starts = pd.date_range("2026-06-01T00:00:00Z", periods=4, freq="5min")
+        dev = pd.DataFrame({
+            "market_start_utc": starts,
+            "fold_id": ["dev_2026q2_a"] * len(starts),
+            "common_sample": [True] * len(starts),
+            "official_outcome_up": [0.0, 1.0, 0.0, 1.0],
+            "p_btc_calibrated": [0.45, 0.55, 0.40, 0.60],
+            "p_A_reoptimized": [0.46, 0.54, 0.41, 0.59],
+            "p_B_dynamic_price_volume": [0.47, 0.53, 0.42, 0.58],
+        })
+        metric = [{"target": "official_polymarket_outcome", "log_loss": 0.69}]
+        comparison = {"log_loss_difference_adjusted_interval": [-0.01, 0.01]}
+        with tempfile.TemporaryDirectory() as temp_dir:
+            freeze_path = Path(temp_dir) / "development_freeze.json"
+            with (
+                patch.object(model_update, "FREEZE_PATH", freeze_path),
+                patch.object(model_update.probability, "_metric_edges", return_value=[]),
+                patch.object(model_update, "_metric_rows", return_value=(metric, [])),
+                patch.object(model_update, "_paired_block_interval", return_value=comparison),
+            ):
+                expected_rule = dict(model_update.CONFIG["development_model_freeze"])
+                created = model_update._development_freeze(dev, {"sha256": "baseline"}, {})
+                self.assertTrue(freeze_path.is_file())
+                self.assertEqual(created["selection_rule"], expected_rule)
+                reused = model_update._development_freeze(dev, {"sha256": "baseline"}, {})
+                self.assertEqual(reused, created)
+                with patch.dict(model_update.CONFIG["development_model_freeze"], {
+                    "candidate_gate": "changed gate",
+                }):
+                    with self.assertRaisesRegex(RuntimeError, "frozen inputs"):
+                        model_update._development_freeze(dev, {"sha256": "baseline"}, {})
+                with self.assertRaisesRegex(RuntimeError, "frozen inputs"):
+                    model_update._development_freeze(dev, {"sha256": "different baseline"}, {})
+
     def test_selected_feature_reload_matches_full_frame_and_preserves_order(self):
         dataset = pd.DataFrame({
             "unused_feature": [1.0, 2.0, 3.0],

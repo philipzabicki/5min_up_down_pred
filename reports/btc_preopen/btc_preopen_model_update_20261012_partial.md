@@ -89,10 +89,10 @@ Policy remains 1% net EV at T-60, same side executed at T-59, independent gross 
 - The earlier A/EV 1% result comparison status is `exact_match`. The exact row-by-row values are in `holdout_fixed_5_economics.csv`.
 - Previous market-level ledger comparison: `exact_match`; previous/recomputed qualified signals 4272/4272, previous-only/recomputed-only market IDs 0/0, changed common ledgers 0. Any differing market rows are listed in `previous_a_ledger_mismatches.csv` before interpreting challenger results.
 
-| Forecast | Opportunities | Signals | Fills | Mean forecast P(win) | Observed win rate | Turnover USD | Fee equivalent USD | Expected net T-59 USD | Realized net PnL USD | Wins |
-|---|---|---|---|---|---|---|---|---|---|---|
-| A_frozen | 24736 | 4272 | 4018 | 0.526405 | 0.485565 | 20090.000000 | 725.305770 | 1242.331391 | -732.163484 | 1951 |
-| A_reoptimized | 24736 | 2665 | 2521 | 0.514475 | 0.475208 | 12605.000000 | 471.090280 | 1033.957943 | -294.718276 | 1198 |
+| Forecast | Opportunities | Signals | Fills | Mean forecast P(win) | Observed win rate | Turnover USD | Fee equivalent USD | Expected net T-59 USD | Realized net PnL USD | PnL/turnover % | Wins |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| A_frozen | 24736 | 4272 | 4018 | 0.526405 | 0.485565 | 20090.000000 | 725.305770 | 1242.331391 | -732.163484 | -3.644418 | 1951 |
+| A_reoptimized | 24736 | 2665 | 2521 | 0.514475 | 0.475208 | 12605.000000 | 471.090280 | 1033.957943 | -294.718276 | -2.338106 | 1198 |
 
 ### Funnel and EV reconciliation
 
@@ -130,6 +130,15 @@ Development-frozen group boundaries and all grouped rows are in `holdout_economi
 | A_reoptimized | 1000.000000 | 297 | 4592.815532 | 168.297060 | -901.995705 | 98.004295 | 0.901996 | passed |
 
 Each account starts independently at USD 100/500/1,000. Its detailed monthly diagnostics, decisions, trades, equity path, and accounting audit are in the ignored local ledger directory.
+
+### USD 100 portfolio rejection and stop audit
+
+| Forecast | Minimum-order skips | Locked-cash skips | Other skips | Last trade entry UTC | Last decision UTC | Free cash USD | Cost-basis equity USD | 5% stake USD | $5 minimum check |
+|---|---|---|---|---|---|---|---|---|---|
+| A_frozen | 23104 | 0 | 1630 | 2026-07-01 04:39:01+00:00 | 2026-10-06T23:54:00+00:00 | 99.400310 | 99.400310 | 4.970016 | passed |
+| A_reoptimized | 23107 | 0 | 1628 | 2026-07-01 04:19:01+00:00 | 2026-10-06T23:54:00+00:00 | 94.825000 | 94.825000 | 4.741250 | passed |
+
+Both USD 100 ledgers show that every below-minimum skip requested exactly 5% of pre-decision free cash and that each requested amount was below the accepted USD 5 fallback; there were no locked-cash skips. A_frozen's 1,630 other skips were 1,625 unpriceable native asks and 5 no-positive-net-EV decisions. A_reoptimized's 1,628 were 1,625 unpriceable asks, 2 no-positive-net-EV decisions, and 1 below-minimum-net-EV decision. Historical Gamma order minimum metadata is unavailable, so the USD 5 fallback is the auditable threshold. The small portfolio losses reflect a few trades followed by stakes below minimum, not evidence of strategy robustness.
 
 | Forecast | Starting cash | Month UTC | Trades | Turnover USD | Fees USD | Monthly equity PnL USD | Closing equity USD |
 |---|---|---|---|---|---|---|---|
@@ -170,7 +179,9 @@ Each account starts independently at USD 100/500/1,000. Its detailed monthly dia
 - Median observed duration was 73.6s per completed trial and 28.3s per pruned trial. The first pruning checkpoint is iteration 25 (Optuna step 24); trial curves, all parameters, durations, best iterations, and checkpoint values are in `b_holdout_trials.csv`.
 - A high pruned share alone does not prove harmful pruning. 4 of 4 completed trials recorded their best iteration after the first pruning checkpoint (iteration 25), so later gains are possible. Pruned curves end at the pruning checkpoint; their counterfactual later values are unknown. This is consistent with a possible early-pruning risk, not proof that a slower configuration was wrongly discarded.
 - Budget reconstruction: the saved resume log shows 1933.1s remaining from the 2,430s tuning allowance, implying about 496.9s in the first B attempt. The resumed stage manifest records 1938.816s wall time, so cumulative B-stage wall time is about 2435.7s (roughly 5.7s beyond the resumed tuning clock, with ±0.05s rounding uncertainty). This separates tuning from resume/cleanup overhead; B final fit was not reached (0s). The 2,430s tuning allowance was exhausted before 5/5 successes; do not interpret the broader 2,700s tuning-plus-fit envelope as extra tuning budget.
-- Proposed separate diagnostic: the five fixed parameter sets below were chosen without ranking on objective value: one median-learning-rate PRUNED trial from each learning-rate quintile, ties by trial number. Complete these against the existing development fold feature datasets, with no generator/selector re-optimization and no TPE suggestions. Based on actual B development trial durations, five configurations across three folds cost about 9.7 minutes of model trials; reserve 15 minutes for overhead. This is a pruning diagnostic, not model selection, and it is not run here.
+- The frozen runner requires at least 5 successful trials before final fit. If the budget ends after that minimum but before the requested 10 total trials, the current acceptance gate can use the best successful trial while recording `search_complete=false`; these are distinct outcomes. This B study stopped at 4/5, so it correctly produced no final model or holdout score.
+- The separately authorized development-only continuation diagnostic completed 15 fixed configurations across the three development B folds, without TPE suggestions, feature selection, generator optimization, or a holdout score. It records full available validation curves, both source and continued checkpoint values, and same-fold COMPLETE-study comparisons. No hypothetical MedianPruner decision or false-prune rate is claimed; see `reports/btc_preopen/b_pruner_development_diagnostic_20261014/pruner_diagnostic_report.md`. The diagnostic did not change model or policy selection.
+- Six of 15 continuations found their best iteration after the corresponding source trial's prune checkpoint; only one of those six beat its same-fold COMPLETE-study best. Development fold C / Q1 (source trial 57) reached 0.692240 at iteration 73, 0.000031 below the best COMPLETE objective. This is limited evidence that a configuration from a historically PRUNED final-fit-B trial can be competitive on a development fold. It is not evidence that a specific development-fold MedianPruner decision was wrong: the source decision came from another chronological fit, and no hypothetical pruning was replayed. The other 14 continuations did not beat their same-fold best.
 
 | Config | Source trial | Pruned at iteration | Selection rule | Frozen params JSON |
 |---|---|---|---|---|
