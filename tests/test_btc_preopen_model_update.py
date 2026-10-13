@@ -97,6 +97,41 @@ class BTCPreopenModelUpdateTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "label"):
             model_update._validate_fold_predictions(misaligned, fold)
 
+    def test_nominal_decision_is_derived_as_t_minus_60_and_validated(self):
+        starts = pd.to_datetime(["2026-06-01T10:00:00Z", "2026-06-01T10:05:00Z"], utc=True)
+        derived = model_update._ensure_nominal_decision_at(pd.DataFrame({"market_start_utc": starts}))
+        pd.testing.assert_series_equal(
+            derived.nominal_decision_at,
+            pd.Series(starts - pd.Timedelta(minutes=1), name="nominal_decision_at"),
+        )
+        aligned = pd.DataFrame({
+            "market_start_utc": starts,
+            "nominal_decision_at": starts - pd.Timedelta(minutes=1),
+        })
+        model_update._ensure_nominal_decision_at(aligned)
+        misaligned = aligned.copy()
+        misaligned.loc[1, "nominal_decision_at"] += pd.Timedelta(seconds=1)
+        with self.assertRaisesRegex(RuntimeError, "T-60"):
+            model_update._ensure_nominal_decision_at(misaligned)
+
+    def test_existing_development_freeze_keeps_model_and_exact_rule(self):
+        existing = {
+            "configuration_sha256": "cfg",
+            "baseline_prediction_identity": {"sha256": "baseline"},
+            "selected_model": "A_frozen",
+            "development_rows_common": 10795,
+            "selection_rule": {"candidate_gate": "adjusted upper bound below zero"},
+            "quality_ranking_official_outcome": [{"forecast": "A_reoptimized", "log_loss": 0.1}],
+        }
+        proposed = {**existing, "quality_ranking_official_outcome": [{"forecast": "A_frozen", "log_loss": 0.2}]}
+        reused = model_update._reuse_existing_development_freeze(proposed, existing)
+        self.assertIs(reused, existing)
+        self.assertEqual(reused["selected_model"], "A_frozen")
+        self.assertEqual(reused["selection_rule"], existing["selection_rule"])
+        changed_rule = {**proposed, "selection_rule": {"candidate_gate": "different"}}
+        with self.assertRaisesRegex(RuntimeError, "frozen inputs"):
+            model_update._reuse_existing_development_freeze(changed_rule, existing)
+
     def test_candidate_join_checks_decision_target_availability_and_fold_identity(self):
         starts = pd.to_datetime(["2026-06-01T10:00:00Z"], utc=True)
         base = pd.DataFrame({

@@ -1,0 +1,32 @@
+{
+  "official_outcome_up": {
+    "brier_difference_95pct": [
+      -0.00011202061943682233,
+      0.00011863921562573245
+    ],
+    "brier_difference_left_minus_right": 6.196872369253833e-07,
+    "log_loss_difference_95pct": [
+      -0.00022444626356855462,
+      0.00023720069543607585
+    ],
+    "log_loss_difference_left_minus_right": 9.830895905421956e-07,
+    "method": "paired circular moving 3-UTC-day blocks; 2000 replicates; seed 20261012",
+    "n": 28221,
+    "target": "official_outcome_up"
+  },
+  "target_binance_proxy_up": {
+    "brier_difference_95pct": [
+      -0.00013698732789775374,
+      8.028302271625721e-05
+    ],
+    "brier_difference_left_minus_right": -2.5420358947006504e-05,
+    "log_loss_difference_95pct": [
+      -0.0002746734345350816,
+      0.00016056014812011822
+    ],
+    "log_loss_difference_left_minus_right": -5.115605965120938e-05,
+    "method": "paired circular moving 3-UTC-day blocks; 2000 replicates; seed 20261012",
+    "n": 28224,
+    "target": "target_binance_proxy_up"
+  }
+}

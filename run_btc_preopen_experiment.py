@@ -9,6 +9,7 @@ import os
 import subprocess
 import sys
 import time
+import uuid
 from pathlib import Path
 
 import lightgbm as lgb
@@ -37,6 +38,10 @@ from features.btc_preopen_contract import (
     purge_unavailable_training_rows,
 )
 from utils.data import TARGET_WEIGHT_COL
+from utils.btc_preopen_tuning_resume import (
+    continue_until_minimum_success as continue_optuna_until_minimum_success,
+    record_stage_elapsed as record_tuning_stage_elapsed,
+)
 from utils.polymarket_policy import calibration_metrics
 
 
@@ -610,8 +615,11 @@ def _evaluate_external_test(model, calibration, frame, x, y_proxy, valid, prior_
             joined[TARGET_COL].ne(joined[OFFICIAL_TARGET_COL]).mean()
         ),
         "paired_uncertainty": paired,
-        "prestart_quote_rows": 0,
-        "economic_replay": "not estimable; retained snapshots are at market start, not one minute before",
+        "prestart_quote_rows": None,
+        "economic_replay": {
+            "status": "not_evaluated_by_training_runner",
+            "reason": "This evaluator reports predictive metrics only; quote coverage was not checked.",
+        },
     }
     joined.to_parquet(PREDICTIONS_PATH, index=False, compression="zstd")
     return metrics, test, joined
@@ -790,11 +798,26 @@ def _run_stage(
     stage_dir = run_root / "stages" / f"{name}_{stage_signature[:12]}"
     stage_dir.mkdir(parents=True, exist_ok=True)
     started = time.perf_counter()
+    history_by_signature = dict(previous.get("attempts_by_input_signature", {}))
+    attempt_history = list(history_by_signature.get(stage_signature, []))
+    attempt_id = uuid.uuid4().hex
+    attempt_record = {
+        "attempt_id": attempt_id,
+        "execution_attempt_id": manifest.get("active_execution_attempt_id"),
+        "attempt": len(attempt_history) + 1,
+        "input_signature": stage_signature,
+        "status": "running",
+        "started_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+    }
+    attempt_history.append(attempt_record)
+    history_by_signature[stage_signature] = attempt_history
     entry = {
         "status": "running",
         "input_signature": stage_signature,
         "started_utc": pd.Timestamp.now(tz="UTC").isoformat(),
         "attempt": int(previous.get("attempt", 0)) + 1,
+        "attempt_id": attempt_id,
+        "attempts_by_input_signature": history_by_signature,
     }
     manifest["stages"][name] = entry
     manifest["status"] = "running"
@@ -817,6 +840,16 @@ def _run_stage(
                 "artifact_signature": artifact_signature,
             }
         )
+        attempt_record.update({
+            "status": "completed",
+            "finished_utc": entry["finished_utc"],
+            "elapsed_seconds": entry["elapsed_seconds"],
+        })
+        if name == "model_tuning":
+            record_tuning_stage_elapsed(
+                stage_dir / "tuning_budget_history.json", stage_signature,
+                entry["elapsed_seconds"],
+            )
         manifest["updated_utc"] = entry["finished_utc"]
         _write_json(manifest_path, manifest)
         print(
@@ -824,16 +857,28 @@ def _run_stage(
             flush=True,
         )
         return result, artifact_signature, records
-    except Exception as exc:
+    except BaseException as exc:
+        interrupted = isinstance(exc, (KeyboardInterrupt, SystemExit))
         entry.update(
             {
-                "status": "failed",
+                "status": "interrupted" if interrupted else "failed",
                 "finished_utc": pd.Timestamp.now(tz="UTC").isoformat(),
                 "elapsed_seconds": time.perf_counter() - started,
                 "error": f"{type(exc).__name__}: {str(exc)[:1600]}",
             }
         )
-        manifest["status"] = "failed"
+        attempt_record.update({
+            "status": entry["status"],
+            "finished_utc": entry["finished_utc"],
+            "elapsed_seconds": entry["elapsed_seconds"],
+            "error": entry["error"],
+        })
+        if name == "model_tuning":
+            record_tuning_stage_elapsed(
+                stage_dir / "tuning_budget_history.json", stage_signature,
+                entry["elapsed_seconds"],
+            )
+        manifest["status"] = "interrupted" if interrupted else "failed"
         manifest["updated_utc"] = entry["finished_utc"]
         _write_json(manifest_path, manifest)
         print(f"[preopen] stage={name} status=failed error={entry['error']}", flush=True)
@@ -973,6 +1018,9 @@ def _run_optuna_stage(
         overall_deadline,
         seed=20261004,
         catch=(),
+        tuning_budget_seconds=None,
+        budget_history_path=None,
+        budget_identity=None,
 ):
     database = stage_dir / "study.sqlite3"
     result_path = stage_dir / "best_result.json"
@@ -987,7 +1035,37 @@ def _run_optuna_stage(
         pruner=optuna.pruners.MedianPruner(n_startup_trials=3, n_warmup_steps=10),
         load_if_exists=True,
     )
-    all_trials = study.get_trials(deepcopy=False)
+    if tuning_budget_seconds is not None:
+        continuation = continue_optuna_until_minimum_success(
+            study,
+            objective,
+            complete_state=optuna.trial.TrialState.COMPLETE,
+            target_trials=int(target_trials),
+            minimum_successful_trials=int(minimum_successful_trials),
+            stage_budget_seconds=float(tuning_budget_seconds),
+            deadline_monotonic=float(stage_deadline),
+            overall_deadline=float(overall_deadline),
+            history_path=Path(budget_history_path),
+            identity=str(budget_identity),
+            catch=tuple(catch),
+        )
+        all_trials = study.get_trials(deepcopy=False)
+        successful = [
+            trial for trial in all_trials
+            if trial.state == optuna.trial.TrialState.COMPLETE
+            and trial.value is not None
+            and np.isfinite(float(trial.value))
+            and trial.user_attrs.get("trial_status") != "crash_penalty"
+        ]
+        if len(successful) < int(minimum_successful_trials):
+            raise RuntimeError(
+                f"{stage_name} has {len(successful)} successful Optuna trials; "
+                f"requires {minimum_successful_trials} before its cumulative tuning budget ended. "
+                f"Study checkpoint is saved at {database}"
+            )
+    else:
+        continuation = None
+        all_trials = study.get_trials(deepcopy=False)
     successful = [
         trial for trial in all_trials
         if trial.state == optuna.trial.TrialState.COMPLETE
@@ -1001,7 +1079,7 @@ def _run_optuna_stage(
         0.0,
         min(float(stage_deadline), float(overall_deadline)) - time.perf_counter(),
     )
-    if remaining_trials and remaining_seconds > 0.0:
+    if continuation is None and remaining_trials and remaining_seconds > 0.0:
         print(
             f"[preopen] stage={stage_name} optuna_trials={len(all_trials)}/"
             f"{target_trials} remaining={remaining_trials} seconds={remaining_seconds:.0f}",
@@ -1030,7 +1108,7 @@ def _run_optuna_stage(
         0.0,
         min(float(stage_deadline), float(overall_deadline)) - time.perf_counter(),
     )
-    if retry_count and retry_seconds > 0.0:
+    if continuation is None and retry_count and retry_seconds > 0.0:
         study.optimize(
             objective,
             n_trials=retry_count,
@@ -1075,6 +1153,8 @@ def _run_optuna_stage(
         "best_iteration": best.user_attrs.get("best_iteration"),
         "best_config": best.user_attrs.get("normalized_config"),
     }
+    if continuation is not None:
+        payload["tuning_budget"] = continuation
     _write_json(result_path, payload)
     return payload, [database, result_path]
 
@@ -1168,7 +1248,7 @@ def _evaluate_preopen_external(
     }
     official_summary = {
         "status": "unavailable",
-        "reason": "official market outcomes and pre-start quotes were not present",
+        "reason": "official-outcome source was unavailable to this evaluator; quote coverage was not checked",
     }
     if Path(official_path).is_file():
         try:
@@ -1206,7 +1286,10 @@ def _evaluate_preopen_external(
                     "price_proxy_disagreements": int(
                         official[TARGET_COL].ne(official[OFFICIAL_TARGET_COL]).sum()
                     ),
-                    "economic_replay": "not estimable without pre-start quote snapshots; market-start quotes are excluded",
+                    "economic_replay": {
+                        "status": "not_evaluated_by_training_runner",
+                        "reason": "This evaluator reports predictive metrics only; quote coverage was not checked.",
+                    },
                 }
             else:
                 official_summary["reason"] = "official parquet lacks market_start_utc or official target"
@@ -1220,7 +1303,10 @@ def _evaluate_preopen_external(
         "market_start_first": sample["market_start_utc"].min(),
         "market_start_last": sample["market_start_utc"].max(),
         "historically_exposed": str(test_history_status).startswith("historically exposed"),
-        "economic_replay": "not estimable without pre-start quotes; predictive evaluation retained",
+        "economic_replay": {
+            "status": "not_evaluated_by_training_runner",
+            "reason": "This evaluator reports predictive metrics only; quote coverage was not checked.",
+        },
     }
     return metrics, external, sample
 
@@ -1597,6 +1683,15 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
     started = time.perf_counter()
     runtime_budget = int(profile["runtime_budget_seconds"])
     overall_deadline = started + runtime_budget
+    execution_attempt_id = uuid.uuid4().hex
+    execution_record = {
+        "attempt_id": execution_attempt_id,
+        "started_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+        "status": "running",
+    }
+    manifest.setdefault("execution_attempts", []).append(execution_record)
+    manifest["active_execution_attempt_id"] = execution_attempt_id
+    _write_json(manifest_path, manifest)
     try:
         global DATA_DIR, MODEL_DIR, FIT_END, CALIBRATION_START, CALIBRATION_END
         global TEST_FIRST_DECISION, TEST_MARKET_START, TEST_LAST_MARKET_START
@@ -2552,6 +2647,12 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 float(stages.get("model_tuning_and_fit", 0)) * 0.1,
             ),
         )
+        model_tuning_budget_seconds = max(
+            0.0,
+            float(stages.get("model_tuning_and_fit", 0))
+            - min(300.0, float(stages.get("model_tuning_and_fit", 0)) * 0.1),
+        )
+        model_tuning_stage_identity = _signature(model_search_signature_payload)
 
         def tune_model_action(stage_dir):
             objective = model_tuning.make_objective(
@@ -2577,6 +2678,9 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 overall_deadline=overall_deadline,
                 seed=int(profile["seed"]),
                 catch=(lgb.basic.LightGBMError, OSError),
+                tuning_budget_seconds=model_tuning_budget_seconds,
+                budget_history_path=stage_dir / "tuning_budget_history.json",
+                budget_identity=model_tuning_stage_identity,
             )
             result.update(
                 {
@@ -3003,6 +3107,14 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         load_prediction_bundle(bundle_manifest_path)
         report_path = run_root / "final_report.md"
         evaluation = json.loads(METRICS_PATH.read_text(encoding="utf-8"))
+        economic_evaluation = evaluation.get("economic_evaluation")
+        if isinstance(economic_evaluation, dict) and economic_evaluation.get("status") == "completed":
+            economic_report = "completed; see the recorded execution and accounting summary."
+        else:
+            economic_report = (
+                "not run by this prediction-quality evaluator; quote coverage and execution "
+                "feasibility are assessed by the separate economic evaluator."
+            )
         report_path.write_text(
             "# BTC pre-open v1 training run\n\n"
             f"- Status: `{evaluation['status']}`\n"
@@ -3011,7 +3123,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             f"- Calibration rows: {calibration_payload['training_rows']:,}.\n"
             f"- External decision predictions: {evaluation_result['prediction_rows']:,}.\n"
             f"- Model bundle: `{bundle_manifest_path.resolve().relative_to(ROOT).as_posix()}`\n"
-            f"- Official outcomes: `{evaluation['metrics']['official_market_data']['status']}`; economic replay requires pre-start quotes.\n",
+            f"- Official outcomes: `{evaluation['metrics']['official_market_data']['status']}`.\n"
+            f"- Economic replay: {economic_report}\n",
             encoding="utf-8",
         )
         manifest.update(
@@ -3037,6 +3150,28 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         _write_json(manifest_path, manifest)
         raise
     finally:
+        execution_record["finished_utc"] = pd.Timestamp.now(tz="UTC").isoformat()
+        execution_record["elapsed_seconds"] = time.perf_counter() - started
+        if manifest.get("status") == "running":
+            manifest["status"] = "interrupted"
+        execution_record["status"] = manifest.get("status", "interrupted")
+        stage_elapsed = 0.0
+        budget_uncertain = False
+        for stage in manifest.get("stages", {}).values():
+            for attempts in stage.get("attempts_by_input_signature", {}).values():
+                for attempt in attempts:
+                    if attempt.get("execution_attempt_id") == execution_attempt_id:
+                        stage_elapsed += float(attempt.get("elapsed_seconds", 0.0))
+                        budget_uncertain = budget_uncertain or attempt.get("status") == "running"
+        execution_record["stage_elapsed_seconds"] = stage_elapsed
+        execution_record["resume_overhead_seconds"] = max(
+            0.0, execution_record["elapsed_seconds"] - stage_elapsed,
+        )
+        execution_record["budget_uncertain"] = bool(budget_uncertain)
+        manifest.pop("active_execution_attempt_id", None)
+        manifest["elapsed_seconds"] = execution_record["elapsed_seconds"]
+        manifest["updated_utc"] = execution_record["finished_utc"]
+        _write_json(manifest_path, manifest)
         sys.stdout, sys.stderr = original_stdout, original_stderr
         log_handle.close()
         _unlock_run(lock)

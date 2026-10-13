@@ -197,6 +197,18 @@ def _expected_fold_rows(fold: dict) -> int:
     return int(span / pd.Timedelta(minutes=5)) + 1
 
 
+def _ensure_nominal_decision_at(calendar: pd.DataFrame) -> pd.DataFrame:
+    result = calendar.copy()
+    starts = pd.to_datetime(result["market_start_utc"], utc=True, errors="raise")
+    expected = starts - pd.Timedelta(minutes=1)
+    if "nominal_decision_at" in result:
+        existing = pd.to_datetime(result["nominal_decision_at"], utc=True, errors="raise")
+        if not existing.eq(expected).all():
+            raise RuntimeError("Market calendar decision times do not equal T-60")
+    result["nominal_decision_at"] = expected
+    return result
+
+
 def _validate_fold_predictions(frame: pd.DataFrame, fold: dict) -> None:
     fold_id = str(fold["fold_id"])
     if frame.empty:
@@ -544,6 +556,16 @@ def _paired_block_interval(frame: pd.DataFrame, left_column: str, right_column: 
     }
 
 
+def _reuse_existing_development_freeze(proposed: dict, existing: dict) -> dict:
+    for key in (
+        "configuration_sha256", "baseline_prediction_identity", "selected_model",
+        "development_rows_common", "selection_rule",
+    ):
+        if existing.get(key) != proposed.get(key):
+            raise RuntimeError("Existing development freeze differs from the verified frozen inputs")
+    return existing
+
+
 def _development_freeze(dev: pd.DataFrame, baseline_identity: dict, candidate_predictions: dict[str, pd.DataFrame]) -> dict:
     config = CONFIG["development_model_freeze"]
     scored = dev.loc[
@@ -608,10 +630,7 @@ def _development_freeze(dev: pd.DataFrame, baseline_identity: dict, candidate_pr
     }
     existing = research._read_json(FREEZE_PATH) if FREEZE_PATH.is_file() else None
     if existing is not None:
-        for key in ("configuration_sha256", "baseline_prediction_identity", "selected_model", "development_rows_common"):
-            if existing.get(key) != payload.get(key):
-                raise RuntimeError("Existing development freeze differs from the verified frozen inputs")
-        payload = existing
+        payload = _reuse_existing_development_freeze(payload, existing)
     else:
         _write_json(FREEZE_PATH, payload)
     return payload
@@ -946,6 +965,7 @@ def run_model_update() -> dict:
     }
     dev_predictions, baseline_dev_identity = research._load_model_predictions(include_holdout=False)
     dev_calendar, _ = research._build_market_calendar(dev_predictions)
+    dev_calendar = _ensure_nominal_decision_at(dev_calendar)
     dev_calendar["market_start_utc"] = pd.to_datetime(dev_calendar.market_start_utc, utc=True, errors="raise")
     dev_calendar = dev_calendar.loc[dev_calendar.market_start_utc.lt(DEV_CUTOFF_UTC)].copy()
     _, t60_dev, _ = research._load_enriched_book_snapshots(correction_manifest)
@@ -1011,6 +1031,7 @@ def run_model_update() -> dict:
     }
     all_predictions, baseline_identity = research._load_model_predictions(include_holdout=True)
     calendar, calendar_coverage = research._build_market_calendar(all_predictions)
+    calendar = _ensure_nominal_decision_at(calendar)
     calendar["market_start_utc"] = pd.to_datetime(calendar.market_start_utc, utc=True, errors="raise")
     base_data = probability._build_dataset(calendar, t60)
     evaluation_data = _merge_predictions(base_data, candidate_predictions)
