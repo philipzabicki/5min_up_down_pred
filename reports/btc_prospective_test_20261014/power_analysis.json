@@ -1,0 +1,1032 @@
+{
+  "bootstrap": {
+    "alpha_two_sided": 0.05,
+    "alternative": "impose the requested improvement by subtracting the effect from each resampled per-market loss difference",
+    "block_days_sensitivity": [
+      1,
+      3,
+      7
+    ],
+    "future_count_model": "resample development daily market counts with the same moving blocks, including zero-coverage days; covered-day horizons stop at the requested count of nonzero paired-market dates",
+    "method": "paired circular moving blocks of whole UTC days; daily sums/counts preserve within-day market clustering and temporal dependence",
+    "null_centering": "subtract the observed development mean paired per-market loss difference before resampling",
+    "planning_max_days": 4000,
+    "replicates": 5000,
+    "seed": 20261014
+  },
+  "comparisons": {
+    "primary_market_plus_btc_minus_raw_market": {
+      "block_variance": [
+        {
+          "block_bootstrap_se_mean_delta": 0.0005913700380819061,
+          "block_bootstrap_variance_mean_delta": 3.497185219409951e-07,
+          "block_days": 1,
+          "calendar_days": 61,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "observed_95pct_block_ci_high": 0.0010422067579867963,
+          "observed_95pct_block_ci_low": -0.0012654425334829174,
+          "observed_delta_log_loss": -0.00012094920298003481,
+          "paired_rows": 8676,
+          "power_resampling_centered_at_zero": true
+        },
+        {
+          "block_bootstrap_se_mean_delta": 0.0005676442981119842,
+          "block_bootstrap_variance_mean_delta": 3.2222004917904715e-07,
+          "block_days": 3,
+          "calendar_days": 61,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "observed_95pct_block_ci_high": 0.0010635800610118273,
+          "observed_95pct_block_ci_low": -0.0011844594168422082,
+          "observed_delta_log_loss": -0.00012094920298003481,
+          "paired_rows": 8676,
+          "power_resampling_centered_at_zero": true
+        },
+        {
+          "block_bootstrap_se_mean_delta": 0.0004981312212502499,
+          "block_bootstrap_variance_mean_delta": 2.4813471358426536e-07,
+          "block_days": 7,
+          "calendar_days": 61,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "observed_95pct_block_ci_high": 0.0009914123054415623,
+          "observed_95pct_block_ci_low": -0.0009885580139296398,
+          "observed_delta_log_loss": -0.00012094920298003481,
+          "paired_rows": 8676,
+          "power_resampling_centered_at_zero": true
+        }
+      ],
+      "covered_day_power": [
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 30,
+          "mde_log_loss_80pct": 0.001951510485378094,
+          "mde_log_loss_90pct": 0.0022883514495333655,
+          "power_at_effect_0.00025": 0.0596,
+          "power_at_effect_0.00050": 0.122,
+          "power_at_effect_0.00100": 0.3276
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 60,
+          "mde_log_loss_80pct": 0.001445907590095885,
+          "mde_log_loss_90pct": 0.001668192757642828,
+          "power_at_effect_0.00025": 0.0656,
+          "power_at_effect_0.00050": 0.1524,
+          "power_at_effect_0.00100": 0.4822
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 90,
+          "mde_log_loss_80pct": 0.0011551394083653577,
+          "mde_log_loss_90pct": 0.0013536280268453993,
+          "power_at_effect_0.00025": 0.0882,
+          "power_at_effect_0.00050": 0.2324,
+          "power_at_effect_0.00100": 0.6798
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 30,
+          "mde_log_loss_80pct": 0.0018456319696269932,
+          "mde_log_loss_90pct": 0.0021831726073287426,
+          "power_at_effect_0.00025": 0.067,
+          "power_at_effect_0.00050": 0.1384,
+          "power_at_effect_0.00100": 0.3662
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 60,
+          "mde_log_loss_80pct": 0.0013126261575962417,
+          "mde_log_loss_90pct": 0.001527435208845418,
+          "power_at_effect_0.00025": 0.0812,
+          "power_at_effect_0.00050": 0.2012,
+          "power_at_effect_0.00100": 0.5858
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 90,
+          "mde_log_loss_80pct": 0.001072948922228534,
+          "mde_log_loss_90pct": 0.0012644319693208674,
+          "power_at_effect_0.00025": 0.1044,
+          "power_at_effect_0.00050": 0.2722,
+          "power_at_effect_0.00100": 0.7446
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 30,
+          "mde_log_loss_80pct": 0.0015284538356354462,
+          "mde_log_loss_90pct": 0.0018381131085334346,
+          "power_at_effect_0.00025": 0.076,
+          "power_at_effect_0.00050": 0.1738,
+          "power_at_effect_0.00100": 0.4952
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 60,
+          "mde_log_loss_80pct": 0.0010871615566429682,
+          "mde_log_loss_90pct": 0.0012913258877233604,
+          "power_at_effect_0.00025": 0.1142,
+          "power_at_effect_0.00050": 0.285,
+          "power_at_effect_0.00100": 0.7372
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_covered_days": 90,
+          "mde_log_loss_80pct": 0.0009035364346345887,
+          "mde_log_loss_90pct": 0.0010687316360417753,
+          "power_at_effect_0.00025": 0.1376,
+          "power_at_effect_0.00050": 0.379,
+          "power_at_effect_0.00100": 0.8612
+        }
+      ],
+      "left_forecast": "p_D",
+      "observed_delta_log_loss_left_minus_right": -0.00012094920298003481,
+      "paired_rows": 8676,
+      "power": [
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 30,
+          "mde_log_loss_80pct": 0.002322721452219412,
+          "mde_log_loss_90pct": 0.002693467371864245,
+          "power_at_effect_0.00025": 0.0494,
+          "power_at_effect_0.00050": 0.0978,
+          "power_at_effect_0.00100": 0.2534
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 60,
+          "mde_log_loss_80pct": 0.0016531720582861455,
+          "mde_log_loss_90pct": 0.0019259436056017877,
+          "power_at_effect_0.00025": 0.0622,
+          "power_at_effect_0.00050": 0.13,
+          "power_at_effect_0.00100": 0.3942
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 90,
+          "mde_log_loss_80pct": 0.001381019857944921,
+          "mde_log_loss_90pct": 0.001596659212373197,
+          "power_at_effect_0.00025": 0.0694,
+          "power_at_effect_0.00050": 0.1614,
+          "power_at_effect_0.00100": 0.521
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 240,
+          "mde_log_loss_80pct": 0.0008327529925736598,
+          "mde_log_loss_90pct": 0.0009693299114587723,
+          "power_at_effect_0.00025": 0.132,
+          "power_at_effect_0.00050": 0.4004,
+          "power_at_effect_0.00100": 0.916
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 30,
+          "mde_log_loss_80pct": 0.0022395042207790537,
+          "mde_log_loss_90pct": 0.002666445271461271,
+          "power_at_effect_0.00025": 0.0554,
+          "power_at_effect_0.00050": 0.103,
+          "power_at_effect_0.00100": 0.2616
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 60,
+          "mde_log_loss_80pct": 0.0015403994824737311,
+          "mde_log_loss_90pct": 0.0017923996609169992,
+          "power_at_effect_0.00025": 0.0694,
+          "power_at_effect_0.00050": 0.1586,
+          "power_at_effect_0.00100": 0.4666
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 90,
+          "mde_log_loss_80pct": 0.001282747762161307,
+          "mde_log_loss_90pct": 0.001498793749487959,
+          "power_at_effect_0.00025": 0.0794,
+          "power_at_effect_0.00050": 0.1948,
+          "power_at_effect_0.00100": 0.6084
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 240,
+          "mde_log_loss_80pct": 0.0007800894309184514,
+          "mde_log_loss_90pct": 0.0009019045843160715,
+          "power_at_effect_0.00025": 0.1522,
+          "power_at_effect_0.00050": 0.448,
+          "power_at_effect_0.00100": 0.9472
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 30,
+          "mde_log_loss_80pct": 0.0018690472323214641,
+          "mde_log_loss_90pct": 0.002255439732107334,
+          "power_at_effect_0.00025": 0.0604,
+          "power_at_effect_0.00050": 0.1316,
+          "power_at_effect_0.00100": 0.3644
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 60,
+          "mde_log_loss_80pct": 0.0012999931757804008,
+          "mde_log_loss_90pct": 0.0015311801922507583,
+          "power_at_effect_0.00025": 0.0872,
+          "power_at_effect_0.00050": 0.2136,
+          "power_at_effect_0.00100": 0.5982
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 90,
+          "mde_log_loss_80pct": 0.0010456765434355476,
+          "mde_log_loss_90pct": 0.0012324284311034718,
+          "power_at_effect_0.00025": 0.1186,
+          "power_at_effect_0.00050": 0.3008,
+          "power_at_effect_0.00100": 0.7696
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "horizon_calendar_days": 240,
+          "mde_log_loss_80pct": 0.0006352344222250395,
+          "mde_log_loss_90pct": 0.0007441697161993943,
+          "power_at_effect_0.00025": 0.2278,
+          "power_at_effect_0.00050": 0.6188,
+          "power_at_effect_0.00100": 0.9866
+        }
+      ],
+      "required_days": [
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 2585,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 3566,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 674,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 880,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 169,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 227,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 2324,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 3164,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 552,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 733,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 147,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 195,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 1651,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 2176,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 384,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 532,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 100,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "primary_market_plus_btc_minus_raw_market",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 145,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.9
+        }
+      ],
+      "right_forecast": "p_market"
+    },
+    "secondary_market_plus_btc_minus_market_only": {
+      "block_variance": [
+        {
+          "block_bootstrap_se_mean_delta": 0.0005763826541968699,
+          "block_bootstrap_variance_mean_delta": 3.3221696405902855e-07,
+          "block_days": 1,
+          "calendar_days": 61,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "observed_95pct_block_ci_high": 0.0002331366167348754,
+          "observed_95pct_block_ci_low": -0.0020020733658745004,
+          "observed_delta_log_loss": -0.000922786032460542,
+          "paired_rows": 8676,
+          "power_resampling_centered_at_zero": true
+        },
+        {
+          "block_bootstrap_se_mean_delta": 0.0005140309333139578,
+          "block_bootstrap_variance_mean_delta": 2.642278004036185e-07,
+          "block_days": 3,
+          "calendar_days": 61,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "observed_95pct_block_ci_high": 0.00010858623878480316,
+          "observed_95pct_block_ci_low": -0.0019160037378602715,
+          "observed_delta_log_loss": -0.000922786032460542,
+          "paired_rows": 8676,
+          "power_resampling_centered_at_zero": true
+        },
+        {
+          "block_bootstrap_se_mean_delta": 0.00044028492523809874,
+          "block_bootstrap_variance_mean_delta": 1.938508153919182e-07,
+          "block_days": 7,
+          "calendar_days": 61,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "observed_95pct_block_ci_high": -9.887994659916175e-05,
+          "observed_95pct_block_ci_low": -0.0018168686407440396,
+          "observed_delta_log_loss": -0.000922786032460542,
+          "paired_rows": 8676,
+          "power_resampling_centered_at_zero": true
+        }
+      ],
+      "covered_day_power": [
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 30,
+          "mde_log_loss_80pct": 0.0018926266580820085,
+          "mde_log_loss_90pct": 0.0022527959023136645,
+          "power_at_effect_0.00025": 0.0624,
+          "power_at_effect_0.00050": 0.1242,
+          "power_at_effect_0.00100": 0.3384
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 60,
+          "mde_log_loss_80pct": 0.0013924530270742253,
+          "mde_log_loss_90pct": 0.0016051372600486501,
+          "power_at_effect_0.00025": 0.0716,
+          "power_at_effect_0.00050": 0.1716,
+          "power_at_effect_0.00100": 0.5388
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 90,
+          "mde_log_loss_80pct": 0.0011091763051808813,
+          "mde_log_loss_90pct": 0.0012921144327265213,
+          "power_at_effect_0.00025": 0.0966,
+          "power_at_effect_0.00050": 0.2526,
+          "power_at_effect_0.00100": 0.726
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 30,
+          "mde_log_loss_80pct": 0.001701826139469631,
+          "mde_log_loss_90pct": 0.0019845421222271396,
+          "power_at_effect_0.00025": 0.0608,
+          "power_at_effect_0.00050": 0.128,
+          "power_at_effect_0.00100": 0.3916
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 60,
+          "mde_log_loss_80pct": 0.00120659081148915,
+          "mde_log_loss_90pct": 0.0014109304407611493,
+          "power_at_effect_0.00025": 0.0824,
+          "power_at_effect_0.00050": 0.2152,
+          "power_at_effect_0.00100": 0.6394
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 90,
+          "mde_log_loss_80pct": 0.0009809016366489232,
+          "mde_log_loss_90pct": 0.001135788846295327,
+          "power_at_effect_0.00025": 0.1148,
+          "power_at_effect_0.00050": 0.3022,
+          "power_at_effect_0.00100": 0.8174
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 30,
+          "mde_log_loss_80pct": 0.0015770690981298688,
+          "mde_log_loss_90pct": 0.00178738302201964,
+          "power_at_effect_0.00025": 0.0646,
+          "power_at_effect_0.00050": 0.1452,
+          "power_at_effect_0.00100": 0.4392
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 60,
+          "mde_log_loss_80pct": 0.001069781297701411,
+          "mde_log_loss_90pct": 0.0012300102302106098,
+          "power_at_effect_0.00025": 0.0944,
+          "power_at_effect_0.00050": 0.253,
+          "power_at_effect_0.00100": 0.739
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_covered_days": 90,
+          "mde_log_loss_80pct": 0.0008691720911883751,
+          "mde_log_loss_90pct": 0.0009970179104129787,
+          "power_at_effect_0.00025": 0.1292,
+          "power_at_effect_0.00050": 0.3518,
+          "power_at_effect_0.00100": 0.9022
+        }
+      ],
+      "left_forecast": "p_D",
+      "observed_delta_log_loss_left_minus_right": -0.000922786032460542,
+      "paired_rows": 8676,
+      "power": [
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 30,
+          "mde_log_loss_80pct": 0.0022361366689438,
+          "mde_log_loss_90pct": 0.002654585885466077,
+          "power_at_effect_0.00025": 0.047,
+          "power_at_effect_0.00050": 0.0922,
+          "power_at_effect_0.00100": 0.2586
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 60,
+          "mde_log_loss_80pct": 0.0015924003731925041,
+          "mde_log_loss_90pct": 0.001858396193711088,
+          "power_at_effect_0.00025": 0.0684,
+          "power_at_effect_0.00050": 0.1508,
+          "power_at_effect_0.00100": 0.4486
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 90,
+          "mde_log_loss_80pct": 0.0012885799660580235,
+          "mde_log_loss_90pct": 0.001502689378685319,
+          "power_at_effect_0.00025": 0.08,
+          "power_at_effect_0.00050": 0.1978,
+          "power_at_effect_0.00100": 0.5902
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 240,
+          "mde_log_loss_80pct": 0.0007840747319278308,
+          "mde_log_loss_90pct": 0.0009170576857286506,
+          "power_at_effect_0.00025": 0.1424,
+          "power_at_effect_0.00050": 0.4264,
+          "power_at_effect_0.00100": 0.94
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 30,
+          "mde_log_loss_80pct": 0.001995915087172762,
+          "mde_log_loss_90pct": 0.0023380679776892066,
+          "power_at_effect_0.00025": 0.058,
+          "power_at_effect_0.00050": 0.11,
+          "power_at_effect_0.00100": 0.303
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 60,
+          "mde_log_loss_80pct": 0.0014204911451088265,
+          "mde_log_loss_90pct": 0.0016595473309280351,
+          "power_at_effect_0.00025": 0.0726,
+          "power_at_effect_0.00050": 0.1712,
+          "power_at_effect_0.00100": 0.5114
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 90,
+          "mde_log_loss_80pct": 0.0011694430228089913,
+          "mde_log_loss_90pct": 0.0013587236491730437,
+          "power_at_effect_0.00025": 0.0886,
+          "power_at_effect_0.00050": 0.2212,
+          "power_at_effect_0.00100": 0.674
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 240,
+          "mde_log_loss_80pct": 0.0006880310240376275,
+          "mde_log_loss_90pct": 0.0007997522327059415,
+          "power_at_effect_0.00025": 0.1846,
+          "power_at_effect_0.00050": 0.5472,
+          "power_at_effect_0.00100": 0.9796
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 30,
+          "mde_log_loss_80pct": 0.0019049814261961728,
+          "mde_log_loss_90pct": 0.00214255303144455,
+          "power_at_effect_0.00025": 0.0562,
+          "power_at_effect_0.00050": 0.1144,
+          "power_at_effect_0.00100": 0.3106
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 60,
+          "mde_log_loss_80pct": 0.001295045884035062,
+          "mde_log_loss_90pct": 0.0014727798799867744,
+          "power_at_effect_0.00025": 0.0772,
+          "power_at_effect_0.00050": 0.1812,
+          "power_at_effect_0.00100": 0.5718
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 90,
+          "mde_log_loss_80pct": 0.0010158097866224125,
+          "mde_log_loss_90pct": 0.0011692463245708499,
+          "power_at_effect_0.00025": 0.103,
+          "power_at_effect_0.00050": 0.2684,
+          "power_at_effect_0.00100": 0.7866
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "horizon_calendar_days": 240,
+          "mde_log_loss_80pct": 0.0006192085391376168,
+          "mde_log_loss_90pct": 0.000709201439167373,
+          "power_at_effect_0.00025": 0.2042,
+          "power_at_effect_0.00050": 0.606,
+          "power_at_effect_0.00100": 0.9966
+        }
+      ],
+      "required_days": [
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 2526,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 3383,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 621,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 849,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 150,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 1,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 199,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 1918,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 2541,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 463,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 625,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 121,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 3,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 155,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 1417,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 1874,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.00025,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 358,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 484,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.0005,
+          "target_power": 0.9
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 95,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.8
+        },
+        {
+          "alpha_two_sided": 0.05,
+          "block_days": 7,
+          "comparison": "secondary_market_plus_btc_minus_market_only",
+          "effect_imposed_as_negative_delta": true,
+          "estimated_calendar_days": 124,
+          "horizon_cap_days": 4000,
+          "resampling_centered_at_zero": true,
+          "target_improvement_log_loss": 0.001,
+          "target_power": 0.9
+        }
+      ],
+      "right_forecast": "p_C"
+    }
+  },
+  "coverage": {
+    "calendar_days": 61,
+    "common_oof_market_coverage_fraction": 0.49385245901639346,
+    "common_oof_markets": 8676,
+    "covered_days": 45,
+    "days_without_common_oof_rows": [
+      "2026-06-13",
+      "2026-06-14",
+      "2026-06-15",
+      "2026-06-16",
+      "2026-06-17",
+      "2026-06-18",
+      "2026-06-19",
+      "2026-06-20",
+      "2026-06-21",
+      "2026-06-22",
+      "2026-06-23",
+      "2026-06-24",
+      "2026-06-25",
+      "2026-06-26",
+      "2026-06-27",
+      "2026-06-28"
+    ],
+    "development_end_exclusive_utc": "2026-07-01T00:00:00+00:00",
+    "development_start_utc": "2026-05-01T00:00:00+00:00",
+    "market_slot_denominator_per_day": 288,
+    "max_markets_per_day": 288,
+    "mean_markets_per_calendar_day": 142.2295081967213,
+    "mean_markets_per_covered_day": 192.8,
+    "median_markets_per_covered_day": 167.0,
+    "p10_markets_per_covered_day": 103.2,
+    "p90_markets_per_covered_day": 288.0,
+    "scheduled_market_slots": 17568
+  },
+  "limitations": [
+    "Only 61 calendar days of nested development OOF are available; 16 of those dates have zero common OOF rows.",
+    "The blocked variance is uncertain and regime-dependent; 1/3/7-day results are sensitivity scenarios, not confidence bounds on future variance.",
+    "Calendar horizons beyond the 61-day development span and covered-day horizons beyond the 45 observed development dates extrapolate a stationary circular block process and repeat a short historical regime sample.",
+    "Historical holdout outcomes are not included in model selection, power, or the prospective schedule because that holdout is historically exposed.",
+    "Log-loss changes are forecast-quality scenarios and are not converted into expected trading profit."
+  ],
+  "schema_version": 1,
+  "source_identity": {
+    "development_oof_path": "data/analysis/polymarket/BTC/btc_market_probability_nested_20261012/development_nested_oof_predictions.parquet",
+    "development_oof_sha256": "672d57e58e4f67e42d838fba6654debd519000143294ba8314719763ea366545",
+    "evaluated_bundle_sha256": "4820e23493efb1743863b58b411352006a71ff7ce8c66068c17c8c88e65e4583",
+    "experiment_config_path": "configs/research/btc_market_probability_nested_20261012.json",
+    "experiment_config_sha256": "3c07cb2d2e9efbd8eb6881c5750e027055ec7124d1f05498e9f711055de75bd4",
+    "frozen_selection_path": "reports/btc_preopen/btc_market_probability_nested_frozen_20261012.json",
+    "frozen_selection_sha256": "8fd1a2d3adffeb25575f259d4269d106093e0c14b16b0fa1d871e07404bf13cd",
+    "t59_snapshot_sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0",
+    "t60_snapshot_sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+    "walk_forward_manifest_sha256": "001dcd816a83ea5bda001595ddd6e57d977cee0624c2eff5a585e9b2498be88a"
+  },
+  "status": "development_power_planning_only"
+}

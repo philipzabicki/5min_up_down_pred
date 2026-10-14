@@ -1,0 +1,112 @@
+{
+  "protocol_id": "btc_market_plus_btc_prospective_20261014",
+  "status": "frozen_before_prospective_collection",
+  "frozen_at_utc": "2026-10-14T03:26:18Z",
+  "model_bundle_path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/final_model_148ba3133040/model_bundle.json",
+  "model_bundle_sha256": "4820e23493efb1743863b58b411352006a71ff7ce8c66068c17c8c88e65e4583",
+  "frozen_selection_path": "reports/btc_preopen/btc_market_probability_nested_frozen_20261012.json",
+  "frozen_selection_sha256": "8fd1a2d3adffeb25575f259d4269d106093e0c14b16b0fa1d871e07404bf13cd",
+  "nested_oof_path": "data/analysis/polymarket/BTC/btc_market_probability_nested_20261012/development_nested_oof_predictions.parquet",
+  "nested_oof_sha256": "672d57e58e4f67e42d838fba6654debd519000143294ba8314719763ea366545",
+  "probability_configuration_path": "configs/research/btc_market_probability_nested_20261012.json",
+  "probability_configuration_sha256": "3c07cb2d2e9efbd8eb6881c5750e027055ec7124d1f05498e9f711055de75bd4",
+  "model_specification": {
+    "a_frozen": "Frozen evaluated BTC model plus frozen Platt calibrator; descriptive benchmark only",
+    "c_market_only": {
+      "intercept": -0.02257763078712936,
+      "beta_logit_market": 0.7556057655015626,
+      "beta_logit_btc_calibrated": 0.0
+    },
+    "d_market_plus_btc": {
+      "intercept": -0.03247784658116818,
+      "beta_logit_market": 0.4745333979786682,
+      "beta_logit_btc_calibrated": 0.9811985806802441
+    },
+    "formula": "sigmoid(intercept + beta_logit_market*logit(p_market) + beta_logit_btc_calibrated*logit(p_A_frozen))",
+    "market_probability_formula": "mid_up/(mid_up+mid_down), each midpoint=(best_bid+best_ask)/2"
+  },
+  "primary_comparison": "D_market_plus_BTC minus raw p_market paired log loss",
+  "secondary_comparison": "D_market_plus_BTC minus C_market_only paired log loss",
+  "descriptive_benchmark": "A_frozen",
+  "prior_research_context": [
+    "A_frozen remains the historically selected model.",
+    "A_reoptimized did not demonstrate an improvement on official holdout labels.",
+    "B remains incomplete and is not resumed.",
+    "The historical holdout has been exposed and is not a new prospective sample.",
+    "The last conditional information analysis applied to A_frozen only, not to both A variants.",
+    "No demonstrated incremental information is not proof that incremental information is absent."
+  ],
+  "market_timing": {
+    "decision_at": "market_start_utc minus 60 seconds",
+    "btc_input_candle_opened_at": "market_start_utc minus 2 minutes",
+    "t59_execution_snapshot_at": "market_start_utc minus 59 seconds",
+    "t59_may_change_fills_only": true,
+    "max_decision_compute_budget_seconds": 1,
+    "websocket_pair_wait_cap_seconds": 0.9,
+    "t59_compute_reserve_seconds": 0.1
+  },
+  "quality_test": {
+    "fixed_calendar_days": 240,
+    "deadline": "240 elapsed calendar days after first scheduled market recorded by the prospective collector",
+    "official_outcome_settlement_grace_hours": 24,
+    "settlement_grace_scope": "retrieve official outcomes only for markets that started before the fixed observation deadline; no new markets or replacement sample",
+    "alpha_two_sided": 0.05,
+    "bootstrap": "paired circular moving blocks of 3 UTC days",
+    "bootstrap_replicates": 5000,
+    "bootstrap_seed": 20261014,
+    "secondary_metrics": {
+      "brier_score": "mean squared probability error on the common quality sample",
+      "calibration": "mean probability minus event rate and fixed 10-bin expected calibration error; descriptive, no refit",
+      "economics": "separate fixed T-60 policy replay using T-59 public books"
+    },
+    "primary_positive": "primary 95% interval is wholly below zero",
+    "primary_negative": "primary 95% interval is wholly above zero",
+    "otherwise": "inconclusive",
+    "minimum_attempt_coverage": 0.90,
+    "minimum_quality_days": 168,
+    "minimum_markets_per_quality_day": 100,
+    "minimum_common_quality_markets": 32000,
+    "no_extension_or_replacement_sample": true,
+    "do_not_inspect_significance_during_collection": true
+  },
+  "power_planning": {
+    "development_data_only": true,
+    "exposed_holdout_used": false,
+    "calendar_horizons_days": [30, 60, 90, 240],
+    "covered_day_mde_horizons": [30, 60, 90],
+    "covered_day_definition": "UTC date with at least one common paired development OOF market; zero-coverage dates remain in the resampled series and blocks",
+    "block_days_sensitivity": [1, 3, 7],
+    "mean_log_loss_improvement_scenarios": [0.00025, 0.0005, 0.001],
+    "target_power": [0.8, 0.9],
+    "alpha_two_sided": 0.05,
+    "replicates": 5000,
+    "seed": 20261014,
+    "maximum_calendar_horizon_days": 4000,
+    "center_paired_daily_differences_at_zero": true
+  },
+  "economics": {
+    "separate_from_quality_sample": true,
+    "policy": "A_frozen at T-60 with 1% net expected-value hurdle",
+    "independent_gross_stake_usd": 5.0,
+    "portfolio_initial_free_cash_usd": 100.0,
+    "portfolio_sensitivity": "5% of free cash, no credit, minimum order unchanged",
+    "execution_time": "T-59 using the same T-60 side",
+    "execution_method": "observed full book when recorded; otherwise explicitly labeled top-of-book proxy",
+    "actual_fill": "unknown",
+    "actual_fee": "unknown"
+  },
+  "data_rules": {
+    "official_outcome_source": "Polymarket Gamma market payload after resolved status",
+    "append_only_market_attempts": true,
+    "append_only_official_outcomes": true,
+    "late_and_missing_cycles_remain_in_attempt_denominator": true,
+    "smoke_data_excluded_from_prospective_database": true,
+    "historically_exposed_holdout_used_for_fit_or_power": false,
+    "websocket_startup_reconciliation": "Wait up to 30 seconds for configured public feeds, then REST backfill through the latest closed candle before scheduling the first market"
+  },
+  "trading": {
+    "mode": "public_read_only_no_trade",
+    "orders_enabled": false,
+    "private_credentials_required": false
+  }
+}

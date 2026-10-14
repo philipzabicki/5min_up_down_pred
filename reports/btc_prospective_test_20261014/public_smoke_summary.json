@@ -1,0 +1,154 @@
+{
+  "artifact_manifest_path": "reports/btc_prospective_test_20261014/frozen_artifact_manifest.json",
+  "capture_poll_finished_at_utc": "2026-10-14T15:14:06.028734+00:00",
+  "captures": [
+    {
+      "attempt_status": "complete",
+      "btc_rest_fallback": null,
+      "latency_seconds": {
+        "decision_computation": 0.00033770000300137326,
+        "feature_construction": 0.11362860000372166,
+        "prediction_and_calibration": 0.0005664999989676289,
+        "t60_book_down_request": 0.4315591000049608,
+        "t60_book_up_request": 0.44510060000175145,
+        "t60_to_prediction": 0.572692,
+        "websocket_pair_wait": 0.0050182000049971975
+      },
+      "market_slug": "btc-updown-5m-1791989700",
+      "market_start_utc": "2026-10-14T14:55:00+00:00",
+      "one_second_budget_met": true,
+      "probabilities": {
+        "p_A_frozen": 0.5529998909144851,
+        "p_A_raw": 0.5468640438347134,
+        "p_C_market_only": 0.49813375573915775,
+        "p_D_market_plus_btc": 0.5463196033909455,
+        "p_market": 0.505
+      },
+      "t59_book_valid": true,
+      "t60_book_valid": true,
+      "websocket_connections": {
+        "price:cm:BTCUSD:index": {
+          "connected": true,
+          "last_error": null,
+          "reconnect_count": 0
+        },
+        "volume:um:BTCUSDT:trade": {
+          "connected": true,
+          "last_error": null,
+          "reconnect_count": 0
+        }
+      }
+    },
+    {
+      "attempt_status": "complete",
+      "btc_rest_fallback": null,
+      "latency_seconds": {
+        "decision_computation": 0.00029960000392748043,
+        "feature_construction": 0.014257100003305823,
+        "prediction_and_calibration": 0.0005530999987968244,
+        "t60_book_down_request": 0.460390299995197,
+        "t60_book_up_request": 0.4474715999967884,
+        "t60_to_prediction": 0.494972,
+        "websocket_pair_wait": 0.010624000002280809
+      },
+      "market_slug": "btc-updown-5m-1791990000",
+      "market_start_utc": "2026-10-14T15:00:00+00:00",
+      "one_second_budget_met": true,
+      "probabilities": {
+        "p_A_frozen": 0.5451870415093603,
+        "p_A_raw": 0.5400974001151115,
+        "p_C_market_only": 0.5056928348358686,
+        "p_D_market_plus_btc": 0.5433503261782882,
+        "p_market": 0.515
+      },
+      "t59_book_valid": true,
+      "t60_book_valid": true,
+      "websocket_connections": {
+        "price:cm:BTCUSD:index": {
+          "connected": true,
+          "last_error": null,
+          "reconnect_count": 0
+        },
+        "volume:um:BTCUSDT:trade": {
+          "connected": true,
+          "last_error": null,
+          "reconnect_count": 0
+        }
+      }
+    },
+    {
+      "attempt_status": "complete",
+      "btc_rest_fallback": null,
+      "latency_seconds": {
+        "decision_computation": 0.0003386000025784597,
+        "feature_construction": 0.014461500002653338,
+        "prediction_and_calibration": 0.0004050999996252358,
+        "t60_book_down_request": 0.4277674999975716,
+        "t60_book_up_request": 0.4181301999997231,
+        "t60_to_prediction": 0.479559,
+        "websocket_pair_wait": 0.028950400002941024
+      },
+      "market_slug": "btc-updown-5m-1791990300",
+      "market_start_utc": "2026-10-14T15:05:00+00:00",
+      "one_second_budget_met": true,
+      "probabilities": {
+        "p_A_frozen": 0.49484600291057923,
+        "p_A_raw": 0.4965683327778382,
+        "p_C_market_only": 0.49813375573915775,
+        "p_D_market_plus_btc": 0.48919769184839124,
+        "p_market": 0.505
+      },
+      "t59_book_valid": true,
+      "t60_book_valid": true,
+      "websocket_connections": {
+        "price:cm:BTCUSD:index": {
+          "connected": true,
+          "last_error": null,
+          "reconnect_count": 0
+        },
+        "volume:um:BTCUSDT:trade": {
+          "connected": true,
+          "last_error": null,
+          "reconnect_count": 0
+        }
+      }
+    }
+  ],
+  "consecutive_market_starts": [
+    "2026-10-14T14:55:00+00:00",
+    "2026-10-14T15:00:00+00:00",
+    "2026-10-14T15:05:00+00:00"
+  ],
+  "errors": [],
+  "first_market_start_utc": "2026-10-14T14:55:00+00:00",
+  "full_public_capture_path": "data/analysis/polymarket/BTC/btc_prospective_test_20261014/smoke/public_smoke_20261014T151406Z.json",
+  "included_in_prospective_quality_sample": false,
+  "market_count_captured": 3,
+  "market_count_requested": 3,
+  "missing_or_late_outcomes": [],
+  "official_outcomes": {
+    "btc-updown-5m-1791989700": {
+      "resolved_at_utc": "2026-10-14T15:00:54+00:00",
+      "retrieved_at_utc": "2026-10-14T15:05:52.798082+00:00",
+      "target_up": 1
+    },
+    "btc-updown-5m-1791990000": {
+      "resolved_at_utc": "2026-10-14T15:05:52+00:00",
+      "retrieved_at_utc": "2026-10-14T15:10:25.054582+00:00",
+      "target_up": 0
+    },
+    "btc-updown-5m-1791990300": {
+      "resolved_at_utc": "2026-10-14T15:11:25+00:00",
+      "retrieved_at_utc": "2026-10-14T15:16:54.633521+00:00",
+      "target_up": 0
+    }
+  },
+  "orders_enabled": false,
+  "outcome_poll_extension_completed_at_utc": "2026-10-14T15:16:54.636791+00:00",
+  "post_connect_startup_backfill": null,
+  "private_credentials_used": false,
+  "protocol_sha256": "1cbd0f7552ec9a749e1382a766ffdea8ae86e444697296a6d4ee5de29f626cc6",
+  "smoke_id": "btc_prospective_public_smoke_20261014",
+  "started_at_utc": "2026-10-14T14:52:26.392237+00:00",
+  "warmup_elapsed_seconds": 10.260618100001011
+}

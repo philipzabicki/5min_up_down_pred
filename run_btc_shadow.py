@@ -247,6 +247,7 @@ def _best_level(levels, side):
 
 def _book_observation(session, token_id):
     requested_at = pd.Timestamp.now(tz="UTC")
+    request_clock = time.perf_counter()
     response = session.get(
         "https://clob.polymarket.com/book",
         params={"token_id": str(token_id)},
@@ -254,6 +255,7 @@ def _book_observation(session, token_id):
     )
     response.raise_for_status()
     received_at = pd.Timestamp.now(tz="UTC")
+    request_elapsed = time.perf_counter() - request_clock
     payload = response.json()
     bid = _best_level(payload.get("bids", []), "bid")
     ask = _best_level(payload.get("asks", []), "ask")
@@ -269,6 +271,7 @@ def _book_observation(session, token_id):
         "token_id": str(token_id),
         "request_started_at_utc": _utc_iso(requested_at),
         "received_at_utc": _utc_iso(received_at),
+        "request_elapsed_seconds": request_elapsed,
         "book_timestamp_raw": raw_timestamp,
         "book_timestamp_utc": None if book_timestamp is None else _utc_iso(book_timestamp),
         "book_timestamp_age_seconds": age_seconds,
@@ -286,6 +289,8 @@ def _book_observation(session, token_id):
         "top5_ask_depth_shares": ask[2],
         "top5_ask_depth_usd": ask[3],
         "ask_level_count": ask[4],
+        "bid_levels": payload.get("bids", []),
+        "ask_levels": payload.get("asks", []),
         "minimum_order_size": _float(payload.get("min_order_size"), 0.0),
         "tick_size": _float(payload.get("tick_size")),
         "neg_risk": bool(payload.get("neg_risk", False)),
