@@ -6,7 +6,7 @@
       "dataset_profile": "BTC",
       "modeling_profile": "BTC",
       "indicator_fit_profile": "candle_up_5m_qe20_qm10_center",
-      "prediction_compute_budget_seconds": 45,
+      "prediction_compute_budget_seconds": 1,
       "runtime_budget_seconds": 50400,
       "stage_runtime_budgets_seconds": {
         "indicators": 21600,

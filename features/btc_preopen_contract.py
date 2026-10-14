@@ -19,6 +19,7 @@ TARGET_AVAILABLE_COL = "target_label_available_at"
 TARGET_START_PRICE_COL = "target_window_start_open"
 TARGET_END_PRICE_COL = "target_window_end_close"
 PREDICTION_DEADLINE_COL = "prediction_deadline_at"
+PREDICTION_DEADLINE_AFTER_DECISION = pd.Timedelta(seconds=1)
 
 
 def build_preopen_contract_frame(
@@ -93,13 +94,15 @@ def build_preopen_contract_frame(
     out[TARGET_END_PRICE_COL] = end_prices
     out[TARGET_COL] = target
     out[RETURN_TARGET_COL] = build_preopen_return_target(out)
-    # A decision is valid when the last candle is closed before the market opens.
-    # Derive schedule alignment from availability, not from the candle's Opened phase.
-    out[PREDICTION_DEADLINE_COL] = target_start
+    # The scheduled T-60 decision has one second for candle receipt, features,
+    # prediction, and execution preparation. Batch data records candle event
+    # time; actual receive time is measured by the live collector.
+    prediction_deadline = nominal_decision + PREDICTION_DEADLINE_AFTER_DECISION
+    out[PREDICTION_DEADLINE_COL] = prediction_deadline
     out["actual_prediction_available_at"] = pd.NaT
     out[DECISION_COL] = (
         ((target_start.minute % 5) == 0)
-        & (prediction_ready_at < target_start)
+        & (prediction_ready_at <= prediction_deadline)
     )
     return out
 
@@ -151,8 +154,8 @@ def preopen_decision_mask(contract_frame: pd.DataFrame) -> np.ndarray:
     ready_ns = np.where(actual_available.isna(), nominal_ready.asi8, actual_available.asi8)
     return (
         (opened == feature_available - pd.Timedelta(minutes=1))
-        & (deadline.minute % 5 == 0)
-        & (ready_ns < deadline.asi8)
+        & ((opened + pd.Timedelta(minutes=2)).minute % 5 == 0)
+        & (ready_ns <= deadline.asi8)
     )
 
 

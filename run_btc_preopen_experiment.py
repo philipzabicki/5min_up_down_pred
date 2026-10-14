@@ -1191,6 +1191,33 @@ def _model_feature_frame(dataset):
     return raw.replace([np.inf, -np.inf], np.nan)
 
 
+def filter_model_features_by_families(features: pd.DataFrame, families) -> pd.DataFrame:
+    """Keep only the requested base, VP, and RP families before selection."""
+    if families is None:
+        return features
+    allowed = {str(name) for name in families}
+    supported = {"base", "volume_profile", "reaction_profile"}
+    unknown = sorted(allowed - supported)
+    if unknown:
+        raise ValueError(f"Unknown model feature families: {unknown}")
+    if not allowed:
+        raise ValueError("model_feature_families must retain at least one family")
+
+    columns = []
+    for name in features.columns:
+        feature_name = str(name)
+        family = (
+            "volume_profile" if feature_name.startswith("vp_")
+            else "reaction_profile" if feature_name.startswith("rp_")
+            else "base"
+        )
+        if family in allowed:
+            columns.append(name)
+    if not columns:
+        raise RuntimeError(f"No model features remain after family filter: {sorted(allowed)}")
+    return features.loc[:, columns]
+
+
 def _load_selected_model_features(dataset_path, feature_names):
     features = pd.read_parquet(dataset_path, columns=feature_names)
     if list(features.columns) != list(feature_names):
@@ -2260,7 +2287,10 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         frame[TARGET_AVAILABLE_COL] = label_available
         frame["nominal_decision_at"] = decision_at
         y = y_full.copy()
-        features = _model_feature_frame(feature_dataset)
+        features = filter_model_features_by_families(
+            _model_feature_frame(feature_dataset),
+            profile.get("model_feature_families"),
+        )
         feature_names = list(features.columns)
         development_rows = np.flatnonzero(fit_mask)
         development_features = features.iloc[development_rows].reset_index(drop=True)
@@ -2303,6 +2333,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         weight_payload = {
             "data_sha256": raw_identity["sha256"],
             "dataset_signature": dataset_sig,
+            "model_feature_families": profile.get("model_feature_families"),
+            "feature_names": [str(name) for name in tw_x.columns],
             "target": contract["training_target"],
             "fit_start": fit_start.isoformat(),
             "fit_end_exclusive": FIT_END.isoformat(),
@@ -2429,6 +2461,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "dataset_signature": dataset_sig,
             "weight_artifact_signature": weight_sig,
             "feature_count": int(selector_x.shape[1]),
+            "feature_names": [str(name) for name in selector_x.columns],
+            "model_feature_families": profile.get("model_feature_families"),
             "training_rows": int(len(selector_y)),
             "validation_rows": int(development_decision.sum()),
             "training_weight_sha256": _array_sha256(development_weights, dtype=np.float32),

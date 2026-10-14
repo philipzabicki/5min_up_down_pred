@@ -1,4 +1,6 @@
+import json
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -40,6 +42,18 @@ def candles(start, periods, *, missing=()):
 
 
 class BtcPreopenContractTests(unittest.TestCase):
+    def test_default_training_profile_uses_the_frozen_one_second_deadline(self):
+        config_path = (
+            Path(__file__).resolve().parents[1]
+            / "configs"
+            / "btc_preopen_training.json"
+        )
+        config = json.loads(config_path.read_text(encoding="utf-8-sig"))
+        self.assertEqual(
+            config["profiles"]["nightly_v1"]["prediction_compute_budget_seconds"],
+            1,
+        )
+
     def test_input_candle_and_exact_five_future_candles_define_row(self):
         frame = candles("2026-06-01 16:40", 14)
         row = build_preopen_contract_frame(frame).set_index("Opened").loc[
@@ -64,7 +78,7 @@ class BtcPreopenContractTests(unittest.TestCase):
         # Variant 1 uses the market window's 16:45 open -> 16:50 close instead.
         self.assertNotEqual(row[TARGET_START_PRICE_COL], row["Close"])
 
-    def test_candle_close_is_available_at_nominal_decision_and_entry_is_marked(self):
+    def test_candle_event_close_is_nominal_time_but_receive_time_is_unobserved_in_batch(self):
         frame = build_preopen_contract_frame(candles("2026-06-01 16:40", 12))
         indexed = frame.set_index("Opened")
         row = indexed.loc[pd.Timestamp("2026-06-01 16:43", tz="UTC")]
@@ -75,23 +89,41 @@ class BtcPreopenContractTests(unittest.TestCase):
         self.assertEqual(
             row["nominal_decision_at"], pd.Timestamp("2026-06-01 16:44", tz="UTC")
         )
+        self.assertTrue(pd.isna(row["actual_prediction_available_at"]))
         self.assertTrue(row[DECISION_COL])
         self.assertFalse(
             indexed.loc[pd.Timestamp("2026-06-01 16:44", tz="UTC"), DECISION_COL]
         )
         self.assertTrue(preopen_decision_mask(frame)[3])
 
-    def test_prediction_compute_budget_must_finish_before_market_start(self):
+    def test_prediction_compute_budget_must_finish_by_t59(self):
         candles_frame = candles("2026-06-01 16:40", 12)
-        on_time = build_preopen_contract_frame(
+        on_time = build_preopen_contract_frame(candles_frame, prediction_compute_budget_seconds=1.0)
+        late = build_preopen_contract_frame(candles_frame, prediction_compute_budget_seconds=1.001)
+        legacy_window = build_preopen_contract_frame(
             candles_frame, prediction_compute_budget_seconds=59.0
-        )
-        late = build_preopen_contract_frame(
-            candles_frame, prediction_compute_budget_seconds=60.0
         )
         self.assertTrue(on_time.loc[3, DECISION_COL])
         self.assertFalse(late.loc[3, DECISION_COL])
         self.assertFalse(preopen_decision_mask(late)[3])
+        self.assertFalse(legacy_window.loc[3, DECISION_COL])
+
+    def test_12_00_market_uses_12_00_open_and_12_04_close(self):
+        frame = candles("2026-06-01 11:58", 8)
+        frame.loc[frame["Opened"].eq(pd.Timestamp("2026-06-01 12:00", tz="UTC")), "Open"] = 101.0
+        frame.loc[frame["Opened"].eq(pd.Timestamp("2026-06-01 12:04", tz="UTC")), "Close"] = 101.0
+        row = build_preopen_contract_frame(
+            frame, prediction_compute_budget_seconds=1.0
+        ).set_index("Opened").loc[pd.Timestamp("2026-06-01 11:58", tz="UTC")]
+
+        self.assertEqual(row["feature_candle_close_at"], pd.Timestamp("2026-06-01 11:59", tz="UTC"))
+        self.assertEqual(row["nominal_decision_at"], pd.Timestamp("2026-06-01 11:59", tz="UTC"))
+        self.assertEqual(row["prediction_deadline_at"], pd.Timestamp("2026-06-01 11:59:01", tz="UTC"))
+        self.assertEqual(row[TARGET_START_COL], pd.Timestamp("2026-06-01 12:00", tz="UTC"))
+        self.assertEqual(row[TARGET_AVAILABLE_COL], pd.Timestamp("2026-06-01 12:05", tz="UTC"))
+        self.assertEqual(row[TARGET_START_PRICE_COL], 101.0)
+        self.assertEqual(row[TARGET_END_PRICE_COL], 101.0)
+        self.assertEqual(row[TARGET_COL], 1.0)  # tie resolves UP
 
     def test_window_crosses_hour_and_utc_day_boundary(self):
         frame = candles("2026-12-31 23:56", 12)

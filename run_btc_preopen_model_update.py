@@ -43,6 +43,49 @@ PROBABILITY_COLUMNS = {
 PORTFOLIO_CAPITALS = tuple(float(value) for value in CONFIG["economic_evaluation"]["holdout_portfolio_starting_cash_usd"])
 
 
+def configure_model_update(config_path: Path) -> None:
+    """Load one explicit file-backed model-update configuration."""
+    global CONFIG_PATH, CONFIG, OUTPUT_DIR, CONTRACT_DIR, VARIANT_DIR
+    global MANIFEST_PATH, FREEZE_PATH, REPORT_PATH, TABLE_DIR
+    global NESTED_FROZEN_PATH, PREVIOUS_ECONOMICS_PATH, DEV_CUTOFF_UTC
+    global DATA_CUTOFF_UTC, VARIANTS, FORECAST_NAMES, PROBABILITY_COLUMNS
+    global PORTFOLIO_CAPITALS
+
+    CONFIG_PATH = Path(config_path).resolve()
+    CONFIG = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    output_relative = Path(CONFIG["output_dir"])
+    OUTPUT_DIR = output_relative if output_relative.is_absolute() else ROOT / output_relative
+    CONTRACT_DIR = OUTPUT_DIR / "contracts"
+    VARIANT_DIR = OUTPUT_DIR / "variants"
+    MANIFEST_PATH = OUTPUT_DIR / "model_update_manifest.json"
+    FREEZE_PATH = OUTPUT_DIR / "development_model_freeze.json"
+    REPORT_PATH = ROOT / CONFIG.get(
+        "report_path", f"reports/btc_preopen/{CONFIG['experiment_id']}.md"
+    )
+    TABLE_DIR = ROOT / CONFIG.get(
+        "table_dir", f"reports/btc_preopen/{CONFIG['experiment_id']}"
+    )
+    NESTED_FROZEN_PATH = ROOT / CONFIG.get(
+        "nested_frozen_path",
+        "reports/btc_preopen/btc_market_probability_nested_frozen_20261012.json",
+    )
+    PREVIOUS_ECONOMICS_PATH = ROOT / CONFIG.get(
+        "previous_economics_path",
+        "reports/btc_preopen/btc_market_probability_nested_20261012/independent_order_economics.csv",
+    )
+    DEV_CUTOFF_UTC = pd.Timestamp(CONFIG["development_cutoff_exclusive_utc"])
+    DATA_CUTOFF_UTC = pd.Timestamp(CONFIG["data_cutoff_exclusive_utc"])
+    VARIANTS = tuple(item["name"] for item in CONFIG["variants"])
+    FORECAST_NAMES = ("A_frozen", *VARIANTS)
+    PROBABILITY_COLUMNS = {
+        "A_frozen": "p_btc_calibrated",
+        **{name: f"p_{name}" for name in VARIANTS},
+    }
+    PORTFOLIO_CAPITALS = tuple(
+        float(value) for value in CONFIG["economic_evaluation"]["holdout_portfolio_starting_cash_usd"]
+    )
+
+
 def _sha256(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -318,6 +361,7 @@ def _run_variant_fold(
         "model_search_space_override": CONFIG["model_search"]["search_space"],
         "model_seed_trial_params_override": [CONFIG["model_search"]["seed_trial_params"]],
         "model_feature_candidate_features": list(variant["candidate_features"]),
+        "model_feature_families": variant.get("model_feature_families"),
         "indicator_fit": indicator_fit,
         "reaction_profile_trials": int(feature_budgets["reaction_profile_trials"]),
         "volume_profile_trials": int(feature_budgets["volume_profile_trials"]),
@@ -395,11 +439,13 @@ def _run_variant_fold(
         "latest_training_label_available_at_utc": latest_training_label.isoformat(),
         "fit_rows": int(training_record["training_rows"]),
         "decision_rows": int(tuning_record.get("decision_rows", 0)),
+        "prediction_rows": int(len(normalized)),
         "auxiliary_fit_rows": int(training_record["training_rows"] - tuning_record.get("decision_rows", 0)),
         "model_feature_count": int(len(bundle["feature_order"])),
         "model_feature_order": bundle["feature_order"],
         "selector_feature_count": int(len(training_record.get("selector_feature_order", bundle["feature_order"]))),
         "added_candidate_features": training_record.get("added_candidate_features", []),
+        "model_feature_families": variant.get("model_feature_families"),
         "model_tuning": compact_tuning,
         "calibration_pool_path": calibration_path.resolve().relative_to(ROOT).as_posix() if calibration_path else None,
         "calibration_pool_sha256": _sha256(calibration_path) if calibration_path else None,
@@ -595,7 +641,7 @@ def _development_freeze(dev: pd.DataFrame, baseline_identity: dict, candidate_pr
             PROBABILITY_COLUMNS["A_frozen"],
             seed=int(config["bootstrap"].split("seed ")[-1]),
             replicates=2000,
-            alpha=0.025,
+            alpha=0.05 / max(1, len(VARIANTS)),
         )
     candidate_ranking = sorted(
         (row for row in ranking if row["forecast"] in VARIANTS),
@@ -758,11 +804,11 @@ def _write_report(payload: dict) -> None:
         else:
             pd.DataFrame(rows).to_csv(destination, index=False)
     model_rows = payload["model_fold_training"]
-    fold_lines = ["| Variant | Fold | Dataset rows | Fit rows | Decision rows | Features selected/model | Added candidates | Trials completed | Best iteration | Latest training label |", "|---|---|---:|---:|---:|---:|---|---:|---:|---|"]
+    fold_lines = ["| Variant | Fold | Dataset rows | Fit rows | Decision rows | Prediction rows | Features selected/model | Added candidates | Trials completed | Best iteration | Latest training label |", "|---|---|---:|---:|---:|---:|---:|---|---:|---:|---|"]
     for row in model_rows:
         fold_lines.append(
             f"| {row['variant']} | {row['fold_id']} | {row['dataset_rows_before_fit_filters']:,} | {row['fit_rows']:,} "
-            f"| {row['decision_rows']:,} | {row['selector_feature_count']}/{row['model_feature_count']} "
+            f"| {row['decision_rows']:,} | {row['prediction_rows']:,} | {row['selector_feature_count']}/{row['model_feature_count']} "
             f"| {', '.join(row['added_candidate_features']) or 'none'} "
             f"| {row.get('successful_trials', 0)} / {row.get('target_trials', 0)} | {row.get('best_iteration', 'n/a')} "
             f"| {row['latest_training_label_available_at_utc']} |"
@@ -821,6 +867,20 @@ def _write_report(payload: dict) -> None:
         )
     selected_model = payload["development_freeze"]["selected_model"]
     comparisons = payload["development_freeze"]["paired_comparisons_against_frozen_A"]
+    variant_definitions = [
+        f"{variant['name']}: {', '.join(variant['model_feature_families']) if 'model_feature_families' in variant else 'fold-local selected features'}"
+        for variant in CONFIG["variants"]
+    ]
+    candidate_features = sorted({
+        feature
+        for variant in CONFIG["variants"]
+        for feature in variant.get("candidate_features", [])
+    })
+    feature_summary = (
+        "The variants use the fold-local feature families listed below; selection, target-weight tuning, and main-model tuning run separately within each training prefix."
+        if any("model_feature_families" in variant for variant in CONFIG["variants"])
+        else "The six added features are candle return (1m, 5m lag 2), realized volatility (1m), candle range (1m), candle-direction signed volume (1m), and 5m up/down-volume ratio (lag 1). The raw source has no trade-level aggressor volume, so the signed features are candle proxies."
+    )
     lines = [
         "# BTC pre-open: bounded model update",
         "",
@@ -829,11 +889,13 @@ def _write_report(payload: dict) -> None:
         "## Frozen procedure",
         "",
         f"- Selected model: `{selected_model}`. It was selected on {payload['development_freeze']['development_rows_common']:,} common development markets; the frozen rule uses official-outcome log loss and Bonferroni-adjusted paired 3-day block intervals.",
-        "- Two new candidate procedures were compared. The development intervals adjust the two candidate-versus-A comparisons; uncertainty remains conditional on this frozen search, and historical holdout diagnostics are not independent proof because those outcomes were viewed earlier.",
+        f"- {len(VARIANTS)} candidate procedures were compared with the frozen A baseline. Development intervals use the predeclared Bonferroni adjustment; uncertainty remains conditional on this frozen search, and historical holdout diagnostics are not independent proof because those outcomes were viewed earlier.",
+        "- Fold-local feature families: " + "; ".join(variant_definitions) + ".",
         f"- Existing selected policy: `{CONFIG['economic_evaluation']['selected_policy']}`; fixed $5 gross order, EV hurdle 1%, side chosen at T-60 and executed at T-59. Policy selection was not repeated.",
         f"- Trial budget: {CONFIG['model_search']['requested_trials_per_variant_per_fold']} requested trials per candidate and fold, {CONFIG['model_search']['minimum_successful_trials_per_variant_per_fold']} minimum successful, {CONFIG['model_search']['total_requested_trials']} requested total. Generator/selector history and budgets were preserved.",
         "- The proxy target remains Binance COIN-M BTCUSD index data: `Close[Opened+6m] >= Open[Opened+2m]`; the five-minute label becomes available at `Opened+7m`. Nominal inference is at `Opened+1m` (T-60), with the execution snapshot at T-59. Official Polymarket outcomes remain a separate evaluation target, and price-history training does not require a Polymarket quote.",
-        "- The six added features are candle return (1m, 5m lag 2), realized volatility (1m), candle range (1m), candle-direction signed volume (1m), and 5m up/down-volume ratio (lag 1). The raw source has no trade-level aggressor volume, so the signed features are candle proxies.",
+        "- " + feature_summary,
+        *( ["- Candidate features: " + ", ".join(candidate_features) + "."] if candidate_features else [] ),
         "- Feature timing audit: candle/return/range/volatility/volume and index/perpetual features use closed one-minute inputs and trailing lags available by the nominal decision; session features use the timestamp; reaction/volume profiles, indicator choices, feature selection, and model parameters are fitted inside each earlier fold prefix, then evaluated with causal features. Up/down-volume and signed-volume features are candle-direction proxies because trade-level aggressor volume is unavailable.",
         "- Baseline A bundle: " + CONFIG["frozen_baseline"]["bundle_sha256"] + ". Corrected T-60/T-59 snapshots were hash-verified and reused; no book-event replay was run.",
         f"- Baseline A audit: {payload['frozen_baseline_audit']['model_feature_count']} model features from {payload['frozen_baseline_audit']['selector_candidate_count']} scored candidates and {payload['frozen_baseline_audit']['selector_topk_evaluations']} top-k evaluations; best iteration {payload['frozen_baseline_audit']['best_iteration']}; tuning completed {payload['frozen_baseline_audit']['tuning_successful_trials']} of {payload['frozen_baseline_audit']['tuning_requested_trials']} requested trials.",
@@ -885,7 +947,7 @@ def _write_report(payload: dict) -> None:
         f"- Development freeze: `{FREEZE_PATH.resolve().relative_to(ROOT).as_posix()}`.",
         f"- Prediction and portfolio ledgers: `{OUTPUT_DIR.resolve().relative_to(ROOT).as_posix()}` (local research data).",
         f"- Summary tables: [`{TABLE_DIR.resolve().relative_to(ROOT).as_posix()}`]({TABLE_DIR.name}/).",
-        "- Reproduce or resume with `python run_btc_preopen_model_update.py` (no command-line arguments).",
+        f"- Reproduce or resume with `{CONFIG['reproduction']['runner']}` (no command-line arguments).",
         "- Holdout results did not revise features, hyperparameters, calibration, or policy. Live trading remains off.",
         "",
     ]
@@ -1070,11 +1132,13 @@ def run_model_update() -> dict:
                     monthly_quality.extend(month_rows)
 
     paired = {}
-    for left, right in (
-        ("A_reoptimized", "A_frozen"),
-        ("B_dynamic_price_volume", "A_frozen"),
-        ("B_dynamic_price_volume", "A_reoptimized"),
-    ):
+    comparison_pairs = [(name, "A_frozen") for name in VARIANTS]
+    comparison_pairs.extend(
+        (VARIANTS[left], VARIANTS[right])
+        for left in range(len(VARIANTS))
+        for right in range(left + 1, len(VARIANTS))
+    )
+    for left, right in comparison_pairs:
         key = f"{left}-{right}"
         paired[key] = _paired_block_interval(
             dev,
@@ -1136,6 +1200,11 @@ def run_model_update() -> dict:
             "dataset_rows_before_fit_filters": manifest["folds"][fold_id][name]["dataset_rows_before_fit_filters"],
             "fit_rows": manifest["folds"][fold_id][name]["fit_rows"],
             "decision_rows": manifest["folds"][fold_id][name]["decision_rows"],
+            "prediction_rows": int(
+                manifest["folds"][fold_id][name].get(
+                    "prediction_rows", _expected_fold_rows(folds[fold_id])
+                )
+            ),
             "auxiliary_fit_rows": manifest["folds"][fold_id][name]["auxiliary_fit_rows"],
             "model_feature_count": manifest["folds"][fold_id][name]["model_feature_count"],
             "selector_feature_count": manifest["folds"][fold_id][name]["selector_feature_count"],

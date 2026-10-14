@@ -2,7 +2,7 @@
 
 ## Status
 
-The protocol and collector are frozen and ready. The 240-day prospective collection has **not started**; the public smoke is operational validation and is excluded from the prospective sample. The protocol freeze time is `2026-10-14T03:26:18Z`. No prospective start date or evaluation calendar date exists until the operator runs the collector.
+**Deferred — not started.** The protocol and public collector are preserved as frozen historical artifacts. The 240-day prospective collection has **not started** and is deferred by the 2026-10-15 modeling task. The public smoke is operational validation and is excluded from the prospective sample. The protocol freeze time is `2026-10-14T03:26:18Z`. No prospective start date or evaluation calendar date exists.
 
 The historical information-value result remains “no demonstrated incremental information,” not proof of no information. `A_frozen` remains historically selected; `A_reoptimized` did not demonstrate improvement on official holdout labels; B remains incomplete and was not resumed; the historical holdout was exposed and is excluded from fitting, planning power, and the new sample. The prior conditional information analysis covered `A_frozen` only, not both A variants.
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -13,6 +14,50 @@ import run_btc_preopen_model_update as model_update
 
 
 class BTCPreopenModelUpdateTests(unittest.TestCase):
+    def test_model_feature_family_filter_runs_before_family_specific_selection(self):
+        features = pd.DataFrame({
+            "candle_ret_co_1m": [1.0],
+            "vp_short_imbalance": [2.0],
+            "rp_short_imbalance": [3.0],
+        })
+        self.assertEqual(
+            list(experiment.filter_model_features_by_families(features, ["base"]).columns),
+            ["candle_ret_co_1m"],
+        )
+        self.assertEqual(
+            list(experiment.filter_model_features_by_families(features, ["base", "volume_profile"]).columns),
+            ["candle_ret_co_1m", "vp_short_imbalance"],
+        )
+        self.assertEqual(
+            list(experiment.filter_model_features_by_families(features, ["base", "reaction_profile"]).columns),
+            ["candle_ret_co_1m", "rp_short_imbalance"],
+        )
+        with self.assertRaisesRegex(ValueError, "at least one family"):
+            experiment.filter_model_features_by_families(features, [])
+        with self.assertRaisesRegex(ValueError, "Unknown"):
+            experiment.filter_model_features_by_families(features, ["future_family"])
+
+    def test_predeclared_vp_rp_ablation_config_is_resumable_and_budgeted(self):
+        config_path = (
+            Path(__file__).resolve().parents[1]
+            / "configs"
+            / "research"
+            / "btc_preopen_vp_rp_ablation_20261015.json"
+        )
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+        previous_path = model_update.CONFIG_PATH
+        try:
+            model_update.configure_model_update(config_path)
+            model_update._validate_frozen_config()
+            self.assertEqual(len(model_update.VARIANTS), 4)
+            self.assertEqual(config["model_search"]["total_requested_trials"], 200)
+            self.assertEqual(
+                model_update.CONFIG["reproduction"]["runner"],
+                "python run_btc_preopen_feature_ablation.py",
+            )
+        finally:
+            model_update.configure_model_update(previous_path)
+
     def test_development_freeze_builds_payload_and_reuses_historical_rule(self):
         starts = pd.date_range("2026-06-01T00:00:00Z", periods=4, freq="5min")
         dev = pd.DataFrame({

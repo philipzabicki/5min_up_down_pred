@@ -39,6 +39,13 @@ from utils.metrics import (
     make_lightgbm_binary_logloss_eval,
     weighted_binary_logloss,
 )
+from utils.cv_objective import (
+    ObjectiveAlignedCVCallback,
+    build_fold_metric_signatures,
+    combine_mean_std,
+    cv_objective_series,
+    make_fold_metric_eval,
+)
 from utils.optuna import (
     make_timestamped_artifact_path,
     resolve_run_study_name,
@@ -641,9 +648,12 @@ def resolve_cv_objective_name():
 
 
 def combine_metric_mean_std(mean_value, std_value, *, higher_is_better, std_penalty):
-    if bool(higher_is_better):
-        return float(mean_value - (float(std_penalty) * float(std_value)))
-    return float(mean_value + (float(std_penalty) * float(std_value)))
+    return combine_mean_std(
+        mean_value,
+        std_value,
+        higher_is_better=higher_is_better,
+        std_penalty=std_penalty,
+    )
 
 
 def summarize_cv_fold_scores(fold_scores, folds, fold_weight_by_id, std_penalty):
@@ -685,78 +695,6 @@ def make_fold_metric_name(metric_name, fold_id):
     return f"{metric_name}_fold_{int(fold_id)}"
 
 
-def make_fold_metric_signature(y_values, sample_weight_values):
-    y_arr = np.ascontiguousarray(np.asarray(y_values, dtype=np.float64).ravel())
-    digest = hashlib.blake2b(digest_size=16)
-    digest.update(np.asarray(y_arr.shape, dtype=np.int64).tobytes())
-    digest.update(y_arr.tobytes())
-    if sample_weight_values is None:
-        digest.update(np.asarray([-1], dtype=np.int64).tobytes())
-    else:
-        weight_arr = np.ascontiguousarray(
-            np.asarray(sample_weight_values, dtype=np.float64).ravel()
-        )
-        digest.update(np.asarray(weight_arr.shape, dtype=np.int64).tobytes())
-        digest.update(weight_arr.tobytes())
-    return digest.hexdigest()
-
-
-def build_fold_metric_signatures(folds, y_np, sample_weight_np):
-    signatures = {}
-    for fold in folds:
-        valid_start = int(fold["test_start"])
-        valid_end = int(fold["test_end"])
-        signature = make_fold_metric_signature(
-            y_np[valid_start:valid_end],
-            sample_weight_np[valid_start:valid_end],
-        )
-        if signature in signatures:
-            raise ValueError(
-                "Duplicate validation fold signature for fold metric extraction: "
-                f"{signatures[signature]} and {fold['fold_id']}."
-            )
-        signatures[signature] = int(fold["fold_id"])
-    return signatures
-
-
-def make_lightgbm_binary_logloss_eval_with_fold_metrics(
-        metric_name,
-        fold_metric_signatures,
-):
-    metric_name = str(metric_name).strip() or "binary_logloss"
-    dataset_fold_ids = {}
-
-    def resolve_fold_id(train_data):
-        dataset_key = id(train_data)
-        if dataset_key in dataset_fold_ids:
-            return dataset_fold_ids[dataset_key]
-
-        signature = make_fold_metric_signature(
-            train_data.get_label(),
-            train_data.get_weight(),
-        )
-        if signature not in fold_metric_signatures:
-            raise ValueError("Could not match LightGBM validation fold signature.")
-
-        fold_id = int(fold_metric_signatures[signature])
-        dataset_fold_ids[dataset_key] = fold_id
-        return fold_id
-
-    def _eval(preds, train_data):
-        score = weighted_binary_logloss(
-            y_true=train_data.get_label(),
-            y_pred_proba=preds,
-            sample_weight=train_data.get_weight(),
-        )
-        fold_id = resolve_fold_id(train_data)
-        return [
-            (metric_name, score, False),
-            (make_fold_metric_name(metric_name, fold_id), score, False),
-        ]
-
-    return _eval
-
-
 def extract_cv_fold_scores_from_results(cv_results, folds, metric_name, best_index):
     fold_scores = []
     for fold in folds:
@@ -771,90 +709,6 @@ def extract_cv_fold_scores_from_results(cv_results, folds, metric_name, best_ind
             )
         fold_scores.append(float(metric_series[best_index]))
     return np.asarray(fold_scores, dtype=np.float64)
-
-
-class ObjectiveAlignedLightGBMPruningCallback:
-    def __init__(
-            self,
-            trial,
-            metric,
-            std_penalty,
-            valid_name="valid_0",
-            report_interval=1,
-    ):
-        self._trial = trial
-        self._valid_name = valid_name
-        self._metric = metric
-        self._std_penalty = std_penalty
-        self._report_interval = report_interval
-
-    def _find_evaluation_result(self, target_valid_names, env):
-        evaluation_result_list = env.evaluation_result_list
-        if evaluation_result_list is None:
-            return None
-
-        for evaluation_result in evaluation_result_list:
-            valid_name, metric = evaluation_result[:2]
-            if valid_name not in target_valid_names:
-                continue
-            if metric != self._metric and metric != f"valid {self._metric}":
-                continue
-            return evaluation_result
-
-        return None
-
-    def __call__(self, env):
-        if (env.iteration + 1) % self._report_interval != 0:
-            return
-
-        evaluation_result_list = env.evaluation_result_list
-        is_cv = (
-                evaluation_result_list is not None
-                and len(evaluation_result_list) > 0
-                and len(evaluation_result_list[0]) == 5
-        )
-        target_valid_names = ("cv_agg", "valid") if is_cv else (self._valid_name,)
-        evaluation_result = self._find_evaluation_result(target_valid_names, env)
-        if evaluation_result is None:
-            raise ValueError(
-                'The entry associated with the validation names "{}" and the metric name "{}" '
-                "is not found in the evaluation result list {}.".format(
-                    ", ".join(target_valid_names),
-                    self._metric,
-                    str(env.evaluation_result_list),
-                )
-            )
-
-        _, _, current_score, is_higher_better = evaluation_result[:4]
-        if is_higher_better:
-            if self._trial.study.direction != optuna.study.StudyDirection.MAXIMIZE:
-                raise ValueError(
-                    "The intermediate values are inconsistent with the objective values "
-                    "in terms of study directions."
-                )
-        else:
-            if self._trial.study.direction != optuna.study.StudyDirection.MINIMIZE:
-                raise ValueError(
-                    "The intermediate values are inconsistent with the objective values "
-                    "in terms of study directions."
-                )
-
-        if is_cv:
-            current_mean = float(evaluation_result[2])
-            current_std = float(evaluation_result[4])
-            current_objective = combine_metric_mean_std(
-                current_mean,
-                current_std,
-                higher_is_better=is_higher_better,
-                std_penalty=self._std_penalty,
-            )
-        else:
-            current_objective = float(current_score)
-
-        self._trial.report(current_objective, step=env.iteration)
-
-        if self._trial.should_prune():
-            raise optuna.TrialPruned(f"Trial was pruned at iteration {env.iteration}.")
 
 
 def get_supported_volume_profile_param_names(normalized_base):
@@ -1396,30 +1250,32 @@ def run_lightgbm_cv(
         free_raw_data=True,
     )
 
-    callbacks = [
-        lgb.early_stopping(
-            stopping_rounds=EARLY_STOPPING_ROUNDS,
-            first_metric_only=True,
-            verbose=False,
-        )
-    ]
-    if trial is not None:
-        callbacks.append(
-            ObjectiveAlignedLightGBMPruningCallback(
-                trial=trial,
-                metric=CV_OBJECTIVE_BASE_METRIC,
-                std_penalty=CV_STD_PENALTY,
-                report_interval=PRUNE_REPORT_EVERY_N_ITER,
-            )
-        )
-
     use_fold_metrics = is_nontrivial_fold_recency_weighting_enabled()
     primary_metric_eval = make_lightgbm_binary_logloss_eval(CV_OBJECTIVE_BASE_METRIC)
+    fold_ids = None
+    fold_weights = None
     if use_fold_metrics:
-        primary_metric_eval = make_lightgbm_binary_logloss_eval_with_fold_metrics(
+        fold_ids = [int(fold["fold_id"]) for fold in folds]
+        fold_weights = resolve_fold_weight_array(folds, fold_weight_by_id)
+        primary_metric_eval = make_fold_metric_eval(
             CV_OBJECTIVE_BASE_METRIC,
             build_fold_metric_signatures(folds, y_np, sample_weight_np),
+            weighted_binary_logloss,
+            higher_is_better=CV_OBJECTIVE_IS_HIGHER_BETTER,
         )
+
+    callbacks = [
+        ObjectiveAlignedCVCallback(
+            CV_OBJECTIVE_BASE_METRIC,
+            fold_ids=fold_ids,
+            fold_weights=fold_weights,
+            higher_is_better=CV_OBJECTIVE_IS_HIGHER_BETTER,
+            std_penalty=CV_STD_PENALTY,
+            stopping_rounds=EARLY_STOPPING_ROUNDS,
+            trial=trial,
+            report_interval=PRUNE_REPORT_EVERY_N_ITER,
+        )
+    ]
 
     need_cvbooster = bool(return_cvbooster)
     cv_results = lgb.cv(
@@ -1438,17 +1294,15 @@ def run_lightgbm_cv(
         seed=SEED,
     )
 
-    mean_series = np.asarray(
-        cv_results[f"valid {CV_OBJECTIVE_BASE_METRIC}-mean"], dtype=np.float64
+    metric_series = cv_objective_series(
+        cv_results,
+        CV_OBJECTIVE_BASE_METRIC,
+        fold_ids=fold_ids,
+        fold_weights=fold_weights,
+        higher_is_better=CV_OBJECTIVE_IS_HIGHER_BETTER,
+        std_penalty=CV_STD_PENALTY,
     )
-    std_series = np.asarray(
-        cv_results[f"valid {CV_OBJECTIVE_BASE_METRIC}-stdv"], dtype=np.float64
-    )
-    objective_series = (
-        mean_series - (CV_STD_PENALTY * std_series)
-        if CV_OBJECTIVE_IS_HIGHER_BETTER
-        else mean_series + (CV_STD_PENALTY * std_series)
-    )
+    objective_series = metric_series["objective"]
     best_index = int(
         np.argmax(objective_series)
         if CV_OBJECTIVE_IS_HIGHER_BETTER
@@ -1475,12 +1329,12 @@ def run_lightgbm_cv(
     else:
         result.update(
             {
-                f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean": float(mean_series[best_index]),
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_mean": float(metric_series["mean"][best_index]),
                 f"cv_{CV_OBJECTIVE_BASE_METRIC}_weighted_mean": float(
-                    mean_series[best_index]
+                    metric_series["weighted_mean"][best_index]
                 ),
-                f"cv_{CV_OBJECTIVE_BASE_METRIC}_std": float(std_series[best_index]),
-                "objective_base_value": float(mean_series[best_index]),
+                f"cv_{CV_OBJECTIVE_BASE_METRIC}_std": float(metric_series["std"][best_index]),
+                "objective_base_value": float(metric_series["objective_base"][best_index]),
                 "objective_value": float(objective_series[best_index]),
             }
         )
