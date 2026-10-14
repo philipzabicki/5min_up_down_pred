@@ -1,0 +1,13 @@
+period,fold,stage,markets,scored_markets,mean_predicted_probability,observed_rate,observed_rate_block95,status
+development,dev_2026q2_a,A_all_common_markets,2119,2119,0.5040726929,0.5214723926,"[0.5079489613146491, 0.5406001992917102]",estimable
+development,dev_2026q2_b,A_all_common_markets,5253,5253,0.5034455535,0.5027603274,"[0.4905790716073629, 0.5115508892843886]",estimable
+development,dev_2026q2_c,A_all_common_markets,3423,3423,0.5044942682,0.4756061934,"[0.4595303995089339, 0.49926606793358164]",estimable
+holdout_diagnostic,evaluated_holdout,A_all_common_markets,24736,24736,0.5003993268,0.4983020699,"[0.49316071338907985, 0.5034102206155411]",estimable
+development,dev_2026q2_a,B_frozen_ev1_signals,66,66,0.5279831803,0.5151515152,,inconclusive_n_lt_200
+development,dev_2026q2_b,B_frozen_ev1_signals,463,463,0.5173409089,0.5010799136,"[0.46181940871325544, 0.5443965716665125]",estimable
+development,dev_2026q2_c,B_frozen_ev1_signals,617,617,0.5259178141,0.5380875203,"[0.5050496604844431, 0.5675689521488702]",estimable
+holdout_diagnostic,evaluated_holdout,B_frozen_ev1_signals,4272,4272,0.5268105009,0.4901685393,"[0.47404852794544433, 0.5092976854376509]",estimable
+development,dev_2026q2_a,C_t59_fills,64,64,0.5278658814,0.5,,inconclusive_n_lt_200
+development,dev_2026q2_b,C_t59_fills,456,456,0.5173173884,0.5,"[0.4621367631375721, 0.5420855801255183]",estimable
+development,dev_2026q2_c,C_t59_fills,613,613,0.5259031222,0.5383360522,"[0.5079776680175616, 0.5660403798967764]",estimable
+holdout_diagnostic,evaluated_holdout,C_t59_fills,4018,4018,0.5264051343,0.4855649577,"[0.4688143398175245, 0.5045319232542113]",estimable

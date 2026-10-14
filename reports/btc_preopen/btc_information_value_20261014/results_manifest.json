@@ -1,0 +1,82 @@
+{
+  "status": "completed",
+  "analysis_manifest_sha256": "781b54a4b5e7bea9098bb19d443f3dd3d9b514a29ede9c88d2b1dbd21e591fb0",
+  "source_identity": {
+    "configuration_sha256": "15d7ca80ba138e6862c2b96357f4265a3910022c9cf20994237dee94983fc1d1",
+    "source_contract_sha256": "57d5f59bdd5cfcd87c93f007d04afdd50fec70c0be9de04e1eb467eff70b8216",
+    "raw_data_sha256": "130e415b2e092a09caba773aed7b4f717d3b2b0d7aede658ba8e85901da91022",
+    "official_market_index_sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+    "baseline_bundle_sha256": "4820e23493efb1743863b58b411352006a71ff7ce8c66068c17c8c88e65e4583",
+    "source_walk_forward_manifest_sha256": "001dcd816a83ea5bda001595ddd6e57d977cee0624c2eff5a585e9b2498be88a",
+    "source_holdout_manifest_sha256": "02b587436192be58af6da5a57d57c933ab6833ba2e1757d28d644c86c8c3bd5f",
+    "corrected_t60_snapshot_sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+    "corrected_t59_snapshot_sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0",
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "data_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+    "training_code_sha256": {
+      "run_btc_preopen_experiment.py": "e2b1846df45e210c14aab48e8e4ea9b81a0e86c69d43ff6504324f34b11dc320",
+      "run_btc_preopen_model_update.py": "c3b109650a28de36e973f0f0b7ddcbfe475219f68464008c910826a12b062be9",
+      "run_btc_preopen_walk_forward.py": "8400c7727366131220e3a2144cd65f68869c2af4288e2c42ab8d1169de10da27",
+      "run_btc_market_probability_experiment.py": "5fffceebc86b354fb4f1836aff9283a86a6581fb641f6959ad9ca8e02b2912ee",
+      "run_btc_market_probability_nested_experiment.py": "bbad591e4b7c729fdc4651034ae88183fe236ce4b97bbbf40a7d2b00b227047b",
+      "run_btc_preopen_signal_diagnostic.py": "ac269b25ce25cbcb2c4e2f68cec466730178e55fbe6745af0a6498c04e28863b",
+      "run_btc_preopen_research.py": "22cb94807ee64fbd43ae080b70c156c0d0c9fd2c93466b232262d8f235f48ee9",
+      "run_btc_preopen_t59_reassessment.py": "75ac11564aec9da7bdf548ca7db92dc747747ed816bc90470d873601122abcf4",
+      "optimize_lgbm_hyperparameters.py": "69cbac49611bccab8f3d5ff7f7e03f2c3bf93e18614d1802879f7283539316e1",
+      "create_modeling_dataset.py": "479d0d2ef85b323dafd0d4497d476c2c5ee08ce5b87b8a5e624c9841abbd6db9",
+      "features/btc_preopen_baseline.py": "9bde3cd527bad2c55a20aa3ed75c80f4d552bd18d3d1e6d47fe2953da5d186bf",
+      "features/btc_preopen_contract.py": "70ce61053ba44eafc62e044ffcc3aa1d0c30acaf0bbc922b46709be2c78099bb",
+      "features/candle_features.py": "7347c14873a22e74f2d51e977fb827be7f8763f2342f86ae3c52b8989f83ee1b"
+    },
+    "training_configuration_sha256": {
+      "configs/btc_preopen_training.json": "2a335e4c54df21cc3d17f9f8faef9732a14815012c19d9c0ed7dd63f35cc54ee",
+      "configs/modeling.json": "54708f9e778a3c53165141d1f4dcfc0aa23c16d3b9e151855369110a7bfcfc74"
+    }
+  },
+  "sample_counts": {
+    "sample_A": 35531,
+    "sample_B_ev1_signals": 5418,
+    "sample_C_t59_fills": 5151,
+    "model_comparison_existing_oof": 8676
+  },
+  "outputs": {
+    "ev1_expected_vs_realized_groups.csv": {
+      "sha256": "5e7d3bf1f0f6542ba3480a80d0f67d3446531b12a06b7ed23b1cc3df6bdd1e07",
+      "rows": 48
+    },
+    "frozen_policy_price_bin_edges.csv": {
+      "sha256": "7fe30a7720f845c99feccbe95c4112802ac9ae03e03265b69439fe9b5875cafd",
+      "rows": 4
+    },
+    "market_distribution_by_fold.csv": {
+      "sha256": "b1172f4be1d7a9c9b4c41ba10da9bec05346b8be0b1dacbc5347a1b876f9362e",
+      "rows": 5
+    },
+    "market_residual_buckets.csv": {
+      "sha256": "6018bcd368baecf9eef6aea22fb93c22179fc618e5bdee97a5ec28da194dee29",
+      "rows": 64
+    },
+    "policy_calibration_by_stage.csv": {
+      "sha256": "bb94cbab098a096354abc4bf38fb7b24bd7bcd31dda097ad56cc85a3a82e3393",
+      "rows": 12
+    },
+    "policy_funnel_reasons_by_fold.csv": {
+      "sha256": "31f03c7f5e0c2121cec0911b875640e1d576e1e107073d912d58198f2cee9de8",
+      "rows": 26
+    },
+    "sample_A_exclusions_by_fold.csv": {
+      "sha256": "e4bf05654e620c2fe9965175caf0e3361115dd454f86bbbe0205c534a48671ba",
+      "rows": 21
+    },
+    "sample_funnel_by_fold.csv": {
+      "sha256": "05d7a6d0afc2c0540c92c832e500efaf04df1383aa0b0e8d00456c9df7381e62",
+      "rows": 6
+    }
+  },
+  "elapsed_seconds": 9.347,
+  "live_orders": false,
+  "btc_training_or_refit": false,
+  "book_archive_replay": false,
+  "pruner_diagnostic": false,
+  "holdout_used_for_selection": false
+}

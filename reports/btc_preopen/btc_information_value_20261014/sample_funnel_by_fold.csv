@@ -1,0 +1,7 @@
+period,fold,causal_prediction_markets,sample_A_common_quote_markets,sample_B_ev1_signals,sample_C_t59_fills,signal_not_filled_at_t59
+development,calibration_seed,30157,0,0,0,0
+development,dev_2026q2_a,4403,2119,66,64,2
+development,dev_2026q2_b,8928,5253,463,456,7
+development,dev_2026q2_c,8640,3423,617,613,4
+development,no_oof_fold,3979,0,0,0,0
+holdout_diagnostic,evaluated_holdout,28224,24736,4272,4018,254
