@@ -240,6 +240,33 @@ class BTCPreopenModelUpdateTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "availability"):
             model_update._merge_predictions(base, {"candidate": misaligned})
 
+    def test_candidate_join_keeps_the_12_00_market_id_for_its_t_minus_60_prediction(self):
+        starts = pd.to_datetime(["2026-06-01T12:00:00Z"], utc=True)
+        base = pd.DataFrame({
+            "market_start_utc": starts,
+            "nominal_decision_at": starts - pd.Timedelta(minutes=1),
+            "condition_id": ["btc-updown-2026-06-01-1200"],
+            "target_binance_proxy_up": [1],
+            experiment.TARGET_AVAILABLE_COL: starts + pd.Timedelta(minutes=5),
+            "fold_id": ["dev_2026q2_c"],
+            "common_sample": [True],
+        })
+        candidate = pd.DataFrame({
+            "market_start_utc": starts,
+            "nominal_decision_at": starts - pd.Timedelta(minutes=1),
+            experiment.TARGET_COL: [1],
+            experiment.TARGET_AVAILABLE_COL: starts + pd.Timedelta(minutes=5),
+            "p_model_raw": [0.6],
+            "p_model_platt": [0.55],
+            "fold_id": ["dev_2026q2_c"],
+        })
+
+        merged = model_update._merge_predictions(base, {"candidate": candidate})
+
+        self.assertEqual(merged.loc[0, "condition_id"], "btc-updown-2026-06-01-1200")
+        self.assertEqual(merged.loc[0, "nominal_decision_at"], pd.Timestamp("2026-06-01T11:59:00Z"))
+        self.assertEqual(merged.loc[0, "p_candidate"], 0.55)
+
     def test_proxy_target_alignment_counts_only_paired_binary_labels(self):
         frame = pd.DataFrame({
             "official_outcome_up": [1.0, 0.0, np.nan],
