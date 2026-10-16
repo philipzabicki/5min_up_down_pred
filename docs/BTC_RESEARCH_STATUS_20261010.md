@@ -4,13 +4,13 @@ Updated: 2026-10-16 (Europe/Warsaw)
 
 <!-- BTC_FULL_DEVELOPMENT_RUN_STATUS_BEGIN -->
 ### Full-development run checkpoint
-- Updated UTC: `2026-10-16T02:35:55Z`.
-- Status: `ready after validation`; frozen input, baseline, T-60/T-59 snapshot, config, and contract preflight passed. The replacement run has not started yet.
-- Active pipeline stage: `none`.
-- Completed stages: `none`.
-- Trial checkpoint: `{}`.
-- Resource check: 20 logical CPUs, 54.6 GiB free RAM, 363.4 GiB free disk, RTX 4060 Laptop GPU with 938 MiB used at 1% utilization; no old or replacement runner process was active.
-- Next action: commit and push the validated replacement, then run `python run_btc_preopen_full_development_fit.py` once.
+- Updated UTC: `2026-10-16T02:39:47Z`.
+- Status: `running`; frozen inputs and T-60/T-59 snapshot preflight passed, and the new manifest is active.
+- Active pipeline stage: `reaction_profile`; study `btc_preopen_reaction_profile_885ec05bc1e8`.
+- Completed stages: `indicators` (signature-verified cache reuse, 0.0 s).
+- Trial checkpoint: `5/96 evaluated; 5 COMPLETE, 0 PRUNED, 0 errors, 19 parameter seeds pending; 106.8 s elapsed`.
+- Resource check before launch: 20 logical CPUs, 54.7 GiB free RAM, 363.4 GiB free disk, RTX 4060 Laptop GPU with 941 MiB used at 1% utilization.
+- Next action: let the single RP study continue; if it stops, resume with `python run_btc_preopen_full_development_fit.py` after confirming no copy is active.
 - Run manifest: `data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/run_manifest.json`.
 <!-- BTC_FULL_DEVELOPMENT_RUN_STATUS_END -->
 
