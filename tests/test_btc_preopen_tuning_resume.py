@@ -8,6 +8,7 @@ from scripts.continue_btc_preopen_model_tuning import continue_until_minimum_suc
 from utils.btc_preopen_tuning_resume import (
     continue_until_minimum_success as continue_with_durable_budget,
     record_stage_elapsed,
+    summarize_trial_progress,
     tuning_time_used,
 )
 
@@ -15,6 +16,9 @@ from utils.btc_preopen_tuning_resume import (
 class _FakeStudy:
     def __init__(self, trials, next_states):
         self.trials = list(trials)
+        for index, trial in enumerate(self.trials):
+            if not hasattr(trial, "number"):
+                trial.number = index
         self.next_states = iter(next_states)
         self.optimize_calls = []
 
@@ -242,6 +246,75 @@ class DurableContinuationTests(unittest.TestCase):
         self.assertEqual(study.optimize_calls, [])
         self.assertEqual(result["stage_time_used_seconds"], 105.0)
         self.assertEqual(result["remaining_stage_budget_seconds"], 0.0)
+
+    def test_hard_trial_limit_stops_without_retrying_past_target(self):
+        study = _FakeStudy([], [("COMPLETE", 0.5, {}) for _ in range(8)])
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = continue_with_durable_budget(
+                study, lambda trial: 0.5, complete_state="COMPLETE",
+                target_trials=3, minimum_successful_trials=1,
+                stage_budget_seconds=100.0, deadline_monotonic=20.0,
+                overall_deadline=20.0, history_path=Path(temp_dir) / "history.json",
+                identity="hard-limit", time_fn=lambda: 0.0, hard_trial_limit=True,
+            )
+        self.assertEqual(len(study.optimize_calls), 3)
+        self.assertEqual(result["trials_total"], 3)
+        self.assertTrue(result["target_reached"])
+        self.assertTrue(result["search_complete"])
+
+    def test_waiting_seed_trials_do_not_count_as_evaluated_trials(self):
+        study = _FakeStudy(
+            [_trial("WAITING", None), _trial("WAITING", None)],
+            [("COMPLETE", 0.5, {}) for _ in range(3)],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = continue_with_durable_budget(
+                study, lambda trial: 0.5, complete_state="COMPLETE",
+                target_trials=3, minimum_successful_trials=1,
+                stage_budget_seconds=100.0, deadline_monotonic=20.0,
+                overall_deadline=20.0, history_path=Path(temp_dir) / "history.json",
+                identity="waiting-seeds", time_fn=lambda: 0.0, hard_trial_limit=True,
+            )
+        self.assertEqual(len(study.optimize_calls), 3)
+        self.assertEqual(result["trials_total"], 3)
+
+    def test_progress_summary_separates_success_pruning_errors_and_pending(self):
+        trials = [
+            SimpleNamespace(
+                number=0, state="COMPLETE", value=0.42,
+                params={"x": 1.0},
+                user_attrs={
+                    "cv_binary_logloss_mean": 0.40,
+                    "cv_binary_logloss_std": 0.02,
+                    "best_iteration": 500,
+                },
+            ),
+            _trial("COMPLETE", 999.0, {"trial_status": "crash_penalty"}),
+            _trial("COMPLETE", None, {}),
+            _trial("PRUNED", None, {}),
+            _trial("FAIL", None, {}),
+            _trial("WAITING", None, {}),
+        ]
+        summary = summarize_trial_progress(
+            trials,
+            checkpoint_trial_count=5,
+            target_trials=10,
+            minimum_successful_trials=1,
+            elapsed_seconds=125.0,
+            time_limit_seconds=300.0,
+            search_space={"x": {"type": "float", "low": 1.0, "high": 3.0}},
+            iteration_limit=500,
+            previous_checkpoint={"checkpoint_trial_count": 2, "best_cv_criterion": 0.47},
+        )
+        self.assertEqual(summary["trial_counts"], {
+            "complete": 1, "pruned": 1, "errors": 3, "pending": 1,
+        })
+        self.assertEqual(summary["best_trial_number"], 0)
+        self.assertEqual(summary["best_log_loss_mean"], 0.40)
+        self.assertEqual(summary["best_fold_log_loss_std"], 0.02)
+        self.assertTrue(summary["best_iteration_hit_limit"])
+        self.assertEqual(summary["top_five_search_boundary_counts"]["x"]["top_five_low_hits"], 1)
+        self.assertAlmostEqual(summary["improvement_vs_previous_checkpoint"], 0.05)
 
     def test_interruption_is_journaled_and_outer_stage_time_replaces_trial_time(self):
         class Clock:

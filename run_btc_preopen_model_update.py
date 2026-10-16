@@ -144,6 +144,100 @@ def _validate_frozen_config() -> None:
         raise RuntimeError("The current model-tuning runner is frozen to five TPE startup trials")
     seed = search["seed_trial_params"]
     model_tuning.validate_seed_trial_params(seed, search["search_space"])
+    generator_search = CONFIG.get("generator_search")
+    if generator_search:
+        generator_budget = CONFIG["feature_generator_budgets"]
+        checkpoint_counts = [int(value) for value in generator_search["checkpoint_trial_counts"]]
+        if (
+            int(generator_budget["reaction_profile_trials"]) != int(generator_search["max_evaluated_trials_per_fold_per_generator"])
+            or int(generator_budget["volume_profile_trials"]) != int(generator_search["max_evaluated_trials_per_fold_per_generator"])
+            or checkpoint_counts != sorted(set(checkpoint_counts))
+            or checkpoint_counts[-1] != int(generator_search["max_evaluated_trials_per_fold_per_generator"])
+            or int(generator_search["time_limit_seconds_per_generator_stage"]) <= 0
+        ):
+            raise RuntimeError("Frozen VP/RP trial and time budgets are inconsistent")
+        main_search = CONFIG["main_model_search"]
+        if (
+            int(main_search["max_evaluated_trials_per_fold"]) != requested
+            or int(main_search["tuning_time_limit_seconds"]) <= 0
+            or int(main_search["final_fit_reserve_seconds"]) <= 0
+            or int(CONFIG["runtime_profile"]["per_model_tuning_and_fit_budget_seconds"])
+            != int(main_search["tuning_time_limit_seconds"]) + int(main_search["final_fit_reserve_seconds"])
+            or [int(value) for value in main_search["checkpoint_trial_counts"]]
+            != [int(value) for value in search["checkpoint_trials"]]
+        ):
+            raise RuntimeError("Frozen main-model trial, time, or final-fit budgets are inconsistent")
+        expected_folds = set(CONFIG["outer_folds"])
+        if (
+            set(CONFIG.get("indicator_artifact_sources", {})) != expected_folds
+            or set(CONFIG.get("generator_seed_sources", {})) != expected_folds
+        ):
+            raise RuntimeError("Frozen artifact provenance must cover every outer fold")
+
+        source_contract = research._read_json(ROOT / CONFIG["source_contract"])
+        raw_sha = _sha256(ROOT / CONFIG["raw_data_path"])
+        folds_by_id = {str(item["fold_id"]): item for item in source_folds}
+        expected_indicator_fit = {
+            "population_size": int(generator_budget["indicator_population_size"]),
+            "generations": int(generator_budget["indicator_generations"]),
+            "workers": int(CONFIG["runtime_profile"]["threads"]),
+        }
+        import fit_reaction_profile as reaction_profile
+        import fit_volume_profile as volume_profile
+        import optuna
+
+        generator_modules = {
+            "reaction_profile": reaction_profile,
+            "volume_profile": volume_profile,
+        }
+        for fold_id in expected_folds:
+            source = CONFIG["indicator_artifact_sources"][fold_id]
+            manifest_path = ROOT / source["run_manifest"]
+            effective_path = ROOT / source["effective_config"]
+            if (
+                not manifest_path.is_file()
+                or _sha256(manifest_path) != source["run_manifest_sha256"]
+                or not effective_path.is_file()
+                or _sha256(effective_path) != source["effective_config_sha256"]
+            ):
+                raise RuntimeError(f"Indicator provenance hash mismatch for {fold_id}")
+            source_manifest = research._read_json(manifest_path)
+            effective = research._read_json(effective_path)
+            stage = source_manifest.get("stages", {}).get("indicators", {})
+            profile = effective.get("profile", {})
+            expected_contract = walk_forward._fold_contract(source_contract, folds_by_id[fold_id])
+            if (
+                stage.get("status") != "completed"
+                or stage.get("input_signature") != source["stage_input_signature"]
+                or effective.get("contract") != expected_contract
+                or effective.get("input_data", {}).get("sha256") != raw_sha
+                or int(effective.get("threads", 0)) != int(CONFIG["runtime_profile"]["threads"])
+                or profile.get("indicator_fit") != expected_indicator_fit
+                or int(profile.get("seed", -1)) != int(source["indicator_seed"])
+                or profile.get("compute_backend") != CONFIG["runtime_profile"]["compute_backend"]
+                or int(stage.get("result", {}).get("config_count", 0)) != 6
+                or not experiment._artifacts_still_match(stage.get("outputs", []))
+            ):
+                raise RuntimeError(f"Indicator provenance is incompatible for {fold_id}")
+            for generator_name, seed_sources in CONFIG["generator_seed_sources"][fold_id].items():
+                if generator_name not in {"reaction_profile", "volume_profile"}:
+                    raise RuntimeError(f"Unexpected generator seed source: {generator_name}")
+                for seed_source in seed_sources:
+                    database = ROOT / seed_source["database"]
+                    if (
+                        not database.is_file()
+                        or _sha256(database) != seed_source["database_sha256"]
+                        or int(seed_source["expected_terminal_trials"]) != 24
+                    ):
+                        raise RuntimeError(f"Generator seed provenance hash mismatch for {fold_id}/{generator_name}")
+                experiment._load_generator_seed_trials(
+                    optuna,
+                    seed_sources,
+                    generator_modules[generator_name].REACTION_PROFILE_OPTUNA_SEARCH_SPACE
+                    if generator_name == "reaction_profile"
+                    else generator_modules[generator_name].VOLUME_PROFILE_OPTUNA_SEARCH_SPACE,
+                    generator_modules[generator_name].validate_seed_trial_params,
+                )
     frozen_selection = research._read_json(NESTED_FROZEN_PATH)
     chosen = frozen_selection["policy_selection"]["selected_policy"]
     expected = CONFIG["economic_evaluation"]["selected_policy"]
@@ -179,7 +273,10 @@ def _source_inputs() -> tuple[dict, dict, dict, pd.DataFrame, pd.DataFrame, pd.D
             name: _sha256(ROOT / name) for name in (
                 "run_btc_preopen_experiment.py",
                 "run_btc_preopen_model_update.py",
+                "run_btc_preopen_vp_rp_tuning.py",
+                "benchmark_btc_preopen_bundle.py",
                 "run_btc_preopen_walk_forward.py",
+                "utils/btc_preopen_tuning_resume.py",
                 "run_btc_market_probability_experiment.py",
                 "run_btc_market_probability_nested_experiment.py",
                 "run_btc_preopen_signal_diagnostic.py",
@@ -229,6 +326,99 @@ def _baseline_model_audit(source_holdout: dict) -> dict:
         "tuning_successful_trials": int(tuning.get("successful_trials", 0)),
         "tuning_best_iteration": int(tuning.get("best_iteration", 0)),
     }
+
+
+def _benchmark_inference_cost(manifest: dict, source_holdout: dict) -> list[dict]:
+    import benchmark_btc_preopen_bundle as benchmark
+
+    def repo_path(value) -> Path:
+        path = Path(value)
+        return path if path.is_absolute() else ROOT / path
+
+    fold = next(
+        item for item in walk_forward.CONFIG["folds"]
+        if str(item["fold_id"]) == "evaluated_holdout"
+    )
+    sample_start = _utc(fold["market_start_first_utc"]) - pd.Timedelta(minutes=2)
+    sample_end = _utc(fold["market_start_last_inclusive_utc"]) - pd.Timedelta(minutes=2)
+
+    candidate_name = str(CONFIG["variants"][0]["name"])
+    candidate_record = manifest["folds"]["evaluated_holdout"][candidate_name]
+    candidate_bundle_path = ROOT / candidate_record["bundle_path"]
+    candidate_bundle = research._read_json(candidate_bundle_path)
+    candidate_pipeline = research._read_json(ROOT / candidate_record["run_root"] / "run_manifest.json")
+    candidate_dataset = candidate_pipeline["stages"]["final_feature_dataset"]["result"]["dataset_path"]
+
+    baseline_bundle_path = ROOT / source_holdout["evaluated_bundle_path"]
+    baseline_bundle = research._read_json(baseline_bundle_path)
+    baseline_run_manifest_path = ROOT / source_holdout["run_manifest_path"]
+    baseline_pipeline = research._read_json(baseline_run_manifest_path)
+    baseline_dataset = baseline_pipeline["stages"]["final_feature_dataset"]["result"]["dataset_path"]
+
+    original = {
+        name: getattr(benchmark, name)
+        for name in (
+            "TRAINING_MANIFEST", "FEATURE_DATASET", "MODEL_PATH", "CALIBRATOR_PATH",
+            "OUTPUT_PATH", "SAMPLE_START", "SAMPLE_END",
+        )
+    }
+    results = []
+    try:
+        for forecast, bundle_path, bundle, training_manifest_path, dataset_path in (
+            (
+                candidate_name,
+                candidate_bundle_path,
+                candidate_bundle,
+                ROOT / candidate_record["training_manifest_path"],
+                candidate_dataset,
+            ),
+            (
+                "A_frozen",
+                baseline_bundle_path,
+                baseline_bundle,
+                repo_path(Path(baseline_bundle["model_path"]).parent / "training_manifest.json"),
+                baseline_dataset,
+            ),
+        ):
+            benchmark.TRAINING_MANIFEST = training_manifest_path
+            benchmark.FEATURE_DATASET = repo_path(dataset_path)
+            benchmark.MODEL_PATH = repo_path(bundle["model_path"])
+            benchmark.CALIBRATOR_PATH = repo_path(bundle["calibrator_path"])
+            benchmark.OUTPUT_PATH = TABLE_DIR / f"inference_latency_{forecast}.json"
+            benchmark.SAMPLE_START = sample_start
+            benchmark.SAMPLE_END = sample_end
+            result = benchmark.run(print_result=False)
+            results.append({"forecast": forecast, **result})
+    finally:
+        for name, value in original.items():
+            setattr(benchmark, name, value)
+    return results
+
+
+def _training_costs(manifest: dict, source_walk: dict, source_holdout: dict, fold_ids: list[str]) -> list[dict]:
+    output = []
+    candidate_name = str(CONFIG["variants"][0]["name"])
+    for fold_id in fold_ids:
+        candidate_record = manifest["folds"][fold_id][candidate_name]
+        candidate_manifest_path = ROOT / candidate_record["run_root"] / "run_manifest.json"
+        candidate_pipeline = research._read_json(candidate_manifest_path)
+        baseline_record = source_holdout if fold_id == "evaluated_holdout" else source_walk["folds"][fold_id]
+        baseline_pipeline = research._read_json(ROOT / baseline_record["run_manifest_path"])
+        baseline_bundle_path = (
+            ROOT / baseline_record["evaluated_bundle_path"]
+            if fold_id == "evaluated_holdout"
+            else ROOT / baseline_pipeline["bundle_path"]
+        )
+        candidate_bundle = research._read_json(ROOT / candidate_pipeline["bundle_path"])
+        baseline_bundle = research._read_json(baseline_bundle_path)
+        output.append({
+            "fold_id": fold_id,
+            "baseline_pipeline_elapsed_seconds": float(baseline_pipeline.get("elapsed_seconds", 0.0)),
+            "joint_vp_rp_pipeline_elapsed_seconds": float(candidate_pipeline.get("elapsed_seconds", 0.0)),
+            "baseline_model_feature_count": int(len(baseline_bundle["feature_order"])),
+            "joint_vp_rp_model_feature_count": int(len(candidate_bundle["feature_order"])),
+        })
+    return output
 
 
 def _expected_fold_rows(fold: dict) -> int:
@@ -343,6 +533,12 @@ def _run_variant_fold(
     stage_budgets["model_tuning_and_fit"] = int(
         CONFIG["runtime_profile"]["per_model_tuning_and_fit_budget_seconds"]
     )
+    generator_search = CONFIG.get("generator_search", {})
+    main_search = CONFIG.get("main_model_search", {})
+    indicator_source = CONFIG.get("indicator_artifact_sources", {}).get(fold_id)
+    generator_seed_sources = CONFIG.get("generator_seed_sources", {}).get(fold_id)
+    if generator_search and (not indicator_source or not generator_seed_sources):
+        raise RuntimeError(f"Frozen reuse provenance is missing for fold {fold_id}")
     profile.update({
         "contract_path": contract_path.resolve().relative_to(ROOT).as_posix(),
         "raw_data_path": raw_relative,
@@ -358,6 +554,16 @@ def _run_variant_fold(
         "early_stopping_rounds": int(CONFIG["model_search"]["early_stopping_rounds"]),
         "model_cv_folds": int(CONFIG["model_search"]["model_cv_folds"]),
         "seed": int(CONFIG["model_search"]["random_seed"]),
+        "indicator_seed": int(indicator_source["indicator_seed"]) if indicator_source else int(CONFIG["model_search"]["random_seed"]),
+        "indicator_artifact_source": indicator_source,
+        "generator_seed_trial_sources": generator_seed_sources or {},
+        "generator_tuning_time_limit_seconds": generator_search.get("time_limit_seconds_per_generator_stage"),
+        "generator_checkpoint_trials": generator_search.get("checkpoint_trial_counts", []),
+        "generator_trial_limit_is_hard": bool(CONFIG.get("feature_generator_budgets", {}).get("generator_trial_limit_is_hard", False)),
+        "model_trial_limit_is_hard": bool(CONFIG["model_search"].get("hard_trial_limit", False)),
+        "main_model_tuning_time_limit_seconds": main_search.get("tuning_time_limit_seconds"),
+        "main_model_final_fit_reserve_seconds": main_search.get("final_fit_reserve_seconds"),
+        "model_checkpoint_trials": main_search.get("checkpoint_trial_counts", []),
         "model_search_space_override": CONFIG["model_search"]["search_space"],
         "model_seed_trial_params_override": [CONFIG["model_search"]["seed_trial_params"]],
         "model_feature_candidate_features": list(variant["candidate_features"]),
@@ -405,8 +611,27 @@ def _run_variant_fold(
     tuning_record = pipeline_manifest.get("stages", {}).get("model_tuning", {}).get("result", {})
     compact_tuning = {
         key: tuning_record.get(key)
-        for key in ("target_trials", "successful_trials", "best_trial_number", "best_iteration", "best_value", "best_params", "training_rows", "decision_rows")
+        for key in (
+            "target_trials", "successful_trials", "pruned_trials", "error_trials",
+            "search_complete", "stopped_by", "checkpoint_summaries", "final_progress", "tuning_budget",
+            "best_trial_number", "best_iteration", "best_value", "best_params",
+            "training_rows", "decision_rows",
+        )
         if key in tuning_record
+    }
+    generator_tuning = {
+        stage_name: {
+            key: stage.get("result", {}).get(key)
+            for key in (
+                "trials_total", "successful_trials", "pruned_trials", "error_trials",
+                "target_trials", "search_complete", "stopped_by", "tuning_budget",
+                "checkpoint_summaries", "final_progress", "seed_trial_parameters_loaded", "seed_trial_sources",
+                "best_value", "best_iteration", "best_params",
+            )
+            if key in stage.get("result", {})
+        }
+        for stage_name, stage in pipeline_manifest.get("stages", {}).items()
+        if stage_name in {"reaction_profile", "volume_profile"}
     }
     record = {
         "status": "completed",
@@ -447,6 +672,8 @@ def _run_variant_fold(
         "added_candidate_features": training_record.get("added_candidate_features", []),
         "model_feature_families": variant.get("model_feature_families"),
         "model_tuning": compact_tuning,
+        "generator_tuning": generator_tuning,
+        "reused_indicator_artifacts": indicator_source,
         "calibration_pool_path": calibration_path.resolve().relative_to(ROOT).as_posix() if calibration_path else None,
         "calibration_pool_sha256": _sha256(calibration_path) if calibration_path else None,
         "run_root": result["run_root"].resolve().relative_to(ROOT).as_posix(),
@@ -795,7 +1022,11 @@ def _write_report(payload: dict) -> None:
         "development_policy_fold_stability.csv": payload["development_policy_fold_stability"],
         "holdout_portfolios.csv": payload["holdout_portfolios"],
         "model_fold_training.csv": payload["model_fold_training"],
+        "training_costs.csv": payload["training_costs"],
+        "inference_benchmarks.json": payload["inference_benchmarks"],
         "fold_periods.csv": payload["fold_periods"],
+        "generator_tuning_checkpoints.csv": payload.get("generator_tuning_checkpoints", []),
+        "model_tuning_checkpoints.csv": payload.get("model_tuning_checkpoints", []),
     }
     for name, rows in tables.items():
         destination = TABLE_DIR / name
@@ -813,6 +1044,69 @@ def _write_report(payload: dict) -> None:
             f"| {row.get('successful_trials', 0)} / {row.get('target_trials', 0)} | {row.get('best_iteration', 'n/a')} "
             f"| {row['latest_training_label_available_at_utc']} |"
         )
+    training_cost_lines = [
+        "| Fold | Frozen A pipeline seconds | Joint VP+RP pipeline seconds | A features | Joint features |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for row in payload["training_costs"]:
+        training_cost_lines.append(
+            f"| {row['fold_id']} | {row['baseline_pipeline_elapsed_seconds']:.1f} "
+            f"| {row['joint_vp_rp_pipeline_elapsed_seconds']:.1f} "
+            f"| {row['baseline_model_feature_count']} | {row['joint_vp_rp_model_feature_count']} |"
+        )
+    baseline_training_seconds = sum(row["baseline_pipeline_elapsed_seconds"] for row in payload["training_costs"])
+    candidate_training_seconds = sum(row["joint_vp_rp_pipeline_elapsed_seconds"] for row in payload["training_costs"])
+    inference_lines = [
+        "| Forecast | Features | Rows | Model p50 / p95 / p99 ms | Model + Platt p50 / p95 / p99 ms |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for row in payload["inference_benchmarks"]:
+        model = row["model_predict"]
+        combined = row["combined_model_predict_and_calibration"]
+        inference_lines.append(
+            f"| {row['forecast']} | {row['feature_count']} | {row['feature_rows_used']:,} "
+            f"| {model['p50_ms']:.4f} / {model['p95_ms']:.4f} / {model['p99_ms']:.4f} "
+            f"| {combined['p50_ms']:.4f} / {combined['p95_ms']:.4f} / {combined['p99_ms']:.4f} |"
+        )
+    def tuning_checkpoint_rows(checkpoints):
+        rows = []
+        for checkpoint in checkpoints:
+            counts = checkpoint.get("trial_counts", {})
+            boundaries = checkpoint.get("top_five_search_boundary_counts", {})
+            boundary_hits = [
+                f"{name}:L{value.get('top_five_low_hits', 0)}/H{value.get('top_five_high_hits', 0)}"
+                for name, value in boundaries.items()
+                if value.get("top_five_low_hits", 0) or value.get("top_five_high_hits", 0)
+            ]
+            improvement = checkpoint.get("improvement_vs_previous_checkpoint")
+            rows.append(
+                f"| {checkpoint['fold_id']} | {checkpoint.get('stage', 'model_tuning')} "
+                f"| {checkpoint.get('checkpoint_trial_count', 0)} "
+                f"| {counts.get('complete', 0)} | {counts.get('pruned', 0)} | {counts.get('errors', 0)} "
+                f"| {checkpoint.get('cumulative_elapsed_seconds', 0.0) / 60.0:.1f} "
+                f"| {checkpoint.get('best_cv_criterion') if checkpoint.get('best_cv_criterion') is not None else 'n/a'} "
+                f"| {checkpoint.get('best_log_loss_mean') if checkpoint.get('best_log_loss_mean') is not None else 'n/a'} "
+                f"| {checkpoint.get('best_fold_log_loss_std') if checkpoint.get('best_fold_log_loss_std') is not None else 'n/a'} "
+                f"| {improvement if improvement is not None else 'n/a'} "
+                f"| {checkpoint.get('best_iteration') if checkpoint.get('best_iteration') is not None else 'n/a'} "
+                f"| {checkpoint.get('best_iteration_hit_limit') if checkpoint.get('best_iteration_hit_limit') is not None else 'n/a'} "
+                f"| {', '.join(boundary_hits) or 'none'} |"
+            )
+        return rows
+
+    tuning_table_header = (
+        "| Fold | Stage | Evaluated | COMPLETE | PRUNED | Errors | Minutes | Best CV criterion | "
+        "Best log-loss mean | Fold std | Improvement | Best iteration | Iteration cap | Top-five bound hits |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|",
+    )
+    generator_checkpoint_lines = [
+        *tuning_table_header,
+        *tuning_checkpoint_rows(payload.get("generator_tuning_checkpoints", [])),
+    ]
+    model_checkpoint_lines = [
+        *tuning_table_header,
+        *tuning_checkpoint_rows(payload.get("model_tuning_checkpoints", [])),
+    ]
     period_lines = ["| Variant | Fold | Generator/model fit interval UTC | Calibration decision interval UTC | Calibration source / rows | Prediction market interval UTC |", "|---|---|---|---|---|---|"]
     for row in payload["fold_periods"]:
         period_lines.append(
@@ -877,12 +1171,37 @@ def _write_report(payload: dict) -> None:
         for feature in variant.get("candidate_features", [])
     })
     feature_summary = (
-        "The variants use the fold-local feature families listed below; selection, target-weight tuning, and main-model tuning run separately within each training prefix."
+        "The single joint candidate uses the fold-local feature families listed below; selection, target-weight tuning, and main-model tuning run once within each training prefix."
         if any("model_feature_families" in variant for variant in CONFIG["variants"])
         else "The six added features are candle return (1m, 5m lag 2), realized volatility (1m), candle range (1m), candle-direction signed volume (1m), and 5m up/down-volume ratio (lag 1). The raw source has no trade-level aggressor volume, so the signed features are candle proxies."
     )
+    main_search = CONFIG.get("main_model_search", {})
+    generator_search = CONFIG.get("generator_search", {})
+    main_budget_line = (
+        f"- Main-model budget: at most {CONFIG['model_search']['requested_trials_per_variant_per_fold']} evaluated trials per fold, "
+        f"{int(main_search.get('tuning_time_limit_seconds', 0)):,} tuning seconds, and "
+        f"{int(main_search.get('final_fit_reserve_seconds', 0)):,} seconds reserved for final fit; expected "
+        f"{main_search.get('expected_successful_trials_per_fold_range', ['n/a', 'n/a'])[0]}–"
+        f"{main_search.get('expected_successful_trials_per_fold_range', ['n/a', 'n/a'])[1]} COMPLETE trials per fold from prior measured trial times."
+    )
+    if generator_search:
+        generator_budget_line = (
+            f"- VP/RP budget: at most {generator_search['max_evaluated_trials_per_fold_per_generator']} evaluated trials and "
+            f"{generator_search['time_limit_seconds_per_generator_stage']:,} seconds per generator and fold, with checkpoints at "
+            f"{', '.join(str(value) for value in generator_search['checkpoint_trial_counts'])}. Prior candidate parameters seed fresh studies; each score is recomputed under the corrected objective and no old objective value is reused. Search stops at the trial or time cap."
+        )
+    else:
+        generator_budget_line = (
+            f"- Generator trial budget: {CONFIG['feature_generator_budgets']['reaction_profile_trials']} reaction-profile and "
+            f"{CONFIG['feature_generator_budgets']['volume_profile_trials']} volume-profile trials per fold."
+        )
+    indicator_reuse_line = (
+        "- Reused hash-verified 64×8 base-indicator fits for all five folds. VP/RP dependent datasets, target weights, feature selection, main-model tuning, final fits, calibration, and validation were rerun after generator selection."
+        if CONFIG.get("indicator_artifact_sources") else
+        "- Base indicators, VP/RP, target weights, feature selection, main-model tuning, final fits, calibration, and validation were completed within their fold-local training prefixes."
+    )
     lines = [
-        "# BTC pre-open: bounded model update",
+        "# BTC pre-open: joint VP+RP model tuning",
         "",
         "> The pre-registered comparison was run with all available BTC price data before 2026-07-01 UTC for fitting. July–October is a historical diagnostic period because these outcomes were viewed in earlier repository research.",
         "",
@@ -892,7 +1211,9 @@ def _write_report(payload: dict) -> None:
         f"- {len(VARIANTS)} candidate procedures were compared with the frozen A baseline. Development intervals use the predeclared Bonferroni adjustment; uncertainty remains conditional on this frozen search, and historical holdout diagnostics are not independent proof because those outcomes were viewed earlier.",
         "- Fold-local feature families: " + "; ".join(variant_definitions) + ".",
         f"- Existing selected policy: `{CONFIG['economic_evaluation']['selected_policy']}`; fixed $5 gross order, EV hurdle 1%, side chosen at T-60 and executed at T-59. Policy selection was not repeated.",
-        f"- Trial budget: {CONFIG['model_search']['requested_trials_per_variant_per_fold']} requested trials per candidate and fold, {CONFIG['model_search']['minimum_successful_trials_per_variant_per_fold']} minimum successful, {CONFIG['model_search']['total_requested_trials']} requested total. Generator/selector history and budgets were preserved.",
+        main_budget_line,
+        generator_budget_line,
+        indicator_reuse_line,
         "- The proxy target remains Binance COIN-M BTCUSD index data: `Close[Opened+6m] >= Open[Opened+2m]`; the five-minute label becomes available at `Opened+7m`. Nominal inference is at `Opened+1m` (T-60), with the execution snapshot at T-59. Official Polymarket outcomes remain a separate evaluation target, and price-history training does not require a Polymarket quote.",
         "- " + feature_summary,
         *( ["- Candidate features: " + ", ".join(candidate_features) + "."] if candidate_features else [] ),
@@ -919,6 +1240,28 @@ def _write_report(payload: dict) -> None:
         "## Model fit audit",
         "",
         *fold_lines,
+        "",
+        "## Training and inference cost",
+        "",
+        f"Recorded pipeline time totals {baseline_training_seconds / 3600.0:.2f} h for the frozen A runs and {candidate_training_seconds / 3600.0:.2f} h for the joint VP+RP runs across the same five folds. These are observed historical run times, not a controlled benchmark; the older A runs may have reused cached stages.",
+        "",
+        *training_cost_lines,
+        "",
+        "Warm single-row inference was measured on the same holdout feature datasets after the one descriptive holdout evaluation. Timing excludes feature generation, vector allocation, and networking/order submission; one native CPU thread was used.",
+        "",
+        *inference_lines,
+        "",
+        "## VP/RP search checkpoints",
+        "",
+        "Cumulative checkpoint counts include completed, pruned, and error trials. COMPLETE counts exclude crash-penalty trials. The criterion is mean decision-row binary log-loss plus 0.75 times the population fold standard deviation. Improvement is previous checkpoint best minus current best; positive is better.",
+        "",
+        *generator_checkpoint_lines,
+        "",
+        "## Main-model tuning curve",
+        "",
+        "The curve reports best-so-far CV criterion against cumulative trial count and tuning time. `Iteration cap` shows whether the best trial reached 500 estimators; top-five bound hits show parameters at the current search-space edges.",
+        "",
+        *model_checkpoint_lines,
         "",
         "Learned generator and model state uses the fit interval shown below. Calibration uses earlier post-fit labels in the seed fold and earlier-fold OOF predictions thereafter.",
         "",
@@ -977,6 +1320,8 @@ def run_model_update() -> dict:
     if manifest.get("source_identity") not in (None, source_identity):
         raise RuntimeError("Existing model-update outputs belong to different frozen inputs or code")
     manifest["source_identity"] = source_identity
+    manifest["reused_indicator_sources"] = CONFIG.get("indicator_artifact_sources", {})
+    manifest["generator_seed_parameter_sources"] = CONFIG.get("generator_seed_sources", {})
     manifest["status"] = "running"
     manifest["started_utc"] = manifest.get("started_utc", pd.Timestamp.now(tz="UTC").isoformat())
     manifest["resource_snapshot_at_start"] = _resource_snapshot()
@@ -1193,6 +1538,8 @@ def run_model_update() -> dict:
         market_by_id,
         float(CONFIG["economic_evaluation"]["portfolio_policy_hurdle"]),
     )
+    training_costs = _training_costs(manifest, source_walk, source_holdout, all_fold_ids)
+    inference_benchmarks = _benchmark_inference_cost(manifest, source_holdout)
     model_fold_training = [
         {
             "variant": name,
@@ -1221,11 +1568,46 @@ def run_model_update() -> dict:
             "prediction_market_start_first_utc": manifest["folds"][fold_id][name]["prediction_market_start_first_utc"],
             "prediction_market_start_last_inclusive_utc": manifest["folds"][fold_id][name]["prediction_market_start_last_inclusive_utc"],
             "latest_training_label_available_at_utc": manifest["folds"][fold_id][name]["latest_training_label_available_at_utc"],
+            "generator_tuning": manifest["folds"][fold_id][name].get("generator_tuning", {}),
             **manifest["folds"][fold_id][name]["model_tuning"],
             "elapsed_seconds": manifest["folds"][fold_id][name]["elapsed_seconds"],
         }
         for fold_id in all_fold_ids for name in VARIANTS
     ]
+    generator_tuning_checkpoints = []
+    model_tuning_checkpoints = []
+    for row in model_fold_training:
+        for stage_name, stage in row.get("generator_tuning", {}).items():
+            snapshots = list(stage.get("checkpoint_summaries", []))
+            final_progress = stage.get("final_progress")
+            if final_progress and not any(
+                int(item.get("checkpoint_trial_count", -1))
+                == int(final_progress.get("checkpoint_trial_count", -2))
+                for item in snapshots
+            ):
+                snapshots.append(final_progress)
+            for snapshot in snapshots:
+                generator_tuning_checkpoints.append({
+                    "variant": row["variant"],
+                    "fold_id": row["fold_id"],
+                    "stage": stage_name,
+                    **snapshot,
+                })
+        snapshots = list(row.get("checkpoint_summaries", []))
+        final_progress = row.get("final_progress")
+        if final_progress and not any(
+            int(item.get("checkpoint_trial_count", -1))
+            == int(final_progress.get("checkpoint_trial_count", -2))
+            for item in snapshots
+        ):
+            snapshots.append(final_progress)
+        for snapshot in snapshots:
+            model_tuning_checkpoints.append({
+                "variant": row["variant"],
+                "fold_id": row["fold_id"],
+                "stage": "model_tuning",
+                **snapshot,
+            })
     payload = {
         "experiment_id": CONFIG["experiment_id"],
         "configuration_sha256": _sha256(CONFIG_PATH),
@@ -1257,6 +1639,10 @@ def run_model_update() -> dict:
         "monthly_independent_order_economics": dev_monthly_economics + hold_monthly_economics,
         "holdout_portfolios": portfolios,
         "model_fold_training": model_fold_training,
+        "generator_tuning_checkpoints": generator_tuning_checkpoints,
+        "model_tuning_checkpoints": model_tuning_checkpoints,
+        "training_costs": training_costs,
+        "inference_benchmarks": inference_benchmarks,
         "fold_periods": [
             {
                 "variant": row["variant"],

@@ -1,5 +1,7 @@
 # BTC modeling audit — 2026-10-15
 
+> **Scope correction (2026-10-16):** The four-family ablation described below was started after this audit, then interrupted during `calibration_seed/base_plus_rp/feature_selection` when the objective changed. It is not a completed comparison and will not be resumed. Its completed indicator artifacts and compatible generator parameter sets were audited; only the indicators and parameter values are reused by the single joint VP+RP tuning pipeline documented in [BTC_VP_RP_TUNING_20261016.md](BTC_VP_RP_TUNING_20261016.md). The partial selector output and old CV scores are not reused.
+
 ## Scope and decisions
 
 Audit started from `main` at `d8e2540f9c5fff2936b61a4568fb4689e186de45`, tracking `origin/main`, with a clean worktree and no staged changes. The machine profile recorded for this repository is an i7-13650HX, 20 logical processors, 64 GiB RAM, and an RTX 4060 Laptop GPU. No training or replay process was active at the initial check. The existing A/B run artifacts, Optuna databases, reports, `performance.md`, and [the binding BTC research contract](BTC_RESEARCH_CONTRACT.md) were inspected.
@@ -97,9 +99,9 @@ Across the six VP/RP configurations, all helpers selected best iterations below 
 
 The 36 comparisons completed in 370.3 s with six CPU threads. Individual CV fits took 5.0–17.4 s; candidate feature generation took 1.2–13.5 s; the largest matrix was 215.9 MiB for 615,257 rows and 92 VP features. Peak process working set was 2,596,569,088 bytes (2.42 GiB). This is a bounded, fold-A helper screening experiment, not a full pipeline ablation.
 
-The clean `base / base+VP / base+RP / base+VP+RP` nested comparison is not run. A ready, resumable runner now exists at [run_btc_preopen_feature_ablation.py](../run_btc_preopen_feature_ablation.py), with its frozen four-family configuration at [btc_preopen_vp_rp_ablation_20261015.json](../configs/research/btc_preopen_vp_rp_ablation_20261015.json). Each variant filters features before target-weight search, feature selection, and model tuning; each uses the same fold-local VP/RP generator fits, and cache signatures include the selected family and feature names. It uses 10 requested main-model trials per variant and fold (200 total across four variants and five outer folds), five minimum successful trials, the same six-dimensional model space, and the existing 24-trial generator searches. Its manifest, distinct Optuna databases, stage hashes, and checkpoints are isolated from the frozen A/B run. Resume with `python run_btc_preopen_feature_ablation.py`; there are no console arguments.
+At the time of this audit, the clean `base / base+VP / base+RP / base+VP+RP` nested comparison had not started. A ready, resumable runner existed at [run_btc_preopen_feature_ablation.py](../run_btc_preopen_feature_ablation.py), with its frozen four-family configuration at [btc_preopen_vp_rp_ablation_20261015.json](../configs/research/btc_preopen_vp_rp_ablation_20261015.json). It was subsequently started and stopped as described in the scope correction above. Its partial work does not establish a four-family comparison.
 
-The full nested run is not launched because measured stage durations project roughly 25–29 hours: target-weight tuning took 2,185–2,771 s per variant/fold, feature selection 1,602–1,804 s, development model tuning 330–333 s, and the exposed holdout tuning stage 1,939 s in the existing run; indicators and VP/RP/feature-dataset construction are shared once per fold. The full run reports a common official-market sample and per-variant coverage, and freezes development selection before its single historical holdout diagnostic. Keep the current helper and MedianPruner provisionally; the independent pruning continuation remains 15/15 completed with one configuration beating the same-fold best by 0.000031, which is not a false-prune rate. No broad target/architecture sweep is justified before the nested ablation.
+At the time of this audit the full nested run had not launched. Its then-current projected duration was roughly 25–29 hours. That four-family plan was superseded by the single joint VP+RP tuning pipeline in [BTC_VP_RP_TUNING_20261016.md](BTC_VP_RP_TUNING_20261016.md). The completed helper and pruning diagnostics remain historical evidence; neither was repeated.
 
 ## Data coverage and prospective observation
 
@@ -109,8 +111,8 @@ The 240-day prospective observation is **deferred and not started**. The 2026-10
 
 ## Next experiment and run policy
 
-1. When the roughly 25–29 hour schedule is available, run the prepared four-family ablation on development folds with the fixed 10-trial per-variant budget and review the paired common-sample log loss, Brier, AUC, calibration, and coverage.
-2. Freeze the development winner before the one historical holdout diagnostic. Do not use the holdout to revise features, generator configs, or model parameters.
-3. Keep the current helper and pruner until the nested comparison supplies stronger evidence. Resume only with `python run_btc_preopen_feature_ablation.py`; its config and manifests are separate from frozen B.
+1. The four-family ablation was stopped after the scope correction; do not resume it. Follow the single joint VP+RP pipeline and bounded budgets in [BTC_VP_RP_TUNING_20261016.md](BTC_VP_RP_TUNING_20261016.md).
+2. Freeze development selection before the one historical holdout diagnostic. Do not use holdout results to revise features, generator configs, or model parameters.
+3. Keep the current helper and pruner; no new helper or pruning experiment is part of this work.
 
-No full main-model training/selection run, four-family ablation, deployment refit, live change, order, or prospective collection was launched during this audit. The new workloads were the 36-fit helper-model CPU pilot, the small CV correctness/performance fixture, and targeted tests. The ablation runner is prepared but not started.
+No full main-model training/selection run, deployment refit, live change, order, or prospective collection was launched during this audit. The new workloads were the 36-fit helper-model CPU pilot, the small CV correctness/performance fixture, and targeted tests. The subsequent ablation interruption and replacement pipeline are documented above and in the linked 2026-10-16 status.

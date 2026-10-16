@@ -69,7 +69,7 @@ def _sample_features(feature_order):
     raise RuntimeError("The saved feature dataset has no rows in the benchmark period")
 
 
-def run():
+def run(*, print_result=True):
     training = json.loads(TRAINING_MANIFEST.read_text(encoding="utf-8"))
     calibrator = json.loads(CALIBRATOR_PATH.read_text(encoding="utf-8"))
     feature_order = list(training["feature_order"])
@@ -143,7 +143,9 @@ def run():
     OUTPUT_PATH.write_text(
         json.dumps(payload, indent=2, allow_nan=False) + "\n", encoding="utf-8"
     )
-    print(json.dumps(payload, indent=2, allow_nan=False))
+    if print_result:
+        print(json.dumps(payload, indent=2, allow_nan=False))
+    return payload
 
 
 if __name__ == "__main__":

@@ -1,0 +1,339 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_preopen_vp_rp_tuning_20261016",
+  "status": "ready_single_joint_vp_rp_pipeline",
+  "source_walk_forward_config": "configs/research/btc_preopen_walk_forward_20261011.json",
+  "source_contract": "configs/btc_preopen_v1.json",
+  "raw_data_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+  "official_markets_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+  "output_dir": "data/analysis/polymarket/BTC/btc_preopen_vp_rp_tuning_20261016",
+  "report_path": "reports/btc_preopen/btc_preopen_vp_rp_tuning_20261016.md",
+  "table_dir": "reports/btc_preopen/btc_preopen_vp_rp_tuning_20261016",
+  "nested_frozen_path": "reports/btc_preopen/btc_market_probability_nested_frozen_20261012.json",
+  "previous_economics_path": "reports/btc_preopen/btc_market_probability_nested_20261012/independent_order_economics.csv",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "data_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+  "historical_holdout_status": "July-October outcomes were viewed in prior repository experiments; one final diagnostic is descriptive only and cannot select variants.",
+  "frozen_baseline": {
+    "name": "A_frozen",
+    "bundle_path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/final_model_148ba3133040/model_bundle.json",
+    "bundle_sha256": "4820e23493efb1743863b58b411352006a71ff7ce8c66068c17c8c88e65e4583",
+    "source_walk_forward_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/walk_forward_manifest.json",
+    "source_holdout_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/evaluated_holdout_manifest.json"
+  },
+  "variants": [
+    {
+      "name": "base_plus_vp_rp",
+      "description": "One fold-local selected model using the existing base, volume-profile, and reaction-profile feature families.",
+      "candidate_features": [],
+      "model_feature_families": [
+        "base",
+        "volume_profile",
+        "reaction_profile"
+      ]
+    }
+  ],
+  "model_search": {
+    "requested_trials_per_variant_per_fold": 60,
+    "minimum_successful_trials_per_variant_per_fold": 5,
+    "seeded_trials_per_variant_per_fold": 1,
+    "tpe_startup_trials": 5,
+    "total_requested_trials": 300,
+    "seed_trial_params": {
+      "learning_rate": 0.04,
+      "num_leaves": 160,
+      "min_data_in_leaf": 8192,
+      "feature_fraction": 0.8,
+      "lambda_l1": 4.0,
+      "lambda_l2": 4.0
+    },
+    "search_space": {
+      "learning_rate": {
+        "type": "float",
+        "low": 0.02,
+        "high": 0.12,
+        "log": true
+      },
+      "num_leaves": {
+        "type": "int",
+        "low": 63,
+        "high": 255
+      },
+      "min_data_in_leaf": {
+        "type": "int",
+        "low": 1024,
+        "high": 65536,
+        "log": true
+      },
+      "feature_fraction": {
+        "type": "float",
+        "low": 0.65,
+        "high": 0.95
+      },
+      "lambda_l1": {
+        "type": "float",
+        "low": 0.1,
+        "high": 32.0,
+        "log": true
+      },
+      "lambda_l2": {
+        "type": "float",
+        "low": 0.1,
+        "high": 32.0,
+        "log": true
+      }
+    },
+    "maximum_estimators": 500,
+    "early_stopping_rounds": 50,
+    "model_cv_folds": 10,
+    "random_seed": 20261015,
+    "hard_trial_limit": true,
+    "checkpoint_trials": [
+      10,
+      20,
+      30,
+      40,
+      50,
+      60
+    ],
+    "tuning_time_limit_seconds": 7200,
+    "expected_successful_trials_per_fold_range": [
+      15,
+      24
+    ],
+    "final_fit_reserve_seconds": 300
+  },
+  "outer_folds": [
+    "calibration_seed",
+    "dev_2026q2_a",
+    "dev_2026q2_b",
+    "dev_2026q2_c",
+    "evaluated_holdout"
+  ],
+  "feature_generator_budgets": {
+    "indicator_population_size": 64,
+    "indicator_generations": 8,
+    "reaction_profile_trials": 96,
+    "volume_profile_trials": 96,
+    "target_weight_candidates": 16,
+    "selector_max_sweep_evaluations": 60,
+    "selector_permutation_feature_fraction": 0.25,
+    "selector_permutation_repeats": 1,
+    "selector_max_refinement_rounds": 3,
+    "reused_between_variants_within_fold": true,
+    "generator_trial_limit_is_hard": true,
+    "generator_checkpoint_trials": [
+      24,
+      48,
+      96
+    ],
+    "generator_tuning_time_limit_seconds": 2700,
+    "seed_prior_candidate_params_only": true,
+    "recompute_all_seed_scores": true
+  },
+  "development_model_freeze": {
+    "score": "official Polymarket outcome log-loss on the identical common development market sample",
+    "bootstrap": "paired circular moving 3-UTC-day blocks, 2000 replicates, seed 20261015",
+    "candidate_gate": "Select the single base+VP+RP candidate only if its paired 95% block interval versus A_frozen has an upper bound below zero; otherwise keep A_frozen.",
+    "holdout_used_for_selection": false
+  },
+  "economic_evaluation": {
+    "fixed_order_usd": 5.0,
+    "selected_policy": "A_BTC_calibrated_ev_1.0000%",
+    "ev_hurdles": [
+      0.0,
+      0.0025,
+      0.005,
+      0.01,
+      0.02
+    ],
+    "decision_time": "T-60 seconds",
+    "execution_time": "T-59 seconds",
+    "same_side_at_execution": true,
+    "portfolio_sizing": "5% of free cash at decision; stake remains locked until settlement",
+    "holdout_portfolio_starting_cash_usd": [
+      100.0,
+      500.0,
+      1000.0
+    ],
+    "portfolio_policy_hurdle": 0.01,
+    "holdout_is_diagnostic_only": true,
+    "book_replay": "reuse hash-verified T-60/T-59 snapshots; do not replay events"
+  },
+  "runtime_profile": {
+    "threads": 20,
+    "compute_backend": "gpu",
+    "per_pipeline_runtime_budget_seconds": 50400,
+    "per_model_tuning_and_fit_budget_seconds": 7500
+  },
+  "reproduction": {
+    "runner": "python run_btc_preopen_vp_rp_tuning.py",
+    "resume": "Run the same script; fold manifests, SQLite studies, checkpoints, and cumulative stage budgets resume by frozen signatures.",
+    "cli_arguments": false
+  },
+  "main_model_search": {
+    "max_evaluated_trials_per_fold": 60,
+    "tuning_time_limit_seconds": 7200,
+    "expected_successful_trials_per_fold_range": [
+      15,
+      24
+    ],
+    "final_fit_reserve_seconds": 300,
+    "checkpoint_trial_counts": [
+      10,
+      20,
+      30,
+      40,
+      50,
+      60
+    ],
+    "budget_basis": "previous 2430-second main-model stages yielded 5-8 COMPLETE trials; 7200 seconds projects roughly 15-24 COMPLETE trials at observed trial times"
+  },
+  "generator_search": {
+    "max_evaluated_trials_per_fold_per_generator": 96,
+    "checkpoint_trial_counts": [
+      24,
+      48,
+      96
+    ],
+    "time_limit_seconds_per_generator_stage": 2700,
+    "minimum_successful_trials": 5,
+    "seed_scores_recomputed": true,
+    "cv_objective": "corrected shared objective: mean decision-row binary log-loss + 0.75 * population standard deviation across chronological folds",
+    "budget_basis": "prior 24-trial VP/RP stages completed in roughly 300-480 seconds; 2700 seconds caps 96-trial search with headroom"
+  },
+  "indicator_artifact_sources": {
+    "calibration_seed": {
+      "run_manifest": "data/analysis/polymarket/BTC/btc_preopen_vp_rp_ablation_20261015/shared_runs/calibration_seed/9ca4755fd7b45c9f/run_manifest.json",
+      "run_manifest_sha256": "b9ed009bfce7c89928efddb0f0ef33ebd63fffd6f8db9858e6860483b945c6ce",
+      "effective_config": "data/analysis/polymarket/BTC/btc_preopen_vp_rp_ablation_20261015/shared_runs/calibration_seed/9ca4755fd7b45c9f/effective_config.json",
+      "effective_config_sha256": "f7c726d34a540b621c174ab0652b66c59a9ffae70e8b1df969e2417a64b45cf6",
+      "stage_input_signature": "42559b43ae5fb11c0a60dc126b796b1f50efadce591b15be5bc840c71fcb4550",
+      "indicator_seed": 20261015
+    },
+    "dev_2026q2_a": {
+      "run_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_a/224e784ef440f83b/run_manifest.json",
+      "run_manifest_sha256": "54866501a3a10fd58f5815bacfa3405bb94a98262901778053653802150b9012",
+      "effective_config": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_a/224e784ef440f83b/effective_config.json",
+      "effective_config_sha256": "931fa3c772cb12eae1f598d453d24fb4f5b043d1d0d6e614632aec89761bb084",
+      "stage_input_signature": "0028dd5e52fcce6c76c89338f7f2ed0fee6361a377fc089d0a233d032436cc03",
+      "indicator_seed": 20261004
+    },
+    "dev_2026q2_b": {
+      "run_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_b/cdf179bdec805886/run_manifest.json",
+      "run_manifest_sha256": "739853a5ee329a3ccd6d7e18c1fb0e583fe76b6856ebf96bed49faf97cb1fb2c",
+      "effective_config": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_b/cdf179bdec805886/effective_config.json",
+      "effective_config_sha256": "3bdf82edd82fd9647b69a98de1357471944ceec1c906184241cb8dccccb82339",
+      "stage_input_signature": "e2346a279a0502fc716a35f856fbc4ed35d1d19f5210e877b143c6b979b69776",
+      "indicator_seed": 20261004
+    },
+    "dev_2026q2_c": {
+      "run_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_c/ade47faec2dc0b69/run_manifest.json",
+      "run_manifest_sha256": "41c9e3f5915063a2645390b5985640164879a40652183d5d9dd6f2c21f549d3f",
+      "effective_config": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_c/ade47faec2dc0b69/effective_config.json",
+      "effective_config_sha256": "2d1347c67d079546dd347bb8a720681da18fa1bfc4fd9421a2e61314152246b0",
+      "stage_input_signature": "070a818b9f33bcb8ed282112ffdc9dd851fab6a3bd1c12b50a6a02ee40cd3542",
+      "indicator_seed": 20261004
+    },
+    "evaluated_holdout": {
+      "run_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/run_manifest.json",
+      "run_manifest_sha256": "3903891a58ff2c4e0fbcf52c5200fb38aec8d6b3a6b5f7a2c5e9592215e19919",
+      "effective_config": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/effective_config.json",
+      "effective_config_sha256": "cf4d9114efde1174eee088a9627f31338b3bb7a26c6027868c2fcf15f35f0984",
+      "stage_input_signature": "55aeaf2a78d2e6b529461723e5b0965a8a24b41804909c87e6072fc34991ffc9",
+      "indicator_seed": 20261004
+    }
+  },
+  "generator_seed_sources": {
+    "calibration_seed": {
+      "volume_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/btc_preopen_vp_rp_ablation_20261015/shared_runs/calibration_seed/9ca4755fd7b45c9f/stages/volume_profile_5eebe9fa56a1/study.sqlite3",
+          "database_sha256": "ca9f2952e55335dd3fb13d212e8e9ee7dbc0f873e94a2ba11d5a0ab85f0f4102",
+          "study_name": "btc_preopen_volume_profile_5eebe9fa56a1",
+          "expected_terminal_trials": 24
+        }
+      ],
+      "reaction_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/btc_preopen_vp_rp_ablation_20261015/shared_runs/calibration_seed/9ca4755fd7b45c9f/stages/reaction_profile_2e659eb1a6fa/study.sqlite3",
+          "database_sha256": "d7936bc2c298b549f6590cec43e037548bf82246b77ba885553cbff74d829800",
+          "study_name": "btc_preopen_reaction_profile_2e659eb1a6fa",
+          "expected_terminal_trials": 24
+        }
+      ]
+    },
+    "dev_2026q2_a": {
+      "volume_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_a/224e784ef440f83b/stages/volume_profile_f60d97d24ee1/study.sqlite3",
+          "database_sha256": "ecc73ead4a8dd2ced0ff6a15fd56a5b4ebe2cadf788319fa6e16f6476fa66c88",
+          "study_name": "btc_preopen_volume_profile_f60d97d24ee1",
+          "expected_terminal_trials": 24
+        }
+      ],
+      "reaction_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_a/224e784ef440f83b/stages/reaction_profile_8fb016e771dd/study.sqlite3",
+          "database_sha256": "53ac3c56ab57e8eb18d6037350fc531bcaf5c59955120661f802c1b652963210",
+          "study_name": "btc_preopen_reaction_profile_8fb016e771dd",
+          "expected_terminal_trials": 24
+        }
+      ]
+    },
+    "dev_2026q2_b": {
+      "volume_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_b/cdf179bdec805886/stages/volume_profile_bc16cbb438ed/study.sqlite3",
+          "database_sha256": "ee69a2266f4915ffc645a804c58e05e9b57356483546195dabf9f623187cfb3c",
+          "study_name": "btc_preopen_volume_profile_bc16cbb438ed",
+          "expected_terminal_trials": 24
+        }
+      ],
+      "reaction_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_b/cdf179bdec805886/stages/reaction_profile_bc99a44626ed/study.sqlite3",
+          "database_sha256": "202f2bb0388db18f0ee87dc39f7b9092cd67d3ef2f9d75815a6c00b7615a3334",
+          "study_name": "btc_preopen_reaction_profile_bc99a44626ed",
+          "expected_terminal_trials": 24
+        }
+      ]
+    },
+    "dev_2026q2_c": {
+      "volume_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_c/ade47faec2dc0b69/stages/volume_profile_51e5f5345453/study.sqlite3",
+          "database_sha256": "400353330b582645fa1a304f2cc81b3100c02ae43f8a9a73fb6daff3736e5860",
+          "study_name": "btc_preopen_volume_profile_51e5f5345453",
+          "expected_terminal_trials": 24
+        }
+      ],
+      "reaction_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/dev_2026q2_c/ade47faec2dc0b69/stages/reaction_profile_87296129adec/study.sqlite3",
+          "database_sha256": "98d218face173aa39bfadd9a38b5463eeac89154c0770fed5167acf689170d54",
+          "study_name": "btc_preopen_reaction_profile_87296129adec",
+          "expected_terminal_trials": 24
+        }
+      ]
+    },
+    "evaluated_holdout": {
+      "volume_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/volume_profile_9b2fe0e35985/study.sqlite3",
+          "database_sha256": "0fb5259b49e368ff92f4ef0470755caaad1e9fae1b038cf9ee68c658a5510fb5",
+          "study_name": "btc_preopen_volume_profile_9b2fe0e35985",
+          "expected_terminal_trials": 24
+        }
+      ],
+      "reaction_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/reaction_profile_d6cef151e5fc/study.sqlite3",
+          "database_sha256": "f17c0c7c92db58846805148b5faa45452841714b4df51f31c542d9144469bd7b",
+          "study_name": "btc_preopen_reaction_profile_d6cef151e5fc",
+          "expected_terminal_trials": 24
+        }
+      ]
+    }
+  }
+}

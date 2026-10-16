@@ -2,7 +2,9 @@
 
 ## Status
 
-Preflight audit and focused validation are complete. The four-family VP/RP ablation started at `2026-10-15T00:45:13Z` (local PID 9964) after the separate four-worker refit exited. At the `00:50:07Z` checkpoint it was on outer fold `calibration_seed`, variant `base_only`; the 1m ADX, BollingerBands, and ChaikinOsc searches had each completed generation 8/8 and saved results. The full indicator stage remained in progress, and the top-level manifest showed no completed outer fold. This is progress, not completion. Resume from the repository root with `python run_btc_preopen_feature_ablation.py`; stage manifests and Optuna studies are under the run directory. Standard output and errors are captured in ignored `launcher.stdout.log` and `launcher.stderr.log` files there. The feature-parity and store-memory jobs remained active and untouched.
+> **Superseded status (2026-10-16):** the four-family ablation recorded in this historical report was interrupted at `calibration_seed/base_plus_rp/feature_selection` due to a scope change. It completed `base_only` and `base_plus_vp` pipelines for the calibration seed only; `base_plus_rp` feature selection was partial and `base_plus_vp_rp` did not complete. It produced no valid four-way comparison and must not be resumed. Completed compatible indicator fits and old VP/RP trial parameters were audited; only indicators and parameter values are reused in the single joint pipeline. Old CV scores, selector output, and downstream datasets are not reused. See [the replacement pipeline status](../../docs/BTC_VP_RP_TUNING_20261016.md).
+
+At the `2026-10-15T00:50:07Z` checkpoint, the run had started at `2026-10-15T00:45:13Z` (local PID 9964) after a separate four-worker refit exited. It was on outer fold `calibration_seed`, variant `base_only`; 1m ADX, BollingerBands, and ChaikinOsc had each completed generation 8/8 and saved results. The full indicator stage remained in progress and the top-level manifest showed no completed outer fold. This paragraph records that historical checkpoint only; PID 9964 is not a current process identity. The feature-parity and store-memory jobs were left untouched.
 
 Starting point: clean `main` at `320e79531379cc015a3fa88d79b0145e3a32a3d5`, tracking `origin/main`. The host reports 20 logical processors, 64 GiB RAM, RTX 4060 8 GiB, and about 514 GB free on `D:`. The separate stage-5 adapter parity task is also active. Neither process was changed or stopped.
 
@@ -55,7 +57,7 @@ The saved-fold check is direct: all nine existing completed A/B fit bundles have
 
 The earlier pruning continuation was a real completion diagnostic, separate from the helper-capacity pilot: five previously PRUNED configurations from different learning-rate regions were run without Optuna pruning on each of three development B folds (15/15, 1,052.2 s end-to-end; 1,026.1 s in model fits). Six runs peaked after their original prune checkpoint; one beat its same-development-fold best COMPLETE objective by 0.000031 and 14 did not. Because source trials came from the separate final-fit B study, this is not a same-study false-prune rate. It is sufficient to answer whether pruned trials were continued; it does not justify changing the frozen pruner. The helper pilot separately reused six fixed generator configurations and did not re-tune VP/RP.
 
-## What the prepared ablation measures
+## Historical four-family plan (superseded; not a valid comparison)
 
 The config selects exactly `base`, `base+VP`, `base+RP`, and `base+VP+RP`. `base` is the modeling dataset's numeric feature set after reserved target/timestamp/raw OHLCV columns are removed, with columns prefixed `vp_` and `rp_` excluded. It retains fold-selected indicator features, candle, session, realized-volatility, basis/premium, and generic candle-volume features; it contains no second VP/RP generator output. The filter runs before target-weight search, feature selection, and main-model tuning. The four variants force no extra candidate features.
 
@@ -63,7 +65,7 @@ This is a comparison of the **full fold-local learning procedure with and withou
 
 All four variants use the same five outer fold boundaries and the same scheduled market starts. `_merge_predictions` joins one-to-one on `market_start_utc` and checks nominal decision, proxy label, label availability, and fold identity. Evaluation uses the same official outcome target, calibrated probability columns, metrics, and common market sample. The runner's content signatures include raw-data/contract/code identity and fold-local generator artifacts; generator and complete feature-dataset stages are shared within a fold, while target-weight, selector, tuner, calibrator, and model artifacts remain variant-specific. These signatures include the config, features and fold provenance; no learned fit is shared across folds.
 
-## Runtime reconstruction frozen before launch
+## Historical runtime reconstruction
 
 No full ablation or full variant was run to estimate runtime. The old model-update manifests give complete measured stages for five folds; multiplying only where each variant must refit yields this estimate:
 
@@ -78,7 +80,7 @@ No full ablation or full variant was run to estimate runtime. The old model-upda
 
 The reconstructed end-to-end projection is about **28.5–33.2 hours**, plus small final comparison/report overhead. It is higher than the earlier 25–29 hour headline because this sum explicitly includes the per-variant point-in-time bundle verifications and the five-fold main-model tuning estimate. The range is a sum of observed stage minima/maxima, not a statistical interval. Existing data provide representative measurements for each expensive stage, so no isolated full-variant timing run is needed. The config still freezes the same 24 generator trials, 16 weight candidates, selector settings, ten-fold CV, and ten requested main-model trials per variant/fold.
 
-## Run results and progress
+## Historical launch checkpoint (not current progress)
 
 Launched under Python 3.14.4 with the frozen 20-thread/GPU profile. The launch snapshot showed 53.8 GiB free RAM and 969 MiB of 8,188 MiB GPU memory used; the parent process initially held 2.98 GiB RSS. During the first indicator batch, the 20-worker process tree briefly summed to 40.3 GiB working set and free RAM reached 15.5 GiB; after the batch workers exited, free RAM returned to 51.8 GiB. The observed 15-second aggregate CPU use was 203 seconds. I set this run's process tree to BelowNormal priority while the unrelated user tasks remained active; its tuning/data settings were not changed. At `00:50:07Z`, the saved indicator output directory contained three result JSONs (1m ADX, BollingerBands, and ChaikinOsc, each at generation 8/8); the indicators stage remained active and no outer fold had completed. The top-level model-update manifest still says `running`, with no fold results yet, and `launcher.stderr.log` is empty. Current progress must be read from the top-level `model_update_manifest.json`, per-fold `run_manifest.json`/`run.log`, and stage Optuna SQLite databases under `data/analysis/polymarket/BTC/btc_preopen_vp_rp_ablation_20261015/`; stdout and stderr logs are in that ignored run directory. The model-update runner records completed folds and resumes compatible stages by their frozen signatures. No 240-day observation, real trade, or deployment refit is part of this run.
 
@@ -88,3 +90,4 @@ Launched under Python 3.14.4 with the frozen 20-thread/GPU profile. The launch s
 - [Prior helper diagnostic](btc_generator_helper_diagnostic_20261015.md)
 - [Prior pruner continuation report](b_pruner_development_diagnostic_20261014/pruner_diagnostic_report.md)
 - [Frozen ablation config](../../configs/research/btc_preopen_vp_rp_ablation_20261015.json)
+- [Replacement joint VP+RP pipeline status](../../docs/BTC_VP_RP_TUNING_20261016.md)

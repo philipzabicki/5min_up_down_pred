@@ -41,6 +41,8 @@ from utils.data import TARGET_WEIGHT_COL
 from utils.btc_preopen_tuning_resume import (
     continue_until_minimum_success as continue_optuna_until_minimum_success,
     record_stage_elapsed as record_tuning_stage_elapsed,
+    summarize_trial_progress,
+    tuning_time_used,
 )
 from utils.polymarket_policy import calibration_metrics
 
@@ -845,7 +847,7 @@ def _run_stage(
             "finished_utc": entry["finished_utc"],
             "elapsed_seconds": entry["elapsed_seconds"],
         })
-        if name == "model_tuning":
+        if name in {"reaction_profile", "volume_profile", "model_tuning"}:
             record_tuning_stage_elapsed(
                 stage_dir / "tuning_budget_history.json", stage_signature,
                 entry["elapsed_seconds"],
@@ -873,7 +875,7 @@ def _run_stage(
             "elapsed_seconds": entry["elapsed_seconds"],
             "error": entry["error"],
         })
-        if name == "model_tuning":
+        if name in {"reaction_profile", "volume_profile", "model_tuning"}:
             record_tuning_stage_elapsed(
                 stage_dir / "tuning_budget_history.json", stage_signature,
                 entry["elapsed_seconds"],
@@ -989,6 +991,117 @@ def _configure_training_backend(threads, device_type):
     return reaction, volume, model_tuning, weight_search, selector, train_lgbm
 
 
+def _verified_indicator_artifact_source(
+        source,
+        contract,
+        raw_identity,
+        indicator_cfg,
+        profile,
+):
+    manifest_path = ROOT / source["run_manifest"]
+    effective_config_path = ROOT / source["effective_config"]
+    if not manifest_path.is_file() or _sha256(manifest_path) != source["run_manifest_sha256"]:
+        raise RuntimeError("Reusable indicator run manifest is missing or changed")
+    if (
+        not effective_config_path.is_file()
+        or _sha256(effective_config_path) != source["effective_config_sha256"]
+    ):
+        raise RuntimeError("Reusable indicator effective config is missing or changed")
+
+    source_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    effective = json.loads(effective_config_path.read_text(encoding="utf-8"))
+    stage = source_manifest.get("stages", {}).get("indicators", {})
+    result = stage.get("result", {})
+    source_profile = effective.get("profile", {})
+    if stage.get("status") != "completed":
+        raise RuntimeError("Reusable indicator stage is not complete")
+    if stage.get("input_signature") != source["stage_input_signature"]:
+        raise RuntimeError("Reusable indicator stage signature differs from its frozen reference")
+    if effective.get("contract") != contract:
+        raise RuntimeError("Reusable indicator fold contract differs from this fold")
+    if effective.get("input_data", {}).get("sha256") != raw_identity["sha256"]:
+        raise RuntimeError("Reusable indicator raw-data hash differs from this run")
+    if source_manifest.get("contract_sha256") != _sha256(ROOT / profile["contract_path"]):
+        raise RuntimeError("Reusable indicator contract hash differs from this fold contract")
+    if source_profile.get("dataset_profile") != profile["dataset_profile"]:
+        raise RuntimeError("Reusable indicator dataset profile differs from this run")
+    if source_profile.get("modeling_profile") != profile["modeling_profile"]:
+        raise RuntimeError("Reusable indicator modeling profile differs from this run")
+    if source_profile.get("indicator_fit_profile") != profile["indicator_fit_profile"]:
+        raise RuntimeError("Reusable indicator fit profile differs from this run")
+    if source_profile.get("indicator_fit") != profile["indicator_fit"]:
+        raise RuntimeError("Reusable indicator population, generations, or workers differ")
+    if int(source_profile.get("seed", -1)) != int(indicator_cfg["run_budget"]["seed"]):
+        raise RuntimeError("Reusable indicator random seed differs from this fold")
+    if source_profile.get("compute_backend") != profile["compute_backend"]:
+        raise RuntimeError("Reusable indicator compute backend differs from this run")
+    if int(effective.get("threads", 0)) != int(profile["threads"]):
+        raise RuntimeError("Reusable indicator thread count differs from this run")
+    if int(result.get("config_count", 0)) != 6:
+        raise RuntimeError("Reusable indicator source does not contain all six fitted configs")
+
+    outputs = stage.get("outputs", [])
+    if len(outputs) != 7 or not _artifacts_still_match(outputs):
+        raise RuntimeError("Reusable indicator artifacts are incomplete or changed")
+    fit_result_paths = [
+        ROOT / record["path"] for record in outputs
+        if record["path"].endswith(".json")
+        and Path(record["path"]).name != "indicator_stage.json"
+    ]
+    if len(fit_result_paths) != 6:
+        raise RuntimeError("Reusable indicator source does not contain six result files")
+    minimum_generations = int(indicator_cfg["run_budget"]["minimum_generations"])
+    for path in fit_result_paths:
+        fit_result = json.loads(path.read_text(encoding="utf-8"))
+        if int(fit_result.get("best", {}).get("generations_completed", 0)) < minimum_generations:
+            raise RuntimeError(f"Reusable indicator fit is below its minimum generations: {path}")
+    fit_results_dir = str(result.get("fit_results_dir", ""))
+    if not fit_results_dir or not (ROOT / fit_results_dir).is_dir():
+        raise RuntimeError("Reusable indicator fit-results directory is missing")
+    return {
+        "config_count": 6,
+        "fit_results_dir": fit_results_dir,
+        "source_run_manifest": source["run_manifest"],
+        "source_run_manifest_sha256": source["run_manifest_sha256"],
+        "source_indicator_stage_signature": stage["input_signature"],
+        "reused_output_paths": [record["path"] for record in outputs],
+    }, outputs
+
+
+def _load_generator_seed_trials(optuna, sources, search_space, validate_seed_trial_params):
+    seed_records = []
+    provenance = []
+    terminal_names = {"COMPLETE", "PRUNED", "FAIL"}
+    for source in sources:
+        database = ROOT / source["database"]
+        if not database.is_file() or _sha256(database) != source["database_sha256"]:
+            raise RuntimeError(f"Generator seed study is missing or changed: {database}")
+        storage = "sqlite:///" + database.resolve().as_posix()
+        study = optuna.load_study(study_name=source["study_name"], storage=storage)
+        trials = study.get_trials(deepcopy=False)
+        terminal = [
+            trial for trial in trials
+            if getattr(trial.state, "name", str(trial.state)).upper() in terminal_names
+        ]
+        if len(terminal) != int(source["expected_terminal_trials"]):
+            raise RuntimeError(f"Generator seed study trial count changed: {database}")
+        for trial in terminal:
+            params = dict(trial.params)
+            if set(params) != set(search_space):
+                raise RuntimeError(f"Generator seed trial has a different parameter set: {database}")
+            validate_seed_trial_params(params, search_space)
+            seed_records.append((params, str(source["study_name"])))
+        if _sha256(database) != source["database_sha256"]:
+            raise RuntimeError(f"Reading the generator seed study changed its database: {database}")
+        provenance.append({
+            "database": source["database"],
+            "database_sha256": source["database_sha256"],
+            "study_name": source["study_name"],
+            "terminal_trials_read_as_params_only": len(terminal),
+        })
+    return seed_records, provenance
+
+
 def merge_candidate_features(selected_features, candidate_features, available_features):
     """Append frozen candidates while preserving the selector's original order."""
     selected = list(selected_features)
@@ -1021,6 +1134,12 @@ def _run_optuna_stage(
         tuning_budget_seconds=None,
         budget_history_path=None,
         budget_identity=None,
+        hard_trial_limit=False,
+        checkpoint_trial_counts=(),
+        progress_search_space=None,
+        iteration_limit=None,
+        seed_trial_params=(),
+        seed_trial_sources=(),
 ):
     database = stage_dir / "study.sqlite3"
     result_path = stage_dir / "best_result.json"
@@ -1035,6 +1154,75 @@ def _run_optuna_stage(
         pruner=optuna.pruners.MedianPruner(n_startup_trials=3, n_warmup_steps=10),
         load_if_exists=True,
     )
+    if seed_trial_params and not study.get_trials(deepcopy=False):
+        for index, seed_record in enumerate(seed_trial_params, start=1):
+            if isinstance(seed_record, tuple):
+                params, source = seed_record
+            else:
+                params, source = seed_record, "configured_seed"
+            study.enqueue_trial(
+                params=dict(params),
+                user_attrs={
+                    "seed_trial_index": index,
+                    "seed_trial_source": str(source),
+                    "seed_scores_recomputed": True,
+                },
+            )
+
+    progress_path = stage_dir / "trial_progress.json"
+    checkpoint_paths = {
+        int(count): stage_dir / f"checkpoint_{int(count)}.json"
+        for count in checkpoint_trial_counts
+    }
+    checkpoint_summaries = {}
+    for count, path in checkpoint_paths.items():
+        if path.is_file():
+            checkpoint_summaries[count] = json.loads(path.read_text(encoding="utf-8"))
+
+    def progress_payload(elapsed_seconds, previous_checkpoint=None):
+        trials = study.get_trials(deepcopy=False)
+        evaluated = sum(
+            1 for trial in trials
+            if getattr(trial.state, "name", str(trial.state)).upper()
+            in {"COMPLETE", "PRUNED", "FAIL"}
+        )
+        return {
+            "stage": stage_name,
+            "study_name": study_name,
+            "seed_trial_sources": list(seed_trial_sources),
+            **summarize_trial_progress(
+                trials,
+                checkpoint_trial_count=evaluated,
+                target_trials=int(target_trials),
+                minimum_successful_trials=int(minimum_successful_trials),
+                elapsed_seconds=float(elapsed_seconds),
+                time_limit_seconds=float(tuning_budget_seconds or 0.0),
+                search_space=progress_search_space or {},
+                iteration_limit=iteration_limit,
+                previous_checkpoint=previous_checkpoint,
+            ),
+        }
+
+    def on_trial_end(current_study, trial, elapsed_seconds):
+        del current_study, trial
+        current = progress_payload(elapsed_seconds)
+        _write_json(progress_path, current)
+        evaluated = int(current["checkpoint_trial_count"])
+        if evaluated not in checkpoint_paths:
+            return
+        previous_counts = [count for count in checkpoint_summaries if count < evaluated]
+        previous = checkpoint_summaries[max(previous_counts)] if previous_counts else None
+        current = progress_payload(elapsed_seconds, previous_checkpoint=previous)
+        _write_json(checkpoint_paths[evaluated], current)
+        _write_json(progress_path, current)
+        checkpoint_summaries[evaluated] = current
+
+    if tuning_budget_seconds is not None:
+        initial_elapsed = 0.0
+        if budget_history_path and Path(budget_history_path).is_file():
+            history = json.loads(Path(budget_history_path).read_text(encoding="utf-8"))
+            initial_elapsed = tuning_time_used(history)
+        _write_json(progress_path, progress_payload(initial_elapsed))
     if tuning_budget_seconds is not None:
         continuation = continue_optuna_until_minimum_success(
             study,
@@ -1048,6 +1236,8 @@ def _run_optuna_stage(
             history_path=Path(budget_history_path),
             identity=str(budget_identity),
             catch=tuple(catch),
+            hard_trial_limit=bool(hard_trial_limit),
+            on_trial_end=on_trial_end,
         )
         all_trials = study.get_trials(deepcopy=False)
         successful = [
@@ -1073,8 +1263,13 @@ def _run_optuna_stage(
         and np.isfinite(float(trial.value))
         and trial.user_attrs.get("trial_status") != "crash_penalty"
     ]
+    evaluated_count = sum(
+        1 for trial in all_trials
+        if getattr(trial.state, "name", str(trial.state)).upper()
+        in {"COMPLETE", "PRUNED", "FAIL"}
+    )
     trial_limit = int(target_trials)
-    remaining_trials = max(0, trial_limit - len(all_trials))
+    remaining_trials = max(0, trial_limit - evaluated_count)
     remaining_seconds = max(
         0.0,
         min(float(stage_deadline), float(overall_deadline)) - time.perf_counter(),
@@ -1103,7 +1298,11 @@ def _run_optuna_stage(
         and trial.user_attrs.get("trial_status") != "crash_penalty"
     ]
     retry_limit = int(target_trials) + int(minimum_successful_trials)
-    retry_count = max(0, retry_limit - len(all_trials)) if len(successful) < int(minimum_successful_trials) else 0
+    retry_count = (
+        max(0, retry_limit - evaluated_count)
+        if len(successful) < int(minimum_successful_trials) and not hard_trial_limit
+        else 0
+    )
     retry_seconds = max(
         0.0,
         min(float(stage_deadline), float(overall_deadline)) - time.perf_counter(),
@@ -1133,19 +1332,45 @@ def _run_optuna_stage(
             f"Study checkpoint is saved at {database}"
         )
     best = min(successful, key=lambda trial: float(trial.value))
+    terminal_count = sum(
+        1 for trial in all_trials
+        if getattr(trial.state, "name", str(trial.state)).upper()
+        in {"COMPLETE", "PRUNED", "FAIL"}
+    )
     payload = {
         "stage": stage_name,
         "study_name": study_name,
         "study_database": database.resolve().relative_to(ROOT).as_posix(),
-        "trials_total": len(all_trials),
+        "trials_total": terminal_count,
         "successful_trials": len(successful),
+        "pruned_trials": sum(
+            1 for trial in all_trials
+            if getattr(trial.state, "name", str(trial.state)).upper() == "PRUNED"
+        ),
+        "error_trials": sum(
+            1 for trial in all_trials
+            if getattr(trial.state, "name", str(trial.state)).upper() == "FAIL"
+            or (
+                getattr(trial.state, "name", str(trial.state)).upper() == "COMPLETE"
+                and (
+                    trial.value is None
+                    or not np.isfinite(float(trial.value))
+                    or trial.user_attrs.get("trial_status") == "crash_penalty"
+                )
+            )
+        ),
         "target_trials": int(target_trials),
         "minimum_successful_trials": int(minimum_successful_trials),
-        "search_complete": len(all_trials) >= int(target_trials),
+        "search_complete": (
+            terminal_count >= int(target_trials)
+            and len(successful) >= int(minimum_successful_trials)
+        ),
         "stopped_by": (
             "target_trials"
-            if len(all_trials) >= int(target_trials)
-            else "time_budget"
+            if terminal_count >= int(target_trials)
+            else "time_budget" if continuation and continuation.get("budget_exhausted")
+            else continuation.get("stop_reason", "stage_deadline") if continuation
+            else "stage_deadline"
         ),
         "best_trial_number": int(best.number),
         "best_value": float(best.value),
@@ -1155,8 +1380,27 @@ def _run_optuna_stage(
     }
     if continuation is not None:
         payload["tuning_budget"] = continuation
+        payload["checkpoint_summaries"] = [
+            checkpoint_summaries[count]
+            for count in sorted(checkpoint_summaries)
+        ]
+        evaluated = int(continuation["trials_total"])
+        previous_counts = [count for count in checkpoint_summaries if count < evaluated]
+        previous_checkpoint = checkpoint_summaries[max(previous_counts)] if previous_counts else None
+        latest = progress_payload(
+            continuation["stage_time_used_seconds"],
+            previous_checkpoint=previous_checkpoint,
+        )
+        payload["final_progress"] = latest
+        _write_json(progress_path, latest)
+    outputs = [database, result_path]
+    if progress_path.is_file():
+        outputs.append(progress_path)
+    outputs.extend(
+        path for _, path in sorted(checkpoint_paths.items()) if path.is_file()
+    )
     _write_json(result_path, payload)
-    return payload, [database, result_path]
+    return payload, outputs
 
 
 def _model_feature_frame(dataset):
@@ -1819,7 +2063,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         )
         indicator_cfg["run_budget"] = {
             "population_size": int(profile["indicator_fit"]["population_size"]),
-            "seed": int(profile["seed"]),
+            "seed": int(profile.get("indicator_seed", profile["seed"])),
             "minimum_generations": int(
                 profile["indicator_fit"].get(
                     "minimum_generations", 1
@@ -1874,12 +2118,41 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "worker_count": int(profile["indicator_fit"]["workers"]),
             "data_sha256": raw_identity["sha256"],
             "contract_sha256": contract_identity["sha256"],
+            "reuse_source_identity": (
+                {
+                    "run_manifest_sha256": profile["indicator_artifact_source"]["run_manifest_sha256"],
+                    "stage_input_signature": profile["indicator_artifact_source"]["stage_input_signature"],
+                }
+                if profile.get("indicator_artifact_source") else None
+            ),
             "code": _code_fingerprints([*indicator_code_paths, Path(__file__)]),
         }
 
         indicator_stage_deadline = deadline_for("indicators")
+        reused_indicator = None
+        reused_indicator_outputs = []
+        if profile.get("indicator_artifact_source"):
+            reused_indicator, reused_indicator_outputs = _verified_indicator_artifact_source(
+                profile["indicator_artifact_source"],
+                contract,
+                raw_identity,
+                indicator_cfg,
+                profile,
+            )
 
         def fit_indicators_action(stage_dir):
+            if reused_indicator is not None:
+                result_file = stage_dir / "indicator_stage.json"
+                _write_json(
+                    result_file,
+                    {
+                        **reused_indicator,
+                        "target_mode": "preopen_v1",
+                        "label_available_before_fit_end": True,
+                    },
+                )
+                return reused_indicator, [result_file, *(ROOT / item["path"] for item in reused_indicator_outputs)]
+
             import fit_indicators
 
             results_root = stage_dir / "results"
@@ -2138,6 +2411,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         }
 
         def run_generator_stage(stage_name, module, base_config, base_data, search_space, trial_budget):
+            generator_tuning_budget = profile.get("generator_tuning_time_limit_seconds")
             rows = np.flatnonzero(base_data["keep_mask"])
             label_times = decision_at[rows]
             folds = _purged_walk_forward_folds(
@@ -2157,6 +2431,13 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "data_sha256": raw_identity["sha256"],
                 "base_config": base_config,
                 "search_space": search_space,
+                "seed_trial_sources": profile.get("generator_seed_trial_sources", {}).get(stage_name, []),
+                "target_trials": int(trial_budget),
+                "checkpoint_trial_counts": list(profile.get("generator_checkpoint_trials", [])),
+                "tuning_time_limit_seconds": (
+                    int(generator_tuning_budget) if generator_tuning_budget is not None else None
+                ),
+                "hard_trial_limit": bool(profile.get("generator_trial_limit_is_hard", False)),
                 "folds": [(f["train_start"], f["train_end"], f["test_start"], f["test_end"]) for f in folds],
                 "fold_indices": _fold_index_fingerprints(folds),
                 "minimum_successful_trials": int(profile["minimum_successful_trials"]),
@@ -2175,6 +2456,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                     ROOT / "features/btc_preopen_contract.py",
                     ROOT / "utils/metrics.py",
                     ROOT / "utils/data.py",
+                    ROOT / "utils/btc_preopen_tuning_resume.py",
                     ROOT / "train_lgbm.py",
                     Path(__file__),
                 ]),
@@ -2189,6 +2471,12 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                     **({"base_rp_config": base_config} if stage_name == "reaction_profile" else {"base_vp_config": base_config}),
                     search_space=search_space,
                 )
+                seed_records, seed_provenance = _load_generator_seed_trials(
+                    optuna,
+                    profile.get("generator_seed_trial_sources", {}).get(stage_name, []),
+                    search_space,
+                    module.validate_seed_trial_params,
+                )
                 payload, paths = _run_optuna_stage(
                     optuna=optuna,
                     stage_name=stage_name,
@@ -2200,7 +2488,28 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                     overall_deadline=overall_deadline,
                     seed=int(profile["seed"]),
                     catch=(lgb.basic.LightGBMError, OSError),
+                    tuning_budget_seconds=(
+                        int(generator_tuning_budget) if generator_tuning_budget is not None else None
+                    ),
+                    budget_history_path=(
+                        stage_dir / "tuning_budget_history.json"
+                        if generator_tuning_budget is not None else None
+                    ),
+                    budget_identity=(
+                        _signature(signature_payload)
+                        if generator_tuning_budget is not None else None
+                    ),
+                    hard_trial_limit=bool(profile.get("generator_trial_limit_is_hard", False)),
+                    checkpoint_trial_counts=profile.get("generator_checkpoint_trials", []),
+                    progress_search_space=search_space,
+                    iteration_limit=int(module.MAX_N_ESTIMATORS),
+                    seed_trial_params=seed_records,
+                    seed_trial_sources=seed_provenance,
                 )
+                payload["seed_trial_parameters_loaded"] = sum(
+                    item["terminal_trials_read_as_params_only"] for item in seed_provenance
+                )
+                payload["seed_trial_sources"] = seed_provenance
                 if not isinstance(payload.get("best_config"), dict):
                     raise RuntimeError(f"{stage_name} best trial did not retain its normalized generator config")
                 config_path = stage_dir / "fitted_generator_config.json"
@@ -2212,9 +2521,16 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             return _run_stage(
                 manifest, manifest_path, run_root, stage_name, signature_payload, action,
                 must_run=lambda result: (
-                    int(result.get("target_trials", 0)) < int(trial_budget)
-                    or int(result.get("minimum_successful_trials", 0)) < minimum_successful
-                    or int(result.get("successful_trials", 0)) < minimum_successful
+                    not result.get("tuning_budget", {}).get("budget_exhausted", False)
+                    and not (
+                        bool(profile.get("generator_trial_limit_is_hard", False))
+                        and int(result.get("trials_total", 0)) >= int(trial_budget)
+                    )
+                    and (
+                        int(result.get("target_trials", 0)) < int(trial_budget)
+                        or int(result.get("minimum_successful_trials", 0)) < minimum_successful
+                        or int(result.get("successful_trials", 0)) < minimum_successful
+                    )
                 ),
                 deadline_monotonic=stage_deadline,
             )
@@ -2659,6 +2975,11 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "added_candidate_features": added_candidate_features,
             "search_space": model_search_space,
             "seed_trial_params": model_tuning.OPTUNA_SEED_TRIAL_PARAMS,
+            "target_trials": int(profile["model_trials"]),
+            "hard_trial_limit": bool(profile.get("model_trial_limit_is_hard", False)),
+            "checkpoint_trial_counts": list(profile.get("model_checkpoint_trials", [])),
+            "tuning_time_limit_seconds": profile.get("main_model_tuning_time_limit_seconds"),
+            "final_fit_reserve_seconds": profile.get("main_model_final_fit_reserve_seconds"),
             "max_estimators": int(profile["maximum_estimators"]),
             "early_stopping_rounds": int(profile["early_stopping_rounds"]),
             "cv_folds": int(profile.get("model_cv_folds", cv_folds)),
@@ -2666,25 +2987,32 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 ROOT / "optimize_lgbm_hyperparameters.py",
                 ROOT / "features/btc_preopen_contract.py",
                 ROOT / "utils/metrics.py",
+                ROOT / "utils/btc_preopen_tuning_resume.py",
                 ROOT / "train_lgbm.py",
                 Path(__file__),
             ]),
-            "objective": "unweighted decision-row binary_logloss with chronological OOF",
+            "objective": "mean unweighted decision-row binary_logloss + 0.5 * population fold standard deviation",
             "seed": int(profile["seed"]),
             "compute_backend": compute_backend,
         }
         model_stage_deadline = deadline_for("model_tuning_and_fit")
+        model_stage_budget = float(stages.get("model_tuning_and_fit", 0))
+        model_fit_reserve = float(profile.get(
+            "main_model_final_fit_reserve_seconds",
+            min(300.0, model_stage_budget * 0.1),
+        ))
+        configured_tuning_budget = profile.get("main_model_tuning_time_limit_seconds")
+        model_tuning_budget_seconds = (
+            max(0.0, model_stage_budget - model_fit_reserve)
+            if configured_tuning_budget is None
+            else min(
+                float(configured_tuning_budget),
+                max(0.0, model_stage_budget - model_fit_reserve),
+            )
+        )
         model_tuning_deadline = max(
             time.perf_counter(),
-            model_stage_deadline - min(
-                300.0,
-                float(stages.get("model_tuning_and_fit", 0)) * 0.1,
-            ),
-        )
-        model_tuning_budget_seconds = max(
-            0.0,
-            float(stages.get("model_tuning_and_fit", 0))
-            - min(300.0, float(stages.get("model_tuning_and_fit", 0)) * 0.1),
+            model_stage_deadline - model_fit_reserve,
         )
         model_tuning_stage_identity = _signature(model_search_signature_payload)
 
@@ -2715,6 +3043,10 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 tuning_budget_seconds=model_tuning_budget_seconds,
                 budget_history_path=stage_dir / "tuning_budget_history.json",
                 budget_identity=model_tuning_stage_identity,
+                hard_trial_limit=bool(profile.get("model_trial_limit_is_hard", False)),
+                checkpoint_trial_counts=profile.get("model_checkpoint_trials", []),
+                progress_search_space=model_search_space,
+                iteration_limit=int(profile["maximum_estimators"]),
             )
             result.update(
                 {
@@ -2732,9 +3064,16 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             manifest, manifest_path, run_root, "model_tuning", model_search_signature_payload,
             tune_model_action,
             must_run=lambda result: (
-                int(result.get("target_trials", 0)) < int(profile["model_trials"])
-                or int(result.get("minimum_successful_trials", 0)) < int(profile["minimum_successful_trials"])
-                or int(result.get("successful_trials", 0)) < int(profile["minimum_successful_trials"])
+                not result.get("tuning_budget", {}).get("budget_exhausted", False)
+                and not (
+                    bool(profile.get("model_trial_limit_is_hard", False))
+                    and int(result.get("trials_total", 0)) >= int(profile["model_trials"])
+                )
+                and (
+                    int(result.get("target_trials", 0)) < int(profile["model_trials"])
+                    or int(result.get("minimum_successful_trials", 0)) < int(profile["minimum_successful_trials"])
+                    or int(result.get("successful_trials", 0)) < int(profile["minimum_successful_trials"])
+                )
             ),
             deadline_monotonic=model_tuning_deadline,
         )
