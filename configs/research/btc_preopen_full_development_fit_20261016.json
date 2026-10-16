@@ -1,0 +1,214 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_preopen_full_development_fit_20261016",
+  "status": "ready_single_full_development_fit",
+  "source_walk_forward_config": "configs/research/btc_preopen_walk_forward_20261011.json",
+  "source_contract": "configs/btc_preopen_v1.json",
+  "raw_data_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+  "official_markets_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+  "output_dir": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016",
+  "report_path": "reports/btc_preopen/btc_preopen_full_development_fit_20261016.md",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "holdout_market_start_first_inclusive_utc": "2026-07-01T00:00:00Z",
+  "holdout_market_start_last_inclusive_utc": "2026-10-06T23:55:00Z",
+  "data_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+  "historical_holdout_status": "July-October outcomes and overlapping BTC observations were viewed in prior repository experiments; one descriptive evaluation only, no choices may change from its result.",
+  "frozen_baseline": {
+    "name": "A_frozen",
+    "bundle_path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/final_model_148ba3133040/model_bundle.json",
+    "bundle_sha256": "4820e23493efb1743863b58b411352006a71ff7ce8c66068c17c8c88e65e4583",
+    "source_walk_forward_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/walk_forward_manifest.json",
+    "source_holdout_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/evaluated_holdout_manifest.json"
+  },
+  "frozen_policy": {
+    "source_path": "reports/btc_preopen/btc_market_probability_nested_frozen_20261012.json",
+    "policy_name": "A_BTC_calibrated_ev_1.0000%",
+    "minimum_net_ev_fraction": 0.01,
+    "holdout_used_for_selection": false
+  },
+  "model_feature_families": [
+    "base",
+    "volume_profile",
+    "reaction_profile"
+  ],
+  "generator_search": {
+    "trials_per_generator": 96,
+    "checkpoint_trials": [
+      24,
+      48,
+      96
+    ],
+    "time_limit_seconds_per_generator": 2700,
+    "minimum_successful_trials": 5,
+    "objective": "mean decision-row binary log-loss + 0.75 * population fold standard deviation",
+    "seed_trial_parameters_only": true,
+    "recompute_seed_scores": true
+  },
+  "target_weight_search": {
+    "candidates": 16,
+    "reuse_existing_rules": true
+  },
+  "feature_selection": {
+    "max_sweep_evaluations": 60,
+    "permutation_feature_fraction": 0.25,
+    "permutation_repeats": 1,
+    "max_refinement_rounds": 3
+  },
+  "main_model_search": {
+    "trial_limit": 60,
+    "time_limit_seconds": 7200,
+    "final_fit_reserve_seconds": 300,
+    "checkpoint_trials": [
+      10,
+      20,
+      30,
+      40,
+      50,
+      60
+    ],
+    "cv_folds": 10,
+    "minimum_successful_trials": 5,
+    "seed_trial_params": {
+      "learning_rate": 0.04,
+      "num_leaves": 160,
+      "min_data_in_leaf": 8192,
+      "feature_fraction": 0.8,
+      "lambda_l1": 4.0,
+      "lambda_l2": 4.0
+    },
+    "search_space": {
+      "learning_rate": {
+        "type": "float",
+        "low": 0.02,
+        "high": 0.12,
+        "log": true
+      },
+      "num_leaves": {
+        "type": "int",
+        "low": 63,
+        "high": 255
+      },
+      "min_data_in_leaf": {
+        "type": "int",
+        "low": 1024,
+        "high": 65536,
+        "log": true
+      },
+      "feature_fraction": {
+        "type": "float",
+        "low": 0.65,
+        "high": 0.95
+      },
+      "lambda_l1": {
+        "type": "float",
+        "low": 0.1,
+        "high": 32.0,
+        "log": true
+      },
+      "lambda_l2": {
+        "type": "float",
+        "low": 0.1,
+        "high": 32.0,
+        "log": true
+      }
+    },
+    "maximum_estimators": 500,
+    "early_stopping_rounds": 50,
+    "random_seed": 20261015,
+    "tpe_startup_trials": 5
+  },
+  "indicator_fit": {
+    "population_size": 64,
+    "generations": 8,
+    "workers": 20
+  },
+  "reuse": {
+    "indicator_artifact_source": {
+      "run_manifest": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/run_manifest.json",
+      "run_manifest_sha256": "3903891a58ff2c4e0fbcf52c5200fb38aec8d6b3a6b5f7a2c5e9592215e19919",
+      "effective_config": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/effective_config.json",
+      "effective_config_sha256": "cf4d9114efde1174eee088a9627f31338b3bb7a26c6027868c2fcf15f35f0984",
+      "stage_input_signature": "55aeaf2a78d2e6b529461723e5b0965a8a24b41804909c87e6072fc34991ffc9",
+      "indicator_seed": 20261004
+    },
+    "generator_seed_sources": {
+      "volume_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/volume_profile_9b2fe0e35985/study.sqlite3",
+          "database_sha256": "0fb5259b49e368ff92f4ef0470755caaad1e9fae1b038cf9ee68c658a5510fb5",
+          "study_name": "btc_preopen_volume_profile_9b2fe0e35985",
+          "expected_terminal_trials": 24
+        }
+      ],
+      "reaction_profile": [
+        {
+          "database": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/reaction_profile_d6cef151e5fc/study.sqlite3",
+          "database_sha256": "f17c0c7c92db58846805148b5faa45452841714b4df51f31c542d9144469bd7b",
+          "study_name": "btc_preopen_reaction_profile_d6cef151e5fc",
+          "expected_terminal_trials": 24
+        }
+      ]
+    },
+    "source_note": "The evaluated_holdout donor covers the full permitted development range. Generator study values are queued as parameters only and rescored in the new study; no source scores are imported. The interrupted calibration_seed trial databases remain preserved in their original output directory."
+  },
+  "runtime": {
+    "threads": 20,
+    "compute_backend": "gpu",
+    "runtime_budget_seconds": 72000,
+    "stage_budgets_seconds": {
+      "indicators": 21600,
+      "reaction_profile": 2700,
+      "volume_profile": 2700,
+      "target_weights": 10800,
+      "feature_selection": 2400,
+      "model_tuning_and_fit": 7500,
+      "calibration_evaluation_bundle": 7200
+    }
+  },
+  "economic_evaluation": {
+    "fixed_order_usd": 5.0,
+    "selected_policy": "A_BTC_calibrated_ev_1.0000%",
+    "ev_hurdles": [
+      0.0,
+      0.0025,
+      0.005,
+      0.01,
+      0.02
+    ],
+    "decision_time": "T-60 seconds",
+    "execution_time": "T-59 seconds",
+    "same_side_at_execution": true,
+    "portfolio_sizing": "5% of free cash at decision; stake remains locked until settlement",
+    "holdout_portfolio_starting_cash_usd": [
+      100.0,
+      500.0,
+      1000.0
+    ],
+    "portfolio_policy_hurdle": 0.01,
+    "holdout_is_diagnostic_only": true,
+    "book_replay": "reuse hash-verified T-60/T-59 snapshots; do not replay events"
+  },
+  "one_process": true,
+  "no_ablation": true,
+  "no_archive_replay": true,
+  "reproduction": {
+    "runner": "python run_btc_preopen_full_development_fit.py",
+    "resume": "Run the same script after confirming the existing process is not active; stages resume by manifest and signatures.",
+    "cli_arguments": false
+  },
+  "variants": [
+    {
+      "name": "base_plus_vp_rp",
+      "description": "One fold-local selected model using the existing base, volume-profile, and reaction-profile feature families.",
+      "candidate_features": [],
+      "model_feature_families": [
+        "base",
+        "volume_profile",
+        "reaction_profile"
+      ]
+    }
+  ],
+  "nested_frozen_path": "reports/btc_preopen/btc_market_probability_nested_frozen_20261012.json",
+  "table_dir": "reports/btc_preopen/btc_preopen_full_development_fit_20261016",
+  "previous_economics_path": "reports/btc_preopen/btc_market_probability_nested_20261012/independent_order_economics.csv"
+}

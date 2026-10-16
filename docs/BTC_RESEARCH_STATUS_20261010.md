@@ -1,6 +1,26 @@
 # BTC research execution status
 
-Updated: 2026-10-15 (Europe/Warsaw)
+Updated: 2026-10-16 (Europe/Warsaw)
+
+<!-- BTC_FULL_DEVELOPMENT_RUN_STATUS_BEGIN -->
+### Full-development run checkpoint
+- Updated UTC: `2026-10-16T02:35:55Z`.
+- Status: `ready after validation`; frozen input, baseline, T-60/T-59 snapshot, config, and contract preflight passed. The replacement run has not started yet.
+- Active pipeline stage: `none`.
+- Completed stages: `none`.
+- Trial checkpoint: `{}`.
+- Resource check: 20 logical CPUs, 54.6 GiB free RAM, 363.4 GiB free disk, RTX 4060 Laptop GPU with 938 MiB used at 1% utilization; no old or replacement runner process was active.
+- Next action: commit and push the validated replacement, then run `python run_btc_preopen_full_development_fit.py` once.
+- Run manifest: `data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/run_manifest.json`.
+<!-- BTC_FULL_DEVELOPMENT_RUN_STATUS_END -->
+
+## 2026-10-16 scope correction
+
+The old five-pipeline run was controlled-interrupted in `D:\Cloud\filips19\github\5min_up_down_pred` at `2026-10-16T02:18:52Z` after confirming PID `25464` ran `run_btc_preopen_vp_rp_tuning.py` from this repository. The process exited cleanly; no other process was stopped. Its root and active nested manifests are `interrupted_scope_change`, so the old launcher cannot continue later folds.
+
+The last completed nested stage was `final_feature_dataset`. Base indicators were signature-verified and reused; volume profile completed 96/96 trials (96 COMPLETE), reaction profile completed 96 trials (88 COMPLETE, 8 PRUNED, no errors), and target weights plus the final candidate feature dataset completed. Feature ranking completed, followed by 9 of 11 coarse top-k evaluations through `k=256`; `k=512` was not checkpointed and no Optuna trial was active at interruption. No main-model tuning study started. The interrupted trial databases, checkpoints, stage outputs, and source hashes remain in the old output directory.
+
+The replacement is one full-development pipeline with chronological internal CV and one descriptive historical holdout evaluation. It uses the frozen cutoff and policy, conditional development-CV calibration predictions, and the existing T-60/T-59 snapshots. See [the new procedure and cost estimate](BTC_FULL_DEVELOPMENT_PIPELINE_20261016.md); the old multi-pipeline plan remains below as history.
 
 ## Latest execution checkpoint — 2026-10-12 14:14 (Europe/Warsaw)
 

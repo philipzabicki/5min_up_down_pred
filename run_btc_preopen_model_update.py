@@ -1317,6 +1317,11 @@ def run_model_update() -> dict:
         "experiment_id": CONFIG["experiment_id"],
         "folds": {},
     }
+    if manifest.get("status") == "interrupted_scope_change":
+        raise RuntimeError(
+            "This historical multi-fold run was interrupted after a scope change and cannot resume; "
+            "use the separately configured full-development runner."
+        )
     if manifest.get("source_identity") not in (None, source_identity):
         raise RuntimeError("Existing model-update outputs belong to different frozen inputs or code")
     manifest["source_identity"] = source_identity

@@ -415,6 +415,152 @@ def _paired_block_interval(y, first_p, second_p):
     }
 
 
+def _fit_conditional_development_oof_predictions(
+    *,
+    x,
+    y,
+    sample_weight,
+    folds,
+    opened,
+    decision_at,
+    target_available_at,
+    calibration_label_cutoff_at,
+    feature_names,
+    best_params,
+    best_iteration,
+    seed,
+    compute_backend,
+    num_threads,
+    output_path,
+):
+    """Fit fixed-configuration chronological folds for development calibration."""
+    x = np.asarray(x, dtype=np.float32)
+    y = np.asarray(y, dtype=np.int8)
+    sample_weight = np.asarray(sample_weight, dtype=np.float32)
+    opened = pd.DatetimeIndex(pd.to_datetime(opened, utc=True, errors="raise"))
+    decision_at = pd.DatetimeIndex(pd.to_datetime(decision_at, utc=True, errors="raise"))
+    target_available_at = pd.DatetimeIndex(
+        pd.to_datetime(target_available_at, utc=True, errors="raise")
+    )
+    calibration_label_cutoff_at = pd.Timestamp(calibration_label_cutoff_at)
+    calibration_label_cutoff_at = (
+        calibration_label_cutoff_at.tz_convert("UTC")
+        if calibration_label_cutoff_at.tzinfo
+        else calibration_label_cutoff_at.tz_localize("UTC")
+    )
+    lengths = {
+        len(x), len(y), len(sample_weight), len(opened),
+        len(decision_at), len(target_available_at),
+    }
+    if len(lengths) != 1:
+        raise ValueError("Development OOF inputs must have the same row count")
+
+    parameters = {
+        "objective": "binary",
+        "metric": "binary_logloss",
+        "verbosity": -1,
+        "device_type": str(compute_backend),
+        "num_threads": int(num_threads),
+        "max_bin": 63,
+        "feature_pre_filter": False,
+        "deterministic": True,
+        "force_col_wise": True,
+        "seed": int(seed),
+        "feature_fraction_seed": int(seed),
+        "bagging_seed": int(seed),
+        "data_random_seed": int(seed),
+        **dict(best_params),
+    }
+    records = []
+    fold_audit = []
+    validated = np.zeros(len(y), dtype=bool)
+    for fold in folds:
+        train_idx = np.asarray(fold["train_idx"], dtype=np.int64)
+        valid_idx = np.asarray(fold["valid_idx"], dtype=np.int64)
+        if train_idx.size == 0 or valid_idx.size == 0:
+            raise RuntimeError(f"Development OOF fold {fold['fold_id']} is empty")
+        if np.any(validated[valid_idx]):
+            raise RuntimeError("Development OOF validation folds overlap")
+        first_validation_decision = decision_at[valid_idx].min()
+        latest_training_label = target_available_at[train_idx].max()
+        if decision_at[valid_idx].max() >= calibration_label_cutoff_at:
+            raise RuntimeError(
+                f"Development OOF fold {fold['fold_id']} includes a holdout prediction decision"
+            )
+        if target_available_at[valid_idx].max() > calibration_label_cutoff_at:
+            raise RuntimeError(
+                f"Development OOF fold {fold['fold_id']} includes labels unavailable by the calibration cutoff"
+            )
+        if latest_training_label > first_validation_decision:
+            raise RuntimeError(
+                f"Development OOF fold {fold['fold_id']} trains on labels unavailable "
+                "at its first validation decision"
+            )
+        training_set = lgb.Dataset(
+            x[train_idx],
+            label=y[train_idx],
+            weight=sample_weight[train_idx],
+            feature_name=list(feature_names),
+            free_raw_data=True,
+        )
+        model = lgb.train(
+            parameters,
+            training_set,
+            num_boost_round=int(best_iteration),
+        )
+        probability = np.asarray(
+            model.predict(x[valid_idx], num_threads=int(num_threads)),
+            dtype=np.float64,
+        )
+        if not np.isfinite(probability).all():
+            raise RuntimeError(f"Development OOF fold {fold['fold_id']} produced non-finite probabilities")
+        validated[valid_idx] = True
+        records.append(pd.DataFrame({
+            "Opened": opened[valid_idx],
+            "nominal_decision_at": decision_at[valid_idx],
+            "market_start_utc": decision_at[valid_idx] + pd.Timedelta(seconds=60),
+            TARGET_COL: y[valid_idx],
+            TARGET_AVAILABLE_COL: target_available_at[valid_idx],
+            DECISION_COL: True,
+            "p_model_raw": np.clip(probability, 1e-6, 1.0 - 1e-6),
+            "prediction_available_at_utc": decision_at[valid_idx] + pd.Timedelta(seconds=1),
+            "fold_id": f"main_model_cv_{fold['fold_id']}",
+            "prediction_provenance": "development_selected_configuration_chronological_oof_conditional",
+            "fit_label_available_through_utc": latest_training_label,
+        }))
+        fold_audit.append({
+            "fold_id": str(fold["fold_id"]),
+            "training_rows": int(len(train_idx)),
+            "validation_rows": int(len(valid_idx)),
+            "validation_start_utc": first_validation_decision.isoformat(),
+            "validation_last_decision_at_utc": decision_at[valid_idx].max().isoformat(),
+            "latest_training_label_available_at_utc": latest_training_label.isoformat(),
+            "best_iteration": int(best_iteration),
+        })
+        del model, training_set
+
+    if not records:
+        raise RuntimeError("No chronological model folds produced calibration predictions")
+    predictions = pd.concat(records, ignore_index=True)
+    if predictions["nominal_decision_at"].duplicated().any():
+        raise RuntimeError("Development OOF predictions contain duplicate decision times")
+    predictions.sort_values("nominal_decision_at", kind="stable", inplace=True)
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = output_path.with_suffix(output_path.suffix + ".tmp")
+    predictions.to_parquet(temporary, index=False, compression="zstd")
+    temporary.replace(output_path)
+    return {
+        "prediction_path": output_path.resolve().relative_to(ROOT).as_posix(),
+        "rows": int(len(predictions)),
+        "fold_count": int(len(fold_audit)),
+        "folds": fold_audit,
+        "prediction_provenance": "development_selected_configuration_chronological_oof_conditional",
+        "configuration_conditioning": "generator settings, feature selection, weights, and model hyperparameters were selected on development",
+        "holdout_rows_included": False,
+    }
+
+
 def _fit_calibrator(
     model, frame, x, y, identity, *, minimum_rows=1000,
     oof_predictions_path=None,
@@ -442,10 +588,13 @@ def _fit_calibrator(
         raw_probability = pd.to_numeric(oof["p_model_raw"], errors="coerce").to_numpy(dtype=np.float64)
         if oof["fold_id"].astype(str).eq("evaluated_holdout").any():
             raise RuntimeError("Holdout rows cannot be used to fit a Platt calibrator")
-        if not oof["prediction_provenance"].astype(str).eq(
-            "full_pipeline_chronological_out_of_fold"
-        ).all():
-            raise RuntimeError("Calibration rows must come from full-pipeline chronological OOF predictions")
+        provenance = set(oof["prediction_provenance"].astype(str).unique())
+        accepted_provenance = {
+            "full_pipeline_chronological_out_of_fold",
+            "development_selected_configuration_chronological_oof_conditional",
+        }
+        if not provenance or not provenance.issubset(accepted_provenance):
+            raise RuntimeError("Calibration rows must come from approved chronological OOF predictions")
         fit_label_available = pd.to_datetime(
             oof["fit_label_available_through_utc"], utc=True, errors="raise",
         )
@@ -500,9 +649,17 @@ def _fit_calibrator(
         "input_identity": identity,
         "label_source": "Binance COIN-M BTCUSD index price proxy",
         "calibration_source": (
-            "earlier-fold out-of-fold raw predictions"
+            "development chronological CV predictions conditional on selected generators and features"
+            if oof_predictions_path is not None
+            and provenance == {"development_selected_configuration_chronological_oof_conditional"}
+            else "earlier-fold out-of-fold raw predictions"
             if oof_predictions_path is not None
             else "chronological post-fit prediction interval"
+        ),
+        "prediction_provenance": sorted(provenance) if oof_predictions_path is not None else None,
+        "conditional_on_development_selection": bool(
+            oof_predictions_path is not None
+            and provenance == {"development_selected_configuration_chronological_oof_conditional"}
         ),
         "training_rows": int(len(rows)),
         "calibration_start_decision_at": calibration_decisions.min(),
@@ -1945,6 +2102,11 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         if manifest_path.is_file()
         else {"schema_version": 1, "run_id": task_identity, "stages": {}}
     )
+    if manifest.get("status") == "interrupted_scope_change":
+        _unlock_run(lock)
+        raise RuntimeError(
+            "This run was interrupted after a scope change and cannot resume under its old configuration."
+        )
     log_path = run_root / "run.log"
     log_handle = log_path.open("a", encoding="utf-8", buffering=1)
     original_stdout, original_stderr = sys.stdout, sys.stderr
@@ -3184,6 +3346,67 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         METRICS_PATH = bundle_dir / "evaluation.json"
         MODEL_META_PATH = bundle_dir / "lgbm_meta.json"
         FEATURE_SOURCE_PATH = bundle_dir / "feature_sources.json"
+        calibration_oof_path = None
+        calibration_oof_sig = None
+        calibration_evaluation_deadline = deadline_for("calibration_evaluation_bundle")
+        calibration_oof_mode = profile.get("calibration_oof_mode")
+        if calibration_oof_mode is not None:
+            if calibration_oof_mode != "selected_development_cv":
+                raise ValueError("Unsupported calibration_oof_mode")
+            if profile.get("oof_calibration_predictions_path"):
+                raise ValueError("Configure either generated or external calibration OOF, not both")
+            calibration_oof_payload = {
+                "mode": calibration_oof_mode,
+                "model_tuning_signature": model_tuning_sig,
+                "target": contract["training_target"],
+                "data_sha256": raw_identity["sha256"],
+                "fit_end_exclusive": FIT_END.isoformat(),
+                "feature_order": model_features,
+                "best_params": tuned_params,
+                "best_iteration": int(model_tuning_result["best_iteration"]),
+                "fold_indices": _fold_index_fingerprints(tune_folds),
+                "training_weight_sha256": _array_sha256(tune_weights, dtype=np.float32),
+                "validation_rows": int(sum(len(fold["valid_idx"]) for fold in tune_folds)),
+                "code_sha256": _code_fingerprints([
+                    Path(__file__),
+                    ROOT / "optimize_lgbm_hyperparameters.py",
+                    ROOT / "features/btc_preopen_contract.py",
+                ]),
+            }
+
+            def fit_calibration_oof_action(stage_dir):
+                prediction_path = stage_dir / "development_calibration_oof.parquet"
+                result = _fit_conditional_development_oof_predictions(
+                    x=tune_x_np,
+                    y=tune_y_np,
+                    sample_weight=tune_weights,
+                    folds=tune_folds,
+                    opened=tune_opened,
+                    decision_at=tune_decision_at,
+                    target_available_at=label_available[development_rows],
+                    calibration_label_cutoff_at=TEST_FIRST_DECISION,
+                    feature_names=model_features,
+                    best_params=tuned_params,
+                    best_iteration=int(model_tuning_result["best_iteration"]),
+                    seed=int(profile["seed"]),
+                    compute_backend=compute_backend,
+                    num_threads=NUM_THREADS,
+                    output_path=prediction_path,
+                )
+                return result, [prediction_path]
+
+            calibration_oof_result, calibration_oof_sig, calibration_oof_outputs = _run_stage(
+                manifest,
+                manifest_path,
+                run_root,
+                "calibration_oof",
+                calibration_oof_payload,
+                fit_calibration_oof_action,
+                deadline_monotonic=calibration_evaluation_deadline,
+            )
+            calibration_oof_path = ROOT / calibration_oof_result["prediction_path"]
+            if not calibration_oof_path.is_file():
+                raise RuntimeError("Completed development calibration OOF predictions are missing")
         calibration_identity = {
             "model_sha256": final_model_result["model_sha256"],
             "seed": int(profile["seed"]),
@@ -3194,14 +3417,20 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "first_external_test_decision": TEST_FIRST_DECISION.isoformat(),
             "contract_sha256": contract_identity["sha256"],
             "minimum_rows": int(profile.get("minimum_calibration_rows", 1000)),
-            "oof_predictions_path": profile.get("oof_calibration_predictions_path"),
+            "oof_predictions_path": (
+                profile.get("oof_calibration_predictions_path")
+                or (calibration_oof_result.get("prediction_path") if calibration_oof_path else None)
+            ),
             "oof_predictions_sha256": (
                 _sha256(ROOT / profile["oof_calibration_predictions_path"])
                 if profile.get("oof_calibration_predictions_path")
+                else _sha256(calibration_oof_path)
+                if calibration_oof_path is not None
                 else None
             ),
+            "calibration_oof_signature": calibration_oof_sig,
+            "calibration_oof_mode": calibration_oof_mode,
         }
-        calibration_evaluation_deadline = deadline_for("calibration_evaluation_bundle")
 
         def calibration_action(stage_dir):
             global CALIBRATOR_PATH
@@ -3215,7 +3444,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 oof_predictions_path=(
                     ROOT / profile["oof_calibration_predictions_path"]
                     if profile.get("oof_calibration_predictions_path")
-                    else None
+                    else calibration_oof_path
                 ),
             )
             return {"training_rows": int(calibration["training_rows"]), "calibrator_path": CALIBRATOR_PATH.resolve().relative_to(ROOT).as_posix()}, [CALIBRATOR_PATH]

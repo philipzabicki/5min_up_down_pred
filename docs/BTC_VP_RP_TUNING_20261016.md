@@ -1,5 +1,7 @@
 # BTC joint VP+RP tuning — 2026-10-16
 
+> **Superseded by the single full-development fit.** This document below is the historical plan for the five-pipeline procedure. PID `25464` was controlled-interrupted on 2026-10-16 at 02:18:52 UTC after the scope changed. Its manifests are marked `interrupted_scope_change`; the old runner refuses to resume them. See [the replacement procedure](BTC_FULL_DEVELOPMENT_PIPELINE_20261016.md) and the [current research status](BTC_RESEARCH_STATUS_20261010.md).
+
 ## Scope and current state
 
 The four-family `base / base+VP / base+RP / base+VP+RP` ablation was stopped after the scope changed. Its last saved location was `calibration_seed/base_plus_rp/feature_selection`. `base_only` and `base_plus_vp` completed only for the calibration seed; `base_plus_rp` feature selection was partial, and `base_plus_vp_rp` did not complete. No four-way comparison exists. The root manifest records `interrupted_scope_change`; donor artifact contents and source hashes, databases, and checkpoints were preserved.
