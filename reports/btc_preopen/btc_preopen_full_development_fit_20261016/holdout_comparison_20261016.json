@@ -1,0 +1,136 @@
+{
+  "status": "completed",
+  "comparison": "new_model_minus_A_frozen",
+  "holdout": {
+    "market_start_first_utc": "2026-07-01T00:00:00Z",
+    "market_start_last_utc": "2026-10-06T23:55:00Z",
+    "exclusive_data_cutoff_utc": "2026-10-07T00:00:00Z",
+    "rows_per_saved_prediction_file": 28224,
+    "identical_unique_market_starts": 28224,
+    "proxy_label_rows": 28224,
+    "official_labels_in_index": 28221,
+    "official_outcomes_and_cash_releases_by_cutoff": 28220,
+    "official_unavailable_by_cutoff": {
+      "missing_label": 3,
+      "released_after_cutoff": 1
+    },
+    "proxy_official_disagreements": 2213,
+    "predictions_available_by_t_minus_59": true
+  },
+  "metrics": {
+    "label_sources_are_separate": true,
+    "proxy": {
+      "n": 28224,
+      "A_frozen": {
+        "raw": {"log_loss": 0.6924766051100445, "brier": 0.24966488731357445, "auc": 0.5211059312543628},
+        "calibrated": {"log_loss": 0.6925207826015466, "brier": 0.24968685813712763, "auc": 0.5211059312543628}
+      },
+      "new_model": {
+        "raw": {"log_loss": 0.6925651534015497, "brier": 0.24970878166124333, "auc": 0.5211505214621432},
+        "calibrated": {"log_loss": 0.6925435821900641, "brier": 0.24969818171235408, "auc": 0.5211505214621432}
+      },
+      "paired_delta_raw": {
+        "log_loss": {"estimate": 0.0000885482915052, "ci95": [-0.0001213893, 0.0002961897]},
+        "brier": {"estimate": 0.0000438943476689, "ci95": [-0.0000608331, 0.0001474147]},
+        "auc": {"estimate": 0.0000445902077784, "ci95": [-0.0024728149, 0.0025558455]}
+      },
+      "paired_delta_calibrated": {
+        "log_loss": {"estimate": 0.0000227995885175, "ci95": [-0.0001937845, 0.0002233042]},
+        "brier": {"estimate": 0.0000113235752265, "ci95": [-0.0000968319, 0.0001112390]},
+        "auc": {"estimate": 0.0000445902077784, "ci95": [-0.0024728149, 0.0025558455]}
+      }
+    },
+    "official_polymarket": {
+      "n": 28220,
+      "A_frozen": {
+        "raw": {"log_loss": 0.6924245436749196, "brier": 0.24963881762454979, "auc": 0.5220395179443542},
+        "calibrated": {"log_loss": 0.6924660965571428, "brier": 0.24965945194891265, "auc": 0.5220395179443542}
+      },
+      "new_model": {
+        "raw": {"log_loss": 0.6925266152017016, "brier": 0.24968951994972832, "auc": 0.5217096604507073},
+        "calibrated": {"log_loss": 0.6925030351573465, "brier": 0.24967791870146797, "auc": 0.5217096604507073}
+      },
+      "paired_delta_raw": {
+        "log_loss": {"estimate": 0.000102071526782, "ci95": [-0.0000937127, 0.0003019463]},
+        "brier": {"estimate": 0.0000507023251785, "ci95": [-0.0000467925, 0.0001502535]},
+        "auc": {"estimate": -0.0003298574936469, "ci95": [-0.0025328686, 0.0018880504]}
+      },
+      "paired_delta_calibrated": {
+        "log_loss": {"estimate": 0.0000369386002037, "ci95": [-0.0001572227, 0.0002363348]},
+        "brier": {"estimate": 0.0000184667528153, "ci95": [-0.0000785115, 0.0001179397]},
+        "auc": {"estimate": -0.0003298574936469, "ci95": [-0.0025328686, 0.0018880504]}
+      }
+    }
+  },
+  "uncertainty": {
+    "method": "paired circular moving-block bootstrap",
+    "block_length_calendar_days": 3,
+    "replications": 2000,
+    "seed": 20261012,
+    "difference_direction": "new model minus A_frozen; negative log-loss/Brier and positive AUC favor new model"
+  },
+  "economics": {
+    "policy": "same frozen calibrated 1% minimum net-EV threshold; T-60 selection; T-59 execution; saved snapshots; no archive replay",
+    "independent_5_usd_orders": {
+      "A_frozen": {
+        "signals": 4272,
+        "filled": 4018,
+        "settled_by_cutoff": 4017,
+        "filled_turnover_usd": 20090.0,
+        "filled_fee_equivalent_usd": 725.30577,
+        "settled_turnover_usd": 20085.0,
+        "settled_fee_equivalent_usd": 725.11327,
+        "settled_realized_net_pnl_usd": -726.970984
+      },
+      "new_model": {
+        "signals": 3005,
+        "filled": 2798,
+        "settled_by_cutoff": 2797,
+        "filled_turnover_usd": 13990.0,
+        "filled_fee_equivalent_usd": 517.57524,
+        "settled_turnover_usd": 13985.0,
+        "settled_fee_equivalent_usd": 517.38274,
+        "settled_realized_net_pnl_usd": -256.283352
+      },
+      "unsettled_fills_at_cutoff_per_model": 1,
+      "shared_equity_or_drawdown": "not applicable"
+    },
+    "no_credit_portfolio": {
+      "starting_capital_usd": 100.0,
+      "risk_fraction_of_free_cash": 0.05,
+      "A_frozen": {
+        "trades": 2,
+        "turnover_usd": 10.24125,
+        "fee_equivalent_usd": 0.35844,
+        "net_pnl_usd": -0.59969,
+        "ending_cash_usd": 99.40031,
+        "max_drawdown_fraction": 0.0517499642,
+        "minimum_free_cash_usd": 94.825,
+        "accounting_passed": true
+      },
+      "new_model": {
+        "trades": 2,
+        "turnover_usd": 10.2512790816,
+        "fee_equivalent_usd": 0.36229,
+        "net_pnl_usd": -0.409487449,
+        "ending_cash_usd": 99.590512551,
+        "max_drawdown_fraction": 0.0517499546,
+        "minimum_free_cash_usd": 94.8215,
+        "accounting_passed": true
+      }
+    }
+  },
+  "input_artifacts": {
+    "A_frozen_predictions_sha256": "b8febf2da37695cae6727737abc9cd650c7a69052b97b6ac72d27254801426f6",
+    "new_model_predictions_sha256": "294309cfc91216ddb357817d82947b2c08b65335c89c71bb14bb3d8c59255bf1",
+    "official_market_index_sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+    "t_minus_60_snapshot_sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+    "t_minus_59_snapshot_sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0"
+  },
+  "provenance": {
+    "models_retrained": false,
+    "archived_book_event_replay": false,
+    "holdout_used_for_selection": false,
+    "results_are_descriptive_due_to_historical_exposure": true
+  }
+}

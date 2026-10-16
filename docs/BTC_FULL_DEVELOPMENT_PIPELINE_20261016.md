@@ -67,4 +67,4 @@ From the repository root, run the same command to start or resume the experiment
 python run_btc_preopen_full_development_fit.py
 ```
 
-The script accepts no command-line arguments. It checks the separate experiment identity, frozen inputs, snapshots, and artifact hashes before continuing the new manifest. Do not resume the superseded runner. Current progress is recorded in [BTC_RESEARCH_STATUS_20261010.md](BTC_RESEARCH_STATUS_20261010.md), and the final result will be written to `reports/btc_preopen/btc_preopen_full_development_fit_20261016.md`.
+The script accepts no command-line arguments. It checks the separate experiment identity, frozen inputs, snapshots, and artifact hashes before continuing the new manifest. The run completed on 2026-10-16; its results and recovery history are in [the final report](../reports/btc_preopen/btc_preopen_full_development_fit_20261016.md) and [current research status](BTC_RESEARCH_STATUS_20261010.md). Do not resume the superseded runner.

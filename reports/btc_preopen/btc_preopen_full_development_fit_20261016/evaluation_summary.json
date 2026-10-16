@@ -1,0 +1,309 @@
+{
+  "calibration_label_latest_available_at": "2026-06-30T23:55:00+00:00",
+  "chronological_split": {
+    "calibration_end_exclusive_utc": "2026-06-30T23:59:00Z",
+    "calibration_source": "development_walk_forward_oof",
+    "calibration_start_utc": "2026-06-30T23:59:00Z",
+    "data_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "external_test_market_start_last_inclusive_utc": "2026-10-06T23:55:00Z",
+    "external_test_nominal_decision_last_utc": "2026-10-06T23:54:00Z",
+    "feature_and_model_fit_start_utc": "2020-06-09T09:33:00+00:00",
+    "first_external_test_market_start_utc": "2026-07-01T00:00:00Z",
+    "first_external_test_nominal_decision_utc": "2026-06-30T23:59:00Z",
+    "fit_and_tuning_end_exclusive_utc": "2026-06-30T23:59:00.000000001Z",
+    "fit_label_available_through_inclusive_utc": "2026-06-30T23:59:00Z",
+    "fold_id": "evaluated_holdout",
+    "internal_validation_label_purge": "keep training rows only when target_label_available_at <= first validation nominal_decision_at",
+    "policy_selection_fold": false,
+    "test_history_status": "historically exposed: this official-market period and overlapping BTC observations were used in prior repository experiments; new fitted artifacts exclude outcomes from model fitting and do not use this period to revise parameters"
+  },
+  "development_proxy_prevalence_on_decisions": 0.5014515997413799,
+  "elapsed_seconds": 2714.1622092000034,
+  "external_test": {
+    "complete_price_proxy_label_rows": 28224,
+    "economic_replay": {
+      "reason": "This evaluator reports predictive metrics only; quote coverage was not checked.",
+      "status": "not_evaluated_by_training_runner"
+    },
+    "historically_exposed": true,
+    "market_start_first": "2026-07-01T00:00:00+00:00",
+    "market_start_last": "2026-10-06T23:55:00+00:00",
+    "rows": 28224
+  },
+  "feature_count": 64,
+  "fit_label_latest_available_at": "2026-06-30T23:59:00+00:00",
+  "metrics": {
+    "label_source": "Binance COIN-M BTCUSD index price proxy; not official Polymarket settlement",
+    "official_market_data": {
+      "economic_replay": {
+        "reason": "This evaluator reports predictive metrics only; quote coverage was not checked.",
+        "status": "not_evaluated_by_training_runner"
+      },
+      "metrics": {
+        "constant_0_5": {
+          "auc": 0.5,
+          "brier": 0.25,
+          "calibration": {
+            "brier_score": 0.25,
+            "intercept": null,
+            "log_loss": 0.6931471805599454,
+            "reliability_bins": [
+              {
+                "actual_up_rate": 0.49969880585379683,
+                "bin": "(0.4, 0.5]",
+                "count": 28221,
+                "probability": 0.5
+              }
+            ],
+            "slope": null
+          },
+          "log_loss": 0.6931471805599454,
+          "n": 28221,
+          "positive_rate": 0.49969880585379683
+        },
+        "development_proxy_prevalence": {
+          "auc": 0.5,
+          "brier": 0.25000298156849865,
+          "calibration": {
+            "brier_score": 0.25000298156849865,
+            "intercept": null,
+            "log_loss": 0.6931531437196162,
+            "reliability_bins": [
+              {
+                "actual_up_rate": 0.49969880585379683,
+                "bin": "(0.5, 0.6]",
+                "count": 28221,
+                "probability": 0.5014515997413798
+              }
+            ],
+            "slope": null
+          },
+          "log_loss": 0.6931531437196162,
+          "n": 28221,
+          "positive_rate": 0.49969880585379683
+        },
+        "platt_model": {
+          "auc": 0.5217283331566603,
+          "brier": 0.24967750637230415,
+          "calibration": {
+            "brier_score": 0.24967750637230415,
+            "intercept": -0.010431041014065176,
+            "log_loss": 0.6925022103337904,
+            "reliability_bins": [
+              {
+                "actual_up_rate": 0.48101466508125246,
+                "bin": "(0.4, 0.5]",
+                "count": 12615,
+                "probability": 0.48488535220203327
+              },
+              {
+                "actual_up_rate": 0.514801999231065,
+                "bin": "(0.5, 0.6]",
+                "count": 15606,
+                "probability": 0.5167607477881766
+              }
+            ],
+            "slope": 0.9160281672483487
+          },
+          "log_loss": 0.6925022103337904,
+          "n": 28221,
+          "positive_rate": 0.49969880585379683
+        },
+        "raw_model": {
+          "auc": 0.5217283331566603,
+          "brier": 0.24968899082681817,
+          "calibration": {
+            "brier_score": 0.24968899082681817,
+            "intercept": -0.005111656794541387,
+            "log_loss": 0.6925255565991499,
+            "reliability_bins": [
+              {
+                "actual_up_rate": 0.48197399527186763,
+                "bin": "(0.4, 0.5]",
+                "count": 13536,
+                "probability": 0.48231665375032245
+              },
+              {
+                "actual_up_rate": 0.5160367722165475,
+                "bin": "(0.5, 0.6]",
+                "count": 14685,
+                "probability": 0.518629020235284
+              }
+            ],
+            "slope": 0.8021662905344492
+          },
+          "log_loss": 0.6925255565991499,
+          "n": 28221,
+          "positive_rate": 0.49969880585379683
+        }
+      },
+      "price_proxy_disagreements": 2213,
+      "rows": 28221,
+      "status": "available"
+    },
+    "paired_uncertainty": {
+      "platt_model_minus_constant_0_5": {
+        "block_days": 3,
+        "delta_first_minus_second_brier_ci95": [
+          -0.0005373462416544017,
+          -6.042796813563339e-05
+        ],
+        "delta_first_minus_second_log_loss_ci95": [
+          -0.001075433619199019,
+          -0.00012050629375330268
+        ],
+        "method": "paired circular moving-block bootstrap",
+        "replications": 2000,
+        "seed": 20261004
+      },
+      "platt_model_minus_development_proxy_prevalence": {
+        "block_days": 3,
+        "delta_first_minus_second_brier_ci95": [
+          -0.0005441593999636462,
+          -6.527735437307539e-05
+        ],
+        "delta_first_minus_second_log_loss_ci95": [
+          -0.0010887072465524787,
+          -0.00012999719789103838
+        ],
+        "method": "paired circular moving-block bootstrap",
+        "replications": 2000,
+        "seed": 20261004
+      },
+      "raw_model_minus_constant_0_5": {
+        "block_days": 3,
+        "delta_first_minus_second_brier_ci95": [
+          -0.0005628722523868977,
+          -1.077571889611572e-05
+        ],
+        "delta_first_minus_second_log_loss_ci95": [
+          -0.0011258533797776033,
+          -2.0191127550850003e-05
+        ],
+        "method": "paired circular moving-block bootstrap",
+        "replications": 2000,
+        "seed": 20261004
+      },
+      "raw_model_minus_development_proxy_prevalence": {
+        "block_days": 3,
+        "delta_first_minus_second_brier_ci95": [
+          -0.0005681109829145434,
+          -1.030781348734465e-05
+        ],
+        "delta_first_minus_second_log_loss_ci95": [
+          -0.0011372363899183095,
+          -1.935395775958317e-05
+        ],
+        "method": "paired circular moving-block bootstrap",
+        "replications": 2000,
+        "seed": 20261004
+      }
+    },
+    "price_proxy": {
+      "constant_0_5": {
+        "auc": 0.5,
+        "brier": 0.25,
+        "calibration": {
+          "brier_score": 0.25,
+          "intercept": null,
+          "log_loss": 0.6931471805599454,
+          "reliability_bins": [
+            {
+              "actual_up_rate": 0.498547335600907,
+              "bin": "(0.4, 0.5]",
+              "count": 28224,
+              "probability": 0.5
+            }
+          ],
+          "slope": null
+        },
+        "log_loss": 0.6931471805599454,
+        "n": 28224,
+        "positive_rate": 0.498547335600907
+      },
+      "development_proxy_prevalence": {
+        "auc": 0.5,
+        "brier": 0.2500063245163413,
+        "calibration": {
+          "brier_score": 0.2500063245163413,
+          "intercept": null,
+          "log_loss": 0.6931598296340857,
+          "reliability_bins": [
+            {
+              "actual_up_rate": 0.498547335600907,
+              "bin": "(0.5, 0.6]",
+              "count": 28224,
+              "probability": 0.5014515997413798
+            }
+          ],
+          "slope": null
+        },
+        "log_loss": 0.6931598296340857,
+        "n": 28224,
+        "positive_rate": 0.498547335600907
+      },
+      "platt_model": {
+        "auc": 0.5211505214621432,
+        "brier": 0.24969818171235408,
+        "calibration": {
+          "brier_score": 0.24969818171235408,
+          "intercept": -0.01486871013515839,
+          "log_loss": 0.6925435821900641,
+          "reliability_bins": [
+            {
+              "actual_up_rate": 0.4803836094158675,
+              "bin": "(0.4, 0.5]",
+              "count": 12617,
+              "probability": 0.4848872623879314
+            },
+            {
+              "actual_up_rate": 0.5132312423912347,
+              "bin": "(0.5, 0.6]",
+              "count": 15607,
+              "probability": 0.5167602759898389
+            }
+          ],
+          "slope": 0.8981829953903561
+        },
+        "log_loss": 0.6925435821900641,
+        "n": 28224,
+        "positive_rate": 0.498547335600907
+      },
+      "raw_model": {
+        "auc": 0.5211505214621432,
+        "brier": 0.24970878166124333,
+        "calibration": {
+          "brier_score": 0.24970878166124338,
+          "intercept": -0.009462614512284293,
+          "log_loss": 0.6925651534015497,
+          "reliability_bins": [
+            {
+              "actual_up_rate": 0.4805732013591372,
+              "bin": "(0.4, 0.5]",
+              "count": 13538,
+              "probability": 0.4823185039931916
+            },
+            {
+              "actual_up_rate": 0.5151164374233964,
+              "bin": "(0.5, 0.6]",
+              "count": 14686,
+              "probability": 0.5186283695960113
+            }
+          ],
+          "slope": 0.7857419351836079
+        },
+        "log_loss": 0.6925651534015497,
+        "n": 28224,
+        "positive_rate": 0.498547335600907
+      }
+    },
+    "price_proxy_rows_scored": 28224
+  },
+  "model_sha256": "7ee3c69323f88f6cbe8c2e1cc714f1f632e03693322a8bdcbc143e58a8bc57bd",
+  "official_labels_mixed": false,
+  "rows_predicted": 28224,
+  "status": "preopen_v1_training_pipeline_completed",
+  "target_source": "Binance COIN-M BTCUSD index price proxy",
+  "test_history_status": "historically exposed: this official-market period and overlapping BTC observations were used in prior repository experiments; new fitted artifacts exclude outcomes from model fitting and do not use this period to revise parameters"
+}
