@@ -1,0 +1,13 @@
+model,group,explanatory_variable,n_settled_executions,slope,CI_low,CI_high,bootstrap_valid_replications
+M1,positive_EV,EV_fraction_T60,2247,0.635472856876,-1.69748628888,2.6184271519,2000
+M1,positive_EV,EV_fraction_T59_repriced_with_T60_probability,2247,0.449926454424,-2.00636276176,2.50452101005,2000
+M1,EV_ge_1pct,EV_fraction_T60,1823,0.36940011913,-1.80317218003,2.24235220981,2000
+M1,EV_ge_1pct,EV_fraction_T59_repriced_with_T60_probability,1823,0.047075675122,-2.34078744065,1.99277430298,2000
+M1,May_positive_EV,EV_fraction_T60,1406,0.961728544692,-1.7400928874,3.0721570559,2000
+M1,May_positive_EV,EV_fraction_T59_repriced_with_T60_probability,1406,0.799734209718,-1.83575546503,2.91480507336,2000
+M1,June_positive_EV,EV_fraction_T60,841,0.491108520988,-19.2865315055,12.3158510143,2000
+M1,June_positive_EV,EV_fraction_T59_repriced_with_T60_probability,841,-0.405425369464,-18.7076446663,9.80327301925,2000
+M1,May_EV_ge_1pct,EV_fraction_T60,1031,0.641473110477,-1.99095470561,2.5529801661,2000
+M1,May_EV_ge_1pct,EV_fraction_T59_repriced_with_T60_probability,1031,0.345693000177,-2.282020444,2.3351408814,2000
+M1,June_EV_ge_1pct,EV_fraction_T60,792,2.975604441,-17.5064476634,19.5206281594,2000
+M1,June_EV_ge_1pct,EV_fraction_T59_repriced_with_T60_probability,792,0.669899442978,-19.3296386305,13.4055444018,2000

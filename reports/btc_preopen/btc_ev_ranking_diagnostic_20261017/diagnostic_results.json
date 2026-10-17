@@ -1,0 +1,73 @@
+{
+  "bootstrap": {
+    "attempts": 3070,
+    "calendar_days": 61,
+    "seed": 20261017,
+    "target_valid_replications": 2000
+  },
+  "candidate_table_path": "data\\analysis\\polymarket\\BTC\\btc_ev_ranking_diagnostic_20261017\\candidate_table.parquet",
+  "decomposition_audit": {
+    "candidate_rows": 26025,
+    "decomposition_comparable_rows": 22062,
+    "decomposition_identity_passed": true,
+    "decomposition_max_abs_error_usd": 1.7763568394002505e-15,
+    "decomposition_tolerance_usd": 1e-07
+  },
+  "diagnostic_id": "btc_ev_ranking_diagnostic_20261017",
+  "elapsed_seconds": 12.61556350000319,
+  "funnel": [
+    {
+      "candidate_count": 8675,
+      "candidate_days": 45,
+      "model": "M1",
+      "settled_t59_executions": 7356,
+      "t59_filled_candidates": 7356,
+      "t59_fills_not_settled_by_cutoff": 0,
+      "t59_snapshot_missing_after_t60_side": 0,
+      "t59_unpriceable_after_t60_side": 53,
+      "t60_no_priceable_side": 1266,
+      "t60_priceable_candidates": 7409,
+      "t60_snapshot_missing": 0
+    },
+    {
+      "candidate_count": 8675,
+      "candidate_days": 45,
+      "model": "M0",
+      "settled_t59_executions": 7352,
+      "t59_filled_candidates": 7352,
+      "t59_fills_not_settled_by_cutoff": 0,
+      "t59_snapshot_missing_after_t60_side": 0,
+      "t59_unpriceable_after_t60_side": 57,
+      "t60_no_priceable_side": 1266,
+      "t60_priceable_candidates": 7409,
+      "t60_snapshot_missing": 0
+    },
+    {
+      "candidate_count": 8675,
+      "candidate_days": 45,
+      "model": "previous_D",
+      "settled_t59_executions": 7354,
+      "t59_filled_candidates": 7354,
+      "t59_fills_not_settled_by_cutoff": 0,
+      "t59_snapshot_missing_after_t60_side": 0,
+      "t59_unpriceable_after_t60_side": 55,
+      "t60_no_priceable_side": 1266,
+      "t60_priceable_candidates": 7409,
+      "t60_snapshot_missing": 0
+    }
+  ],
+  "manifest_sha256": "b3e61367a91af964a403c105424be84f31bffbb3340c7d1e3d239f790b5aed27",
+  "report_path": "reports\\btc_preopen\\btc_ev_ranking_diagnostic_20261017\\report.md",
+  "sample": {
+    "first_calendar_day_utc": "2026-05-01T00:00:00+00:00",
+    "first_market_start_utc": "2026-05-01T00:05:00+00:00",
+    "fold_counts": {
+      "dev_2026q2_b": 5253,
+      "dev_2026q2_c": 3422
+    },
+    "last_calendar_day_utc": "2026-06-30T00:00:00+00:00",
+    "last_market_start_utc": "2026-06-30T23:50:00+00:00",
+    "rows_per_model": 8675,
+    "settlement_cutoff_exclusive_utc": "2026-07-01T00:00:00+00:00"
+  }
+}

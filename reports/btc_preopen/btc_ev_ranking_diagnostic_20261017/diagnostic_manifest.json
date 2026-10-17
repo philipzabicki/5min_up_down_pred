@@ -1,0 +1,130 @@
+{
+  "diagnostic_id": "btc_ev_ranking_diagnostic_20261017",
+  "freeze_sha256": "b3e61367a91af964a403c105424be84f31bffbb3340c7d1e3d239f790b5aed27",
+  "frozen_at_utc": "2026-10-17T20:18:57.209545+00:00",
+  "frozen_before_candidate_pricing_or_result_tables": true,
+  "input_hashes": {
+    "T59_execution_engine": {
+      "path": "run_btc_preopen_t59_reassessment.py",
+      "sha256": "75ac11564aec9da7bdf548ca7db92dc747747ed816bc90470d873601122abcf4"
+    },
+    "T59_snapshot_coverage": {
+      "path": "data\\analysis\\polymarket\\BTC\\preopen_research_20261011\\book_replay_t60_t59\\t59_ask_ladders_with_source_coverage.parquet",
+      "sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0"
+    },
+    "T60_snapshot_coverage": {
+      "path": "data\\analysis\\polymarket\\BTC\\preopen_research_20261011\\book_replay_t60_t59\\t60_decision_books_with_source_coverage.parquet",
+      "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1"
+    },
+    "development_selected_oof_predictions": {
+      "path": "data\\analysis\\polymarket\\BTC\\btc_market_basis_vol_interaction_20261017\\development_oof_predictions.parquet",
+      "sha256": "3739d86c3202548a0d87e3887b91dee558d9b941cb32eb4211a50c71cde6f0e0"
+    },
+    "diagnostic_runner": {
+      "path": "analyze_btc_ev_ranking_diagnostic_20261017.py",
+      "sha256": "c19a9eaa65a2a8f7a4c12355f83ee07e07949b5129ae97b7e6a369da2b66a636"
+    },
+    "interaction_config": {
+      "path": "configs\\research\\btc_market_basis_vol_interaction_20261017.json",
+      "sha256": "c80858233cad619d24192ab7f5d8e60ee1e6d463ef109575c804d2ed78e30b1f"
+    },
+    "previous_D_development_predictions": {
+      "path": "data\\analysis\\polymarket\\BTC\\btc_conditional_market_offset_20261018\\development_cv_predictions.parquet",
+      "sha256": "2167633bc213d12c338d8238d9ae61a0086ba3b02325256832570cc4d3536d26"
+    },
+    "previous_D_source_config": {
+      "path": "configs\\research\\btc_conditional_market_offset_20261018.json",
+      "sha256": "8e10fd35dbe9da9bb2ed3524428120958331e7930b6e24d63f726f0fbd1a5d99"
+    },
+    "selected_model_report": {
+      "path": "reports\\btc_preopen\\btc_market_basis_vol_interaction_20261017.md",
+      "sha256": "d89533390c53c85bde3f6bb568eb34178f3d83d5c4f40b2e2ef91f71a0fdf9e1"
+    },
+    "snapshot_map_helper": {
+      "path": "run_btc_preopen_research.py",
+      "sha256": "22cb94807ee64fbd43ae080b70c156c0d0c9fd2c93466b232262d8f235f48ee9"
+    }
+  },
+  "protocol": {
+    "bootstrap": {
+      "confidence_interval": "percentile 95% interval",
+      "maximum_attempts_per_statistic": 20000,
+      "method": "moving 3-day UTC calendar blocks with replacement; full May 1 through June 30 calendar retained, including days with no rows in a group",
+      "seed": 20261017,
+      "shared_blocks_across_models": true,
+      "valid_replications_target": 2000
+    },
+    "candidate_table_role": "Counterfactual diagnostic rows only; not trades of the frozen policy.",
+    "decision_time": "T-60 seconds",
+    "decomposition": "R59 - E60 = (E59 - E60) + (y_side - p_side) * net_shares_T59",
+    "ev_fraction": "(p_side * T60_net_shares - T60_cash_debit_usd) / requested_stake_usd",
+    "execution_time": "T-59 seconds",
+    "fees_and_accounting": "Use existing _evaluate_market_sides and _price_side fills; fee cash and fee shares are already reflected in cash debit and net shares. Do not deduct fees again.",
+    "fixed_ev_bins_fraction": [
+      {
+        "label": "EV \u2264 0%",
+        "lower_inclusive": null,
+        "upper_exclusive": null,
+        "upper_inclusive": 0.0
+      },
+      {
+        "label": "0% < EV < 0.5%",
+        "lower_inclusive": 0.0,
+        "upper_exclusive": 0.005,
+        "upper_inclusive": null
+      },
+      {
+        "label": "0.5% \u2264 EV < 1%",
+        "lower_inclusive": 0.005,
+        "upper_exclusive": 0.01,
+        "upper_inclusive": null
+      },
+      {
+        "label": "1% \u2264 EV < 2%",
+        "lower_inclusive": 0.01,
+        "upper_exclusive": 0.02,
+        "upper_inclusive": null
+      },
+      {
+        "label": "2% \u2264 EV < 4%",
+        "lower_inclusive": 0.02,
+        "upper_exclusive": 0.04,
+        "upper_inclusive": null
+      },
+      {
+        "label": "EV \u2265 4%",
+        "lower_inclusive": 0.04,
+        "upper_exclusive": null,
+        "upper_inclusive": null
+      }
+    ],
+    "holdout_used": false,
+    "missingness": "Unpriceable T-60 candidates have no EV bin. Missing T-60 quote, T-60 valuation, T-59 quote/execution, and settlement release are separate statuses; unavailable EV/PnL remains null, never zero.",
+    "models": {
+      "M0": "p_M0",
+      "M1": "p_M1",
+      "previous_D": "p_D_conditional"
+    },
+    "new_predictions_or_training": false,
+    "preselection_disclosure": "M0/M1 development OOF participated in configuration selection; all results are conditional on selected models and are not independent edge confirmation.",
+    "primary_model": "M1",
+    "realized_return": "(y_side * T59_net_shares - T59_cash_debit_usd) / requested_stake_usd; only for filled executions whose official label release is at or before the development cutoff",
+    "settlement_cutoff_exclusive_utc": "2026-07-01T00:00:00+00:00",
+    "side_selection": "Price UP and DOWN at T-60 using the existing engine; among priceable sides choose greatest net EV, ties prefer UP. Retain negative and zero EV candidates. Reprice the same chosen side and $5 request at T-59; T-59 does not change probability or side.",
+    "stake_usd": 5.0
+  },
+  "sample": {
+    "first_calendar_day_utc": "2026-05-01T00:00:00+00:00",
+    "first_market_start_utc": "2026-05-01T00:05:00+00:00",
+    "fold_counts": {
+      "dev_2026q2_b": 5253,
+      "dev_2026q2_c": 3422
+    },
+    "last_calendar_day_utc": "2026-06-30T00:00:00+00:00",
+    "last_market_start_utc": "2026-06-30T23:50:00+00:00",
+    "rows_per_model": 8675,
+    "settlement_cutoff_exclusive_utc": "2026-07-01T00:00:00+00:00"
+  },
+  "schema_version": 1,
+  "source_market_index_sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973"
+}

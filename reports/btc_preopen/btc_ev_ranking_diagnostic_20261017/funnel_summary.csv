@@ -1,0 +1,4 @@
+model,candidate_count,candidate_days,t60_snapshot_missing,t60_no_priceable_side,t60_priceable_candidates,t59_snapshot_missing_after_t60_side,t59_unpriceable_after_t60_side,t59_filled_candidates,settled_t59_executions,t59_fills_not_settled_by_cutoff
+M1,8675,45,0,1266,7409,0,53,7356,7356,0
+M0,8675,45,0,1266,7409,0,57,7352,7352,0
+previous_D,8675,45,0,1266,7409,0,55,7354,7354,0
