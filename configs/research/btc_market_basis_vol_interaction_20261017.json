@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_market_basis_vol_interaction_20261017",
+  "source_experiment_id": "btc_conditional_market_offset_20261018",
+  "historically_exposed_holdout": true,
+  "sample": {
+    "development_start_inclusive_utc": "2026-04-15T17:05:00Z",
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+    "decision_time": "T-60 seconds",
+    "execution_time": "T-59 seconds",
+    "label": "official Polymarket outcome only",
+    "label_available_at": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "common_completeness_mask": true,
+    "logit_epsilon": 0.000001
+  },
+  "folds": [
+    {
+      "fold_id": "dev_2026q2_b",
+      "start_inclusive_utc": "2026-05-01T00:00:00Z",
+      "end_exclusive_utc": "2026-06-01T00:00:00Z"
+    },
+    {
+      "fold_id": "dev_2026q2_c",
+      "start_inclusive_utc": "2026-06-01T00:00:00Z",
+      "end_exclusive_utc": "2026-07-01T00:00:00Z"
+    }
+  ],
+  "features": {
+    "M0": [
+      "logit_p_market",
+      "futures_index_basis_rel_1m",
+      "btc_sigma_5m",
+      "spread_up",
+      "spread_down"
+    ],
+    "M1": [
+      "logit_p_market",
+      "futures_index_basis_rel_1m",
+      "btc_sigma_5m",
+      "spread_up",
+      "spread_down",
+      "d_btc_minus_market"
+    ]
+  },
+  "configurations": [
+    {"num_leaves": 4, "max_depth": 2, "lambda_l2": 10.0},
+    {"num_leaves": 4, "max_depth": 2, "lambda_l2": 100.0},
+    {"num_leaves": 8, "max_depth": 3, "lambda_l2": 10.0},
+    {"num_leaves": 8, "max_depth": 3, "lambda_l2": 100.0}
+  ],
+  "training": {
+    "objective": "binary",
+    "loss": "binary_logloss",
+    "offset": "row-aligned init_score=logit_p_market; predictions use sigmoid(offset + raw tree correction) exactly once",
+    "learning_rate": 0.03,
+    "iterations": 100,
+    "min_data_in_leaf": "max(100, ceil(0.02 * training rows))",
+    "feature_fraction": 1.0,
+    "bagging_fraction": 1.0,
+    "bagging_freq": 0,
+    "seed": 20261017,
+    "num_threads": 4,
+    "early_stopping": false,
+    "sample_weights": false,
+    "monotonic_constraints": false
+  },
+  "selection": {
+    "criterion": "mean fold binary log-loss + 0.5 * population standard deviation of the two fold losses",
+    "tie_break": ["fewer leaves", "larger lambda_l2"],
+    "holdout_used": false
+  },
+  "quality_uncertainty": {
+    "method": "paired moving 3-day UTC blocks",
+    "replications": 2000,
+    "seed": 20261017,
+    "primary_comparison": "M1 minus M0"
+  },
+  "economics": {
+    "independent_gross_stake_usd": 5.0,
+    "minimum_net_ev_fraction": 0.01,
+    "fees": "existing V1/V2 replay fee rules",
+    "execution_quotes": "existing T-59 snapshot and depth; decision from T-60 only",
+    "settlement_cutoffs_exclusive_utc": {
+      "development": "2026-07-01T00:00:00Z",
+      "holdout": "2026-10-07T00:00:00Z"
+    },
+    "required_portfolio_control": "separate $100 initial cash, 5% of free cash at T-60, no borrowing",
+    "no_exit_rule": true,
+    "no_fee_deduction_from_net_ev": true
+  },
+  "reproduction": "python run_btc_market_basis_vol_interaction_20261017.py",
+  "cli_arguments": false
+}
