@@ -1,0 +1,16 @@
+item,rule
+p_market,At T-60: mid_up=(UP best bid+ask)/2; mid_down=(DOWN best bid+ask)/2; p_market=mid_up/(mid_up+mid_down). For DOWN use 1-p_market.
+probability change versus EV percent,"A probability-point correction is not percent EV on stake; EV also depends on executable shares, ask price, depth, and fees."
+gross request,$5 gross USDC requested for the fixed-order comparison; denominator of the original EV fraction
+side selection,"At T-60, price both native ask sides for $5; choose the side with the greatest strictly positive after-fee EV; exact tie favors UP"
+qualification,net_ev_usd / requested_gross_usd >= 1%; original implementation allows 1e-12 numerical tolerance
+price cap,None in the existing engine: FAK-style marketable BUY walks saved asks at execution; no T-60-derived limit price is passed
+book depth,Walk complete saved ask ladder when depth is known; otherwise assume full requested fill at saved best ask; known insufficient depth may partially fill
+minimum order,"Current Gamma orderMinSize when present, otherwise $5 USDC fallback; checked against requested gross amount, not the eventual partial fill; historical minimum metadata is unavailable"
+fee rate,"Date-assigned BTC5m schedule: 7.2% before 2026-05-06, 7.0% from 2026-05-06; exponent 1; transition date is a stated estimate"
+fee formula,Per price level: shares * rate * price * (1-price); the fee engine uses Decimal and its documented rounding
+V1 BUY fee,"Before the assigned V1/V2 collection change, fee is outcome shares, floored to 1e-6 per saved aggregate price level; cash debit is gross"
+V2 BUY fee,Cash fee rounded half-up to 5 decimals per order with 0.00001 minimum; net shares equal gross shares; cash debit is gross plus fee
+expected payout,p_D(selected side) * net shares; a winning token pays $1 per net share
+break-even,cash_debit_usd / net_shares; the exact p_D at which net expected value is zero
+T-59,Use the T-60 chosen side and same requested stake; price its T-59 ask ladder only. T-59 cannot select another side or retroactively qualify the decision

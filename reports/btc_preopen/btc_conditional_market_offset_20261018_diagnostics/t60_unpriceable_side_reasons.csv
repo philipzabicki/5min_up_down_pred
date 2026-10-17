@@ -1,0 +1,9 @@
+side,reason_t60,side_rows
+down,ambiguous_equal_source_timestamp_order,3448
+down,complement_only_not_executable,18
+down,native_ask_bbo_reconciliation_mismatch,9
+down,unknown_historical_fee,113
+up,ambiguous_equal_source_timestamp_order,4000
+up,complement_only_not_executable,18
+up,native_ask_bbo_reconciliation_mismatch,8
+up,unknown_historical_fee,98
