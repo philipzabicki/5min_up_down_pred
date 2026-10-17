@@ -1,3 +1,12 @@
+<!-- BTC_RETURN_REGRESSION_STATUS_BEGIN -->
+### Return-regression experiment checkpoint
+- Updated UTC: `2026-10-17T00:47:55.918849+00:00`.
+- Status: `completed`; active stage: `none`.
+- Completed stages: `target_validation, smoke, cost_estimate, single_huber_study, final_fit, causal_development_comparison, frozen_holdout_quality, snapshot_economics, report`.
+- Next action: Review `reports/btc_preopen/btc_preopen_return_regression_20261017.md`, then run targeted tests, git diff --check, commit, and push.
+- Run manifest: `data/analysis/polymarket/BTC/btc_preopen_return_regression_20261017/run_manifest.json`.
+<!-- BTC_RETURN_REGRESSION_STATUS_END -->
+
 # BTC research execution status
 
 Updated: 2026-10-16 (Europe/Warsaw)
