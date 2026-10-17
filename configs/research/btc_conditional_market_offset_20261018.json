@@ -1,0 +1,119 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_conditional_market_offset_20261018",
+  "status": "frozen_before_training_and_holdout_scoring",
+  "question": "Does a small regularized conditional BTC correction improve probability quality beyond a raw market reference and global market-only or market-plus-BTC logistic calibration?",
+  "historically_exposed_holdout": true,
+  "source_artifacts": {
+    "btc_prediction_source": "A_frozen chronological development OOF predictions and frozen holdout model predictions from preopen_research_20261011_full_compute20_retry",
+    "development_oof_sha256": {
+      "dev_2026q2_a.parquet": "c34344a3900e2a51b835f8427969c9d2315347eb56b2cb4437839aa67fdf7e1c",
+      "dev_2026q2_b.parquet": "ab996580430378095c46ead664ed32f860f2213e0de70b75acc61b719ec595db",
+      "dev_2026q2_c.parquet": "1f39ef9bd1eaa13dba08c096e22ae1b1d51d2c2c4d9af6455dee278df135464b"
+    },
+    "holdout_predictions_path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/runs/evaluated_holdout/794a69e369a3f82d/stages/external_evaluation_8ecf7dad07f7/external_test_predictions.parquet",
+    "holdout_predictions_sha256": "b8febf2da37695cae6727737abc9cd650c7a69052b97b6ac72d27254801426f6",
+    "development_walk_forward_manifest_sha256": "001dcd816a83ea5bda001595ddd6e57d977cee0624c2eff5a585e9b2498be88a",
+    "btc_feature_dataset_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+    "btc_feature_dataset_sha256": "62f47b1792249fc885763f73b1f36ca872131a6271619225e5736486a7306e05",
+    "official_market_index_sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+    "t60_snapshot_sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+    "t59_snapshot_sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0"
+  },
+  "sample": {
+    "development_start_inclusive_utc": "2026-04-15T17:05:00Z",
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+    "decision_snapshot": "T-60 seconds",
+    "execution_snapshot": "T-59 seconds, economics only",
+    "label": "official Polymarket outcome only",
+    "label_available_at": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "sample_requirements": [
+      "confirmed market and causal A_frozen prediction with fold provenance",
+      "official binary outcome released by the applicable development or holdout cutoff",
+      "valid causal two-sided T-60 quote under existing quote, source coverage, freshness, future-event, and book-gap checks",
+      "finite in-range p_market and p_BTC probabilities",
+      "all declared BTC candle features present and timestamp-aligned at T-60"
+    ],
+    "p_market_definition": "mid_up=(up_best_bid+up_best_ask)/2; mid_down=(down_best_bid+down_best_ask)/2; p_market=mid_up/(mid_up+mid_down)",
+    "p_market_fields": ["T-60 up_best_bid", "T-60 up_best_ask", "T-60 down_best_bid", "T-60 down_best_ask"],
+    "logit_epsilon": 0.000001,
+    "features": [
+      "logit_p_market",
+      "d=logit_p_BTC_calibrated-logit_p_market",
+      "BTC one-minute close-to-close return at decision candle",
+      "BTC five-minute close-to-close return at decision candle",
+      "BTC fifteen-minute close-to-close return at decision candle",
+      "sqrt(5)*population_std of the last 60 contiguous one-minute close-to-close returns, ddof=0",
+      "futures_index_basis_rel_1m on the candle closing at T-60",
+      "T-60 UP best_ask-best_bid spread",
+      "T-60 DOWN best_ask-best_bid spread"
+    ],
+    "btc_candle_alignment": "The candle opened two minutes before market_start_utc and closed one minute before market_start_utc; its close is available at the T-60 decision time. Returns require contiguous valid positive closes; sigma requires 60 contiguous returns. No filling, clipping, or normalization is applied to returns.",
+    "basis": "Use existing futures_index_basis_rel_1m only; require full feature and candle-time coverage before training; do not collect new data."
+  },
+  "chronological_cv": {
+    "training_rule": "market_start_utc < validation_start_utc and label_available_at_utc <= validation_start_utc",
+    "folds": [
+      {"fold_id": "dev_2026q2_b", "start_inclusive_utc": "2026-05-01T00:00:00Z", "end_exclusive_utc": "2026-06-01T00:00:00Z"},
+      {"fold_id": "dev_2026q2_c", "start_inclusive_utc": "2026-06-01T00:00:00Z", "end_exclusive_utc": "2026-07-01T00:00:00Z"}
+    ],
+    "selection_score": "mean fold binary log-loss + 0.5 * population standard deviation of fold binary log-loss",
+    "fold_prediction_rows": "All eligible labeled rows in the two fixed validation months; no random split."
+  },
+  "benchmarks": {
+    "A": "raw p_market",
+    "B": {"model": "sklearn LogisticRegression", "features": ["logit_p_market"], "C": 10.0, "fit_intercept": true, "penalty": "L2", "solver": "lbfgs", "max_iter": 2000},
+    "C": {"model": "sklearn LogisticRegression", "features": ["logit_p_market", "logit_p_BTC_calibrated"], "C": 10.0, "fit_intercept": true, "penalty": "L2", "solver": "lbfgs", "max_iter": 2000},
+    "D_zero_correction": "exactly p_market"
+  },
+  "conditional_correction": {
+    "library": "LightGBM",
+    "objective": "binary",
+    "base_margin": "logit_p_market via row-aligned init_score; external prediction is sigmoid(base_margin + raw tree correction), with the offset added exactly once",
+    "num_leaves": [2, 4, 8],
+    "max_depth_by_num_leaves": {"2": 1, "4": 2, "8": 3},
+    "lambda_l2": [10.0, 100.0],
+    "learning_rate": 0.03,
+    "min_data_in_leaf": "max(100, ceil(0.02 * fold training rows))",
+    "max_estimators": 300,
+    "early_stopping_rounds": 30,
+    "seed": 20261018,
+    "num_threads": 4,
+    "device_type": "cpu",
+    "boost_from_average": false,
+    "search": "Exactly six fixed configurations; no Optuna. One smoke fit on the first fold is checkpointed and reused as that configuration's first fold fit.",
+    "stopping_metric": "binary log-loss of sigmoid(row init_score + raw tree correction), evaluated externally each iteration",
+    "final_iteration": "floor of the median best iteration across the two chronological validation folds for the selected configuration"
+  },
+  "uncertainty": {
+    "method": "paired moving 3-day UTC blocks over chronological observations",
+    "replications": 1000,
+    "seed": 20261012,
+    "comparisons": ["D-A", "D-B", "D-C"]
+  },
+  "economics": {
+    "minimum_net_ev_fraction": 0.01,
+    "decision_time": "T-60 seconds",
+    "execution_time": "T-59 seconds",
+    "fees": "existing replay fee rules unchanged",
+    "independent_order_gross_usd": 5.0,
+    "portfolio_initial_cash_usd": 100.0,
+    "portfolio_sizing": "5% of free cash, no borrowing",
+    "accounting_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+    "report_entries_fills_and_cutoff_resolved_fills_separately": true,
+    "pnl_and_turnover_use_same_cutoff_resolved_fill_sample": true,
+    "no_late_settlement_credit_before_cutoff": true
+  },
+  "budget": {
+    "maximum_wall_seconds": 1800,
+    "maximum_working_memory_gib": 12,
+    "maximum_generated_checkpoint_bytes": 500000000,
+    "expected_model_fits": "12 conditional tree fold fits including the reusable smoke + 4 logistic benchmark fold fits + 3 frozen full-development fits; one holdout prediction/scoring pass",
+    "checkpoint_after": ["offset smoke and first fold", "each completed configuration", "frozen development models before holdout scoring"]
+  },
+  "reproduction": "python run_btc_conditional_market_offset_20261018.py",
+  "cli_arguments": false,
+  "holdout_use": "One descriptive evaluation after all model, feature, and iteration choices are frozen. The July-October 2026 holdout was historically exposed. No procedure or policy changes after its results."
+}
