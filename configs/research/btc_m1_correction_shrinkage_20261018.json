@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_m1_correction_shrinkage_20261018",
+  "source_experiment_id": "btc_market_basis_vol_interaction_20261017",
+  "prediction_source": {
+    "development_oof_path": "data/analysis/polymarket/BTC/btc_market_basis_vol_interaction_20261017/development_oof_predictions.parquet",
+    "selected_m1_config_id": "leaves4_depth2_l2_100",
+    "fold_correction_paths": {
+      "dev_2026q2_b": "data/analysis/polymarket/BTC/btc_market_basis_vol_interaction_20261017/checkpoints/M1__leaves4_depth2_l2_100__dev_2026q2_b.parquet",
+      "dev_2026q2_c": "data/analysis/polymarket/BTC/btc_market_basis_vol_interaction_20261017/checkpoints/M1__leaves4_depth2_l2_100__dev_2026q2_c.parquet"
+    },
+    "logit_epsilon": 0.000001
+  },
+  "periods": {
+    "calibration_start_inclusive_utc": "2026-05-01T00:00:00Z",
+    "calibration_end_exclusive_utc": "2026-06-01T00:00:00Z",
+    "calibration_label_available_cutoff_utc": "2026-06-01T00:00:00Z",
+    "evaluation_start_inclusive_utc": "2026-06-01T00:00:00Z",
+    "evaluation_end_exclusive_utc": "2026-07-01T00:00:00Z",
+    "settlement_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "label_available_at_definition": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds"
+  },
+  "calibration": {
+    "formula": "p_alpha = sigmoid(logit(p_market) + alpha * raw_M1_correction)",
+    "alpha_lower_inclusive": 0.0,
+    "alpha_upper_inclusive": 1.0,
+    "objective": "unweighted mean binary log-loss over every eligible May quality row",
+    "optimizer": "convex derivative boundary checks and bisection on [0, 1]",
+    "intercept": false,
+    "side_specific_alpha": false,
+    "monthly_alpha": false
+  },
+  "quality_uncertainty": {
+    "method": "paired circular moving 3-day UTC blocks",
+    "valid_replications": 2000,
+    "seed": 20261018,
+    "confidence_interval": "percentile 95%"
+  },
+  "economics": {
+    "independent_gross_stake_usd": 5.0,
+    "minimum_net_ev_fraction": 0.01,
+    "decision_time": "T-60 seconds",
+    "execution_time": "T-59 seconds",
+    "price_both_sides_at_decision": true,
+    "fee_depth_and_settlement": "existing T-59 engine and saved T-60/T-59 snapshots",
+    "no_fee_deduction_from_net_ev": true
+  },
+  "holdout_used": false,
+  "model_training_or_feature_recomputation": false,
+  "cli_arguments": false
+}

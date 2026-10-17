@@ -1,0 +1,152 @@
+{
+  "calibration": {
+    "alpha": 0.0742703749538739,
+    "derivative_alpha_0": -0.00022457804587333217,
+    "derivative_alpha_1": 0.002791469851131287,
+    "derivative_selected": -2.1139052258666347e-19,
+    "fit_rows_are_unweighted_and_not_EV_or_trade_filtered": true,
+    "formula": "p_alpha = sigmoid(logit(p_market) + alpha * raw_M1_correction)",
+    "june_is_not_an_independent_test_of_the_complete_model_selection_and_calibration_procedure": true,
+    "loss_alpha_0": 0.6928220988751858,
+    "loss_alpha_1": 0.6941075248371775,
+    "loss_selected": 0.6928137591525876,
+    "minimum_not_worse_than_both_endpoints": true,
+    "objective": "mean(logaddexp(0, offset + alpha*f) - y*(offset + alpha*f)) on all eligible May quality rows",
+    "previous_model_selection_included_may_and_june": true,
+    "range": [
+      0.0,
+      1.0
+    ],
+    "rows": 5252,
+    "selected_m1_config": "leaves4_depth2_l2_100",
+    "selection_rule": "interior_derivative_root_bisection"
+  },
+  "code_hashes": {
+    "T59_execution_engine": {
+      "path": "run_btc_preopen_t59_reassessment.py",
+      "sha256": "75ac11564aec9da7bdf548ca7db92dc747747ed816bc90470d873601122abcf4"
+    },
+    "config": {
+      "path": "configs\\research\\btc_m1_correction_shrinkage_20261018.json",
+      "sha256": "1747761d58fb3681e1915247741c60a8e9ed66dd9f8ee08dd3bb21135fbb9813"
+    },
+    "runner": {
+      "path": "run_btc_m1_correction_shrinkage_20261018.py",
+      "sha256": "192c1a6f03a52e552fc4e3e21db30ac052b20159e97e6d343b7f73bb2ae3202e"
+    },
+    "snapshot_map_helper": {
+      "path": "run_btc_preopen_research.py",
+      "sha256": "22cb94807ee64fbd43ae080b70c156c0d0c9fd2c93466b232262d8f235f48ee9"
+    },
+    "source_experiment_config": {
+      "path": "configs\\research\\btc_conditional_market_offset_20261018.json",
+      "sha256": "8e10fd35dbe9da9bb2ed3524428120958331e7930b6e24d63f726f0fbd1a5d99"
+    },
+    "source_experiment_report": {
+      "path": "reports\\btc_preopen\\btc_market_basis_vol_interaction_20261017.md",
+      "sha256": "d89533390c53c85bde3f6bb568eb34178f3d83d5c4f40b2e2ef91f71a0fdf9e1"
+    },
+    "source_offset_helpers": {
+      "path": "run_btc_conditional_market_offset_20261018.py",
+      "sha256": "f392ee0e7e8ac33aae3a06ace415b4e136b1b17941cc72ff74f73e14867f891d"
+    }
+  },
+  "economic_rules": {
+    "decision_time": "T-60 seconds",
+    "decomposition": "R59 - E60 = (E59 - E60) + (y - p) * net_shares_T59",
+    "execution_time": "T-59 seconds",
+    "fee_depth_and_settlement": "existing T-59 engine and saved T-60/T-59 snapshots",
+    "independent_gross_stake_usd": 5.0,
+    "minimum_net_ev_fraction": 0.01,
+    "no_fee_deduction_from_net_ev": true,
+    "price_both_sides_at_decision": true,
+    "settlement_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "side_selection": "recompute both T-60 sides using each variant; existing engine selects the greatest positive net EV, ties prefer UP; execute only when selected EV is at least 1% of requested stake"
+  },
+  "experiment_id": "btc_m1_correction_shrinkage_20261018",
+  "freeze_sha256": "9d1d3d3ee3b72daff4440d2405be222a901990758010bb5e003ec8b2204690f2",
+  "frozen_at_utc": "2026-10-17T22:47:09.616593+00:00",
+  "frozen_before_june_evaluation": true,
+  "holdout_used": false,
+  "input_hashes": {
+    "T59_snapshots_both_sides": {
+      "path": "data\\analysis\\polymarket\\BTC\\preopen_research_20261011\\book_replay_t60_t59\\t59_ask_ladders_with_source_coverage.parquet",
+      "sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0"
+    },
+    "T60_snapshots_both_sides": {
+      "path": "data\\analysis\\polymarket\\BTC\\preopen_research_20261011\\book_replay_t60_t59\\t60_decision_books_with_source_coverage.parquet",
+      "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1"
+    },
+    "raw_M1_correction_dev_2026q2_b": {
+      "path": "data\\analysis\\polymarket\\BTC\\btc_market_basis_vol_interaction_20261017\\checkpoints\\M1__leaves4_depth2_l2_100__dev_2026q2_b.parquet",
+      "sha256": "5e3ea68f324a62ca20875737e4041b7128df1fb260f8c808677a716d1694cc59"
+    },
+    "raw_M1_correction_dev_2026q2_c": {
+      "path": "data\\analysis\\polymarket\\BTC\\btc_market_basis_vol_interaction_20261017\\checkpoints\\M1__leaves4_depth2_l2_100__dev_2026q2_c.parquet",
+      "sha256": "3d9b617ba635cdd6ca8538988861dd319348cb55c0abb13a5b83e8a0a0563fc6"
+    },
+    "saved_development_oof_predictions": {
+      "path": "data\\analysis\\polymarket\\BTC\\btc_market_basis_vol_interaction_20261017\\development_oof_predictions.parquet",
+      "sha256": "3739d86c3202548a0d87e3887b91dee558d9b941cb32eb4211a50c71cde6f0e0"
+    }
+  },
+  "prediction_output": {
+    "june_rows": 3422,
+    "path": "data\\analysis\\polymarket\\BTC\\btc_m1_correction_shrinkage_20261018\\development_predictions.parquet",
+    "rows": 8675,
+    "sample_sha256": "66fafff4bfff0e3ec3a7ac949ab0a9de6eab65d268c34ef948b6ba4b89e66bd4",
+    "sha256": "a085c2ccfacda5c6e2b5210f3d0482a127b8056bddb7a837d8ff444a163f4403"
+  },
+  "quality_rules": {
+    "bootstrap": {
+      "confidence_interval": "percentile 95%",
+      "method": "paired circular moving 3-day UTC blocks",
+      "seed": 20261018,
+      "valid_replications": 2000
+    },
+    "comparisons": [
+      "alpha-selected minus original M1",
+      "alpha-selected minus market"
+    ],
+    "mean_absolute_probability_correction_vs_market": true,
+    "metrics": [
+      "binary log-loss",
+      "Brier"
+    ]
+  },
+  "reconstruction": {
+    "causal_prediction_origins": [
+      "full_pipeline_oof_dev_2026q2_b",
+      "full_pipeline_oof_dev_2026q2_c"
+    ],
+    "development_rows": 8675,
+    "fold_counts": {
+      "dev_2026q2_b": 5253,
+      "dev_2026q2_c": 3422
+    },
+    "m1_reconstruction_max_abs_error": 0.0,
+    "market_reconstruction_max_abs_error": 1.1102230246251565e-16,
+    "raw_correction_precision_loss": false,
+    "raw_correction_used": true
+  },
+  "sample": {
+    "calibration_end_exclusive_utc": "2026-06-01T00:00:00+00:00",
+    "calibration_label_available_at_cutoff_utc": "2026-06-01T00:00:00Z",
+    "calibration_start_inclusive_utc": "2026-05-01T00:00:00+00:00",
+    "development_rows": 8675,
+    "evaluation_end_exclusive_utc": "2026-07-01T00:00:00+00:00",
+    "evaluation_start_inclusive_utc": "2026-06-01T00:00:00+00:00",
+    "excluded_may_rows_label_unavailable_by_cutoff": 1,
+    "fold_counts": {
+      "dev_2026q2_b": 5253,
+      "dev_2026q2_c": 3422
+    },
+    "june_evaluation_rows": 3422,
+    "label_available_at_definition": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "latest_calibration_label_available_at_utc": "2026-05-31T23:56:15+00:00",
+    "may_calibration_rows": 5252,
+    "may_market_rows": 5253
+  },
+  "schema_version": 1,
+  "training_features_oof_or_replay_regenerated": false
+}

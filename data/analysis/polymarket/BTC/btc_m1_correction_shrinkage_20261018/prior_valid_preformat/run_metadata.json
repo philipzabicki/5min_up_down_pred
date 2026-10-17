@@ -1,0 +1,184 @@
+{
+  "alpha_fit": {
+    "alpha": 0.0742703749538739,
+    "derivative_alpha_0": -0.00022457804587333217,
+    "derivative_alpha_1": 0.002791469851131287,
+    "derivative_selected": -2.1139052258666347e-19,
+    "loss_alpha_0": 0.6928220988751858,
+    "loss_alpha_1": 0.6941075248371775,
+    "loss_selected": 0.6928137591525876,
+    "minimum_not_worse_than_both_endpoints": true,
+    "rows": 5252,
+    "selection_rule": "interior_derivative_root_bisection"
+  },
+  "artifacts": {
+    "development_predictions": "data\\analysis\\polymarket\\BTC\\btc_m1_correction_shrinkage_20261018\\development_predictions.parquet",
+    "june_economic_decisions": "data\\analysis\\polymarket\\BTC\\btc_m1_correction_shrinkage_20261018\\june_economic_decisions.parquet",
+    "report": "reports\\btc_preopen\\btc_m1_correction_shrinkage_20261018\\report.md"
+  },
+  "experiment_id": "btc_m1_correction_shrinkage_20261018",
+  "frozen_manifest_sha256": "ebd1501a37000d8e74a251c751212d1715cdd6e5346abe47669523dc0929755b",
+  "june_economics": {
+    "minimum_net_ev_fraction": 0.01,
+    "settlement_cutoff_exclusive_utc": "2026-07-01T00:00:00+00:00",
+    "side_reselected_for_each_probability_variant": true,
+    "snapshot_sources": {
+      "T59": "data\\analysis\\polymarket\\BTC\\preopen_research_20261011\\book_replay_t60_t59\\t59_ask_ladders_with_source_coverage.parquet",
+      "T60": "data\\analysis\\polymarket\\BTC\\preopen_research_20261011\\book_replay_t60_t59\\t60_decision_books_with_source_coverage.parquet"
+    },
+    "stake_usd": 5.0,
+    "variants": {
+      "calibrated_M1": {
+        "ev_at_least_1pct_decisions": 0,
+        "execution_component_E59_minus_E60_usd": 0.0,
+        "fees_usd": 0.0,
+        "june_markets": 3422,
+        "ledger_rows": 3422,
+        "max_decomposition_error_usd": null,
+        "missing_t60_snapshots": 0,
+        "net_pnl_over_turnover": null,
+        "net_pnl_usd": 0.0,
+        "positive_ev_markets": 0,
+        "positive_ev_sides": 0,
+        "probability_residual_usd": 0.0,
+        "qualified_missing_t59_snapshots": 0,
+        "realized_minus_predicted_ev_T60_usd": 0.0,
+        "settled_depth_breakdown": {},
+        "settled_fills_by_cutoff": 0,
+        "side_choices_changed_pct_of_june_rows": 0.24868497954412624,
+        "side_choices_changed_vs_original_M1": 851,
+        "sum_predicted_ev_T59_on_settled_executions_usd": 0.0,
+        "sum_predicted_ev_T60_on_settled_executions_usd": 0.0,
+        "sum_realized_result_on_same_executions_usd": 0.0,
+        "t59_fills": 0,
+        "t60_priceable_markets": 3143,
+        "trade_status": "no_transactions",
+        "turnover_usd": 0.0,
+        "unsettled_fills_at_cutoff": 0
+      },
+      "market_alpha_0": {
+        "ev_at_least_1pct_decisions": 0,
+        "execution_component_E59_minus_E60_usd": 0.0,
+        "fees_usd": 0.0,
+        "june_markets": 3422,
+        "ledger_rows": 3422,
+        "max_decomposition_error_usd": null,
+        "missing_t60_snapshots": 0,
+        "net_pnl_over_turnover": null,
+        "net_pnl_usd": 0.0,
+        "positive_ev_markets": 0,
+        "positive_ev_sides": 0,
+        "probability_residual_usd": 0.0,
+        "qualified_missing_t59_snapshots": 0,
+        "realized_minus_predicted_ev_T60_usd": 0.0,
+        "settled_depth_breakdown": {},
+        "settled_fills_by_cutoff": 0,
+        "sum_predicted_ev_T59_on_settled_executions_usd": 0.0,
+        "sum_predicted_ev_T60_on_settled_executions_usd": 0.0,
+        "sum_realized_result_on_same_executions_usd": 0.0,
+        "t59_fills": 0,
+        "t60_priceable_markets": 3143,
+        "trade_status": "no_transactions",
+        "turnover_usd": 0.0,
+        "unsettled_fills_at_cutoff": 0
+      },
+      "original_M1_alpha_1": {
+        "ev_at_least_1pct_decisions": 801,
+        "execution_component_E59_minus_E60_usd": -0.5383422164633451,
+        "fees_usd": 138.59849,
+        "june_markets": 3422,
+        "ledger_rows": 3422,
+        "max_decomposition_error_usd": 4.440892098500626e-16,
+        "missing_t60_snapshots": 0,
+        "net_pnl_over_turnover": -0.009664782938436405,
+        "net_pnl_usd": -38.27254043620817,
+        "positive_ev_markets": 851,
+        "positive_ev_sides": 851,
+        "probability_residual_usd": -114.9409857430254,
+        "qualified_missing_t59_snapshots": 0,
+        "realized_minus_predicted_ev_T60_usd": -115.47932795948878,
+        "settled_depth_breakdown": {
+          "full_book": {
+            "fees_usd": 138.59849,
+            "net_pnl_usd": -38.27254043620817,
+            "settled_fills": 792,
+            "turnover_usd": 3960.0
+          }
+        },
+        "settled_fills_by_cutoff": 792,
+        "sum_predicted_ev_T59_on_settled_executions_usd": 76.66844530681726,
+        "sum_predicted_ev_T60_on_settled_executions_usd": 77.20678752328061,
+        "sum_realized_result_on_same_executions_usd": -38.27254043620817,
+        "t59_fills": 792,
+        "t60_priceable_markets": 3143,
+        "trade_status": "transactions",
+        "turnover_usd": 3960.0,
+        "unsettled_fills_at_cutoff": 0
+      }
+    }
+  },
+  "june_paired_differences": {
+    "calibrated_minus_market": {
+      "block_days_utc": 3,
+      "bootstrap_attempts": 2000,
+      "brier_difference": -6.181919342054655e-05,
+      "brier_difference_95pct": [
+        -0.00012204450850459619,
+        1.4903102597790248e-05
+      ],
+      "log_loss_difference": -0.000123769927065395,
+      "log_loss_difference_95pct": [
+        -0.0002442995070171829,
+        2.957591112272713e-05
+      ],
+      "seed": 20261018,
+      "valid_bootstrap_replicates": 2000
+    },
+    "calibrated_minus_original_M1": {
+      "block_days_utc": 3,
+      "bootstrap_attempts": 2000,
+      "brier_difference": 0.0003861951229276272,
+      "brier_difference_95pct": [
+        -0.0005675891746198702,
+        0.0011365636808658537
+      ],
+      "log_loss_difference": 0.0007724761426141536,
+      "log_loss_difference_95pct": [
+        -0.0011403221677173778,
+        0.0022791120269502834
+      ],
+      "seed": 20261018,
+      "valid_bootstrap_replicates": 2000
+    }
+  },
+  "june_quality": {
+    "calibrated_M1": {
+      "brier": 0.24998149580285836,
+      "log_loss": 0.6931200695889679,
+      "mean_absolute_probability_correction_vs_market": 0.0012391491116182144,
+      "rows": 3422
+    },
+    "market": {
+      "brier": 0.2500433149962789,
+      "log_loss": 0.6932438395160332,
+      "mean_absolute_probability_correction_vs_market": 0.0,
+      "rows": 3422
+    },
+    "original_M1": {
+      "brier": 0.24959530067993074,
+      "log_loss": 0.6923475934463537,
+      "mean_absolute_probability_correction_vs_market": 0.016675462011874434,
+      "rows": 3422
+    }
+  },
+  "runtime": {
+    "elapsed_seconds": 5.464388000000326,
+    "finished_at_utc": "2026-10-17T22:48:58.690765+00:00",
+    "numpy_version": "2.4.4",
+    "pandas_version": "3.0.2",
+    "peak_working_set_bytes": 1823719424,
+    "python_version": "3.14.4",
+    "started_at_utc": "2026-10-17T22:48:53.226424+00:00"
+  },
+  "status": "completed"
+}
