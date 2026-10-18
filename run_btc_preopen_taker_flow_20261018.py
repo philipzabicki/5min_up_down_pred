@@ -622,6 +622,129 @@ def _load_and_validate_archives(records: list[dict]) -> tuple[pd.DataFrame, dict
     return all_rows, validation
 
 
+def _load_and_validate_daily_archives(
+    records: list[dict], *, volume_abs_tolerance: float = 1e-10, volume_rel_tolerance: float = 1e-12,
+) -> tuple[pd.DataFrame, dict]:
+    """Parse and audit daily USD-M kline ZIPs using the same 12-column schema as monthly archives."""
+    columns = [
+        "open_time", "open", "high", "low", "close", "base_volume", "close_time",
+        "quote_volume", "trade_count", "taker_buy_base_volume", "taker_buy_quote_volume", "ignore",
+    ]
+    official_header = [
+        "open_time", "open", "high", "low", "close", "volume", "close_time",
+        "quote_volume", "count", "taker_buy_volume", "taker_buy_quote_volume", "ignore",
+    ]
+    per_day = []
+    day_audit = []
+    ordered = sorted(records, key=lambda item: item["day"])
+    for record in ordered:
+        archive_path = ROOT / record["zip_path"]
+        if _sha256(archive_path) != record["sha256"]:
+            raise RuntimeError(f"Binance daily archive SHA-256 changed after download: {record['day']}")
+        with zipfile.ZipFile(archive_path) as archive:
+            members = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+            if len(members) != 1:
+                raise RuntimeError(f"Expected exactly one CSV in daily archive for {record['day']}")
+            expected_member = f"BTCUSDT-1m-{record['day']}.csv"
+            if Path(members[0]).name != expected_member:
+                raise RuntimeError(f"Unexpected kline member in {record['day']} archive: {members[0]}")
+            with archive.open(members[0]) as handle:
+                first_line = handle.readline().decode("utf-8-sig").strip().split(",")
+                header_present = [value.strip().lower() for value in first_line] == official_header
+                if not header_present:
+                    handle.seek(0)
+                frame = pd.read_csv(handle, header=None, names=columns, usecols=list(range(11)))
+
+        input_rows = len(frame)
+        open_time = pd.to_numeric(frame["open_time"], errors="coerce")
+        close_time = pd.to_numeric(frame["close_time"], errors="coerce")
+        timestamps = pd.to_datetime(open_time, unit="ms", utc=True, errors="coerce")
+        day_start = pd.Timestamp(record["day"], tz="UTC")
+        day_end = day_start + pd.Timedelta(days=1)
+        timestamp_valid = timestamps.notna() & open_time.mod(60_000).eq(0)
+        in_day = timestamps.ge(day_start) & timestamps.lt(day_end)
+        close_time_valid = close_time.eq(open_time + 59_999)
+        frame["Opened"] = timestamps
+        for name in ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume"):
+            frame[name] = pd.to_numeric(frame[name], errors="coerce")
+        price_valid = (
+            np.isfinite(frame["open"]) & np.isfinite(frame["high"])
+            & np.isfinite(frame["low"]) & np.isfinite(frame["close"])
+            & frame["open"].gt(0) & frame["high"].gt(0)
+            & frame["low"].gt(0) & frame["close"].gt(0)
+            & frame["high"].ge(np.maximum(frame["open"], frame["close"]))
+            & frame["low"].le(np.minimum(frame["open"], frame["close"]))
+            & frame["high"].ge(frame["low"])
+        )
+        quote = frame["quote_volume"]
+        taker_buy = frame["taker_buy_quote_volume"]
+        tolerance = np.maximum(volume_abs_tolerance, volume_rel_tolerance * np.maximum(quote.abs(), taker_buy.abs()))
+        volume_valid = (
+            np.isfinite(quote) & np.isfinite(taker_buy)
+            & quote.ge(0) & taker_buy.ge(0)
+            & taker_buy.le(quote + tolerance)
+        )
+        valid_timestamp = timestamp_valid & in_day & close_time_valid
+        accepted = frame.loc[valid_timestamp, [
+            "Opened", "open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume",
+        ]].copy()
+        accepted_price_valid = price_valid.loc[valid_timestamp].to_numpy()
+        accepted_volume_valid = volume_valid.loc[valid_timestamp].to_numpy()
+        accepted.loc[~accepted_price_valid, ["open", "high", "low", "close"]] = np.nan
+        accepted.loc[~accepted_volume_valid, ["quote_volume", "taker_buy_quote_volume"]] = np.nan
+        duplicate_mask = accepted["Opened"].duplicated(keep=False)
+        duplicate_rows = int(duplicate_mask.sum())
+        accepted = accepted.loc[~duplicate_mask].set_index("Opened").sort_index(kind="stable")
+        day_grid = pd.date_range(day_start, day_end - pd.Timedelta(minutes=1), freq="min", tz="UTC")
+        reindexed = accepted.reindex(day_grid)
+        per_day.append(reindexed)
+        valid_volume_index = volume_valid.loc[valid_timestamp]
+        strict_relation = taker_buy.loc[valid_timestamp].gt(quote.loc[valid_timestamp])
+        day_audit.append({
+            "day": record["day"],
+            "source_archive_sha256": record["sha256"],
+            "header_row_present": header_present,
+            "input_rows": int(input_rows),
+            "expected_rows": 1440,
+            "rows_with_valid_utc_open_and_close_times": int(valid_timestamp.sum()),
+            "timestamp_errors_or_off_minute_rows": int((~timestamp_valid).sum()),
+            "out_of_day_rows": int((timestamp_valid & ~in_day).sum()),
+            "close_time_errors": int((timestamp_valid & in_day & ~close_time_valid).sum()),
+            "duplicate_rows_excluded": duplicate_rows,
+            "missing_minute_rows_after_grid_check": int(reindexed["close"].isna().sum()),
+            "invalid_ohlc_rows": int((valid_timestamp & ~price_valid).sum()),
+            "invalid_quote_or_taker_volume_rows_beyond_tolerance": int((valid_timestamp & ~volume_valid).sum()),
+            "taker_buy_above_quote_within_tolerance_rows": int((strict_relation & valid_volume_index).sum()),
+            "volume_abs_tolerance": volume_abs_tolerance,
+            "volume_rel_tolerance": volume_rel_tolerance,
+        })
+
+    all_rows = pd.concat(per_day, axis=0).sort_index(kind="stable")
+    duplicate_count = int(all_rows.index.duplicated(keep=False).sum())
+    if duplicate_count:
+        raise RuntimeError("Daily Binance archives have overlapping or duplicate timestamps")
+    expected_index = pd.date_range(
+        pd.Timestamp(ordered[0]["day"], tz="UTC"),
+        pd.Timestamp(ordered[-1]["day"], tz="UTC") + pd.Timedelta(days=1) - pd.Timedelta(minutes=1),
+        freq="min", tz="UTC",
+    )
+    all_rows = all_rows.reindex(expected_index)
+    validation = {
+        "source": "official Binance Public Data USD-M Futures daily BTCUSDT 1m klines",
+        "instrument_identity": {"market_type": "USD-M Futures", "symbol": "BTCUSDT", "interval": "1m"},
+        "timestamp_unit": "milliseconds since Unix epoch UTC; valid open times aligned to a minute",
+        "expected_days": [item["day"] for item in ordered],
+        "expected_minute_grid_rows": int(len(expected_index)),
+        "observed_valid_close_rows": int(all_rows["close"].notna().sum()),
+        "missing_or_invalid_bar_minutes": int(all_rows["close"].isna().sum()),
+        "duplicate_timestamps_across_archives": duplicate_count,
+        "volume_invariant": "quote_volume >= 0; 0 <= taker_buy_quote_volume <= quote_volume + max(abs_tol, rel_tol * max(abs(quote_volume), abs(taker_buy_quote_volume)))",
+        "values_clipped_or_imputed": False,
+        "day_audit": day_audit,
+    }
+    return all_rows, validation
+
+
 def _load_dataset_inputs() -> tuple[pd.DataFrame, dict]:
     source_run = _read_json(SOURCE_RUN_PATH)
     cols = SOURCE_FEATURES + [
