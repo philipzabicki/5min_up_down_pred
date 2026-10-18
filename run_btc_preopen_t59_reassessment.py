@@ -2732,12 +2732,16 @@ def _portfolio_for_policy(
     side_selection_by_id: dict[str, str] | None = None,
     minimum_net_ev_fraction: float = 0.0,
     output_policy: str | None = None,
+    causal_intent_mode: bool = False,
+    allow_unresolved_outcomes: bool = False,
+    independent_order_mode: bool = False,
 ) -> tuple[dict, list[dict], list[dict]]:
     import heapq
 
-    cash = INITIAL_CASH_USD
+    initial_cash = 0.0 if independent_order_mode else INITIAL_CASH_USD
+    cash = initial_cash
     locked_cost = 0.0
-    peak_equity = INITIAL_CASH_USD
+    peak_equity = initial_cash
     max_drawdown = 0.0
     max_exposure = 0.0
     max_positions = 0
@@ -2765,10 +2769,10 @@ def _portfolio_for_policy(
         max_positions = max(max_positions, len(positions))
         if peak_timestamp_ns is None:
             peak_timestamp_ns = int(now_ns)
-        if equity > peak_equity:
+        if not independent_order_mode and equity > peak_equity:
             peak_equity = equity
             peak_timestamp_ns = int(now_ns)
-        if peak_equity > 0.0:
+        if not independent_order_mode and peak_equity > 0.0:
             drawdown = (peak_equity - equity) / peak_equity
             if drawdown > max_drawdown:
                 max_drawdown = drawdown
@@ -2797,6 +2801,21 @@ def _portfolio_for_policy(
     for row in sorted_rows.itertuples(index=False):
         cid = str(row.condition_id) if pd.notna(row.condition_id) else ""
         if not cid or cid not in market_by_id:
+            if causal_intent_mode:
+                decision_time = pd.Timestamp(row.market_start_utc) - pd.Timedelta(seconds=60)
+                entry = pd.Timestamp(row.market_start_utc) - pd.Timedelta(seconds=59)
+                rejected["no_gamma_market_record"] += 1
+                decisions.append({
+                    "policy": output_policy or policy,
+                    "condition_id": cid or None,
+                    "market_start_utc": row.market_start_utc,
+                    "decision_time_utc": decision_time,
+                    "entry_time_utc": entry,
+                    "prediction_available_at_utc": entry,
+                    "prediction_probability_up": _float_or_none(row.p_candidate_platt),
+                    "decision": "skip",
+                    "skip_reason": "no_gamma_market_record",
+                })
             continue
         market = market_by_id[cid]
         policy_label = output_policy or policy
@@ -2825,7 +2844,7 @@ def _portfolio_for_policy(
             "requested_gross_usd": None, "chosen_side": None, "decision": None,
             "skip_reason": None, "cash_before_usd": cash, "locked_cost_before_usd": locked_cost,
         }
-        if snapshot is None:
+        if snapshot is None and not causal_intent_mode:
             rejected["missing_t59_market_snapshot"] += 1
             decision.update(decision="skip", skip_reason="missing_t59_market_snapshot")
             decisions.append(decision)
@@ -2846,7 +2865,7 @@ def _portfolio_for_policy(
         )
         decision["observed_snapshot_fee_rate_bps"] = snapshot.get("fee_rate_bps")
         decision["observed_snapshot_fee_collection_mode"] = snapshot.get("fee_collection_mode")
-        if outcome is None or pd.isna(resolved):
+        if not allow_unresolved_outcomes and (outcome is None or pd.isna(resolved)):
             rejected["missing_official_outcome_or_settlement_time"] += 1
             decision.update(decision="skip", skip_reason="missing_official_outcome_or_settlement_time")
             decisions.append(decision)
@@ -2875,19 +2894,29 @@ def _portfolio_for_policy(
             continue
         fixed5_evaluation = _evaluate_market_sides(market, decision_snapshot, FIXED_GROSS_USD)
         selection_evaluation = _evaluate_market_sides(market, decision_snapshot, desired)
-        execution_evaluation = _evaluate_market_sides(market, snapshot, desired)
+        execution_evaluation = (
+            _evaluate_market_sides(market, snapshot, desired)
+            if snapshot is not None else None
+        )
         for side_name in ("up", "down"):
             for label, evaluation in (
                 ("decision_fixed5", fixed5_evaluation),
                 ("decision_requested", selection_evaluation),
                 ("execution", execution_evaluation),
             ):
-                side_result = evaluation["sides"][side_name]
+                side_result = (
+                    evaluation["sides"][side_name]
+                    if evaluation is not None else {
+                        "priceable": False,
+                        "reason": "missing_t59_market_snapshot",
+                        "ev_usd": None,
+                    }
+                )
                 fill_result = side_result.get("fill") or {}
                 prefix = f"{side_name}_{label}"
                 age_snapshot = decision_snapshot if label.startswith("decision") else snapshot
                 decision[f"{prefix}_ask_age_seconds"] = _float_or_none(
-                    age_snapshot.get(f"{side_name}_ask_age_seconds")
+                    age_snapshot.get(f"{side_name}_ask_age_seconds") if age_snapshot is not None else None
                 )
                 decision[f"{prefix}_priceable"] = bool(side_result["priceable"])
                 decision[f"{prefix}_reason"] = side_result["reason"]
@@ -2915,8 +2944,14 @@ def _portfolio_for_policy(
                 decision[f"{prefix}_minimum_order_source"] = side_result.get("minimum_order_size_source")
                 decision[f"{prefix}_requested_order_usd"] = side_result.get("requested_order_usd")
         decision["priceable_sides_at_requested_amount"] = selection_evaluation["priceable_side_count"]
-        decision["up_price_reason"] = execution_evaluation["sides"]["up"]["reason"]
-        decision["down_price_reason"] = execution_evaluation["sides"]["down"]["reason"]
+        decision["up_price_reason"] = (
+            execution_evaluation["sides"]["up"]["reason"]
+            if execution_evaluation is not None else "missing_t59_market_snapshot"
+        )
+        decision["down_price_reason"] = (
+            execution_evaluation["sides"]["down"]["reason"]
+            if execution_evaluation is not None else "missing_t59_market_snapshot"
+        )
         side = (
             selection_evaluation["chosen_side"]
             if side_selection_by_id is None
@@ -2979,6 +3014,11 @@ def _portfolio_for_policy(
             decision.update(decision="skip", chosen_side=side, skip_reason=reason)
             decisions.append(decision)
             continue
+        if snapshot is None:
+            rejected["missing_t59_market_snapshot"] += 1
+            decision.update(decision="skip", chosen_side=side, skip_reason="missing_t59_market_snapshot")
+            decisions.append(decision)
+            continue
         execution = execution_evaluation["sides"][side]
         if not execution["priceable"]:
             reason = execution["reason"]
@@ -3001,15 +3041,20 @@ def _portfolio_for_policy(
         decision["execution_ev_usd_at_t59"] = execution.get("ev_usd")
         debit = float(fill["cash_debit_usd"])
         release_until(entry_ns, inclusive=True)
-        if cash + 1e-9 < debit:
+        if not independent_order_mode and cash + 1e-9 < debit:
             rejected["insufficient_free_cash_for_cash_debit"] += 1
             decision.update(decision="skip", skip_reason="insufficient_free_cash_for_cash_debit")
             decisions.append(decision)
             continue
-        won = int(outcome) == int(side == "up")
-        payout = float(fill["shares"]) if won else 0.0
-        release_at = max(resolved, pd.Timestamp(row.market_start_utc) + pd.Timedelta(minutes=5)) + pd.Timedelta(seconds=60)
-        release_ns = int(release_at.value)
+        settled = outcome in (0.0, 1.0) and not pd.isna(resolved)
+        won = int(outcome) == int(side == "up") if settled else None
+        payout = (float(fill["shares"]) if won else 0.0) if settled else None
+        release_at = (
+            max(resolved, pd.Timestamp(row.market_start_utc) + pd.Timedelta(minutes=5))
+            + pd.Timedelta(seconds=60)
+            if settled else pd.NaT
+        )
+        release_ns = int(release_at.value) if settled else None
         cash_before = cash
         cash -= debit
         locked_cost += float(fill["gross_usd"])
@@ -3022,7 +3067,8 @@ def _portfolio_for_policy(
             "gross_shares": float(fill["gross_shares"]), "net_shares": float(fill["shares"]),
             "vwap": float(fill["vwap"]), "release_ns": release_ns,
         }
-        heapq.heappush(positions, (release_ns, cid, position))
+        if settled:
+            heapq.heappush(positions, (release_ns, cid, position))
         fees_paid += position["fee_usd"]
         turnover += float(fill["gross_usd"])
         entry_amounts.append(float(fill["gross_usd"]))
@@ -3046,16 +3092,22 @@ def _portfolio_for_policy(
             "observed_snapshot_fee_rate_bps": fill.get("observed_snapshot_fee_rate_bps"),
             "observed_snapshot_fee_collection_mode": fill.get("observed_snapshot_fee_collection_mode"),
             "gross_shares": position["gross_shares"], "net_shares": position["net_shares"],
-            "vwap": position["vwap"], "outcome_up": int(outcome), "won": won,
-            "payout_usd": payout, "net_pnl_usd": payout - debit,
-            "settled_at_utc": resolved, "cash_release_at_utc": release_at,
+            "vwap": position["vwap"],
+            "outcome_up": int(outcome) if settled else None,
+            "won": won,
+            "payout_usd": payout,
+            "net_pnl_usd": payout - debit if settled else None,
+            "settlement_status": "settled" if settled else "unresolved_at_cutoff",
+            "settled_at_utc": resolved if settled else pd.NaT,
+            "cash_release_at_utc": release_at,
             "cash_before_usd": cash_before, "cash_after_entry_usd": cash,
             "locked_cost_after_entry_usd": locked_cost,
         }
         trades.append(trade)
         decision.update(decision="buy", cash_debit_usd=debit, gross_usd=float(fill["gross_usd"]))
         decisions.append(decision)
-        final_event_ns = release_ns if final_event_ns is None else max(final_event_ns, release_ns)
+        if settled:
+            final_event_ns = release_ns if final_event_ns is None else max(final_event_ns, release_ns)
     while positions:
         release_until(positions[0][0], inclusive=True)
     if first_entry_ns is None:
@@ -3066,8 +3118,12 @@ def _portfolio_for_policy(
         final_event_ns = max(final_event_ns, max(int(item["timestamp_ns"]) for item in path))
     if last_entry_ns is not None:
         final_event_ns = max(final_event_ns, last_entry_ns)
-    daily = __import__("run_btc_preopen_policy_continuation")._daily_log_growth_summary(
-        path, first_entry_ns, final_event_ns,
+    daily = (
+        {"not_applicable": "independent orders; no portfolio capital base"}
+        if independent_order_mode else
+        __import__("run_btc_preopen_policy_continuation")._daily_log_growth_summary(
+            path, first_entry_ns, final_event_ns,
+        )
     )
     monthly = []
     first_month_text = pd.Timestamp(first_entry_ns, unit="ns", tz="UTC").strftime("%Y-%m")
@@ -3075,7 +3131,7 @@ def _portfolio_for_policy(
     first_month = pd.Timestamp(f"{first_month_text}-01", tz="UTC")
     last_month = pd.Timestamp(f"{last_month_text}-01", tz="UTC")
     equity_path = sorted(path, key=lambda item: int(item["timestamp_ns"]))
-    previous_equity = INITIAL_CASH_USD
+    previous_equity = initial_cash
     for month in pd.date_range(first_month, last_month, freq="MS", tz="UTC"):
         month_end_ns = int((month + pd.offsets.MonthBegin(1)).value)
         equity = previous_equity
@@ -3097,13 +3153,15 @@ def _portfolio_for_policy(
             "frozen fixed-$5 chosen side; no side substitution"
             if side_selection_by_id is not None else "positive net EV side at requested amount"
         ),
-        "initial_cash_usd": INITIAL_CASH_USD,
-        "ending_cash_after_settlement_usd": cash, "net_pnl_usd": cash - INITIAL_CASH_USD,
+        "initial_cash_usd": initial_cash,
+        "independent_order_mode": bool(independent_order_mode),
+        "ending_cash_after_settlement_usd": cash, "net_pnl_usd": cash - initial_cash,
         "trade_count": len(trades), "gross_turnover_usd": turnover,
-        "fees_paid_estimated_usd": fees_paid, "max_drawdown_cost_basis_equity": max_drawdown,
+        "fees_paid_estimated_usd": fees_paid,
+        "max_drawdown_cost_basis_equity": None if independent_order_mode else max_drawdown,
         "maximum_concurrent_cost_basis_exposure_usd": max_exposure,
         "maximum_concurrent_positions": max_positions,
-        "minimum_free_cash_usd": min((item["cash_usd"] for item in path), default=INITIAL_CASH_USD),
+        "minimum_free_cash_usd": None if independent_order_mode else min((item["cash_usd"] for item in path), default=initial_cash),
         "max_drawdown_peak_utc": pd.Timestamp(max_drawdown_peak_ns, unit="ns", tz="UTC").isoformat() if max_drawdown_peak_ns is not None else None,
         "max_drawdown_trough_utc": pd.Timestamp(max_drawdown_trough_ns, unit="ns", tz="UTC").isoformat() if max_drawdown_trough_ns is not None else None,
         "gross_stake_quantiles_usd": {
@@ -3120,13 +3178,29 @@ def _portfolio_for_policy(
         },
         "rejections_by_reason": dict(rejected),
         "daily_log_growth": daily,
-        "monthly_continuous_portfolio": monthly,
-        "drawdown_accounting": "cash plus original gross cost basis of unsettled positions; settlement changes equity to cash payout, and no interim mark-to-market is imputed",
+        "monthly_continuous_portfolio": [] if independent_order_mode else monthly,
+        "drawdown_accounting": (
+            "not applicable to independent orders; no portfolio capital base or cash constraint"
+            if independent_order_mode else
+            "cash plus original gross cost basis of unsettled positions; settlement changes equity to cash payout, and no interim mark-to-market is imputed"
+        ),
         "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
         "minimum_net_ev_fraction": float(minimum_net_ev_fraction),
         "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
         "_equity_path": path,
     }
+    if allow_unresolved_outcomes:
+        settled_trades = [item for item in trades if item.get("settlement_status") == "settled"]
+        unresolved_trades = [item for item in trades if item.get("settlement_status") != "settled"]
+        summary.update({
+            "net_pnl_usd": float(sum(float(item["net_pnl_usd"]) for item in settled_trades)),
+            "settled_trade_count": len(settled_trades),
+            "unresolved_fill_count": len(unresolved_trades),
+            "unresolved_gross_turnover_usd": float(sum(float(item["gross_usd"]) for item in unresolved_trades)),
+            "unresolved_cash_debit_usd": float(sum(float(item["cash_debit_usd"]) for item in unresolved_trades)),
+            "unresolved_locked_cost_usd": float(sum(float(item["gross_usd"]) for item in unresolved_trades)),
+            "ending_cost_basis_equity_usd": float(cash + locked_cost),
+        })
     return summary, trades, decisions
 
 
@@ -3170,7 +3244,8 @@ def _monthly_portfolio_diagnostics(trades: list[dict], decisions: list[dict], eq
         ]
         gross = sum(float(item["gross_usd"]) for item in month_trades)
         spent = sum(float(item["cash_debit_usd"]) for item in month_trades)
-        cohort_pnl = sum(float(item["net_pnl_usd"]) for item in month_trades)
+        settled_month_trades = [item for item in month_trades if item.get("net_pnl_usd") is not None]
+        cohort_pnl = sum(float(item["net_pnl_usd"]) for item in settled_month_trades)
         stakes = [float(item["gross_usd"]) for item in month_trades]
         rows.append({
             "month_utc": month.strftime("%Y-%m"),
@@ -3181,6 +3256,8 @@ def _monthly_portfolio_diagnostics(trades: list[dict], decisions: list[dict], eq
             "monthly_max_drawdown_peak_utc": pd.Timestamp(max_dd_peak_ns, unit="ns", tz="UTC").isoformat() if max_dd_peak_ns is not None else None,
             "monthly_max_drawdown_trough_utc": pd.Timestamp(max_dd_trough_ns, unit="ns", tz="UTC").isoformat() if max_dd_trough_ns is not None else None,
             "trade_count": len(month_trades),
+            "settlement_count": len(settled_month_trades),
+            "unresolved_fill_count": len(month_trades) - len(settled_month_trades),
             "gross_turnover_usd": gross,
             "cash_spent_including_cash_fees_usd": spent,
             "entry_cohort_net_pnl_usd": cohort_pnl,
@@ -3208,10 +3285,31 @@ def _portfolio_accounting_audit(
     equity_path: list[dict],
     snapshots_by_id: dict[str, dict],
     decision_snapshots_by_id: dict[str, dict] | None = None,
+    allow_unresolved_outcomes: bool = False,
+    independent_order_mode: bool = False,
 ) -> dict:
     tolerance = 1e-8
+    settled_trades = [
+        item for item in trades
+        if item.get("settlement_status", "settled") == "settled"
+        and item.get("net_pnl_usd") is not None
+    ]
+    unresolved_trades = [
+        item for item in trades
+        if item.get("settlement_status", "settled") != "settled"
+        or item.get("net_pnl_usd") is None
+    ]
+    settled_pnl = sum(float(item["net_pnl_usd"]) for item in settled_trades)
+    unresolved_cash_fees = sum(
+        float(item["cash_debit_usd"]) - float(item["gross_usd"])
+        for item in unresolved_trades
+    )
+    unresolved_gross = sum(float(item["gross_usd"]) for item in unresolved_trades)
     checks = {
-        "free_cash_never_negative": all(float(item["cash_usd"]) >= -tolerance for item in equity_path),
+        "free_cash_never_negative": (
+            True if independent_order_mode else
+            all(float(item["cash_usd"]) >= -tolerance for item in equity_path)
+        ),
         "cost_basis_exposure_never_negative": all(float(item["exposure_usd"]) >= -tolerance for item in equity_path),
         "equity_equals_cash_plus_locked_cost": all(
             abs(float(item["cost_basis_equity_usd"]) - float(item["cash_usd"]) - float(item["exposure_usd"])) <= tolerance
@@ -3219,12 +3317,28 @@ def _portfolio_accounting_audit(
         ),
         "one_entry_and_one_settlement_per_trade": (
             sum(item["event_type"] == "entry" for item in equity_path) == len(trades)
-            and sum(item["event_type"] == "settlement" for item in equity_path) == len(trades)
+            and sum(item["event_type"] == "settlement" for item in equity_path) == len(settled_trades)
         ),
-        "ending_cash_matches_sum_of_trade_pnl": abs(
-            float(summary["ending_cash_after_settlement_usd"]) - INITIAL_CASH_USD
-            - sum(float(item["net_pnl_usd"]) for item in trades)
-        ) <= 1e-7,
+        "ending_cash_matches_sum_of_trade_pnl": (
+            abs(float(summary["ending_cash_after_settlement_usd"]) - float(summary["initial_cash_usd"]) - settled_pnl) <= 1e-7
+            if not allow_unresolved_outcomes else
+            abs(
+                float(summary["ending_cash_after_settlement_usd"])
+                - float(summary["initial_cash_usd"]) - settled_pnl
+                + sum(float(item["cash_debit_usd"]) for item in unresolved_trades)
+            ) <= 1e-7
+        ),
+        "unresolved_book_value_reconciles_cost_basis_equity": (
+            not allow_unresolved_outcomes
+            or abs(
+                float(summary["ending_cost_basis_equity_usd"])
+                - float(summary["initial_cash_usd"]) - settled_pnl + unresolved_cash_fees
+            ) <= 1e-7
+        ),
+        "unresolved_gross_matches_locked_cost": (
+            not allow_unresolved_outcomes
+            or abs(float(summary["unresolved_locked_cost_usd"]) - unresolved_gross) <= tolerance
+        ),
         "cash_debit_equals_gross_plus_cash_fee": all(
             abs(float(item["cash_debit_usd"]) - float(item["gross_usd"]) - float(item["fee_cash_usd"])) <= tolerance
             for item in trades
@@ -3235,7 +3349,7 @@ def _portfolio_accounting_audit(
         ),
         "payout_matches_resolved_outcome": all(
             abs(float(item["payout_usd"]) - (float(item["net_shares"]) if item["won"] else 0.0)) <= tolerance
-            for item in trades
+            for item in settled_trades
         ),
         "trades_have_no_future_snapshot_events": all(
             bool(snapshots_by_id[str(item["condition_id"])].get("no_future_event_at_entry"))
@@ -3244,6 +3358,7 @@ def _portfolio_accounting_audit(
         ),
         "daily_log_growth_reconciles_to_final_equity": bool(
             summary["daily_log_growth"].get("daily_log_growth_identity_verified")
+            or independent_order_mode
         ),
         "fee_mode_matches_cash_or_share_collection": all(
             (
@@ -3297,11 +3412,14 @@ def _portfolio_accounting_audit(
         raise RuntimeError(f"Portfolio accounting audit failed: {[key for key, value in checks.items() if not value]}")
     return {
         "status": "passed",
+        "cash_constraint_applied": not independent_order_mode,
         "trade_count": len(trades),
+        "settlement_count": len(settled_trades),
+        "unresolved_fill_count": len(unresolved_trades),
         "decision_count": len(decisions),
-        "minimum_cash_usd": min((float(item["cash_usd"]) for item in equity_path), default=INITIAL_CASH_USD),
+        "minimum_cash_usd": min((float(item["cash_usd"]) for item in equity_path), default=float(summary["initial_cash_usd"])),
         "ending_cash_usd": float(summary["ending_cash_after_settlement_usd"]),
-        "trade_pnl_sum_usd": sum(float(item["net_pnl_usd"]) for item in trades),
+        "trade_pnl_sum_usd": settled_pnl,
         "checks": checks,
     }
 

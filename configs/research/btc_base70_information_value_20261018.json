@@ -1,0 +1,46 @@
+{
+  "experiment_id": "btc_base70_information_value_20261018",
+  "source_taker_flow_run_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json",
+  "source_zv_run_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_zv_ablation_20261018/run_manifest.json",
+  "source_zv_report_manifest_path": "reports/btc_preopen/btc_preopen_zv_ablation_20261018_manifest.json",
+  "source_zv_report_path": "reports/btc_preopen/btc_preopen_zv_ablation_20261018.md",
+  "source_config_path": "configs/research/btc_preopen_taker_flow_20261018.json",
+  "market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+  "development_start_utc": "2026-04-15T17:05:00Z",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "label_release_rule": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+  "calibration_history_start_utc": "2026-04-15T17:05:00Z",
+  "calibration_minimum_labels": 1000,
+  "calibration_requires_both_classes": true,
+  "calibration_update": "once per UTC day before the first T-60 decision; labels with release_at < first_decision_at only",
+  "variants": {
+    "HALF": "p_UP = 0.5",
+    "PRIOR": "available prior official UP labels / available prior official labels",
+    "RAW": "saved raw BASE70 OOF probability",
+    "PLATT": "saved BASE70 probability after existing causal daily Platt calibration"
+  },
+  "comparison_calendar": "development market starts with all four probabilities available after the Platt warm-up; include markets irrespective of trades, side, execution, or label availability",
+  "policy": {
+    "sizing": "independent fixed $5 gross order",
+    "minimum_net_ev_fraction": 0.01,
+    "decision_offset_seconds": -60,
+    "execution_offset_seconds": -59,
+    "side_tie_break": "existing engine rule: equal positive EV chooses UP",
+    "fees_depth_partial_fills_and_settlement": "existing T-60/T-59 economic engine"
+  },
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261018
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018",
+  "report_path": "reports/btc_preopen/btc_base70_information_value_20261018.md",
+  "versioned_manifest_path": "reports/btc_preopen/btc_base70_information_value_20261018_manifest.json",
+  "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+  "runner": "run_btc_base70_information_value_20261018.py",
+  "cli_arguments": false,
+  "retrain_models": false,
+  "replay_archive": false,
+  "evaluate_holdout": false
+}

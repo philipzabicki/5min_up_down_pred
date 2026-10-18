@@ -23,7 +23,14 @@
 - Next step: `Experiment complete; review the report and saved artifacts.`.
 - Run manifest: `data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json`.
 <!-- BTC_TAKER_FLOW_20261018_END -->
-
+<!-- BTC_BASE70_INFORMATION_20261018_BEGIN -->
+### BASE70 information value comparison - 2026-10-18
+- Updated UTC: `2026-10-18T11:15:10.842775+00:00`.
+- Status: `completed`; active stage: `none`.
+- Completed stages: `common_predictions, economics_HALF, economics_PLATT, economics_PRIOR, economics_RAW, economics_summary, execution_calendar, quality_and_bootstrap, report`.
+- Next step: `Experiment complete; no follow-up experiment is started automatically.`.
+- Run manifest: `data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json`.
+<!-- BTC_BASE70_INFORMATION_20261018_END -->
 # BTC research execution status
 
 Updated: 2026-10-16 (Europe/Warsaw)
