@@ -1,3 +1,12 @@
+
+<!-- BTC_ZV_ABLATION_20261018_BEGIN -->
+### BTC pre-open Z/V ablation - 2026-10-18
+- Updated UTC: 2026-10-18T09:45:50.013019+00:00.
+- Status: completed; active stage: none.
+- Completed stages: cv_BASE64, economics_and_uncertainty, freeze, quality_comparison, report.
+- Next step: Comparison complete; review the report and saved artifacts.
+- Run manifest: data/analysis/polymarket/BTC/btc_preopen_zv_ablation_20261018/run_manifest.json.
+<!-- BTC_ZV_ABLATION_20261018_END -->
 <!-- BTC_RETURN_REGRESSION_STATUS_BEGIN -->
 ### Return-regression experiment checkpoint
 - Updated UTC: `2026-10-17T00:48:23+00:00`.
