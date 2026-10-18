@@ -1,0 +1,95 @@
+{
+  "experiment_id": "btc_preopen_taker_flow_20261018",
+  "status": "frozen_before_fit",
+  "development_start_utc": "2020-06-09T09:33:00Z",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "data_end_inclusive_utc": "2026-06-30T23:59:00Z",
+  "source_run": {
+    "report_path": "reports/btc_preopen/btc_preopen_full_development_fit_20261016.md",
+    "run_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/run_manifest.json",
+    "effective_config_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/effective_config.json",
+    "selected_features_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/feature_selection_3db2d015e04b/selected_features.json",
+    "model_tuning_result_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/model_tuning_25a4a51e2e51/best_result.json",
+    "training_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_model_c3c05535e1df/training_manifest.json",
+    "feature_dataset_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet"
+  },
+  "binance_source": {
+    "base_url": "https://data.binance.vision/data/futures/um/monthly/klines/BTCUSDT/1m",
+    "symbol": "BTCUSDT",
+    "market_type": "USD-M Futures",
+    "interval": "1m",
+    "first_month": "2020-06",
+    "last_month": "2026-06",
+    "cache_subdirectory": "binance_um_btcusdt_1m_20261018",
+    "required_columns": [
+      "open_time", "open", "high", "low", "close", "base_volume",
+      "close_time", "quote_volume", "trade_count", "taker_buy_base_volume",
+      "taker_buy_quote_volume", "ignore"
+    ],
+    "timestamp_unit": "milliseconds since Unix epoch UTC",
+    "checksum": "SHA-256 from sibling .zip.CHECKSUM file"
+  },
+  "flow_features": {
+    "horizons_minutes": [1, 5, 15],
+    "qbar_window_minutes": 1440,
+    "sigma_window_minutes": 60,
+    "sigma_ddof": 0,
+    "sigma_floor": 1e-6,
+    "beta_window_minutes": 10080,
+    "minimum_beta_pairs": 1440,
+    "beta_variance_tolerance": 1e-12,
+    "historical_beta_excludes_current_window": true,
+    "missing_minute_policy": "retain timestamp as missing; no forward fill; invalidate any feature window spanning missing source fields",
+    "zero_quote_volume_policy": "I is missing when Q is zero; U and V are missing when qbar is zero; rows are excluded by the shared B0/B1 completeness mask",
+    "invalid_taker_volume_policy": "report and exclude rows where taker_buy_quote_volume is outside [0, quote_volume]"
+  },
+  "model_comparison": {
+    "fold_count_from_source_effective_config": 10,
+    "test_to_train_ratio_from_source_model_runner": 0.1,
+    "execution_threads": 8,
+    "compute_backend_from_source_effective_config": "gpu",
+    "fold_validation_rows": "existing decision-minute mask only",
+    "label_purge": "keep training rows only when target_label_available_at <= first retained validation nominal_decision_at",
+    "decision_weight_from_source_weight_artifact": 0.59,
+    "auxiliary_weight_rule": "(1 - decision_weight) / 4",
+    "early_stopping_rounds_from_source_effective_config": 50,
+    "maximum_estimators_from_source_effective_config": 500,
+    "iteration_objective": "unweighted decision-row binary_logloss mean + 0.5 * population fold standard deviation",
+    "variants": {
+      "B0": "64 source features plus taker_Z_h and taker_V_h for h=1,5,15",
+      "B1": "B0 plus taker_I_h, taker_U_h, taker_beta_h, and taker_A_h for h=1,5,15"
+    },
+    "shared_completeness_mask": true,
+    "run_variants_sequentially": true,
+    "retrain_cv_models_for_oof": false
+  },
+  "official_outcomes": {
+    "source_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+    "calibration_method": "existing Platt logistic regression on raw OOF logits",
+    "minimum_calibration_rows_from_source_calibrator": 1000,
+    "calibration_refit_schedule": "once per UTC day using only earlier OOF official labels available before that day's first decision",
+    "label_release_rule": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds, matching existing economic cutoff",
+    "warmup_policy": "no economics until 1000 earlier available official OOF labels and both outcome classes exist"
+  },
+  "economics": {
+    "start_utc": "2026-04-15T17:05:00Z",
+    "cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "gross_stake_usd": 5.0,
+    "minimum_net_ev_fraction": 0.01,
+    "decision_offset_seconds": -60,
+    "execution_offset_seconds": -59,
+    "fees_depth_and_accounting": "reuse existing causal T-60/T-59 simulator, fee rules, depth, and cash-release cutoff",
+    "reuse_book_snapshots": true,
+    "replay_book_archive": false
+  },
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over 3-day UTC blocks",
+    "replications": 2000,
+    "seed": 20261018
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018",
+  "report_path": "reports/btc_preopen/btc_preopen_taker_flow_20261018.md",
+  "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+  "runner": "run_btc_preopen_taker_flow_20261018.py",
+  "cli_arguments": false
+}

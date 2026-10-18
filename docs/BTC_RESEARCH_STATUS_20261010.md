@@ -6,6 +6,14 @@
 - Next action: none; the report, targeted tests, commit, and push are complete.
 - Run manifest: `data/analysis/polymarket/BTC/btc_preopen_return_regression_20261017/run_manifest.json`.
 <!-- BTC_RETURN_REGRESSION_STATUS_END -->
+<!-- BTC_TAKER_FLOW_20261018_BEGIN -->
+### BTC taker-flow experiment - 2026-10-18
+- Updated UTC: `2026-10-18T00:56:08.071835+00:00`.
+- Status: `completed`; active stage: `none`.
+- Completed stages: `common_rows, cv_B0, cv_B1, download_binance, flow_features, quality_and_economics, report`.
+- Next step: `Experiment complete; review the report and saved artifacts.`.
+- Run manifest: `data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json`.
+<!-- BTC_TAKER_FLOW_20261018_END -->
 
 # BTC research execution status
 
