@@ -1,0 +1,50 @@
+{
+  "experiment_id": "btc_base70_full_features_20261018",
+  "status": "frozen_before_fit",
+  "source_taker_flow_run_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json",
+  "source_base70_information_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json",
+  "source_base70_information_versioned_manifest_path": "reports/btc_preopen/btc_base70_information_value_20261018_manifest.json",
+  "source_seed_stability_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_seed_stability_20261018/run_manifest.json",
+  "source_seed_stability_versioned_manifest_path": "reports/btc_preopen/btc_base70_seed_stability_20261018_manifest.json",
+  "source_seed_stability_report_path": "reports/btc_preopen/btc_base70_seed_stability_20261018.md",
+  "output_directory": "data/analysis/polymarket/BTC/btc_base70_full_features_20261018",
+  "report_path": "reports/btc_preopen/btc_base70_full_features_20261018.md",
+  "versioned_manifest_path": "reports/btc_preopen/btc_base70_full_features_20261018_manifest.json",
+  "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+  "target": "target_preopen_5m_up_binance_index_proxy",
+  "boosting_iterations": 31,
+  "challenger": "FULL_FEATURES",
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over 3-day UTC blocks",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261018
+  },
+  "economics": {
+    "start_utc": "2026-04-15T17:05:00Z",
+    "gross_stake_usd": 5.0,
+    "minimum_net_ev_fraction": 0.01,
+    "decision_offset_seconds": -60,
+    "execution_offset_seconds": -59,
+    "orders_independent": true,
+    "calendar_rows": 20735,
+    "cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "reuse_existing_snapshots": true,
+    "replay_archive": false
+  },
+  "retraining": {
+    "single": false,
+    "ensemble": false,
+    "challenger_fits": 10,
+    "dataset_loaded_once": true,
+    "dataset_construction": "same shared Dataset construction and fold subset pattern as saved SINGLE CV",
+    "feature_generation": false,
+    "feature_selection": false,
+    "early_stopping": false,
+    "optuna": false,
+    "calibration": false
+  },
+  "holdout_evaluation": false,
+  "data_download": false,
+  "cli_arguments": false
+}

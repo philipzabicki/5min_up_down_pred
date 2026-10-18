@@ -39,6 +39,14 @@
 - Next step: `Resume downstream quality and economic analysis using the 40 verified saved fits.`.
 - Run manifest: `data/analysis/polymarket/BTC/btc_base70_seed_stability_20261018/run_manifest.json`.
 <!-- BTC_BASE70_SEED_STABILITY_20261018_END -->
+<!-- BTC_BASE70_FULL_FEATURES_20261018_BEGIN -->
+### BASE70 FULL_FEATURES experiment - 2026-10-18
+- Updated UTC: `2026-10-18T12:50:40.470461+00:00`.
+- Status: `completed`; active stage: `none`.
+- Completed stages: `common_predictions, economics_ENSEMBLE, economics_FULL_FEATURES, economics_SINGLE, economics_summary, execution_inputs, quality, report, source_verification, training`; challenger folds: `10/10`.
+- Next step: `Experiment complete; review the separate probability-quality and after-cost economic results. Do not start another experiment automatically.`.
+- Run manifest: `data/analysis/polymarket/BTC/btc_base70_full_features_20261018/run_manifest.json`.
+<!-- BTC_BASE70_FULL_FEATURES_20261018_END -->
 # BTC research execution status
 
 Updated: 2026-10-16 (Europe/Warsaw)
