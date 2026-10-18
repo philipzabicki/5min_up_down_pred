@@ -1,0 +1,43 @@
+{
+  "experiment_id": "btc_base70_recent365_20261018",
+  "source_taker_flow_run_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json",
+  "source_information_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json",
+  "source_information_versioned_manifest_path": "reports/btc_preopen/btc_base70_information_value_20261018_manifest.json",
+  "source_seed_stability_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_seed_stability_20261018/run_manifest.json",
+  "source_seed_stability_versioned_manifest_path": "reports/btc_preopen/btc_base70_seed_stability_20261018_manifest.json",
+  "source_full_features_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_full_features_20261018/run_manifest.json",
+  "source_full_features_versioned_manifest_path": "reports/btc_preopen/btc_base70_full_features_20261018_manifest.json",
+  "window_days": 365,
+  "boosting_iterations": 31,
+  "fold_count": 10,
+  "target": "target_preopen_5m_up_binance_index_proxy",
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261018
+  },
+  "economics": {
+    "start_utc": "2026-04-15T17:05:00Z",
+    "cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "calendar_rows": 20735,
+    "gross_stake_usd": 5.0,
+    "minimum_net_ev_fraction": 0.01,
+    "decision_offset_seconds": -60,
+    "execution_offset_seconds": -59,
+    "orders_independent": true
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018",
+  "report_path": "reports/btc_preopen/btc_base70_recent365_20261018.md",
+  "versioned_manifest_path": "reports/btc_preopen/btc_base70_recent365_20261018_manifest.json",
+  "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+  "runner": "run_btc_base70_recent365_20261018.py",
+  "cli_arguments": false,
+  "new_model_fits": 10,
+  "feature_generation": false,
+  "feature_selection": false,
+  "archive_replay": false,
+  "data_download": false,
+  "holdout_evaluation": false,
+  "deployment_refit": false
+}

@@ -47,6 +47,13 @@
 - Next step: `Experiment complete; review the separate probability-quality and after-cost economic results. Do not start another experiment automatically.`.
 - Run manifest: `data/analysis/polymarket/BTC/btc_base70_full_features_20261018/run_manifest.json`.
 <!-- BTC_BASE70_FULL_FEATURES_20261018_END -->
+<!-- BTC_BASE70_RECENT365_20261018_BEGIN -->
+### BASE70 RECENT365 comparison - 2026-10-18
+- Updated UTC: `2026-10-18T13:10:33.565960+00:00`.
+- Status: `completed`; active stage: `none`; challenger folds: `10/10`.
+- Next step: `Review the single RECENT365 comparison; do not extend to another window automatically.`.
+- Run manifest: `data/analysis/polymarket/BTC/btc_base70_recent365_20261018/run_manifest.json`.
+<!-- BTC_BASE70_RECENT365_20261018_END -->
 # BTC research execution status
 
 Updated: 2026-10-16 (Europe/Warsaw)

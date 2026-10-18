@@ -1,0 +1,3914 @@
+{
+  "code_revision_history": [
+    {
+      "completed_fit_count_preserved": 10,
+      "current_runner_sha256": "1f5ef6f5c8bd490a777c4194e7dce0fa735211105fa99eb2d8d347360ab429d9",
+      "previous_runner_sha256": "7a79b0b34caeabcccc37c1094c80217183832d67c31936a296c8f719f28a45b0",
+      "reason": "Corrected paired-quality point estimates and report interpretation after the ten fits; the frozen model specification and fit implementation are unchanged. Every completed fold checkpoint is hash- and identity-validated before reuse."
+    },
+    {
+      "completed_fit_count_preserved": 10,
+      "current_runner_sha256": "79b506b70a0fa7ebbf36601f6f2cbd462a443b78d3a9f65903acb3123abeeb2c",
+      "previous_runner_sha256": "1f5ef6f5c8bd490a777c4194e7dce0fa735211105fa99eb2d8d347360ab429d9",
+      "reason": "Corrected paired-quality point estimates and report interpretation after the ten fits; the frozen model specification and fit implementation are unchanged. Every completed fold checkpoint is hash- and identity-validated before reuse."
+    },
+    {
+      "completed_fit_count_preserved": 10,
+      "current_runner_sha256": "4bb1fcdccfd54492ea7bf26b78719b599abbad3ed511672cbff853419869c42c",
+      "previous_runner_sha256": "79b506b70a0fa7ebbf36601f6f2cbd462a443b78d3a9f65903acb3123abeeb2c",
+      "reason": "Corrected paired-quality point estimates and report interpretation after the ten fits; the frozen model specification and fit implementation are unchanged. Every completed fold checkpoint is hash- and identity-validated before reuse."
+    },
+    {
+      "completed_fit_count_preserved": 10,
+      "current_runner_sha256": "ae9b65f0492e58c619c817ed974623750ec4021890682ed25d608798c87a83a8",
+      "previous_runner_sha256": "4bb1fcdccfd54492ea7bf26b78719b599abbad3ed511672cbff853419869c42c",
+      "reason": "Corrected paired-quality point estimates and report interpretation after the ten fits; the frozen model specification and fit implementation are unchanged. Every completed fold checkpoint is hash- and identity-validated before reuse."
+    }
+  ],
+  "completed_fit_count": 10,
+  "completion": {
+    "accounting_audits_passed": true,
+    "economic_calendar_rows": 20735,
+    "exactly_ten_new_fits_31_iterations": true,
+    "official_rows": 20718,
+    "pnl_decomposition_reconciles": true,
+    "proxy_oof_rows": 318560,
+    "single_anchor_reproduced": true,
+    "validation_rows_identical_to_single": true
+  },
+  "finished_utc": "2026-10-18T13:10:33.514397+00:00",
+  "fit_checkpoint_records": [
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_00_completion.json",
+        "sha256": "6bb938f17de4d12743ab4da6adfcea728ae0e57b569744e3fd0cffc49dbc3f10",
+        "size_bytes": 2847
+      },
+      "elapsed_seconds": 1.5498705999998492,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_00.txt",
+        "sha256": "51c19896c5196cf7285d0b368c08bbebfde68180b148b25e2411d2e9031b896c",
+        "size_bytes": 129473
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_00_oof.parquet",
+        "sha256": "3501fdb6061506a36d81f39aa3daa049dfe2be2b9493e55d17fc7ea3f44f8f5e",
+        "size_bytes": 1316377
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_01_completion.json",
+        "sha256": "6d5c3d0312dbd57433dfa52243a0c2671330c678bc1b5857e956cfe93084430b",
+        "size_bytes": 2844
+      },
+      "elapsed_seconds": 1.339822899994033,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_01.txt",
+        "sha256": "2d3a6a86dcab0053f9718a8b99301e837528b9809af4908523aedf742a5091da",
+        "size_bytes": 128525
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_01_oof.parquet",
+        "sha256": "0418a0817d4d10dde50aa309d6f13f925b73634ed714a30162ff88e5ac220f00",
+        "size_bytes": 1321603
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_02_completion.json",
+        "sha256": "06ad723ade98330338429cb599e29bfbac154fb9207fd792c34052f4be745b88",
+        "size_bytes": 2845
+      },
+      "elapsed_seconds": 1.441213099999004,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_02.txt",
+        "sha256": "114375438a171f97161035c9cfd43b2b1a52be74b276bb36069b661b4b099da6",
+        "size_bytes": 128753
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_02_oof.parquet",
+        "sha256": "b4bd6585227b6cbc3e6a8e1bf7626d1092885bae2c963831d1a06488fd98e492",
+        "size_bytes": 1322175
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_03_completion.json",
+        "sha256": "b9eeaaa98d038645f9318a77350149cad614847ea63907f3d3153dbf609aa208",
+        "size_bytes": 2844
+      },
+      "elapsed_seconds": 1.3811150000037742,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_03.txt",
+        "sha256": "ba49b5f83fd21787c0963d5393d54ca3442ee5b624247bfdce5896eddfff328c",
+        "size_bytes": 128405
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_03_oof.parquet",
+        "sha256": "2812148666b9750f25ec3b49ee4ba896009d82157e8e4e9ad88aeaad8fa506b1",
+        "size_bytes": 1320515
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_04_completion.json",
+        "sha256": "49f832d9c9d8d048e18148595a084b25db2e973d9e24d431469a2c75d6dfd3d5",
+        "size_bytes": 2845
+      },
+      "elapsed_seconds": 1.41910509999434,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_04.txt",
+        "sha256": "c39e5af5dff14bb3abdf28984b7f10a7c3672df4dc16203c16885d4fb11b9055",
+        "size_bytes": 127288
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_04_oof.parquet",
+        "sha256": "efe27719b1787fe971270af15325d59dbce52566b8c73a681ea84bc8bb456ceb",
+        "size_bytes": 1319212
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_05_completion.json",
+        "sha256": "815cbbf81434504ebba835df025386ae6694e2fa88e10639e7cf637041d27288",
+        "size_bytes": 2846
+      },
+      "elapsed_seconds": 1.4766113000005134,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_05.txt",
+        "sha256": "730fc600f2b6252610f1502897005ccd9d6d4d332d9bb26395a645cd9ef0607b",
+        "size_bytes": 128109
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_05_oof.parquet",
+        "sha256": "004e9f677ebf20fbeefe0a8654233169185e356d056175e181faed235608a9d8",
+        "size_bytes": 1320239
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_06_completion.json",
+        "sha256": "21c13ab2c695b1c44f20f85edef8d5cc7d2cf149e1f272bee13d8672e2cf9032",
+        "size_bytes": 2843
+      },
+      "elapsed_seconds": 1.414032300002873,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_06.txt",
+        "sha256": "17f95eb7d3640f0ab7892499a9460d2391fc33be005bdc346d54d8fd25639205",
+        "size_bytes": 128973
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_06_oof.parquet",
+        "sha256": "7c2bb9940cb0b858c8664517d8ac55e169fd7378f9ae7501a79263f4f4d33fc7",
+        "size_bytes": 1320816
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_07_completion.json",
+        "sha256": "6029af592e44846d3a517256d2cb4700a77e19d70efe18aa377fcb29d41a1f13",
+        "size_bytes": 2846
+      },
+      "elapsed_seconds": 1.377192499996454,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_07.txt",
+        "sha256": "7393ba2e27f141865eef1a41b64f2246a59bc053b88e840ff62e2c04d15edb9d",
+        "size_bytes": 128834
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_07_oof.parquet",
+        "sha256": "c2082c2f7a0f03c726def84dc092f08b7cd0532a58d7d4082bb4b474fafa72ab",
+        "size_bytes": 1319268
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_08_completion.json",
+        "sha256": "4460ca664ee8746ad5f796498ecf4442c8d7877503f9878689a8d0e1a2307c0e",
+        "size_bytes": 2847
+      },
+      "elapsed_seconds": 1.4270459999970626,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_08.txt",
+        "sha256": "02299566ef62787023ba9ce791461efb2a84b328dddbd0cb04cb9b0e307a5adf",
+        "size_bytes": 129425
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_08_oof.parquet",
+        "sha256": "7e8042fa87f98e607e8ea909619e0c7d275a699430187d0abafbcb3a819ed366",
+        "size_bytes": 1319491
+      },
+      "status": "completed"
+    },
+    {
+      "completion_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_09_completion.json",
+        "sha256": "33e09655ca9f2b4de48c546d69e171b88830b659972628b100f7af8bba18434f",
+        "size_bytes": 2845
+      },
+      "elapsed_seconds": 1.3858181000032346,
+      "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+      "iteration_count": 31,
+      "model": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_09.txt",
+        "sha256": "2e4caf6cec3e13edd9357c04fe8a1fa225500f2d1feb43a6480804dfb2ced367",
+        "size_bytes": 128916
+      },
+      "oof": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_09_oof.parquet",
+        "sha256": "5e714d3218642b0ade35b51298ad74f271e9c523be4c9d01bb6b68f5fad8e44e",
+        "size_bytes": 1320233
+      },
+      "status": "completed"
+    }
+  ],
+  "fit_count": 10,
+  "frozen_at_utc": "2026-10-18T13:02:30.700539+00:00",
+  "frozen_comparison": {
+    "identity_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+    "specification": {
+      "challenger": {
+        "changed_model_inputs": [
+          "Fold training rows: saved eligible training rows restricted by nominal_decision_at to the preceding 365 days",
+          "One common weight multiplier per fold preserves original total sample-weight mass"
+        ],
+        "effective_lightgbm_params": {
+          "bagging_seed": 20261015,
+          "boosting_type": "gbdt",
+          "data_random_seed": 20261015,
+          "device_type": "gpu",
+          "feature_fraction": 0.7962744599393133,
+          "feature_fraction_seed": 20261015,
+          "feature_pre_filter": false,
+          "gpu_use_dp": false,
+          "lambda_l1": 9.508616956284627,
+          "lambda_l2": 30.729843292781943,
+          "learning_rate": 0.06418546619439842,
+          "max_bin": 63,
+          "metric": "None",
+          "min_data_in_leaf": 12089,
+          "num_leaves": 81,
+          "num_threads": 8,
+          "objective": "binary",
+          "seed": 20261015,
+          "verbosity": -1
+        },
+        "iterations": 31,
+        "min_data_in_leaf_unchanged": true,
+        "name": "RECENT365",
+        "unchanged_model_parameters": true
+      },
+      "contrast": "RECENT365 minus original raw SINGLE",
+      "data": {
+        "dataset_construction": "Construct one LightGBM Dataset per fold from only that fold's RECENT365 training rows, labels, and scaled weights; validation rows do not contribute to Dataset bin construction.",
+        "feature_count": 70,
+        "feature_generation_or_selection": false,
+        "feature_order": [
+          "candle_close_location_value_15m_lag1",
+          "rp_short_imbalance",
+          "candle_body_pressure_15m_lag1",
+          "rp_short_resistance_center_dist",
+          "candle_streak_15m",
+          "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypfba_atrper1151_maper533_matypnwmaepan_souhlcc4",
+          "candle_streak_3m",
+          "candle_ret_co_5m_lag1",
+          "rp_short_support_center_dist",
+          "session_close_impulse_B3",
+          "realized_volatility_down_5m",
+          "candle_close_location_value_30m_lag1",
+          "candle_close_location_value_4h_lag1",
+          "candle_signed_vol_15m_lag1",
+          "candle_close_location_value_1h_lag1",
+          "candle_body_pressure_1h_lag1",
+          "realized_volatility_up_15m",
+          "futures_index_basis_rel_30m",
+          "session_open_impulse_NYSE",
+          "rp_medium_resistance_below",
+          "rp_all_resistance_below",
+          "realized_volatility_compression_expansion_1h_4h",
+          "futures_index_basis_rel_15m",
+          "candle_streak_5m",
+          "candle_body_pressure_30m_lag2",
+          "candle_body_pressure_4h_lag1",
+          "candle_close_location_value_4h_lag7",
+          "vp_short_log_density_ratio_to_current_bin_plus_2",
+          "candle_wick_asym_1h_lag1",
+          "candle_streak_30m",
+          "rp_medium_support_center_dist",
+          "candle_body_pressure_4h_lag7",
+          "ADX_fit_5m_preopen_v1_pop64_adxper452_atrper1990_matypadxkama_matypatrnwmatria_matypnegdmehma_matypposdmema_negdmper706_posdmper1716",
+          "candle_close_location_value_15m_lag2",
+          "session_close_impulse_BVC",
+          "candle_wick_asym_4h_lag6",
+          "futures_index_basis_rel_5m",
+          "realized_volatility_15m",
+          "candle_body_pressure_15m_lag2",
+          "candle_wick_asym_4h_lag5",
+          "realized_volatility_down_1h",
+          "candle_wick_asym_4h_lag1",
+          "futures_index_basis_rel_4h",
+          "rp_medium_resistance_center_dist",
+          "realized_volatility_up_1h",
+          "candle_wick_asym_1h_lag2",
+          "candle_close_location_value_30m_lag4",
+          "vp_short_local_above_below_volume_log_ratio",
+          "session_open_impulse_B3",
+          "candle_body_pressure_1h_lag2",
+          "vp_short_log_density_ratio_to_current_bin_minus_2",
+          "candle_wick_asym_30m_lag3",
+          "session_close_impulse_Xetra",
+          "realized_volatility_up_5m",
+          "rp_all_support_above",
+          "StochOsc_fit_5m_preopen_v1_pop64_faskper24_slodmatyptrima_slodper1052_slokmatypnwmabiw_slokper1892",
+          "BollingerBands_fit_5m_preopen_v1_pop64_maper328_masouhlcc4_matypshmma_stdmaper53_stdmatypkama_stdsouhlcc4",
+          "realized_volatility_down_15m",
+          "candle_wick_asym_1d_lag7",
+          "vp_short_log_density_ratio_to_current_bin_plus_1",
+          "candle_body_pressure_30m_lag5",
+          "rp_all_imbalance",
+          "candle_body_pressure_1d_lag2",
+          "candle_body_pressure_30m_lag1",
+          "taker_Z_1m",
+          "taker_V_1m",
+          "taker_Z_5m",
+          "taker_V_5m",
+          "taker_Z_15m",
+          "taker_V_15m"
+        ],
+        "fold_count": 10,
+        "fold_fingerprints": {
+          "train_idx": "55ab4ea1c8f5773cb15825882bf2d18abf3e0c6f4c65d6a634b82522cf46b42b",
+          "valid_idx": "8104c173730d716e08b699d1c5df4c6a83a3efbbb61f15cf1f906e71921aa6e4"
+        },
+        "fold_training_counts_and_weight_scales": [
+          {
+            "common_weight_multiplier": 3.0098889116145586,
+            "first_validation_decision_at_utc": "2023-06-20T16:44:00+00:00",
+            "fold_id": 0,
+            "original_training_source_row_index_sha256": "aee8c30ae70230263a7bf4cf2debec9f8c0131eb9ed40b3dd6d909412fa91c20",
+            "original_training_weight_sum": 316396.50307065994,
+            "recent365_scaled_weight_sum_requested": 316396.5030706599,
+            "recent365_source_row_index_sha256": "1be2f1f144d51a1e54b3c3e12f400f64691fb561fb2dfdceda3414a01b109523",
+            "recent365_unscaled_weight_sum": 105118.99686720967,
+            "scaled_weight_sha256": "579b01becca992534f7ee2fe6290f8c2688c67ee70eacc82c05c9e49c3542442",
+            "training_rows_after": 525595,
+            "training_rows_before": 1581985,
+            "validation_last_decision_at_utc": "2023-10-09T07:49:00+00:00",
+            "validation_rows": 31858,
+            "validation_source_row_index_sha256": "dae8a89a7aecadefb6329e7f744b77c638b8e52ae9c91468cb5f836a202e6399",
+            "window_end_exclusive_utc": "2023-06-20T16:44:00+00:00",
+            "window_start_inclusive_utc": "2022-06-20T16:44:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0308073125410844,
+            "first_validation_decision_at_utc": "2023-10-09T07:54:00+00:00",
+            "fold_id": 1,
+            "original_training_source_row_index_sha256": "61d0aa788a0af5fbc56542de18cac20da0edae8ccaabad9ce340e1f6a513e891",
+            "original_training_weight_sum": 318582.9905054867,
+            "recent365_scaled_weight_sum_requested": 318582.99050548667,
+            "recent365_source_row_index_sha256": "bfa76637ea9743eab739c9b13230d910e5a26f3e7757c725a60bb9b4f1c660e1",
+            "recent365_unscaled_weight_sum": 105114.89436732978,
+            "scaled_weight_sha256": "7e03ef98f8ad6d7e8f044126ed5abe8b14726f2af16a79f25267b476a83757ef",
+            "training_rows_after": 525574,
+            "training_rows_before": 1592915,
+            "validation_last_decision_at_utc": "2024-01-27T22:54:00+00:00",
+            "validation_rows": 31841,
+            "validation_source_row_index_sha256": "ba7a1a360835d83f9d600367eba0447165929b4b825cd4683d0d6f5b4ad63c96",
+            "window_end_exclusive_utc": "2023-10-09T07:54:00+00:00",
+            "window_start_inclusive_utc": "2022-10-09T07:54:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.031191833076408,
+            "first_validation_decision_at_utc": "2024-01-27T22:59:00+00:00",
+            "fold_id": 2,
+            "original_training_source_row_index_sha256": "8871080493de580232cd3ae1572147aa4c63ca69aedf814c1d2a5c2747c35dc0",
+            "original_training_weight_sum": 318562.78550608456,
+            "recent365_scaled_weight_sum_requested": 318562.78550608456,
+            "recent365_source_row_index_sha256": "7bb7c2659eeb311ce06d2c75d90249ffc2d9d81611762675b7192e068ed2a317",
+            "recent365_unscaled_weight_sum": 105094.89436792582,
+            "scaled_weight_sha256": "fed40c2930eada62f35433cae8770daa8c4809a8bac7268b83a7ba5244441b14",
+            "training_rows_after": 525474,
+            "training_rows_before": 1592813,
+            "validation_last_decision_at_utc": "2024-05-17T14:04:00+00:00",
+            "validation_rows": 31862,
+            "validation_source_row_index_sha256": "187cb0f6347abaaaced48697ca2dd46b4b75046ea87540ad683be12520890011",
+            "window_end_exclusive_utc": "2024-01-27T22:59:00+00:00",
+            "window_start_inclusive_utc": "2023-01-27T22:59:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.031311928525937,
+            "first_validation_decision_at_utc": "2024-05-17T14:09:00+00:00",
+            "fold_id": 3,
+            "original_training_source_row_index_sha256": "0864dcc46438a197a3b3a25bf495001653836b99259c1de7fa3fb2943431ef2c",
+            "original_training_weight_sum": 318574.78550572693,
+            "recent365_scaled_weight_sum_requested": 318574.785505727,
+            "recent365_source_row_index_sha256": "ec4d9dc7a062142af166b341a2323e9b6105e01d4f76de3cb4661956f24c8a2c",
+            "recent365_unscaled_weight_sum": 105094.68936792761,
+            "scaled_weight_sha256": "87884253ac494c32f187be316a952c1a6701c5b63361b4e4b445a82689c14162",
+            "training_rows_after": 525472,
+            "training_rows_before": 1592873,
+            "validation_last_decision_at_utc": "2024-09-05T05:09:00+00:00",
+            "validation_rows": 31861,
+            "validation_source_row_index_sha256": "6179c3aa79cff67d23f8adfe23205c377e67d9c67f4afec1f20462975ba08175",
+            "window_end_exclusive_utc": "2024-05-17T14:09:00+00:00",
+            "window_start_inclusive_utc": "2023-05-18T14:09:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.031293905056243,
+            "first_validation_decision_at_utc": "2024-09-05T05:14:00+00:00",
+            "fold_id": 4,
+            "original_training_source_row_index_sha256": "91a8563f90d90c7ec56f1fd858d2174c4601113301cea87f773e4dbf935bb3c8",
+            "original_training_weight_sum": 318574.99050572515,
+            "recent365_scaled_weight_sum_requested": 318574.99050572515,
+            "recent365_source_row_index_sha256": "310eddd6194c53a02edcc9d677237bd062d8549616e0983cbec35ebb73e7747c",
+            "recent365_unscaled_weight_sum": 105095.38186790049,
+            "scaled_weight_sha256": "e872e0339396f00e530a3c7aeee4d55c3f758d14a8674d598605f185fe0eb530",
+            "training_rows_after": 525474,
+            "training_rows_before": 1592875,
+            "validation_last_decision_at_utc": "2024-12-24T20:14:00+00:00",
+            "validation_rows": 31842,
+            "validation_source_row_index_sha256": "b9b931d60e68c5b34e605a51d847abbe2fe07ba4d06a6f14f0879ae4c679b357",
+            "window_end_exclusive_utc": "2024-09-05T05:14:00+00:00",
+            "window_start_inclusive_utc": "2023-09-06T05:14:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0309855722925683,
+            "first_validation_decision_at_utc": "2024-12-24T20:19:00+00:00",
+            "fold_id": 5,
+            "original_training_source_row_index_sha256": "1b098a8140bac96f267816a389be2658729a1d1065c717b678e3939191c87c17",
+            "original_training_weight_sum": 318557.1955062598,
+            "recent365_scaled_weight_sum_requested": 318557.19550625986,
+            "recent365_source_row_index_sha256": "b6c5cc9fb8d91ba08db8a4908ab841498531357c3dc8fc2ad8c60a1a635cf3ba",
+            "recent365_unscaled_weight_sum": 105100.20186777413,
+            "scaled_weight_sha256": "ace157dd7578c304fb7d0e797ea71cb5ae25066693f69cb2bd698425d289c70b",
+            "training_rows_after": 525502,
+            "training_rows_before": 1592787,
+            "validation_last_decision_at_utc": "2025-04-14T11:24:00+00:00",
+            "validation_rows": 31856,
+            "validation_source_row_index_sha256": "e148ee676ee68c0c11c35551184f940f2b4b3df1e29554c7b1ecbd6fb0aab4c3",
+            "window_end_exclusive_utc": "2024-12-24T20:19:00+00:00",
+            "window_start_inclusive_utc": "2023-12-25T20:19:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0310787285855065,
+            "first_validation_decision_at_utc": "2025-04-14T11:29:00+00:00",
+            "fold_id": 6,
+            "original_training_source_row_index_sha256": "78a9d7e059e21cfff84041e06456e19ce71243a13a89117018c36abd194dcd3f",
+            "original_training_weight_sum": 318552.528006427,
+            "recent365_scaled_weight_sum_requested": 318552.528006427,
+            "recent365_source_row_index_sha256": "17a5817eb9b5ab48e22359163af47dd204278905faf9626f5f7dc7b9bf0de19d",
+            "recent365_unscaled_weight_sum": 105095.43186794221,
+            "scaled_weight_sha256": "1672cd3a684a4815dc0f11b1387df6ce2cde3e24482cdc6e4f8918f587ca83a6",
+            "training_rows_after": 525484,
+            "training_rows_before": 1592770,
+            "validation_last_decision_at_utc": "2025-08-03T02:29:00+00:00",
+            "validation_rows": 31861,
+            "validation_source_row_index_sha256": "1105a2197c84c3ab50e4eadfc0094b650fe650bf60aac9c371f80b62ace23c88",
+            "window_end_exclusive_utc": "2025-04-14T11:29:00+00:00",
+            "window_start_inclusive_utc": "2024-04-14T11:29:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0312014808073293,
+            "first_validation_decision_at_utc": "2025-08-03T02:34:00+00:00",
+            "fold_id": 7,
+            "original_training_source_row_index_sha256": "e16cdecf7c87db467748cc1db0b77391a6f2c4f76e9f6325600a06f8a68bf577",
+            "original_training_weight_sum": 318565.11800604314,
+            "recent365_scaled_weight_sum_requested": 318565.11800604325,
+            "recent365_source_row_index_sha256": "42cb015a1b6d3804a05505497730f2dbebad7d8327791a8e88fda11702900241",
+            "recent365_unscaled_weight_sum": 105095.32936794311,
+            "scaled_weight_sha256": "bdf55ad7e1bb087c58322833ef6c8a255221ef57f8fbc8ea41d9a809db9ba621",
+            "training_rows_after": 525483,
+            "training_rows_before": 1592831,
+            "validation_last_decision_at_utc": "2025-11-21T17:39:00+00:00",
+            "validation_rows": 31858,
+            "validation_source_row_index_sha256": "db48cfd75bf408393d1250c8c08bb3b3a06e1965f861cd15c672eb72b51faa40",
+            "window_end_exclusive_utc": "2025-08-03T02:34:00+00:00",
+            "window_start_inclusive_utc": "2024-08-03T02:34:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0307465739019404,
+            "first_validation_decision_at_utc": "2025-11-21T17:44:00+00:00",
+            "fold_id": 8,
+            "original_training_source_row_index_sha256": "7caadc6b5f29ff3a6d1e3ca69aad1ebeb5abea4dba426fe126b8751d585fc915",
+            "original_training_weight_sum": 318561.52800615877,
+            "recent365_scaled_weight_sum_requested": 318561.5280061588,
+            "recent365_source_row_index_sha256": "c8adcef4537c37d325f82cae3b9012d27002275a777bb6e188e262baa5108eab",
+            "recent365_unscaled_weight_sum": 105109.91936749965,
+            "scaled_weight_sha256": "a3b0284fc7e551ca762b71f2bda269a9258ef1e5b19de08a59390c0d480b2e19",
+            "training_rows_after": 525554,
+            "training_rows_before": 1592815,
+            "validation_last_decision_at_utc": "2026-03-12T08:44:00+00:00",
+            "validation_rows": 31860,
+            "validation_source_row_index_sha256": "1b386f32c34aeb7d74b603e689d2770ab3613dfb4d733fd0d4fda0c7fd48e11b",
+            "window_end_exclusive_utc": "2025-11-21T17:44:00+00:00",
+            "window_start_inclusive_utc": "2024-11-21T17:44:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.030609623361921,
+            "first_validation_decision_at_utc": "2026-03-12T08:49:00+00:00",
+            "fold_id": 9,
+            "original_training_source_row_index_sha256": "e8e7e4604b85593d49ad5ef09624e30efca8f48ed3147a9352b1a98c719ed99e",
+            "original_training_weight_sum": 318560.7330061868,
+            "recent365_scaled_weight_sum_requested": 318560.7330061868,
+            "recent365_source_row_index_sha256": "25898eb8e4dafa337fe1bbc8ba5eb494ea843a059ef6504f604d03a419a59238",
+            "recent365_unscaled_weight_sum": 105114.40686735511,
+            "scaled_weight_sha256": "63a65d2086bd3233e935849275d524ac8172218a6b638cf3eca9fdbe2d9e121a",
+            "training_rows_after": 525574,
+            "training_rows_before": 1592812,
+            "validation_last_decision_at_utc": "2026-06-30T23:49:00+00:00",
+            "validation_rows": 31861,
+            "validation_source_row_index_sha256": "53643e4205b35e0ec1a0b519636d17e4d1a5532a3c1d4b3c1ae5d4ea8c99cae7",
+            "window_end_exclusive_utc": "2026-03-12T08:49:00+00:00",
+            "window_start_inclusive_utc": "2025-03-12T08:49:00+00:00"
+          }
+        ],
+        "folds": {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_folds.npz",
+          "sha256": "02768c3ddd80e26720507757e065337bc54afd22691bf830c021698c49133c07",
+          "size_bytes": 40080591
+        },
+        "matrix": {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet",
+          "sha256": "06952bbf1b2b0a4e9fc4cc918490fbadc540c897815b8105242201c6148dfe19",
+          "size_bytes": 1269944837
+        },
+        "original_training_weight_sha256": "3a21a8cfecaeb10cdf0af1e63fd9833eef034954f6f530005bab71da6f1397ca",
+        "purge": "Reuse each saved train/validation index pair; retain the existing label-availability purge, then apply the 365-day inclusive lower bound using nominal_decision_at only.",
+        "rows": 3174805,
+        "single_oof": {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+          "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8",
+          "size_bytes": 11166225
+        },
+        "target": "target_preopen_5m_up_binance_index_proxy",
+        "window_boundary": "[first_validation_nominal_decision_at - 365 days, first_validation_nominal_decision_at), UTC; lower bound based on information/decision time, not label completion.",
+        "window_days": 365
+      },
+      "economics": {
+        "calendar_rows": 20735,
+        "common_execution_calendar": {
+          "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
+          "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
+          "size_bytes": 12148090
+        },
+        "cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+        "decision_offset_seconds": -60,
+        "execution_offset_seconds": -59,
+        "gross_stake_usd": 5.0,
+        "minimum_net_ev_fraction": 0.01,
+        "orders_independent": true,
+        "policy": "Existing independent fixed-$5, net-EV >= 1%, T-60 decision/T-59 execution engine, fees, depth and cutoff.",
+        "single_ledger": {
+          "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet",
+          "sha256": "7b66f0441481c15835bb2435c951e7a1212cc64189113f33b5a28414e7a76f51",
+          "size_bytes": 458768
+        },
+        "snapshots": {
+          "T59": {
+            "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+            "sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0",
+            "size_bytes": 26051278
+          },
+          "T60": {
+            "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+            "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+            "size_bytes": 25908421
+          }
+        },
+        "start_utc": "2026-04-15T17:05:00Z"
+      },
+      "experiment_id": "btc_base70_recent365_20261018",
+      "hypothesis": "Restricting model training to recent information may reduce obsolete-history effects; this experiment does not assume improvement.",
+      "quality": {
+        "bootstrap": {
+          "block_days": 3,
+          "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+          "replications": 2000,
+          "seed": 20261018
+        },
+        "calibration": "none",
+        "official_label_rows": 20718,
+        "proxy_oof_rows": 318560
+      },
+      "scope": {
+        "archive_replay": false,
+        "calibration": false,
+        "challenger_fits": 10,
+        "data_download": false,
+        "deployment_refit": false,
+        "early_stopping": false,
+        "feature_generation": false,
+        "feature_selection": false,
+        "holdout_evaluation": false,
+        "optuna": false
+      },
+      "single": {
+        "effective_lightgbm_params": {
+          "bagging_seed": 20261015,
+          "boosting_type": "gbdt",
+          "data_random_seed": 20261015,
+          "device_type": "gpu",
+          "feature_fraction": 0.7962744599393133,
+          "feature_fraction_seed": 20261015,
+          "feature_pre_filter": false,
+          "gpu_use_dp": false,
+          "lambda_l1": 9.508616956284627,
+          "lambda_l2": 30.729843292781943,
+          "learning_rate": 0.06418546619439842,
+          "max_bin": 63,
+          "metric": "None",
+          "min_data_in_leaf": 12089,
+          "num_leaves": 81,
+          "num_threads": 8,
+          "objective": "binary",
+          "seed": 20261015,
+          "verbosity": -1
+        },
+        "iterations": 31,
+        "retrained": false,
+        "source_boosters": [
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_00.txt",
+            "sha256": "4abcbee1a4aa6dc902000634a979960202e55dcc30024d5a52d3187fc732cf62",
+            "size_bytes": 292436
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_01.txt",
+            "sha256": "b27ecf1534461bbf79cba46f123047cdd60be10963d904c820b62ff8e8c0e058",
+            "size_bytes": 292494
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_02.txt",
+            "sha256": "abb987e74b32987811e3a1e7a6620e856e3e2aa98cc13f923597d88db836835d",
+            "size_bytes": 292311
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_03.txt",
+            "sha256": "9f1e3068339a2970180bba3053bbcfa8652c6d649cade15615c83a232d6b1025",
+            "size_bytes": 292766
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_04.txt",
+            "sha256": "a5fb6b173939e691eddbbc68e234de4a68a73b6f293a149c6474f7b7374312f7",
+            "size_bytes": 292553
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_05.txt",
+            "sha256": "7785e3f42f118c9301fe40d65501efd646feceb7c869be922996ec49b6e78259",
+            "size_bytes": 292410
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_06.txt",
+            "sha256": "93cb6d77767bae3ab608fad50aaef439cda75c25837a528e3cb469313a6be6d1",
+            "size_bytes": 292920
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_07.txt",
+            "sha256": "e1d8145bcc5f5e9d556d65546465404ea4246bedf4e45b5a1459f2bf0c01aeaa",
+            "size_bytes": 292143
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_08.txt",
+            "sha256": "3f24d792b1250f296029ec1eb6551531b9df0f1a274725b1436189df24eeee27",
+            "size_bytes": 292299
+          },
+          {
+            "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_09.txt",
+            "sha256": "4bd0878150cfbf4094cb6fc00eef5bdc007e99bc19824a04bb8174ac39a8a00c",
+            "size_bytes": 292255
+          }
+        ],
+        "source_oof": {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+          "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8",
+          "size_bytes": 11166225
+        }
+      }
+    }
+  },
+  "input_identity": {
+    "config_sha256": "352fd8238712f5f6cbe1e958d0f94cfd56fe53824e6f76065fd74708957c6821",
+    "frozen_spec_sha256": "77d2f3c42341952c9ba8f093d07b7bc5075437a5048a7187c740b650558da8da",
+    "lightgbm_version": "4.6.0",
+    "runner_sha256": "ae9b65f0492e58c619c817ed974623750ec4021890682ed25d608798c87a83a8"
+  },
+  "outputs": [
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/predictions.parquet",
+      "sha256": "b0cd6fecbd3e48c3cbf61d589b7048486dd6bd49b493384292a0e59552e5045e",
+      "size_bytes": 12775692
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/RECENT365/decisions.parquet",
+      "sha256": "0a8550acf8f30930790b0639c383c4c1f9d2f1cc5721b81464b1aec3b596166d",
+      "size_bytes": 2824767
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/RECENT365/trades.parquet",
+      "sha256": "9b68194c06087b4cc49efc5ead6909d04aae9677778741a5c4ec61e5f28cd895",
+      "size_bytes": 441480
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/RECENT365/summary.json",
+      "sha256": "4680b176e2685cc448130bcd449d925b78d41330d0112db0496425121f3271c3",
+      "size_bytes": 6554
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/SINGLE/decisions.parquet",
+      "sha256": "8b409923da4359b8cae7afe8a1f114fed9717c3e82cf5bfc102d279886f2e48f",
+      "size_bytes": 2830723
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/SINGLE/trades.parquet",
+      "sha256": "25e9c19044a6416cd11188406673ffb878d3a59304abf693adc870ae5023e935",
+      "size_bytes": 458783
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/SINGLE/summary.json",
+      "sha256": "e057871f14364f7bd129defee4e8208ef236e7c8e689da992358f82f0c43dba5",
+      "size_bytes": 6540
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/SINGLE/decisions.parquet",
+      "sha256": "8b409923da4359b8cae7afe8a1f114fed9717c3e82cf5bfc102d279886f2e48f",
+      "size_bytes": 2830723
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/SINGLE/trades.parquet",
+      "sha256": "25e9c19044a6416cd11188406673ffb878d3a59304abf693adc870ae5023e935",
+      "size_bytes": 458783
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/SINGLE/summary.json",
+      "sha256": "e057871f14364f7bd129defee4e8208ef236e7c8e689da992358f82f0c43dba5",
+      "size_bytes": 6540
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/RECENT365/decisions.parquet",
+      "sha256": "0a8550acf8f30930790b0639c383c4c1f9d2f1cc5721b81464b1aec3b596166d",
+      "size_bytes": 2824767
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/RECENT365/trades.parquet",
+      "sha256": "9b68194c06087b4cc49efc5ead6909d04aae9677778741a5c4ec61e5f28cd895",
+      "size_bytes": 441480
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics/RECENT365/summary.json",
+      "sha256": "4680b176e2685cc448130bcd449d925b78d41330d0112db0496425121f3271c3",
+      "size_bytes": 6554
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/economics_summary.json",
+      "sha256": "7470b414c86a1697911be93181c5cd2df65a713ca500b660e68f199b2320d6a5",
+      "size_bytes": 21279
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/daily_economics.csv",
+      "sha256": "14e3ed68c7a260739cda8238251ff8fda401ff30aafa673c64d161b56c865fe8",
+      "size_bytes": 8232
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/pnl_decomposition.json",
+      "sha256": "37254efc24052710f7ec7c8fca7d30a815bdda9b3c2e41c539c6cf5ad498c7d8",
+      "size_bytes": 614
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/execution_input_summary.json",
+      "sha256": "e221e3aea5600afe5b4367296bf4e839f406cb72254ee5736184fc943d539592",
+      "size_bytes": 287
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/fold_training_counts.csv",
+      "sha256": "6427ab80641c9fcde8bcd25663bafff75d778b0a957343e165e31ed06e2b0bfa",
+      "size_bytes": 5061
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/quality_summary.json",
+      "sha256": "4edb294c4ed720badc01840186a15d5caa5a430609eadc4e8d8692fce38cf6a1",
+      "size_bytes": 9714
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/proxy_fold_quality.csv",
+      "sha256": "819bbb3a209bf78d1bc47619c9ac42e827b1d77c8603f9351c282f73b988da20",
+      "size_bytes": 1536
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/official_monthly_quality.csv",
+      "sha256": "ae739c40da805fdee1fc6f15f54d9a9d9e8c867ef6f5936bf8e7f54e76c920d6",
+      "size_bytes": 524
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/official_quality_rows.parquet",
+      "sha256": "382e927414d8ee87d128899910edf081135ee4839bfe62308ada7e15bd8ebc1b",
+      "size_bytes": 387005
+    },
+    {
+      "path": "reports/btc_preopen/btc_base70_recent365_20261018.md",
+      "sha256": "fe8ef919d7edc884f50c3029b51217c3fe6517b5f5aeda38310fa15ed861b1c5",
+      "size_bytes": 10199
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet",
+      "sha256": "06952bbf1b2b0a4e9fc4cc918490fbadc540c897815b8105242201c6148dfe19",
+      "size_bytes": 1269944837
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_folds.npz",
+      "sha256": "02768c3ddd80e26720507757e065337bc54afd22691bf830c021698c49133c07",
+      "size_bytes": 40080591
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+      "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8",
+      "size_bytes": 11166225
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/oof_recent365.parquet",
+      "sha256": "d686d96d674d67f3eb8ccde24e0700d0886e4f654496c413caac2910815c1580",
+      "size_bytes": 11165204
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_00.txt",
+      "sha256": "51c19896c5196cf7285d0b368c08bbebfde68180b148b25e2411d2e9031b896c",
+      "size_bytes": 129473
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_00_oof.parquet",
+      "sha256": "3501fdb6061506a36d81f39aa3daa049dfe2be2b9493e55d17fc7ea3f44f8f5e",
+      "size_bytes": 1316377
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_00_completion.json",
+      "sha256": "6bb938f17de4d12743ab4da6adfcea728ae0e57b569744e3fd0cffc49dbc3f10",
+      "size_bytes": 2847
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_01.txt",
+      "sha256": "2d3a6a86dcab0053f9718a8b99301e837528b9809af4908523aedf742a5091da",
+      "size_bytes": 128525
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_01_oof.parquet",
+      "sha256": "0418a0817d4d10dde50aa309d6f13f925b73634ed714a30162ff88e5ac220f00",
+      "size_bytes": 1321603
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_01_completion.json",
+      "sha256": "6d5c3d0312dbd57433dfa52243a0c2671330c678bc1b5857e956cfe93084430b",
+      "size_bytes": 2844
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_02.txt",
+      "sha256": "114375438a171f97161035c9cfd43b2b1a52be74b276bb36069b661b4b099da6",
+      "size_bytes": 128753
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_02_oof.parquet",
+      "sha256": "b4bd6585227b6cbc3e6a8e1bf7626d1092885bae2c963831d1a06488fd98e492",
+      "size_bytes": 1322175
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_02_completion.json",
+      "sha256": "06ad723ade98330338429cb599e29bfbac154fb9207fd792c34052f4be745b88",
+      "size_bytes": 2845
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_03.txt",
+      "sha256": "ba49b5f83fd21787c0963d5393d54ca3442ee5b624247bfdce5896eddfff328c",
+      "size_bytes": 128405
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_03_oof.parquet",
+      "sha256": "2812148666b9750f25ec3b49ee4ba896009d82157e8e4e9ad88aeaad8fa506b1",
+      "size_bytes": 1320515
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_03_completion.json",
+      "sha256": "b9eeaaa98d038645f9318a77350149cad614847ea63907f3d3153dbf609aa208",
+      "size_bytes": 2844
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_04.txt",
+      "sha256": "c39e5af5dff14bb3abdf28984b7f10a7c3672df4dc16203c16885d4fb11b9055",
+      "size_bytes": 127288
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_04_oof.parquet",
+      "sha256": "efe27719b1787fe971270af15325d59dbce52566b8c73a681ea84bc8bb456ceb",
+      "size_bytes": 1319212
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_04_completion.json",
+      "sha256": "49f832d9c9d8d048e18148595a084b25db2e973d9e24d431469a2c75d6dfd3d5",
+      "size_bytes": 2845
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_05.txt",
+      "sha256": "730fc600f2b6252610f1502897005ccd9d6d4d332d9bb26395a645cd9ef0607b",
+      "size_bytes": 128109
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_05_oof.parquet",
+      "sha256": "004e9f677ebf20fbeefe0a8654233169185e356d056175e181faed235608a9d8",
+      "size_bytes": 1320239
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_05_completion.json",
+      "sha256": "815cbbf81434504ebba835df025386ae6694e2fa88e10639e7cf637041d27288",
+      "size_bytes": 2846
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_06.txt",
+      "sha256": "17f95eb7d3640f0ab7892499a9460d2391fc33be005bdc346d54d8fd25639205",
+      "size_bytes": 128973
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_06_oof.parquet",
+      "sha256": "7c2bb9940cb0b858c8664517d8ac55e169fd7378f9ae7501a79263f4f4d33fc7",
+      "size_bytes": 1320816
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_06_completion.json",
+      "sha256": "21c13ab2c695b1c44f20f85edef8d5cc7d2cf149e1f272bee13d8672e2cf9032",
+      "size_bytes": 2843
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_07.txt",
+      "sha256": "7393ba2e27f141865eef1a41b64f2246a59bc053b88e840ff62e2c04d15edb9d",
+      "size_bytes": 128834
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_07_oof.parquet",
+      "sha256": "c2082c2f7a0f03c726def84dc092f08b7cd0532a58d7d4082bb4b474fafa72ab",
+      "size_bytes": 1319268
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_07_completion.json",
+      "sha256": "6029af592e44846d3a517256d2cb4700a77e19d70efe18aa377fcb29d41a1f13",
+      "size_bytes": 2846
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_08.txt",
+      "sha256": "02299566ef62787023ba9ce791461efb2a84b328dddbd0cb04cb9b0e307a5adf",
+      "size_bytes": 129425
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_08_oof.parquet",
+      "sha256": "7e8042fa87f98e607e8ea909619e0c7d275a699430187d0abafbcb3a819ed366",
+      "size_bytes": 1319491
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_08_completion.json",
+      "sha256": "4460ca664ee8746ad5f796498ecf4442c8d7877503f9878689a8d0e1a2307c0e",
+      "size_bytes": 2847
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_09.txt",
+      "sha256": "2e4caf6cec3e13edd9357c04fe8a1fa225500f2d1feb43a6480804dfb2ced367",
+      "size_bytes": 128916
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_09_oof.parquet",
+      "sha256": "5e714d3218642b0ade35b51298ad74f271e9c523be4c9d01bb6b68f5fad8e44e",
+      "size_bytes": 1320233
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/models/recent365/fold_09_completion.json",
+      "sha256": "33e09655ca9f2b4de48c546d69e171b88830b659972628b100f7af8bba18434f",
+      "size_bytes": 2845
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/training_summary.json",
+      "sha256": "725305360866cbed19fa545f979407e11fa62b4b568f6cd11175af460d48968d",
+      "size_bytes": 4107
+    }
+  ],
+  "performance": {
+    "elapsed_seconds": 188.17765599999257,
+    "peak_process_working_set_gib": 6.114,
+    "resource_snapshot_at_completion": {
+      "available_memory_gib": 34.92,
+      "lightgbm_threads": 8,
+      "logical_processors": 20,
+      "native_library_thread_limit": 8,
+      "pyarrow_cpu_threads": 20,
+      "pyarrow_io_threads": 8,
+      "total_memory_gib": 63.67
+    },
+    "resource_snapshot_before_run": {
+      "available_memory_gib": 43.67,
+      "lightgbm_threads": 8,
+      "logical_processors": 20,
+      "native_library_thread_limit": 8,
+      "pyarrow_cpu_threads": 20,
+      "pyarrow_io_threads": 8,
+      "total_memory_gib": 63.67
+    },
+    "stage_elapsed_seconds": {
+      "common_predictions": 0.030357999996340368,
+      "economics": 0.02885180000157561,
+      "quality": 0.013848399998096284,
+      "training": 0.5374078999957419
+    }
+  },
+  "result_summary": {
+    "economics": {
+      "accounting_audits_passed": true,
+      "availability": {
+        "calendar_days": 72,
+        "decision_rows": 20735,
+        "first_market_start_utc": "2026-04-20T00:00:00+00:00",
+        "last_market_start_utc": "2026-06-30T23:50:00+00:00"
+      },
+      "bootstrap": {
+        "block_days": 3,
+        "calendar_days": 72,
+        "contrasts": {
+          "RECENT365_MINUS_SINGLE": {
+            "mean_daily_pnl_difference_usd": {
+              "95pct": [
+                -9.055952248521171,
+                -0.09900968871022306
+              ],
+              "estimate_median": -4.527589758151041,
+              "point_estimate": -4.554481026606081,
+              "valid_replications": 2000
+            },
+            "pnl_per_settled_turnover_difference": {
+              "95pct": [
+                -0.15749340639196402,
+                -0.00032397182356401006
+              ],
+              "estimate_median": -0.06238568512381658,
+              "point_estimate": -0.0640392085134067,
+              "valid_replications": 2000
+            }
+          }
+        },
+        "replications": 2000,
+        "seed": 20261018,
+        "variants": {
+          "RECENT365": {
+            "mean_daily_pnl_usd": {
+              "95pct": [
+                -4.374491045846477,
+                2.8964512987293456
+              ],
+              "estimate_median": -0.8088158675928638,
+              "point_estimate": -0.8400449816251631,
+              "valid_replications": 2000
+            },
+            "pnl_per_settled_turnover": {
+              "95pct": [
+                -0.09247695085411216,
+                0.03355984228166767
+              ],
+              "estimate_median": -0.012100447825844383,
+              "point_estimate": -0.012509459912515355,
+              "valid_replications": 2000
+            }
+          },
+          "SINGLE": {
+            "mean_daily_pnl_usd": {
+              "95pct": [
+                -0.19667892837614018,
+                8.26797555090949
+              ],
+              "estimate_median": 3.60619524421102,
+              "point_estimate": 3.714436044980918,
+              "valid_replications": 2000
+            },
+            "pnl_per_settled_turnover": {
+              "95pct": [
+                -0.0036207099087502584,
+                0.09423765812881332
+              ],
+              "estimate_median": 0.051062880835646245,
+              "point_estimate": 0.05152974860089135,
+              "valid_replications": 2000
+            }
+          }
+        }
+      },
+      "concentration": {
+        "RECENT365": {
+          "remaining_days_pnl_usd": -227.9807616536828,
+          "top_five_days": [
+            {
+              "net_pnl_usd": 48.31084117439828,
+              "utc_day": "2026-05-28T00:00:00+00:00"
+            },
+            {
+              "net_pnl_usd": 34.423794761168786,
+              "utc_day": "2026-06-09T00:00:00+00:00"
+            },
+            {
+              "net_pnl_usd": 32.33394254530864,
+              "utc_day": "2026-05-31T00:00:00+00:00"
+            },
+            {
+              "net_pnl_usd": 27.511502120357623,
+              "utc_day": "2026-06-06T00:00:00+00:00"
+            },
+            {
+              "net_pnl_usd": 24.91744237543772,
+              "utc_day": "2026-06-07T00:00:00+00:00"
+            }
+          ],
+          "top_five_pnl_usd": 167.49752297667106,
+          "top_five_share_of_total_pnl": -2.7693213300155666,
+          "total_pnl_usd": -60.48323867701173
+        },
+        "SINGLE": {
+          "remaining_days_pnl_usd": 49.23349547571425,
+          "top_five_days": [
+            {
+              "net_pnl_usd": 70.30395893040395,
+              "utc_day": "2026-06-09T00:00:00+00:00"
+            },
+            {
+              "net_pnl_usd": 54.43021133312142,
+              "utc_day": "2026-06-03T00:00:00+00:00"
+            },
+            {
+              "net_pnl_usd": 35.05206484940123,
+              "utc_day": "2026-05-31T00:00:00+00:00"
+            },
+            {
+              "net_pnl_usd": 31.47680455939821,
+              "utc_day": "2026-05-30T00:00:00+00:00"
+            },
+            {
+              "net_pnl_usd": 26.94286009058705,
+              "utc_day": "2026-06-07T00:00:00+00:00"
+            }
+          ],
+          "top_five_pnl_usd": 218.20589976291186,
+          "top_five_share_of_total_pnl": 0.815907841730703,
+          "total_pnl_usd": 267.4393952386261
+        }
+      },
+      "daily_calendar_rows_including_no_fill_days": 72,
+      "elapsed_seconds": 46.558836999996856,
+      "pnl_decomposition_RECENT365_minus_SINGLE": {
+        "components_usd": {
+          "settled_fills_only_one_variant": -327.92263391563824,
+          "settled_fills_opposite_sides": 0.0,
+          "settled_fills_same_side": 0.0
+        },
+        "left_variant": "RECENT365",
+        "market_counts": {
+          "settled_fills_only_one_variant": 957,
+          "settled_fills_opposite_sides": 0,
+          "settled_fills_same_side": 524
+        },
+        "realized_pnl_difference_usd": -327.92263391563773,
+        "right_variant": "SINGLE",
+        "sum_reconciles": true,
+        "unresolved_fills_reported_separately": {
+          "RECENT365": 0,
+          "SINGLE": 0
+        },
+        "unresolved_trade_outcomes_used_in_decomposition": false
+      },
+      "single_anchor_reproduction": {
+        "actual_fills": 1038,
+        "actual_net_pnl_usd": 267.439395238626,
+        "actual_turnover_usd": 5190.0,
+        "checks": {
+          "fills": true,
+          "net_pnl": true,
+          "settled_ledger_matches_previous_RAW": true,
+          "turnover": true
+        },
+        "expected_fills": 1038,
+        "expected_net_pnl_usd": 267.439395238626,
+        "expected_turnover_usd": 5190.0,
+        "passed": true
+      },
+      "up_down_economics": [
+        {
+          "fees_usd": 88.79520776999999,
+          "fills": 493,
+          "forecast_ev_usd": 134.63921190659053,
+          "net_pnl_usd": 183.41064448791712,
+          "pnl_minus_ev_usd": 48.77143258132659,
+          "pnl_per_settled_turnover": 0.07440594096872906,
+          "settlements": 493,
+          "side": "UP",
+          "turnover_usd": 2465.0,
+          "variant": "SINGLE"
+        },
+        {
+          "fees_usd": 100.04726356,
+          "fills": 545,
+          "forecast_ev_usd": 144.96574165712366,
+          "net_pnl_usd": 84.02875075070888,
+          "pnl_minus_ev_usd": -60.93699090641478,
+          "pnl_per_settled_turnover": 0.03083623880759959,
+          "settlements": 545,
+          "side": "DOWN",
+          "turnover_usd": 2725.0,
+          "variant": "SINGLE"
+        },
+        {
+          "fees_usd": 58.30342982,
+          "fills": 316,
+          "forecast_ev_usd": 104.07964662168074,
+          "net_pnl_usd": 16.046222743572493,
+          "pnl_minus_ev_usd": -88.03342387810824,
+          "pnl_per_settled_turnover": 0.010155837179476261,
+          "settlements": 316,
+          "side": "UP",
+          "turnover_usd": 1580.0,
+          "variant": "RECENT365"
+        },
+        {
+          "fees_usd": 119.15477377,
+          "fills": 651,
+          "forecast_ev_usd": 156.78344442386003,
+          "net_pnl_usd": -76.52946142058428,
+          "pnl_minus_ev_usd": -233.31290584444432,
+          "pnl_per_settled_turnover": -0.023511355275141102,
+          "settlements": 651,
+          "side": "DOWN",
+          "turnover_usd": 3255.0,
+          "variant": "RECENT365"
+        }
+      ],
+      "variants": {
+        "RECENT365": {
+          "accounting_audit": {
+            "cash_constraint_applied": false,
+            "checks": {
+              "cash_debit_equals_gross_plus_cash_fee": true,
+              "cost_basis_exposure_never_negative": true,
+              "daily_log_growth_reconciles_to_final_equity": true,
+              "decision_to_execution_is_one_second": true,
+              "ending_cash_matches_sum_of_trade_pnl": true,
+              "equity_equals_cash_plus_locked_cost": true,
+              "fee_mode_matches_cash_or_share_collection": true,
+              "free_cash_never_negative": true,
+              "one_entry_and_one_settlement_per_trade": true,
+              "payout_matches_resolved_outcome": true,
+              "prediction_available_before_entry": true,
+              "prediction_computed_within_one_second": true,
+              "requested_stake_uses_only_policy_capital_base": true,
+              "shares_reconcile_with_share_fees": true,
+              "trades_have_no_future_snapshot_events": true,
+              "trades_have_no_future_t60_snapshot_events": true,
+              "unresolved_book_value_reconciles_cost_basis_equity": true,
+              "unresolved_gross_matches_locked_cost": true
+            },
+            "decision_count": 20735,
+            "ending_cash_usd": -60.48323867701167,
+            "minimum_cash_usd": -248.4998993744904,
+            "settlement_count": 967,
+            "status": "passed",
+            "trade_count": 967,
+            "trade_pnl_sum_usd": -60.48323867701171,
+            "unresolved_fill_count": 0
+          },
+          "ask_vwap_quantiles": {
+            "median": 0.49,
+            "p25": 0.47000000000000003,
+            "p75": 0.5
+          },
+          "calendar": {
+            "excluded_until_after_cutoff_or_missing_resolution_or_official_outcome": 17,
+            "market_rows_in_period": 20735,
+            "market_start_first_utc": "2026-04-20T00:00:00+00:00",
+            "market_start_last_utc": "2026-06-30T23:50:00+00:00",
+            "missing_official_outcome_rows": 17,
+            "official_outcomes_and_cash_releases_available_by_cutoff": 20718,
+            "selection_or_evaluation_cutoff_utc": "2026-07-01T00:00:00+00:00"
+          },
+          "daily_log_growth": {
+            "not_applicable": "independent orders; no portfolio capital base"
+          },
+          "decision_count": 20735,
+          "down_fill_count": 651,
+          "down_settlement_count": 651,
+          "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+          "elapsed_seconds": 21.819134199999098,
+          "ending_cash_after_settlement_usd": -60.48323867701167,
+          "ending_cost_basis_equity_usd": -60.48323867701167,
+          "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+          "fees_paid_estimated_usd": 177.45820358999998,
+          "fill_count": 967,
+          "forecast_net_ev_on_settled_fills_usd": 260.8630910455408,
+          "gross_stake_quantiles_usd": {
+            "median": 5.0,
+            "p0": 4.999999999999999,
+            "p100": 5.0,
+            "p25": 5.0,
+            "p75": 5.0
+          },
+          "gross_turnover_usd": 4835.0,
+          "independent_order_mode": true,
+          "initial_cash_usd": 0.0,
+          "intent_count": 976,
+          "max_drawdown_cost_basis_equity": null,
+          "max_drawdown_peak_utc": null,
+          "max_drawdown_trough_utc": null,
+          "maximum_concurrent_cost_basis_exposure_usd": 10.0,
+          "maximum_concurrent_positions": 2,
+          "minimum_free_cash_usd": null,
+          "minimum_net_ev_fraction": 0.01,
+          "monthly_continuous_portfolio": [],
+          "monthly_diagnostics": [],
+          "monthly_results": [
+            {
+              "down_fills": 53,
+              "down_net_pnl_usd": -27.520251449925418,
+              "down_settlements": 53,
+              "fees_usd": 10.565993589999998,
+              "fills": 58,
+              "forecast_ev_on_settled_fills_usd": 8.159592584641874,
+              "gross_turnover_usd": 290.0,
+              "intents": 59,
+              "net_pnl_usd": -33.42221188129796,
+              "pnl_minus_forecast_ev_on_settled_fills_usd": -41.58180446593984,
+              "pnl_per_settled_turnover": -0.11524900648723435,
+              "settled_turnover_usd": 290.0,
+              "settlements": 58,
+              "unresolved_fills": 0,
+              "up_fills": 5,
+              "up_net_pnl_usd": -5.901960431372547,
+              "up_settlements": 5,
+              "utc_month": "2026-04",
+              "variant": "RECENT365"
+            },
+            {
+              "down_fills": 352,
+              "down_net_pnl_usd": -123.11881958513058,
+              "down_settlements": 352,
+              "fees_usd": 87.86567,
+              "fills": 469,
+              "forecast_ev_on_settled_fills_usd": 176.1438727291887,
+              "gross_turnover_usd": 2345.0,
+              "intents": 475,
+              "net_pnl_usd": -133.78371790592865,
+              "pnl_minus_forecast_ev_on_settled_fills_usd": -309.9275906351173,
+              "pnl_per_settled_turnover": -0.05705062597267747,
+              "settled_turnover_usd": 2345.0,
+              "settlements": 469,
+              "unresolved_fills": 0,
+              "up_fills": 117,
+              "up_net_pnl_usd": -10.66489832079803,
+              "up_settlements": 117,
+              "utc_month": "2026-05",
+              "variant": "RECENT365"
+            },
+            {
+              "down_fills": 246,
+              "down_net_pnl_usd": 74.10960961447175,
+              "down_settlements": 246,
+              "fees_usd": 79.02654,
+              "fills": 440,
+              "forecast_ev_on_settled_fills_usd": 76.55962573171024,
+              "gross_turnover_usd": 2200.0,
+              "intents": 442,
+              "net_pnl_usd": 106.72269111021483,
+              "pnl_minus_forecast_ev_on_settled_fills_usd": 30.163065378504584,
+              "pnl_per_settled_turnover": 0.04851031414100674,
+              "settled_turnover_usd": 2200.0,
+              "settlements": 440,
+              "unresolved_fills": 0,
+              "up_fills": 194,
+              "up_net_pnl_usd": 32.613081495743074,
+              "up_settlements": 194,
+              "utc_month": "2026-06",
+              "variant": "RECENT365"
+            }
+          ],
+          "net_pnl_usd": -60.48323867701174,
+          "pnl_minus_forecast_ev_on_settled_fills_usd": -321.3463297225525,
+          "pnl_per_settled_turnover": -0.012509459912515355,
+          "policy": "RECENT365",
+          "rejections_by_reason": {
+            "ambiguous_equal_source_timestamp_order": 4,
+            "below_minimum_net_ev_fraction": 550,
+            "crossed_token_book_at_entry": 2,
+            "native_ask_bbo_reconciliation_mismatch": 3,
+            "no_gamma_market_record": 7,
+            "no_positive_net_expected_value": 7292,
+            "no_priceable_native_ask_side": 11910
+          },
+          "settled_trade_count": 967,
+          "settled_turnover_usd": 4835.0,
+          "settlement_count": 967,
+          "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+          "side_selection_rule": "positive net EV side at requested amount",
+          "sizing_policy": "fixed_5_usd",
+          "trade_count": 967,
+          "unresolved_cash_debit_usd": 0.0,
+          "unresolved_fill_count": 0,
+          "unresolved_gross_turnover_usd": 0.0,
+          "unresolved_locked_cost_usd": 0.0,
+          "up_fill_count": 316,
+          "up_settlement_count": 316,
+          "variant": "RECENT365"
+        },
+        "SINGLE": {
+          "accounting_audit": {
+            "cash_constraint_applied": false,
+            "checks": {
+              "cash_debit_equals_gross_plus_cash_fee": true,
+              "cost_basis_exposure_never_negative": true,
+              "daily_log_growth_reconciles_to_final_equity": true,
+              "decision_to_execution_is_one_second": true,
+              "ending_cash_matches_sum_of_trade_pnl": true,
+              "equity_equals_cash_plus_locked_cost": true,
+              "fee_mode_matches_cash_or_share_collection": true,
+              "free_cash_never_negative": true,
+              "one_entry_and_one_settlement_per_trade": true,
+              "payout_matches_resolved_outcome": true,
+              "prediction_available_before_entry": true,
+              "prediction_computed_within_one_second": true,
+              "requested_stake_uses_only_policy_capital_base": true,
+              "shares_reconcile_with_share_fees": true,
+              "trades_have_no_future_snapshot_events": true,
+              "trades_have_no_future_t60_snapshot_events": true,
+              "unresolved_book_value_reconciles_cost_basis_equity": true,
+              "unresolved_gross_matches_locked_cost": true
+            },
+            "decision_count": 20735,
+            "ending_cash_usd": 267.43939523862554,
+            "minimum_cash_usd": -43.22650310392036,
+            "settlement_count": 1038,
+            "status": "passed",
+            "trade_count": 1038,
+            "trade_pnl_sum_usd": 267.4393952386261,
+            "unresolved_fill_count": 0
+          },
+          "ask_vwap_quantiles": {
+            "median": 0.5,
+            "p25": 0.47000000000000003,
+            "p75": 0.51
+          },
+          "calendar": {
+            "excluded_until_after_cutoff_or_missing_resolution_or_official_outcome": 17,
+            "market_rows_in_period": 20735,
+            "market_start_first_utc": "2026-04-20T00:00:00+00:00",
+            "market_start_last_utc": "2026-06-30T23:50:00+00:00",
+            "missing_official_outcome_rows": 17,
+            "official_outcomes_and_cash_releases_available_by_cutoff": 20718,
+            "selection_or_evaluation_cutoff_utc": "2026-07-01T00:00:00+00:00"
+          },
+          "daily_log_growth": {
+            "not_applicable": "independent orders; no portfolio capital base"
+          },
+          "decision_count": 20735,
+          "down_fill_count": 545,
+          "down_settlement_count": 545,
+          "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+          "elapsed_seconds": 20.40883030000259,
+          "ending_cash_after_settlement_usd": 267.43939523862554,
+          "ending_cost_basis_equity_usd": 267.43939523862554,
+          "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+          "fees_paid_estimated_usd": 188.84247133,
+          "fill_count": 1038,
+          "forecast_net_ev_on_settled_fills_usd": 279.60495356371416,
+          "gross_stake_quantiles_usd": {
+            "median": 5.0,
+            "p0": 4.999999999999999,
+            "p100": 5.000000000000001,
+            "p25": 5.0,
+            "p75": 5.0
+          },
+          "gross_turnover_usd": 5190.0,
+          "independent_order_mode": true,
+          "initial_cash_usd": 0.0,
+          "intent_count": 1047,
+          "max_drawdown_cost_basis_equity": null,
+          "max_drawdown_peak_utc": null,
+          "max_drawdown_trough_utc": null,
+          "maximum_concurrent_cost_basis_exposure_usd": 10.0,
+          "maximum_concurrent_positions": 2,
+          "minimum_free_cash_usd": null,
+          "minimum_net_ev_fraction": 0.01,
+          "monthly_continuous_portfolio": [],
+          "monthly_diagnostics": [],
+          "monthly_results": [
+            {
+              "down_fills": 49,
+              "down_net_pnl_usd": -35.70161452195424,
+              "down_settlements": 49,
+              "fees_usd": 11.45159133,
+              "fills": 63,
+              "forecast_ev_on_settled_fills_usd": 9.395747502090323,
+              "gross_turnover_usd": 315.0,
+              "intents": 63,
+              "net_pnl_usd": -10.385948908909016,
+              "pnl_minus_forecast_ev_on_settled_fills_usd": -19.781696410999338,
+              "pnl_per_settled_turnover": -0.03297126637748894,
+              "settled_turnover_usd": 315.0,
+              "settlements": 63,
+              "unresolved_fills": 0,
+              "up_fills": 14,
+              "up_net_pnl_usd": 25.315665613045226,
+              "up_settlements": 14,
+              "utc_month": "2026-04",
+              "variant": "SINGLE"
+            },
+            {
+              "down_fills": 323,
+              "down_net_pnl_usd": 61.26014996931506,
+              "down_settlements": 323,
+              "fees_usd": 83.84808,
+              "fills": 447,
+              "forecast_ev_on_settled_fills_usd": 177.30051606245837,
+              "gross_turnover_usd": 2235.0,
+              "intents": 455,
+              "net_pnl_usd": 66.11985153051829,
+              "pnl_minus_forecast_ev_on_settled_fills_usd": -111.18066453194008,
+              "pnl_per_settled_turnover": 0.02958382618815136,
+              "settled_turnover_usd": 2235.0,
+              "settlements": 447,
+              "unresolved_fills": 0,
+              "up_fills": 124,
+              "up_net_pnl_usd": 4.859701561203208,
+              "up_settlements": 124,
+              "utc_month": "2026-05",
+              "variant": "SINGLE"
+            },
+            {
+              "down_fills": 173,
+              "down_net_pnl_usd": 58.47021530334804,
+              "down_settlements": 173,
+              "fees_usd": 93.5428,
+              "fills": 528,
+              "forecast_ev_on_settled_fills_usd": 92.90868999916549,
+              "gross_turnover_usd": 2640.0,
+              "intents": 529,
+              "net_pnl_usd": 211.70549261701677,
+              "pnl_minus_forecast_ev_on_settled_fills_usd": 118.79680261785128,
+              "pnl_per_settled_turnover": 0.08019147447614272,
+              "settled_turnover_usd": 2640.0,
+              "settlements": 528,
+              "unresolved_fills": 0,
+              "up_fills": 355,
+              "up_net_pnl_usd": 153.23527731366875,
+              "up_settlements": 355,
+              "utc_month": "2026-06",
+              "variant": "SINGLE"
+            }
+          ],
+          "net_pnl_usd": 267.439395238626,
+          "pnl_minus_forecast_ev_on_settled_fills_usd": -12.16555832508817,
+          "pnl_per_settled_turnover": 0.05152974860089133,
+          "policy": "SINGLE",
+          "rejections_by_reason": {
+            "ambiguous_equal_source_timestamp_order": 4,
+            "below_minimum_net_ev_fraction": 608,
+            "crossed_token_book_at_entry": 1,
+            "native_ask_bbo_reconciliation_mismatch": 4,
+            "no_gamma_market_record": 7,
+            "no_positive_net_expected_value": 7163,
+            "no_priceable_native_ask_side": 11910
+          },
+          "settled_trade_count": 1038,
+          "settled_turnover_usd": 5190.0,
+          "settlement_count": 1038,
+          "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+          "side_selection_rule": "positive net EV side at requested amount",
+          "sizing_policy": "fixed_5_usd",
+          "trade_count": 1038,
+          "unresolved_cash_debit_usd": 0.0,
+          "unresolved_fill_count": 0,
+          "unresolved_gross_turnover_usd": 0.0,
+          "unresolved_locked_cost_usd": 0.0,
+          "up_fill_count": 493,
+          "up_settlement_count": 493,
+          "variant": "SINGLE"
+        }
+      }
+    },
+    "quality": {
+      "calibration_applied": false,
+      "elapsed_seconds": 51.725168199998734,
+      "full_proxy_oof_rows_identical": true,
+      "official": {
+        "down_labels": 10395,
+        "end_utc": "2026-06-30T23:50:00+00:00",
+        "monthly_metrics": [
+          {
+            "auc": 0.5324861200579115,
+            "brier": 0.24923269160171438,
+            "log_loss": 0.6916103609686036,
+            "rows": 3168,
+            "utc_month": "2026-04",
+            "variant": "SINGLE"
+          },
+          {
+            "auc": 0.5312328593477942,
+            "brier": 0.24936491472124012,
+            "log_loss": 0.6918759126071807,
+            "rows": 3168,
+            "utc_month": "2026-04",
+            "variant": "RECENT365"
+          },
+          {
+            "auc": 0.5246301702739513,
+            "brier": 0.24955612960991633,
+            "log_loss": 0.6922586864234055,
+            "rows": 8917,
+            "utc_month": "2026-05",
+            "variant": "SINGLE"
+          },
+          {
+            "auc": 0.5162156265440908,
+            "brier": 0.24983327662244367,
+            "log_loss": 0.6928136743227572,
+            "rows": 8917,
+            "utc_month": "2026-05",
+            "variant": "RECENT365"
+          },
+          {
+            "auc": 0.5296430546894997,
+            "brier": 0.2494266855344676,
+            "log_loss": 0.6919999091829153,
+            "rows": 8633,
+            "utc_month": "2026-06",
+            "variant": "SINGLE"
+          },
+          {
+            "auc": 0.520274432010458,
+            "brier": 0.24970279034242304,
+            "log_loss": 0.6925522573810774,
+            "rows": 8633,
+            "utc_month": "2026-06",
+            "variant": "RECENT365"
+          }
+        ],
+        "overall": {
+          "RECENT365": {
+            "auc": 0.5199879533212867,
+            "brier": 0.2497072867316033,
+            "log_loss": 0.6925613506635011,
+            "rows": 20718
+          },
+          "SINGLE": {
+            "auc": 0.5274368862182482,
+            "brier": 0.2494527343828996,
+            "log_loss": 0.69205172055035,
+            "rows": 20718
+          }
+        },
+        "paired_bootstrap": {
+          "block_days": 3,
+          "calendar_days": 72,
+          "contrasts": {
+            "auc": {
+              "95pct": [
+                -0.013072308550539646,
+                -0.002077293412914139
+              ],
+              "point_difference_RECENT365_minus_SINGLE": -0.00744893289696158,
+              "replications": 2000,
+              "valid_replications": 2000
+            },
+            "brier": {
+              "95pct": [
+                7.83057353499601e-05,
+                0.0004412262652160297
+              ],
+              "point_difference_RECENT365_minus_SINGLE": 0.00025455234870369603,
+              "replications": 2000,
+              "valid_replications": 2000
+            },
+            "log_loss": {
+              "95pct": [
+                0.00015644608221251536,
+                0.0008836248385772713
+              ],
+              "point_difference_RECENT365_minus_SINGLE": 0.0005096301131510828,
+              "replications": 2000,
+              "valid_replications": 2000
+            }
+          },
+          "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+          "replications": 2000,
+          "sample_rows": 20718,
+          "seed": 20261018
+        },
+        "probability_difference_RECENT365_minus_SINGLE": {
+          "mean": -0.001936907979532701,
+          "mean_absolute": 0.010991726447882506,
+          "positive_fraction": 0.4436721691282942,
+          "quantiles": {
+            "p1": -0.03395862340927124,
+            "p25": -0.01107710599899292,
+            "p5": -0.02442609667778015,
+            "p50": -0.0018745213747024536,
+            "p75": 0.007257454097270966,
+            "p95": 0.02056279480457305,
+            "p99": 0.02955034345388404
+          },
+          "rows": 20718,
+          "standard_deviation": 0.013685106816707406
+        },
+        "sample_rows": 20718,
+        "start_utc": "2026-04-20T00:00:00+00:00",
+        "up_labels": 10323
+      },
+      "proxy_oof": {
+        "fold_metrics": [
+          {
+            "RECENT365": {
+              "auc": 0.5257563904027112,
+              "brier": 0.24953718798091262,
+              "log_loss": 0.6922194038951249
+            },
+            "SINGLE": {
+              "auc": 0.5308299403177337,
+              "brier": 0.24924644696118795,
+              "log_loss": 0.6916380485398343
+            },
+            "fold_id": "0",
+            "rows": 31858
+          },
+          {
+            "RECENT365": {
+              "auc": 0.5238389732559494,
+              "brier": 0.24954687941621542,
+              "log_loss": 0.692239103092133
+            },
+            "SINGLE": {
+              "auc": 0.5266252106025973,
+              "brier": 0.24949185359564272,
+              "log_loss": 0.692130383810677
+            },
+            "fold_id": "1",
+            "rows": 31841
+          },
+          {
+            "RECENT365": {
+              "auc": 0.5244652227114233,
+              "brier": 0.24957603075721355,
+              "log_loss": 0.6922993151270234
+            },
+            "SINGLE": {
+              "auc": 0.5263392763841543,
+              "brier": 0.24950925188649045,
+              "log_loss": 0.6921642742333446
+            },
+            "fold_id": "2",
+            "rows": 31862
+          },
+          {
+            "RECENT365": {
+              "auc": 0.5313499291205127,
+              "brier": 0.24931241644401547,
+              "log_loss": 0.6917716467874166
+            },
+            "SINGLE": {
+              "auc": 0.529493366350978,
+              "brier": 0.24932603932855274,
+              "log_loss": 0.6917978011606929
+            },
+            "fold_id": "3",
+            "rows": 31861
+          },
+          {
+            "RECENT365": {
+              "auc": 0.5251929250098515,
+              "brier": 0.2495066616871662,
+              "log_loss": 0.6921596753960696
+            },
+            "SINGLE": {
+              "auc": 0.5246570531095329,
+              "brier": 0.24951415902880067,
+              "log_loss": 0.6921744645476919
+            },
+            "fold_id": "4",
+            "rows": 31842
+          },
+          {
+            "RECENT365": {
+              "auc": 0.524451564296464,
+              "brier": 0.2496120635083954,
+              "log_loss": 0.6923714419947858
+            },
+            "SINGLE": {
+              "auc": 0.526227069214778,
+              "brier": 0.24944166038450405,
+              "log_loss": 0.6920288722696136
+            },
+            "fold_id": "5",
+            "rows": 31856
+          },
+          {
+            "RECENT365": {
+              "auc": 0.5176996958958431,
+              "brier": 0.2498018310344865,
+              "log_loss": 0.6927511771882529
+            },
+            "SINGLE": {
+              "auc": 0.5170302059531482,
+              "brier": 0.2497874280909676,
+              "log_loss": 0.6927217089529835
+            },
+            "fold_id": "6",
+            "rows": 31861
+          },
+          {
+            "RECENT365": {
+              "auc": 0.5116549516627716,
+              "brier": 0.24996965369587154,
+              "log_loss": 0.6930869229381922
+            },
+            "SINGLE": {
+              "auc": 0.5143006554236732,
+              "brier": 0.24986840153411585,
+              "log_loss": 0.6928838945446152
+            },
+            "fold_id": "7",
+            "rows": 31858
+          },
+          {
+            "RECENT365": {
+              "auc": 0.5251894034091125,
+              "brier": 0.24947606179373039,
+              "log_loss": 0.6920980413981876
+            },
+            "SINGLE": {
+              "auc": 0.5262455966955537,
+              "brier": 0.2494256526999293,
+              "log_loss": 0.6919968469507226
+            },
+            "fold_id": "8",
+            "rows": 31860
+          },
+          {
+            "RECENT365": {
+              "auc": 0.5266997351099012,
+              "brier": 0.24946934199114865,
+              "log_loss": 0.6920847924725635
+            },
+            "SINGLE": {
+              "auc": 0.5305449562914,
+              "brier": 0.24933045138615362,
+              "log_loss": 0.6918068301096213
+            },
+            "fold_id": "9",
+            "rows": 31861
+          }
+        ],
+        "overall": {
+          "RECENT365": {
+            "auc": 0.5232905821949857,
+            "brier": 0.24958081595625323,
+            "log_loss": 0.692308158359934,
+            "rows": 318560
+          },
+          "SINGLE": {
+            "auc": 0.5250793308262355,
+            "brier": 0.24949413333249867,
+            "log_loss": 0.6921343101587641,
+            "rows": 318560
+          }
+        },
+        "paired_bootstrap": {
+          "block_days": 3,
+          "calendar_days": 1107,
+          "contrasts": {
+            "auc": {
+              "95pct": [
+                -0.0030340017160845113,
+                -0.0005482666442932055
+              ],
+              "point_difference_RECENT365_minus_SINGLE": -0.0017887486312497813,
+              "replications": 2000,
+              "valid_replications": 2000
+            },
+            "brier": {
+              "95pct": [
+                3.441607457696378e-05,
+                0.0001431087032328582
+              ],
+              "point_difference_RECENT365_minus_SINGLE": 8.66826237545526e-05,
+              "replications": 2000,
+              "valid_replications": 2000
+            },
+            "log_loss": {
+              "95pct": [
+                6.883602827119345e-05,
+                0.00028720274569842116
+              ],
+              "point_difference_RECENT365_minus_SINGLE": 0.00017384820116983501,
+              "replications": 2000,
+              "valid_replications": 2000
+            }
+          },
+          "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+          "replications": 2000,
+          "sample_rows": 318560,
+          "seed": 20261018
+        },
+        "probability_difference_RECENT365_minus_SINGLE": {
+          "mean": 0.002097098853126625,
+          "mean_absolute": 0.011969069581308568,
+          "positive_fraction": 0.5519839276745354,
+          "quantiles": {
+            "p1": -0.032839666306972506,
+            "p25": -0.007876835763454437,
+            "p5": -0.02228974401950836,
+            "p50": 0.0018875449895858765,
+            "p75": 0.011862508952617645,
+            "p95": 0.02711466401815414,
+            "p99": 0.03861926496028889
+          },
+          "rows": 318560,
+          "standard_deviation": 0.015033770326743653
+        },
+        "sample_rows": 318560
+      },
+      "single_oof_reused": true
+    },
+    "single_anchor_reproduction": {
+      "actual_fills": 1038,
+      "actual_net_pnl_usd": 267.439395238626,
+      "actual_turnover_usd": 5190.0,
+      "checks": {
+        "fills": true,
+        "net_pnl": true,
+        "settled_ledger_matches_previous_RAW": true,
+        "turnover": true
+      },
+      "expected_fills": 1038,
+      "expected_net_pnl_usd": 267.439395238626,
+      "expected_turnover_usd": 5190.0,
+      "passed": true
+    },
+    "training_fit_diagnostics": [
+      {
+        "RECENT365_weighted_log_loss": 0.6868192514373598,
+        "SINGLE_weighted_log_loss": 0.6874126374527487,
+        "common_rows": 525595,
+        "fold_id": 0,
+        "window_end_exclusive_utc": "2023-06-20T16:44:00+00:00",
+        "window_start_inclusive_utc": "2022-06-20T16:44:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.686948817145958,
+        "SINGLE_weighted_log_loss": 0.6876924348205297,
+        "common_rows": 525574,
+        "fold_id": 1,
+        "window_end_exclusive_utc": "2023-10-09T07:54:00+00:00",
+        "window_start_inclusive_utc": "2022-10-09T07:54:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.6876481142561301,
+        "SINGLE_weighted_log_loss": 0.688380006431472,
+        "common_rows": 525474,
+        "fold_id": 2,
+        "window_end_exclusive_utc": "2024-01-27T22:59:00+00:00",
+        "window_start_inclusive_utc": "2023-01-27T22:59:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.6884747812121746,
+        "SINGLE_weighted_log_loss": 0.6891940297586996,
+        "common_rows": 525472,
+        "fold_id": 3,
+        "window_end_exclusive_utc": "2024-05-17T14:09:00+00:00",
+        "window_start_inclusive_utc": "2023-05-18T14:09:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.6885691334616911,
+        "SINGLE_weighted_log_loss": 0.6892780415342968,
+        "common_rows": 525474,
+        "fold_id": 4,
+        "window_end_exclusive_utc": "2024-09-05T05:14:00+00:00",
+        "window_start_inclusive_utc": "2023-09-06T05:14:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.6888602742710914,
+        "SINGLE_weighted_log_loss": 0.6893786170737858,
+        "common_rows": 525502,
+        "fold_id": 5,
+        "window_end_exclusive_utc": "2024-12-24T20:19:00+00:00",
+        "window_start_inclusive_utc": "2023-12-25T20:19:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.6889934241152231,
+        "SINGLE_weighted_log_loss": 0.6894878557908086,
+        "common_rows": 525484,
+        "fold_id": 6,
+        "window_end_exclusive_utc": "2025-04-14T11:29:00+00:00",
+        "window_start_inclusive_utc": "2024-04-14T11:29:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.6893596337801686,
+        "SINGLE_weighted_log_loss": 0.6897873334149871,
+        "common_rows": 525483,
+        "fold_id": 7,
+        "window_end_exclusive_utc": "2025-08-03T02:34:00+00:00",
+        "window_start_inclusive_utc": "2024-08-03T02:34:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.6895849433759778,
+        "SINGLE_weighted_log_loss": 0.6900299572536304,
+        "common_rows": 525554,
+        "fold_id": 8,
+        "window_end_exclusive_utc": "2025-11-21T17:44:00+00:00",
+        "window_start_inclusive_utc": "2024-11-21T17:44:00+00:00"
+      },
+      {
+        "RECENT365_weighted_log_loss": 0.6895672158406917,
+        "SINGLE_weighted_log_loss": 0.6899146338004729,
+        "common_rows": 525574,
+        "fold_id": 9,
+        "window_end_exclusive_utc": "2026-03-12T08:49:00+00:00",
+        "window_start_inclusive_utc": "2025-03-12T08:49:00+00:00"
+      }
+    ]
+  },
+  "source_artifacts": {
+    "common_execution_calendar": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
+      "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
+      "size_bytes": 12148090
+    },
+    "folds": {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_folds.npz",
+      "sha256": "02768c3ddd80e26720507757e065337bc54afd22691bf830c021698c49133c07",
+      "size_bytes": 40080591
+    },
+    "matrix": {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet",
+      "sha256": "06952bbf1b2b0a4e9fc4cc918490fbadc540c897815b8105242201c6148dfe19",
+      "size_bytes": 1269944837
+    },
+    "official_market_index": {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+      "sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+      "size_bytes": 7486947
+    },
+    "saved_single_and_ensemble_oof_bundle": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_seed_stability_20261018/predictions.parquet",
+      "sha256": "e32aab4d2a9094e12c75df63d7d333a32f7a4d0be15eb79190ddc9853de436d9",
+      "size_bytes": 19401782
+    },
+    "single_boosters": [
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_00.txt",
+        "sha256": "4abcbee1a4aa6dc902000634a979960202e55dcc30024d5a52d3187fc732cf62",
+        "size_bytes": 292436
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_01.txt",
+        "sha256": "b27ecf1534461bbf79cba46f123047cdd60be10963d904c820b62ff8e8c0e058",
+        "size_bytes": 292494
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_02.txt",
+        "sha256": "abb987e74b32987811e3a1e7a6620e856e3e2aa98cc13f923597d88db836835d",
+        "size_bytes": 292311
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_03.txt",
+        "sha256": "9f1e3068339a2970180bba3053bbcfa8652c6d649cade15615c83a232d6b1025",
+        "size_bytes": 292766
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_04.txt",
+        "sha256": "a5fb6b173939e691eddbbc68e234de4a68a73b6f293a149c6474f7b7374312f7",
+        "size_bytes": 292553
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_05.txt",
+        "sha256": "7785e3f42f118c9301fe40d65501efd646feceb7c869be922996ec49b6e78259",
+        "size_bytes": 292410
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_06.txt",
+        "sha256": "93cb6d77767bae3ab608fad50aaef439cda75c25837a528e3cb469313a6be6d1",
+        "size_bytes": 292920
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_07.txt",
+        "sha256": "e1d8145bcc5f5e9d556d65546465404ea4246bedf4e45b5a1459f2bf0c01aeaa",
+        "size_bytes": 292143
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_08.txt",
+        "sha256": "3f24d792b1250f296029ec1eb6551531b9df0f1a274725b1436189df24eeee27",
+        "size_bytes": 292299
+      },
+      {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/models/B0/fold_09.txt",
+        "sha256": "4bd0878150cfbf4094cb6fc00eef5bdc007e99bc19824a04bb8174ac39a8a00c",
+        "size_bytes": 292255
+      }
+    ],
+    "single_cv_summary": {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_cv_summary.json",
+      "sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+      "size_bytes": 21254
+    },
+    "single_oof": {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+      "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8",
+      "size_bytes": 11166225
+    },
+    "single_raw_decisions": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/decisions.parquet",
+      "sha256": "db4163024b6d4e94f0422711bb017bb227a46b9c0fa6c846a65d81dba8d68c94",
+      "size_bytes": 2830702
+    },
+    "single_raw_economic_summary": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/summary.json",
+      "sha256": "2540637233a47f36d14a16f34f08027823e7ff0c48f155e31f8f658519b0fbc0",
+      "size_bytes": 6525
+    },
+    "single_raw_trades": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet",
+      "sha256": "7b66f0441481c15835bb2435c951e7a1212cc64189113f33b5a28414e7a76f51",
+      "size_bytes": 458768
+    },
+    "source_documents": {
+      "base70_information_report": {
+        "path": "reports/btc_preopen/btc_base70_information_value_20261018.md",
+        "sha256": "6cbe6607444a1f8ad5b6e895bd1a2f9b731609fb3eb578f602f968fd6d80240b",
+        "size_bytes": 13533
+      },
+      "base70_information_run_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json",
+        "sha256": "146d183f8a3ef48058cd93ca2b086ca3d90a167007a3e49c4f9df88b51e42f1d",
+        "size_bytes": 172947
+      },
+      "base70_information_versioned_manifest": {
+        "path": "reports/btc_preopen/btc_base70_information_value_20261018_manifest.json",
+        "sha256": "146d183f8a3ef48058cd93ca2b086ca3d90a167007a3e49c4f9df88b51e42f1d",
+        "size_bytes": 172947
+      },
+      "seed_stability_config": {
+        "path": "configs/research/btc_base70_seed_stability_20261018.json",
+        "sha256": "67949071b6f566103507f90d643999183f023b60db2874cbc6aee4135b5ab50d",
+        "size_bytes": 2330
+      },
+      "seed_stability_report": {
+        "path": "reports/btc_preopen/btc_base70_seed_stability_20261018.md",
+        "sha256": "06725bdb6499ecfd90ad880275f07fb7b6f5158551bcca3d246c9c25e0575bb9",
+        "size_bytes": 19098
+      },
+      "seed_stability_run_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_seed_stability_20261018/run_manifest.json",
+        "sha256": "8a9ad17c22699ae1e704f772ddcfaa50864fa16fe7ef7ab392577e416263f7cd",
+        "size_bytes": 279193
+      },
+      "seed_stability_runner": {
+        "path": "run_btc_base70_seed_stability_20261018.py",
+        "sha256": "4ac81d093dde24cb88671747ce973706a3ec83b1a2d9bf18668cff0e2c748605",
+        "size_bytes": 102367
+      },
+      "seed_stability_versioned_manifest": {
+        "path": "reports/btc_preopen/btc_base70_seed_stability_20261018_manifest.json",
+        "sha256": "8a9ad17c22699ae1e704f772ddcfaa50864fa16fe7ef7ab392577e416263f7cd",
+        "size_bytes": 279193
+      },
+      "taker_flow_report": {
+        "path": "reports/btc_preopen/btc_preopen_taker_flow_20261018.md",
+        "sha256": "7e53655eec69a359afd57b09f871d7d25a60f86c065c6f9f8ef6a51caaf89264",
+        "size_bytes": 10670
+      },
+      "taker_flow_run_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json",
+        "sha256": "6285276610ba2272b0a8d016d54acff512a667f3a6888b346466da476b89e967",
+        "size_bytes": 233620
+      },
+      "taker_flow_runner": {
+        "path": "run_btc_preopen_taker_flow_20261018.py",
+        "sha256": "eedf91469c3020ab59b90c3ad7f6853f229963c9967e6740fba1253db6413818",
+        "size_bytes": 112785
+      }
+    },
+    "source_full_features_config": {
+      "path": "configs/research/btc_base70_full_features_20261018.json",
+      "sha256": "bc25989cc0fa255462c1bcd249baf58b117b2a87bf258f3a897cf83d2fee5ab5",
+      "size_bytes": 2279
+    },
+    "source_full_features_identity_sha256": "d8ab2dcd41d6f8e969276ccbbca7f1121c6f0fe9e8983e517d2f9beb1bc43f5e",
+    "source_full_features_report": {
+      "path": "reports/btc_preopen/btc_base70_full_features_20261018.md",
+      "sha256": "7ea623d9d894363bfd8de0ddc1211d705bc9e733061929563df76154d4593904",
+      "size_bytes": 13447
+    },
+    "source_full_features_run_manifest": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_full_features_20261018/run_manifest.json",
+      "sha256": "1b3f3779b559a78d8579f3123eebeeda25420a2dce4b9c5089aff6d9ee1f76cd",
+      "size_bytes": 136479
+    },
+    "source_full_features_runner": {
+      "path": "run_btc_base70_full_features_20261018.py",
+      "sha256": "d8a3aba954259d7712897ff6c7a3ea677ee1d8efa2d55162662979e56e8497d5",
+      "size_bytes": 80840
+    },
+    "source_full_features_versioned_manifest": {
+      "path": "reports/btc_preopen/btc_base70_full_features_20261018_manifest.json",
+      "sha256": "e532fcbfcd9a5ce35352658360209fe1c5a50f95e30fb08b7ab1999963e29f2f",
+      "size_bytes": 183860
+    },
+    "t59_snapshot": {
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+      "sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0",
+      "size_bytes": 26051278
+    },
+    "t60_snapshot": {
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+      "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+      "size_bytes": 25908421
+    }
+  },
+  "stages": {
+    "common_predictions": {
+      "elapsed_seconds": 0.2755957999979728,
+      "finished_utc": "2026-10-18T13:02:46.038897+00:00",
+      "started_utc": "2026-10-18T13:02:45.751265+00:00",
+      "status": "completed",
+      "summary": {
+        "elapsed_seconds": 0.2755957999979728,
+        "identical_row_and_fold_indices_verified": true,
+        "oof_rows": 318560,
+        "single_oof_reused": true,
+        "variants": [
+          "SINGLE",
+          "RECENT365"
+        ]
+      }
+    },
+    "economics_RECENT365": {
+      "decision_rows": 20735,
+      "elapsed_seconds": 22.036978699994506,
+      "fill_rows": 967,
+      "finished_utc": "2026-10-18T13:04:18.090455+00:00",
+      "started_utc": "2026-10-18T13:03:56.051992+00:00",
+      "status": "completed",
+      "summary": {
+        "accounting_audit": {
+          "cash_constraint_applied": false,
+          "checks": {
+            "cash_debit_equals_gross_plus_cash_fee": true,
+            "cost_basis_exposure_never_negative": true,
+            "daily_log_growth_reconciles_to_final_equity": true,
+            "decision_to_execution_is_one_second": true,
+            "ending_cash_matches_sum_of_trade_pnl": true,
+            "equity_equals_cash_plus_locked_cost": true,
+            "fee_mode_matches_cash_or_share_collection": true,
+            "free_cash_never_negative": true,
+            "one_entry_and_one_settlement_per_trade": true,
+            "payout_matches_resolved_outcome": true,
+            "prediction_available_before_entry": true,
+            "prediction_computed_within_one_second": true,
+            "requested_stake_uses_only_policy_capital_base": true,
+            "shares_reconcile_with_share_fees": true,
+            "trades_have_no_future_snapshot_events": true,
+            "trades_have_no_future_t60_snapshot_events": true,
+            "unresolved_book_value_reconciles_cost_basis_equity": true,
+            "unresolved_gross_matches_locked_cost": true
+          },
+          "decision_count": 20735,
+          "ending_cash_usd": -60.48323867701167,
+          "minimum_cash_usd": -248.4998993744904,
+          "settlement_count": 967,
+          "status": "passed",
+          "trade_count": 967,
+          "trade_pnl_sum_usd": -60.48323867701171,
+          "unresolved_fill_count": 0
+        },
+        "ask_vwap_quantiles": {
+          "median": 0.49,
+          "p25": 0.47000000000000003,
+          "p75": 0.5
+        },
+        "calendar": {
+          "excluded_until_after_cutoff_or_missing_resolution_or_official_outcome": 17,
+          "market_rows_in_period": 20735,
+          "market_start_first_utc": "2026-04-20T00:00:00+00:00",
+          "market_start_last_utc": "2026-06-30T23:50:00+00:00",
+          "missing_official_outcome_rows": 17,
+          "official_outcomes_and_cash_releases_available_by_cutoff": 20718,
+          "selection_or_evaluation_cutoff_utc": "2026-07-01T00:00:00+00:00"
+        },
+        "daily_log_growth": {
+          "not_applicable": "independent orders; no portfolio capital base"
+        },
+        "decision_count": 20735,
+        "down_fill_count": 651,
+        "down_settlement_count": 651,
+        "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+        "elapsed_seconds": 21.819134199999098,
+        "ending_cash_after_settlement_usd": -60.48323867701167,
+        "ending_cost_basis_equity_usd": -60.48323867701167,
+        "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+        "fees_paid_estimated_usd": 177.45820358999998,
+        "fill_count": 967,
+        "forecast_net_ev_on_settled_fills_usd": 260.8630910455408,
+        "gross_stake_quantiles_usd": {
+          "median": 5.0,
+          "p0": 4.999999999999999,
+          "p100": 5.0,
+          "p25": 5.0,
+          "p75": 5.0
+        },
+        "gross_turnover_usd": 4835.0,
+        "independent_order_mode": true,
+        "initial_cash_usd": 0.0,
+        "intent_count": 976,
+        "max_drawdown_cost_basis_equity": null,
+        "max_drawdown_peak_utc": null,
+        "max_drawdown_trough_utc": null,
+        "maximum_concurrent_cost_basis_exposure_usd": 10.0,
+        "maximum_concurrent_positions": 2,
+        "minimum_free_cash_usd": null,
+        "minimum_net_ev_fraction": 0.01,
+        "monthly_continuous_portfolio": [],
+        "monthly_diagnostics": [],
+        "monthly_results": [
+          {
+            "down_fills": 53,
+            "down_net_pnl_usd": -27.520251449925418,
+            "down_settlements": 53,
+            "fees_usd": 10.565993589999998,
+            "fills": 58,
+            "forecast_ev_on_settled_fills_usd": 8.159592584641874,
+            "gross_turnover_usd": 290.0,
+            "intents": 59,
+            "net_pnl_usd": -33.42221188129796,
+            "pnl_minus_forecast_ev_on_settled_fills_usd": -41.58180446593984,
+            "pnl_per_settled_turnover": -0.11524900648723435,
+            "settled_turnover_usd": 290.0,
+            "settlements": 58,
+            "unresolved_fills": 0,
+            "up_fills": 5,
+            "up_net_pnl_usd": -5.901960431372547,
+            "up_settlements": 5,
+            "utc_month": "2026-04",
+            "variant": "RECENT365"
+          },
+          {
+            "down_fills": 352,
+            "down_net_pnl_usd": -123.11881958513058,
+            "down_settlements": 352,
+            "fees_usd": 87.86567,
+            "fills": 469,
+            "forecast_ev_on_settled_fills_usd": 176.1438727291887,
+            "gross_turnover_usd": 2345.0,
+            "intents": 475,
+            "net_pnl_usd": -133.78371790592865,
+            "pnl_minus_forecast_ev_on_settled_fills_usd": -309.9275906351173,
+            "pnl_per_settled_turnover": -0.05705062597267747,
+            "settled_turnover_usd": 2345.0,
+            "settlements": 469,
+            "unresolved_fills": 0,
+            "up_fills": 117,
+            "up_net_pnl_usd": -10.66489832079803,
+            "up_settlements": 117,
+            "utc_month": "2026-05",
+            "variant": "RECENT365"
+          },
+          {
+            "down_fills": 246,
+            "down_net_pnl_usd": 74.10960961447175,
+            "down_settlements": 246,
+            "fees_usd": 79.02654,
+            "fills": 440,
+            "forecast_ev_on_settled_fills_usd": 76.55962573171024,
+            "gross_turnover_usd": 2200.0,
+            "intents": 442,
+            "net_pnl_usd": 106.72269111021483,
+            "pnl_minus_forecast_ev_on_settled_fills_usd": 30.163065378504584,
+            "pnl_per_settled_turnover": 0.04851031414100674,
+            "settled_turnover_usd": 2200.0,
+            "settlements": 440,
+            "unresolved_fills": 0,
+            "up_fills": 194,
+            "up_net_pnl_usd": 32.613081495743074,
+            "up_settlements": 194,
+            "utc_month": "2026-06",
+            "variant": "RECENT365"
+          }
+        ],
+        "net_pnl_usd": -60.48323867701174,
+        "pnl_minus_forecast_ev_on_settled_fills_usd": -321.3463297225525,
+        "pnl_per_settled_turnover": -0.012509459912515355,
+        "policy": "RECENT365",
+        "rejections_by_reason": {
+          "ambiguous_equal_source_timestamp_order": 4,
+          "below_minimum_net_ev_fraction": 550,
+          "crossed_token_book_at_entry": 2,
+          "native_ask_bbo_reconciliation_mismatch": 3,
+          "no_gamma_market_record": 7,
+          "no_positive_net_expected_value": 7292,
+          "no_priceable_native_ask_side": 11910
+        },
+        "settled_trade_count": 967,
+        "settled_turnover_usd": 4835.0,
+        "settlement_count": 967,
+        "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+        "side_selection_rule": "positive net EV side at requested amount",
+        "sizing_policy": "fixed_5_usd",
+        "trade_count": 967,
+        "unresolved_cash_debit_usd": 0.0,
+        "unresolved_fill_count": 0,
+        "unresolved_gross_turnover_usd": 0.0,
+        "unresolved_locked_cost_usd": 0.0,
+        "up_fill_count": 316,
+        "up_settlement_count": 316,
+        "variant": "RECENT365"
+      }
+    },
+    "economics_SINGLE": {
+      "decision_rows": 20735,
+      "elapsed_seconds": 20.6133891999998,
+      "fill_rows": 1038,
+      "finished_utc": "2026-10-18T13:03:55.788804+00:00",
+      "started_utc": "2026-10-18T13:03:35.174008+00:00",
+      "status": "completed",
+      "summary": {
+        "accounting_audit": {
+          "cash_constraint_applied": false,
+          "checks": {
+            "cash_debit_equals_gross_plus_cash_fee": true,
+            "cost_basis_exposure_never_negative": true,
+            "daily_log_growth_reconciles_to_final_equity": true,
+            "decision_to_execution_is_one_second": true,
+            "ending_cash_matches_sum_of_trade_pnl": true,
+            "equity_equals_cash_plus_locked_cost": true,
+            "fee_mode_matches_cash_or_share_collection": true,
+            "free_cash_never_negative": true,
+            "one_entry_and_one_settlement_per_trade": true,
+            "payout_matches_resolved_outcome": true,
+            "prediction_available_before_entry": true,
+            "prediction_computed_within_one_second": true,
+            "requested_stake_uses_only_policy_capital_base": true,
+            "shares_reconcile_with_share_fees": true,
+            "trades_have_no_future_snapshot_events": true,
+            "trades_have_no_future_t60_snapshot_events": true,
+            "unresolved_book_value_reconciles_cost_basis_equity": true,
+            "unresolved_gross_matches_locked_cost": true
+          },
+          "decision_count": 20735,
+          "ending_cash_usd": 267.43939523862554,
+          "minimum_cash_usd": -43.22650310392036,
+          "settlement_count": 1038,
+          "status": "passed",
+          "trade_count": 1038,
+          "trade_pnl_sum_usd": 267.4393952386261,
+          "unresolved_fill_count": 0
+        },
+        "ask_vwap_quantiles": {
+          "median": 0.5,
+          "p25": 0.47000000000000003,
+          "p75": 0.51
+        },
+        "calendar": {
+          "excluded_until_after_cutoff_or_missing_resolution_or_official_outcome": 17,
+          "market_rows_in_period": 20735,
+          "market_start_first_utc": "2026-04-20T00:00:00+00:00",
+          "market_start_last_utc": "2026-06-30T23:50:00+00:00",
+          "missing_official_outcome_rows": 17,
+          "official_outcomes_and_cash_releases_available_by_cutoff": 20718,
+          "selection_or_evaluation_cutoff_utc": "2026-07-01T00:00:00+00:00"
+        },
+        "daily_log_growth": {
+          "not_applicable": "independent orders; no portfolio capital base"
+        },
+        "decision_count": 20735,
+        "down_fill_count": 545,
+        "down_settlement_count": 545,
+        "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+        "elapsed_seconds": 20.40883030000259,
+        "ending_cash_after_settlement_usd": 267.43939523862554,
+        "ending_cost_basis_equity_usd": 267.43939523862554,
+        "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+        "fees_paid_estimated_usd": 188.84247133,
+        "fill_count": 1038,
+        "forecast_net_ev_on_settled_fills_usd": 279.60495356371416,
+        "gross_stake_quantiles_usd": {
+          "median": 5.0,
+          "p0": 4.999999999999999,
+          "p100": 5.000000000000001,
+          "p25": 5.0,
+          "p75": 5.0
+        },
+        "gross_turnover_usd": 5190.0,
+        "independent_order_mode": true,
+        "initial_cash_usd": 0.0,
+        "intent_count": 1047,
+        "max_drawdown_cost_basis_equity": null,
+        "max_drawdown_peak_utc": null,
+        "max_drawdown_trough_utc": null,
+        "maximum_concurrent_cost_basis_exposure_usd": 10.0,
+        "maximum_concurrent_positions": 2,
+        "minimum_free_cash_usd": null,
+        "minimum_net_ev_fraction": 0.01,
+        "monthly_continuous_portfolio": [],
+        "monthly_diagnostics": [],
+        "monthly_results": [
+          {
+            "down_fills": 49,
+            "down_net_pnl_usd": -35.70161452195424,
+            "down_settlements": 49,
+            "fees_usd": 11.45159133,
+            "fills": 63,
+            "forecast_ev_on_settled_fills_usd": 9.395747502090323,
+            "gross_turnover_usd": 315.0,
+            "intents": 63,
+            "net_pnl_usd": -10.385948908909016,
+            "pnl_minus_forecast_ev_on_settled_fills_usd": -19.781696410999338,
+            "pnl_per_settled_turnover": -0.03297126637748894,
+            "settled_turnover_usd": 315.0,
+            "settlements": 63,
+            "unresolved_fills": 0,
+            "up_fills": 14,
+            "up_net_pnl_usd": 25.315665613045226,
+            "up_settlements": 14,
+            "utc_month": "2026-04",
+            "variant": "SINGLE"
+          },
+          {
+            "down_fills": 323,
+            "down_net_pnl_usd": 61.26014996931506,
+            "down_settlements": 323,
+            "fees_usd": 83.84808,
+            "fills": 447,
+            "forecast_ev_on_settled_fills_usd": 177.30051606245837,
+            "gross_turnover_usd": 2235.0,
+            "intents": 455,
+            "net_pnl_usd": 66.11985153051829,
+            "pnl_minus_forecast_ev_on_settled_fills_usd": -111.18066453194008,
+            "pnl_per_settled_turnover": 0.02958382618815136,
+            "settled_turnover_usd": 2235.0,
+            "settlements": 447,
+            "unresolved_fills": 0,
+            "up_fills": 124,
+            "up_net_pnl_usd": 4.859701561203208,
+            "up_settlements": 124,
+            "utc_month": "2026-05",
+            "variant": "SINGLE"
+          },
+          {
+            "down_fills": 173,
+            "down_net_pnl_usd": 58.47021530334804,
+            "down_settlements": 173,
+            "fees_usd": 93.5428,
+            "fills": 528,
+            "forecast_ev_on_settled_fills_usd": 92.90868999916549,
+            "gross_turnover_usd": 2640.0,
+            "intents": 529,
+            "net_pnl_usd": 211.70549261701677,
+            "pnl_minus_forecast_ev_on_settled_fills_usd": 118.79680261785128,
+            "pnl_per_settled_turnover": 0.08019147447614272,
+            "settled_turnover_usd": 2640.0,
+            "settlements": 528,
+            "unresolved_fills": 0,
+            "up_fills": 355,
+            "up_net_pnl_usd": 153.23527731366875,
+            "up_settlements": 355,
+            "utc_month": "2026-06",
+            "variant": "SINGLE"
+          }
+        ],
+        "net_pnl_usd": 267.439395238626,
+        "pnl_minus_forecast_ev_on_settled_fills_usd": -12.16555832508817,
+        "pnl_per_settled_turnover": 0.05152974860089133,
+        "policy": "SINGLE",
+        "rejections_by_reason": {
+          "ambiguous_equal_source_timestamp_order": 4,
+          "below_minimum_net_ev_fraction": 608,
+          "crossed_token_book_at_entry": 1,
+          "native_ask_bbo_reconciliation_mismatch": 4,
+          "no_gamma_market_record": 7,
+          "no_positive_net_expected_value": 7163,
+          "no_priceable_native_ask_side": 11910
+        },
+        "settled_trade_count": 1038,
+        "settled_turnover_usd": 5190.0,
+        "settlement_count": 1038,
+        "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+        "side_selection_rule": "positive net EV side at requested amount",
+        "sizing_policy": "fixed_5_usd",
+        "trade_count": 1038,
+        "unresolved_cash_debit_usd": 0.0,
+        "unresolved_fill_count": 0,
+        "unresolved_gross_turnover_usd": 0.0,
+        "unresolved_locked_cost_usd": 0.0,
+        "up_fill_count": 493,
+        "up_settlement_count": 493,
+        "variant": "SINGLE"
+      }
+    },
+    "economics_summary": {
+      "elapsed_seconds": 46.558836999996856,
+      "finished_utc": "2026-10-18T13:04:19.487823+00:00",
+      "status": "completed",
+      "summary": {
+        "accounting_audits_passed": true,
+        "availability": {
+          "calendar_days": 72,
+          "decision_rows": 20735,
+          "first_market_start_utc": "2026-04-20T00:00:00+00:00",
+          "last_market_start_utc": "2026-06-30T23:50:00+00:00"
+        },
+        "bootstrap": {
+          "block_days": 3,
+          "calendar_days": 72,
+          "contrasts": {
+            "RECENT365_MINUS_SINGLE": {
+              "mean_daily_pnl_difference_usd": {
+                "95pct": [
+                  -9.055952248521171,
+                  -0.09900968871022306
+                ],
+                "estimate_median": -4.527589758151041,
+                "point_estimate": -4.554481026606081,
+                "valid_replications": 2000
+              },
+              "pnl_per_settled_turnover_difference": {
+                "95pct": [
+                  -0.15749340639196402,
+                  -0.00032397182356401006
+                ],
+                "estimate_median": -0.06238568512381658,
+                "point_estimate": -0.0640392085134067,
+                "valid_replications": 2000
+              }
+            }
+          },
+          "replications": 2000,
+          "seed": 20261018,
+          "variants": {
+            "RECENT365": {
+              "mean_daily_pnl_usd": {
+                "95pct": [
+                  -4.374491045846477,
+                  2.8964512987293456
+                ],
+                "estimate_median": -0.8088158675928638,
+                "point_estimate": -0.8400449816251631,
+                "valid_replications": 2000
+              },
+              "pnl_per_settled_turnover": {
+                "95pct": [
+                  -0.09247695085411216,
+                  0.03355984228166767
+                ],
+                "estimate_median": -0.012100447825844383,
+                "point_estimate": -0.012509459912515355,
+                "valid_replications": 2000
+              }
+            },
+            "SINGLE": {
+              "mean_daily_pnl_usd": {
+                "95pct": [
+                  -0.19667892837614018,
+                  8.26797555090949
+                ],
+                "estimate_median": 3.60619524421102,
+                "point_estimate": 3.714436044980918,
+                "valid_replications": 2000
+              },
+              "pnl_per_settled_turnover": {
+                "95pct": [
+                  -0.0036207099087502584,
+                  0.09423765812881332
+                ],
+                "estimate_median": 0.051062880835646245,
+                "point_estimate": 0.05152974860089135,
+                "valid_replications": 2000
+              }
+            }
+          }
+        },
+        "concentration": {
+          "RECENT365": {
+            "remaining_days_pnl_usd": -227.9807616536828,
+            "top_five_days": [
+              {
+                "net_pnl_usd": 48.31084117439828,
+                "utc_day": "2026-05-28T00:00:00+00:00"
+              },
+              {
+                "net_pnl_usd": 34.423794761168786,
+                "utc_day": "2026-06-09T00:00:00+00:00"
+              },
+              {
+                "net_pnl_usd": 32.33394254530864,
+                "utc_day": "2026-05-31T00:00:00+00:00"
+              },
+              {
+                "net_pnl_usd": 27.511502120357623,
+                "utc_day": "2026-06-06T00:00:00+00:00"
+              },
+              {
+                "net_pnl_usd": 24.91744237543772,
+                "utc_day": "2026-06-07T00:00:00+00:00"
+              }
+            ],
+            "top_five_pnl_usd": 167.49752297667106,
+            "top_five_share_of_total_pnl": -2.7693213300155666,
+            "total_pnl_usd": -60.48323867701173
+          },
+          "SINGLE": {
+            "remaining_days_pnl_usd": 49.23349547571425,
+            "top_five_days": [
+              {
+                "net_pnl_usd": 70.30395893040395,
+                "utc_day": "2026-06-09T00:00:00+00:00"
+              },
+              {
+                "net_pnl_usd": 54.43021133312142,
+                "utc_day": "2026-06-03T00:00:00+00:00"
+              },
+              {
+                "net_pnl_usd": 35.05206484940123,
+                "utc_day": "2026-05-31T00:00:00+00:00"
+              },
+              {
+                "net_pnl_usd": 31.47680455939821,
+                "utc_day": "2026-05-30T00:00:00+00:00"
+              },
+              {
+                "net_pnl_usd": 26.94286009058705,
+                "utc_day": "2026-06-07T00:00:00+00:00"
+              }
+            ],
+            "top_five_pnl_usd": 218.20589976291186,
+            "top_five_share_of_total_pnl": 0.815907841730703,
+            "total_pnl_usd": 267.4393952386261
+          }
+        },
+        "daily_calendar_rows_including_no_fill_days": 72,
+        "elapsed_seconds": 46.558836999996856,
+        "pnl_decomposition_RECENT365_minus_SINGLE": {
+          "components_usd": {
+            "settled_fills_only_one_variant": -327.92263391563824,
+            "settled_fills_opposite_sides": 0.0,
+            "settled_fills_same_side": 0.0
+          },
+          "left_variant": "RECENT365",
+          "market_counts": {
+            "settled_fills_only_one_variant": 957,
+            "settled_fills_opposite_sides": 0,
+            "settled_fills_same_side": 524
+          },
+          "realized_pnl_difference_usd": -327.92263391563773,
+          "right_variant": "SINGLE",
+          "sum_reconciles": true,
+          "unresolved_fills_reported_separately": {
+            "RECENT365": 0,
+            "SINGLE": 0
+          },
+          "unresolved_trade_outcomes_used_in_decomposition": false
+        },
+        "single_anchor_reproduction": {
+          "actual_fills": 1038,
+          "actual_net_pnl_usd": 267.439395238626,
+          "actual_turnover_usd": 5190.0,
+          "checks": {
+            "fills": true,
+            "net_pnl": true,
+            "settled_ledger_matches_previous_RAW": true,
+            "turnover": true
+          },
+          "expected_fills": 1038,
+          "expected_net_pnl_usd": 267.439395238626,
+          "expected_turnover_usd": 5190.0,
+          "passed": true
+        },
+        "up_down_economics": [
+          {
+            "fees_usd": 88.79520776999999,
+            "fills": 493,
+            "forecast_ev_usd": 134.63921190659053,
+            "net_pnl_usd": 183.41064448791712,
+            "pnl_minus_ev_usd": 48.77143258132659,
+            "pnl_per_settled_turnover": 0.07440594096872906,
+            "settlements": 493,
+            "side": "UP",
+            "turnover_usd": 2465.0,
+            "variant": "SINGLE"
+          },
+          {
+            "fees_usd": 100.04726356,
+            "fills": 545,
+            "forecast_ev_usd": 144.96574165712366,
+            "net_pnl_usd": 84.02875075070888,
+            "pnl_minus_ev_usd": -60.93699090641478,
+            "pnl_per_settled_turnover": 0.03083623880759959,
+            "settlements": 545,
+            "side": "DOWN",
+            "turnover_usd": 2725.0,
+            "variant": "SINGLE"
+          },
+          {
+            "fees_usd": 58.30342982,
+            "fills": 316,
+            "forecast_ev_usd": 104.07964662168074,
+            "net_pnl_usd": 16.046222743572493,
+            "pnl_minus_ev_usd": -88.03342387810824,
+            "pnl_per_settled_turnover": 0.010155837179476261,
+            "settlements": 316,
+            "side": "UP",
+            "turnover_usd": 1580.0,
+            "variant": "RECENT365"
+          },
+          {
+            "fees_usd": 119.15477377,
+            "fills": 651,
+            "forecast_ev_usd": 156.78344442386003,
+            "net_pnl_usd": -76.52946142058428,
+            "pnl_minus_ev_usd": -233.31290584444432,
+            "pnl_per_settled_turnover": -0.023511355275141102,
+            "settlements": 651,
+            "side": "DOWN",
+            "turnover_usd": 3255.0,
+            "variant": "RECENT365"
+          }
+        ],
+        "variants": {
+          "RECENT365": {
+            "accounting_audit": {
+              "cash_constraint_applied": false,
+              "checks": {
+                "cash_debit_equals_gross_plus_cash_fee": true,
+                "cost_basis_exposure_never_negative": true,
+                "daily_log_growth_reconciles_to_final_equity": true,
+                "decision_to_execution_is_one_second": true,
+                "ending_cash_matches_sum_of_trade_pnl": true,
+                "equity_equals_cash_plus_locked_cost": true,
+                "fee_mode_matches_cash_or_share_collection": true,
+                "free_cash_never_negative": true,
+                "one_entry_and_one_settlement_per_trade": true,
+                "payout_matches_resolved_outcome": true,
+                "prediction_available_before_entry": true,
+                "prediction_computed_within_one_second": true,
+                "requested_stake_uses_only_policy_capital_base": true,
+                "shares_reconcile_with_share_fees": true,
+                "trades_have_no_future_snapshot_events": true,
+                "trades_have_no_future_t60_snapshot_events": true,
+                "unresolved_book_value_reconciles_cost_basis_equity": true,
+                "unresolved_gross_matches_locked_cost": true
+              },
+              "decision_count": 20735,
+              "ending_cash_usd": -60.48323867701167,
+              "minimum_cash_usd": -248.4998993744904,
+              "settlement_count": 967,
+              "status": "passed",
+              "trade_count": 967,
+              "trade_pnl_sum_usd": -60.48323867701171,
+              "unresolved_fill_count": 0
+            },
+            "ask_vwap_quantiles": {
+              "median": 0.49,
+              "p25": 0.47000000000000003,
+              "p75": 0.5
+            },
+            "calendar": {
+              "excluded_until_after_cutoff_or_missing_resolution_or_official_outcome": 17,
+              "market_rows_in_period": 20735,
+              "market_start_first_utc": "2026-04-20T00:00:00+00:00",
+              "market_start_last_utc": "2026-06-30T23:50:00+00:00",
+              "missing_official_outcome_rows": 17,
+              "official_outcomes_and_cash_releases_available_by_cutoff": 20718,
+              "selection_or_evaluation_cutoff_utc": "2026-07-01T00:00:00+00:00"
+            },
+            "daily_log_growth": {
+              "not_applicable": "independent orders; no portfolio capital base"
+            },
+            "decision_count": 20735,
+            "down_fill_count": 651,
+            "down_settlement_count": 651,
+            "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+            "elapsed_seconds": 21.819134199999098,
+            "ending_cash_after_settlement_usd": -60.48323867701167,
+            "ending_cost_basis_equity_usd": -60.48323867701167,
+            "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+            "fees_paid_estimated_usd": 177.45820358999998,
+            "fill_count": 967,
+            "forecast_net_ev_on_settled_fills_usd": 260.8630910455408,
+            "gross_stake_quantiles_usd": {
+              "median": 5.0,
+              "p0": 4.999999999999999,
+              "p100": 5.0,
+              "p25": 5.0,
+              "p75": 5.0
+            },
+            "gross_turnover_usd": 4835.0,
+            "independent_order_mode": true,
+            "initial_cash_usd": 0.0,
+            "intent_count": 976,
+            "max_drawdown_cost_basis_equity": null,
+            "max_drawdown_peak_utc": null,
+            "max_drawdown_trough_utc": null,
+            "maximum_concurrent_cost_basis_exposure_usd": 10.0,
+            "maximum_concurrent_positions": 2,
+            "minimum_free_cash_usd": null,
+            "minimum_net_ev_fraction": 0.01,
+            "monthly_continuous_portfolio": [],
+            "monthly_diagnostics": [],
+            "monthly_results": [
+              {
+                "down_fills": 53,
+                "down_net_pnl_usd": -27.520251449925418,
+                "down_settlements": 53,
+                "fees_usd": 10.565993589999998,
+                "fills": 58,
+                "forecast_ev_on_settled_fills_usd": 8.159592584641874,
+                "gross_turnover_usd": 290.0,
+                "intents": 59,
+                "net_pnl_usd": -33.42221188129796,
+                "pnl_minus_forecast_ev_on_settled_fills_usd": -41.58180446593984,
+                "pnl_per_settled_turnover": -0.11524900648723435,
+                "settled_turnover_usd": 290.0,
+                "settlements": 58,
+                "unresolved_fills": 0,
+                "up_fills": 5,
+                "up_net_pnl_usd": -5.901960431372547,
+                "up_settlements": 5,
+                "utc_month": "2026-04",
+                "variant": "RECENT365"
+              },
+              {
+                "down_fills": 352,
+                "down_net_pnl_usd": -123.11881958513058,
+                "down_settlements": 352,
+                "fees_usd": 87.86567,
+                "fills": 469,
+                "forecast_ev_on_settled_fills_usd": 176.1438727291887,
+                "gross_turnover_usd": 2345.0,
+                "intents": 475,
+                "net_pnl_usd": -133.78371790592865,
+                "pnl_minus_forecast_ev_on_settled_fills_usd": -309.9275906351173,
+                "pnl_per_settled_turnover": -0.05705062597267747,
+                "settled_turnover_usd": 2345.0,
+                "settlements": 469,
+                "unresolved_fills": 0,
+                "up_fills": 117,
+                "up_net_pnl_usd": -10.66489832079803,
+                "up_settlements": 117,
+                "utc_month": "2026-05",
+                "variant": "RECENT365"
+              },
+              {
+                "down_fills": 246,
+                "down_net_pnl_usd": 74.10960961447175,
+                "down_settlements": 246,
+                "fees_usd": 79.02654,
+                "fills": 440,
+                "forecast_ev_on_settled_fills_usd": 76.55962573171024,
+                "gross_turnover_usd": 2200.0,
+                "intents": 442,
+                "net_pnl_usd": 106.72269111021483,
+                "pnl_minus_forecast_ev_on_settled_fills_usd": 30.163065378504584,
+                "pnl_per_settled_turnover": 0.04851031414100674,
+                "settled_turnover_usd": 2200.0,
+                "settlements": 440,
+                "unresolved_fills": 0,
+                "up_fills": 194,
+                "up_net_pnl_usd": 32.613081495743074,
+                "up_settlements": 194,
+                "utc_month": "2026-06",
+                "variant": "RECENT365"
+              }
+            ],
+            "net_pnl_usd": -60.48323867701174,
+            "pnl_minus_forecast_ev_on_settled_fills_usd": -321.3463297225525,
+            "pnl_per_settled_turnover": -0.012509459912515355,
+            "policy": "RECENT365",
+            "rejections_by_reason": {
+              "ambiguous_equal_source_timestamp_order": 4,
+              "below_minimum_net_ev_fraction": 550,
+              "crossed_token_book_at_entry": 2,
+              "native_ask_bbo_reconciliation_mismatch": 3,
+              "no_gamma_market_record": 7,
+              "no_positive_net_expected_value": 7292,
+              "no_priceable_native_ask_side": 11910
+            },
+            "settled_trade_count": 967,
+            "settled_turnover_usd": 4835.0,
+            "settlement_count": 967,
+            "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+            "side_selection_rule": "positive net EV side at requested amount",
+            "sizing_policy": "fixed_5_usd",
+            "trade_count": 967,
+            "unresolved_cash_debit_usd": 0.0,
+            "unresolved_fill_count": 0,
+            "unresolved_gross_turnover_usd": 0.0,
+            "unresolved_locked_cost_usd": 0.0,
+            "up_fill_count": 316,
+            "up_settlement_count": 316,
+            "variant": "RECENT365"
+          },
+          "SINGLE": {
+            "accounting_audit": {
+              "cash_constraint_applied": false,
+              "checks": {
+                "cash_debit_equals_gross_plus_cash_fee": true,
+                "cost_basis_exposure_never_negative": true,
+                "daily_log_growth_reconciles_to_final_equity": true,
+                "decision_to_execution_is_one_second": true,
+                "ending_cash_matches_sum_of_trade_pnl": true,
+                "equity_equals_cash_plus_locked_cost": true,
+                "fee_mode_matches_cash_or_share_collection": true,
+                "free_cash_never_negative": true,
+                "one_entry_and_one_settlement_per_trade": true,
+                "payout_matches_resolved_outcome": true,
+                "prediction_available_before_entry": true,
+                "prediction_computed_within_one_second": true,
+                "requested_stake_uses_only_policy_capital_base": true,
+                "shares_reconcile_with_share_fees": true,
+                "trades_have_no_future_snapshot_events": true,
+                "trades_have_no_future_t60_snapshot_events": true,
+                "unresolved_book_value_reconciles_cost_basis_equity": true,
+                "unresolved_gross_matches_locked_cost": true
+              },
+              "decision_count": 20735,
+              "ending_cash_usd": 267.43939523862554,
+              "minimum_cash_usd": -43.22650310392036,
+              "settlement_count": 1038,
+              "status": "passed",
+              "trade_count": 1038,
+              "trade_pnl_sum_usd": 267.4393952386261,
+              "unresolved_fill_count": 0
+            },
+            "ask_vwap_quantiles": {
+              "median": 0.5,
+              "p25": 0.47000000000000003,
+              "p75": 0.51
+            },
+            "calendar": {
+              "excluded_until_after_cutoff_or_missing_resolution_or_official_outcome": 17,
+              "market_rows_in_period": 20735,
+              "market_start_first_utc": "2026-04-20T00:00:00+00:00",
+              "market_start_last_utc": "2026-06-30T23:50:00+00:00",
+              "missing_official_outcome_rows": 17,
+              "official_outcomes_and_cash_releases_available_by_cutoff": 20718,
+              "selection_or_evaluation_cutoff_utc": "2026-07-01T00:00:00+00:00"
+            },
+            "daily_log_growth": {
+              "not_applicable": "independent orders; no portfolio capital base"
+            },
+            "decision_count": 20735,
+            "down_fill_count": 545,
+            "down_settlement_count": 545,
+            "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+            "elapsed_seconds": 20.40883030000259,
+            "ending_cash_after_settlement_usd": 267.43939523862554,
+            "ending_cost_basis_equity_usd": 267.43939523862554,
+            "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+            "fees_paid_estimated_usd": 188.84247133,
+            "fill_count": 1038,
+            "forecast_net_ev_on_settled_fills_usd": 279.60495356371416,
+            "gross_stake_quantiles_usd": {
+              "median": 5.0,
+              "p0": 4.999999999999999,
+              "p100": 5.000000000000001,
+              "p25": 5.0,
+              "p75": 5.0
+            },
+            "gross_turnover_usd": 5190.0,
+            "independent_order_mode": true,
+            "initial_cash_usd": 0.0,
+            "intent_count": 1047,
+            "max_drawdown_cost_basis_equity": null,
+            "max_drawdown_peak_utc": null,
+            "max_drawdown_trough_utc": null,
+            "maximum_concurrent_cost_basis_exposure_usd": 10.0,
+            "maximum_concurrent_positions": 2,
+            "minimum_free_cash_usd": null,
+            "minimum_net_ev_fraction": 0.01,
+            "monthly_continuous_portfolio": [],
+            "monthly_diagnostics": [],
+            "monthly_results": [
+              {
+                "down_fills": 49,
+                "down_net_pnl_usd": -35.70161452195424,
+                "down_settlements": 49,
+                "fees_usd": 11.45159133,
+                "fills": 63,
+                "forecast_ev_on_settled_fills_usd": 9.395747502090323,
+                "gross_turnover_usd": 315.0,
+                "intents": 63,
+                "net_pnl_usd": -10.385948908909016,
+                "pnl_minus_forecast_ev_on_settled_fills_usd": -19.781696410999338,
+                "pnl_per_settled_turnover": -0.03297126637748894,
+                "settled_turnover_usd": 315.0,
+                "settlements": 63,
+                "unresolved_fills": 0,
+                "up_fills": 14,
+                "up_net_pnl_usd": 25.315665613045226,
+                "up_settlements": 14,
+                "utc_month": "2026-04",
+                "variant": "SINGLE"
+              },
+              {
+                "down_fills": 323,
+                "down_net_pnl_usd": 61.26014996931506,
+                "down_settlements": 323,
+                "fees_usd": 83.84808,
+                "fills": 447,
+                "forecast_ev_on_settled_fills_usd": 177.30051606245837,
+                "gross_turnover_usd": 2235.0,
+                "intents": 455,
+                "net_pnl_usd": 66.11985153051829,
+                "pnl_minus_forecast_ev_on_settled_fills_usd": -111.18066453194008,
+                "pnl_per_settled_turnover": 0.02958382618815136,
+                "settled_turnover_usd": 2235.0,
+                "settlements": 447,
+                "unresolved_fills": 0,
+                "up_fills": 124,
+                "up_net_pnl_usd": 4.859701561203208,
+                "up_settlements": 124,
+                "utc_month": "2026-05",
+                "variant": "SINGLE"
+              },
+              {
+                "down_fills": 173,
+                "down_net_pnl_usd": 58.47021530334804,
+                "down_settlements": 173,
+                "fees_usd": 93.5428,
+                "fills": 528,
+                "forecast_ev_on_settled_fills_usd": 92.90868999916549,
+                "gross_turnover_usd": 2640.0,
+                "intents": 529,
+                "net_pnl_usd": 211.70549261701677,
+                "pnl_minus_forecast_ev_on_settled_fills_usd": 118.79680261785128,
+                "pnl_per_settled_turnover": 0.08019147447614272,
+                "settled_turnover_usd": 2640.0,
+                "settlements": 528,
+                "unresolved_fills": 0,
+                "up_fills": 355,
+                "up_net_pnl_usd": 153.23527731366875,
+                "up_settlements": 355,
+                "utc_month": "2026-06",
+                "variant": "SINGLE"
+              }
+            ],
+            "net_pnl_usd": 267.439395238626,
+            "pnl_minus_forecast_ev_on_settled_fills_usd": -12.16555832508817,
+            "pnl_per_settled_turnover": 0.05152974860089133,
+            "policy": "SINGLE",
+            "rejections_by_reason": {
+              "ambiguous_equal_source_timestamp_order": 4,
+              "below_minimum_net_ev_fraction": 608,
+              "crossed_token_book_at_entry": 1,
+              "native_ask_bbo_reconciliation_mismatch": 4,
+              "no_gamma_market_record": 7,
+              "no_positive_net_expected_value": 7163,
+              "no_priceable_native_ask_side": 11910
+            },
+            "settled_trade_count": 1038,
+            "settled_turnover_usd": 5190.0,
+            "settlement_count": 1038,
+            "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+            "side_selection_rule": "positive net EV side at requested amount",
+            "sizing_policy": "fixed_5_usd",
+            "trade_count": 1038,
+            "unresolved_cash_debit_usd": 0.0,
+            "unresolved_fill_count": 0,
+            "unresolved_gross_turnover_usd": 0.0,
+            "unresolved_locked_cost_usd": 0.0,
+            "up_fill_count": 493,
+            "up_settlement_count": 493,
+            "variant": "SINGLE"
+          }
+        }
+      }
+    },
+    "execution_inputs": {
+      "elapsed_seconds": 2.250891199997568,
+      "finished_utc": "2026-10-18T13:03:35.170866+00:00",
+      "status": "completed",
+      "summary": {
+        "calendar_rows": 20735,
+        "elapsed_seconds": 2.250891199997568,
+        "first_market_start_utc": "2026-04-20T00:00:00+00:00",
+        "last_market_start_utc": "2026-06-30T23:50:00+00:00",
+        "snapshot_hashes_verified": true,
+        "t59_snapshot_rows": 50184,
+        "t60_snapshot_rows": 50184
+      }
+    },
+    "frozen_fold_counts": {
+      "elapsed_seconds": 0.0,
+      "finished_utc": "2026-10-18T13:10:32.924275+00:00",
+      "status": "completed",
+      "summary": {
+        "folds": [
+          {
+            "common_weight_multiplier": 3.0098889116145586,
+            "first_validation_decision_at_utc": "2023-06-20T16:44:00+00:00",
+            "fold_id": 0,
+            "original_training_source_row_index_sha256": "aee8c30ae70230263a7bf4cf2debec9f8c0131eb9ed40b3dd6d909412fa91c20",
+            "original_training_weight_sum": 316396.50307065994,
+            "recent365_scaled_weight_sum_requested": 316396.5030706599,
+            "recent365_source_row_index_sha256": "1be2f1f144d51a1e54b3c3e12f400f64691fb561fb2dfdceda3414a01b109523",
+            "recent365_unscaled_weight_sum": 105118.99686720967,
+            "scaled_weight_sha256": "579b01becca992534f7ee2fe6290f8c2688c67ee70eacc82c05c9e49c3542442",
+            "training_rows_after": 525595,
+            "training_rows_before": 1581985,
+            "validation_last_decision_at_utc": "2023-10-09T07:49:00+00:00",
+            "validation_rows": 31858,
+            "validation_source_row_index_sha256": "dae8a89a7aecadefb6329e7f744b77c638b8e52ae9c91468cb5f836a202e6399",
+            "window_end_exclusive_utc": "2023-06-20T16:44:00+00:00",
+            "window_start_inclusive_utc": "2022-06-20T16:44:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0308073125410844,
+            "first_validation_decision_at_utc": "2023-10-09T07:54:00+00:00",
+            "fold_id": 1,
+            "original_training_source_row_index_sha256": "61d0aa788a0af5fbc56542de18cac20da0edae8ccaabad9ce340e1f6a513e891",
+            "original_training_weight_sum": 318582.9905054867,
+            "recent365_scaled_weight_sum_requested": 318582.99050548667,
+            "recent365_source_row_index_sha256": "bfa76637ea9743eab739c9b13230d910e5a26f3e7757c725a60bb9b4f1c660e1",
+            "recent365_unscaled_weight_sum": 105114.89436732978,
+            "scaled_weight_sha256": "7e03ef98f8ad6d7e8f044126ed5abe8b14726f2af16a79f25267b476a83757ef",
+            "training_rows_after": 525574,
+            "training_rows_before": 1592915,
+            "validation_last_decision_at_utc": "2024-01-27T22:54:00+00:00",
+            "validation_rows": 31841,
+            "validation_source_row_index_sha256": "ba7a1a360835d83f9d600367eba0447165929b4b825cd4683d0d6f5b4ad63c96",
+            "window_end_exclusive_utc": "2023-10-09T07:54:00+00:00",
+            "window_start_inclusive_utc": "2022-10-09T07:54:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.031191833076408,
+            "first_validation_decision_at_utc": "2024-01-27T22:59:00+00:00",
+            "fold_id": 2,
+            "original_training_source_row_index_sha256": "8871080493de580232cd3ae1572147aa4c63ca69aedf814c1d2a5c2747c35dc0",
+            "original_training_weight_sum": 318562.78550608456,
+            "recent365_scaled_weight_sum_requested": 318562.78550608456,
+            "recent365_source_row_index_sha256": "7bb7c2659eeb311ce06d2c75d90249ffc2d9d81611762675b7192e068ed2a317",
+            "recent365_unscaled_weight_sum": 105094.89436792582,
+            "scaled_weight_sha256": "fed40c2930eada62f35433cae8770daa8c4809a8bac7268b83a7ba5244441b14",
+            "training_rows_after": 525474,
+            "training_rows_before": 1592813,
+            "validation_last_decision_at_utc": "2024-05-17T14:04:00+00:00",
+            "validation_rows": 31862,
+            "validation_source_row_index_sha256": "187cb0f6347abaaaced48697ca2dd46b4b75046ea87540ad683be12520890011",
+            "window_end_exclusive_utc": "2024-01-27T22:59:00+00:00",
+            "window_start_inclusive_utc": "2023-01-27T22:59:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.031311928525937,
+            "first_validation_decision_at_utc": "2024-05-17T14:09:00+00:00",
+            "fold_id": 3,
+            "original_training_source_row_index_sha256": "0864dcc46438a197a3b3a25bf495001653836b99259c1de7fa3fb2943431ef2c",
+            "original_training_weight_sum": 318574.78550572693,
+            "recent365_scaled_weight_sum_requested": 318574.785505727,
+            "recent365_source_row_index_sha256": "ec4d9dc7a062142af166b341a2323e9b6105e01d4f76de3cb4661956f24c8a2c",
+            "recent365_unscaled_weight_sum": 105094.68936792761,
+            "scaled_weight_sha256": "87884253ac494c32f187be316a952c1a6701c5b63361b4e4b445a82689c14162",
+            "training_rows_after": 525472,
+            "training_rows_before": 1592873,
+            "validation_last_decision_at_utc": "2024-09-05T05:09:00+00:00",
+            "validation_rows": 31861,
+            "validation_source_row_index_sha256": "6179c3aa79cff67d23f8adfe23205c377e67d9c67f4afec1f20462975ba08175",
+            "window_end_exclusive_utc": "2024-05-17T14:09:00+00:00",
+            "window_start_inclusive_utc": "2023-05-18T14:09:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.031293905056243,
+            "first_validation_decision_at_utc": "2024-09-05T05:14:00+00:00",
+            "fold_id": 4,
+            "original_training_source_row_index_sha256": "91a8563f90d90c7ec56f1fd858d2174c4601113301cea87f773e4dbf935bb3c8",
+            "original_training_weight_sum": 318574.99050572515,
+            "recent365_scaled_weight_sum_requested": 318574.99050572515,
+            "recent365_source_row_index_sha256": "310eddd6194c53a02edcc9d677237bd062d8549616e0983cbec35ebb73e7747c",
+            "recent365_unscaled_weight_sum": 105095.38186790049,
+            "scaled_weight_sha256": "e872e0339396f00e530a3c7aeee4d55c3f758d14a8674d598605f185fe0eb530",
+            "training_rows_after": 525474,
+            "training_rows_before": 1592875,
+            "validation_last_decision_at_utc": "2024-12-24T20:14:00+00:00",
+            "validation_rows": 31842,
+            "validation_source_row_index_sha256": "b9b931d60e68c5b34e605a51d847abbe2fe07ba4d06a6f14f0879ae4c679b357",
+            "window_end_exclusive_utc": "2024-09-05T05:14:00+00:00",
+            "window_start_inclusive_utc": "2023-09-06T05:14:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0309855722925683,
+            "first_validation_decision_at_utc": "2024-12-24T20:19:00+00:00",
+            "fold_id": 5,
+            "original_training_source_row_index_sha256": "1b098a8140bac96f267816a389be2658729a1d1065c717b678e3939191c87c17",
+            "original_training_weight_sum": 318557.1955062598,
+            "recent365_scaled_weight_sum_requested": 318557.19550625986,
+            "recent365_source_row_index_sha256": "b6c5cc9fb8d91ba08db8a4908ab841498531357c3dc8fc2ad8c60a1a635cf3ba",
+            "recent365_unscaled_weight_sum": 105100.20186777413,
+            "scaled_weight_sha256": "ace157dd7578c304fb7d0e797ea71cb5ae25066693f69cb2bd698425d289c70b",
+            "training_rows_after": 525502,
+            "training_rows_before": 1592787,
+            "validation_last_decision_at_utc": "2025-04-14T11:24:00+00:00",
+            "validation_rows": 31856,
+            "validation_source_row_index_sha256": "e148ee676ee68c0c11c35551184f940f2b4b3df1e29554c7b1ecbd6fb0aab4c3",
+            "window_end_exclusive_utc": "2024-12-24T20:19:00+00:00",
+            "window_start_inclusive_utc": "2023-12-25T20:19:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0310787285855065,
+            "first_validation_decision_at_utc": "2025-04-14T11:29:00+00:00",
+            "fold_id": 6,
+            "original_training_source_row_index_sha256": "78a9d7e059e21cfff84041e06456e19ce71243a13a89117018c36abd194dcd3f",
+            "original_training_weight_sum": 318552.528006427,
+            "recent365_scaled_weight_sum_requested": 318552.528006427,
+            "recent365_source_row_index_sha256": "17a5817eb9b5ab48e22359163af47dd204278905faf9626f5f7dc7b9bf0de19d",
+            "recent365_unscaled_weight_sum": 105095.43186794221,
+            "scaled_weight_sha256": "1672cd3a684a4815dc0f11b1387df6ce2cde3e24482cdc6e4f8918f587ca83a6",
+            "training_rows_after": 525484,
+            "training_rows_before": 1592770,
+            "validation_last_decision_at_utc": "2025-08-03T02:29:00+00:00",
+            "validation_rows": 31861,
+            "validation_source_row_index_sha256": "1105a2197c84c3ab50e4eadfc0094b650fe650bf60aac9c371f80b62ace23c88",
+            "window_end_exclusive_utc": "2025-04-14T11:29:00+00:00",
+            "window_start_inclusive_utc": "2024-04-14T11:29:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0312014808073293,
+            "first_validation_decision_at_utc": "2025-08-03T02:34:00+00:00",
+            "fold_id": 7,
+            "original_training_source_row_index_sha256": "e16cdecf7c87db467748cc1db0b77391a6f2c4f76e9f6325600a06f8a68bf577",
+            "original_training_weight_sum": 318565.11800604314,
+            "recent365_scaled_weight_sum_requested": 318565.11800604325,
+            "recent365_source_row_index_sha256": "42cb015a1b6d3804a05505497730f2dbebad7d8327791a8e88fda11702900241",
+            "recent365_unscaled_weight_sum": 105095.32936794311,
+            "scaled_weight_sha256": "bdf55ad7e1bb087c58322833ef6c8a255221ef57f8fbc8ea41d9a809db9ba621",
+            "training_rows_after": 525483,
+            "training_rows_before": 1592831,
+            "validation_last_decision_at_utc": "2025-11-21T17:39:00+00:00",
+            "validation_rows": 31858,
+            "validation_source_row_index_sha256": "db48cfd75bf408393d1250c8c08bb3b3a06e1965f861cd15c672eb72b51faa40",
+            "window_end_exclusive_utc": "2025-08-03T02:34:00+00:00",
+            "window_start_inclusive_utc": "2024-08-03T02:34:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.0307465739019404,
+            "first_validation_decision_at_utc": "2025-11-21T17:44:00+00:00",
+            "fold_id": 8,
+            "original_training_source_row_index_sha256": "7caadc6b5f29ff3a6d1e3ca69aad1ebeb5abea4dba426fe126b8751d585fc915",
+            "original_training_weight_sum": 318561.52800615877,
+            "recent365_scaled_weight_sum_requested": 318561.5280061588,
+            "recent365_source_row_index_sha256": "c8adcef4537c37d325f82cae3b9012d27002275a777bb6e188e262baa5108eab",
+            "recent365_unscaled_weight_sum": 105109.91936749965,
+            "scaled_weight_sha256": "a3b0284fc7e551ca762b71f2bda269a9258ef1e5b19de08a59390c0d480b2e19",
+            "training_rows_after": 525554,
+            "training_rows_before": 1592815,
+            "validation_last_decision_at_utc": "2026-03-12T08:44:00+00:00",
+            "validation_rows": 31860,
+            "validation_source_row_index_sha256": "1b386f32c34aeb7d74b603e689d2770ab3613dfb4d733fd0d4fda0c7fd48e11b",
+            "window_end_exclusive_utc": "2025-11-21T17:44:00+00:00",
+            "window_start_inclusive_utc": "2024-11-21T17:44:00+00:00"
+          },
+          {
+            "common_weight_multiplier": 3.030609623361921,
+            "first_validation_decision_at_utc": "2026-03-12T08:49:00+00:00",
+            "fold_id": 9,
+            "original_training_source_row_index_sha256": "e8e7e4604b85593d49ad5ef09624e30efca8f48ed3147a9352b1a98c719ed99e",
+            "original_training_weight_sum": 318560.7330061868,
+            "recent365_scaled_weight_sum_requested": 318560.7330061868,
+            "recent365_source_row_index_sha256": "25898eb8e4dafa337fe1bbc8ba5eb494ea843a059ef6504f604d03a419a59238",
+            "recent365_unscaled_weight_sum": 105114.40686735511,
+            "scaled_weight_sha256": "63a65d2086bd3233e935849275d524ac8172218a6b638cf3eca9fdbe2d9e121a",
+            "training_rows_after": 525574,
+            "training_rows_before": 1592812,
+            "validation_last_decision_at_utc": "2026-06-30T23:49:00+00:00",
+            "validation_rows": 31861,
+            "validation_source_row_index_sha256": "53643e4205b35e0ec1a0b519636d17e4d1a5532a3c1d4b3c1ae5d4ea8c99cae7",
+            "window_end_exclusive_utc": "2026-03-12T08:49:00+00:00",
+            "window_start_inclusive_utc": "2025-03-12T08:49:00+00:00"
+          }
+        ],
+        "written_before_any_fit": true
+      }
+    },
+    "quality": {
+      "elapsed_seconds": 51.725168199998734,
+      "finished_utc": "2026-10-18T13:08:13.471030+00:00",
+      "started_utc": "2026-10-18T13:07:21.707060+00:00",
+      "status": "completed",
+      "summary": {
+        "calibration_applied": false,
+        "elapsed_seconds": 51.725168199998734,
+        "full_proxy_oof_rows_identical": true,
+        "official": {
+          "down_labels": 10395,
+          "end_utc": "2026-06-30T23:50:00+00:00",
+          "monthly_metrics": [
+            {
+              "auc": 0.5324861200579115,
+              "brier": 0.24923269160171438,
+              "log_loss": 0.6916103609686036,
+              "rows": 3168,
+              "utc_month": "2026-04",
+              "variant": "SINGLE"
+            },
+            {
+              "auc": 0.5312328593477942,
+              "brier": 0.24936491472124012,
+              "log_loss": 0.6918759126071807,
+              "rows": 3168,
+              "utc_month": "2026-04",
+              "variant": "RECENT365"
+            },
+            {
+              "auc": 0.5246301702739513,
+              "brier": 0.24955612960991633,
+              "log_loss": 0.6922586864234055,
+              "rows": 8917,
+              "utc_month": "2026-05",
+              "variant": "SINGLE"
+            },
+            {
+              "auc": 0.5162156265440908,
+              "brier": 0.24983327662244367,
+              "log_loss": 0.6928136743227572,
+              "rows": 8917,
+              "utc_month": "2026-05",
+              "variant": "RECENT365"
+            },
+            {
+              "auc": 0.5296430546894997,
+              "brier": 0.2494266855344676,
+              "log_loss": 0.6919999091829153,
+              "rows": 8633,
+              "utc_month": "2026-06",
+              "variant": "SINGLE"
+            },
+            {
+              "auc": 0.520274432010458,
+              "brier": 0.24970279034242304,
+              "log_loss": 0.6925522573810774,
+              "rows": 8633,
+              "utc_month": "2026-06",
+              "variant": "RECENT365"
+            }
+          ],
+          "overall": {
+            "RECENT365": {
+              "auc": 0.5199879533212867,
+              "brier": 0.2497072867316033,
+              "log_loss": 0.6925613506635011,
+              "rows": 20718
+            },
+            "SINGLE": {
+              "auc": 0.5274368862182482,
+              "brier": 0.2494527343828996,
+              "log_loss": 0.69205172055035,
+              "rows": 20718
+            }
+          },
+          "paired_bootstrap": {
+            "block_days": 3,
+            "calendar_days": 72,
+            "contrasts": {
+              "auc": {
+                "95pct": [
+                  -0.013072308550539646,
+                  -0.002077293412914139
+                ],
+                "point_difference_RECENT365_minus_SINGLE": -0.00744893289696158,
+                "replications": 2000,
+                "valid_replications": 2000
+              },
+              "brier": {
+                "95pct": [
+                  7.83057353499601e-05,
+                  0.0004412262652160297
+                ],
+                "point_difference_RECENT365_minus_SINGLE": 0.00025455234870369603,
+                "replications": 2000,
+                "valid_replications": 2000
+              },
+              "log_loss": {
+                "95pct": [
+                  0.00015644608221251536,
+                  0.0008836248385772713
+                ],
+                "point_difference_RECENT365_minus_SINGLE": 0.0005096301131510828,
+                "replications": 2000,
+                "valid_replications": 2000
+              }
+            },
+            "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+            "replications": 2000,
+            "sample_rows": 20718,
+            "seed": 20261018
+          },
+          "probability_difference_RECENT365_minus_SINGLE": {
+            "mean": -0.001936907979532701,
+            "mean_absolute": 0.010991726447882506,
+            "positive_fraction": 0.4436721691282942,
+            "quantiles": {
+              "p1": -0.03395862340927124,
+              "p25": -0.01107710599899292,
+              "p5": -0.02442609667778015,
+              "p50": -0.0018745213747024536,
+              "p75": 0.007257454097270966,
+              "p95": 0.02056279480457305,
+              "p99": 0.02955034345388404
+            },
+            "rows": 20718,
+            "standard_deviation": 0.013685106816707406
+          },
+          "sample_rows": 20718,
+          "start_utc": "2026-04-20T00:00:00+00:00",
+          "up_labels": 10323
+        },
+        "proxy_oof": {
+          "fold_metrics": [
+            {
+              "RECENT365": {
+                "auc": 0.5257563904027112,
+                "brier": 0.24953718798091262,
+                "log_loss": 0.6922194038951249
+              },
+              "SINGLE": {
+                "auc": 0.5308299403177337,
+                "brier": 0.24924644696118795,
+                "log_loss": 0.6916380485398343
+              },
+              "fold_id": "0",
+              "rows": 31858
+            },
+            {
+              "RECENT365": {
+                "auc": 0.5238389732559494,
+                "brier": 0.24954687941621542,
+                "log_loss": 0.692239103092133
+              },
+              "SINGLE": {
+                "auc": 0.5266252106025973,
+                "brier": 0.24949185359564272,
+                "log_loss": 0.692130383810677
+              },
+              "fold_id": "1",
+              "rows": 31841
+            },
+            {
+              "RECENT365": {
+                "auc": 0.5244652227114233,
+                "brier": 0.24957603075721355,
+                "log_loss": 0.6922993151270234
+              },
+              "SINGLE": {
+                "auc": 0.5263392763841543,
+                "brier": 0.24950925188649045,
+                "log_loss": 0.6921642742333446
+              },
+              "fold_id": "2",
+              "rows": 31862
+            },
+            {
+              "RECENT365": {
+                "auc": 0.5313499291205127,
+                "brier": 0.24931241644401547,
+                "log_loss": 0.6917716467874166
+              },
+              "SINGLE": {
+                "auc": 0.529493366350978,
+                "brier": 0.24932603932855274,
+                "log_loss": 0.6917978011606929
+              },
+              "fold_id": "3",
+              "rows": 31861
+            },
+            {
+              "RECENT365": {
+                "auc": 0.5251929250098515,
+                "brier": 0.2495066616871662,
+                "log_loss": 0.6921596753960696
+              },
+              "SINGLE": {
+                "auc": 0.5246570531095329,
+                "brier": 0.24951415902880067,
+                "log_loss": 0.6921744645476919
+              },
+              "fold_id": "4",
+              "rows": 31842
+            },
+            {
+              "RECENT365": {
+                "auc": 0.524451564296464,
+                "brier": 0.2496120635083954,
+                "log_loss": 0.6923714419947858
+              },
+              "SINGLE": {
+                "auc": 0.526227069214778,
+                "brier": 0.24944166038450405,
+                "log_loss": 0.6920288722696136
+              },
+              "fold_id": "5",
+              "rows": 31856
+            },
+            {
+              "RECENT365": {
+                "auc": 0.5176996958958431,
+                "brier": 0.2498018310344865,
+                "log_loss": 0.6927511771882529
+              },
+              "SINGLE": {
+                "auc": 0.5170302059531482,
+                "brier": 0.2497874280909676,
+                "log_loss": 0.6927217089529835
+              },
+              "fold_id": "6",
+              "rows": 31861
+            },
+            {
+              "RECENT365": {
+                "auc": 0.5116549516627716,
+                "brier": 0.24996965369587154,
+                "log_loss": 0.6930869229381922
+              },
+              "SINGLE": {
+                "auc": 0.5143006554236732,
+                "brier": 0.24986840153411585,
+                "log_loss": 0.6928838945446152
+              },
+              "fold_id": "7",
+              "rows": 31858
+            },
+            {
+              "RECENT365": {
+                "auc": 0.5251894034091125,
+                "brier": 0.24947606179373039,
+                "log_loss": 0.6920980413981876
+              },
+              "SINGLE": {
+                "auc": 0.5262455966955537,
+                "brier": 0.2494256526999293,
+                "log_loss": 0.6919968469507226
+              },
+              "fold_id": "8",
+              "rows": 31860
+            },
+            {
+              "RECENT365": {
+                "auc": 0.5266997351099012,
+                "brier": 0.24946934199114865,
+                "log_loss": 0.6920847924725635
+              },
+              "SINGLE": {
+                "auc": 0.5305449562914,
+                "brier": 0.24933045138615362,
+                "log_loss": 0.6918068301096213
+              },
+              "fold_id": "9",
+              "rows": 31861
+            }
+          ],
+          "overall": {
+            "RECENT365": {
+              "auc": 0.5232905821949857,
+              "brier": 0.24958081595625323,
+              "log_loss": 0.692308158359934,
+              "rows": 318560
+            },
+            "SINGLE": {
+              "auc": 0.5250793308262355,
+              "brier": 0.24949413333249867,
+              "log_loss": 0.6921343101587641,
+              "rows": 318560
+            }
+          },
+          "paired_bootstrap": {
+            "block_days": 3,
+            "calendar_days": 1107,
+            "contrasts": {
+              "auc": {
+                "95pct": [
+                  -0.0030340017160845113,
+                  -0.0005482666442932055
+                ],
+                "point_difference_RECENT365_minus_SINGLE": -0.0017887486312497813,
+                "replications": 2000,
+                "valid_replications": 2000
+              },
+              "brier": {
+                "95pct": [
+                  3.441607457696378e-05,
+                  0.0001431087032328582
+                ],
+                "point_difference_RECENT365_minus_SINGLE": 8.66826237545526e-05,
+                "replications": 2000,
+                "valid_replications": 2000
+              },
+              "log_loss": {
+                "95pct": [
+                  6.883602827119345e-05,
+                  0.00028720274569842116
+                ],
+                "point_difference_RECENT365_minus_SINGLE": 0.00017384820116983501,
+                "replications": 2000,
+                "valid_replications": 2000
+              }
+            },
+            "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+            "replications": 2000,
+            "sample_rows": 318560,
+            "seed": 20261018
+          },
+          "probability_difference_RECENT365_minus_SINGLE": {
+            "mean": 0.002097098853126625,
+            "mean_absolute": 0.011969069581308568,
+            "positive_fraction": 0.5519839276745354,
+            "quantiles": {
+              "p1": -0.032839666306972506,
+              "p25": -0.007876835763454437,
+              "p5": -0.02228974401950836,
+              "p50": 0.0018875449895858765,
+              "p75": 0.011862508952617645,
+              "p95": 0.02711466401815414,
+              "p99": 0.03861926496028889
+            },
+            "rows": 318560,
+            "standard_deviation": 0.015033770326743653
+          },
+          "sample_rows": 318560
+        },
+        "single_oof_reused": true
+      }
+    },
+    "report": {
+      "elapsed_seconds": 0.04012140000122599,
+      "finished_utc": "2026-10-18T13:10:33.559115+00:00",
+      "status": "completed"
+    },
+    "source_verification": {
+      "elapsed_seconds": 0.0,
+      "finished_utc": "2026-10-18T13:10:32.914476+00:00",
+      "status": "completed",
+      "summary": {
+        "feature_order_identical": true,
+        "matrix_rows": 3174805,
+        "saved_fold_fingerprints": {
+          "train_idx": "55ab4ea1c8f5773cb15825882bf2d18abf3e0c6f4c65d6a634b82522cf46b42b",
+          "valid_idx": "8104c173730d716e08b699d1c5df4c6a83a3efbbb61f15cf1f906e71921aa6e4"
+        },
+        "single_oof_and_all_ten_saved_boosters_reproduced": {
+          "folds_reproduced": 10,
+          "iteration_count": 31,
+          "oof_rows": 318560,
+          "passed": true
+        },
+        "source_full_features_status": "completed",
+        "source_information_status": "completed",
+        "source_seed_stability_status": "completed",
+        "weights_sha256": "3a21a8cfecaeb10cdf0af1e63fd9833eef034954f6f530005bab71da6f1397ca"
+      }
+    },
+    "training": {
+      "completed_fits": 10,
+      "elapsed_seconds": 0.49751040000410285,
+      "finished_utc": "2026-10-18T13:10:33.435649+00:00",
+      "started_utc": "2026-10-18T13:10:32.940587+00:00",
+      "status": "completed",
+      "summary": {
+        "all_fits_completed": true,
+        "common_recent365_training_log_loss": [
+          {
+            "RECENT365_weighted_log_loss": 0.6868192514373598,
+            "SINGLE_weighted_log_loss": 0.6874126374527487,
+            "common_rows": 525595,
+            "fold_id": 0,
+            "window_end_exclusive_utc": "2023-06-20T16:44:00+00:00",
+            "window_start_inclusive_utc": "2022-06-20T16:44:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.686948817145958,
+            "SINGLE_weighted_log_loss": 0.6876924348205297,
+            "common_rows": 525574,
+            "fold_id": 1,
+            "window_end_exclusive_utc": "2023-10-09T07:54:00+00:00",
+            "window_start_inclusive_utc": "2022-10-09T07:54:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.6876481142561301,
+            "SINGLE_weighted_log_loss": 0.688380006431472,
+            "common_rows": 525474,
+            "fold_id": 2,
+            "window_end_exclusive_utc": "2024-01-27T22:59:00+00:00",
+            "window_start_inclusive_utc": "2023-01-27T22:59:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.6884747812121746,
+            "SINGLE_weighted_log_loss": 0.6891940297586996,
+            "common_rows": 525472,
+            "fold_id": 3,
+            "window_end_exclusive_utc": "2024-05-17T14:09:00+00:00",
+            "window_start_inclusive_utc": "2023-05-18T14:09:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.6885691334616911,
+            "SINGLE_weighted_log_loss": 0.6892780415342968,
+            "common_rows": 525474,
+            "fold_id": 4,
+            "window_end_exclusive_utc": "2024-09-05T05:14:00+00:00",
+            "window_start_inclusive_utc": "2023-09-06T05:14:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.6888602742710914,
+            "SINGLE_weighted_log_loss": 0.6893786170737858,
+            "common_rows": 525502,
+            "fold_id": 5,
+            "window_end_exclusive_utc": "2024-12-24T20:19:00+00:00",
+            "window_start_inclusive_utc": "2023-12-25T20:19:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.6889934241152231,
+            "SINGLE_weighted_log_loss": 0.6894878557908086,
+            "common_rows": 525484,
+            "fold_id": 6,
+            "window_end_exclusive_utc": "2025-04-14T11:29:00+00:00",
+            "window_start_inclusive_utc": "2024-04-14T11:29:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.6893596337801686,
+            "SINGLE_weighted_log_loss": 0.6897873334149871,
+            "common_rows": 525483,
+            "fold_id": 7,
+            "window_end_exclusive_utc": "2025-08-03T02:34:00+00:00",
+            "window_start_inclusive_utc": "2024-08-03T02:34:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.6895849433759778,
+            "SINGLE_weighted_log_loss": 0.6900299572536304,
+            "common_rows": 525554,
+            "fold_id": 8,
+            "window_end_exclusive_utc": "2025-11-21T17:44:00+00:00",
+            "window_start_inclusive_utc": "2024-11-21T17:44:00+00:00"
+          },
+          {
+            "RECENT365_weighted_log_loss": 0.6895672158406917,
+            "SINGLE_weighted_log_loss": 0.6899146338004729,
+            "common_rows": 525574,
+            "fold_id": 9,
+            "window_end_exclusive_utc": "2026-03-12T08:49:00+00:00",
+            "window_start_inclusive_utc": "2025-03-12T08:49:00+00:00"
+          }
+        ],
+        "elapsed_seconds": 0.49751040000410285,
+        "fit_seconds_sum": 14.211826899991138,
+        "fold_count": 10,
+        "fold_seconds_this_invocation": [
+          1.5498705999998492,
+          1.339822899994033,
+          1.441213099999004,
+          1.3811150000037742,
+          1.41910509999434,
+          1.4766113000005134,
+          1.414032300002873,
+          1.377192499996454,
+          1.4270459999970626,
+          1.3858181000032346
+        ],
+        "iterations_per_fit": 31,
+        "mean_common_recent365_training_log_loss": {
+          "RECENT365": 0.6884825588896467,
+          "SINGLE": 0.6890555547331433
+        },
+        "newly_fitted_fold_count": 10,
+        "newly_fitted_this_invocation": 0,
+        "oof": {
+          "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/oof_recent365.parquet",
+          "sha256": "d686d96d674d67f3eb8ccde24e0700d0886e4f654496c413caac2910815c1580",
+          "size_bytes": 11165204
+        },
+        "oof_rows": 318560,
+        "reused_checkpoint_count_this_invocation": 10,
+        "variant": "RECENT365"
+      }
+    }
+  },
+  "status": "completed"
+}
