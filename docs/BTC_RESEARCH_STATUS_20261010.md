@@ -31,6 +31,14 @@
 - Next step: `Experiment complete; no follow-up experiment is started automatically.`.
 - Run manifest: `data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json`.
 <!-- BTC_BASE70_INFORMATION_20261018_END -->
+<!-- BTC_BASE70_SEED_STABILITY_20261018_BEGIN -->
+### BASE70 seed stability and equal-weight ensemble - 2026-10-18
+- Updated UTC: `2026-10-18T11:51:32.887179+00:00`.
+- Status: `completed`; active stage: `none`.
+- Completed stages: `common_predictions, economics_ENSEMBLE, economics_SEED_20261016, economics_SEED_20261017, economics_SEED_20261018, economics_SEED_20261019, economics_SINGLE, economics_summary, execution_inputs, quality, report, source_verification, training`; new fits: `40/40`.
+- Next step: `Resume downstream quality and economic analysis using the 40 verified saved fits.`.
+- Run manifest: `data/analysis/polymarket/BTC/btc_base70_seed_stability_20261018/run_manifest.json`.
+<!-- BTC_BASE70_SEED_STABILITY_20261018_END -->
 # BTC research execution status
 
 Updated: 2026-10-16 (Europe/Warsaw)

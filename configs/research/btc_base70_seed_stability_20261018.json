@@ -1,0 +1,42 @@
+{
+  "experiment_id": "btc_base70_seed_stability_20261018",
+  "source_taker_flow_run_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json",
+  "source_zv_run_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_zv_ablation_20261018/run_manifest.json",
+  "source_zv_versioned_manifest_path": "reports/btc_preopen/btc_preopen_zv_ablation_20261018_manifest.json",
+  "source_base70_information_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json",
+  "source_base70_information_versioned_manifest_path": "reports/btc_preopen/btc_base70_information_value_20261018_manifest.json",
+  "source_base70_information_report_path": "reports/btc_preopen/btc_base70_information_value_20261018.md",
+  "source_config_path": "configs/research/btc_preopen_taker_flow_20261018.json",
+  "market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+  "single_seed": 20261015,
+  "new_seeds": [20261016, 20261017, 20261018, 20261019],
+  "boosting_iterations": 31,
+  "ensemble_rule": "arithmetic mean of the five saved raw probabilities, equal weight 1/5",
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over 3-day UTC blocks",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261018
+  },
+  "comparison_calendar": "Reuse the exact 20,735-row common execution calendar after the prior Platt warm-up; each model's raw probability is used without calibration.",
+  "economics": {
+    "gross_stake_usd": 5.0,
+    "minimum_net_ev_fraction": 0.01,
+    "decision_offset_seconds": -60,
+    "execution_offset_seconds": -59,
+    "orders_independent": true
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_base70_seed_stability_20261018",
+  "report_path": "reports/btc_preopen/btc_base70_seed_stability_20261018.md",
+  "versioned_manifest_path": "reports/btc_preopen/btc_base70_seed_stability_20261018_manifest.json",
+  "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+  "runner": "run_btc_base70_seed_stability_20261018.py",
+  "cli_arguments": false,
+  "feature_generation": false,
+  "feature_selection": false,
+  "optuna": false,
+  "data_download": false,
+  "archive_replay": false,
+  "holdout_evaluation": false,
+  "live_artifact_changes": false
+}
