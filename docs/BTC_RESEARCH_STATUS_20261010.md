@@ -56,7 +56,18 @@
 <!-- BTC_BASE70_RECENT365_20261018_END -->
 # BTC research execution status
 
-Updated: 2026-10-16 (Europe/Warsaw)
+Updated: 2026-10-18 (Europe/Warsaw)
+
+## BTC BASE70 vs BASE64 frozen RAW holdout check - 2026-10-18
+
+- Status: `blocked_missing_local_holdout_taker_flow_data`; protocol and model fits are frozen, but the historical holdout has not been scored.
+- Frozen interval: `2026-07-01` through `2026-10-06` inclusive; data cutoff `2026-10-07T00:00:00Z`. The holdout was exposed in earlier work.
+- BASE64: ordered 64-feature Z/V comparison model, 25 iterations; fit time 4.48 seconds; sampled peak process working set 5.38 GiB.
+- BASE70: the same 64 features plus six raw Z/V features, original SINGLE configuration, 31 iterations; fit time 4.17 seconds; sampled peak process working set 6.23 GiB.
+- Both fits used the shared 3,174,805 development rows, including 634,957 decision rows, the same target and weight hash, and no holdout rows. Model hashes and local checkpoints are in the run manifest.
+- Blocker: local taker-flow features end at `2026-06-30T23:59:00Z`; local UM BTCUSDT klines with `quote_volume` and `taker_buy_quote_volume` are absent for `2026-10-02` through `2026-10-06`. No data was downloaded or approximated.
+- No holdout predictions, quality scores, ledgers, or economic results were generated. Resume from the two verified model checkpoints after the missing local raw klines are available.
+- Report: [BASE70 vs BASE64 frozen RAW holdout check](../reports/btc_preopen/btc_base70_raw_holdout_20261018.md). Versioned manifest: `reports/btc_preopen/btc_base70_raw_holdout_20261018_manifest.json`.
 
 <!-- BTC_FULL_DEVELOPMENT_RUN_STATUS_BEGIN -->
 ### Full-development run checkpoint

@@ -1,0 +1,563 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_base70_raw_holdout_20261018",
+  "status": "blocked_missing_local_holdout_taker_flow_data",
+  "frozen_at_utc": "2026-10-18T20:29:56.079543+00:00",
+  "frozen_comparison": {
+    "identity_sha256": "f894db142fe8c82f2a451d21c26e742ed5e3c7518146e7ddeb28b45f81dbb428",
+    "specification": {
+      "experiment_id": "btc_base70_raw_holdout_20261018",
+      "period": {
+        "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+        "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+        "holdout_last_market_start_inclusive_utc": "2026-10-06T23:55:00Z",
+        "data_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+        "historically_exposed": true
+      },
+      "models": {
+        "BASE64": {
+          "feature_order": [
+            "candle_close_location_value_15m_lag1",
+            "rp_short_imbalance",
+            "candle_body_pressure_15m_lag1",
+            "rp_short_resistance_center_dist",
+            "candle_streak_15m",
+            "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypfba_atrper1151_maper533_matypnwmaepan_souhlcc4",
+            "candle_streak_3m",
+            "candle_ret_co_5m_lag1",
+            "rp_short_support_center_dist",
+            "session_close_impulse_B3",
+            "realized_volatility_down_5m",
+            "candle_close_location_value_30m_lag1",
+            "candle_close_location_value_4h_lag1",
+            "candle_signed_vol_15m_lag1",
+            "candle_close_location_value_1h_lag1",
+            "candle_body_pressure_1h_lag1",
+            "realized_volatility_up_15m",
+            "futures_index_basis_rel_30m",
+            "session_open_impulse_NYSE",
+            "rp_medium_resistance_below",
+            "rp_all_resistance_below",
+            "realized_volatility_compression_expansion_1h_4h",
+            "futures_index_basis_rel_15m",
+            "candle_streak_5m",
+            "candle_body_pressure_30m_lag2",
+            "candle_body_pressure_4h_lag1",
+            "candle_close_location_value_4h_lag7",
+            "vp_short_log_density_ratio_to_current_bin_plus_2",
+            "candle_wick_asym_1h_lag1",
+            "candle_streak_30m",
+            "rp_medium_support_center_dist",
+            "candle_body_pressure_4h_lag7",
+            "ADX_fit_5m_preopen_v1_pop64_adxper452_atrper1990_matypadxkama_matypatrnwmatria_matypnegdmehma_matypposdmema_negdmper706_posdmper1716",
+            "candle_close_location_value_15m_lag2",
+            "session_close_impulse_BVC",
+            "candle_wick_asym_4h_lag6",
+            "futures_index_basis_rel_5m",
+            "realized_volatility_15m",
+            "candle_body_pressure_15m_lag2",
+            "candle_wick_asym_4h_lag5",
+            "realized_volatility_down_1h",
+            "candle_wick_asym_4h_lag1",
+            "futures_index_basis_rel_4h",
+            "rp_medium_resistance_center_dist",
+            "realized_volatility_up_1h",
+            "candle_wick_asym_1h_lag2",
+            "candle_close_location_value_30m_lag4",
+            "vp_short_local_above_below_volume_log_ratio",
+            "session_open_impulse_B3",
+            "candle_body_pressure_1h_lag2",
+            "vp_short_log_density_ratio_to_current_bin_minus_2",
+            "candle_wick_asym_30m_lag3",
+            "session_close_impulse_Xetra",
+            "realized_volatility_up_5m",
+            "rp_all_support_above",
+            "StochOsc_fit_5m_preopen_v1_pop64_faskper24_slodmatyptrima_slodper1052_slokmatypnwmabiw_slokper1892",
+            "BollingerBands_fit_5m_preopen_v1_pop64_maper328_masouhlcc4_matypshmma_stdmaper53_stdmatypkama_stdsouhlcc4",
+            "realized_volatility_down_15m",
+            "candle_wick_asym_1d_lag7",
+            "vp_short_log_density_ratio_to_current_bin_plus_1",
+            "candle_body_pressure_30m_lag5",
+            "rp_all_imbalance",
+            "candle_body_pressure_1d_lag2",
+            "candle_body_pressure_30m_lag1"
+          ],
+          "params": {
+            "bagging_seed": 20261015,
+            "boosting_type": "gbdt",
+            "data_random_seed": 20261015,
+            "device_type": "gpu",
+            "feature_fraction": 0.7962744599393133,
+            "feature_fraction_seed": 20261015,
+            "feature_pre_filter": false,
+            "gpu_use_dp": false,
+            "lambda_l1": 9.508616956284627,
+            "lambda_l2": 30.729843292781943,
+            "learning_rate": 0.06418546619439842,
+            "max_bin": 63,
+            "metric": "None",
+            "min_data_in_leaf": 12089,
+            "num_leaves": 81,
+            "num_threads": 8,
+            "objective": "binary",
+            "seed": 20261015,
+            "verbosity": -1
+          },
+          "iterations": 25
+        },
+        "BASE70": {
+          "feature_order": [
+            "candle_close_location_value_15m_lag1",
+            "rp_short_imbalance",
+            "candle_body_pressure_15m_lag1",
+            "rp_short_resistance_center_dist",
+            "candle_streak_15m",
+            "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypfba_atrper1151_maper533_matypnwmaepan_souhlcc4",
+            "candle_streak_3m",
+            "candle_ret_co_5m_lag1",
+            "rp_short_support_center_dist",
+            "session_close_impulse_B3",
+            "realized_volatility_down_5m",
+            "candle_close_location_value_30m_lag1",
+            "candle_close_location_value_4h_lag1",
+            "candle_signed_vol_15m_lag1",
+            "candle_close_location_value_1h_lag1",
+            "candle_body_pressure_1h_lag1",
+            "realized_volatility_up_15m",
+            "futures_index_basis_rel_30m",
+            "session_open_impulse_NYSE",
+            "rp_medium_resistance_below",
+            "rp_all_resistance_below",
+            "realized_volatility_compression_expansion_1h_4h",
+            "futures_index_basis_rel_15m",
+            "candle_streak_5m",
+            "candle_body_pressure_30m_lag2",
+            "candle_body_pressure_4h_lag1",
+            "candle_close_location_value_4h_lag7",
+            "vp_short_log_density_ratio_to_current_bin_plus_2",
+            "candle_wick_asym_1h_lag1",
+            "candle_streak_30m",
+            "rp_medium_support_center_dist",
+            "candle_body_pressure_4h_lag7",
+            "ADX_fit_5m_preopen_v1_pop64_adxper452_atrper1990_matypadxkama_matypatrnwmatria_matypnegdmehma_matypposdmema_negdmper706_posdmper1716",
+            "candle_close_location_value_15m_lag2",
+            "session_close_impulse_BVC",
+            "candle_wick_asym_4h_lag6",
+            "futures_index_basis_rel_5m",
+            "realized_volatility_15m",
+            "candle_body_pressure_15m_lag2",
+            "candle_wick_asym_4h_lag5",
+            "realized_volatility_down_1h",
+            "candle_wick_asym_4h_lag1",
+            "futures_index_basis_rel_4h",
+            "rp_medium_resistance_center_dist",
+            "realized_volatility_up_1h",
+            "candle_wick_asym_1h_lag2",
+            "candle_close_location_value_30m_lag4",
+            "vp_short_local_above_below_volume_log_ratio",
+            "session_open_impulse_B3",
+            "candle_body_pressure_1h_lag2",
+            "vp_short_log_density_ratio_to_current_bin_minus_2",
+            "candle_wick_asym_30m_lag3",
+            "session_close_impulse_Xetra",
+            "realized_volatility_up_5m",
+            "rp_all_support_above",
+            "StochOsc_fit_5m_preopen_v1_pop64_faskper24_slodmatyptrima_slodper1052_slokmatypnwmabiw_slokper1892",
+            "BollingerBands_fit_5m_preopen_v1_pop64_maper328_masouhlcc4_matypshmma_stdmaper53_stdmatypkama_stdsouhlcc4",
+            "realized_volatility_down_15m",
+            "candle_wick_asym_1d_lag7",
+            "vp_short_log_density_ratio_to_current_bin_plus_1",
+            "candle_body_pressure_30m_lag5",
+            "rp_all_imbalance",
+            "candle_body_pressure_1d_lag2",
+            "candle_body_pressure_30m_lag1",
+            "taker_Z_1m",
+            "taker_V_1m",
+            "taker_Z_5m",
+            "taker_V_5m",
+            "taker_Z_15m",
+            "taker_V_15m"
+          ],
+          "params": {
+            "bagging_seed": 20261015,
+            "boosting_type": "gbdt",
+            "data_random_seed": 20261015,
+            "device_type": "gpu",
+            "feature_fraction": 0.7962744599393133,
+            "feature_fraction_seed": 20261015,
+            "feature_pre_filter": false,
+            "gpu_use_dp": false,
+            "lambda_l1": 9.508616956284627,
+            "lambda_l2": 30.729843292781943,
+            "learning_rate": 0.06418546619439842,
+            "max_bin": 63,
+            "metric": "None",
+            "min_data_in_leaf": 12089,
+            "num_leaves": 81,
+            "num_threads": 8,
+            "objective": "binary",
+            "seed": 20261015,
+            "verbosity": -1
+          },
+          "iterations": 31
+        }
+      },
+      "shared_training_data": {
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet",
+        "rows": 3174805,
+        "decision_rows": 634957,
+        "latest_label_available_at_utc": "2026-06-30T23:59:00+00:00",
+        "first_holdout_decision_at_utc": "2026-06-30T23:59:00+00:00",
+        "common_mask": "finite across all 64 source features and all 18 taker-flow features; applied once for both variants",
+        "training_weight_sha256": "f8a0fad254f5874695728af64d96ece771de43a2efe838fbf38b53eecdf516f8",
+        "expected_training_weight_sha256": "3a21a8cfecaeb10cdf0af1e63fd9833eef034954f6f530005bab71da6f1397ca",
+        "purge_validated": true
+      },
+      "existing_full_development_fit_reuse": {
+        "reused": false,
+        "reason": "The frozen full-development fit does not use the exact shared Z/V complete-feature row mask; the Z/V comparison explicitly records that its saved full-development BASE64 artifact is incompatible with these rows.",
+        "source_status": "completed"
+      },
+      "holdout_feature_transform": {
+        "base_transform_provenance": "full-development pipeline; generators, feature selection, weights, and model tuning were fit on development only",
+        "taker_flow_code": "features/btc_taker_flow.py",
+        "taker_flow_config": "configs/research/btc_preopen_taker_flow_20261018.json",
+        "causal_alignment": "Opened row uses completed information through that row; nominal decision is Opened+1m and market start is Opened+2m",
+        "features": [
+          "taker_Z_1m",
+          "taker_V_1m",
+          "taker_Z_5m",
+          "taker_V_5m",
+          "taker_Z_15m",
+          "taker_V_15m"
+        ],
+        "required_raw_fields": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "quote_volume",
+          "taker_buy_quote_volume"
+        ]
+      },
+      "quality": {
+        "probabilities": "Raw probabilities only; no Platt calibration.",
+        "constant_control": 0.5,
+        "metrics": [
+          "log_loss",
+          "brier",
+          "auc"
+        ],
+        "bootstrap": {
+          "method": "Paired circular moving-block bootstrap over shared UTC days",
+          "block_days": 3,
+          "replications": 2000,
+          "seed": 20261018
+        }
+      },
+      "economics": {
+        "gross_stake_usd": 5.0,
+        "minimum_net_ev_fraction": 0.01,
+        "decision_offset_seconds": -60,
+        "execution_offset_seconds": -59,
+        "orders_independent": true,
+        "portfolio_starting_capital": false,
+        "snapshots": "Reuse the hash-verified T-60/T-59 snapshots and existing fee, depth, settlement, and cash-release rules.",
+        "archive_replay": false,
+        "snapshot_inputs": {
+          "t59": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+          "t60": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet"
+        }
+      },
+      "input_artifacts": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet",
+          "sha256": "06952bbf1b2b0a4e9fc4cc918490fbadc540c897815b8105242201c6148dfe19",
+          "size_bytes": 1269944837
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_folds.npz",
+          "sha256": "02768c3ddd80e26720507757e065337bc54afd22691bf830c021698c49133c07",
+          "size_bytes": 40080591
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+          "sha256": "62f47b1792249fc885763f73b1f36ca872131a6271619225e5736486a7306e05",
+          "size_bytes": 4973420713
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/flow_features.parquet",
+          "sha256": "9e521aed4aecb043ceaa2d7e0372a9b655215a0b1b4a20a5659b8812925030fd",
+          "size_bytes": 467656465
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+          "sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+          "size_bytes": 7486947
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+          "sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0",
+          "size_bytes": 26051278
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+          "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+          "size_bytes": 25908421
+        }
+      ],
+      "source_artifacts": [
+        {
+          "path": "configs/research/btc_preopen_zv_ablation_20261018.json",
+          "sha256": "31fbf204852380ca0db135c25d82104ddd005068974b81fd6f2d9d2b886f3a3e"
+        },
+        {
+          "path": "reports/btc_preopen/btc_preopen_zv_ablation_20261018_manifest.json",
+          "sha256": "20bb77db2008ceae44710ccd6222e8f91f03b98280983e804cfedfc65ed0ca57"
+        },
+        {
+          "path": "configs/research/btc_preopen_taker_flow_20261018.json",
+          "sha256": "cea8187b43a0ed847a019542a9154e01707e6d4b55754f81da317ddd3a2ceeb1"
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json",
+          "sha256": "6285276610ba2272b0a8d016d54acff512a667f3a6888b346466da476b89e967"
+        },
+        {
+          "path": "reports/btc_preopen/btc_preopen_full_development_fit_20261016/frozen_bundle_manifest.json",
+          "sha256": "0e54fca8103897420760690d682485086b5f34a813a842c971f418b41a906d32"
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/run_manifest.json",
+          "sha256": "6fc045bc1ee74537868192e55f43b89352d751cb69dc496967b27d7836fab23c"
+        },
+        {
+          "path": "features/btc_taker_flow.py",
+          "sha256": "127a0a53dedf9ed07fa53f1049796aba440299fc010066ee7b189eb850a04477"
+        },
+        {
+          "path": "reports/btc_preopen/btc_base70_information_value_20261018_manifest.json",
+          "sha256": "146d183f8a3ef48058cd93ca2b086ca3d90a167007a3e49c4f9df88b51e42f1d"
+        }
+      ],
+      "no_data_download": true,
+      "no_archive_replay": true,
+      "no_deployment_activation": true
+    }
+  },
+  "input_identity": {
+    "config_sha256": "472374a81afc693bff4793cb31b912409178e0f27eeb714968bbf04384039f04",
+    "runner_sha256": "0f768e7cc78c0d2158349abc5d2ad47c4981d3e1c3c69c727f8ff9b1ee52f2cb",
+    "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+    "lightgbm": "4.6.0",
+    "preflight_runner_sha256": "4e7ea9190d9a3baec89e368138421836cd102de268b0411cb7daa495df756d49"
+  },
+  "resource_snapshot_before_fit": {
+    "logical_processors": 20,
+    "lightgbm_threads": 8,
+    "pyarrow_cpu_threads": 20,
+    "pyarrow_io_threads": 8,
+    "native_library_thread_limit": 8,
+    "total_memory_gib": 63.67,
+    "available_memory_gib": 41.71
+  },
+  "stages": {
+    "freeze": {
+      "status": "completed",
+      "finished_utc": "2026-10-18T20:29:56.086919+00:00"
+    },
+    "training": {
+      "status": "completed",
+      "models": {
+        "BASE64": {
+          "status": "completed",
+          "identity_sha256": "f894db142fe8c82f2a451d21c26e742ed5e3c7518146e7ddeb28b45f81dbb428",
+          "iterations": 25,
+          "elapsed_seconds": 4.482233399990946,
+          "model": {
+            "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/models/BASE64.txt",
+            "sha256": "f297a56a0fc841da29c2c21d316ab08fe1f30566306da24a79257840bf7f227f",
+            "size_bytes": 239217
+          },
+          "completion": {
+            "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/models/BASE64_completion.json",
+            "sha256": "a97e5b0b9223d222ff23f68f07604dc2686e0158c92f53ec0e2a3d4ce9589e19",
+            "size_bytes": 1546
+          }
+        },
+        "BASE70": {
+          "status": "completed",
+          "identity_sha256": "f894db142fe8c82f2a451d21c26e742ed5e3c7518146e7ddeb28b45f81dbb428",
+          "iterations": 31,
+          "elapsed_seconds": 4.171106099995086,
+          "model": {
+            "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/models/BASE70.txt",
+            "sha256": "004cdacc495552604d5d91ed7122c8eeaa45a3b887117315daaea428f0f0776b",
+            "size_bytes": 295028
+          },
+          "completion": {
+            "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/models/BASE70_completion.json",
+            "sha256": "bdec18fb24c0e5c58497443a7f4247228092c620fcd20633a589173fc15897de",
+            "size_bytes": 1546
+          }
+        }
+      },
+      "finished_models": [
+        "BASE64",
+        "BASE70"
+      ],
+      "finished_utc": "2026-10-18T20:33:24.529815+00:00",
+      "summary": {
+        "new_fits_this_invocation": 0,
+        "both_models_complete": true
+      }
+    },
+    "holdout_flow_preflight": {
+      "status": "blocked",
+      "summary": {
+        "cached_flow_features_last_opened_utc": "2026-06-30T23:59:00+00:00",
+        "local_um_kline_inventory": [
+          {
+            "status": "available",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/months/2026-06/BTCUSDT-1m-2026-06.csv",
+            "sha256": "a0d502fe633a659c806c787bbbc338627527df786bf94c65bc01cef9eb4b853e",
+            "size_bytes": 4894009
+          },
+          {
+            "status": "available",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/months/2026-07/BTCUSDT-1m-2026-07.csv",
+            "sha256": "55513f41367680136e1937c8e7fb6cdcff08eb1a05b37702cee1a6742ca513d1",
+            "size_bytes": 5016863
+          },
+          {
+            "status": "available",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/months/2026-08/BTCUSDT-1m-2026-08.csv",
+            "sha256": "675f1a0c9f3a265cafbc69e7821eb891ff432cfa12aba45c77754a06190fd80e",
+            "size_bytes": 5004926
+          },
+          {
+            "status": "available",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/months/2026-09/BTCUSDT-1m-2026-09.csv",
+            "sha256": "6b482fc0d05691cda897515d6cdb81d878b8fd3d40c3d46a2e2a88e5fc99284a",
+            "size_bytes": 4862487
+          },
+          {
+            "status": "available",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-01/BTCUSDT-1m-2026-10-01.csv",
+            "sha256": "3ee86bacfc473873aa82ccb74ec524210710e3613437081afa0b75e9b9bc5789",
+            "size_bytes": 162829
+          },
+          {
+            "status": "missing",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-02/BTCUSDT-1m-2026-10-02.csv"
+          },
+          {
+            "status": "missing",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-03/BTCUSDT-1m-2026-10-03.csv"
+          },
+          {
+            "status": "missing",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-04/BTCUSDT-1m-2026-10-04.csv"
+          },
+          {
+            "status": "missing",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-05/BTCUSDT-1m-2026-10-05.csv"
+          },
+          {
+            "status": "missing",
+            "path": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-06/BTCUSDT-1m-2026-10-06.csv"
+          }
+        ],
+        "required_raw_fields": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "quote_volume",
+          "taker_buy_quote_volume"
+        ],
+        "holdout_market_start_last_inclusive_utc": "2026-10-06T23:55:00Z",
+        "last_required_opened_row_utc": "2026-10-06T23:53:00Z",
+        "missing_local_daily_kline_files": [
+          "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-02/BTCUSDT-1m-2026-10-02.csv",
+          "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-03/BTCUSDT-1m-2026-10-03.csv",
+          "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-04/BTCUSDT-1m-2026-10-04.csv",
+          "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-05/BTCUSDT-1m-2026-10-05.csv",
+          "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m/days/2026-10-06/BTCUSDT-1m-2026-10-06.csv"
+        ],
+        "missing_days": [
+          "2026-10-02",
+          "2026-10-03",
+          "2026-10-04",
+          "2026-10-05",
+          "2026-10-06"
+        ],
+        "download_attempted": false,
+        "reason": "The local taker-flow feature table ends in development at 2026-06-30T23:59:00Z. Although base OHLCV rows exist through the holdout, the local BTCUSDT OHLCV CSV does not contain quote_volume or taker_buy_quote_volume."
+      },
+      "finished_utc": "2026-10-18T20:33:24.562282+00:00"
+    },
+    "preflight_report": {
+      "status": "completed",
+      "path": "reports/btc_preopen/btc_base70_raw_holdout_20261018.md",
+      "sha256": "88345eda71cdbeb2c983325e8c6715fbc5d5f216f5637c1ca4bfeaa2d7f14d1d",
+      "size_bytes": 5491
+    }
+  },
+  "holdout_predictions_read": false,
+  "holdout_scoring_started": false,
+  "outputs": [
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/models/BASE64.txt",
+      "sha256": "f297a56a0fc841da29c2c21d316ab08fe1f30566306da24a79257840bf7f227f",
+      "size_bytes": 239217
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/models/BASE64_completion.json",
+      "sha256": "a97e5b0b9223d222ff23f68f07604dc2686e0158c92f53ec0e2a3d4ce9589e19",
+      "size_bytes": 1546
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/models/BASE70.txt",
+      "sha256": "004cdacc495552604d5d91ed7122c8eeaa45a3b887117315daaea428f0f0776b",
+      "size_bytes": 295028
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/models/BASE70_completion.json",
+      "sha256": "bdec18fb24c0e5c58497443a7f4247228092c620fcd20633a589173fc15897de",
+      "size_bytes": 1546
+    },
+    {
+      "status": "completed",
+      "path": "reports/btc_preopen/btc_base70_raw_holdout_20261018.md",
+      "sha256": "88345eda71cdbeb2c983325e8c6715fbc5d5f216f5637c1ca4bfeaa2d7f14d1d",
+      "size_bytes": 5491
+    }
+  ],
+  "started_utc": "2026-10-18T20:29:56.086930+00:00",
+  "updated_utc": "2026-10-18T20:33:24.564579+00:00",
+  "training_data_verification": {
+    "rows": 3174805,
+    "decision_rows": 634957,
+    "latest_label_available_at_utc": "2026-06-30T23:59:00+00:00",
+    "feature_order_sha256": {
+      "BASE64": "f87b7bdb13e1b68d689e63722dc85fed17e27330eae896a8e5acce7b68922a48",
+      "BASE70": "614851f7746ab2ae24542c5f98fa2d9030871ddcfaaf73910be80f5cd93f2295"
+    },
+    "training_weight_sha256": "3a21a8cfecaeb10cdf0af1e63fd9833eef034954f6f530005bab71da6f1397ca",
+    "source_row_index_sha256": "8febbfc92adeafc7fb2aba5d41aec6dd21de03ff7c5658428aef7dc53e66d1cb",
+    "target_sha256": "d9df01974cc32d30a107f808756d3e21fd9f83d85eee656b22ab51e5fdf79895",
+    "holdout_rows_used": 0
+  },
+  "next_step": "Provide the missing local UM BTCUSDT minute klines with quote_volume and taker_buy_quote_volume for 2026-10-02 through 2026-10-06 UTC, then resume this frozen assessment without refitting.",
+  "resource_snapshot_after_fit": {
+    "logical_processors": 20,
+    "lightgbm_threads": 8,
+    "pyarrow_cpu_threads": 20,
+    "pyarrow_io_threads": 8,
+    "native_library_thread_limit": 8,
+    "total_memory_gib": 63.67,
+    "available_memory_gib": 40.71
+  },
+  "elapsed_training_seconds": 8.653339499986032
+}

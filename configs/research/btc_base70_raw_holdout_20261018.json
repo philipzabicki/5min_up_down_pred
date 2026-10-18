@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_base70_raw_holdout_20261018",
+  "development_start_utc": "2020-06-09T09:33:00Z",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "fit_label_available_by_utc": "2026-06-30T23:59:00Z",
+  "holdout_market_start_first_inclusive_utc": "2026-07-01T00:00:00Z",
+  "holdout_market_start_last_inclusive_utc": "2026-10-06T23:55:00Z",
+  "data_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+  "historical_holdout_status": "The July-October holdout was viewed in prior experiments; this is a historical evaluation on a previously exposed holdout, not independent confirmation.",
+  "source_zv_config_path": "configs/research/btc_preopen_zv_ablation_20261018.json",
+  "source_zv_manifest_path": "reports/btc_preopen/btc_preopen_zv_ablation_20261018_manifest.json",
+  "source_taker_flow_config_path": "configs/research/btc_preopen_taker_flow_20261018.json",
+  "source_taker_flow_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json",
+  "source_full_development_bundle_manifest_path": "reports/btc_preopen/btc_preopen_full_development_fit_20261016/frozen_bundle_manifest.json",
+  "source_full_development_run_manifest_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/run_manifest.json",
+  "training_matrix_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet",
+  "training_folds_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_folds.npz",
+  "base_feature_dataset_path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+  "flow_features_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/flow_features.parquet",
+  "official_market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+  "models": {
+    "BASE64": {
+      "feature_set_source": "BASE64 from the frozen Z/V comparison, preserving its exact order",
+      "feature_count": 64,
+      "iterations": 25,
+      "effective_lightgbm_params": {
+        "bagging_seed": 20261015,
+        "boosting_type": "gbdt",
+        "data_random_seed": 20261015,
+        "device_type": "gpu",
+        "feature_fraction": 0.7962744599393133,
+        "feature_fraction_seed": 20261015,
+        "feature_pre_filter": false,
+        "gpu_use_dp": false,
+        "lambda_l1": 9.508616956284627,
+        "lambda_l2": 30.729843292781943,
+        "learning_rate": 0.06418546619439842,
+        "max_bin": 63,
+        "metric": "None",
+        "min_data_in_leaf": 12089,
+        "num_leaves": 81,
+        "num_threads": 8,
+        "objective": "binary",
+        "seed": 20261015,
+        "verbosity": -1
+      }
+    },
+    "BASE70": {
+      "feature_set_source": "Original raw SINGLE/B0 order: BASE64 followed by taker_Z and taker_V at 1, 5, and 15 minutes",
+      "feature_count": 70,
+      "iterations": 31,
+      "effective_lightgbm_params": {
+        "bagging_seed": 20261015,
+        "boosting_type": "gbdt",
+        "data_random_seed": 20261015,
+        "device_type": "gpu",
+        "feature_fraction": 0.7962744599393133,
+        "feature_fraction_seed": 20261015,
+        "feature_pre_filter": false,
+        "gpu_use_dp": false,
+        "lambda_l1": 9.508616956284627,
+        "lambda_l2": 30.729843292781943,
+        "learning_rate": 0.06418546619439842,
+        "max_bin": 63,
+        "metric": "None",
+        "min_data_in_leaf": 12089,
+        "num_leaves": 81,
+        "num_threads": 8,
+        "objective": "binary",
+        "seed": 20261015,
+        "verbosity": -1
+      }
+    }
+  },
+  "shared_training_data": {
+    "expected_rows": 3174805,
+    "expected_decision_rows": 634957,
+    "target": "target_preopen_5m_up_binance_index_proxy",
+    "decision_weight": 0.59,
+    "auxiliary_row_weight": 0.1025,
+    "training_weight_sha256": "3a21a8cfecaeb10cdf0af1e63fd9833eef034954f6f530005bab71da6f1397ca",
+    "common_mask": "Finite across the same 64 base features and all 18 taker-flow features; use the exact saved common rows for both models.",
+    "purge": "Every training target label must be available no later than the first holdout nominal decision at 2026-06-30T23:59:00Z."
+  },
+  "holdout_features": {
+    "base_feature_source": "Reuse the hash-verified full-development feature dataset and its development-fitted indicator, VP, RP, and selected-feature transformations.",
+    "taker_feature_code_path": "features/btc_taker_flow.py",
+    "taker_feature_config_path": "configs/research/btc_preopen_taker_flow_20261018.json",
+    "features": [
+      "taker_Z_1m",
+      "taker_V_1m",
+      "taker_Z_5m",
+      "taker_V_5m",
+      "taker_Z_15m",
+      "taker_V_15m"
+    ],
+    "raw_required_fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "quote_volume",
+      "taker_buy_quote_volume"
+    ],
+    "availability": "At each Opened row, use only closed candles through that row; preserve the frozen horizons, 1,440-minute qbar, and 60-minute sigma windows and their original shifts.",
+    "data_download": false
+  },
+  "quality": {
+    "probabilities": "Raw probabilities only; no Platt calibration.",
+    "constant_control": 0.5,
+    "metrics": ["log_loss", "brier", "auc"],
+    "bootstrap": {
+      "method": "Paired circular moving-block bootstrap over shared UTC days",
+      "block_days": 3,
+      "replications": 2000,
+      "seed": 20261018
+    }
+  },
+  "economics": {
+    "gross_stake_usd": 5.0,
+    "minimum_net_ev_fraction": 0.01,
+    "decision_offset_seconds": -60,
+    "execution_offset_seconds": -59,
+    "orders_independent": true,
+    "portfolio_starting_capital": false,
+    "snapshots": "Reuse the hash-verified T-60/T-59 snapshots and existing fee, depth, settlement, and cash-release rules.",
+    "archive_replay": false
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018",
+  "report_path": "reports/btc_preopen/btc_base70_raw_holdout_20261018.md",
+  "versioned_manifest_path": "reports/btc_preopen/btc_base70_raw_holdout_20261018_manifest.json",
+  "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+  "cli_arguments": false
+}
