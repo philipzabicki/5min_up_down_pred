@@ -1,0 +1,1452 @@
+{
+  "additive_challenger_fit_count": 0,
+  "archive_replayed_or_downloaded": false,
+  "artifacts": {
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/daily_funnel.csv": {
+      "bytes": 7854,
+      "sha256": "cdc25e5a6b54d874af45f4fbb6c5a95020ec3aebc5288d897054cfd0c2531a53"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/empty_source_partition_audit.json": {
+      "bytes": 464,
+      "sha256": "439d9414cb2b707aa36e5690624f87b4ea6ac061bb0e753542024c2566a3865e"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/independent_flags.json": {
+      "bytes": 2591,
+      "sha256": "07c18d33a1a1545bab76cdf201dcb516e0cd2acdbb749f59a8b84e5063c257d1"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/sequential_funnel.csv": {
+      "bytes": 423,
+      "sha256": "f5c49570c1dbe767d46cb84bb8c1ff0f6ad2e1b484345292d0a144b908b65a36"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/C_decisions.parquet": {
+      "bytes": 797994,
+      "sha256": "ce3e50388dc936f778be686a0e662e06e64f43020100863f17c66ceb3ce50062"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/C_trades.parquet": {
+      "bytes": 636,
+      "sha256": "767d4eaed9880a7b072f4d435773b59105cb92930ad8d2b4a8a1f62b686764c3"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/MARKET_decisions.parquet": {
+      "bytes": 755843,
+      "sha256": "3ff6b2b9f986536a24dd55d33b443e657d46ceec667a773918448909c4bb5853"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/MARKET_trades.parquet": {
+      "bytes": 636,
+      "sha256": "767d4eaed9880a7b072f4d435773b59105cb92930ad8d2b4a8a1f62b686764c3"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/RAW_decisions.parquet": {
+      "bytes": 349940,
+      "sha256": "8bd5e750fc29ce141d59e89d7b647fdac6dce329172257eb4c3ab5012c4dd04f"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/RAW_trades.parquet": {
+      "bytes": 102043,
+      "sha256": "7ea0dfe46a19e43c08a1b4b6dc22d0932a9745c43ff458f02c4a0436084306cd"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/X_decisions.parquet": {
+      "bytes": 798212,
+      "sha256": "fbdd21cfaa59da3c703da06f30cba53fc2ac2f00d5879cb00185b51821f58714"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/X_trades.parquet": {
+      "bytes": 636,
+      "sha256": "767d4eaed9880a7b072f4d435773b59105cb92930ad8d2b4a8a1f62b686764c3"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/daily_pnl.csv": {
+      "bytes": 2657,
+      "sha256": "81d06a45c87dbe41cc81785a3749954203502ddea7332c117000c467b9da340c"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/monthly.csv": {
+      "bytes": 955,
+      "sha256": "6a91bb2d2a1020c027cc229c02703b55a05f3296e30036729766ec09e4d7693c"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/evaluation_predictions.parquet": {
+      "bytes": 382544,
+      "sha256": "cc9931de65fddd26f42880e484336170296899a54bd4a271a386499681c6d8c1"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/model_fit_summary.json": {
+      "bytes": 4644,
+      "sha256": "0348fec610176a6a09e31a1001018a1034e86d5977a2d00e28c580635a3f7d5c"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/models_and_scalers.joblib": {
+      "bytes": 7488,
+      "sha256": "748bd21237a1902b8fdd994cc69dbbf54265c9143909497df0953ddacbb68c4f"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/pre_bootstrap_checkpoint.json": {
+      "bytes": 8120,
+      "sha256": "c1604d62c725f3f0547d0f940a30fb378bd43a5800bba5184a359f70ac0b602e"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/quality_bootstrap.json": {
+      "bytes": 3640,
+      "sha256": "c064d302091b67f7bde2032bdf2ac29202c6c24050ac61d9defae506d762fd4b"
+    },
+    "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/quality_monthly.csv": {
+      "bytes": 678,
+      "sha256": "34526164264c22d1971001b59242a8cdeb9505b2e4d4d5b264b1cb1373ec379e"
+    }
+  },
+  "artifacts_before_bootstrap": {
+    "evaluation_predictions": {
+      "bytes": 382544,
+      "path": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/evaluation_predictions.parquet",
+      "sha256": "cc9931de65fddd26f42880e484336170296899a54bd4a271a386499681c6d8c1"
+    },
+    "model_fit_summary": {
+      "bytes": 4644,
+      "path": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/model_fit_summary.json",
+      "sha256": "0348fec610176a6a09e31a1001018a1034e86d5977a2d00e28c580635a3f7d5c"
+    },
+    "models_and_scalers": {
+      "bytes": 7488,
+      "path": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/models_and_scalers.joblib",
+      "sha256": "748bd21237a1902b8fdd994cc69dbbf54265c9143909497df0953ddacbb68c4f"
+    }
+  },
+  "availability_audit": {
+    "daily_funnel_path": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/daily_funnel.csv",
+    "daily_funnel_rows": 77,
+    "empty_source_partition_audit": {
+      "archive_rows_read_or_replayed": 0,
+      "dependency_sizes_bytes": {
+        "maximum": 2577,
+        "minimum": 2577,
+        "total": 989568
+      },
+      "end_exclusive_utc": "2026-06-29T00:00:00+00:00",
+      "inspection": "Parquet metadata only; no event rows were read or replayed.",
+      "parquet_metadata_rows": {
+        "empty_partitions": 384,
+        "nonempty_partitions": 0,
+        "total": 0
+      },
+      "partition_count": 384,
+      "start_utc": "2026-06-13T00:00:00+00:00"
+    },
+    "feature_table_recomputation_match": true,
+    "final_feature_rows": 7010,
+    "final_rows_match_saved_feature_table": true,
+    "independent_flag_frequencies": {
+      "all_six_features_finite": {
+        "cohort_rows": 21970,
+        "true_count": 7010
+      },
+      "archive_entry_hour_available": {
+        "cohort_rows": 21970,
+        "true_count": 21925
+      },
+      "archive_freshness_window_available": {
+        "cohort_rows": 21970,
+        "true_count": 21925
+      },
+      "at_least_one_source_event_in_replay": {
+        "cohort_rows": 21970,
+        "true_count": 16597
+      },
+      "both_books_native": {
+        "cohort_rows": 21970,
+        "true_count": 16595
+      },
+      "down_ask_ambiguous": {
+        "cohort_rows": 21970,
+        "true_count": 4093
+      },
+      "down_best_ask_matches_first_level": {
+        "cohort_rows": 21970,
+        "true_count": 16596
+      },
+      "down_book_crossed": {
+        "cohort_rows": 21970,
+        "true_count": 5336
+      },
+      "down_book_locked": {
+        "cohort_rows": 21970,
+        "true_count": 2788
+      },
+      "down_gap_after_init_flag_true": {
+        "cohort_rows": 21970,
+        "true_count": 44
+      },
+      "down_quote_complemented": {
+        "cohort_rows": 21970,
+        "true_count": 0
+      },
+      "exact_t60_alignment": {
+        "cohort_rows": 21970,
+        "true_count": 21961
+      },
+      "full_two_book_snapshot": {
+        "cohort_rows": 21970,
+        "true_count": 16595
+      },
+      "gross_5usd_depth_down": {
+        "cohort_rows": 21970,
+        "true_count": 16596
+      },
+      "gross_5usd_depth_up": {
+        "cohort_rows": 21970,
+        "true_count": 16596
+      },
+      "matching_t60_snapshot": {
+        "cohort_rows": 21970,
+        "true_count": 21961
+      },
+      "no_future_receive_event": {
+        "cohort_rows": 21970,
+        "true_count": 21961
+      },
+      "no_future_source_event": {
+        "cohort_rows": 21970,
+        "true_count": 21961
+      },
+      "quote_valid_flag": {
+        "cohort_rows": 21970,
+        "true_count": 10839
+      },
+      "raw_probability_valid": {
+        "cohort_rows": 21970,
+        "true_count": 21970
+      },
+      "saved_fee_adjusted_5usd_depth_flag": {
+        "cohort_rows": 21970,
+        "true_count": 16476
+      },
+      "source_coverage_and_chronology_pass": {
+        "cohort_rows": 21970,
+        "true_count": 21916
+      },
+      "up_ask_ambiguous": {
+        "cohort_rows": 21970,
+        "true_count": 5321
+      },
+      "up_best_ask_matches_first_level": {
+        "cohort_rows": 21970,
+        "true_count": 16596
+      },
+      "up_book_crossed": {
+        "cohort_rows": 21970,
+        "true_count": 5733
+      },
+      "up_book_locked": {
+        "cohort_rows": 21970,
+        "true_count": 2677
+      },
+      "up_gap_after_init_flag_true": {
+        "cohort_rows": 21970,
+        "true_count": 45
+      },
+      "up_quote_complemented": {
+        "cohort_rows": 21970,
+        "true_count": 1
+      },
+      "valid_p_market": {
+        "cohort_rows": 21970,
+        "true_count": 10794
+      }
+    },
+    "independent_flags_path": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/independent_flags.json",
+    "matched_snapshot_rows": 21961,
+    "raw_oof_rows": 21970,
+    "sequential_funnel": [
+      {
+        "before": 21970,
+        "excluded": 0,
+        "gate": "raw_valid",
+        "remaining": 21970
+      },
+      {
+        "before": 21970,
+        "excluded": 9,
+        "gate": "snapshot_match",
+        "remaining": 21961
+      },
+      {
+        "before": 21961,
+        "excluded": 0,
+        "gate": "t60_aligned",
+        "remaining": 21961
+      },
+      {
+        "before": 21961,
+        "excluded": 5364,
+        "gate": "source_event_observed",
+        "remaining": 16597
+      },
+      {
+        "before": 16597,
+        "excluded": 45,
+        "gate": "source_coverage_chronology",
+        "remaining": 16552
+      },
+      {
+        "before": 16552,
+        "excluded": 2,
+        "gate": "native_both_books",
+        "remaining": 16550
+      },
+      {
+        "before": 16550,
+        "excluded": 7265,
+        "gate": "unambiguous_asks",
+        "remaining": 9285
+      },
+      {
+        "before": 9285,
+        "excluded": 2275,
+        "gate": "not_crossed",
+        "remaining": 7010
+      },
+      {
+        "before": 7010,
+        "excluded": 0,
+        "gate": "p_market_valid",
+        "remaining": 7010
+      },
+      {
+        "before": 7010,
+        "excluded": 0,
+        "gate": "ask_ladder_aligned",
+        "remaining": 7010
+      },
+      {
+        "before": 7010,
+        "excluded": 0,
+        "gate": "gross_depth_5_both_sides",
+        "remaining": 7010
+      },
+      {
+        "before": 7010,
+        "excluded": 0,
+        "gate": "six_features_finite",
+        "remaining": 7010
+      }
+    ],
+    "sequential_funnel_path": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/sequential_funnel.csv",
+    "source_event_semantics": "archive availability flags record hourly file processing; rows with zero observed replay events fail the separate event-presence gate.",
+    "t60_aligned_rows": 21961
+  },
+  "base70_or_generator_training_performed": false,
+  "checkpoint_fit_runner_sha256": "8935718549c904ab45cb8ade70bf5146993ba8b6b4cd9f42e1748d93fa1a2bf6",
+  "checkpoint_reused": true,
+  "current_runner_differs_from_fit_runner": true,
+  "daily_pnl_concentration": {
+    "C": {
+      "calendar_days": 47,
+      "no_trade_days": 47,
+      "top_five_days": [
+        {
+          "day_utc": "2026-05-15T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-16T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-17T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-18T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-19T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        }
+      ],
+      "top_five_days_pnl_usd": 0.0,
+      "top_five_share_of_total_pnl": null,
+      "total_pnl_usd": 0.0,
+      "trade_days": 0
+    },
+    "MARKET": {
+      "calendar_days": 47,
+      "no_trade_days": 47,
+      "top_five_days": [
+        {
+          "day_utc": "2026-05-15T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-16T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-17T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-18T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-19T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        }
+      ],
+      "top_five_days_pnl_usd": 0.0,
+      "top_five_share_of_total_pnl": null,
+      "total_pnl_usd": 0.0,
+      "trade_days": 0
+    },
+    "RAW": {
+      "calendar_days": 47,
+      "no_trade_days": 20,
+      "top_five_days": [
+        {
+          "day_utc": "2026-06-09T00:00:00+00:00",
+          "net_pnl_usd": 75.1941610580635
+        },
+        {
+          "day_utc": "2026-06-03T00:00:00+00:00",
+          "net_pnl_usd": 50.53240514910936
+        },
+        {
+          "day_utc": "2026-05-31T00:00:00+00:00",
+          "net_pnl_usd": 35.052064849401226
+        },
+        {
+          "day_utc": "2026-05-30T00:00:00+00:00",
+          "net_pnl_usd": 31.476804559398204
+        },
+        {
+          "day_utc": "2026-06-06T00:00:00+00:00",
+          "net_pnl_usd": 29.706703662512957
+        }
+      ],
+      "top_five_days_pnl_usd": 221.96213927848524,
+      "top_five_share_of_total_pnl": 0.9667196723457879,
+      "total_pnl_usd": 229.60341620015274,
+      "trade_days": 27
+    },
+    "X": {
+      "calendar_days": 47,
+      "no_trade_days": 47,
+      "top_five_days": [
+        {
+          "day_utc": "2026-05-15T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-16T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-17T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-18T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        },
+        {
+          "day_utc": "2026-05-19T00:00:00+00:00",
+          "net_pnl_usd": 0.0
+        }
+      ],
+      "top_five_days_pnl_usd": 0.0,
+      "top_five_share_of_total_pnl": null,
+      "total_pnl_usd": 0.0,
+      "trade_days": 0
+    }
+  },
+  "economics": {
+    "C": {
+      "accounting_summary": {
+        "all_fill_cash_fees_paid_usd": 0.0,
+        "all_fill_cash_outflow_usd": 0.0,
+        "all_fill_gross_notional_usd": 0.0,
+        "cash_debit_reconciliation_max_abs_usd": 0.0,
+        "cash_fees_paid_usd": 0.0,
+        "cashflow_pnl_usd": 0.0,
+        "fee_usd_equivalent_all_units": 0.0,
+        "fill_count": 0,
+        "gross_notional_usd": 0.0,
+        "ledger_pnl_usd": 0.0,
+        "loss_bound_violations": 0,
+        "max_abs_pnl_reconciliation_delta_usd": 0.0,
+        "minimum_loss_bound_headroom_usd": 0.0,
+        "payout_usd": 0.0,
+        "pnl_per_cash_outflow": null,
+        "pnl_per_notional": null,
+        "settled_cash_outflow_usd": 0.0,
+        "settlement_count": 0,
+        "share_fee_usd_entry_equivalent_informational": 0.0,
+        "unresolved_cash_outflow_usd": 0.0,
+        "unresolved_fill_count": 0
+      },
+      "all_fill_cash_debit_usd": 0.0,
+      "all_fill_cash_fees_usd": 0.0,
+      "all_fill_gross_notional_usd": 0.0,
+      "all_fill_outcome_share_fees_shares": 0.0,
+      "decision_days_with_rows": 31,
+      "decision_rows": 5083,
+      "execution_engine_summary": {
+        "accounting_audit": {
+          "cash_constraint_applied": false,
+          "checks": {
+            "cash_debit_equals_gross_plus_cash_fee": true,
+            "cost_basis_exposure_never_negative": true,
+            "daily_log_growth_reconciles_to_final_equity": true,
+            "decision_to_execution_is_one_second": true,
+            "ending_cash_matches_sum_of_trade_pnl": true,
+            "equity_equals_cash_plus_locked_cost": true,
+            "fee_mode_matches_cash_or_share_collection": true,
+            "free_cash_never_negative": true,
+            "one_entry_and_one_settlement_per_trade": true,
+            "payout_matches_resolved_outcome": true,
+            "prediction_available_before_entry": true,
+            "prediction_computed_within_one_second": true,
+            "requested_stake_uses_only_policy_capital_base": true,
+            "settled_loss_is_bounded_by_total_cash_debit": true,
+            "settled_pnl_reconciles_to_payout_less_cash_debit": true,
+            "shares_reconcile_with_share_fees": true,
+            "trades_have_no_future_snapshot_events": true,
+            "trades_have_no_future_t60_snapshot_events": true,
+            "unresolved_book_value_reconciles_cost_basis_equity": true,
+            "unresolved_gross_matches_locked_cost": true
+          },
+          "decision_count": 5083,
+          "ending_cash_usd": 0.0,
+          "minimum_cash_usd": 0.0,
+          "settlement_count": 0,
+          "status": "passed",
+          "trade_count": 0,
+          "trade_pnl_sum_usd": 0,
+          "unresolved_fill_count": 0
+        },
+        "ask_vwap_quantiles": {
+          "median": null,
+          "p25": null,
+          "p75": null
+        },
+        "daily_log_growth": {
+          "not_applicable": "independent orders; no portfolio capital base"
+        },
+        "decision_count": 5083,
+        "down_fill_count": 0,
+        "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+        "ending_cash_after_settlement_usd": 0.0,
+        "ending_cost_basis_equity_usd": 0.0,
+        "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+        "fees_paid_estimated_usd": 0.0,
+        "fill_count": 0,
+        "forecast_net_ev_on_settled_fills_usd": 0.0,
+        "gross_stake_quantiles_usd": {
+          "median": null,
+          "p0": null,
+          "p100": null,
+          "p25": null,
+          "p75": null
+        },
+        "gross_turnover_usd": 0.0,
+        "independent_order_mode": true,
+        "initial_cash_usd": 0.0,
+        "intent_count": 0,
+        "max_drawdown_cost_basis_equity": null,
+        "max_drawdown_peak_utc": null,
+        "max_drawdown_trough_utc": null,
+        "maximum_concurrent_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "minimum_free_cash_usd": null,
+        "minimum_net_ev_fraction": 0.01,
+        "monthly_continuous_portfolio": [],
+        "net_pnl_usd": 0.0,
+        "pnl_minus_forecast_ev_on_settled_fills_usd": 0.0,
+        "pnl_per_settled_turnover": null,
+        "policy": "C",
+        "rejections_by_reason": {
+          "no_positive_net_expected_value": 5041,
+          "no_priceable_native_ask_side": 42
+        },
+        "settled_trade_count": 0,
+        "settled_turnover_usd": 0.0,
+        "settlement_count": 0,
+        "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+        "side_selection_rule": "positive net EV side at requested amount",
+        "sizing_policy": "fixed_5_usd",
+        "trade_count": 0,
+        "unresolved_cash_debit_usd": 0.0,
+        "unresolved_fill_count": 0,
+        "unresolved_gross_turnover_usd": 0.0,
+        "unresolved_locked_cost_usd": 0.0,
+        "up_fill_count": 0,
+        "variant": "C"
+      },
+      "execution_net_ev_at_t59_on_same_settled_fills_usd": 0.0,
+      "fill_count": 0,
+      "forecast_net_ev_on_same_settled_fills_usd": 0.0,
+      "full_fills": 0,
+      "independent_decimal_cashflow_audit": {
+        "all_fill_cash_fees_paid_usd": 0.0,
+        "cash_debit_reconciliation_max_abs_usd": 0.0,
+        "cashflow_pnl_usd": 0.0,
+        "fill_count": 0,
+        "gross_notional_usd": 0.0,
+        "ledger_pnl_usd": 0.0,
+        "loss_bound_violations": 0,
+        "max_abs_pnl_reconciliation_delta_usd": 0.0,
+        "minimum_loss_bound_headroom_usd": 0.0,
+        "settled_cash_outflow_usd": 0.0,
+        "settlement_count": 0,
+        "share_fee_usd_entry_equivalent_informational": 0.0,
+        "unresolved_cash_outflow_usd": 0.0,
+        "unresolved_fill_count": 0
+      },
+      "intent_count_at_or_above_1pct_net_ev": 0,
+      "partial_fills": 0,
+      "pnl_minus_t60_ev_same_settled_fills_usd": 0.0,
+      "pnl_per_settled_cash_debit": null,
+      "pnl_per_settled_notional": null,
+      "settled_cash_debit_usd": 0.0,
+      "settled_cash_fees_usd": 0.0,
+      "settled_gross_notional_usd": 0.0,
+      "settled_net_pnl_usd": 0.0,
+      "settled_outcome_share_fee_entry_equivalent_usd": 0.0,
+      "settled_outcome_share_fees_shares": 0.0,
+      "settlement_count_by_cutoff": 0,
+      "unresolved_cash_debit_usd": 0.0,
+      "unresolved_fill_count": 0,
+      "variant": "C"
+    },
+    "MARKET": {
+      "accounting_summary": {
+        "all_fill_cash_fees_paid_usd": 0.0,
+        "all_fill_cash_outflow_usd": 0.0,
+        "all_fill_gross_notional_usd": 0.0,
+        "cash_debit_reconciliation_max_abs_usd": 0.0,
+        "cash_fees_paid_usd": 0.0,
+        "cashflow_pnl_usd": 0.0,
+        "fee_usd_equivalent_all_units": 0.0,
+        "fill_count": 0,
+        "gross_notional_usd": 0.0,
+        "ledger_pnl_usd": 0.0,
+        "loss_bound_violations": 0,
+        "max_abs_pnl_reconciliation_delta_usd": 0.0,
+        "minimum_loss_bound_headroom_usd": 0.0,
+        "payout_usd": 0.0,
+        "pnl_per_cash_outflow": null,
+        "pnl_per_notional": null,
+        "settled_cash_outflow_usd": 0.0,
+        "settlement_count": 0,
+        "share_fee_usd_entry_equivalent_informational": 0.0,
+        "unresolved_cash_outflow_usd": 0.0,
+        "unresolved_fill_count": 0
+      },
+      "all_fill_cash_debit_usd": 0.0,
+      "all_fill_cash_fees_usd": 0.0,
+      "all_fill_gross_notional_usd": 0.0,
+      "all_fill_outcome_share_fees_shares": 0.0,
+      "decision_days_with_rows": 31,
+      "decision_rows": 5083,
+      "execution_engine_summary": {
+        "accounting_audit": {
+          "cash_constraint_applied": false,
+          "checks": {
+            "cash_debit_equals_gross_plus_cash_fee": true,
+            "cost_basis_exposure_never_negative": true,
+            "daily_log_growth_reconciles_to_final_equity": true,
+            "decision_to_execution_is_one_second": true,
+            "ending_cash_matches_sum_of_trade_pnl": true,
+            "equity_equals_cash_plus_locked_cost": true,
+            "fee_mode_matches_cash_or_share_collection": true,
+            "free_cash_never_negative": true,
+            "one_entry_and_one_settlement_per_trade": true,
+            "payout_matches_resolved_outcome": true,
+            "prediction_available_before_entry": true,
+            "prediction_computed_within_one_second": true,
+            "requested_stake_uses_only_policy_capital_base": true,
+            "settled_loss_is_bounded_by_total_cash_debit": true,
+            "settled_pnl_reconciles_to_payout_less_cash_debit": true,
+            "shares_reconcile_with_share_fees": true,
+            "trades_have_no_future_snapshot_events": true,
+            "trades_have_no_future_t60_snapshot_events": true,
+            "unresolved_book_value_reconciles_cost_basis_equity": true,
+            "unresolved_gross_matches_locked_cost": true
+          },
+          "decision_count": 5083,
+          "ending_cash_usd": 0.0,
+          "minimum_cash_usd": 0.0,
+          "settlement_count": 0,
+          "status": "passed",
+          "trade_count": 0,
+          "trade_pnl_sum_usd": 0,
+          "unresolved_fill_count": 0
+        },
+        "ask_vwap_quantiles": {
+          "median": null,
+          "p25": null,
+          "p75": null
+        },
+        "daily_log_growth": {
+          "not_applicable": "independent orders; no portfolio capital base"
+        },
+        "decision_count": 5083,
+        "down_fill_count": 0,
+        "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+        "ending_cash_after_settlement_usd": 0.0,
+        "ending_cost_basis_equity_usd": 0.0,
+        "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+        "fees_paid_estimated_usd": 0.0,
+        "fill_count": 0,
+        "forecast_net_ev_on_settled_fills_usd": 0.0,
+        "gross_stake_quantiles_usd": {
+          "median": null,
+          "p0": null,
+          "p100": null,
+          "p25": null,
+          "p75": null
+        },
+        "gross_turnover_usd": 0.0,
+        "independent_order_mode": true,
+        "initial_cash_usd": 0.0,
+        "intent_count": 0,
+        "max_drawdown_cost_basis_equity": null,
+        "max_drawdown_peak_utc": null,
+        "max_drawdown_trough_utc": null,
+        "maximum_concurrent_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "minimum_free_cash_usd": null,
+        "minimum_net_ev_fraction": 0.01,
+        "monthly_continuous_portfolio": [],
+        "net_pnl_usd": 0.0,
+        "pnl_minus_forecast_ev_on_settled_fills_usd": 0.0,
+        "pnl_per_settled_turnover": null,
+        "policy": "MARKET",
+        "rejections_by_reason": {
+          "no_positive_net_expected_value": 5041,
+          "no_priceable_native_ask_side": 42
+        },
+        "settled_trade_count": 0,
+        "settled_turnover_usd": 0.0,
+        "settlement_count": 0,
+        "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+        "side_selection_rule": "positive net EV side at requested amount",
+        "sizing_policy": "fixed_5_usd",
+        "trade_count": 0,
+        "unresolved_cash_debit_usd": 0.0,
+        "unresolved_fill_count": 0,
+        "unresolved_gross_turnover_usd": 0.0,
+        "unresolved_locked_cost_usd": 0.0,
+        "up_fill_count": 0,
+        "variant": "MARKET"
+      },
+      "execution_net_ev_at_t59_on_same_settled_fills_usd": 0.0,
+      "fill_count": 0,
+      "forecast_net_ev_on_same_settled_fills_usd": 0.0,
+      "full_fills": 0,
+      "independent_decimal_cashflow_audit": {
+        "all_fill_cash_fees_paid_usd": 0.0,
+        "cash_debit_reconciliation_max_abs_usd": 0.0,
+        "cashflow_pnl_usd": 0.0,
+        "fill_count": 0,
+        "gross_notional_usd": 0.0,
+        "ledger_pnl_usd": 0.0,
+        "loss_bound_violations": 0,
+        "max_abs_pnl_reconciliation_delta_usd": 0.0,
+        "minimum_loss_bound_headroom_usd": 0.0,
+        "settled_cash_outflow_usd": 0.0,
+        "settlement_count": 0,
+        "share_fee_usd_entry_equivalent_informational": 0.0,
+        "unresolved_cash_outflow_usd": 0.0,
+        "unresolved_fill_count": 0
+      },
+      "intent_count_at_or_above_1pct_net_ev": 0,
+      "partial_fills": 0,
+      "pnl_minus_t60_ev_same_settled_fills_usd": 0.0,
+      "pnl_per_settled_cash_debit": null,
+      "pnl_per_settled_notional": null,
+      "settled_cash_debit_usd": 0.0,
+      "settled_cash_fees_usd": 0.0,
+      "settled_gross_notional_usd": 0.0,
+      "settled_net_pnl_usd": 0.0,
+      "settled_outcome_share_fee_entry_equivalent_usd": 0.0,
+      "settled_outcome_share_fees_shares": 0.0,
+      "settlement_count_by_cutoff": 0,
+      "unresolved_cash_debit_usd": 0.0,
+      "unresolved_fill_count": 0,
+      "variant": "MARKET"
+    },
+    "RAW": {
+      "accounting_summary": {
+        "all_fill_cash_fees_paid_usd": 141.91997,
+        "all_fill_cash_outflow_usd": 4051.91997,
+        "all_fill_gross_notional_usd": 3910.0,
+        "cash_debit_reconciliation_max_abs_usd": 4.440892098500626e-16,
+        "cash_fees_paid_usd": 141.91997,
+        "cashflow_pnl_usd": 229.60341620015276,
+        "fee_usd_equivalent_all_units": 141.91997,
+        "fill_count": 782,
+        "gross_notional_usd": 3910.0,
+        "ledger_pnl_usd": 229.60341620015276,
+        "loss_bound_violations": 0,
+        "max_abs_pnl_reconciliation_delta_usd": 0.0,
+        "minimum_loss_bound_headroom_usd": 0.0,
+        "payout_usd": 4281.523386200152,
+        "pnl_per_cash_outflow": 0.05666533838281924,
+        "pnl_per_notional": 0.05872210132996234,
+        "settled_cash_outflow_usd": 4051.91997,
+        "settlement_count": 782,
+        "share_fee_usd_entry_equivalent_informational": 0.0,
+        "unresolved_cash_outflow_usd": 0.0,
+        "unresolved_fill_count": 0
+      },
+      "all_fill_cash_debit_usd": 4051.91997,
+      "all_fill_cash_fees_usd": 141.91997,
+      "all_fill_gross_notional_usd": 3910.0,
+      "all_fill_outcome_share_fees_shares": 0.0,
+      "decision_days_with_rows": 31,
+      "decision_rows": 5083,
+      "execution_net_ev_at_t59_on_same_settled_fills_usd": 209.9696692913103,
+      "fill_count": 782,
+      "forecast_net_ev_on_same_settled_fills_usd": 207.5101776037325,
+      "full_fills": 782,
+      "independent_decimal_cashflow_audit": {
+        "all_fill_cash_fees_paid_usd": 141.91997,
+        "cash_debit_reconciliation_max_abs_usd": 5e-16,
+        "cashflow_pnl_usd": 229.60341620015276,
+        "fill_count": 782,
+        "gross_notional_usd": 3910.0,
+        "ledger_pnl_usd": 229.60341620015276,
+        "loss_bound_violations": 0,
+        "max_abs_pnl_reconciliation_delta_usd": 2e-15,
+        "minimum_loss_bound_headroom_usd": 0.0,
+        "settled_cash_outflow_usd": 4051.91997,
+        "settlement_count": 782,
+        "share_fee_usd_entry_equivalent_informational": 0.0,
+        "unresolved_cash_outflow_usd": 0.0,
+        "unresolved_fill_count": 0
+      },
+      "intent_count_at_or_above_1pct_net_ev": 787,
+      "partial_fills": 0,
+      "pnl_minus_t60_ev_same_settled_fills_usd": 22.093238596420264,
+      "pnl_per_settled_cash_debit": 0.05666533838281924,
+      "pnl_per_settled_notional": 0.05872210132996234,
+      "settled_cash_debit_usd": 4051.91997,
+      "settled_cash_fees_usd": 141.91997,
+      "settled_gross_notional_usd": 3910.0,
+      "settled_net_pnl_usd": 229.60341620015276,
+      "settled_outcome_share_fee_entry_equivalent_usd": 0.0,
+      "settled_outcome_share_fees_shares": 0.0,
+      "settlement_count_by_cutoff": 782,
+      "unresolved_cash_debit_usd": 0.0,
+      "unresolved_fill_count": 0,
+      "variant": "RAW"
+    },
+    "X": {
+      "accounting_summary": {
+        "all_fill_cash_fees_paid_usd": 0.0,
+        "all_fill_cash_outflow_usd": 0.0,
+        "all_fill_gross_notional_usd": 0.0,
+        "cash_debit_reconciliation_max_abs_usd": 0.0,
+        "cash_fees_paid_usd": 0.0,
+        "cashflow_pnl_usd": 0.0,
+        "fee_usd_equivalent_all_units": 0.0,
+        "fill_count": 0,
+        "gross_notional_usd": 0.0,
+        "ledger_pnl_usd": 0.0,
+        "loss_bound_violations": 0,
+        "max_abs_pnl_reconciliation_delta_usd": 0.0,
+        "minimum_loss_bound_headroom_usd": 0.0,
+        "payout_usd": 0.0,
+        "pnl_per_cash_outflow": null,
+        "pnl_per_notional": null,
+        "settled_cash_outflow_usd": 0.0,
+        "settlement_count": 0,
+        "share_fee_usd_entry_equivalent_informational": 0.0,
+        "unresolved_cash_outflow_usd": 0.0,
+        "unresolved_fill_count": 0
+      },
+      "all_fill_cash_debit_usd": 0.0,
+      "all_fill_cash_fees_usd": 0.0,
+      "all_fill_gross_notional_usd": 0.0,
+      "all_fill_outcome_share_fees_shares": 0.0,
+      "decision_days_with_rows": 31,
+      "decision_rows": 5083,
+      "execution_engine_summary": {
+        "accounting_audit": {
+          "cash_constraint_applied": false,
+          "checks": {
+            "cash_debit_equals_gross_plus_cash_fee": true,
+            "cost_basis_exposure_never_negative": true,
+            "daily_log_growth_reconciles_to_final_equity": true,
+            "decision_to_execution_is_one_second": true,
+            "ending_cash_matches_sum_of_trade_pnl": true,
+            "equity_equals_cash_plus_locked_cost": true,
+            "fee_mode_matches_cash_or_share_collection": true,
+            "free_cash_never_negative": true,
+            "one_entry_and_one_settlement_per_trade": true,
+            "payout_matches_resolved_outcome": true,
+            "prediction_available_before_entry": true,
+            "prediction_computed_within_one_second": true,
+            "requested_stake_uses_only_policy_capital_base": true,
+            "settled_loss_is_bounded_by_total_cash_debit": true,
+            "settled_pnl_reconciles_to_payout_less_cash_debit": true,
+            "shares_reconcile_with_share_fees": true,
+            "trades_have_no_future_snapshot_events": true,
+            "trades_have_no_future_t60_snapshot_events": true,
+            "unresolved_book_value_reconciles_cost_basis_equity": true,
+            "unresolved_gross_matches_locked_cost": true
+          },
+          "decision_count": 5083,
+          "ending_cash_usd": 0.0,
+          "minimum_cash_usd": 0.0,
+          "settlement_count": 0,
+          "status": "passed",
+          "trade_count": 0,
+          "trade_pnl_sum_usd": 0,
+          "unresolved_fill_count": 0
+        },
+        "ask_vwap_quantiles": {
+          "median": null,
+          "p25": null,
+          "p75": null
+        },
+        "daily_log_growth": {
+          "not_applicable": "independent orders; no portfolio capital base"
+        },
+        "decision_count": 5083,
+        "down_fill_count": 0,
+        "drawdown_accounting": "not applicable to independent orders; no portfolio capital base or cash constraint",
+        "ending_cash_after_settlement_usd": 0.0,
+        "ending_cost_basis_equity_usd": 0.0,
+        "expected_value": "payout probability times net shares less full gross spend and cash collateral fee; optional T-60 hurdle is net EV divided by requested gross stake",
+        "fees_paid_estimated_usd": 0.0,
+        "fill_count": 0,
+        "forecast_net_ev_on_settled_fills_usd": 0.0,
+        "gross_stake_quantiles_usd": {
+          "median": null,
+          "p0": null,
+          "p100": null,
+          "p25": null,
+          "p75": null
+        },
+        "gross_turnover_usd": 0.0,
+        "independent_order_mode": true,
+        "initial_cash_usd": 0.0,
+        "intent_count": 0,
+        "max_drawdown_cost_basis_equity": null,
+        "max_drawdown_peak_utc": null,
+        "max_drawdown_trough_utc": null,
+        "maximum_concurrent_cost_basis_exposure_usd": 0.0,
+        "maximum_concurrent_positions": 0,
+        "minimum_free_cash_usd": null,
+        "minimum_net_ev_fraction": 0.01,
+        "monthly_continuous_portfolio": [],
+        "net_pnl_usd": 0.0,
+        "pnl_minus_forecast_ev_on_settled_fills_usd": 0.0,
+        "pnl_per_settled_turnover": null,
+        "policy": "X",
+        "rejections_by_reason": {
+          "no_positive_net_expected_value": 5041,
+          "no_priceable_native_ask_side": 42
+        },
+        "settled_trade_count": 0,
+        "settled_turnover_usd": 0.0,
+        "settlement_count": 0,
+        "settlement_release": "max(Gamma closedTime, market start + 5 minutes) + 60 seconds; same convention for all policies",
+        "side_selection_rule": "positive net EV side at requested amount",
+        "sizing_policy": "fixed_5_usd",
+        "trade_count": 0,
+        "unresolved_cash_debit_usd": 0.0,
+        "unresolved_fill_count": 0,
+        "unresolved_gross_turnover_usd": 0.0,
+        "unresolved_locked_cost_usd": 0.0,
+        "up_fill_count": 0,
+        "variant": "X"
+      },
+      "execution_net_ev_at_t59_on_same_settled_fills_usd": 0.0,
+      "fill_count": 0,
+      "forecast_net_ev_on_same_settled_fills_usd": 0.0,
+      "full_fills": 0,
+      "independent_decimal_cashflow_audit": {
+        "all_fill_cash_fees_paid_usd": 0.0,
+        "cash_debit_reconciliation_max_abs_usd": 0.0,
+        "cashflow_pnl_usd": 0.0,
+        "fill_count": 0,
+        "gross_notional_usd": 0.0,
+        "ledger_pnl_usd": 0.0,
+        "loss_bound_violations": 0,
+        "max_abs_pnl_reconciliation_delta_usd": 0.0,
+        "minimum_loss_bound_headroom_usd": 0.0,
+        "settled_cash_outflow_usd": 0.0,
+        "settlement_count": 0,
+        "share_fee_usd_entry_equivalent_informational": 0.0,
+        "unresolved_cash_outflow_usd": 0.0,
+        "unresolved_fill_count": 0
+      },
+      "intent_count_at_or_above_1pct_net_ev": 0,
+      "partial_fills": 0,
+      "pnl_minus_t60_ev_same_settled_fills_usd": 0.0,
+      "pnl_per_settled_cash_debit": null,
+      "pnl_per_settled_notional": null,
+      "settled_cash_debit_usd": 0.0,
+      "settled_cash_fees_usd": 0.0,
+      "settled_gross_notional_usd": 0.0,
+      "settled_net_pnl_usd": 0.0,
+      "settled_outcome_share_fee_entry_equivalent_usd": 0.0,
+      "settled_outcome_share_fees_shares": 0.0,
+      "settlement_count_by_cutoff": 0,
+      "unresolved_cash_debit_usd": 0.0,
+      "unresolved_fill_count": 0,
+      "variant": "X"
+    }
+  },
+  "economics_monthly_path": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/monthly.csv",
+  "experiment_id": "btc_market_microstructure_development_20261019",
+  "fit_sample": {
+    "evaluation_days_with_input_rows": 31,
+    "evaluation_input_rows_2026_06_29": 1,
+    "evaluation_input_rows_2026_06_30": 17,
+    "evaluation_input_rows_after_2026_06_12": 18,
+    "evaluation_input_rows_independent_of_label_release": 5083,
+    "first_test_decision_utc": "2026-05-14T23:59:00+00:00",
+    "latest_training_label_release_utc": "2026-05-14T23:51:21+00:00",
+    "latest_training_label_strictly_precedes_first_test_decision": true,
+    "quality_days_with_rows": 31,
+    "quality_rows_released_by_cutoff": 5082,
+    "training_class_counts": {
+      "0": 961,
+      "1": 966
+    },
+    "training_first_market_start_utc": "2026-04-15T17:05:00+00:00",
+    "training_last_market_start_utc": "2026-05-14T23:45:00+00:00",
+    "training_rows": 1927
+  },
+  "fit_warning_summary_corrected_without_refit": true,
+  "holdout_rows_or_labels_read": false,
+  "inputs": {
+    "design_manifest_path": {
+      "bytes": 6862,
+      "path": "reports/btc_preopen/btc_market_microstructure_design_20261019_manifest.json",
+      "sha256": "efc40e5a3a00e965e3475f1d42300e9f5bc1bdad147cdb90f295c30481603a98"
+    },
+    "feature_table_path": {
+      "bytes": 1646514,
+      "path": "data/analysis/polymarket/BTC/btc_market_microstructure_design_20261019/development_features.parquet",
+      "sha256": "94dbbf4aee332119cbcb82b472d79db692b6df6b9578f18059ad204e00877f99"
+    },
+    "official_market_index_path": {
+      "bytes": 7486947,
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+      "sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973"
+    },
+    "raw_ledger_decisions_path": {
+      "bytes": 2830702,
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/decisions.parquet",
+      "sha256": "db4163024b6d4e94f0422711bb017bb227a46b9c0fa6c846a65d81dba8d68c94"
+    },
+    "raw_ledger_trades_path": {
+      "bytes": 458768,
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet",
+      "sha256": "7b66f0441481c15835bb2435c951e7a1212cc64189113f33b5a28414e7a76f51"
+    },
+    "raw_oof_path": {
+      "bytes": 11166225,
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+      "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8"
+    },
+    "replay_dependencies_path": {
+      "bytes": 1500028,
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_replay_dependencies.json",
+      "sha256": "abd05c82728cefa44e81543defa71753a4324961007aebe8ea53d9849db82b3c"
+    },
+    "source_archive_manifest_path": {
+      "bytes": 2234325,
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json",
+      "sha256": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac"
+    },
+    "t59_snapshots_path": {
+      "bytes": 26051278,
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+      "sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0"
+    },
+    "t60_snapshots_path": {
+      "bytes": 25908421,
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+      "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1"
+    }
+  },
+  "model_fit": {
+    "coefficients_standardized": {
+      "C": {
+        "market_logit": 0.09756184033788723,
+        "mid_sum_minus_one": 0.03656443473254505,
+        "slippage_5_down": 0.0267701802707591,
+        "slippage_5_up": -0.0478189602523802,
+        "spread_down": 0.02855270872340188,
+        "spread_up": 0.0307382661569993,
+        "up_down_ask_depth_imbalance": -0.04985905064054999
+      },
+      "X": {
+        "market_logit": 0.10917091667926768,
+        "mid_sum_minus_one": 0.013075287976095314,
+        "raw_minus_market_logit": 0.1672367212891012,
+        "raw_minus_market_logit_x_mid_sum_minus_one": -0.10491799309045646,
+        "raw_minus_market_logit_x_slippage_5_down": 0.03500471517336894,
+        "raw_minus_market_logit_x_slippage_5_up": -0.023745038700370192,
+        "raw_minus_market_logit_x_spread_down": -0.24151301750179657,
+        "raw_minus_market_logit_x_spread_up": 0.08507042849271754,
+        "raw_minus_market_logit_x_up_down_ask_depth_imbalance": -0.07211625990642319,
+        "slippage_5_down": 0.03518159704532325,
+        "slippage_5_up": -0.05150544512755181,
+        "spread_down": 0.004653061451865554,
+        "spread_up": 0.05413899633185737,
+        "up_down_ask_depth_imbalance": -0.01582806758455347
+      }
+    },
+    "common_scaled_values_identical_in_train_and_evaluation": true,
+    "constant_interaction_columns_retained": [],
+    "constant_main_effect_columns_retained": [],
+    "convergence_warnings": [],
+    "fit_count": 2,
+    "input_count_C": 7,
+    "input_count_X": 14,
+    "interaction_feature_order": [
+      "raw_minus_market_logit_x_spread_up",
+      "raw_minus_market_logit_x_spread_down",
+      "raw_minus_market_logit_x_up_down_ask_depth_imbalance",
+      "raw_minus_market_logit_x_slippage_5_up",
+      "raw_minus_market_logit_x_slippage_5_down",
+      "raw_minus_market_logit_x_mid_sum_minus_one"
+    ],
+    "interaction_scaler_fit_rows": 1927,
+    "interaction_scaler_mean": {
+      "raw_minus_market_logit_x_mid_sum_minus_one": 0.005959814515045162,
+      "raw_minus_market_logit_x_slippage_5_down": -0.044458274000406355,
+      "raw_minus_market_logit_x_slippage_5_up": 0.042224421112493964,
+      "raw_minus_market_logit_x_spread_down": 0.015542370522235715,
+      "raw_minus_market_logit_x_spread_up": 0.02938433491818438,
+      "raw_minus_market_logit_x_up_down_ask_depth_imbalance": -0.19180900364940995
+    },
+    "interaction_scaler_scale": {
+      "raw_minus_market_logit_x_mid_sum_minus_one": 0.9803651565923085,
+      "raw_minus_market_logit_x_slippage_5_down": 0.8808935521471972,
+      "raw_minus_market_logit_x_slippage_5_up": 0.9309946404750047,
+      "raw_minus_market_logit_x_spread_down": 0.9894894976660877,
+      "raw_minus_market_logit_x_spread_up": 0.9945972557512913,
+      "raw_minus_market_logit_x_up_down_ask_depth_imbalance": 0.9664058011231477
+    },
+    "main_effects_scaler_feature_order": [
+      "market_logit",
+      "spread_up",
+      "spread_down",
+      "up_down_ask_depth_imbalance",
+      "slippage_5_up",
+      "slippage_5_down",
+      "mid_sum_minus_one",
+      "raw_minus_market_logit"
+    ],
+    "main_effects_scaler_fit_rows": 1927,
+    "main_scaler_mean": {
+      "market_logit": 0.019873098635900487,
+      "mid_sum_minus_one": -7.005708354956017e-05,
+      "raw_minus_market_logit": -0.013041208084884667,
+      "slippage_5_down": 0.0002497367047598833,
+      "slippage_5_up": 0.0002124502279675616,
+      "spread_down": 0.005563051375194608,
+      "spread_up": 0.005319148936170217,
+      "up_down_ask_depth_imbalance": 0.022315100468536384
+    },
+    "main_scaler_scale": {
+      "market_logit": 0.033011657226038216,
+      "mid_sum_minus_one": 0.0009571901161113776,
+      "raw_minus_market_logit": 0.06829731473651876,
+      "slippage_5_down": 0.0012483424489978922,
+      "slippage_5_up": 0.001121123495087399,
+      "spread_down": 0.00498904296360956,
+      "spread_up": 0.00501056089678511,
+      "up_down_ask_depth_imbalance": 0.5977783274166583
+    },
+    "model_c_intercept": 0.004614957685004691,
+    "model_c_iterations": 6,
+    "model_x_intercept": 0.00403899585065627,
+    "model_x_iterations": 14,
+    "other_fit_warnings": [
+      "'penalty' was deprecated in version 1.8 and will be removed in 1.10. To avoid this warning, leave 'penalty' set to its default value and use 'l1_ratio' or 'C' instead. Use l1_ratio=0 instead of penalty='l2', l1_ratio=1 instead of penalty='l1', and C=np.inf instead of penalty=None.",
+      "'penalty' was deprecated in version 1.8 and will be removed in 1.10. To avoid this warning, leave 'penalty' set to its default value and use 'l1_ratio' or 'C' instead. Use l1_ratio=0 instead of penalty='l2', l1_ratio=1 instead of penalty='l1', and C=np.inf instead of penalty=None."
+    ]
+  },
+  "model_fit_count": 2,
+  "model_fit_runner_sha256": "8935718549c904ab45cb8ade70bf5146993ba8b6b4cd9f42e1748d93fa1a2bf6",
+  "paired_daily_pnl_bootstrap": {
+    "calendar_days": 47,
+    "mean_daily_pnl_difference_X_minus_C_usd": {
+      "lower_95": 0.0,
+      "point_estimate": 0.0,
+      "upper_95": 0.0,
+      "valid_replicates": 2000
+    },
+    "total_pnl_difference_X_minus_C_usd": {
+      "lower_95": 0.0,
+      "point_estimate": 0.0,
+      "upper_95": 0.0,
+      "valid_replicates": 2000
+    },
+    "zero_trade_days_included": true
+  },
+  "protocol_sha256": "728f372dc42c29f835241a47d0746c38aeea5e68b709c92268b00d04e3857c5e",
+  "protocol_version": 2,
+  "quality": {
+    "bootstrap": {
+      "block_days": 3,
+      "calendar_includes_zero_row_days": true,
+      "complete_calendar_days": 47,
+      "empty_replicates": 0,
+      "method": "paired circular moving-block bootstrap over the complete UTC calendar, including days without qualifying rows",
+      "one_class_replicates": 0,
+      "paired_contrasts": {
+        "C_MINUS_MARKET": {
+          "auc": {
+            "lower_95": -0.012737185541602605,
+            "upper_95": 0.011336449757328776,
+            "valid_replicates": 2000
+          },
+          "brier": {
+            "lower_95": 0.0008959231911387519,
+            "upper_95": 0.0045708452962515645,
+            "valid_replicates": 2000
+          },
+          "log_loss": {
+            "lower_95": 0.002170866036157101,
+            "upper_95": 0.011579227548533568,
+            "valid_replicates": 2000
+          }
+        },
+        "X_MINUS_C": {
+          "auc": {
+            "lower_95": -0.011272993794951155,
+            "upper_95": 0.009872858873139087,
+            "valid_replicates": 2000
+          },
+          "brier": {
+            "lower_95": 0.0007200431982638062,
+            "upper_95": 0.0033713185369770335,
+            "valid_replicates": 2000
+          },
+          "log_loss": {
+            "lower_95": 0.0026814198932904403,
+            "upper_95": 0.025441247341447596,
+            "valid_replicates": 2000
+          }
+        },
+        "X_MINUS_MARKET": {
+          "auc": {
+            "lower_95": -0.01603244707150413,
+            "upper_95": 0.012420801561504493,
+            "valid_replicates": 2000
+          },
+          "brier": {
+            "lower_95": 0.002100754418024707,
+            "upper_95": 0.007681503980194471,
+            "valid_replicates": 2000
+          },
+          "log_loss": {
+            "lower_95": 0.00628050860629599,
+            "upper_95": 0.03670927818594286,
+            "valid_replicates": 2000
+          }
+        }
+      },
+      "replications": 2000,
+      "seed": 20261019,
+      "variant_intervals": {
+        "C": {
+          "auc": {
+            "lower_95": 0.49993700121899703,
+            "upper_95": 0.5393546337183385,
+            "valid_replicates": 2000
+          },
+          "brier": {
+            "lower_95": 0.25054530980553963,
+            "upper_95": 0.2547204426478287,
+            "valid_replicates": 2000
+          },
+          "log_loss": {
+            "lower_95": 0.6946238986944138,
+            "upper_95": 0.7050695855740516,
+            "valid_replicates": 2000
+          }
+        },
+        "MARKET": {
+          "auc": {
+            "lower_95": 0.5039373356646414,
+            "upper_95": 0.5345029498486354,
+            "valid_replicates": 2000
+          },
+          "brier": {
+            "lower_95": 0.2494756907201203,
+            "upper_95": 0.250365761169216,
+            "valid_replicates": 2000
+          },
+          "log_loss": {
+            "lower_95": 0.6921186769897709,
+            "upper_95": 0.6938943573984167,
+            "valid_replicates": 2000
+          }
+        },
+        "RAW": {
+          "auc": {
+            "lower_95": 0.5078519642213379,
+            "upper_95": 0.5408321358920883,
+            "valid_replicates": 2000
+          },
+          "brier": {
+            "lower_95": 0.2490508335358288,
+            "upper_95": 0.25007379137686825,
+            "valid_replicates": 2000
+          },
+          "log_loss": {
+            "lower_95": 0.6912445376450578,
+            "upper_95": 0.6932951196400369,
+            "valid_replicates": 2000
+          }
+        },
+        "X": {
+          "auc": {
+            "lower_95": 0.5040242080404226,
+            "upper_95": 0.5315649042904943,
+            "valid_replicates": 2000
+          },
+          "brier": {
+            "lower_95": 0.25182988711045884,
+            "upper_95": 0.2578104208909224,
+            "valid_replicates": 2000
+          },
+          "log_loss": {
+            "lower_95": 0.6993150582533508,
+            "upper_95": 0.7297637404422952,
+            "valid_replicates": 2000
+          }
+        }
+      }
+    },
+    "overall": [
+      {
+        "auc": 0.5178833339116684,
+        "brier": 0.24998962554748758,
+        "log_loss": 0.6931414129468709,
+        "n": 5082,
+        "observed_days": 31,
+        "variant": "MARKET"
+      },
+      {
+        "auc": 0.5263529477738644,
+        "brier": 0.24953222717227924,
+        "log_loss": 0.6922099457356046,
+        "n": 5082,
+        "observed_days": 31,
+        "variant": "RAW"
+      },
+      {
+        "auc": 0.5192840408023656,
+        "brier": 0.2526860839063688,
+        "log_loss": 0.6997541156072139,
+        "n": 5082,
+        "observed_days": 31,
+        "variant": "C"
+      },
+      {
+        "auc": 0.5189092332020513,
+        "brier": 0.2545416503919678,
+        "log_loss": 0.7118035472015679,
+        "n": 5082,
+        "observed_days": 31,
+        "variant": "X"
+      }
+    ]
+  },
+  "raw_ledger_common_sample_audit": {
+    "cutoff_mask_applied_only_after_decision_ledger_sample_restriction": true,
+    "decision_and_entry_times_match_t60_t59_contract": true,
+    "full_previous_ledger_pnl_aggregated": false,
+    "probabilities_match_saved_raw_oof_on_shared_calendar": true,
+    "shared_decision_rows": 5083,
+    "shared_fill_rows_before_cutoff_mask": 782,
+    "source_decisions_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/decisions.parquet",
+    "source_trades_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet"
+  },
+  "report": {
+    "bytes": 19044,
+    "path": "reports/btc_preopen/btc_market_microstructure_development_20261019.md",
+    "sha256": "073ddd0ed0809a13f45d0fd2315ad76f72e987ace76241677fb2d364725bfcb9"
+  },
+  "runtime_and_memory": {
+    "elapsed_seconds": 31.155122299998766,
+    "fit_native_thread_limit": 1,
+    "logical_cpu_count": 20,
+    "numpy_version": "2.4.4",
+    "pandas_version": "3.0.2",
+    "peak_working_set_bytes": 1513316352,
+    "pyarrow_version": "24.0.0",
+    "python_version": "3.14.4",
+    "sklearn_version": "1.8.0",
+    "stage_seconds": {
+      "economics_and_existing_raw_ledger_restriction": 14.649593300004199,
+      "no_label_availability_audit": 5.607538099997328,
+      "prebootstrap_checkpoint_restore": 0.09588409999560099,
+      "quality_bootstrap": 10.310055800000555,
+      "two_model_fits_and_prediction_checkpoint": 0.1301342000006116
+    }
+  },
+  "source_code": {
+    "design_builder": {
+      "bytes": 23170,
+      "path": "build_btc_market_microstructure_design_20261019.py",
+      "sha256": "4448a95434d0aad7453d4cdb89296979f69ee751566d6e087ccca677500ec7df"
+    },
+    "execution_engine": {
+      "bytes": 294336,
+      "path": "run_btc_preopen_t59_reassessment.py",
+      "sha256": "b3e32824549eeb02b27dac8c60726973a918fcc0123abca097346fab6b646782"
+    },
+    "market_probability": {
+      "bytes": 57107,
+      "path": "run_btc_market_probability_experiment.py",
+      "sha256": "5fffceebc86b354fb4f1836aff9283a86a6581fb641f6959ad9ca8e02b2912ee"
+    },
+    "protocol": {
+      "bytes": 7943,
+      "path": "configs/research/btc_market_microstructure_development_20261019.json",
+      "sha256": "728f372dc42c29f835241a47d0746c38aeea5e68b709c92268b00d04e3857c5e"
+    },
+    "runner": {
+      "bytes": 93445,
+      "path": "run_btc_market_microstructure_development_20261019.py",
+      "sha256": "9b66ad3775903fa516c50fe6f18e765527515848499fbf4967388cb5d81ca506"
+    },
+    "shared_ledger_audit": {
+      "bytes": 86393,
+      "path": "run_btc_market_base70_incremental_20261019.py",
+      "sha256": "5ea0c76d720cb38ab15876288fb892976fa20b76fa2fdaef196b73257fa86e37"
+    },
+    "snapshot_state_builder": {
+      "bytes": 74843,
+      "path": "run_btc_preopen_economic_replay.py",
+      "sha256": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528"
+    },
+    "tests": {
+      "bytes": 9210,
+      "path": "tests/test_btc_market_microstructure_development_20261019.py",
+      "sha256": "12928796be509bc450e0ad0ce76aa62f0ba981288d07334ecd43fd36a5069be2"
+    }
+  },
+  "stages": {
+    "availability_audit": {
+      "elapsed_seconds": 2.751160699997854,
+      "status": "completed"
+    },
+    "economics": {
+      "elapsed_seconds": 14.649593300004199,
+      "status": "completed"
+    },
+    "models_scalers_predictions_checkpoint": {
+      "checkpoint_path": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/pre_bootstrap_checkpoint.json",
+      "elapsed_seconds": 0.1301342000006116,
+      "status": "restored"
+    },
+    "quality_bootstrap": {
+      "elapsed_seconds": 10.310055800000555,
+      "status": "completed"
+    }
+  },
+  "status": "completed_development_only"
+}

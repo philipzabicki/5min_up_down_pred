@@ -1,0 +1,132 @@
+{
+  "experiment_id": "btc_market_microstructure_development_20261019",
+  "protocol_version": 2,
+  "status": "frozen_before_fit",
+  "protocol_change_from_design": "Replace the proposed additive RAW-minus-market challenger with one prespecified 14-input challenger containing the RAW-minus-market logit and its six interactions with the existing microstructure features. Do not fit or score the additive version.",
+  "hypothesis_origin": "Exploratory development hypothesis informed by prior analysis; no holdout evaluation or selection is permitted.",
+  "development_start_utc": "2026-04-15T17:05:00Z",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "fit": {
+    "market_start_interval": "[2026-04-15T17:05:00Z, 2026-05-15T00:00:00Z)",
+    "first_test_decision_utc": "2026-05-14T23:59:00Z",
+    "label_release_at": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "label_release_boundary": "strictly before the first test decision",
+    "target": "official target_polymarket_up",
+    "minimum_training_rows": 1000,
+    "require_both_classes": true,
+    "fit_count": 2,
+    "evaluation_refits": 0
+  },
+  "models": {
+    "control_C": {
+      "inputs": [
+        "market_logit",
+        "spread_up",
+        "spread_down",
+        "up_down_ask_depth_imbalance",
+        "slippage_5_up",
+        "slippage_5_down",
+        "mid_sum_minus_one"
+      ],
+      "input_count": 7
+    },
+    "challenger_X": {
+      "inputs": [
+        "market_logit",
+        "spread_up",
+        "spread_down",
+        "up_down_ask_depth_imbalance",
+        "slippage_5_up",
+        "slippage_5_down",
+        "mid_sum_minus_one",
+        "raw_minus_market_logit",
+        "raw_minus_market_logit_x_spread_up",
+        "raw_minus_market_logit_x_spread_down",
+        "raw_minus_market_logit_x_up_down_ask_depth_imbalance",
+        "raw_minus_market_logit_x_slippage_5_up",
+        "raw_minus_market_logit_x_slippage_5_down",
+        "raw_minus_market_logit_x_mid_sum_minus_one"
+      ],
+      "input_count": 14
+    },
+    "estimator": {
+      "class": "sklearn.linear_model.LogisticRegression",
+      "penalty": "l2",
+      "C": 1.0,
+      "solver": "lbfgs",
+      "max_iter": 1000,
+      "class_weight": null,
+      "fit_intercept": true,
+      "parameter_search": false
+    }
+  },
+  "scaling": {
+    "main_effects": "Fit one StandardScaler on the seven control inputs plus raw_minus_market_logit using training rows only; use the same transformed seven control columns for C and X.",
+    "interactions": "For each microstructure feature z_j, multiply standardized raw_minus_market_logit by standardized z_j; fit a separate StandardScaler on the six training interaction columns only.",
+    "evaluation": "Apply the saved training scalers without refitting.",
+    "constant_columns": "Retain all prespecified columns. StandardScaler maps constant training columns to zero with scale 1; record and report those columns."
+  },
+  "evaluation": {
+    "market_start_interval": "[2026-05-15T00:00:00Z, 2026-07-01T00:00:00Z)",
+    "input_calendar": "Rows are qualified from decision-time inputs only; outcome-release availability does not change historical decision eligibility.",
+    "quality_sample": "The shared complete-input rows with official binary target labels released no later than the exclusive development cutoff.",
+    "benchmarks": ["MARKET", "RAW"],
+    "primary_contrast": "X minus C log loss",
+    "secondary_metrics": ["Brier", "AUC"],
+    "monthly_reporting": true,
+    "report_observation_days_and_late_june_coverage": true
+  },
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over the complete UTC calendar, including days without qualifying rows",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261019,
+    "empty_replicates": "Count and exclude from metric intervals.",
+    "one_class_replicates": "Retain for log loss and Brier; mark AUC undefined and count explicitly."
+  },
+  "economics": {
+    "variants": ["C", "X", "MARKET", "RAW"],
+    "common_calendar": "The same evaluation-period rows with all six decision-time microstructure inputs and valid RAW and market probabilities; preserve calendar days with no eligible rows for daily summaries and bootstrap.",
+    "policy": "Existing independent fixed-$5 gross order policy; each probability variant selects its own side and trades.",
+    "minimum_net_ev_fraction_of_notional": 0.01,
+    "decision_time": "T-60, using only the saved T-60 snapshot",
+    "execution_time": "T-59, using only the saved T-59 snapshot to execute the already selected side",
+    "fees_depth_and_settlement": "Use the existing causal execution engine and saved fee, depth, and official-market history; preserve cash debit separately from outcome-share fees and collateral cash fees.",
+    "settlement_cutoff": "Only outcomes whose official label release is no later than 2026-07-01T00:00:00Z are settled in primary PnL; later positions remain unresolved and are reported separately.",
+    "raw_reference": "Restrict the existing RAW BASE70 decisions and trade ledger to the exact shared calendar before any aggregation; do not compare with its full-calendar PnL.",
+    "paired_daily_pnl_bootstrap": "Use the same full evaluation UTC calendar, including zero-trade days, and paired 3-day circular blocks."
+  },
+  "availability_audit": {
+    "labels_used": false,
+    "required_outputs": ["daily sequential exclusion funnel", "independent flag frequencies", "event-presence and archive-partition diagnostics"],
+    "source_event_presence": "Report observed replay events separately from hourly source files marked available or processed; empty processed partitions do not establish observed book coverage.",
+    "crossed_book_policy": "Inspect reconstruction semantics and code; retain existing validity checks and do not relax them to increase coverage."
+  },
+  "sources": {
+    "feature_table_path": "data/analysis/polymarket/BTC/btc_market_microstructure_design_20261019/development_features.parquet",
+    "design_manifest_path": "reports/btc_preopen/btc_market_microstructure_design_20261019_manifest.json",
+    "raw_oof_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+    "official_market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+    "t60_snapshots_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+    "t59_snapshots_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+    "replay_dependencies_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_replay_dependencies.json",
+    "source_archive_manifest_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json",
+    "raw_ledger_decisions_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/decisions.parquet",
+    "raw_ledger_trades_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet"
+  },
+  "outputs": {
+    "directory": "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019",
+    "report_path": "reports/btc_preopen/btc_market_microstructure_development_20261019.md",
+    "manifest_path": "reports/btc_preopen/btc_market_microstructure_development_20261019_manifest.json",
+    "runner": "run_btc_market_microstructure_development_20261019.py",
+    "test_path": "tests/test_btc_market_microstructure_development_20261019.py"
+  },
+  "prohibitions": {
+    "fit_additive_challenger": false,
+    "retrain_base70_or_generators": false,
+    "replay_or_download_archive": false,
+    "evaluate_holdout": false,
+    "add_data_or_model_grid": false,
+    "tune_features_or_regularization_from_results": false
+  }
+}
