@@ -147,7 +147,7 @@ Dzienny lejek dla pełnego kalendarza 15 kwietnia–30 czerwca znajduje się w d
 
 Flagi dostępności godziny i freshness oznaczają, że partycja została odnaleziona lub przetworzona; nie dowodzą, że zawiera zdarzenia. Obecność zdarzeń sprawdzono osobno.
 
-W zapisanym archiwum wszystkie 384 partycje godzinowe od 13 do 28 czerwca są puste według metadanych Parquet (łącznie 0 wierszy). Snapshoty T−60 z tego okresu mają market_event_count = 0 i brak bid/ask, więc z zachowanych zdarzeń nie da się odtworzyć stanu. To brak danych źródłowych, a nie dowód błędnej rekonstrukcji. Po 12 czerwca pozostało 18 kwalifikujących się wejść testowych; 29 czerwca było ich 1, a 30 czerwca 17.
+Lokalne partycje `event_parts` dla 384 godzin od 13 do 28 czerwca mają 0 wierszy po selekcji rynku i czasu. Checkpoint odnotowuje odczyt grup Parquet, ale oryginalne bajty źródłowe nie są lokalne, a liczby wierszy przed filtrem nie zapisano. Snapshoty T−60 zawierają 4 602 rekordy z `market_event_count = 0`; sześć startów nie ma rekordu Gamma. **Przyczyna nieustalona z lokalnych artefaktów** — pusty wynik filtrowania nie dowodzi pustego oryginalnego archiwum ani nie wyklucza błędu selekcji. Szczegóły i tabela dowodów: [audyt pochodzenia pustych partycji](btc_empty_partition_provenance_20261019.md).
 
 Kod rekonstrukcji grupuje zdarzenia po czasie odbioru i pilnuje porządku czasu źródłowego w obrębie tokenu i strony. Crossing oznacza best_bid > best_ask, locked oznacza równość; spóźnione zmiany cross-side są wykrywane i stosowane, jeśli zachowują porządek danej strony. Sam crossing nie dowodzi błędu. Istniejący quote_valid odrzuca crossed books; walidacji nie poluzowano. Niezależnie crossing wystąpił 5,733 razy dla UP i 5,336 dla DOWN.
 
