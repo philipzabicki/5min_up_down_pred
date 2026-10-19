@@ -1,8 +1,10 @@
+błąd raportowania/definicji stawki — księgowanie ledgerów jest poprawne; $5 oznacza notional zakupu, a dodatkowe opłaty gotówkowe podnoszą wypływ.
+
 # Przyrostowa informacja RAW BASE70 ponad prognozę rynku
 
 ## Zakres i metoda
 
-Jedyny test używa development `2026-04-15T17:05:00+00:00`–`2026-07-01T00:00:00+00:00`. Nie wykorzystano holdoutu, nie trenowano modelu BTC i nie odtwarzano archiwum. Hipoteza powstała po wcześniejszej analizie holdoutu; ten eksperyment nie ocenia holdoutu.
+Jedyny eksperyment używa development `2026-04-15T17:05:00+00:00`–`2026-07-01T00:00:00+00:00`. Nie trenowano modelu BTC i nie odtwarzano archiwum. Historyczny holdout nie uczestniczył w eksperymencie; jego zapisany ledger odczytano wyłącznie do kontroli księgowej. Hipoteza powstała po wcześniejszej analizie holdoutu, więc eksperyment go nie ocenia.
 
 Prawdopodobieństwo rynku to proporcja środków kwotowań UP/(UP+DOWN) na zwalidowanym T-60. Zmienna rynku to `m=logit(p_market)`, a różnica RAW to `d=logit(p_RAW)-m`; prawdopodobieństwa przycięto do `[1e-6, 1-1e-6]` przed logitem.
 
@@ -52,42 +54,74 @@ W górnym kwartylu początkowej różnicy logitów (próg `0.0818`, `2,424` wier
 
 ## Ekonomia przy stałym progu
 
-Każdy wariant niezależnie wybierał stronę przy stałym zleceniu $5 i progu 1% net EV, z decyzją T-60, wykonaniem T-59 oraz istniejącym modelem opłat, głębokości i rozliczeń. PnL obejmuje rozliczone fill’e; fill’e nieukończone są raportowane osobno. Wszystkie warianty używają tego samego kalendarza decyzji.
+Każdy wariant wybierał stronę przy zleceniu o notionalu $5 i progu 1% net EV. EV na T-60 to prawdopodobieństwo pomnożone przez tokeny po opłacie minus pełny wypływ gotówki; próg dzieli EV przez żądany notional $5. Na T-59 wykonanie zachowuje wybraną stronę i notional, a rzeczywisty wypływ wynosi notional plus opłata gotówkowa. W reżimie V1 opłata kupna pomniejsza tokeny; w V2 jest pobierana w gotówce. PnL przeliczono niezależnie jako wypłata minus wypływ gotówki.
 
-| Wariant | Decyzje | Fill’e / rozliczone | Obrót rozliczony | Opłaty | PnL netto | PnL / obrót | EV na fill’ach rozliczonych | PnL−EV |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| MARKET | 9,698 | 0 / 0 | $0.00 | $0.00 | $0.00 | n/a | $0.00 | $0.00 |
-| RAW | 9,698 | 961 / 961 | $4805.00 | $173.98 | $319.78 | 6.655% | $235.06 | $84.72 |
-| M0 | 9,698 | 4 / 4 | $20.00 | $0.72 | -$20.54 | -102.700% | $0.23 | -$20.77 |
-| M1 | 9,698 | 105 / 105 | $525.00 | $21.26 | $49.23 | 9.377% | $22.30 | $26.93 |
+| Wariant | Decyzje | Fill’e / rozliczone | Notional rozliczony | Wypływ gotówki | Opłaty gotówkowe | Ekwiwalent opłat tokenowych¹ | PnL | PnL / notional | PnL / wypływ | EV na rozliczonych fill’ach | PnL−EV |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| MARKET | 9,698 | 0 / 0 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | n/a | n/a | $0.00 | $0.00 |
+| RAW | 9,698 | 961 / 961 | $4805.00 | $4973.37 | $168.37 | $5.61 | $319.78 | 6.655% | 6.430% | $235.06 | $84.72 |
+| M0 | 9,698 | 4 / 4 | $20.00 | $20.54 | $0.54 | $0.18 | -$20.54 | -102.700% | -100.000% | $0.23 | -$20.77 |
+| M1 | 9,698 | 105 / 105 | $525.00 | $542.68 | $17.68 | $3.58 | $49.23 | 9.377% | 9.071% | $22.30 | $26.93 |
 
 RAW anchor reconciliation: wcześniejsze `20,735` decyzje przyniosły `$267.44`. Na obecnym wspólnym kalendarzu stary ledger RAW dał `$319.78`, a nowy replay RAW `$319.78`; fill’e wyłączone przez wspólny kalendarz miały łącznie `-$52.34` PnL. Ledger RAW zgadza się na wspólnych rynkach.
 
 Sparowana różnica średniego dziennego PnL M1−M0: `$1.01` na dzień (95% CI `-$0.58` do `$2.86`). Różnica sumarycznego PnL to `$69.77` (95% CI `-$40.15` do `$197.28`); przedział obejmuje zero.
 
-| Wariant | Obrót z fill’i | Obrót rozliczony |
-|---|---:|---:|
-| MARKET | $0.00 | $0.00 |
-| RAW | $4805.00 | $4805.00 |
-| M0 | $20.00 | $20.00 |
-| M1 | $525.00 | $525.00 |
+¹ Informacyjny ekwiwalent USD opłaty potrąconej w tokenach; nie jest dodatkowym wypływem gotówki i nie odejmuje się go ponownie od PnL. Opłaty gotówkowe są już zawarte w wypływie i PnL.
+
+### Cztery rozliczenia M0
+
+Daty i wartości fill’i pochodzą z ledgeru; tokeny przed/po opłacie oznaczają odpowiednio `gross_shares` i `net_shares`. Ceny to VWAP wykonania.
+
+| condition_id | Start UTC | Strona | Wynik rynku / zakład | Stawka | EV T−60 | EV / stawka | Notional zakupu | Wypływ gotówki | VWAP | Tokeny przed → po opłacie | Opłata pobrana | Ekwiwalent USD | Wypłata | PnL |
+|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|
+| `0x7508407b8c8cc770696b4a2b18339d7753bb82e72049210660bb4f097b976c55` | 2026-04-28T07:55:00+00:00 | UP | DOWN; zakład przegrana | $5 | $0.052589676498538296 | 1.0517935300% | $5 | $5 | 0.48999999999999999 | 10.204081632653061 → 9.8293886326530604 | 0.374693 tokena | $0.18359957 | $0 | -$5 |
+| `0x72946552fd2393ec94d76879791b5e7d9dea4ca12bc23a05bc357936bc66f235` | 2026-04-28T13:00:00+00:00 | UP | DOWN; zakład przegrana | $5 | $0.058410401423483194 | 1.1682080285% | $5 | $5.18 | 0.5 | 10 → 10 | $0.18 gotówką | $0.18 | $0 | -$5.18 |
+| `0x884afc14b88dae3cbbbb4c4908d01467e72eeeb36c9a10979107d88a89d95103` | 2026-04-28T18:40:00+00:00 | UP | DOWN; zakład przegrana | $5 | $0.058410401423483194 | 1.1682080285% | $5 | $5.18 | 0.5 | 10 → 10 | $0.18 gotówką | $0.18 | $0 | -$5.18 |
+| `0x28359384d25ed626c75bfb7c216edbbdc8a2dd1a330b5fb8f6b6100a72af7623` | 2026-04-28T23:55:00+00:00 | UP | DOWN; zakład przegrana | $5 | $0.058410401423483194 | 1.1682080285% | $5 | $5.18 | 0.5 | 10 → 10 | $0.18 gotówką | $0.18 | $0 | -$5.18 |
+
+Ręczne uzgodnienie M0 z ledgeru: wypłaty `$0` − wypływy gotówki `$20.54` = PnL `-$20.54`. Notional wyniósł `$20`; opłaty pobrane w gotówce `$0.54`; opłata pobrana w tokenach miała ekwiwalent `$0.18359957` i nie stanowi dodatkowego wypływu. Stąd `-$20.54 = $0.00 - ($20.00 + $0.54)`. Zgodnie z wartościami zapisanymi w ledgerze suma ekwiwalentów opłat to `$0.72359957`: `$0.54` gotówką i `$0.18359957` informacyjnie w tokenach.
+
+### Niezależna kontrola zapisanych ledgerów
+
+Każdy settled trade przeliczono w osobnej ścieżce audytu z arytmetyką Decimal: `payout_usd - cash_debit_usd`. To niezależne od wspólnej funkcji używanej w agregatach głównej i miesięcznej tabeli. Warunek straty to `net_pnl_usd >= -cash_debit_usd`; gotówkowy wydatek sprawdzono też jako `gross_usd + fee_cash_usd`. Opłata w tokenach jest pokazana osobno jako ekwiwalent USD.
+
+| Ledger | Fill’e / settled / unresolved | Notional settled | Wypływ settled | Gotówka unresolved | Opłaty cash (wszystkie fill’e) | Ekwiwalent opłat tokenowych | PnL ledgeru / cashflow | Max Δ PnL, USD | Max Δ debit, USD | Min. `PnL + wypływ` | Naruszenia limitu straty |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Bieżący MARKET | 0 / 0 / 0 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 / $0.00 | $0 | $0 | $0.00 | 0 |
+| Bieżący RAW | 961 / 961 / 0 | $4805.00 | $4973.37 | $0.00 | $168.37 | $5.61 | $319.78 / $319.78 | $2e-15 | $5e-16 | $0.00 | 0 |
+| Bieżący M0 | 4 / 4 / 0 | $20.00 | $20.54 | $0.00 | $0.54 | $0.18 | -$20.54 / -$20.54 | $0 | $0 | $0.00 | 0 |
+| Bieżący M1 | 105 / 105 / 0 | $525.00 | $542.68 | $0.00 | $17.68 | $3.58 | $49.23 / $49.23 | $2e-15 | $5e-16 | $0.00 | 0 |
+| RAW BASE70 development | 1,038 / 1,038 / 0 | $5190.00 | $5367.94 | $0.00 | $177.94 | $10.90 | $267.44 / $267.44 | $2e-15 | $5e-16 | $0.00 | 0 |
+| RAW BASE70 historyczny holdout | 3,738 / 3,737 / 1 | $18685.00 | $19362.36 | $5.19 | $677.55 | $0.00 | -$546.22 / -$546.22 | $2e-15 | $5e-16 | $0.00 | 0 |
+
+Kontrola obejmuje wszystkie settled zakupy w bieżącym eksperymencie, RAW BASE70 development i ostatnim zapisanym holdoucie. W holdoucie jeden fill pozostaje nierozliczony: jego `$5.1925` wypływu gotówki jest pokazane osobno, bez dopisywania nieznanej wypłaty do PnL settled. We wszystkich settled ledgerach ręczne PnL zgadza się z kolumną ledgeru, wypływ z notionalem i opłatą gotówkową, a liczba naruszeń maksymalnej straty wynosi zero.
+
+## Kontrakt `$5` i raportowanie
+
+A (`$5` jako maksymalny wydatek z opłatami) nie opisuje tego kodu. B jest właściwą definicją: `$5` to żądany/gross notional zakupu; opłaty gotówkowe mogą zwiększyć całkowity wydatek. Historyczny tryb poboru opłaty zależy od daty: przed zmianą V1 potrąca opłatę z tokenów, po zmianie V2 pobiera ją w gotówce. Zmienia się jednostka opłaty, nie znaczenie stawki `$5`.
+
+- Decyzja T-60 i EV: obliczenie EV odejmuje pełny `cash_debit_usd` od `p × net_shares`; próg 1% to net EV podzielone przez żądany notional `$5`.
+- Wykonanie T-59: zachowuje wybraną stronę i notional; księguje gotówkową opłatę w `cash_debit_usd`, a V1 share fee w `net_shares`.
+- Obrót: `gross_usd` to notional, nie wszystkie wydatki gotówkowe. `PnL / obrót` należy czytać jako `PnL / notional`; tabela pokazuje równolegle zwrot względem całkowitego wypływu.
+- Rozliczenie i audyt: PnL to `payout_usd - cash_debit_usd`. USD-ekwiwalentu opłaty tokenowej nie odejmuje się ponownie.
 
 ### Ekonomia według miesiąca
 
-| Miesiąc | Wariant | Fill’e / rozliczone | Opłaty | PnL netto | PnL / obrót rozliczony | PnL−EV |
-|---|---|---:|---:|---:|---:|---:|
-| 2026-04 | MARKET | 0 / 0 | $0.00 | $0.00 | n/a | $0.00 |
-| 2026-05 | MARKET | 0 / 0 | $0.00 | $0.00 | n/a | $0.00 |
-| 2026-06 | MARKET | 0 / 0 | $0.00 | $0.00 | n/a | $0.00 |
-| 2026-04 | RAW | 34 / 34 | $6.16 | $4.49 | 2.642% | $0.80 |
-| 2026-05 | RAW | 399 / 399 | $74.27 | $103.59 | 5.192% | -$34.88 |
-| 2026-06 | RAW | 528 / 528 | $93.54 | $211.71 | 8.019% | $118.80 |
-| 2026-04 | M0 | 4 / 4 | $0.72 | -$20.54 | -102.700% | -$20.77 |
-| 2026-05 | M0 | 0 / 0 | $0.00 | $0.00 | n/a | $0.00 |
-| 2026-06 | M0 | 0 / 0 | $0.00 | $0.00 | n/a | $0.00 |
-| 2026-04 | M1 | 38 / 38 | $6.80 | $21.26 | 11.192% | $18.34 |
-| 2026-05 | M1 | 49 / 49 | $10.81 | $23.97 | 9.785% | $8.46 |
-| 2026-06 | M1 | 18 / 18 | $3.65 | $3.99 | 4.434% | $0.12 |
+| Miesiąc | Wariant | Fill’e / settled | Notional | Wypływ gotówki | Opłaty cash | Ekwiwalent opłaty tokenowej | PnL | PnL / notional | PnL / wypływ | PnL−EV |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2026-04 | MARKET | 0 / 0 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | n/a | n/a | $0.00 |
+| 2026-05 | MARKET | 0 / 0 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | n/a | n/a | $0.00 |
+| 2026-06 | MARKET | 0 / 0 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | n/a | n/a | $0.00 |
+| 2026-04 | RAW | 34 / 34 | $170.00 | $170.55 | $0.55 | $5.61 | $4.49 | 2.642% | 2.633% | $0.80 |
+| 2026-05 | RAW | 399 / 399 | $1995.00 | $2069.27 | $74.27 | $0.00 | $103.59 | 5.192% | 5.006% | -$34.88 |
+| 2026-06 | RAW | 528 / 528 | $2640.00 | $2733.54 | $93.54 | $0.00 | $211.71 | 8.019% | 7.745% | $118.80 |
+| 2026-04 | M0 | 4 / 4 | $20.00 | $20.54 | $0.54 | $0.18 | -$20.54 | -102.700% | -100.000% | -$20.77 |
+| 2026-05 | M0 | 0 / 0 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | n/a | n/a | $0.00 |
+| 2026-06 | M0 | 0 / 0 | $0.00 | $0.00 | $0.00 | $0.00 | $0.00 | n/a | n/a | $0.00 |
+| 2026-04 | M1 | 38 / 38 | $190.00 | $193.22 | $3.22 | $3.58 | $21.26 | 11.192% | 11.006% | $18.34 |
+| 2026-05 | M1 | 49 / 49 | $245.00 | $255.81 | $10.81 | $0.00 | $23.97 | 9.785% | 9.372% | $8.46 |
+| 2026-06 | M1 | 18 / 18 | $90.00 | $93.65 | $3.65 | $0.00 | $3.99 | 4.434% | 4.261% | $0.12 |
 
 | Wariant | PnL 5 najlepszych dni | Udział w PnL ogółem |
 |---|---:|---:|
@@ -109,4 +143,4 @@ Wariant bez rozliczonych fill’i nie wykazuje przewagi po progu EV; próg pozos
 ## Pliki i odtwarzalność
 
 Manifest zamrożono przed obliczeniami: `reports/btc_preopen/btc_market_base70_incremental_20261019_manifest.json`. Dane prognoz, współczynniki dzienne, bootstrap, wyniki miesięczne i niezależne ledgery wariantów są w `data/analysis/polymarket/BTC/btc_market_base70_incremental_20261019`. Runner nie przyjmuje argumentów CLI: `python run_btc_market_base70_incremental_20261019.py`.
-Czas runnera: `68.11217820001184` s; szczytowy working set procesu: `1.865` GiB. Nie pobierano danych, nie trenowano BTC ani nie używano holdoutu.
+Czas oryginalnego runnera: `68.11217820001184` s; szczytowy working set procesu: `1.865` GiB. Raport i audyt przeliczono z zapisanych ledgerów; nie pobierano danych, nie trenowano BTC ani nie odtwarzano archiwum.

@@ -180,6 +180,28 @@
   },
   "next_step": "Review the development-only report; do not extend the experiment unless a new hypothesis is frozen.",
   "peak_working_set_gib": 1.865,
+  "post_run_cashflow_accounting_audit": {
+    "archive_replay": false,
+    "finished_utc": "2026-10-19T01:44:19.719255+00:00",
+    "ledger_scope": [
+      "current_MARKET",
+      "current_RAW",
+      "current_M0",
+      "current_M1",
+      "development_RAW_BASE70",
+      "historical_holdout_RAW_BASE70"
+    ],
+    "loss_bound": "settled net_pnl_usd >= -cash_debit_usd",
+    "loss_bound_violations": 0,
+    "maximum_cash_debit_reconciliation_delta_usd": 5e-16,
+    "maximum_cashflow_reconciliation_delta_usd": 2e-15,
+    "method": "independent Decimal per-settled-trade audit: payout_usd - cash_debit_usd; distinct from report aggregate helper",
+    "new_model_training": false,
+    "predictions_decisions_and_fills_changed": false,
+    "settled_fill_count": 5845,
+    "status": "completed",
+    "unresolved_fill_count": 1
+  },
   "result_summary": {
     "M1_minus_M0_log_loss": {
       "95pct": [
@@ -1125,13 +1147,13 @@
       }
     },
     "report": {
-      "elapsed_seconds": 0.004412399997818284,
-      "finished_utc": "2026-10-19T01:21:27.359991+00:00",
+      "elapsed_seconds": 1.1446189999987837,
+      "finished_utc": "2026-10-19T01:44:20.860815+00:00",
       "outputs": [
         {
           "path": "reports/btc_preopen/btc_market_base70_incremental_20261019.md",
-          "sha256": "9602506c54a577934711bc97601935612a1000f5265f3c6e6ee9ece9cd1f28d2",
-          "size_bytes": 8081
+          "sha256": "5f8eec3d9609c9c837ecc793e15c7240190893d745cf9282d8a5ccb7874eb7c3",
+          "size_bytes": 14324
         }
       ],
       "status": "completed"
@@ -1139,5 +1161,5 @@
   },
   "started_utc": "2026-10-19T01:11:25.469273+00:00",
   "status": "completed",
-  "updated_utc": "2026-10-19T01:21:27.362688+00:00"
+  "updated_utc": "2026-10-19T01:44:20.863961+00:00"
 }

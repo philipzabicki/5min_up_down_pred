@@ -5,6 +5,8 @@
 - M1-M0 log loss: `-0.00049179` (95% CI `[-0.0007783997527626207, -0.00020914301907020173]`).
 - PnL M1: `$49.23`; M0: `-$20.54`; RAW: `$319.78` na tym samym kalendarzu.
 - M1−M0 paired PnL: `$69.77`; 95% CI sumarycznego PnL `-$40.15` do `$197.28`.
+- Audyt ledgerów po eksperymencie: `$5` to notional zakupu; M0 wydał `$20.54` gotówki na `$20.00` notionalu. PnL settled uzgodniono z przepływami dla bieżących, development i historycznych ledgerów; naruszeń limitu straty: `0`.
+- Opłaty V1 potrącane w tokenach raportuje się przez ekwiwalent USD informacyjnie; V2 cash fees zwiększają wypływ i są liczone raz. Nie zmieniono stawek, decyzji ani wykonań.
 - Manifest: `data/analysis/polymarket/BTC/btc_market_base70_incremental_20261019/run_manifest.json`; raport: `reports/btc_preopen/btc_market_base70_incremental_20261019.md`.
 <!-- BTC_MARKET_BASE70_INCREMENTAL_20261019_END -->
 <!-- BTC_ZV_ABLATION_20261018_BEGIN -->

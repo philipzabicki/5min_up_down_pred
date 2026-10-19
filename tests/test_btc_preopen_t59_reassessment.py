@@ -1112,6 +1112,17 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         self.assertAlmostEqual(decisions[0]["execution_fee_shares"], 0.36)
         self.assertAlmostEqual(trades[0]["fee_shares"], 0.36)
         self.assertEqual(trades[0]["fee_rule_id"], "btc5m.crypto.0.072+polymarket.exchange_v1.side_specific_collection")
+        self.assertTrue(audit["checks"]["settled_pnl_reconciles_to_payout_less_cash_debit"])
+        self.assertTrue(audit["checks"]["settled_loss_is_bounded_by_total_cash_debit"])
+
+        trades[0]["net_pnl_usd"] -= 0.01
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "settled_pnl_reconciles_to_payout_less_cash_debit",
+        ):
+            assessment._portfolio_accounting_audit(
+                summary, trades, decisions, equity_path, {"audit": snapshot},
+            )
 
 
 if __name__ == "__main__":

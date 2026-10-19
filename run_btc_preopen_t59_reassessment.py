@@ -3343,6 +3343,18 @@ def _portfolio_accounting_audit(
             abs(float(item["cash_debit_usd"]) - float(item["gross_usd"]) - float(item["fee_cash_usd"])) <= tolerance
             for item in trades
         ),
+        "settled_pnl_reconciles_to_payout_less_cash_debit": all(
+            abs(
+                float(item["net_pnl_usd"])
+                - float(item["payout_usd"])
+                + float(item["cash_debit_usd"])
+            ) <= tolerance
+            for item in settled_trades
+        ),
+        "settled_loss_is_bounded_by_total_cash_debit": all(
+            float(item["net_pnl_usd"]) >= -float(item["cash_debit_usd"]) - tolerance
+            for item in settled_trades
+        ),
         "shares_reconcile_with_share_fees": all(
             abs(float(item["gross_shares"]) - float(item["net_shares"]) - float(item["fee_shares"])) <= 1e-7
             for item in trades

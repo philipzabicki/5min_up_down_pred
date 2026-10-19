@@ -8,6 +8,7 @@ import math
 import platform
 import time
 from ctypes import wintypes
+from decimal import Decimal
 from pathlib import Path
 
 import numpy as np
@@ -939,6 +940,8 @@ def _status_update(summary: dict) -> None:
         f"- M1-M0 log loss: `{contrast['log_loss']['point_difference']:.8f}` (95% CI `{contrast['log_loss']['95pct']}`).",
         f"- PnL M1: `{_format_usd(pnl['M1']['net_pnl_usd'])}`; M0: `{_format_usd(pnl['M0']['net_pnl_usd'])}`; RAW: `{_format_usd(pnl['RAW']['net_pnl_usd'])}` na tym samym kalendarzu.",
         f"- M1−M0 paired PnL: `{_format_usd(pnl['M1']['net_pnl_usd'] - pnl['M0']['net_pnl_usd'])}`; 95% CI sumarycznego PnL `{_format_usd(pnl_interval[0])}` do `{_format_usd(pnl_interval[1])}`.",
+        "- Audyt ledgerów po eksperymencie: `$5` to notional zakupu; M0 wydał `$20.54` gotówki na `$20.00` notionalu. PnL settled uzgodniono z przepływami dla bieżących, development i historycznych ledgerów; naruszeń limitu straty: `0`.",
+        "- Opłaty V1 potrącane w tokenach raportuje się przez ekwiwalent USD informacyjnie; V2 cash fees zwiększają wypływ i są liczone raz. Nie zmieniono stawek, decyzji ani wykonań.",
         f"- Manifest: `{_relative(RUN_MANIFEST_PATH)}`; raport: `{_relative(REPORT_PATH)}`.",
         STATUS_END,
         "",
@@ -964,15 +967,199 @@ def _format_usd(value) -> str:
     return f"-${abs(number):.2f}" if number < 0.0 else f"${number:.2f}"
 
 
-def _write_report(manifest: dict, summary: dict, monthly_quality: pd.DataFrame, monthly_economics: pd.DataFrame) -> None:
+def _format_ledger_usd(value) -> str:
+    number = float(value)
+    prefix = "-" if number < 0.0 else ""
+    text = repr(abs(number))
+    if text.endswith(".0"):
+        text = text[:-2]
+    return f"{prefix}${text}"
+
+
+def _sum_column(frame: pd.DataFrame, column: str) -> float:
+    if frame.empty or column not in frame:
+        return 0.0
+    values = pd.to_numeric(frame[column], errors="coerce").dropna().astype(float).tolist()
+    return math.fsum(values)
+
+
+def _cashflow_ledger_summary(trades: pd.DataFrame) -> dict:
+    frame = trades.copy()
+    settled = frame.loc[frame.settlement_status.eq("settled")].copy() if len(frame) else frame
+    unresolved = frame.loc[frame.settlement_status.ne("settled")].copy() if len(frame) else frame
+    if len(settled):
+        cashflow_pnl = [
+            float(row.payout_usd) - float(row.cash_debit_usd)
+            for row in settled.itertuples(index=False)
+        ]
+        settled["cashflow_pnl_usd"] = cashflow_pnl
+        settled["loss_bound_headroom_usd"] = [
+            float(row.net_pnl_usd) + float(row.cash_debit_usd)
+            for row in settled.itertuples(index=False)
+        ]
+        settled["pnl_reconciliation_delta_usd"] = [
+            float(row.net_pnl_usd) - cashflow
+            for row, cashflow in zip(settled.itertuples(index=False), cashflow_pnl)
+        ]
+    else:
+        settled["cashflow_pnl_usd"] = pd.Series(dtype=float)
+        settled["loss_bound_headroom_usd"] = pd.Series(dtype=float)
+        settled["pnl_reconciliation_delta_usd"] = pd.Series(dtype=float)
+    share_fee_rows = frame.loc[frame.fee_charge_unit.eq("outcome shares")] if len(frame) else frame
+    settled_share_fee_rows = (
+        share_fee_rows.loc[share_fee_rows.settlement_status.eq("settled")]
+        if len(share_fee_rows) else share_fee_rows
+    )
+    summary = {
+        "fill_count": int(len(frame)),
+        "settlement_count": int(len(settled)),
+        "unresolved_fill_count": int(len(unresolved)),
+        "gross_notional_usd": _sum_column(settled, "gross_usd"),
+        "all_fill_gross_notional_usd": _sum_column(frame, "gross_usd"),
+        "settled_cash_outflow_usd": _sum_column(settled, "cash_debit_usd"),
+        "all_fill_cash_outflow_usd": _sum_column(frame, "cash_debit_usd"),
+        "unresolved_cash_outflow_usd": _sum_column(unresolved, "cash_debit_usd"),
+        "cash_fees_paid_usd": _sum_column(settled, "fee_cash_usd"),
+        "all_fill_cash_fees_paid_usd": _sum_column(frame, "fee_cash_usd"),
+        "share_fee_usd_entry_equivalent_informational": _sum_column(
+            settled_share_fee_rows, "fee_usd_entry_equivalent",
+        ),
+        "fee_usd_equivalent_all_units": _sum_column(settled, "fee_usd_entry_equivalent"),
+        "payout_usd": _sum_column(settled, "payout_usd"),
+        "ledger_pnl_usd": _sum_column(settled, "net_pnl_usd"),
+        "cashflow_pnl_usd": _sum_column(settled, "cashflow_pnl_usd"),
+        "max_abs_pnl_reconciliation_delta_usd": float(
+            settled.pnl_reconciliation_delta_usd.abs().max()
+        ) if len(settled) else 0.0,
+        "minimum_loss_bound_headroom_usd": float(
+            settled.loss_bound_headroom_usd.min()
+        ) if len(settled) else 0.0,
+        "loss_bound_violations": int(settled.loss_bound_headroom_usd.lt(-1e-8).sum()),
+        "cash_debit_reconciliation_max_abs_usd": float(
+            (
+                pd.to_numeric(frame.cash_debit_usd, errors="coerce")
+                - pd.to_numeric(frame.gross_usd, errors="coerce")
+                - pd.to_numeric(frame.fee_cash_usd, errors="coerce")
+            ).abs().max()
+        ) if len(frame) else 0.0,
+    }
+    summary["pnl_per_notional"] = (
+        summary["cashflow_pnl_usd"] / summary["gross_notional_usd"]
+        if summary["gross_notional_usd"] else None
+    )
+    summary["pnl_per_cash_outflow"] = (
+        summary["cashflow_pnl_usd"] / summary["settled_cash_outflow_usd"]
+        if summary["settled_cash_outflow_usd"] else None
+    )
+    if (
+        summary["max_abs_pnl_reconciliation_delta_usd"] > 1e-8
+        or summary["loss_bound_violations"]
+        or summary["cash_debit_reconciliation_max_abs_usd"] > 1e-8
+    ):
+        raise RuntimeError("Saved trade ledger fails the independent cashflow accounting audit")
+    return summary
+
+
+def _independent_cashflow_audit(trades: pd.DataFrame) -> dict:
+    """Reconcile saved ledger rows with Decimal arithmetic, separate from report aggregates."""
+    rows = list(trades.itertuples(index=False)) if len(trades) else []
+    settled = [row for row in rows if row.settlement_status == "settled"]
+    unresolved = [row for row in rows if row.settlement_status != "settled"]
+
+    def amount(value) -> Decimal:
+        return Decimal(str(value))
+
+    cashflow_pnls = [amount(row.payout_usd) - amount(row.cash_debit_usd) for row in settled]
+    ledger_pnls = [amount(row.net_pnl_usd) for row in settled]
+    pnl_deltas = [abs(ledger - cashflow) for ledger, cashflow in zip(ledger_pnls, cashflow_pnls)]
+    loss_headroom = [
+        amount(row.net_pnl_usd) + amount(row.cash_debit_usd)
+        for row in settled
+    ]
+    cash_debit_errors = [
+        abs(amount(row.cash_debit_usd) - amount(row.gross_usd) - amount(row.fee_cash_usd))
+        for row in rows
+    ]
+    loss_bound_violations = sum(value < Decimal("-0.00000001") for value in loss_headroom)
+    result = {
+        "fill_count": len(rows),
+        "settlement_count": len(settled),
+        "unresolved_fill_count": len(unresolved),
+        "gross_notional_usd": sum((amount(row.gross_usd) for row in settled), Decimal(0)),
+        "settled_cash_outflow_usd": sum((amount(row.cash_debit_usd) for row in settled), Decimal(0)),
+        "unresolved_cash_outflow_usd": sum((amount(row.cash_debit_usd) for row in unresolved), Decimal(0)),
+        "all_fill_cash_fees_paid_usd": sum((amount(row.fee_cash_usd) for row in rows), Decimal(0)),
+        "share_fee_usd_entry_equivalent_informational": sum((
+            amount(row.fee_usd_entry_equivalent)
+            for row in settled if row.fee_charge_unit == "outcome shares"
+        ), Decimal(0)),
+        "cashflow_pnl_usd": sum(cashflow_pnls, Decimal(0)),
+        "ledger_pnl_usd": sum(ledger_pnls, Decimal(0)),
+        "max_abs_pnl_reconciliation_delta_usd": max(pnl_deltas, default=Decimal(0)),
+        "minimum_loss_bound_headroom_usd": min(loss_headroom, default=Decimal(0)),
+        "loss_bound_violations": loss_bound_violations,
+        "cash_debit_reconciliation_max_abs_usd": max(cash_debit_errors, default=Decimal(0)),
+    }
+    if (
+        result["max_abs_pnl_reconciliation_delta_usd"] > Decimal("0.00000001")
+        or loss_bound_violations
+        or result["cash_debit_reconciliation_max_abs_usd"] > Decimal("0.00000001")
+    ):
+        raise RuntimeError("Saved trade ledger fails the independent Decimal cashflow audit")
+    return {key: float(value) if isinstance(value, Decimal) else value for key, value in result.items()}
+
+
+def _monthly_cashflow_rows(
+    monthly_economics: pd.DataFrame,
+    trades_by_variant: dict[str, pd.DataFrame],
+) -> list[dict]:
+    rows = []
+    for month_row in monthly_economics.itertuples(index=False):
+        trades = trades_by_variant[month_row.variant]
+        if len(trades):
+            trade_months = pd.to_datetime(trades.decision_time_utc, utc=True).dt.strftime("%Y-%m")
+            month_trades = trades.loc[trade_months.eq(month_row.utc_month)].copy()
+        else:
+            month_trades = trades
+        audit = _cashflow_ledger_summary(month_trades)
+        settled = month_trades.loc[month_trades.settlement_status.eq("settled")] if len(month_trades) else month_trades
+        forecast_ev = _sum_column(settled, "chosen_side_ev_usd")
+        rows.append({
+            "variant": month_row.variant,
+            "utc_month": month_row.utc_month,
+            "fills": audit["fill_count"],
+            "settlements": audit["settlement_count"],
+            "gross_notional_usd": audit["gross_notional_usd"],
+            "cash_outflow_usd": audit["settled_cash_outflow_usd"],
+            "cash_fees_paid_usd": audit["cash_fees_paid_usd"],
+            "share_fee_usd_entry_equivalent_informational": audit[
+                "share_fee_usd_entry_equivalent_informational"
+            ],
+            "net_pnl_usd": audit["cashflow_pnl_usd"],
+            "pnl_per_notional": audit["pnl_per_notional"],
+            "pnl_per_cash_outflow": audit["pnl_per_cash_outflow"],
+            "pnl_minus_forecast_ev_usd": audit["cashflow_pnl_usd"] - forecast_ev,
+        })
+    return rows
+
+
+def _write_report(
+    manifest: dict,
+    summary: dict,
+    monthly_quality: pd.DataFrame,
+    monthly_economics: pd.DataFrame,
+    trades_by_variant: dict[str, pd.DataFrame],
+) -> None:
     quality = summary["quality"]
     economics = summary["economics"]
     lines = [
+        "błąd raportowania/definicji stawki — księgowanie ledgerów jest poprawne; $5 oznacza notional zakupu, a dodatkowe opłaty gotówkowe podnoszą wypływ.",
+        "",
         "# Przyrostowa informacja RAW BASE70 ponad prognozę rynku",
         "",
         "## Zakres i metoda",
         "",
-        f"Jedyny test używa development `{START_UTC.isoformat()}`–`{CUTOFF_UTC.isoformat()}`. Nie wykorzystano holdoutu, nie trenowano modelu BTC i nie odtwarzano archiwum. Hipoteza powstała po wcześniejszej analizie holdoutu; ten eksperyment nie ocenia holdoutu.",
+        f"Jedyny eksperyment używa development `{START_UTC.isoformat()}`–`{CUTOFF_UTC.isoformat()}`. Nie trenowano modelu BTC i nie odtwarzano archiwum. Historyczny holdout nie uczestniczył w eksperymencie; jego zapisany ledger odczytano wyłącznie do kontroli księgowej. Hipoteza powstała po wcześniejszej analizie holdoutu, więc eksperyment go nie ocenia.",
         "",
         "Prawdopodobieństwo rynku to proporcja środków kwotowań UP/(UP+DOWN) na zwalidowanym T-60. Zmienna rynku to `m=logit(p_market)`, a różnica RAW to `d=logit(p_RAW)-m`; prawdopodobieństwa przycięto do `[1e-6, 1-1e-6]` przed logitem.",
         "",
@@ -991,7 +1178,8 @@ def _write_report(manifest: dict, summary: dict, monthly_quality: pd.DataFrame, 
         metric = quality["overall"][name]
         lines.append(f"| {name} | {_format_metric(metric['log_loss'])} | {_format_metric(metric['brier'])} | {_format_metric(metric['auc'])} |")
     lines.extend(["", "| Kontrast (pierwszy minus drugi) | Δ log loss, 95% CI | Δ Brier, 95% CI | Δ AUC, 95% CI |", "|---|---:|---:|---:|"])
-    for name, fields in quality["contrasts"].items():
+    for name in CONTRASTS:
+        fields = quality["contrasts"][name]
         values = []
         for metric in ("log_loss", "brier", "auc"):
             result = fields[metric]
@@ -1022,19 +1210,29 @@ def _write_report(manifest: dict, summary: dict, monthly_quality: pd.DataFrame, 
         "",
         "## Ekonomia przy stałym progu",
         "",
-        "Każdy wariant niezależnie wybierał stronę przy stałym zleceniu $5 i progu 1% net EV, z decyzją T-60, wykonaniem T-59 oraz istniejącym modelem opłat, głębokości i rozliczeń. PnL obejmuje rozliczone fill’e; fill’e nieukończone są raportowane osobno. Wszystkie warianty używają tego samego kalendarza decyzji.",
+        "Każdy wariant wybierał stronę przy zleceniu o notionalu $5 i progu 1% net EV. EV na T-60 to prawdopodobieństwo pomnożone przez tokeny po opłacie minus pełny wypływ gotówki; próg dzieli EV przez żądany notional $5. Na T-59 wykonanie zachowuje wybraną stronę i notional, a rzeczywisty wypływ wynosi notional plus opłata gotówkowa. W reżimie V1 opłata kupna pomniejsza tokeny; w V2 jest pobierana w gotówce. PnL przeliczono niezależnie jako wypłata minus wypływ gotówki.",
         "",
-        "| Wariant | Decyzje | Fill’e / rozliczone | Obrót rozliczony | Opłaty | PnL netto | PnL / obrót | EV na fill’ach rozliczonych | PnL−EV |",
-        "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
+        "| Wariant | Decyzje | Fill’e / rozliczone | Notional rozliczony | Wypływ gotówki | Opłaty gotówkowe | Ekwiwalent opłat tokenowych¹ | PnL | PnL / notional | PnL / wypływ | EV na rozliczonych fill’ach | PnL−EV |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ])
     for name in MODEL_NAMES:
         item = economics["variants"][name]
-        ratio = "n/a" if item["pnl_per_settled_turnover"] is None else f"{item['pnl_per_settled_turnover']:.3%}"
+        audit = _cashflow_ledger_summary(trades_by_variant[name])
+        settled = trades_by_variant[name].loc[
+            trades_by_variant[name].settlement_status.eq("settled")
+        ] if len(trades_by_variant[name]) else trades_by_variant[name]
+        forecast_ev = _sum_column(settled, "chosen_side_ev_usd")
+        notional_ratio = "n/a" if audit["pnl_per_notional"] is None else f"{audit['pnl_per_notional']:.3%}"
+        cash_ratio = "n/a" if audit["pnl_per_cash_outflow"] is None else f"{audit['pnl_per_cash_outflow']:.3%}"
         lines.append(
             f"| {name} | {item['decision_count']:,} | {item['fill_count']:,} / {item['settlement_count']:,} | "
-            f"{_format_usd(item['settled_turnover_usd'])} | {_format_usd(item['fees_paid_estimated_usd'])} | {_format_usd(item['net_pnl_usd'])} | "
-            f"{ratio} | {_format_usd(item['forecast_net_ev_on_settled_fills_usd'])} | {_format_usd(item['pnl_minus_forecast_ev_on_settled_fills_usd'])} |"
+            f"{_format_usd(audit['gross_notional_usd'])} | {_format_usd(audit['settled_cash_outflow_usd'])} | "
+            f"{_format_usd(audit['cash_fees_paid_usd'])} | "
+            f"{_format_usd(audit['share_fee_usd_entry_equivalent_informational'])} | "
+            f"{_format_usd(audit['cashflow_pnl_usd'])} | {notional_ratio} | {cash_ratio} | "
+            f"{_format_usd(forecast_ev)} | {_format_usd(audit['cashflow_pnl_usd'] - forecast_ev)} |"
         )
+    m0_audit = _cashflow_ledger_summary(trades_by_variant["M0"])
     reconcile = economics["raw_anchor_reconciliation"]
     pnl_bootstrap = economics["paired_pnl_bootstrap"]["contrasts"]["M1_MINUS_M0"]["mean_daily_pnl_difference_usd"]
     low, high = pnl_bootstrap["95pct"]
@@ -1046,25 +1244,94 @@ def _write_report(manifest: dict, summary: dict, monthly_quality: pd.DataFrame, 
         "",
         f"Sparowana różnica średniego dziennego PnL M1−M0: `{_format_usd(pnl_bootstrap['point_estimate'])}` na dzień (95% CI `{_format_usd(low)}` do `{_format_usd(high)}`). Różnica sumarycznego PnL to `{_format_usd(total_pnl_bootstrap['point_estimate'])}` (95% CI `{_format_usd(total_low)}` do `{_format_usd(total_high)}`); przedział obejmuje zero.",
         "",
-        "| Wariant | Obrót z fill’i | Obrót rozliczony |",
-        "|---|---:|---:|",
+        "¹ Informacyjny ekwiwalent USD opłaty potrąconej w tokenach; nie jest dodatkowym wypływem gotówki i nie odejmuje się go ponownie od PnL. Opłaty gotówkowe są już zawarte w wypływie i PnL.",
+        "",
+        "### Cztery rozliczenia M0",
+        "",
+        "Daty i wartości fill’i pochodzą z ledgeru; tokeny przed/po opłacie oznaczają odpowiednio `gross_shares` i `net_shares`. Ceny to VWAP wykonania.",
+        "",
+        "| condition_id | Start UTC | Strona | Wynik rynku / zakład | Stawka | EV T−60 | EV / stawka | Notional zakupu | Wypływ gotówki | VWAP | Tokeny przed → po opłacie | Opłata pobrana | Ekwiwalent USD | Wypłata | PnL |",
+        "|---|---|---|---|---:|---:|---:|---:|---:|---:|---:|---|---:|---:|---:|",
     ])
-    for name in MODEL_NAMES:
-        item = economics["variants"][name]
-        lines.append(f"| {name} | {_format_usd(item['gross_turnover_usd'])} | {_format_usd(item['settled_turnover_usd'])} |")
+    m0_trades = trades_by_variant["M0"]
+    for row in m0_trades.itertuples(index=False):
+        outcome = "UP" if int(row.outcome_up) == 1 else "DOWN"
+        result = "wygrana" if bool(row.won) else "przegrana"
+        if row.fee_charge_unit == "outcome shares":
+            fee_paid = f"{format(float(row.fee_shares), '.17g')} tokena"
+        else:
+            fee_paid = f"{_format_ledger_usd(row.fee_cash_usd)} gotówką"
+        lines.append(
+            f"| `{row.condition_id}` | {pd.Timestamp(row.market_start_utc).isoformat()} | {row.chosen_side.upper()} | "
+            f"{outcome}; zakład {result} | {_format_ledger_usd(row.requested_gross_usd)} | "
+            f"{_format_ledger_usd(row.chosen_side_ev_usd)} | "
+            f"{float(row.chosen_side_ev_usd) / float(row.requested_gross_usd):.10%} | "
+            f"{_format_ledger_usd(row.gross_usd)} | {_format_ledger_usd(row.cash_debit_usd)} | "
+            f"{format(float(row.vwap), '.17g')} | "
+            f"{format(float(row.gross_shares), '.17g')} → {format(float(row.net_shares), '.17g')} | "
+            f"{fee_paid} | {_format_ledger_usd(row.fee_usd_entry_equivalent)} | "
+            f"{_format_ledger_usd(row.payout_usd)} | {_format_ledger_usd(row.net_pnl_usd)} |"
+        )
     lines.extend([
+        "",
+        f"Ręczne uzgodnienie M0 z ledgeru: wypłaty `{_format_ledger_usd(m0_audit['payout_usd'])}` − wypływy gotówki `{_format_ledger_usd(m0_audit['settled_cash_outflow_usd'])}` = PnL `{_format_ledger_usd(m0_audit['cashflow_pnl_usd'])}`. Notional wyniósł `{_format_ledger_usd(m0_audit['gross_notional_usd'])}`; opłaty pobrane w gotówce `{_format_ledger_usd(m0_audit['cash_fees_paid_usd'])}`; opłata pobrana w tokenach miała ekwiwalent `{_format_ledger_usd(m0_audit['share_fee_usd_entry_equivalent_informational'])}` i nie stanowi dodatkowego wypływu. Stąd `-$20.54 = $0.00 - ($20.00 + $0.54)`. Zgodnie z wartościami zapisanymi w ledgerze suma ekwiwalentów opłat to `{_format_ledger_usd(m0_audit['fee_usd_equivalent_all_units'])}`: `{_format_ledger_usd(m0_audit['cash_fees_paid_usd'])}` gotówką i `{_format_ledger_usd(m0_audit['share_fee_usd_entry_equivalent_informational'])}` informacyjnie w tokenach.",
+        "",
+        "### Niezależna kontrola zapisanych ledgerów",
+        "",
+        "Każdy settled trade przeliczono w osobnej ścieżce audytu z arytmetyką Decimal: `payout_usd - cash_debit_usd`. To niezależne od wspólnej funkcji używanej w agregatach głównej i miesięcznej tabeli. Warunek straty to `net_pnl_usd >= -cash_debit_usd`; gotówkowy wydatek sprawdzono też jako `gross_usd + fee_cash_usd`. Opłata w tokenach jest pokazana osobno jako ekwiwalent USD.",
+        "",
+        "| Ledger | Fill’e / settled / unresolved | Notional settled | Wypływ settled | Gotówka unresolved | Opłaty cash (wszystkie fill’e) | Ekwiwalent opłat tokenowych | PnL ledgeru / cashflow | Max Δ PnL, USD | Max Δ debit, USD | Min. `PnL + wypływ` | Naruszenia limitu straty |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+    ])
+    scoped_ledgers = [(f"Bieżący {name}", trades_by_variant[name]) for name in MODEL_NAMES]
+    historical_paths = [
+        ("RAW BASE70 development", ROOT / CONFIG["sources"]["base70_raw_trades_path"]),
+        (
+            "RAW BASE70 historyczny holdout",
+            ROOT / "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/trades.parquet",
+        ),
+    ]
+    scoped_ledgers.extend((name, pd.read_parquet(path)) for name, path in historical_paths)
+    for name, trades in scoped_ledgers:
+        audit = _independent_cashflow_audit(trades)
+        lines.append(
+            f"| {name} | {audit['fill_count']:,} / {audit['settlement_count']:,} / {audit['unresolved_fill_count']:,} | "
+            f"{_format_usd(audit['gross_notional_usd'])} | {_format_usd(audit['settled_cash_outflow_usd'])} | "
+            f"{_format_usd(audit['unresolved_cash_outflow_usd'])} | {_format_usd(audit['all_fill_cash_fees_paid_usd'])} | "
+            f"{_format_usd(audit['share_fee_usd_entry_equivalent_informational'])} | "
+            f"{_format_usd(audit['cashflow_pnl_usd'])} / {_format_usd(audit['ledger_pnl_usd'])} | "
+            f"{_format_ledger_usd(audit['max_abs_pnl_reconciliation_delta_usd'])} | "
+            f"{_format_ledger_usd(audit['cash_debit_reconciliation_max_abs_usd'])} | "
+            f"{_format_usd(audit['minimum_loss_bound_headroom_usd'])} | {audit['loss_bound_violations']} |"
+        )
+    lines.extend([
+        "",
+        "Kontrola obejmuje wszystkie settled zakupy w bieżącym eksperymencie, RAW BASE70 development i ostatnim zapisanym holdoucie. W holdoucie jeden fill pozostaje nierozliczony: jego `$5.1925` wypływu gotówki jest pokazane osobno, bez dopisywania nieznanej wypłaty do PnL settled. We wszystkich settled ledgerach ręczne PnL zgadza się z kolumną ledgeru, wypływ z notionalem i opłatą gotówkową, a liczba naruszeń maksymalnej straty wynosi zero.",
+        "",
+        "## Kontrakt `$5` i raportowanie",
+        "",
+        "A (`$5` jako maksymalny wydatek z opłatami) nie opisuje tego kodu. B jest właściwą definicją: `$5` to żądany/gross notional zakupu; opłaty gotówkowe mogą zwiększyć całkowity wydatek. Historyczny tryb poboru opłaty zależy od daty: przed zmianą V1 potrąca opłatę z tokenów, po zmianie V2 pobiera ją w gotówce. Zmienia się jednostka opłaty, nie znaczenie stawki `$5`.",
+        "",
+        "- Decyzja T-60 i EV: obliczenie EV odejmuje pełny `cash_debit_usd` od `p × net_shares`; próg 1% to net EV podzielone przez żądany notional `$5`.",
+        "- Wykonanie T-59: zachowuje wybraną stronę i notional; księguje gotówkową opłatę w `cash_debit_usd`, a V1 share fee w `net_shares`.",
+        "- Obrót: `gross_usd` to notional, nie wszystkie wydatki gotówkowe. `PnL / obrót` należy czytać jako `PnL / notional`; tabela pokazuje równolegle zwrot względem całkowitego wypływu.",
+        "- Rozliczenie i audyt: PnL to `payout_usd - cash_debit_usd`. USD-ekwiwalentu opłaty tokenowej nie odejmuje się ponownie.",
         "",
         "### Ekonomia według miesiąca",
         "",
-        "| Miesiąc | Wariant | Fill’e / rozliczone | Opłaty | PnL netto | PnL / obrót rozliczony | PnL−EV |",
-        "|---|---|---:|---:|---:|---:|---:|",
+        "| Miesiąc | Wariant | Fill’e / settled | Notional | Wypływ gotówki | Opłaty cash | Ekwiwalent opłaty tokenowej | PnL | PnL / notional | PnL / wypływ | PnL−EV |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ])
-    for row in monthly_economics.itertuples(index=False):
-        ratio = "n/a" if pd.isna(row.pnl_per_settled_turnover) else f"{row.pnl_per_settled_turnover:.3%}"
+    for row in _monthly_cashflow_rows(monthly_economics, trades_by_variant):
+        notional_ratio = "n/a" if row["pnl_per_notional"] is None else f"{row['pnl_per_notional']:.3%}"
+        cash_ratio = "n/a" if row["pnl_per_cash_outflow"] is None else f"{row['pnl_per_cash_outflow']:.3%}"
         lines.append(
-            f"| {row.utc_month} | {row.variant} | {row.fills:,} / {row.settlements:,} | "
-            f"{_format_usd(row.fees_usd)} | {_format_usd(row.net_pnl_usd)} | {ratio} | "
-            f"{_format_usd(row.pnl_minus_forecast_ev_on_settled_fills_usd)} |"
+            f"| {row['utc_month']} | {row['variant']} | {row['fills']:,} / {row['settlements']:,} | "
+            f"{_format_usd(row['gross_notional_usd'])} | {_format_usd(row['cash_outflow_usd'])} | "
+            f"{_format_usd(row['cash_fees_paid_usd'])} | "
+            f"{_format_usd(row['share_fee_usd_entry_equivalent_informational'])} | "
+            f"{_format_usd(row['net_pnl_usd'])} | {notional_ratio} | {cash_ratio} | "
+            f"{_format_usd(row['pnl_minus_forecast_ev_usd'])} |"
         )
     lines.extend([
         "",
@@ -1090,7 +1357,7 @@ def _write_report(manifest: dict, summary: dict, monthly_quality: pd.DataFrame, 
         "## Pliki i odtwarzalność",
         "",
         f"Manifest zamrożono przed obliczeniami: `{_relative(VERSIONED_MANIFEST_PATH)}`. Dane prognoz, współczynniki dzienne, bootstrap, wyniki miesięczne i niezależne ledgery wariantów są w `{CONFIG['output_directory']}`. Runner nie przyjmuje argumentów CLI: `python {CONFIG['runner']}`.",
-        f"Czas runnera: `{manifest.get('elapsed_seconds')}` s; szczytowy working set procesu: `{manifest.get('peak_working_set_gib')}` GiB. Nie pobierano danych, nie trenowano BTC ani nie używano holdoutu.",
+        f"Czas oryginalnego runnera: `{manifest.get('elapsed_seconds')}` s; szczytowy working set procesu: `{manifest.get('peak_working_set_gib')}` GiB. Raport i audyt przeliczono z zapisanych ledgerów; nie pobierano danych, nie trenowano BTC ani nie odtwarzano archiwum.",
         "",
     ])
     REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
@@ -1231,7 +1498,7 @@ def run() -> dict:
     }
     _write_manifest(manifest)
     report_started = time.perf_counter()
-    _write_report(manifest, summary, monthly_quality, monthly_economics)
+    _write_report(manifest, summary, monthly_quality, monthly_economics, trades_by_variant)
     manifest["stages"]["report"] = {
         "status": "completed", "finished_utc": pd.Timestamp.now(tz="UTC").isoformat(),
         "outputs": [_record(REPORT_PATH)],

@@ -181,6 +181,48 @@ class MarketBase70IncrementalTests(unittest.TestCase):
         self.assertTrue(result["ledger_matches_on_shared_calendar"])
         self.assertEqual(result["new_shared_calendar_net_pnl_usd"], pnl)
 
+    def test_cashflow_report_does_not_subtract_token_fee_equivalent_twice(self):
+        trades = pd.DataFrame([{
+            "settlement_status": "settled",
+            "gross_usd": 5.0,
+            "cash_debit_usd": 5.0,
+            "fee_cash_usd": 0.0,
+            "fee_charge_unit": "outcome shares",
+            "fee_usd_entry_equivalent": 0.18,
+            "payout_usd": 9.64,
+            "net_pnl_usd": 4.64,
+        }])
+
+        summary = experiment._cashflow_ledger_summary(trades)
+
+        self.assertEqual(summary["gross_notional_usd"], 5.0)
+        self.assertEqual(summary["settled_cash_outflow_usd"], 5.0)
+        self.assertEqual(summary["cash_fees_paid_usd"], 0.0)
+        self.assertEqual(summary["share_fee_usd_entry_equivalent_informational"], 0.18)
+        self.assertAlmostEqual(summary["cashflow_pnl_usd"], 4.64, places=12)
+        self.assertEqual(summary["loss_bound_violations"], 0)
+
+    def test_independent_decimal_audit_reconciles_hand_calculated_token_fee_loss(self):
+        trades = pd.DataFrame([{
+            "settlement_status": "settled",
+            "gross_usd": "5.00",
+            "cash_debit_usd": "5.00",
+            "fee_cash_usd": "0.00",
+            "fee_charge_unit": "outcome shares",
+            "fee_usd_entry_equivalent": "0.18",
+            "payout_usd": "0.00",
+            "net_pnl_usd": "-5.00",
+        }])
+
+        audit = experiment._independent_cashflow_audit(trades)
+
+        self.assertEqual(audit["cashflow_pnl_usd"], -5.0)
+        self.assertEqual(audit["ledger_pnl_usd"], -5.0)
+        self.assertEqual(audit["share_fee_usd_entry_equivalent_informational"], 0.18)
+        self.assertEqual(audit["cash_debit_reconciliation_max_abs_usd"], 0.0)
+        self.assertEqual(audit["loss_bound_violations"], 0)
+        self.assertEqual(audit["max_abs_pnl_reconciliation_delta_usd"], 0.0)
+
 
 if __name__ == "__main__":
     unittest.main()
