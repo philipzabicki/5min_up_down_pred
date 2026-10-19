@@ -1,4 +1,14 @@
 
+<!-- BTC_MARKET_BASE70_FROZEN_HOLDOUT_20261019_BEGIN -->
+## Zamrożony transfer RAW BASE70 M0/M1 — 2026-10-19
+- Status: `completed`; wspólny holdout ma 24,737 prognoz, jakość na 24,735 oficjalnych etykietach.
+- M1−M0 Δ log loss `-0.000076`; M1−RAW `-0.000940`. Zobacz sparowane przedziały w raporcie.
+- Settled PnL na wspólnym kalendarzu: M1 `$-446.52`, RAW `$-546.22`; współczynniki zamrożone przed oceną.
+- Raport: `reports/btc_preopen/btc_market_base70_frozen_holdout_20261019.md`; manifest: `reports/btc_preopen/btc_market_base70_frozen_holdout_20261019_manifest.json`; konfiguracja: `configs/research/btc_market_base70_frozen_holdout_20261019.json`.
+<!-- BTC_MARKET_BASE70_FROZEN_HOLDOUT_20261019_END -->
+
+
+
 <!-- BTC_MARKET_BASE70_INCREMENTAL_20261019_BEGIN -->
 ### RAW BASE70 ponad prognozę rynku - 2026-10-19
 - Status: `completed`; wspólna jakość: `9694` wierszy development.

@@ -1,0 +1,554 @@
+{
+  "active_stage": null,
+  "elapsed_seconds": 5.06483930000104,
+  "experiment_id": "btc_market_base70_frozen_holdout_20261019",
+  "frozen_comparison": {
+    "identity_sha256": "ec1d8dc5377d7e65d62edfdb2c16f40bdfe3a254e1cca0389006bbd5102619c2",
+    "specification": {
+      "config": {
+        "bootstrap": {
+          "block_days": 3,
+          "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+          "replications": 2000,
+          "seed": 20261019
+        },
+        "cli_arguments": false,
+        "daily_holdout_refit": false,
+        "development_daily_fit_note": "The prior development report fits M0/M1 once per UTC day before that day's first decision. This holdout transfer fits each model once on all qualifying development OOF rows and keeps those coefficients fixed for the complete holdout.",
+        "download_data": false,
+        "experiment_id": "btc_market_base70_frozen_holdout_20261019",
+        "fee_audit_reference_commit": "a5fd05e",
+        "fit_boundary_first_holdout_decision_utc": "2026-06-30T23:59:00Z",
+        "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+        "holdout_last_market_start_inclusive_utc": "2026-10-06T23:55:00Z",
+        "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+        "hypothesis_origin": "Formulated after a prior analysis of this holdout; results are a historical portability test, not independent confirmation.",
+        "minimum_training_rows": 1000,
+        "models": {
+          "M0": "sigmoid(a + b * logit(p_market))",
+          "M1": "sigmoid(a + b * logit(p_market) + c * (logit(p_RAW) - logit(p_market)))",
+          "objective": "unweighted mean official-label log loss plus the stated penalty",
+          "optimizer": "scipy L-BFGS-B; unrestricted coefficient signs",
+          "penalty": "lambda * ((b - 1)^2 + c^2); M0 omits c; intercept unpenalized"
+        },
+        "official_label_release_rule": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+        "output_directory": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019",
+        "policy": {
+          "decision_offset_seconds": -60,
+          "engine": "existing causal T-60/T-59 economic engine with saved fee, depth and settlement snapshots",
+          "execution_offset_seconds": -59,
+          "minimum_net_ev_fraction": 0.01,
+          "settlement_cutoff_utc": "2026-10-07T00:00:00Z",
+          "sizing": "independent fixed $5 gross order",
+          "variants": [
+            "MARKET",
+            "RAW",
+            "M0",
+            "M1"
+          ]
+        },
+        "probability_epsilon": 1e-06,
+        "regularization_lambda": 0.001,
+        "release_boundary": "strictly_before_first_holdout_T-60_decision",
+        "replay_archive": false,
+        "report_path": "reports/btc_preopen/btc_market_base70_frozen_holdout_20261019.md",
+        "require_both_classes": true,
+        "retrain_base70": false,
+        "runner": "run_btc_market_base70_frozen_holdout_20261019.py",
+        "sources": {
+          "development_experiment_config_path": "configs/research/btc_market_base70_incremental_20261019.json",
+          "development_experiment_manifest_path": "data/analysis/polymarket/BTC/btc_market_base70_incremental_20261019/run_manifest.json",
+          "development_experiment_report_path": "reports/btc_preopen/btc_market_base70_incremental_20261019.md",
+          "development_oof_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+          "official_market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+          "raw_holdout_calendar_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/common_execution_calendar.parquet",
+          "raw_holdout_predictions_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/holdout_predictions.parquet",
+          "raw_holdout_report_path": "reports/btc_preopen/btc_base70_raw_holdout_20261018.md",
+          "raw_holdout_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/run_manifest.json",
+          "raw_holdout_summary_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/summary.json",
+          "raw_holdout_trades_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/trades.parquet",
+          "t59_snapshots_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+          "t60_snapshots_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet"
+        },
+        "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+        "versioned_manifest_path": "reports/btc_preopen/btc_market_base70_frozen_holdout_20261019_manifest.json"
+      },
+      "frozen_at_utc": "2026-10-19T15:55:19.789922+00:00",
+      "method": {
+        "coefficient_update_during_holdout": false,
+        "common_market_calendar": true,
+        "development_fit_count_per_model": 1,
+        "holdout_fit_count_per_model": 0,
+        "holdout_prediction_variants": [
+          "MARKET",
+          "RAW",
+          "M0",
+          "M1"
+        ],
+        "holdout_previously_exposed": true,
+        "quality_contrasts": {
+          "M0_MINUS_MARKET": [
+            "M0",
+            "MARKET"
+          ],
+          "M1_MINUS_M0": [
+            "M1",
+            "M0"
+          ],
+          "M1_MINUS_RAW": [
+            "M1",
+            "RAW"
+          ]
+        },
+        "shared_m0_m1_training_rows": true,
+        "training_label_release_strictly_before_first_holdout_decision": true
+      },
+      "source_records": {
+        "config": {
+          "path": "configs/research/btc_market_base70_frozen_holdout_20261019.json",
+          "sha256": "196032fd07d325cba09d27e29076ec13ecbdaaab4427d31cdb74adad70707c87",
+          "size_bytes": 4213
+        },
+        "development_experiment_config_path": {
+          "path": "configs/research/btc_market_base70_incremental_20261019.json",
+          "sha256": "776544b580e73d7810be0e0e75e3a72e762254f74bed2585ccd62a57b03d7fe1",
+          "size_bytes": 3579
+        },
+        "development_experiment_manifest_path": {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_incremental_20261019/run_manifest.json",
+          "sha256": "905acc398c94950b5474ce677137b895cd43b83c4112921295627080565b3b70",
+          "size_bytes": 49796
+        },
+        "development_experiment_report_path": {
+          "path": "reports/btc_preopen/btc_market_base70_incremental_20261019.md",
+          "sha256": "5f8eec3d9609c9c837ecc793e15c7240190893d745cf9282d8a5ccb7874eb7c3",
+          "size_bytes": 14324
+        },
+        "development_oof_path": {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+          "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8",
+          "size_bytes": 11166225
+        },
+        "development_runner": {
+          "path": "run_btc_market_base70_incremental_20261019.py",
+          "sha256": "5ea0c76d720cb38ab15876288fb892976fa20b76fa2fdaef196b73257fa86e37",
+          "size_bytes": 86393
+        },
+        "economic_engine_and_cashflow_audit": {
+          "path": "run_btc_preopen_t59_reassessment.py",
+          "sha256": "b3e32824549eeb02b27dac8c60726973a918fcc0123abca097346fab6b646782",
+          "size_bytes": 294336
+        },
+        "fee_rule_implementation": {
+          "path": "utils/polymarket_btc5m_fee_rules.py",
+          "sha256": "9bbdce425e6014f407d79cc2a25ca2456a4d224255302eb008d76f8e111cab56",
+          "size_bytes": 10013
+        },
+        "market_probability_definition": {
+          "path": "run_btc_market_probability_experiment.py",
+          "sha256": "5fffceebc86b354fb4f1836aff9283a86a6581fb641f6959ad9ca8e02b2912ee",
+          "size_bytes": 57107
+        },
+        "official_label_scoring": {
+          "path": "run_btc_preopen_taker_flow_20261018.py",
+          "sha256": "8440d1ee14632d71b4032144cd83c1c9637bdc4a19b5f5143a598f55484056ba",
+          "size_bytes": 120207
+        },
+        "official_market_index_path": {
+          "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+          "sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973",
+          "size_bytes": 7486947
+        },
+        "raw_holdout_calendar_path": {
+          "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/common_execution_calendar.parquet",
+          "sha256": "4d20346ecb5974735846a9bb6e16190cfb8943151d481facfb346b88828339ad",
+          "size_bytes": 16896474
+        },
+        "raw_holdout_predictions_path": {
+          "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/holdout_predictions.parquet",
+          "sha256": "22d40225960f08383679dc5b364c04b6d912f8198b7b8886e0695ac02567be1e",
+          "size_bytes": 2837575
+        },
+        "raw_holdout_report_path": {
+          "path": "reports/btc_preopen/btc_base70_raw_holdout_20261018.md",
+          "sha256": "2dbc7bc8e90fc0f7f3524d29071e1b71025f514e78a56d720777ae6b90910696",
+          "size_bytes": 14363
+        },
+        "raw_holdout_run_manifest_path": {
+          "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/run_manifest.json",
+          "sha256": "5df89d74f8a779e9be000edc43132eb6d3065e71bb3e9ab88a3cc541b80e2122",
+          "size_bytes": 204417
+        },
+        "raw_holdout_summary_path": {
+          "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/summary.json",
+          "sha256": "b0127a7ec27833f356769b9048b0aa9b3d74611b6d59d4cc8e69a1d3cb6825fe",
+          "size_bytes": 7289
+        },
+        "raw_holdout_trades_path": {
+          "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/trades.parquet",
+          "sha256": "7640af34cfbd8575f68ee6f30547036e6fabc8b0a31b80dbdf4e85312dc3b9de",
+          "size_bytes": 1238426
+        },
+        "research_calendar_and_snapshot_helpers": {
+          "path": "run_btc_preopen_research.py",
+          "sha256": "22cb94807ee64fbd43ae080b70c156c0d0c9fd2c93466b232262d8f235f48ee9",
+          "size_bytes": 68602
+        },
+        "runner": {
+          "path": "run_btc_market_base70_frozen_holdout_20261019.py",
+          "sha256": "0a051b9ce33e219b4c80cebb4a38654a4db0ff3b0b220dcb16b0ee86e3e6148b",
+          "size_bytes": 62894
+        },
+        "t59_snapshots_path": {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+          "sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0",
+          "size_bytes": 26051278
+        },
+        "t60_snapshots_path": {
+          "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+          "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1",
+          "size_bytes": 25908421
+        }
+      }
+    }
+  },
+  "implementation_resume": {
+    "current_runner_sha256": "06d7cdf246b3d1e617f8f0dd3197050c520d60556c276cd4bbf9ef5da67fd07e",
+    "original_frozen_runner_sha256": "0a051b9ce33e219b4c80cebb4a38654a4db0ff3b0b220dcb16b0ee86e3e6148b",
+    "reason": "Clarify transferred probability and economic results and report cash fees separately for settled and unresolved fills; no fit, prediction, bootstrap, execution, or accounting calculation changed.",
+    "recorded_utc": "2026-10-19T16:01:24.828320+00:00"
+  },
+  "peak_working_set_gib": 1.558,
+  "result_summary": {
+    "M1_minus_M0_log_loss": {
+      "95pct": [
+        -0.00039548273885928187,
+        0.00030092001760231575
+      ],
+      "median": -8.120516677767586e-05,
+      "point_difference": -7.649709565926699e-05,
+      "valid_replications": 2000
+    },
+    "M1_minus_RAW_log_loss": {
+      "95pct": [
+        -0.0017935797102181157,
+        -0.00028920785348496877
+      ],
+      "median": -0.0009048305699371761,
+      "point_difference": -0.0009403901052551511,
+      "valid_replications": 2000
+    },
+    "M1_net_pnl_usd": -446.5232537790171,
+    "RAW_shared_net_pnl_usd": -546.217183320706,
+    "quality_rows": 24735,
+    "raw_ledger_reconciled": true,
+    "shared_forecast_rows": 24737
+  },
+  "runtime_identity": {
+    "numpy": "2.4.4",
+    "pandas": "3.0.2",
+    "python": "3.14.4"
+  },
+  "schema_version": 1,
+  "stages": {
+    "economics_M0": {
+      "finished_utc": "2026-10-19T15:57:36.624414+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/M0/decisions.parquet",
+          "sha256": "ecabfe1e42a6b8e6c17051f21f61cfc8b053721efc669bfba775d0f73dd52d7d",
+          "size_bytes": 3313817
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/M0/trades.parquet",
+          "sha256": "919b75d6496886297bd07e68cefb462936245a68d56ae5d3ac5c5d8ecefa7e23",
+          "size_bytes": 171243
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/M0/summary.json",
+          "sha256": "71ec6cc8c882e889b8604b44f5e64a20081d0952d6f48cd37997bcc7e1f49cde",
+          "size_bytes": 6625
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "decision_count": 24737,
+        "fill_count": 4,
+        "intent_count": 5,
+        "net_pnl_usd": -21.0325,
+        "settlement_count": 4,
+        "unresolved_fill_count": 0
+      }
+    },
+    "economics_M1": {
+      "finished_utc": "2026-10-19T15:58:01.248742+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/M1/decisions.parquet",
+          "sha256": "7b84f4c5d280974626e4d2da51fc64c73879775af73cea4058ad091066dad5bf",
+          "size_bytes": 4642336
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/M1/trades.parquet",
+          "sha256": "bc44c94d9d7d3bb937ca00b36cbcb9af186031a50322b9e87501309f2b43bab3",
+          "size_bytes": 386076
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/M1/summary.json",
+          "sha256": "10cb0d7401042e9cb7460f95bc9d9c5a3c8819cef1e3daf9f7370fd6232151d5",
+          "size_bytes": 7002
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "decision_count": 24737,
+        "fill_count": 630,
+        "intent_count": 647,
+        "net_pnl_usd": -446.5232537790171,
+        "settlement_count": 630,
+        "unresolved_fill_count": 0
+      }
+    },
+    "economics_MARKET": {
+      "finished_utc": "2026-10-19T15:56:44.918964+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/MARKET/decisions.parquet",
+          "sha256": "7a26498c0cf5c4dd737c6bef40b89a11b44f20b87be27ed5707b77935752fd15",
+          "size_bytes": 3295946
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/MARKET/trades.parquet",
+          "sha256": "767d4eaed9880a7b072f4d435773b59105cb92930ad8d2b4a8a1f62b686764c3",
+          "size_bytes": 636
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/MARKET/summary.json",
+          "sha256": "57793a439ab645c48a63f9e2171273b9d3873401efeef96fd5ab737cf2608a98",
+          "size_bytes": 6368
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "decision_count": 24737,
+        "fill_count": 0,
+        "intent_count": 0,
+        "net_pnl_usd": 0.0,
+        "settlement_count": 0,
+        "unresolved_fill_count": 0
+      }
+    },
+    "economics_RAW": {
+      "finished_utc": "2026-10-19T15:57:11.372928+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/RAW/decisions.parquet",
+          "sha256": "4bc7e59523704951eb4f07062c242cec716de134a1bc244f33c31e6c2cc837d1",
+          "size_bytes": 4906343
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/RAW/trades.parquet",
+          "sha256": "5204d25ee2b8ae9e8db1b9b2c4808e337e4de605e5e6b50eda48d1d1c849695f",
+          "size_bytes": 1238411
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/economics/RAW/summary.json",
+          "sha256": "5f9fb040c0eb7ba70828a7124f5f960678670e7741a86ca427c1a4ed6c0c74e7",
+          "size_bytes": 7117
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "decision_count": 24737,
+        "fill_count": 3738,
+        "intent_count": 4003,
+        "net_pnl_usd": -546.2171833207061,
+        "settlement_count": 3737,
+        "unresolved_fill_count": 1
+      }
+    },
+    "final_summary": {
+      "finished_utc": "2026-10-19T16:01:29.398341+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/experiment_summary.json",
+          "sha256": "49aa9581ae9c212f8c96bc33db439d96035554df4374ec057239c764b3bce65f",
+          "size_bytes": 29398
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/daily_pnl.csv",
+          "sha256": "991731b11225de8f1ff798173ca0b0a30f13d09b534e4e1c8dcb3cb30d8eabc6",
+          "size_bytes": 10321
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/monthly_economics.csv",
+          "sha256": "e835120b898e5d0760479fbc4bb2d617dd5d43b06b331486329974bac38fb469",
+          "size_bytes": 12441
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "M1_minus_M0_log_loss": {
+          "95pct": [
+            -0.00039548273885928187,
+            0.00030092001760231575
+          ],
+          "median": -8.120516677767586e-05,
+          "point_difference": -7.649709565926699e-05,
+          "valid_replications": 2000
+        },
+        "M1_minus_RAW_log_loss": {
+          "95pct": [
+            -0.0017935797102181157,
+            -0.00028920785348496877
+          ],
+          "median": -0.0009048305699371761,
+          "point_difference": -0.0009403901052551511,
+          "valid_replications": 2000
+        },
+        "M1_net_pnl_usd": -446.5232537790171,
+        "RAW_shared_net_pnl_usd": -546.217183320706,
+        "quality_rows": 24735,
+        "raw_ledger_reconciled": true,
+        "shared_forecast_rows": 24737
+      }
+    },
+    "frozen_development_fit": {
+      "finished_utc": "2026-10-19T15:55:20.253825+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/frozen_coefficients.json",
+          "sha256": "0e6be5f698407e3033ac02748a44bf7d5d5f8f3c2a11f1814afbde44cc09b469",
+          "size_bytes": 2937
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/frozen_development_training_rows.parquet",
+          "sha256": "163900fa4be73e8957934dd308b95608df0d17f8009518b837caffd4c9df77d5",
+          "size_bytes": 609327
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "down_labels": 5417,
+        "first_label_release_utc": "2026-04-15T17:11:22+00:00",
+        "first_market_start_utc": "2026-04-15T17:05:00+00:00",
+        "fit_boundary_first_holdout_decision_utc": "2026-06-30T23:59:00+00:00",
+        "last_label_release_utc": "2026-06-30T23:56:22+00:00",
+        "last_market_start_utc": "2026-06-30T23:50:00+00:00",
+        "training_market_start_sample_sha256": "2e017d413760a8a996fe7d7698d4022fd8bba28987aaa3007e0797b05d9ada06",
+        "training_rows": 10790,
+        "up_labels": 5373
+      }
+    },
+    "holdout_alignment": {
+      "finished_utc": "2026-10-19T15:55:25.376804+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/holdout_predictions.parquet",
+          "sha256": "babe15079a8c44d02e13d8b01101e0dabee15b8cf970a99a7a625ba5056800f9",
+          "size_bytes": 2871168
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/shared_execution_calendar.parquet",
+          "sha256": "2b2ca261115c2890fa407dce23cd18c6d7a5a1d429a2d0a948c018194042cf6d",
+          "size_bytes": 5151784
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/t59_holdout_snapshots.parquet",
+          "sha256": "19719dcd39af91f64a0f5eba95bb85fac042bf9e501d167540aea1e737e8f540",
+          "size_bytes": 12243641
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/t60_holdout_snapshots.parquet",
+          "sha256": "1ce6f45fc058db4f994069a6e1e3e67a5b6526b05c2edf207423b93b163e7ed2",
+          "size_bytes": 12224263
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "finite_raw_probability_rows": 28224,
+        "first_holdout_decision_utc": "2026-06-30T23:59:00+00:00",
+        "first_shared_market_start_utc": "2026-07-01T00:00:00+00:00",
+        "last_holdout_market_start_utc": "2026-10-06T23:55:00+00:00",
+        "last_shared_market_start_utc": "2026-10-06T23:55:00+00:00",
+        "market_record_rows": 28222,
+        "missing_market_probability_rows_not_filled_with_0_5": 3487,
+        "quality_official_down_labels": 12409,
+        "quality_official_up_labels": 12326,
+        "quality_rows": 24735,
+        "raw_prediction_rows": 28224,
+        "shared_calendar_utc_days": 91,
+        "shared_forecast_official_outcomes_available_by_cutoff": 24735,
+        "shared_forecast_rows_excluded_from_quality": 2,
+        "shared_forecast_t59_snapshot_rows": 24737,
+        "shared_quality_rows": 24735,
+        "shared_raw_market_forecast_rows": 24737,
+        "t59_snapshot_identity_rows": 28222,
+        "t60_snapshot_identity_rows": 28222,
+        "t60_snapshot_rows": 28222,
+        "valid_t60_market_probability_rows": 24737
+      }
+    },
+    "quality_and_bootstrap": {
+      "finished_utc": "2026-10-19T15:56:20.187372+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/quality_summary.json",
+          "sha256": "206f5f615efc972b813725a9fafd25725ee0d053853bd67172a5779dd52cee6e",
+          "size_bytes": 3472
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/monthly_quality.csv",
+          "sha256": "7aeed58cdc1382cb26ca39c6fe52a64e344a8c8b69d9b3f15fda435a2674ee8d",
+          "size_bytes": 1182
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/shared_bootstrap_day_indices.npz",
+          "sha256": "fdda52a513897ee22848e7e77cebb80591b4d9a7021fd1b175fda918716107da",
+          "size_bytes": 106271
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "down_labels": 12409,
+        "end_utc": "2026-10-06T23:50:00+00:00",
+        "rows": 24735,
+        "start_utc": "2026-07-01T00:00:00+00:00",
+        "up_labels": 12326,
+        "utc_days": 91
+      }
+    },
+    "report": {
+      "finished_utc": "2026-10-19T16:01:29.412444+00:00",
+      "outputs": [
+        {
+          "path": "reports/btc_preopen/btc_market_base70_frozen_holdout_20261019.md",
+          "sha256": "537e2ca087975eb62df6a6e48094a46bd6a5884c5d8fc26d3e6820e27d815f0d",
+          "size_bytes": 12934
+        }
+      ],
+      "status": "completed",
+      "summary": {}
+    },
+    "shared_bootstrap_calendar": {
+      "finished_utc": "2026-10-19T15:55:25.520396+00:00",
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/shared_bootstrap_day_indices.npz",
+          "sha256": "fdda52a513897ee22848e7e77cebb80591b4d9a7021fd1b175fda918716107da",
+          "size_bytes": 106271
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "block_days": 3,
+        "calendar_days": 98,
+        "replications": 2000,
+        "seed": 20261019
+      }
+    }
+  },
+  "started_utc": "2026-10-19T15:55:19.790136+00:00",
+  "status": "completed",
+  "updated_utc": "2026-10-19T16:01:29.418369+00:00"
+}

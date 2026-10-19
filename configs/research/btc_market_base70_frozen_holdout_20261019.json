@@ -1,0 +1,63 @@
+{
+  "experiment_id": "btc_market_base70_frozen_holdout_20261019",
+  "fit_boundary_first_holdout_decision_utc": "2026-06-30T23:59:00Z",
+  "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+  "holdout_last_market_start_inclusive_utc": "2026-10-06T23:55:00Z",
+  "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+  "official_label_release_rule": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+  "release_boundary": "strictly_before_first_holdout_T-60_decision",
+  "probability_epsilon": 0.000001,
+  "regularization_lambda": 0.001,
+  "minimum_training_rows": 1000,
+  "require_both_classes": true,
+  "models": {
+    "M0": "sigmoid(a + b * logit(p_market))",
+    "M1": "sigmoid(a + b * logit(p_market) + c * (logit(p_RAW) - logit(p_market)))",
+    "penalty": "lambda * ((b - 1)^2 + c^2); M0 omits c; intercept unpenalized",
+    "objective": "unweighted mean official-label log loss plus the stated penalty",
+    "optimizer": "scipy L-BFGS-B; unrestricted coefficient signs"
+  },
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261019
+  },
+  "policy": {
+    "sizing": "independent fixed $5 gross order",
+    "minimum_net_ev_fraction": 0.01,
+    "decision_offset_seconds": -60,
+    "execution_offset_seconds": -59,
+    "settlement_cutoff_utc": "2026-10-07T00:00:00Z",
+    "engine": "existing causal T-60/T-59 economic engine with saved fee, depth and settlement snapshots",
+    "variants": ["MARKET", "RAW", "M0", "M1"]
+  },
+  "hypothesis_origin": "Formulated after a prior analysis of this holdout; results are a historical portability test, not independent confirmation.",
+  "development_daily_fit_note": "The prior development report fits M0/M1 once per UTC day before that day's first decision. This holdout transfer fits each model once on all qualifying development OOF rows and keeps those coefficients fixed for the complete holdout.",
+  "fee_audit_reference_commit": "a5fd05e",
+  "sources": {
+    "development_oof_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+    "official_market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+    "t59_snapshots_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+    "t60_snapshots_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+    "raw_holdout_predictions_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/holdout_predictions.parquet",
+    "raw_holdout_calendar_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/common_execution_calendar.parquet",
+    "raw_holdout_trades_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/trades.parquet",
+    "raw_holdout_summary_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/summary.json",
+    "raw_holdout_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/run_manifest.json",
+    "raw_holdout_report_path": "reports/btc_preopen/btc_base70_raw_holdout_20261018.md",
+    "development_experiment_config_path": "configs/research/btc_market_base70_incremental_20261019.json",
+    "development_experiment_manifest_path": "data/analysis/polymarket/BTC/btc_market_base70_incremental_20261019/run_manifest.json",
+    "development_experiment_report_path": "reports/btc_preopen/btc_market_base70_incremental_20261019.md"
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019",
+  "report_path": "reports/btc_preopen/btc_market_base70_frozen_holdout_20261019.md",
+  "versioned_manifest_path": "reports/btc_preopen/btc_market_base70_frozen_holdout_20261019_manifest.json",
+  "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+  "runner": "run_btc_market_base70_frozen_holdout_20261019.py",
+  "cli_arguments": false,
+  "retrain_base70": false,
+  "replay_archive": false,
+  "download_data": false,
+  "daily_holdout_refit": false
+}
