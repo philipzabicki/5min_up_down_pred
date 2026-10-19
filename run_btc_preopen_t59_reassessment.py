@@ -2705,21 +2705,28 @@ def _market_statuses(
         {cid: item["chosen_ev_usd"] for cid, item in fixed5.items()}
     )
     calendar["fixed5_buy_eligible"] = calendar.fixed5_chosen_side.notna()
-    calendar["fixed5_skip_reason"] = np.select(
+    calendar["fixed5_skip_reason"] = _fixed5_skip_reason(calendar)
+    return calendar, fixed5
+
+
+def _fixed5_skip_reason(calendar: pd.DataFrame) -> np.ndarray:
+    return np.select(
         [
             ~calendar.market_confirmed,
             calendar.market_confirmed & ~calendar.causal_prediction_available,
+            calendar.t59_snapshot_available.fillna(False)
+            & calendar.snapshot_market_event_count.fillna(0).eq(0),
             calendar.causal_prediction_available & ~calendar.archive_entry_hour_available.fillna(False),
             calendar.causal_prediction_available & ~calendar.t59_snapshot_available,
             calendar.t59_snapshot_available & calendar.fixed5_priceable_side_count.eq(0),
             calendar.fixed5_priceable_side_count.gt(0) & ~calendar.fixed5_buy_eligible,
         ],
         [
-            "no_gamma_market_record", "missing_causal_prediction", "archive_hour_missing_at_entry",
+            "no_gamma_market_record", "missing_causal_prediction", "no_archive_events_observed_by_t59",
+            "archive_hour_missing_at_entry",
             "t59_snapshot_not_replayed", "no_priceable_native_ask_side", "no_positive_net_expected_value",
         ], default="buy_eligible",
     )
-    return calendar, fixed5
 
 
 def _portfolio_for_policy(

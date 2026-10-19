@@ -394,6 +394,8 @@ def _audit_availability() -> tuple[dict, pd.DataFrame]:
     )
     calendar = pd.date_range(START_UTC.floor("D"), CUTOFF_UTC.floor("D") - pd.Timedelta(days=1), freq="D", tz="UTC")
     daily = daily.reindex(calendar, fill_value=0).rename_axis("day_utc").reset_index()
+    daily["market_count"] = daily.raw_oof_rows
+    daily["available_input_count"] = daily.builder_eligible
     sequential = pd.DataFrame(funnel)
     availability_dir = OUTPUT_DIR / "availability"
     _atomic_csv(daily, availability_dir / "daily_funnel.csv")
@@ -936,7 +938,85 @@ def _economics_summary(variant: str, decisions: pd.DataFrame, trades: pd.DataFra
     return result
 
 
-def _daily_pnl(trades_by_variant: dict[str, pd.DataFrame], days: pd.DatetimeIndex) -> pd.DataFrame:
+def _daily_policy_counts(
+    decisions_by_variant: dict[str, pd.DataFrame],
+    trades_by_variant: dict[str, pd.DataFrame],
+    days: pd.DatetimeIndex,
+) -> pd.DataFrame:
+    daily = pd.DataFrame({"day_utc": pd.to_datetime(days, utc=True)})
+    for variant in ECONOMIC_VARIANTS:
+        for suffix, ledger_by_variant in (
+            ("decisions", decisions_by_variant), ("executions", trades_by_variant),
+        ):
+            ledger = ledger_by_variant[variant]
+            counts = pd.Series(dtype="int64")
+            if len(ledger):
+                ledger_days = pd.to_datetime(ledger.market_start_utc, utc=True).dt.floor("D")
+                counts = ledger_days.value_counts()
+            daily[f"{variant}_{suffix}"] = (
+                daily.day_utc.map(counts).fillna(0).astype("int64")
+            )
+    return daily
+
+
+def _status_for_counts(
+    market_count: int, available_input_count: int, decision_count: int, execution_count: int,
+) -> str:
+    if market_count == 0:
+        return "no_market_data"
+    if available_input_count == 0:
+        return "markets_without_available_inputs"
+    if decision_count == 0:
+        return "available_inputs_without_decisions"
+    if execution_count == 0:
+        return "decisions_without_executions"
+    return "executions_present"
+
+
+def _attach_daily_policy_counts(
+    daily: pd.DataFrame,
+    decisions_by_variant: dict[str, pd.DataFrame],
+    trades_by_variant: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    result = daily.copy()
+    result["day_utc"] = pd.to_datetime(result.day_utc, utc=True).dt.floor("D")
+    if "market_count" not in result:
+        result["market_count"] = result.raw_oof_rows
+    if "available_input_count" not in result:
+        result["available_input_count"] = result.builder_eligible
+    counts = _daily_policy_counts(decisions_by_variant, trades_by_variant, pd.DatetimeIndex(result.day_utc))
+    count_columns = counts.columns.drop("day_utc")
+    count_lookup = counts.set_index("day_utc")
+    for column in count_columns:
+        result[column] = result.day_utc.map(count_lookup[column]).fillna(0).astype("int64")
+    decision_columns = [f"{variant}_decisions" for variant in ECONOMIC_VARIANTS]
+    execution_columns = [f"{variant}_executions" for variant in ECONOMIC_VARIANTS]
+    result["data_status"] = [
+        _status_for_counts(
+            int(row.market_count), int(row.available_input_count),
+            max(int(getattr(row, column)) for column in decision_columns),
+            sum(int(getattr(row, column)) for column in execution_columns),
+        )
+        for row in result.itertuples(index=False)
+    ]
+    for variant in ECONOMIC_VARIANTS:
+        result[f"{variant}_data_status"] = [
+            _status_for_counts(
+                int(row.market_count), int(row.available_input_count),
+                int(getattr(row, f"{variant}_decisions")),
+                int(getattr(row, f"{variant}_executions")),
+            )
+            for row in result.itertuples(index=False)
+        ]
+    return result
+
+
+def _daily_pnl(
+    trades_by_variant: dict[str, pd.DataFrame],
+    days: pd.DatetimeIndex,
+    decisions_by_variant: dict[str, pd.DataFrame],
+    availability_daily: pd.DataFrame,
+) -> pd.DataFrame:
     daily = pd.DataFrame({"day_utc": days})
     day_index = {day: index for index, day in enumerate(days)}
     for variant, trades in trades_by_variant.items():
@@ -950,7 +1030,12 @@ def _daily_pnl(trades_by_variant: dict[str, pd.DataFrame], days: pd.DatetimeInde
                         values[day_index[day]] = float(value)
         daily[f"{variant}_net_pnl_usd"] = values
     daily["X_MINUS_C_net_pnl_usd"] = daily.X_net_pnl_usd - daily.C_net_pnl_usd
-    return daily
+    availability = availability_daily.copy()
+    availability["day_utc"] = pd.to_datetime(availability.day_utc, utc=True).dt.floor("D")
+    availability_lookup = availability.set_index("day_utc")
+    for column in ("market_count", "available_input_count"):
+        daily[column] = daily.day_utc.map(availability_lookup[column]).fillna(0).astype("int64")
+    return _attach_daily_policy_counts(daily, decisions_by_variant, trades_by_variant)
 
 
 def _pnl_bootstrap(daily: pd.DataFrame, draws: np.ndarray) -> dict:
@@ -1084,9 +1169,11 @@ def _write_report(
             "ev_same_settled": row["forecast_net_ev_on_same_settled_fills_usd"],
         })
     daily_columns = [
-        "day_utc", "raw_oof_rows", "snapshot_matched", "source_events_observed",
-        "source_coverage_chronology", "native_both_books", "unambiguous_asks",
-        "uncrossed", "p_market_valid", "builder_eligible",
+        "day_utc", "market_count", "available_input_count", "snapshot_matched",
+        "source_events_observed", "source_coverage_chronology", "native_both_books",
+        "unambiguous_asks", "uncrossed", "p_market_valid", "builder_eligible",
+        "C_decisions", "C_executions", "X_decisions", "X_executions",
+        "MARKET_decisions", "MARKET_executions", "RAW_decisions", "RAW_executions", "data_status",
     ]
     report = [
         "# Development: RAW – rynek – mikrostruktura — 2026-10-19",
@@ -1122,16 +1209,22 @@ def _write_report(
         *_markdown_table(
             daily_availability, daily_columns,
             {
-                "day_utc": "Dzień UTC", "raw_oof_rows": "RAW", "snapshot_matched": "Snapshot T−60",
+                "day_utc": "Dzień UTC", "market_count": "Rynki", "available_input_count": "Dostępne wejścia",
+                "snapshot_matched": "Snapshot T−60",
                 "source_events_observed": "Zdarzenia", "source_coverage_chronology": "Pokrycie/chronologia",
                 "native_both_books": "Dwie księgi", "unambiguous_asks": "Ask jednoznaczne",
                 "uncrossed": "Nie crossed", "p_market_valid": "p_market", "builder_eligible": "Końcowe",
+                "C_decisions": "Decyzje C", "C_executions": "Wykonania C",
+                "X_decisions": "Decyzje X", "X_executions": "Wykonania X",
+                "MARKET_decisions": "Decyzje MARKET", "MARKET_executions": "Wykonania MARKET",
+                "RAW_decisions": "Decyzje RAW", "RAW_executions": "Wykonania RAW",
+                "data_status": "Status dnia",
             },
         ),
         "",
         "Flagi dostępności godziny i freshness oznaczają, że partycja została odnaleziona lub przetworzona; nie dowodzą, że zawiera zdarzenia. Obecność zdarzeń sprawdzono osobno.",
         "",
-        "W zapisanym archiwum wszystkie 384 partycje godzinowe od 13 do 28 czerwca są puste według metadanych Parquet (łącznie 0 wierszy). Snapshoty T−60 z tego okresu mają market_event_count = 0 i brak bid/ask, więc z zachowanych zdarzeń nie da się odtworzyć stanu. To brak danych źródłowych, a nie dowód błędnej rekonstrukcji. Po 12 czerwca pozostało "
+        "Historyczne lokalne partycje po selekcji są puste, lecz nie oznacza to pustych oryginałów. Pilot HTTP Range odczytał wszystkie grupy źródłowe dla 2026-06-13T12, 2026-06-20T12 i 2026-06-28T12 (132 łączne grupy, 137 377 951 wierszy według metadanych); w każdym pliku było 0 dokładnych dopasowań `market` z zamrożonego indeksu jeszcze przed filtrem czasu. Oryginalny selektor i niezależny filtr zgodziły się w każdej próbce. To potwierdza brak zdarzeń z indeksu rynków w tych trzech aktualnych obiektach, nie dla wszystkich 384 godzin. Szczegóły i limity dowodów: `reports/btc_preopen/btc_empty_partition_provenance_20261019.md`. Po 12 czerwca pozostało "
         f"{fit_sample['evaluation_input_rows_after_2026_06_12']:,} kwalifikujących się wejść testowych; 29 czerwca było ich {fit_sample['evaluation_input_rows_2026_06_29']}, a 30 czerwca {fit_sample['evaluation_input_rows_2026_06_30']}.",
         "",
         f"Kod rekonstrukcji grupuje zdarzenia po czasie odbioru i pilnuje porządku czasu źródłowego w obrębie tokenu i strony. Crossing oznacza best_bid > best_ask, locked oznacza równość; spóźnione zmiany cross-side są wykrywane i stosowane, jeśli zachowują porządek danej strony. Sam crossing nie dowodzi błędu. Istniejący quote_valid odrzuca crossed books; walidacji nie poluzowano. Niezależnie crossing wystąpił {audit['independent_flag_frequencies']['up_book_crossed']['true_count']:,} razy dla UP i {audit['independent_flag_frequencies']['down_book_crossed']['true_count']:,} dla DOWN.",
@@ -1184,7 +1277,7 @@ def _write_report(
             {"month_utc": "Miesiąc UTC", "variant": "Wariant", "decision_rows": "Decyzje", "intents_at_1pct": "EV ≥1%", "fills": "Wykonania", "settlements": "Rozliczono", "unresolved_fills": "Nierozliczone", "settled_notional_usd": "Notional $", "settled_cash_debit_usd": "Debet $", "settled_cash_fees_usd": "Fee cash $", "settled_share_fee_shares": "Fee shares", "net_pnl_usd": "PnL $", "pnl_per_notional": "PnL/notional", "pnl_per_cash_debit": "PnL/debet", "forecast_ev_same_settled_fills_usd": "EV settled $"},
         ),
         "",
-        f"Dzienna różnica PnL X−C obejmuje wszystkie {pnl_bootstrap['calendar_days']} dni, z zerami w dniach bez transakcji. Średnia dzienna: {_format(pnl_bootstrap['mean_daily_pnl_difference_X_minus_C_usd']['point_estimate'])} USD, 95% CI [{_format(pnl_bootstrap['mean_daily_pnl_difference_X_minus_C_usd']['lower_95'])}, {_format(pnl_bootstrap['mean_daily_pnl_difference_X_minus_C_usd']['upper_95'])}]; różnica sumy: {_format(pnl_bootstrap['total_pnl_difference_X_minus_C_usd']['point_estimate'])} USD, 95% CI [{_format(pnl_bootstrap['total_pnl_difference_X_minus_C_usd']['lower_95'])}, {_format(pnl_bootstrap['total_pnl_difference_X_minus_C_usd']['upper_95'])}].",
+        f"Dzienna różnica PnL X−C obejmuje wszystkie {pnl_bootstrap['calendar_days']} dni. Dzienny plik zawiera teraz osobne liczby rynków, dostępnych wejść, decyzji i wykonań oraz `data_status`, więc brak decyzji nie jest mylony z decyzją bez wykonania, a obie sytuacje są odróżnione od dnia bez danych. Średnia dzienna różnica: {_format(pnl_bootstrap['mean_daily_pnl_difference_X_minus_C_usd']['point_estimate'])} USD, 95% CI [{_format(pnl_bootstrap['mean_daily_pnl_difference_X_minus_C_usd']['lower_95'])}, {_format(pnl_bootstrap['mean_daily_pnl_difference_X_minus_C_usd']['upper_95'])}]; różnica sumy: {_format(pnl_bootstrap['total_pnl_difference_X_minus_C_usd']['point_estimate'])} USD, 95% CI [{_format(pnl_bootstrap['total_pnl_difference_X_minus_C_usd']['lower_95'])}, {_format(pnl_bootstrap['total_pnl_difference_X_minus_C_usd']['upper_95'])}].",
         "",
         "Koncentracja dzienna jest zapisana w manifeście. Udział PnL z pięciu najlepszych dni: "
         f"C {_format(concentration['C']['top_five_share_of_total_pnl'])}, "
@@ -1470,7 +1563,13 @@ def main() -> dict:
     for variant in ECONOMIC_VARIANTS:
         _atomic_parquet(decisions_by_variant[variant], OUTPUT_DIR / "economics" / f"{variant}_decisions.parquet")
         _atomic_parquet(trades_by_variant[variant], OUTPUT_DIR / "economics" / f"{variant}_trades.parquet")
-    daily_pnl = _daily_pnl(trades_by_variant, days)
+    availability_daily_path = OUTPUT_DIR / "availability" / "daily_funnel.csv"
+    availability_daily = pd.read_csv(availability_daily_path, parse_dates=["day_utc"])
+    availability_daily = _attach_daily_policy_counts(
+        availability_daily, decisions_by_variant, trades_by_variant,
+    )
+    _atomic_csv(availability_daily, availability_daily_path)
+    daily_pnl = _daily_pnl(trades_by_variant, days, decisions_by_variant, availability_daily)
     daily_pnl_path = OUTPUT_DIR / "economics" / "daily_pnl.csv"
     _atomic_csv(daily_pnl, daily_pnl_path)
     economics_monthly = _monthly_economics(decisions_by_variant, trades_by_variant)

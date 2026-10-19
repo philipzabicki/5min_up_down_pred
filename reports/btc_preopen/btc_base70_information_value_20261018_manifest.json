@@ -189,8 +189,8 @@
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
-          "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
-          "size_bytes": 12148090
+          "sha256": "14791b2f1694333295a2e647db080a6be3b7bfe61488edee53a94ede87c46137",
+          "size_bytes": 12148192
         }
       ],
       "reason": "Runner code changed; local stages are recomputed from verified immutable source artifacts.",
@@ -265,8 +265,8 @@
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
-          "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
-          "size_bytes": 12148090
+          "sha256": "14791b2f1694333295a2e647db080a6be3b7bfe61488edee53a94ede87c46137",
+          "size_bytes": 12148192
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/quality_summary.json",
@@ -436,8 +436,8 @@
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
-          "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
-          "size_bytes": 12148090
+          "sha256": "14791b2f1694333295a2e647db080a6be3b7bfe61488edee53a94ede87c46137",
+          "size_bytes": 12148192
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/quality_summary.json",
@@ -612,8 +612,8 @@
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
-          "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
-          "size_bytes": 12148090
+          "sha256": "14791b2f1694333295a2e647db080a6be3b7bfe61488edee53a94ede87c46137",
+          "size_bytes": 12148192
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/quality_summary.json",
@@ -798,8 +798,8 @@
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
-          "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
-          "size_bytes": 12148090
+          "sha256": "14791b2f1694333295a2e647db080a6be3b7bfe61488edee53a94ede87c46137",
+          "size_bytes": 12148192
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/quality_summary.json",
@@ -979,8 +979,8 @@
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
-          "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
-          "size_bytes": 12148090
+          "sha256": "14791b2f1694333295a2e647db080a6be3b7bfe61488edee53a94ede87c46137",
+          "size_bytes": 12148192
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/quality_summary.json",
@@ -3174,8 +3174,8 @@
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
-          "sha256": "39f39aae1e462c70ed2d00e8fdfd0984d132ac43c6ae8780375a52d40b29fd0e",
-          "size_bytes": 12148090
+          "sha256": "14791b2f1694333295a2e647db080a6be3b7bfe61488edee53a94ede87c46137",
+          "size_bytes": 12148192
         }
       ],
       "started_utc": "2026-10-18T11:00:01.964746+00:00",

@@ -1,0 +1,3271 @@
+{
+  "audit_id": "btc_pmxt_empty_partition_pilot_20261019",
+  "config_sha256": "2a866cd064488bde532efac3e10adcbc92f2b7b5070641d413ea3122696df85a",
+  "cumulative_payload_upper_bound_at_preflight": 967849696,
+  "files": {
+    "2026-06-13T12": {
+      "full_object_sha256": null,
+      "head_checked_at_utc": "2026-10-19T21:01:07.217956+00:00",
+      "head_status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "content-encoding": null,
+        "content-length": "312186409",
+        "content-type": null,
+        "etag": "\"a100f383136bbe64df4de7bd271581df-38\"",
+        "last-modified": "Tue, 23 Jun 2026 17:39:29 GMT"
+      },
+      "hour_utc": "2026-06-13T12",
+      "metadata_num_rows": 54758083,
+      "object_size_bytes": 312186409,
+      "range_probe": {
+        "content_range": "bytes 0-1023/312186409",
+        "etag": "\"a100f383136bbe64df4de7bd271581df-38\"",
+        "payload_bytes": 1024,
+        "status": 206
+      },
+      "requested_columns_compressed_bytes_25h_market_window": 311805051,
+      "requested_columns_compressed_bytes_full_index": 311805051,
+      "row_group_count": 53,
+      "row_groups": [
+        {
+          "market_min_max": {
+            "max": "0x04f1a10e79a106d18dc45e6087f0757456197ec5c6ffec2506cd066e8215fc62",
+            "min": "0x00000977017fa72fb6b1908ae694000d3b51f442c2552656b10bdbbfd16ff707",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6048575,
+          "row_group": 0,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.948000+00:00",
+            "min": "2026-06-13T11:59:59.744000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x095da86894875c7bfce858484da0d0fb3f1334b39bad88e4f908daf806485693",
+            "min": "0x04f1a10e79a106d18dc45e6087f0757456197ec5c6ffec2506cd066e8215fc62",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5926189,
+          "row_group": 1,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.947000+00:00",
+            "min": "2026-06-13T11:59:59.733000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x0dfe805f50a70999145b944ab0a745bad784056f9e9fdf601033a3e9781f6509",
+            "min": "0x095da86894875c7bfce858484da0d0fb3f1334b39bad88e4f908daf806485693",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5917068,
+          "row_group": 2,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.959000+00:00",
+            "min": "2026-06-13T11:59:59.727000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x11e878643f63c75e36d58024033ae710c19e696f652fa05ba705ab019402a633",
+            "min": "0x0dfe805f50a70999145b944ab0a745bad784056f9e9fdf601033a3e9781f6509",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5957840,
+          "row_group": 3,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.956000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x16735442b2bb8ccafb0d588e2c514a5e537710f29eef62b9aceb110927aa0b17",
+            "min": "0x11e878643f63c75e36d58024033ae710c19e696f652fa05ba705ab019402a633",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5849289,
+          "row_group": 4,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.956000+00:00",
+            "min": "2026-06-13T11:59:59.737000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x1afe066dc38c10493b91b3ba7f845ee44f371d930c03807b337350b163a19155",
+            "min": "0x16735442b2bb8ccafb0d588e2c514a5e537710f29eef62b9aceb110927aa0b17",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5899390,
+          "row_group": 5,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.963000+00:00",
+            "min": "2026-06-13T11:59:59.727000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x1fb286278fe2df4df48c723f30ed3fef49568305dd3bea36a8573d2e4c06bd9a",
+            "min": "0x1afe066dc38c10493b91b3ba7f845ee44f371d930c03807b337350b163a19155",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5962973,
+          "row_group": 6,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.964000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x24bba81404207ef19c430bdd8aac318ffe28ee2d5378ea70075a3bc0921bcc44",
+            "min": "0x1fb286278fe2df4df48c723f30ed3fef49568305dd3bea36a8573d2e4c06bd9a",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5959164,
+          "row_group": 7,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.727000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x292d0127103e02b8ce94e7c3a2b3f3d2fea58fe4e6a8267af0cdac8fe908fbc9",
+            "min": "0x24bba81404207ef19c430bdd8aac318ffe28ee2d5378ea70075a3bc0921bcc44",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5946495,
+          "row_group": 8,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.765000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x2e7fc1d0d13f105a60a2032b0ada391b30ab62c94c59336614e826e3694154fe",
+            "min": "0x292d0127103e02b8ce94e7c3a2b3f3d2fea58fe4e6a8267af0cdac8fe908fbc9",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6009942,
+          "row_group": 9,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.734000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x33d418d11c208ed74f043a830d9a99184f28054f290e2158524a65985ec30e54",
+            "min": "0x2e7fc1d0d13f105a60a2032b0ada391b30ab62c94c59336614e826e3694154fe",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6066890,
+          "row_group": 10,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.955000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x385aa069b79760b790af12c6eed17103e70afd71c3f7127df11de89c66fb84e4",
+            "min": "0x33d418d11c208ed74f043a830d9a99184f28054f290e2158524a65985ec30e54",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5744926,
+          "row_group": 11,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.959000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x3d4c9526baeaf08d68119da292b1e5629e4790329ad641193014e00dedf98094",
+            "min": "0x385aa069b79760b790af12c6eed17103e70afd71c3f7127df11de89c66fb84e4",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5964521,
+          "row_group": 12,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x4261907b9da5402b480cc327556f9d02aa33b2136dd34e5ba5b9589f63da7b7a",
+            "min": "0x3d4c9526baeaf08d68119da292b1e5629e4790329ad641193014e00dedf98094",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6112465,
+          "row_group": 13,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.957000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x472d8a5f1d2fab7a6c92a2daa932b5535b60e59876d3158d339f404c23b7e691",
+            "min": "0x4261907b9da5402b480cc327556f9d02aa33b2136dd34e5ba5b9589f63da7b7a",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5874291,
+          "row_group": 14,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.946000+00:00",
+            "min": "2026-06-13T11:59:59.748000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x4c966607a8104b1f85fe23079cdc8be2989f5630a67d0f0ee7c8ed15bc74ad18",
+            "min": "0x472d8a5f1d2fab7a6c92a2daa932b5535b60e59876d3158d339f404c23b7e691",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5969744,
+          "row_group": 15,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.959000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x50c41dfd14d3871765a37ca2e43aa782c75d532731e7abf649fbbe5aa94d1de5",
+            "min": "0x4c966607a8104b1f85fe23079cdc8be2989f5630a67d0f0ee7c8ed15bc74ad18",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6268758,
+          "row_group": 16,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.955000+00:00",
+            "min": "2026-06-13T11:59:59.729000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x55683a04edb03ceb9c9799a2ab5bd5fa4c85d1a0a986b0c7dde2504c5786391e",
+            "min": "0x50c41dfd14d3871765a37ca2e43aa782c75d532731e7abf649fbbe5aa94d1de5",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5994987,
+          "row_group": 17,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.963000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x5addbb5653f1d6fb9a89cb730e13c4fec4bf2f16547e0cb3175aae40e7438820",
+            "min": "0x55683a04edb03ceb9c9799a2ab5bd5fa4c85d1a0a986b0c7dde2504c5786391e",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6042760,
+          "row_group": 18,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.960000+00:00",
+            "min": "2026-06-13T11:59:59.735000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x60875078e0667c9e53e12216eb9eb344a239b7a56230a6dc7a0402c799cb7f70",
+            "min": "0x5addbb5653f1d6fb9a89cb730e13c4fec4bf2f16547e0cb3175aae40e7438820",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6121591,
+          "row_group": 19,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.964000+00:00",
+            "min": "2026-06-13T11:59:59.732000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x657338487f7016f420725d2243e3ff4cfde85ad4919a6fab040d8d3bb6fd4772",
+            "min": "0x60875078e0667c9e53e12216eb9eb344a239b7a56230a6dc7a0402c799cb7f70",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6086575,
+          "row_group": 20,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.964000+00:00",
+            "min": "2026-06-13T11:59:59.756000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x6a5305a203524484211b35f9b8175e687ec2e10698fca1aa308a694db878780b",
+            "min": "0x657338487f7016f420725d2243e3ff4cfde85ad4919a6fab040d8d3bb6fd4772",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6034914,
+          "row_group": 21,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.724000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x6ee6ba6771a4c328a02b3c499d63563a8b2de4b7d03e2432d0fd880cea9cff92",
+            "min": "0x6a5305a203524484211b35f9b8175e687ec2e10698fca1aa308a694db878780b",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6033530,
+          "row_group": 22,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.958000+00:00",
+            "min": "2026-06-13T11:59:59.735000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x73fc80b81b98e0211ed286944d06b5aee0987708128a373b6deb9f95174ccb74",
+            "min": "0x6ee6ba6771a4c328a02b3c499d63563a8b2de4b7d03e2432d0fd880cea9cff92",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5925359,
+          "row_group": 23,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.954000+00:00",
+            "min": "2026-06-13T11:59:59.730000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x7976b8dbacf9077eb1453a62bcefd6ab2df199acd28aad276ff0d920d6992892",
+            "min": "0x73fc80b81b98e0211ed286944d06b5aee0987708128a373b6deb9f95174ccb74",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6280562,
+          "row_group": 24,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.743000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x7ddb61d4da8387f0e37e344340fe446c0d28eb3ab7ba0fbfa7576a848d3aab15",
+            "min": "0x7976b8dbacf9077eb1453a62bcefd6ab2df199acd28aad276ff0d920d6992892",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5698122,
+          "row_group": 25,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.959000+00:00",
+            "min": "2026-06-13T11:59:59.728000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x82720d56466c7a7eefd0703a1fda71d117787bf2b62edc6620f639078faa3a75",
+            "min": "0x7ddb61d4da8387f0e37e344340fe446c0d28eb3ab7ba0fbfa7576a848d3aab15",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5820392,
+          "row_group": 26,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.963000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x87571630be57a580418c4ffdcf0d4e2ea3478f6c7d1f998bd33be3791ea4f8e3",
+            "min": "0x82720d56466c7a7eefd0703a1fda71d117787bf2b62edc6620f639078faa3a75",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5912236,
+          "row_group": 27,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x8c23f1597c7e31b289b1029fdc9d234cfeb1c9bef07043d906711867885f39b6",
+            "min": "0x87571630be57a580418c4ffdcf0d4e2ea3478f6c7d1f998bd33be3791ea4f8e3",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6074055,
+          "row_group": 28,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.964000+00:00",
+            "min": "2026-06-13T11:59:59.730000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x91352595381f17e049c6e6b2a4ab17bc753582cfd8d3ad27b10d6217440a14ae",
+            "min": "0x8c23f1597c7e31b289b1029fdc9d234cfeb1c9bef07043d906711867885f39b6",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5992861,
+          "row_group": 29,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.934000+00:00",
+            "min": "2026-06-13T11:59:59.735000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x966c91fa9af19702f99611838a3c5e0a65014f0392bcff24b307dda08909b040",
+            "min": "0x91352595381f17e049c6e6b2a4ab17bc753582cfd8d3ad27b10d6217440a14ae",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5982689,
+          "row_group": 30,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.963000+00:00",
+            "min": "2026-06-13T11:59:59.726000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x9c0cf8f9ff9d88060a4a26a2ba0fa628c1e2cf7116477646cd58f527b7417070",
+            "min": "0x966c91fa9af19702f99611838a3c5e0a65014f0392bcff24b307dda08909b040",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6299145,
+          "row_group": 31,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.964000+00:00",
+            "min": "2026-06-13T11:59:59.730000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xa0bc0c7db051defd2425c4d79fbfa1a0252cec4a987572562038a090922d412e",
+            "min": "0x9c0cf8f9ff9d88060a4a26a2ba0fa628c1e2cf7116477646cd58f527b7417070",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6036213,
+          "row_group": 32,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.945000+00:00",
+            "min": "2026-06-13T11:59:59.732000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xa61700026c9208cdfaf356fce8de01f1108855d45b27b0d79c0516562d23ee77",
+            "min": "0xa0bc0c7db051defd2425c4d79fbfa1a0252cec4a987572562038a090922d412e",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6182197,
+          "row_group": 33,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.963000+00:00",
+            "min": "2026-06-13T11:59:59.748000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xaa171f20edcf257588ea814e41dd1a17030db545de05ee27be30beaddbcb3296",
+            "min": "0xa61700026c9208cdfaf356fce8de01f1108855d45b27b0d79c0516562d23ee77",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5878988,
+          "row_group": 34,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.955000+00:00",
+            "min": "2026-06-13T11:59:59.725000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xae6d228c3a89c04f5d48b130c86416b146ee3fdc19c6f201603d9c9682dca3ea",
+            "min": "0xaa171f20edcf257588ea814e41dd1a17030db545de05ee27be30beaddbcb3296",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5810397,
+          "row_group": 35,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.958000+00:00",
+            "min": "2026-06-13T11:59:59.733000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xb325518329d0e8a190703e2ddf3d7ed2fead54109d667906c02d124ec24fc7a6",
+            "min": "0xae6d228c3a89c04f5d48b130c86416b146ee3fdc19c6f201603d9c9682dca3ea",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6038324,
+          "row_group": 36,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.961000+00:00",
+            "min": "2026-06-13T11:59:59.726000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xb8322feb5c8ffb0e5c570b2d12ec670d90f69ae7866179454b551425ee53af89",
+            "min": "0xb325518329d0e8a190703e2ddf3d7ed2fead54109d667906c02d124ec24fc7a6",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5914158,
+          "row_group": 37,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.960000+00:00",
+            "min": "2026-06-13T11:59:59.847000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xbd0e6392c5967ee77ff0978dcf8854cab949240b872eb1122436948811d64839",
+            "min": "0xb8322feb5c8ffb0e5c570b2d12ec670d90f69ae7866179454b551425ee53af89",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5904862,
+          "row_group": 38,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.963000+00:00",
+            "min": "2026-06-13T11:59:59.735000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xc1c322d2c126b3c1104ee13a820378778de6a0dfdfbf082bb8ae6f7df1b95364",
+            "min": "0xbd0e6392c5967ee77ff0978dcf8854cab949240b872eb1122436948811d64839",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5757307,
+          "row_group": 39,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.957000+00:00",
+            "min": "2026-06-13T11:59:59.730000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xc6aaa048f4225f09d2a9f66723c507522da0383e9cd860f1a744c6473fcb187b",
+            "min": "0xc1c322d2c126b3c1104ee13a820378778de6a0dfdfbf082bb8ae6f7df1b95364",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5978618,
+          "row_group": 40,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.961000+00:00",
+            "min": "2026-06-13T11:59:59.730000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xcc7ee0ca91e4a90184e0575dd7325b9f3bce4ec096f3b1107573f43d8d61ab4e",
+            "min": "0xc6aaa048f4225f09d2a9f66723c507522da0383e9cd860f1a744c6473fcb187b",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5956433,
+          "row_group": 41,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.730000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xd1557000fc1cfb78db7a0e7a241ec88eddc33dc9261bbdd282a692b32a405a5d",
+            "min": "0xcc7ee0ca91e4a90184e0575dd7325b9f3bce4ec096f3b1107573f43d8d61ab4e",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5733788,
+          "row_group": 42,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.961000+00:00",
+            "min": "2026-06-13T11:59:59.735000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xd66ba2f951c83e11f9243e8f5348503dca472cade038632a8881434d0facb0ad",
+            "min": "0xd1557000fc1cfb78db7a0e7a241ec88eddc33dc9261bbdd282a692b32a405a5d",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5874172,
+          "row_group": 43,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.951000+00:00",
+            "min": "2026-06-13T11:59:59.723000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xdc2cd1a64f6b5b4a7b2cec578c6142d9be7d2c17e38889e962c436c9e95de182",
+            "min": "0xd66ba2f951c83e11f9243e8f5348503dca472cade038632a8881434d0facb0ad",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6233495,
+          "row_group": 44,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.940000+00:00",
+            "min": "2026-06-13T11:59:59.737000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xe1f451ada53d213f902013a1fd86f306c860a1d2d14126a543062e210911d812",
+            "min": "0xdc2cd1a64f6b5b4a7b2cec578c6142d9be7d2c17e38889e962c436c9e95de182",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5946159,
+          "row_group": 45,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.732000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xe64949c9f5b28fce2517daf8732839f505b5e54eca95bea82228a1a5cb42085f",
+            "min": "0xe1f451ada53d213f902013a1fd86f306c860a1d2d14126a543062e210911d812",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6030053,
+          "row_group": 46,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.957000+00:00",
+            "min": "2026-06-13T11:59:59.726000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xeb0de200851ebb80eb722c8b02e2226fe76e91e86a7cfe7e38042632e42d5ae9",
+            "min": "0xe64949c9f5b28fce2517daf8732839f505b5e54eca95bea82228a1a5cb42085f",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5741144,
+          "row_group": 47,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.959000+00:00",
+            "min": "2026-06-13T11:59:59.751000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xf07a29c2eb8ead35bad57341a3c3c257c552b5c3f8eb98ba9c111a83ba06c286",
+            "min": "0xeb0de200851ebb80eb722c8b02e2226fe76e91e86a7cfe7e38042632e42d5ae9",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5988390,
+          "row_group": 48,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.958000+00:00",
+            "min": "2026-06-13T11:59:59.730000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xf4d93cca92f955e774a3be75ba5b2ceed5eee2eed99f3a1385b5d9cbff00310a",
+            "min": "0xf07a29c2eb8ead35bad57341a3c3c257c552b5c3f8eb98ba9c111a83ba06c286",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5838953,
+          "row_group": 49,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.962000+00:00",
+            "min": "2026-06-13T11:59:59.757000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xf9dfc7eae628396f2f00cd1c53329b021a0f13615c69397ff080aceb0e0730af",
+            "min": "0xf4d93cca92f955e774a3be75ba5b2ceed5eee2eed99f3a1385b5d9cbff00310a",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5918030,
+          "row_group": 50,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.958000+00:00",
+            "min": "2026-06-13T11:59:59.726000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xff1afdef47475128b85467bd1a3a4a3182da0c27409d81c2dc6c7d55b5467dad",
+            "min": "0xf9dfc7eae628396f2f00cd1c53329b021a0f13615c69397ff080aceb0e0730af",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5983153,
+          "row_group": 51,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.960000+00:00",
+            "min": "2026-06-13T11:59:59.731000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xffffab64642596774d0044e7646a6fc2d128e113cfaa3fa871cd630791721a91",
+            "min": "0xff1afdef47475128b85467bd1a3a4a3182da0c27409d81c2dc6c7d55b5467dad",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 1281919,
+          "row_group": 52,
+          "rows": 232131,
+          "timestamp_min_max": {
+            "max": "2026-06-13T12:59:59.887000+00:00",
+            "min": "2026-06-13T11:59:59.855000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-13T12:59:59.991000+00:00",
+            "min": "2026-06-13T12:00:00.094000+00:00",
+            "null_count": 0
+          }
+        }
+      ],
+      "row_groups_candidate_25h_market_window": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52
+      ],
+      "row_groups_candidate_full_index": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52
+      ],
+      "row_groups_without_reliable_market_min_max": [],
+      "row_groups_without_timestamp_min_max": [],
+      "row_groups_without_timestamp_received_min_max": [],
+      "schema": "timestamp_received: timestamp[ms, tz=UTC] not null\ntimestamp: timestamp[ms, tz=UTC] not null\nmarket: fixed_size_binary[66] not null\nevent_type: string not null\nasset_id: string not null\nbids: string\nasks: string\nprice: decimal128(9, 4)\nsize: decimal128(18, 6)\nside: string\nbest_bid: decimal128(9, 4)\nbest_ask: decimal128(9, 4)\nfee_rate_bps: uint16\ntransaction_hash: string\nold_tick_size: decimal128(9, 4)\nnew_tick_size: decimal128(9, 4)",
+      "schema_fields": [
+        {
+          "name": "timestamp_received",
+          "nullable": false,
+          "type": "timestamp[ms, tz=UTC]"
+        },
+        {
+          "name": "timestamp",
+          "nullable": false,
+          "type": "timestamp[ms, tz=UTC]"
+        },
+        {
+          "name": "market",
+          "nullable": false,
+          "type": "fixed_size_binary[66]"
+        },
+        {
+          "name": "event_type",
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "asset_id",
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "bids",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "asks",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "price",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "size",
+          "nullable": true,
+          "type": "decimal128(18, 6)"
+        },
+        {
+          "name": "side",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "best_bid",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "best_ask",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "fee_rate_bps",
+          "nullable": true,
+          "type": "uint16"
+        },
+        {
+          "name": "transaction_hash",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "old_tick_size",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "new_tick_size",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        }
+      ],
+      "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-13T12.parquet"
+    },
+    "2026-06-20T12": {
+      "full_object_sha256": null,
+      "head_checked_at_utc": "2026-10-19T21:01:07.659947+00:00",
+      "head_status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "content-encoding": null,
+        "content-length": "257972776",
+        "content-type": null,
+        "etag": "\"ca4be1f89bbb688c6e65e017fccab6b3-31\"",
+        "last-modified": "Tue, 23 Jun 2026 22:46:43 GMT"
+      },
+      "hour_utc": "2026-06-20T12",
+      "metadata_num_rows": 46127510,
+      "object_size_bytes": 257972776,
+      "range_probe": {
+        "content_range": "bytes 0-1023/257972776",
+        "etag": "\"ca4be1f89bbb688c6e65e017fccab6b3-31\"",
+        "payload_bytes": 1024,
+        "status": 206
+      },
+      "requested_columns_compressed_bytes_25h_market_window": 254890982,
+      "requested_columns_compressed_bytes_full_index": 257651795,
+      "row_group_count": 44,
+      "row_groups": [
+        {
+          "market_min_max": {
+            "max": "0x0643a9edd0e8b0dbe0e471371818f5c61a84949ae1e3fc72c8e4572be3a0fe3c",
+            "min": "0x00000977017fa72fb6b1908ae694000d3b51f442c2552656b10bdbbfd16ff707",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6042907,
+          "row_group": 0,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-17T10:30:28.061000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x0cbb73759bb6ad83040cc6edb908a7dbd51855618082d2f5dd3b58937a79b306",
+            "min": "0x0643a9edd0e8b0dbe0e471371818f5c61a84949ae1e3fc72c8e4572be3a0fe3c",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6072950,
+          "row_group": 1,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.798000+00:00",
+            "min": "2026-06-13T21:22:39.945000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x1252fdb4272edb089e4f9a52c47f81b988c0b01a0f2009ecd8d20c6d009675ce",
+            "min": "0x0cbb73759bb6ad83040cc6edb908a7dbd51855618082d2f5dd3b58937a79b306",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5997146,
+          "row_group": 2,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.798000+00:00",
+            "min": "2026-06-11T12:48:43.834000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x17c51c52caf554ca5337fb1391dae64e2b9dda236ff5725e27191faae96e1b83",
+            "min": "0x1252fdb4272edb089e4f9a52c47f81b988c0b01a0f2009ecd8d20c6d009675ce",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5852093,
+          "row_group": 3,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-17T12:30:43.002000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x1dd9e2ae01515a075b28e960d725352e182977cfe46acf0167e6eef97581125d",
+            "min": "0x17c51c52caf554ca5337fb1391dae64e2b9dda236ff5725e27191faae96e1b83",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5966495,
+          "row_group": 4,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-17T10:43:02.003000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x242c3189de16846eebe825a07006711d6487fa1fd8d1ba9854f36c9018912008",
+            "min": "0x1dd9e2ae01515a075b28e960d725352e182977cfe46acf0167e6eef97581125d",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6172103,
+          "row_group": 5,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-20T11:59:59.613000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x29dfd0d66b0dcaefb1d9b73eb74af6f8b5a55672f772d1093aaea20d519c7925",
+            "min": "0x242c3189de16846eebe825a07006711d6487fa1fd8d1ba9854f36c9018912008",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6206198,
+          "row_group": 6,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-19T05:09:41.595000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x2feb40aff6af2f0dc6add7e6eb22cb854e861c4369d565bea18f17fce4c2acc7",
+            "min": "0x29dfd0d66b0dcaefb1d9b73eb74af6f8b5a55672f772d1093aaea20d519c7925",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5990113,
+          "row_group": 7,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-11T14:15:01.532000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x34ed4ad7a7825f168e1084f53e8f60a161579d783b2740e50aa52f710925a136",
+            "min": "0x2feb40aff6af2f0dc6add7e6eb22cb854e861c4369d565bea18f17fce4c2acc7",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5881339,
+          "row_group": 8,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-12T22:15:56.455000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x3babe91f8d2fac44027f9ba7f0f1a59e61b72419828e6e517f96bbcf4e132498",
+            "min": "0x34ed4ad7a7825f168e1084f53e8f60a161579d783b2740e50aa52f710925a136",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6199249,
+          "row_group": 9,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-11T05:49:12.096000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x4092815fea8f91e60586882d45fa2f61bfca8a36d595f47fdea9eec5d2893025",
+            "min": "0x3babe91f8d2fac44027f9ba7f0f1a59e61b72419828e6e517f96bbcf4e132498",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5616355,
+          "row_group": 10,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.801000+00:00",
+            "min": "2026-06-17T14:57:56+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x45f81d28d7707394a72add1643ded29153a217c35103254bd95d889164c0bfd3",
+            "min": "0x4092815fea8f91e60586882d45fa2f61bfca8a36d595f47fdea9eec5d2893025",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5774051,
+          "row_group": 11,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-09T22:42:12.461000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x4c9f08a28ff9eb9de6e2f48c2cad592474840d995f0d184c4cce01c789e280e8",
+            "min": "0x45f81d28d7707394a72add1643ded29153a217c35103254bd95d889164c0bfd3",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6062960,
+          "row_group": 12,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.803000+00:00",
+            "min": "2026-06-19T18:19:53.697000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x52f293d32b8b66aca00334ba6a95e226e5c4d5fa0f311a091ef70edaaa701879",
+            "min": "0x4c9f08a28ff9eb9de6e2f48c2cad592474840d995f0d184c4cce01c789e280e8",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6016159,
+          "row_group": 13,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-17T10:41:06.005000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x59273d3af89fe2ad2115f15c2102dc3511b246c3ba1960978cd99f7f6c35a09e",
+            "min": "0x52f293d32b8b66aca00334ba6a95e226e5c4d5fa0f311a091ef70edaaa701879",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5879416,
+          "row_group": 14,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-19T05:09:36.673000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x5fa974417526ca175333dc92a5e6739fa0022013685e46cd0c1599e2b92f85f5",
+            "min": "0x59273d3af89fe2ad2115f15c2102dc3511b246c3ba1960978cd99f7f6c35a09e",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6058582,
+          "row_group": 15,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-17T10:50:48+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x658ca3bd5e4191fda5115812dff5d3324e8401345456c4b1d627f6d0d5834908",
+            "min": "0x5fa974417526ca175333dc92a5e6739fa0022013685e46cd0c1599e2b92f85f5",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5942079,
+          "row_group": 16,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.795000+00:00",
+            "min": "2026-06-19T05:09:50.298000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x6bbbb7121686fcec37d4023c81314b13d9c6a0e2bfd056d51d304b7060232c86",
+            "min": "0x658ca3bd5e4191fda5115812dff5d3324e8401345456c4b1d627f6d0d5834908",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6106496,
+          "row_group": 17,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.800000+00:00",
+            "min": "2026-06-20T10:12:26.302000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x719a14817b23ca134ba7b4d5050026cbf6ae779bfffd20c370515453e4a8b0fe",
+            "min": "0x6bbbb7121686fcec37d4023c81314b13d9c6a0e2bfd056d51d304b7060232c86",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5843635,
+          "row_group": 18,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.803000+00:00",
+            "min": "2026-06-06T16:00:13.920000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x77e5372080c917e45857e339ff82717efac40ad50cc0f2ea6ee30f5840fb3a0c",
+            "min": "0x719a14817b23ca134ba7b4d5050026cbf6ae779bfffd20c370515453e4a8b0fe",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6156585,
+          "row_group": 19,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.801000+00:00",
+            "min": "2026-06-13T11:50:49.640000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x7dafab1697c0d44a23a28756f18411222eeae558a144640164ff3a5c8eb3818d",
+            "min": "0x77e5372080c917e45857e339ff82717efac40ad50cc0f2ea6ee30f5840fb3a0c",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5452816,
+          "row_group": 20,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.805000+00:00",
+            "min": "2026-06-17T14:04:00.014000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x831493dce463d9adcad78c492f2cbec6ecdac31f4e8c5a894fdac68c130549d4",
+            "min": "0x7dafab1697c0d44a23a28756f18411222eeae558a144640164ff3a5c8eb3818d",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5993698,
+          "row_group": 21,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-19T05:09:20.088000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x898e9ff5045fcd05c26ea1e956d926c191d5aecae1bc184283c94e665f0f7be5",
+            "min": "0x831493dce463d9adcad78c492f2cbec6ecdac31f4e8c5a894fdac68c130549d4",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6126858,
+          "row_group": 22,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.803000+00:00",
+            "min": "2026-06-11T09:41:21.771000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x8f434a6663073b4706967694eafbc89b9ab831e44dcfcac3917b4655fdd021b7",
+            "min": "0x898e9ff5045fcd05c26ea1e956d926c191d5aecae1bc184283c94e665f0f7be5",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6017441,
+          "row_group": 23,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-11T22:15:21.545000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x95cef0903ec1497236092923c66eae8ef33f4c4067cf8382193155c7455d87f8",
+            "min": "0x8f434a6663073b4706967694eafbc89b9ab831e44dcfcac3917b4655fdd021b7",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6113564,
+          "row_group": 24,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.790000+00:00",
+            "min": "2026-06-19T05:09:27.356000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x9be876deca1f731ffec4d0927bbee7ec6d32ff4ac3cd1b9da8e167cfff48d26d",
+            "min": "0x95cef0903ec1497236092923c66eae8ef33f4c4067cf8382193155c7455d87f8",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5972755,
+          "row_group": 25,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-13T11:49:56.988000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xa12b90437f45f6d1e2224ec9afa76472eb2bf981d7391fed4a49d6e6c8506471",
+            "min": "0x9be876deca1f731ffec4d0927bbee7ec6d32ff4ac3cd1b9da8e167cfff48d26d",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5905199,
+          "row_group": 26,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.800000+00:00",
+            "min": "2026-06-20T11:59:59.577000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xa78729f3888142f24d2cc92b75f6963b11812ac4830b836b36e80d057a1dcafe",
+            "min": "0xa12b90437f45f6d1e2224ec9afa76472eb2bf981d7391fed4a49d6e6c8506471",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6125855,
+          "row_group": 27,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-17T10:59:10+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xad4cd6eb5c56393bdcefaa31480a483ec9f2704b8fab459da3e2135e45453353",
+            "min": "0xa78729f3888142f24d2cc92b75f6963b11812ac4830b836b36e80d057a1dcafe",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5920610,
+          "row_group": 28,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.800000+00:00",
+            "min": "2026-06-01T03:15:50.824000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xb2d876d58365e2c4c8af6a84df51a5425c8a3084b6485d7f4a10af29ce8f49e4",
+            "min": "0xad4cd6eb5c56393bdcefaa31480a483ec9f2704b8fab459da3e2135e45453353",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6027171,
+          "row_group": 29,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-06-17T10:52:45.007000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xba05b2303dc8b5ef56f87cc3fef6ce8e0de0f8f8adcc469be59b60c0eda6938d",
+            "min": "0xb2d876d58365e2c4c8af6a84df51a5425c8a3084b6485d7f4a10af29ce8f49e4",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6268852,
+          "row_group": 30,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.800000+00:00",
+            "min": "2026-06-17T14:27:24+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xbea32bf957c721e5cabecd2419143d2b4c7b75ced4322562c355bdccf3ed0aa6",
+            "min": "0xba05b2303dc8b5ef56f87cc3fef6ce8e0de0f8f8adcc469be59b60c0eda6938d",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5840378,
+          "row_group": 31,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.793000+00:00",
+            "min": "2026-06-14T02:43:34.368000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xc54b1239f775ebb2ead8029bd44f5f065175399d78508e04460c51733d80f3ea",
+            "min": "0xbea32bf957c721e5cabecd2419143d2b4c7b75ced4322562c355bdccf3ed0aa6",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6013881,
+          "row_group": 32,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.802000+00:00",
+            "min": "2026-05-29T22:22:35.524000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xcc1e4603342d8ada7e7fca9fcc198b0fcd2a5e33d59896968a300e5ccf7e59b1",
+            "min": "0xc54b1239f775ebb2ead8029bd44f5f065175399d78508e04460c51733d80f3ea",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6023929,
+          "row_group": 33,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.801000+00:00",
+            "min": "2026-06-11T09:30:55.407000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xd2158f432c38981b2e260f580f372bc0aa2189948218c8a7d41a94f71b69bc68",
+            "min": "0xcc1e4603342d8ada7e7fca9fcc198b0fcd2a5e33d59896968a300e5ccf7e59b1",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6027993,
+          "row_group": 34,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.801000+00:00",
+            "min": "2026-06-11T21:30:44.717000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xd81e304a53cfdac107189a8ab1fe862416c4f6de3a009b3243d057eb89fa8491",
+            "min": "0xd2158f432c38981b2e260f580f372bc0aa2189948218c8a7d41a94f71b69bc68",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5911941,
+          "row_group": 35,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.801000+00:00",
+            "min": "2026-06-17T12:14:20.007000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xd9fb1184af0064e5e34b129f5b79afa5a17b7e32f2953ab05efed82315fee6d4",
+            "min": "0xd81e304a53cfdac107189a8ab1fe862416c4f6de3a009b3243d057eb89fa8491",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 3155402,
+          "row_group": 36,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-20T11:59:59.577000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xdb6b01b0a3a30d9bc1dae682491108b2e9ac836615f5930a844f6448cc099069",
+            "min": "0xd9fb1184af0064e5e34b129f5b79afa5a17b7e32f2953ab05efed82315fee6d4",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 2760813,
+          "row_group": 37,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.798000+00:00",
+            "min": "2026-06-17T14:27:00.001000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xe1a2ad6d39ed8d61812f1a67f94699f503f68d31639bc601aed980778c5868ff",
+            "min": "0xdb6b01b0a3a30d9bc1dae682491108b2e9ac836615f5930a844f6448cc099069",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5945605,
+          "row_group": 38,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.805000+00:00",
+            "min": "2026-05-26T19:12:45.106000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xe739044e8ab5303f987a552f216e7fa2234e35c51892306a1e8b70c4cff17f8b",
+            "min": "0xe1a2ad6d39ed8d61812f1a67f94699f503f68d31639bc601aed980778c5868ff",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6029024,
+          "row_group": 39,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.798000+00:00",
+            "min": "2026-06-17T14:33:38+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xedefe737258afc0a0fb908b9c0f63d075ed469a8262af67f28782673f8938b1f",
+            "min": "0xe739044e8ab5303f987a552f216e7fa2234e35c51892306a1e8b70c4cff17f8b",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6211899,
+          "row_group": 40,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.806000+00:00",
+            "min": "2026-06-11T08:22:05.652000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xf3902271d737c8c07f0f677a251f3083336345957b468a45839eaebb3afd2005",
+            "min": "0xedefe737258afc0a0fb908b9c0f63d075ed469a8262af67f28782673f8938b1f",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5928183,
+          "row_group": 41,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.804000+00:00",
+            "min": "2026-06-11T12:36:44.321000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xfacaaf8ca81b788f8da594acaf23af2ef90037d82580b91357be35f97229e3a5",
+            "min": "0xf3902271d737c8c07f0f677a251f3083336345957b468a45839eaebb3afd2005",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6157532,
+          "row_group": 42,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-17T11:57:09+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xfffd59ee998bd31c0836113b8ac3d388b7dedda272b2ed2b0d4197dc952fe2fa",
+            "min": "0xfacaaf8ca81b788f8da594acaf23af2ef90037d82580b91357be35f97229e3a5",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5883485,
+          "row_group": 43,
+          "rows": 1038742,
+          "timestamp_min_max": {
+            "max": "2026-06-20T12:59:59.799000+00:00",
+            "min": "2026-06-17T11:04:41.005000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-20T12:59:59.831000+00:00",
+            "min": "2026-06-20T12:00:00.047000+00:00",
+            "null_count": 0
+          }
+        }
+      ],
+      "row_groups_candidate_25h_market_window": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43
+      ],
+      "row_groups_candidate_full_index": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43
+      ],
+      "row_groups_without_reliable_market_min_max": [],
+      "row_groups_without_timestamp_min_max": [],
+      "row_groups_without_timestamp_received_min_max": [],
+      "schema": "timestamp_received: timestamp[ms, tz=UTC] not null\ntimestamp: timestamp[ms, tz=UTC] not null\nmarket: fixed_size_binary[66] not null\nevent_type: string not null\nasset_id: string not null\nbids: string\nasks: string\nprice: decimal128(9, 4)\nsize: decimal128(18, 6)\nside: string\nbest_bid: decimal128(9, 4)\nbest_ask: decimal128(9, 4)\nfee_rate_bps: uint16\ntransaction_hash: string\nold_tick_size: decimal128(9, 4)\nnew_tick_size: decimal128(9, 4)",
+      "schema_fields": [
+        {
+          "name": "timestamp_received",
+          "nullable": false,
+          "type": "timestamp[ms, tz=UTC]"
+        },
+        {
+          "name": "timestamp",
+          "nullable": false,
+          "type": "timestamp[ms, tz=UTC]"
+        },
+        {
+          "name": "market",
+          "nullable": false,
+          "type": "fixed_size_binary[66]"
+        },
+        {
+          "name": "event_type",
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "asset_id",
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "bids",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "asks",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "price",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "size",
+          "nullable": true,
+          "type": "decimal128(18, 6)"
+        },
+        {
+          "name": "side",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "best_bid",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "best_ask",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "fee_rate_bps",
+          "nullable": true,
+          "type": "uint16"
+        },
+        {
+          "name": "transaction_hash",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "old_tick_size",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "new_tick_size",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        }
+      ],
+      "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-20T12.parquet"
+    },
+    "2026-06-28T12": {
+      "full_object_sha256": null,
+      "head_checked_at_utc": "2026-10-19T21:01:08.073827+00:00",
+      "head_status": 200,
+      "headers": {
+        "accept-ranges": "bytes",
+        "content-encoding": null,
+        "content-length": "205991888",
+        "content-type": null,
+        "etag": "\"f17c232dd23e81f81ca8c1c6f9675fc0-25\"",
+        "last-modified": "Sun, 28 Jun 2026 13:06:37 GMT"
+      },
+      "hour_utc": "2026-06-28T12",
+      "metadata_num_rows": 36492358,
+      "object_size_bytes": 205991888,
+      "range_probe": {
+        "content_range": "bytes 0-1023/205991888",
+        "etag": "\"f17c232dd23e81f81ca8c1c6f9675fc0-25\"",
+        "payload_bytes": 1024,
+        "status": 206
+      },
+      "requested_columns_compressed_bytes_25h_market_window": 205759588,
+      "requested_columns_compressed_bytes_full_index": 205759588,
+      "row_group_count": 35,
+      "row_groups": [
+        {
+          "market_min_max": {
+            "max": "0x091528ddd21309dc21e34389c85fb9a1b12f2a3a633ab690986685fc8bdad190",
+            "min": "0x00000977017fa72fb6b1908ae694000d3b51f442c2552656b10bdbbfd16ff707",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6014596,
+          "row_group": 0,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.863000+00:00",
+            "min": "2026-06-14T19:12:00.100000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x102b81444798333f38ee4db446276f692228d33533a16b890b2f37df6394ef85",
+            "min": "0x091528ddd21309dc21e34389c85fb9a1b12f2a3a633ab690986685fc8bdad190",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5997761,
+          "row_group": 1,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.867000+00:00",
+            "min": "2026-05-26T19:04:22.250000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x17157be5a1e2c6e2daf199a101e8761c4e08247f146a57914170a80f6099a6aa",
+            "min": "0x102b81444798333f38ee4db446276f692228d33533a16b890b2f37df6394ef85",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5938935,
+          "row_group": 2,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.882000+00:00",
+            "min": "2026-06-09T22:41:52.876000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x1f74be33763a1d376d4b954b8a35016cbfd1152ccd369ab49915ac24c0f163b0",
+            "min": "0x17157be5a1e2c6e2daf199a101e8761c4e08247f146a57914170a80f6099a6aa",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5930410,
+          "row_group": 3,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.884000+00:00",
+            "min": "2026-05-31T12:44:56.729000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x264410d63ef2deab303393063f12a8d681d6ce4eb9deabe9d6bd96854a8e55e0",
+            "min": "0x1f74be33763a1d376d4b954b8a35016cbfd1152ccd369ab49915ac24c0f163b0",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5963883,
+          "row_group": 4,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.866000+00:00",
+            "min": "2026-06-14T04:49:31.267000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x2e02dc37aefb1852448b111d62e9647bf2ed884239d910fa37221eaeb86b0de7",
+            "min": "0x264410d63ef2deab303393063f12a8d681d6ce4eb9deabe9d6bd96854a8e55e0",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6136434,
+          "row_group": 5,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.884000+00:00",
+            "min": "2026-06-11T06:47:09.128000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x34a75f8a404a963f358755dd89874096325ea97c455886216ba711385a19eeb2",
+            "min": "0x2e02dc37aefb1852448b111d62e9647bf2ed884239d910fa37221eaeb86b0de7",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5883194,
+          "row_group": 6,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.887000+00:00",
+            "min": "2026-06-12T22:15:56.455000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x3becef5298bc1b97d808f159242f77c0aa45814907544b624d0a4ef608d48727",
+            "min": "0x34a75f8a404a963f358755dd89874096325ea97c455886216ba711385a19eeb2",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5978005,
+          "row_group": 7,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.878000+00:00",
+            "min": "2026-06-11T05:23:35.317000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x43c01eb91e99114b6a4be936d1ee66cd1cb97f1f6048767adb341e8260624bcc",
+            "min": "0x3becef5298bc1b97d808f159242f77c0aa45814907544b624d0a4ef608d48727",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6078174,
+          "row_group": 8,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.887000+00:00",
+            "min": "2026-06-09T22:42:04.066000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x4b5d821d5b477953ac6ace9ec9155cf1a65e52780cd4d4b443ccce216cd79b1c",
+            "min": "0x43c01eb91e99114b6a4be936d1ee66cd1cb97f1f6048767adb341e8260624bcc",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6084678,
+          "row_group": 9,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.878000+00:00",
+            "min": "2026-06-09T22:42:12.461000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x531c79fb68851d874e9653df1905abf7d14f93f27c1f137f63713017b3541fbb",
+            "min": "0x4b5d821d5b477953ac6ace9ec9155cf1a65e52780cd4d4b443ccce216cd79b1c",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6167702,
+          "row_group": 10,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.881000+00:00",
+            "min": "2026-05-29T22:22:35.469000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x5a9f7345715079de0aec1d9ec2f119c6ba2861aa9054f5b0134ec79834a861fe",
+            "min": "0x531c79fb68851d874e9653df1905abf7d14f93f27c1f137f63713017b3541fbb",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5754285,
+          "row_group": 11,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.885000+00:00",
+            "min": "2026-05-26T20:39:26.365000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x6236614eb098a045f3268a7044215d2b9aaff3fa4444117658ba20fde49f3918",
+            "min": "0x5a9f7345715079de0aec1d9ec2f119c6ba2861aa9054f5b0134ec79834a861fe",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5895444,
+          "row_group": 12,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.871000+00:00",
+            "min": "2026-06-09T22:41:44.717000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x69691c4e7c23e6965eee45302f64f4907006b64334b01b1c76472140c8a7c74a",
+            "min": "0x6236614eb098a045f3268a7044215d2b9aaff3fa4444117658ba20fde49f3918",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5993515,
+          "row_group": 13,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.883000+00:00",
+            "min": "2026-06-12T05:03:43.680000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x709f7a236b27180f120a23913387e11d8bbaf2e59418dd2d9efd513276742bdf",
+            "min": "0x69691c4e7c23e6965eee45302f64f4907006b64334b01b1c76472140c8a7c74a",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6007462,
+          "row_group": 14,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.885000+00:00",
+            "min": "2026-06-06T16:00:13.920000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x7656f6b5d8988d3c56dd8c8de877aa5399bea999afea78b520191b752c2c5e7a",
+            "min": "0x709f7a236b27180f120a23913387e11d8bbaf2e59418dd2d9efd513276742bdf",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 4973135,
+          "row_group": 15,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.880000+00:00",
+            "min": "2026-06-11T14:07:08.840000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x7e8794e4ff149da85bbb5e4609d79466fc68d4a84bb54aea2727caa496aa8406",
+            "min": "0x7656f6b5d8988d3c56dd8c8de877aa5399bea999afea78b520191b752c2c5e7a",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5639205,
+          "row_group": 16,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.863000+00:00",
+            "min": "2026-06-11T05:07:25.439000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x865303ccb9a48341d1bae33b3b4379ca86d5abbff3ce1e132716631cc0af3cce",
+            "min": "0x7e8794e4ff149da85bbb5e4609d79466fc68d4a84bb54aea2727caa496aa8406",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5910031,
+          "row_group": 17,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.873000+00:00",
+            "min": "2026-06-11T16:54:37.834000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x8d39a9d8af5703d27d3a472ca7bf5cb2cda875516b28f6a98c11baf5a7bb4123",
+            "min": "0x865303ccb9a48341d1bae33b3b4379ca86d5abbff3ce1e132716631cc0af3cce",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5987422,
+          "row_group": 18,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.884000+00:00",
+            "min": "2026-06-11T22:15:21.545000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x960324c7d2db73740836bbd97eec770fcb9b5372e5b46d98b2999fdbbd017f7a",
+            "min": "0x8d39a9d8af5703d27d3a472ca7bf5cb2cda875516b28f6a98c11baf5a7bb4123",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6172247,
+          "row_group": 19,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.887000+00:00",
+            "min": "2026-06-11T07:42:51.786000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0x9d7ab634d93797e8210b98d59eac19b532b09f764240135c85b9304ec45f1287",
+            "min": "0x960324c7d2db73740836bbd97eec770fcb9b5372e5b46d98b2999fdbbd017f7a",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6139869,
+          "row_group": 20,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.832000+00:00",
+            "min": "2026-06-11T15:35:42.016000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xa5d79e71e66c9fe122f8b8b3ca6ab7a0e3048bd8508f130746944e92ed79ddf3",
+            "min": "0x9d7ab634d93797e8210b98d59eac19b532b09f764240135c85b9304ec45f1287",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6142210,
+          "row_group": 21,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.835000+00:00",
+            "min": "2026-06-13T21:20:48.346000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xac0217c6cc03a931a6d71456772bd3480c86eaa1f385d38e60db5958b069cfbc",
+            "min": "0xa5d79e71e66c9fe122f8b8b3ca6ab7a0e3048bd8508f130746944e92ed79ddf3",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5667710,
+          "row_group": 22,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.871000+00:00",
+            "min": "2026-06-16T01:52:46.512000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xb40b0cd531184a1e436d23ca898e1590418187b116f387158753d1adb9853e47",
+            "min": "0xac0217c6cc03a931a6d71456772bd3480c86eaa1f385d38e60db5958b069cfbc",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6184802,
+          "row_group": 23,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.867000+00:00",
+            "min": "2026-06-11T10:27:15.382000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xbb9450c639a6cff45852a72f736ad87bd7937bb6c32a5188951c384044db7a3e",
+            "min": "0xb40b0cd531184a1e436d23ca898e1590418187b116f387158753d1adb9853e47",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6081706,
+          "row_group": 24,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.882000+00:00",
+            "min": "2026-06-14T03:19:05.280000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xc32c18cdc131d734ef32aaef0e2dfa5317c2b22e0630fbeb61b406c698d82374",
+            "min": "0xbb9450c639a6cff45852a72f736ad87bd7937bb6c32a5188951c384044db7a3e",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5873868,
+          "row_group": 25,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.885000+00:00",
+            "min": "2026-05-29T22:22:35.524000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xca64daec7c852c797c0b03196e18cff0b0003b01bc24404234ed7b32d651f66a",
+            "min": "0xc32c18cdc131d734ef32aaef0e2dfa5317c2b22e0630fbeb61b406c698d82374",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5822246,
+          "row_group": 26,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.883000+00:00",
+            "min": "2026-06-11T09:30:55.407000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xd24a13436eacb1a32d7f5ac3e2c7c2703426215ea5f11a67154bb5f1852e5119",
+            "min": "0xca64daec7c852c797c0b03196e18cff0b0003b01bc24404234ed7b32d651f66a",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 6082052,
+          "row_group": 27,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.876000+00:00",
+            "min": "2026-06-11T21:30:44.717000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xd99603add7350a5ff33c8dc609ab0eaae2d5d18162bb00eeb63c38c81ae038f8",
+            "min": "0xd24a13436eacb1a32d7f5ac3e2c7c2703426215ea5f11a67154bb5f1852e5119",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5608527,
+          "row_group": 28,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.880000+00:00",
+            "min": "2026-06-11T04:39:36.028000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xe16f19898bb0a5e269658cd8fbc94452f437ee8bda08f9acd63e582e468842f2",
+            "min": "0xd99603add7350a5ff33c8dc609ab0eaae2d5d18162bb00eeb63c38c81ae038f8",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5881787,
+          "row_group": 29,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.880000+00:00",
+            "min": "2026-05-26T19:12:45.106000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xe77345ea0ddb380b7a27d58325b85bf9783f69bb31fff33ec1d3d4ce3c1b5586",
+            "min": "0xe16f19898bb0a5e269658cd8fbc94452f437ee8bda08f9acd63e582e468842f2",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5702803,
+          "row_group": 30,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.884000+00:00",
+            "min": "2026-06-11T06:59:14.991000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xec9e92f27a98bc29028aec518993330e7920ac35f40fdea3c51e11d6ddc6acde",
+            "min": "0xe77345ea0ddb380b7a27d58325b85bf9783f69bb31fff33ec1d3d4ce3c1b5586",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5536167,
+          "row_group": 31,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.878000+00:00",
+            "min": "2026-06-11T12:54:48.608000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xf2cda8660de8632a00b906ede08c0d06ca36f74a555fee5b5aec38b2a95f9752",
+            "min": "0xec9e92f27a98bc29028aec518993330e7920ac35f40fdea3c51e11d6ddc6acde",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5789647,
+          "row_group": 32,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.883000+00:00",
+            "min": "2026-06-11T12:03:39.882000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xf9cd02190956913d1ef634e85c71e218e6ce153c1d389bfea4722b077e7952c5",
+            "min": "0xf2cda8660de8632a00b906ede08c0d06ca36f74a555fee5b5aec38b2a95f9752",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 5974763,
+          "row_group": 33,
+          "rows": 1048576,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.886000+00:00",
+            "min": "2026-06-13T14:46:33.567000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        },
+        {
+          "market_min_max": {
+            "max": "0xfffd59ee998bd31c0836113b8ac3d388b7dedda272b2ed2b0d4197dc952fe2fa",
+            "min": "0xf9cd02190956913d1ef634e85c71e218e6ce153c1d389bfea4722b077e7952c5",
+            "null_count": 0
+          },
+          "requested_columns_compressed_bytes": 4764913,
+          "row_group": 34,
+          "rows": 840774,
+          "timestamp_min_max": {
+            "max": "2026-06-28T12:59:59.866000+00:00",
+            "min": "2026-06-11T07:28:48.685000+00:00",
+            "null_count": 0
+          },
+          "timestamp_received_min_max": {
+            "max": "2026-06-28T12:59:59.914000+00:00",
+            "min": "2026-06-28T12:00:00.128000+00:00",
+            "null_count": 0
+          }
+        }
+      ],
+      "row_groups_candidate_25h_market_window": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34
+      ],
+      "row_groups_candidate_full_index": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34
+      ],
+      "row_groups_without_reliable_market_min_max": [],
+      "row_groups_without_timestamp_min_max": [],
+      "row_groups_without_timestamp_received_min_max": [],
+      "schema": "timestamp_received: timestamp[ms, tz=UTC] not null\ntimestamp: timestamp[ms, tz=UTC] not null\nmarket: fixed_size_binary[66] not null\nevent_type: string not null\nasset_id: string not null\nbids: string\nasks: string\nprice: decimal128(9, 4)\nsize: decimal128(18, 6)\nside: string\nbest_bid: decimal128(9, 4)\nbest_ask: decimal128(9, 4)\nfee_rate_bps: uint16\ntransaction_hash: string\nold_tick_size: decimal128(9, 4)\nnew_tick_size: decimal128(9, 4)",
+      "schema_fields": [
+        {
+          "name": "timestamp_received",
+          "nullable": false,
+          "type": "timestamp[ms, tz=UTC]"
+        },
+        {
+          "name": "timestamp",
+          "nullable": false,
+          "type": "timestamp[ms, tz=UTC]"
+        },
+        {
+          "name": "market",
+          "nullable": false,
+          "type": "fixed_size_binary[66]"
+        },
+        {
+          "name": "event_type",
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "asset_id",
+          "nullable": false,
+          "type": "string"
+        },
+        {
+          "name": "bids",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "asks",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "price",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "size",
+          "nullable": true,
+          "type": "decimal128(18, 6)"
+        },
+        {
+          "name": "side",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "best_bid",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "best_ask",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "fee_rate_bps",
+          "nullable": true,
+          "type": "uint16"
+        },
+        {
+          "name": "transaction_hash",
+          "nullable": true,
+          "type": "string"
+        },
+        {
+          "name": "old_tick_size",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        },
+        {
+          "name": "new_tick_size",
+          "nullable": true,
+          "type": "decimal128(9, 4)"
+        }
+      ],
+      "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-06-28T12.parquet"
+    }
+  },
+  "network_payload_bytes_at_preflight": 580827,
+  "network_payload_cap_bytes": 2147483648,
+  "preflight_completed_at_utc": "2026-10-19T21:01:09.145530+00:00",
+  "previous_attempt_payload_upper_bound_bytes": 967268869,
+  "projected_compressed_requested_column_bytes": 775216434,
+  "range_payload_bytes_for_metadata": 577755,
+  "range_probe_payload_bytes": 3072
+}

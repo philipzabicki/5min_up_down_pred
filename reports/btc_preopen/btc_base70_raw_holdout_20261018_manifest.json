@@ -2003,8 +2003,8 @@
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/common_execution_calendar.parquet",
-          "sha256": "4d20346ecb5974735846a9bb6e16190cfb8943151d481facfb346b88828339ad",
-          "size_bytes": 16896474
+          "sha256": "bb720b5200b91c8012fb87593d11bc300e334db8f2131e25f16c87f201809db5",
+          "size_bytes": 16896551
         },
         {
           "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/execution_calendar_summary.json",
@@ -3104,8 +3104,8 @@
     },
     {
       "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/common_execution_calendar.parquet",
-      "sha256": "4d20346ecb5974735846a9bb6e16190cfb8943151d481facfb346b88828339ad",
-      "size_bytes": 16896474
+      "sha256": "bb720b5200b91c8012fb87593d11bc300e334db8f2131e25f16c87f201809db5",
+      "size_bytes": 16896551
     },
     {
       "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/execution_calendar_summary.json",

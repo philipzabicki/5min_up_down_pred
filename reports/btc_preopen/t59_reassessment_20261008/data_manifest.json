@@ -2,8 +2,8 @@
   "archive_source_dependency_sha256": "c29070f4fca5d7aeb3231dee1b673d6f3e57bd22e5a5285b425925e5970b10ff",
   "artifact_files": {
     "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_calendar.parquet": {
-      "sha256": "3f94aa8f1df7516f487800f6aea91d12a61c26e345482b662d3ddb4fb5611b60",
-      "size_bytes": 19636191
+      "sha256": "1cd1cae48dfec8f03e29dee3329d436ec212f95a250fb2f51d61aff91522c44e",
+      "size_bytes": 19636344
     },
     "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/coverage_daily.csv": {
       "sha256": "bce422097c8ba9e52f2dfb6dac765207d3816d34c2ad1be2b17ba223664373c8",

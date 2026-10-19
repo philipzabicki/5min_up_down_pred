@@ -3,8 +3,8 @@
   "archive_replayed_or_downloaded": false,
   "artifacts": {
     "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/daily_funnel.csv": {
-      "bytes": 7854,
-      "sha256": "cdc25e5a6b54d874af45f4fbb6c5a95020ec3aebc5288d897054cfd0c2531a53"
+      "bytes": 21905,
+      "sha256": "99a006e05895b3e27009e310ec937d91e10c32fe9d556de00de43402d7ab20f3"
     },
     "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/availability/empty_source_partition_audit.json": {
       "bytes": 464,
@@ -51,8 +51,8 @@
       "sha256": "767d4eaed9880a7b072f4d435773b59105cb92930ad8d2b4a8a1f62b686764c3"
     },
     "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/daily_pnl.csv": {
-      "bytes": 2657,
-      "sha256": "81d06a45c87dbe41cc81785a3749954203502ddea7332c117000c467b9da340c"
+      "bytes": 10765,
+      "sha256": "e91f59b0f22a474bc887af14df5d8d43201e1941bcb0aa1255d18d138f2c092d"
     },
     "data/analysis/polymarket/BTC/btc_market_microstructure_development_20261019/economics/monthly.csv": {
       "bytes": 955,
@@ -1365,9 +1365,9 @@
     "source_trades_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet"
   },
   "report": {
-    "bytes": 19044,
+    "bytes": 25449,
     "path": "reports/btc_preopen/btc_market_microstructure_development_20261019.md",
-    "sha256": "073ddd0ed0809a13f45d0fd2315ad76f72e987ace76241677fb2d364725bfcb9"
+    "sha256": "2e15dd13f6af99b27ac6c1c1aa1aa8adff5ee385784b979152988d026ccb72a7"
   },
   "runtime_and_memory": {
     "elapsed_seconds": 31.155122299998766,
@@ -1448,5 +1448,17 @@
       "status": "completed"
     }
   },
-  "status": "completed_development_only"
+  "status": "completed_development_only",
+  "availability_diagnostic_refresh": {
+    "source": "saved availability table and saved C/X/MARKET/RAW decision/trade ledgers",
+    "pnl_columns_preserved": true,
+    "daily_data_status_counts": {
+      "executions_present": 27,
+      "markets_without_available_inputs": 16,
+      "decisions_without_executions": 4
+    },
+    "markets_without_available_inputs_days": 16,
+    "no_market_data_days": 0,
+    "full_replay_or_training": false
+  }
 }
