@@ -1,0 +1,79 @@
+{
+  "experiment_id": "btc_market_microstructure_design_20261019",
+  "development_start_utc": "2026-04-15T17:05:00Z",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "decision_snapshot": "T-60 only; join on market_start_utc and require entry_time_utc == market_start_utc - 60 seconds",
+  "execution_snapshot": "T-59 is excluded from features and reserved for the unchanged execution simulation",
+  "sources": {
+    "t60_snapshot_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+    "raw_base70_oof_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+    "official_market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+    "t59_execution_snapshot_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+    "snapshot_builder": "run_btc_preopen_t59_reassessment.py",
+    "snapshot_state_builder": "run_btc_preopen_economic_replay.py",
+    "market_probability_definition": "run_btc_market_probability_experiment.py::_snapshot_features"
+  },
+  "feature_table_path": "data/analysis/polymarket/BTC/btc_market_microstructure_design_20261019/development_features.parquet",
+  "model_comparison": {
+    "target": "official target_polymarket_up binary outcome",
+    "label_release_at": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "fit_eligibility": "official label release strictly before the first T-60 decision in each evaluation block",
+    "shared_row_mask": "valid p_market, valid saved RAW OOF probability, all six microstructure features present, official label available by evaluation cutoff; identical rows for both models",
+    "fit_prefix_start_utc": "2026-04-15T17:05:00Z",
+    "fit_prefix_end_exclusive_utc": "2026-05-15T00:00:00Z",
+    "fit_boundary_first_test_decision_utc": "2026-05-14T23:59:00Z",
+    "evaluation_start_utc": "2026-05-15T00:00:00Z",
+    "evaluation_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "evaluation_refits": 0,
+    "minimum_eligible_training_rows": 1000,
+    "minimum_classes": "both official outcomes present",
+    "monthly_reporting": true,
+    "model": "StandardScaler fitted within each training prefix then LogisticRegression(penalty=L2, C=1.0, solver=lbfgs, max_iter=1000, class_weight=None); no parameter search",
+    "control_inputs": ["logit(p_market)", "spread_up", "spread_down", "up_down_ask_depth_imbalance", "slippage_5_up", "slippage_5_down", "mid_sum_minus_one"],
+    "challenger_inputs": ["logit(p_market)", "spread_up", "spread_down", "up_down_ask_depth_imbalance", "slippage_5_up", "slippage_5_down", "mid_sum_minus_one", "logit(p_RAW) - logit(p_market)"],
+    "primary_quality_contrast": "challenger minus control log loss",
+    "secondary_quality_metrics": ["Brier", "AUC"],
+    "paired_uncertainty": "2000 circular 3-day UTC block bootstrap replications, shared across variants, seed 20261019"
+  },
+  "economics": {
+    "policy": "reuse the existing fixed-$5 gross order policy and accounting without changes",
+    "net_ev_threshold_fraction_of_requested_notional": 0.01,
+    "decision_time": "T-60",
+    "execution_time": "T-59",
+    "fees_depth_and_settlement": "existing saved history and fee rules; no changes",
+    "each_model_selects_its_own_side_and_trades": true
+  },
+  "feature_definitions": {
+    "spread_up": "up_best_ask - up_best_bid; only reliable native, complete T-60 books",
+    "spread_down": "down_best_ask - down_best_bid; only reliable native, complete T-60 books",
+    "up_down_ask_depth_imbalance": "(up_best_ask_size_shares - down_best_ask_size_shares) / (up_best_ask_size_shares + down_best_ask_size_shares)",
+    "slippage_5_up": "VWAP for exactly $5 gross spend walking up_ask_levels minus up_best_ask; missing if recorded ask depth cannot fill $5",
+    "slippage_5_down": "VWAP for exactly $5 gross spend walking down_ask_levels minus down_best_ask; missing if recorded ask depth cannot fill $5",
+    "mid_sum_minus_one": "((up_best_bid + up_best_ask)/2 + (down_best_bid + down_best_ask)/2) - 1",
+    "raw_minus_market_logit": "logit(clip(p_RAW, 1e-6, 1-1e-6)) - logit(clip(p_market, 1e-6, 1-1e-6))"
+  },
+  "reliable_microstructure_row_requirements": [
+    "p_market passes the existing T-60 source-coverage and no-future checks",
+    "both token books are directly observed and has_full_snapshot is true",
+    "neither quote is complemented",
+    "no archive gap after either book initialization",
+    "both saved ask-side ambiguity flags are false; aggregate order-event counts are diagnostics only because they cover the full history before T-60",
+    "all six proposed microstructure features are finite"
+  ],
+  "limits": {
+    "do_not_use_holdout_labels_or_trade_outcomes_to_select_features": true,
+    "do_not_retrain_base70": true,
+    "do_not_replay_or_download_archive": true,
+    "do_not_fit_or_score_models_in_design_stage": true,
+    "stale_best_quote_age_is_not_claimed_from_side_book_update_age": true,
+    "bid_ask_depth_imbalance_is_unavailable_because_bid_sizes_and_bid_ladders_are_not_serialized": true,
+    "event_order_and_reset_flags_are_partial_in_saved_t60_schema": true,
+    "bid_side_ambiguity_is_not_available_as_a_current_side_flag": true,
+    "hypothesis_was_informed_by_prior_holdout_inspection": true
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_market_microstructure_design_20261019",
+  "report_path": "reports/btc_preopen/btc_market_microstructure_design_20261019.md",
+  "manifest_path": "reports/btc_preopen/btc_market_microstructure_design_20261019_manifest.json",
+  "runner": "build_btc_market_microstructure_design_20261019.py",
+  "cli_arguments": false
+}

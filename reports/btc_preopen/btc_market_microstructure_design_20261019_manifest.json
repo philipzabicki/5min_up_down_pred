@@ -1,0 +1,185 @@
+{
+  "archive_replayed_or_downloaded": false,
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00+00:00",
+  "development_start_utc": "2026-04-15T17:05:00+00:00",
+  "eligible_rows_by_month_before_label_filter": {
+    "2026-04": 911,
+    "2026-05": 3160,
+    "2026-06": 2939
+  },
+  "eligible_rows_by_protocol_period": {
+    "evaluation_interval_before_label_filter": 5083,
+    "fit_prefix_before_label_filter": 1927
+  },
+  "event_order_diagnostics": {
+    "rows_no_future_receive_event": 21962,
+    "rows_no_future_source_event": 21962,
+    "rows_with_cross_side_late_price_changes": 2007,
+    "rows_with_equal_source_timestamp_conflicts": 9528,
+    "rows_with_out_of_order_price_changes": 2919,
+    "rows_with_source_hour_and_freshness_coverage": 21926,
+    "rows_with_valid_quote_flag": 10840
+  },
+  "experiment_id": "btc_market_microstructure_design_20261019",
+  "feature_missing_fraction_of_raw_oof": {
+    "market_logit": 0.5086936731907146,
+    "mid_sum_minus_one": 0.6809285389167046,
+    "p_market": 0.5086936731907146,
+    "p_raw": 0.0,
+    "raw_minus_market_logit": 0.5086936731907146,
+    "slippage_5_down": 0.6809285389167046,
+    "slippage_5_up": 0.6809285389167046,
+    "spread_down": 0.6809285389167046,
+    "spread_up": 0.6809285389167046,
+    "up_down_ask_depth_imbalance": 0.6809285389167046
+  },
+  "feature_nonmissing_rows": {
+    "market_logit": 10794,
+    "mid_sum_minus_one": 7010,
+    "p_market": 10794,
+    "p_raw": 21970,
+    "raw_minus_market_logit": 10794,
+    "slippage_5_down": 7010,
+    "slippage_5_up": 7010,
+    "spread_down": 7010,
+    "spread_up": 7010,
+    "up_down_ask_depth_imbalance": 7010
+  },
+  "holdout_rows_or_labels_read": false,
+  "inputs": {
+    "raw_base70_oof": {
+      "bytes": 11166225,
+      "path": "data\\analysis\\polymarket\\BTC\\btc_preopen_taker_flow_20261018\\B0_decision_oof.parquet",
+      "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8"
+    },
+    "t60_snapshot": {
+      "bytes": 25908421,
+      "path": "data\\analysis\\polymarket\\BTC\\preopen_research_20261011\\book_replay_t60_t59\\t60_decision_books_with_source_coverage.parquet",
+      "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1"
+    }
+  },
+  "model_fitting_performed": false,
+  "output_table": {
+    "bytes": 1646514,
+    "columns": [
+      "market_start_utc",
+      "condition_id",
+      "p_raw",
+      "p_market",
+      "raw_minus_market_logit",
+      "spread_up",
+      "spread_down",
+      "up_down_ask_depth_imbalance",
+      "slippage_5_up",
+      "slippage_5_down",
+      "mid_sum_minus_one",
+      "t60_snapshot_available",
+      "t60_entry_time_utc",
+      "microstructure_eligible",
+      "has_full_snapshot",
+      "up_quote_complemented",
+      "down_quote_complemented",
+      "archive_gap_after_up_book_init",
+      "archive_gap_after_down_book_init",
+      "up_ask_order_ambiguous",
+      "down_ask_order_ambiguous",
+      "equal_source_timestamp_conflict_count",
+      "out_of_order_price_change_count",
+      "cross_side_late_price_change_count",
+      "up_bid_ask_crossed",
+      "down_bid_ask_crossed",
+      "up_bid_ask_locked",
+      "down_bid_ask_locked",
+      "depth_5usd_valid_both_sides",
+      "market_book_snapshot_count",
+      "up_ask_book_event_age_seconds",
+      "down_ask_book_event_age_seconds",
+      "up_ask_received_book_event_age_seconds",
+      "down_ask_received_book_event_age_seconds",
+      "market_logit"
+    ],
+    "contains_official_or_holdout_labels": false,
+    "contains_t59_features": false,
+    "path": "data\\analysis\\polymarket\\BTC\\btc_market_microstructure_design_20261019\\development_features.parquet",
+    "rows": 21970,
+    "sha256": "94dbbf4aee332119cbcb82b472d79db692b6df6b9578f18059ad204e00877f99"
+  },
+  "peak_working_set_bytes": 801394688,
+  "quality_flags": {
+    "archive_gap_after_down_book_init": 44,
+    "archive_gap_after_up_book_init": 45,
+    "depth_5usd_valid_both_sides": 16476,
+    "down_ask_order_ambiguous": 4093,
+    "down_bid_ask_crossed": 5336,
+    "down_bid_ask_locked": 2788,
+    "down_quote_complemented": 0,
+    "has_full_snapshot": 16595,
+    "up_ask_order_ambiguous": 5321,
+    "up_bid_ask_crossed": 5733,
+    "up_bid_ask_locked": 2677,
+    "up_quote_complemented": 1
+  },
+  "raw_oof_rows": 21970,
+  "raw_oof_rows_with_t60_snapshot": 21961,
+  "raw_oof_rows_without_t60_snapshot": 9,
+  "rows_with_all_six_microstructure_features": 7010,
+  "rows_with_p_market": 10794,
+  "snapshot_capabilities": {
+    "best_bid_size_fields_serialized": false,
+    "best_price_level_update_timestamps_serialized": false,
+    "bid_book_event_age_fields_serialized": false,
+    "bid_level_arrays_serialized": false,
+    "down_ask_book_event_age_rows": 16597,
+    "down_ask_levels_max_levels": 71,
+    "down_ask_levels_nonempty_rows": 16597,
+    "down_best_ask_rows": 16597,
+    "down_best_ask_size_rows": 16597,
+    "down_best_bid_rows": 16597,
+    "explicit_per_side_reset_flag_serialized": false,
+    "native_both_token_books": 16596,
+    "snapshot_rows_in_development_interval": 21962,
+    "source_book_event_count_rows": 21962,
+    "up_ask_book_event_age_rows": 16597,
+    "up_ask_levels_max_levels": 74,
+    "up_ask_levels_nonempty_rows": 16597,
+    "up_best_ask_rows": 16597,
+    "up_best_ask_size_rows": 16597,
+    "up_best_bid_rows": 16597
+  },
+  "source_code": {
+    "config": {
+      "bytes": 5806,
+      "path": "configs\\research\\btc_market_microstructure_design_20261019.json",
+      "sha256": "d7d3261131ad246c0a8ed18a6194a76dde1dd90b86adcfccf00a3fc740263a16"
+    },
+    "market_probability_definition": {
+      "bytes": 57107,
+      "path": "run_btc_market_probability_experiment.py",
+      "sha256": "5fffceebc86b354fb4f1836aff9283a86a6581fb641f6959ad9ca8e02b2912ee"
+    },
+    "runner": {
+      "bytes": 23170,
+      "path": "build_btc_market_microstructure_design_20261019.py",
+      "sha256": "4448a95434d0aad7453d4cdb89296979f69ee751566d6e087ccca677500ec7df"
+    },
+    "snapshot_builder": {
+      "bytes": 294336,
+      "path": "run_btc_preopen_t59_reassessment.py",
+      "sha256": "b3e32824549eeb02b27dac8c60726973a918fcc0123abca097346fab6b646782"
+    },
+    "snapshot_state_builder": {
+      "bytes": 74843,
+      "path": "run_btc_preopen_economic_replay.py",
+      "sha256": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528"
+    }
+  },
+  "status": "feature_table_built_no_model_fit",
+  "t60_entries_aligned_to_market_start_minus_60s": 21962,
+  "t60_snapshot_rows": 21962,
+  "timing_seconds": {
+    "build_feature_table": 1.2656063999966136,
+    "read_raw_oof": 0.010251199993945193,
+    "read_t60_snapshot": 0.27642399999604095,
+    "write_feature_table": 0.03683009999804199
+  }
+}

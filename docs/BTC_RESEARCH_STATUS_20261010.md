@@ -1,4 +1,14 @@
 
+<!-- BTC_MARKET_MICROSTRUCTURE_DESIGN_20261019_BEGIN -->
+## Zamknięcie oceny BASE70 i projekt mikrostruktury — 2026-10-19
+- RAW BASE70 ma historyczny sygnał predykcyjny, ale holdout nie wykazał dodatniej ekonomii po kosztach.
+- M1 poprawił ogólną jakość prawdopodobieństw, lecz miał ujemny PnL i nie kwalifikuje się do przyjęcia przy obecnej polityce.
+- Średni `|PnL−EV|` pojedynczych filli pozostaje wyłącznie statystyką opisową; zależy od losowości wypłat i składu transakcji, więc nie jest samodzielną miarą kalibracji.
+- Nie planować dalszych wariantów miksu prognoz, progów ani seedów.
+- Przygotowano jeden projekt kontrolny z mikrostrukturą i RAW BASE70. Tabela: 21 970 wierszy OOF, 7 010 kompletnych wierszy cech; bez etykiet holdoutu. Bez treningu i bez nowej oceny holdoutu.
+- Raport: `reports/btc_preopen/btc_market_microstructure_design_20261019.md`; konfiguracja: `configs/research/btc_market_microstructure_design_20261019.json`; stan: `design_complete_no_training`.
+<!-- BTC_MARKET_MICROSTRUCTURE_DESIGN_20261019_END -->
+
 <!-- BTC_MARKET_BASE70_FROZEN_HOLDOUT_20261019_BEGIN -->
 ## Zamrożony transfer RAW BASE70 M0/M1 — 2026-10-19
 - Status: `completed`; wspólny holdout ma 24,737 prognoz, jakość na 24,735 oficjalnych etykietach.
