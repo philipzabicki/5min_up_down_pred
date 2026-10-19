@@ -1,0 +1,60 @@
+{
+  "experiment_id": "btc_market_base70_incremental_20261019",
+  "development_start_utc": "2026-04-15T17:05:00Z",
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "label_release_rule": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+  "daily_fit_rule": "once per UTC day before its first T-60 decision; include labels only when release_at < first_decision_at",
+  "minimum_training_rows": 1000,
+  "require_both_classes": true,
+  "probability_epsilon": 0.000001,
+  "regularization_lambda": 0.001,
+  "models": {
+    "M0": "sigmoid(a + b * logit(p_market))",
+    "M1": "sigmoid(a + b * logit(p_market) + c * (logit(p_BASE70_RAW) - logit(p_market)))",
+    "penalty": "lambda * ((b - 1)^2 + c^2); M0 omits c; intercept unpenalized",
+    "objective": "unweighted mean official-label log loss plus the stated penalty",
+    "optimizer": "scipy L-BFGS-B; unrestricted coefficient signs"
+  },
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over shared UTC calendar days",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261019
+  },
+  "policy": {
+    "sizing": "independent fixed $5 gross order",
+    "minimum_net_ev_fraction": 0.01,
+    "decision_offset_seconds": -60,
+    "execution_offset_seconds": -59,
+    "engine": "existing causal T-60/T-59 economic engine with saved fee, depth and settlement snapshots",
+    "variants": ["MARKET", "RAW", "M0", "M1"]
+  },
+  "reference_RAW_anchor": {
+    "source_experiment": "btc_base70_information_value_20261018",
+    "decision_rows": 20735,
+    "settled_fills": 1038,
+    "net_pnl_usd": 267.43939523862554
+  },
+  "hypothesis_origin": "Formulated after a prior holdout analysis; this experiment uses development rows only and does not evaluate holdout.",
+  "interpretation_limit": "BASE70 OOF/feature selection previously used all development stages; this evaluates a causal daily combination layer, not an independent end-to-end model selection process.",
+  "sources": {
+    "raw_oof_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+    "official_market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+    "t59_snapshots_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+    "t60_snapshots_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+    "common_execution_calendar_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
+    "base70_raw_trades_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet",
+    "base70_raw_summary_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/summary.json",
+    "base70_run_manifest_path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json"
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_market_base70_incremental_20261019",
+  "report_path": "reports/btc_preopen/btc_market_base70_incremental_20261019.md",
+  "versioned_manifest_path": "reports/btc_preopen/btc_market_base70_incremental_20261019_manifest.json",
+  "status_path": "docs/BTC_RESEARCH_STATUS_20261010.md",
+  "runner": "run_btc_market_base70_incremental_20261019.py",
+  "cli_arguments": false,
+  "retrain_models": false,
+  "replay_archive": false,
+  "evaluate_holdout": false,
+  "download_data": false
+}

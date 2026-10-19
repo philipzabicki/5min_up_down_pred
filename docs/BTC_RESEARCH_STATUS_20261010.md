@@ -1,4 +1,12 @@
 
+<!-- BTC_MARKET_BASE70_INCREMENTAL_20261019_BEGIN -->
+### RAW BASE70 ponad prognozę rynku - 2026-10-19
+- Status: `completed`; wspólna jakość: `9694` wierszy development.
+- M1-M0 log loss: `-0.00049179` (95% CI `[-0.0007783997527626207, -0.00020914301907020173]`).
+- PnL M1: `$49.23`; M0: `-$20.54`; RAW: `$319.78` na tym samym kalendarzu.
+- M1−M0 paired PnL: `$69.77`; 95% CI sumarycznego PnL `-$40.15` do `$197.28`.
+- Manifest: `data/analysis/polymarket/BTC/btc_market_base70_incremental_20261019/run_manifest.json`; raport: `reports/btc_preopen/btc_market_base70_incremental_20261019.md`.
+<!-- BTC_MARKET_BASE70_INCREMENTAL_20261019_END -->
 <!-- BTC_ZV_ABLATION_20261018_BEGIN -->
 ### BTC pre-open Z/V ablation - 2026-10-18
 - Updated UTC: 2026-10-18T09:45:50.013019+00:00.
