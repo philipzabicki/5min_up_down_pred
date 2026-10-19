@@ -56,7 +56,17 @@
 <!-- BTC_BASE70_RECENT365_20261018_END -->
 # BTC research execution status
 
-Updated: 2026-10-18 (Europe/Warsaw)
+Updated: 2026-10-19 (Europe/Warsaw)
+
+## RAW BASE70 EV–PnL attribution — 2026-10-19
+
+- Status: `completed`; saved RAW decisions, T-60 valuations, T-59 ledgers, and frozen shared bootstrap draws only. No forecasts were regenerated, no archive was replayed, and no policy was changed.
+- Reconciled development: 1,038/1,038 settled fills, +$267.44 PnL versus +$279.60 T-60 EV. Holdout: 3,738 fills, 3,737 settled and one unresolved; -$546.22 PnL versus +$1,242.61 EV.
+- Holdout gap decomposition: A execution -$24.53, B Binance outcome residual -$1,525.57, C official-minus-proxy -$238.73. The 1–2%, 2–4%, and ≥4% policy-selected bins had official y-p of -1.6%, -2.6%, and -7.4%; market midpoint p_market had better point log loss, Brier, and AUC on those selected holdout fills.
+- Holdout pre-fee gross PnL was +$131.14; engine fees reduced it by $677.36 to -$546.22. The historical holdout was previously exposed, so these results are retrospective, not independent confirmation.
+- Runtime: 94.53 seconds; sampled peak process RSS: 0.47 GiB. The report includes the monthly and UP/DOWN decomposition, fixed EV bins and paired 3-day bootstrap intervals, target disagreements, quality comparison, fee accounting, and availability funnel.
+- Report: [RAW BASE70 EV–PnL attribution](../reports/btc_preopen/btc_base70_ev_pnl_attribution_20261019.md). Frozen source/specification manifest: `reports/btc_preopen/btc_base70_ev_pnl_attribution_20261019_manifest.json`. Run manifest and tables: `data/analysis/polymarket/BTC/btc_base70_ev_pnl_attribution_20261019/run_manifest.json`.
+- Next action: none; do not start a follow-up experiment or change policy from this retrospective result.
 
 ## BTC BASE70 vs BASE64 frozen RAW holdout check - 2026-10-18
 

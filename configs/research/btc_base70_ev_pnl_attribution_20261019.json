@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_base70_ev_pnl_attribution_20261019",
+  "scope": {
+    "development_start_inclusive_utc": "2026-04-20T00:00:00Z",
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+    "historical_holdout_status": "Previously exposed; this retrospective diagnostic is not an independent test.",
+    "expected_decisions": {
+      "development": 20735,
+      "holdout": 28224
+    }
+  },
+  "frozen_policy": {
+    "sizing": "independent fixed $5 gross order",
+    "minimum_net_ev_fraction": 0.01,
+    "decision_time": "T-60",
+    "execution_time": "T-59",
+    "side_selection": "Use the existing saved decision ledger; do not reselect or optimize."
+  },
+  "ev_bins": [
+    {"label": "≤0%", "upper_exclusive": 0.0},
+    {"label": "(0%,1%)", "lower_exclusive": 0.0, "upper_exclusive": 0.01},
+    {"label": "[1%,2%)", "lower_inclusive": 0.01, "upper_exclusive": 0.02},
+    {"label": "[2%,4%)", "lower_inclusive": 0.02, "upper_exclusive": 0.04},
+    {"label": "≥4%", "lower_inclusive": 0.04}
+  ],
+  "estimands": {
+    "execution_identity": "RP-E60=(E59-E60)+(yB-p)*s59+(yP-yB)*s59",
+    "fee_accounting": "Use ledger net_shares as payout units and cash_debit_usd as cost. Share fees reduce net_shares; cash fees are included in cash_debit_usd. Never subtract fee_usd a second time.",
+    "market_probability": "Existing T-60 definition: mid_up=(up_best_bid+up_best_ask)/2; mid_down=(down_best_bid+down_best_ask)/2; p_market=mid_up/(mid_up+mid_down). Prognostic benchmark only, never an executable ask.",
+    "common_quality_sample": "Unique markets with RAW BASE70 probability, valid existing p_market, and both labels available by that period's cutoff.",
+    "selected_quality_sample": "One BASE70 policy-selected side per frozen-policy buy intent; orient BASE70, p_market, and labels to that side.",
+    "settlement_cutoff": "Use only fills released by the original development or holdout cutoff for settled PnL and decomposition. Keep fills, settled fills, and unresolved fills distinct.",
+    "candidate_observations": "At most UP and DOWN per market; report unique markets and side candidates separately and retain market clusters in bootstrap draws."
+  },
+  "bootstrap": {
+    "method": "paired circular moving-block bootstrap over saved shared UTC calendar-day draws",
+    "block_days": 3,
+    "replications": 2000,
+    "seed": 20261018,
+    "draws_are_shared_within_period": true
+  },
+  "sources": {
+    "development": {
+      "predictions": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/execution_calendar_predictions.parquet",
+      "decisions": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/decisions.parquet",
+      "trades": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet",
+      "summary": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/summary.json",
+      "run_manifest": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json",
+      "bootstrap_draws": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/shared_bootstrap_day_indices.npz"
+    },
+    "holdout": {
+      "predictions": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/holdout_predictions.parquet",
+      "decisions": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/decisions.parquet",
+      "trades": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/trades.parquet",
+      "summary": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/summary.json",
+      "run_manifest": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/run_manifest.json",
+      "bootstrap_draws": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/shared_bootstrap_day_indices.npz"
+    },
+    "t60_snapshots": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+    "source_reports": [
+      "reports/btc_preopen/btc_base70_information_value_20261018.md",
+      "reports/btc_preopen/btc_base70_information_value_20261018_manifest.json",
+      "reports/btc_preopen/btc_base70_seed_stability_20261018.md",
+      "reports/btc_preopen/btc_base70_seed_stability_20261018_manifest.json",
+      "reports/btc_preopen/btc_base70_raw_holdout_20261018.md",
+      "reports/btc_preopen/btc_base70_raw_holdout_20261018_manifest.json",
+      "reports/btc_preopen/btc_ev_ranking_diagnostic_20261017/report.md",
+      "reports/btc_preopen/btc_market_basis_vol_interaction_20261017.md",
+      "reports/btc_preopen/btc_m1_correction_shrinkage_20261018/report.md"
+    ],
+    "source_code": [
+      "run_btc_base70_information_value_20261018.py",
+      "run_btc_base70_raw_holdout_20261018.py",
+      "run_btc_preopen_research.py",
+      "run_btc_preopen_t59_reassessment.py",
+      "run_btc_market_probability_experiment.py",
+      "analyze_btc_ev_ranking_diagnostic_20261017.py",
+      "utils/polymarket_btc5m_fee_rules.py"
+    ]
+  },
+  "output_directory": "data/analysis/polymarket/BTC/btc_base70_ev_pnl_attribution_20261019",
+  "report_path": "reports/btc_preopen/btc_base70_ev_pnl_attribution_20261019.md",
+  "frozen_manifest_path": "reports/btc_preopen/btc_base70_ev_pnl_attribution_20261019_manifest.json",
+  "runner": "analyze_btc_base70_ev_pnl_attribution_20261019.py",
+  "cli_arguments": false,
+  "retrain_models": false,
+  "regenerate_predictions": false,
+  "download_data": false,
+  "replay_archive": false,
+  "optimize_policy": false
+}

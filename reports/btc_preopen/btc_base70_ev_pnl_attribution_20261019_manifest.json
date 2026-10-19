@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_base70_ev_pnl_attribution_20261019",
+  "frozen_at_utc": "2026-10-19T00:16:03.365588+00:00",
+  "source_commit": "d03763a",
+  "configuration_sha256": "41ba59b4ec0f8fbacf9d4cbdec2cc93227d2d8e74dbb1cae37cf723483e63545",
+  "analysis": {
+    "development_start_inclusive_utc": "2026-04-20T00:00:00Z",
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout_start_inclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout_cutoff_exclusive_utc": "2026-10-07T00:00:00Z",
+    "historical_holdout_status": "Previously exposed; this retrospective diagnostic is not an independent test.",
+    "expected_decisions": {
+      "development": 20735,
+      "holdout": 28224
+    },
+    "frozen_policy": {
+      "sizing": "independent fixed $5 gross order",
+      "minimum_net_ev_fraction": 0.01,
+      "decision_time": "T-60",
+      "execution_time": "T-59",
+      "side_selection": "Use the existing saved decision ledger; do not reselect or optimize."
+    },
+    "ev_bins": [
+      {
+        "label": "≤0%",
+        "upper_exclusive": 0.0
+      },
+      {
+        "label": "(0%,1%)",
+        "lower_exclusive": 0.0,
+        "upper_exclusive": 0.01
+      },
+      {
+        "label": "[1%,2%)",
+        "lower_inclusive": 0.01,
+        "upper_exclusive": 0.02
+      },
+      {
+        "label": "[2%,4%)",
+        "lower_inclusive": 0.02,
+        "upper_exclusive": 0.04
+      },
+      {
+        "label": "≥4%",
+        "lower_inclusive": 0.04
+      }
+    ],
+    "estimands": {
+      "execution_identity": "RP-E60=(E59-E60)+(yB-p)*s59+(yP-yB)*s59",
+      "fee_accounting": "Use ledger net_shares as payout units and cash_debit_usd as cost. Share fees reduce net_shares; cash fees are included in cash_debit_usd. Never subtract fee_usd a second time.",
+      "market_probability": "Existing T-60 definition: mid_up=(up_best_bid+up_best_ask)/2; mid_down=(down_best_bid+down_best_ask)/2; p_market=mid_up/(mid_up+mid_down). Prognostic benchmark only, never an executable ask.",
+      "common_quality_sample": "Unique markets with RAW BASE70 probability, valid existing p_market, and both labels available by that period's cutoff.",
+      "selected_quality_sample": "One BASE70 policy-selected side per frozen-policy buy intent; orient BASE70, p_market, and labels to that side.",
+      "settlement_cutoff": "Use only fills released by the original development or holdout cutoff for settled PnL and decomposition. Keep fills, settled fills, and unresolved fills distinct.",
+      "candidate_observations": "At most UP and DOWN per market; report unique markets and side candidates separately and retain market clusters in bootstrap draws."
+    },
+    "bootstrap": {
+      "method": "paired circular moving-block bootstrap over saved shared UTC calendar-day draws",
+      "block_days": 3,
+      "replications": 2000,
+      "seed": 20261018,
+      "draws_are_shared_within_period": true
+    },
+    "instructions": "Use only saved probability, T-60 valuation, and T-59 ledger tables; do not retrain, change predictions, fetch data, replay the archive, or optimize policy."
+  },
+  "sources": {
+    "config": {
+      "path": "configs/research/btc_base70_ev_pnl_attribution_20261019.json",
+      "size_bytes": 5729,
+      "sha256": "41ba59b4ec0f8fbacf9d4cbdec2cc93227d2d8e74dbb1cae37cf723483e63545"
+    },
+    "runner": {
+      "path": "analyze_btc_base70_ev_pnl_attribution_20261019.py",
+      "size_bytes": 61361,
+      "sha256": "6476e95bd72cb561100099200cca24ad6d1fcd8b53babed8a6ddcbff3a8679c2"
+    },
+    "development.predictions": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/execution_calendar_predictions.parquet",
+      "size_bytes": 2011651,
+      "sha256": "6ab4b836c3d48d715f93ac765242d0c05f135e99ba9dd89c5d8c373aaf97ec60"
+    },
+    "development.decisions": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/decisions.parquet",
+      "size_bytes": 2830702,
+      "sha256": "db4163024b6d4e94f0422711bb017bb227a46b9c0fa6c846a65d81dba8d68c94"
+    },
+    "development.trades": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/trades.parquet",
+      "size_bytes": 458768,
+      "sha256": "7b66f0441481c15835bb2435c951e7a1212cc64189113f33b5a28414e7a76f51"
+    },
+    "development.summary": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/economics/RAW/summary.json",
+      "size_bytes": 6525,
+      "sha256": "2540637233a47f36d14a16f34f08027823e7ff0c48f155e31f8f658519b0fbc0"
+    },
+    "development.run_manifest": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json",
+      "size_bytes": 172947,
+      "sha256": "146d183f8a3ef48058cd93ca2b086ca3d90a167007a3e49c4f9df88b51e42f1d"
+    },
+    "development.bootstrap_draws": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/shared_bootstrap_day_indices.npz",
+      "size_bytes": 71102,
+      "sha256": "335202218b9613dab18a2a290950ae8bc5521f83e56bb34426a44eff065dbb85"
+    },
+    "holdout.predictions": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/holdout_predictions.parquet",
+      "size_bytes": 2837575,
+      "sha256": "22d40225960f08383679dc5b364c04b6d912f8198b7b8886e0695ac02567be1e"
+    },
+    "holdout.decisions": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/decisions.parquet",
+      "size_bytes": 5173457,
+      "sha256": "6216dd20b496ed2eca1af3b8c90c2e3d6d6318c95ae50cec88763f6a54455ac2"
+    },
+    "holdout.trades": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/trades.parquet",
+      "size_bytes": 1238426,
+      "sha256": "7640af34cfbd8575f68ee6f30547036e6fabc8b0a31b80dbdf4e85312dc3b9de"
+    },
+    "holdout.summary": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/economics/BASE70/summary.json",
+      "size_bytes": 7289,
+      "sha256": "b0127a7ec27833f356769b9048b0aa9b3d74611b6d59d4cc8e69a1d3cb6825fe"
+    },
+    "holdout.run_manifest": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/run_manifest.json",
+      "size_bytes": 204417,
+      "sha256": "5df89d74f8a779e9be000edc43132eb6d3065e71bb3e9ab88a3cc541b80e2122"
+    },
+    "holdout.bootstrap_draws": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/shared_bootstrap_day_indices.npz",
+      "size_bytes": 106180,
+      "sha256": "0ed48604b46bb9edfd003fd154e8da607fdc456c4706b62d7ee4f3d4a26446dd"
+    },
+    "t60_snapshots": {
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+      "size_bytes": 25908421,
+      "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1"
+    },
+    "prior_report_00": {
+      "path": "reports/btc_preopen/btc_base70_information_value_20261018.md",
+      "size_bytes": 13533,
+      "sha256": "6cbe6607444a1f8ad5b6e895bd1a2f9b731609fb3eb578f602f968fd6d80240b"
+    },
+    "prior_report_01": {
+      "path": "reports/btc_preopen/btc_base70_information_value_20261018_manifest.json",
+      "size_bytes": 172947,
+      "sha256": "146d183f8a3ef48058cd93ca2b086ca3d90a167007a3e49c4f9df88b51e42f1d"
+    },
+    "prior_report_02": {
+      "path": "reports/btc_preopen/btc_base70_seed_stability_20261018.md",
+      "size_bytes": 19098,
+      "sha256": "06725bdb6499ecfd90ad880275f07fb7b6f5158551bcca3d246c9c25e0575bb9"
+    },
+    "prior_report_03": {
+      "path": "reports/btc_preopen/btc_base70_seed_stability_20261018_manifest.json",
+      "size_bytes": 279193,
+      "sha256": "8a9ad17c22699ae1e704f772ddcfaa50864fa16fe7ef7ab392577e416263f7cd"
+    },
+    "prior_report_04": {
+      "path": "reports/btc_preopen/btc_base70_raw_holdout_20261018.md",
+      "size_bytes": 14363,
+      "sha256": "2dbc7bc8e90fc0f7f3524d29071e1b71025f514e78a56d720777ae6b90910696"
+    },
+    "prior_report_05": {
+      "path": "reports/btc_preopen/btc_base70_raw_holdout_20261018_manifest.json",
+      "size_bytes": 204417,
+      "sha256": "5df89d74f8a779e9be000edc43132eb6d3065e71bb3e9ab88a3cc541b80e2122"
+    },
+    "prior_report_06": {
+      "path": "reports/btc_preopen/btc_ev_ranking_diagnostic_20261017/report.md",
+      "size_bytes": 7359,
+      "sha256": "3d029742cd47dc97cad8205b9ecdbcaee766ad4f44f01fbaf48bf0135134ea3f"
+    },
+    "prior_report_07": {
+      "path": "reports/btc_preopen/btc_market_basis_vol_interaction_20261017.md",
+      "size_bytes": 16892,
+      "sha256": "d89533390c53c85bde3f6bb568eb34178f3d83d5c4f40b2e2ef91f71a0fdf9e1"
+    },
+    "prior_report_08": {
+      "path": "reports/btc_preopen/btc_m1_correction_shrinkage_20261018/report.md",
+      "size_bytes": 7169,
+      "sha256": "ae290e2b7af226d34ac375a501b888649a63d6a9717e8e8377aa5ae1b8f05337"
+    },
+    "source_code_00": {
+      "path": "run_btc_base70_information_value_20261018.py",
+      "size_bytes": 84727,
+      "sha256": "845cadd1a76191f21d56b832c56049b4c724fa86cb7b72b504a5ed6d8e2506d4"
+    },
+    "source_code_01": {
+      "path": "run_btc_base70_raw_holdout_20261018.py",
+      "size_bytes": 98346,
+      "sha256": "c87772c66271a0b06ca0ac21f7a609b51c85b0848f60016a0b3bc690ed1bc976"
+    },
+    "source_code_02": {
+      "path": "run_btc_preopen_research.py",
+      "size_bytes": 68602,
+      "sha256": "22cb94807ee64fbd43ae080b70c156c0d0c9fd2c93466b232262d8f235f48ee9"
+    },
+    "source_code_03": {
+      "path": "run_btc_preopen_t59_reassessment.py",
+      "size_bytes": 293847,
+      "sha256": "976f083a829fad8d3a4e8289ed5b6f3ef7826447c2820729972c3cbf724644cb"
+    },
+    "source_code_04": {
+      "path": "run_btc_market_probability_experiment.py",
+      "size_bytes": 57107,
+      "sha256": "5fffceebc86b354fb4f1836aff9283a86a6581fb641f6959ad9ca8e02b2912ee"
+    },
+    "source_code_05": {
+      "path": "analyze_btc_ev_ranking_diagnostic_20261017.py",
+      "size_bytes": 53749,
+      "sha256": "af52edb3a60164925ea4091f1d9aaadb93c33431ba1d806e50d8ac7375993804"
+    },
+    "source_code_06": {
+      "path": "utils/polymarket_btc5m_fee_rules.py",
+      "size_bytes": 10013,
+      "sha256": "9bbdce425e6014f407d79cc2a25ca2456a4d224255302eb008d76f8e111cab56"
+    }
+  },
+  "preflight_amendment": {
+    "prior_identity_sha256": "aff6f9ac28fda9051e15a722af31a16e0caa4e46cf3a32e9a556e0d0fefa4d31",
+    "prior_manifest_archive": "data/analysis/polymarket/BTC/btc_base70_ev_pnl_attribution_20261019/preflight_freeze_aff6f9ac28fd.json",
+    "reason": "A pre-result implementation guard was corrected. The fixed implementation preserves the same source tables, sample, and analysis specification; no analysis outputs had been produced."
+  },
+  "identity_sha256": "2faaec71be7da306fc3792762c5479627df0ab1df3138743d5b16a9c31ee686e"
+}
