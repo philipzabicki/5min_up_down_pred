@@ -1,0 +1,1026 @@
+{
+  "active_config_id": null,
+  "active_seed_evaluation": null,
+  "active_stage": null,
+  "active_trial_number": null,
+  "budget_exhausted": true,
+  "experiment_id": "btc_base70_capacity_tuning_20261019",
+  "frozen_identity_sha256": "2b7f75c496291217dbbeb368604f3283ce0cc2f2ea55a307e66ac4ff1e9d6940",
+  "frozen_protocol_path": "configs/research/btc_base70_capacity_tuning_20261019.json",
+  "frozen_protocol_sha256": "ae45acee86142ef97526b5a80d2984b27fe52f0e03719a3a10ce0be7cd61dc28",
+  "next_step": "No refit or holdout evaluation is authorized by this study.",
+  "peak_process_working_set_gib": 11.32,
+  "postfit_report_generator_identity": {
+    "path": "run_btc_base70_capacity_tuning_20261019.py",
+    "scope": "numeric comparison and availability reporting only; CV selection and development replay were already completed",
+    "sha256": "f064640195b6d897c9eade4885bef602c22c806d8c96049e9f31e13606a1ca15"
+  },
+  "resource_snapshot_before_training": {
+    "available_memory_gib": 40.989,
+    "captured_utc": "2026-10-19T21:38:39.433725+00:00",
+    "cpu_logical_processors": 20,
+    "free_disk_gib": 346.409,
+    "gpu_query": "NVIDIA GeForce RTX 4060 Laptop GPU, 8188, 2528, 5429, 9",
+    "lightgbm_threads": 8,
+    "memory_load_pct": 35,
+    "parallel_training_workers": 1,
+    "python_processes": [
+      {
+        "KernelModeTime": 312500,
+        "Name": "pythonw.exe",
+        "ProcessId": 22552,
+        "UserModeTime": 312500,
+        "WorkingSetSize": 958464
+      },
+      {
+        "KernelModeTime": 236718750,
+        "Name": "pythonw.exe",
+        "ProcessId": 22392,
+        "UserModeTime": 544218750,
+        "WorkingSetSize": 50982912
+      },
+      {
+        "KernelModeTime": 5710000000,
+        "Name": "python.exe",
+        "ProcessId": 24424,
+        "UserModeTime": 83354062500,
+        "WorkingSetSize": 6315802624
+      },
+      {
+        "KernelModeTime": 12187500,
+        "Name": "python.exe",
+        "ProcessId": 15300,
+        "UserModeTime": 15937500,
+        "WorkingSetSize": 248504320
+      }
+    ],
+    "total_memory_gib": 63.672
+  },
+  "runtime_identity": {
+    "lightgbm": "4.6.0",
+    "numpy": "2.4.4",
+    "optuna": "4.8.0",
+    "pandas": "3.0.2",
+    "pyarrow": "24.0.0",
+    "python": "3.14.4",
+    "runner_sha256": "c8402ede10ccb3ab597d0149435ebb95d6aff2155be472c4f6766ab2675f976c",
+    "scikit-learn": "1.8.0"
+  },
+  "schema_version": 1,
+  "selection": {
+    "complete_trial_count": 17,
+    "control_objective": 0.6923291657080997,
+    "control_seed_scores": {
+      "20261015": 0.6923218068124216,
+      "20261016": 0.6923493132337768,
+      "20261017": 0.6923163770781005
+    },
+    "control_trial_number": 0,
+    "frozen_identity_sha256": "2b7f75c496291217dbbeb368604f3283ce0cc2f2ea55a307e66ac4ff1e9d6940",
+    "incomplete_trials_excluded": [
+      {
+        "config_id": "capacity_17",
+        "reason": "study budget safety boundary reached after CV iteration 49 at 1680.196s"
+      }
+    ],
+    "official_target_or_economics_used_for_selection": false,
+    "record": {
+      "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/selection.json",
+      "sha256": "14130f68ead1477f484ae50466589d4202a37676d70dd73134534d97b6829e3d",
+      "size_bytes": 1186
+    },
+    "selected_config_id": "control_original",
+    "selected_objective": 0.6923291657080997,
+    "selected_parameters": {
+      "lambda_l1": 9.508616956284627,
+      "lambda_l2": 30.729843292781943,
+      "min_data_in_leaf": 12089,
+      "num_leaves": 81
+    },
+    "selected_trial_number": 0,
+    "selected_utc": "2026-10-19T22:06:40.703295+00:00",
+    "selection_basis": "CV-only; mean of three seed-level mean-fold-logloss + 0.5 * population fold-SD scores",
+    "winner_seed_scores": {
+      "20261015": 0.6923218068124216,
+      "20261016": 0.6923493132337768,
+      "20261017": 0.6923163770781005
+    }
+  },
+  "stages": {
+    "cv_study": {
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/study.sqlite3",
+          "sha256": "776788909543f58ba3ada94bc9ae1496c5d118a3e9c5bc3b23d2cd0b9ebaaffa",
+          "size_bytes": 135168
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/selection.json",
+          "sha256": "14130f68ead1477f484ae50466589d4202a37676d70dd73134534d97b6829e3d",
+          "size_bytes": 1186
+        }
+      ],
+      "status": "completed_with_budget_stop",
+      "summary": {
+        "budget_exhausted": true,
+        "budget_seconds": 1800.0,
+        "candidate_space_extended": false,
+        "complete_trials": 17,
+        "control_objective": 0.6923291657080997,
+        "holdout_evaluated": false,
+        "incomplete_configurations": 1,
+        "selected_config_id": "control_original",
+        "selected_objective": 0.6923291657080997,
+        "started_configurations": 18,
+        "study_elapsed_seconds": 1681.1903862000036
+      }
+    },
+    "official_development_evaluation": {
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/economics_by_seed.csv",
+          "sha256": "f713d7ea784a6d63ceaa04f4ae04a320b84583203559dff242c3745623d9437a",
+          "size_bytes": 1755
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/economics/control_seed_20261015/summary.json",
+          "sha256": "237f645b94987b0b60f59a0ebb0415e4a6816c6b24d2cc7c9203a9f30cd365f8",
+          "size_bytes": 4205
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/economics/control_seed_20261016/summary.json",
+          "sha256": "2119ca16230a2c642092341319932cad044a26f7fb2b186ae62891f2e14790b2",
+          "size_bytes": 4200
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/economics/control_seed_20261017/summary.json",
+          "sha256": "3c53d1dae64925fd4eda088191ea89bd8a0a05954e6488611058c65d67b73220",
+          "size_bytes": 4214
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/economics/selected_seed_20261015/summary.json",
+          "sha256": "6b19c38c30cfd3411cfbc9ed06eb3a0d6acb0cb50c4f85296014ad851248aaba",
+          "size_bytes": 4207
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/economics/selected_seed_20261016/summary.json",
+          "sha256": "c6a0a0d22ab05299d1f827803194626a1873350fdc8671dafd0fc6af258ecf5b",
+          "size_bytes": 4202
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/economics/selected_seed_20261017/summary.json",
+          "sha256": "ef56ecb0c07acd3fca21fb8867d6e861fbb45b6d342437d6e0fdd2f6c468aff4",
+          "size_bytes": 4216
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "all_accounting_audits_passed": true,
+        "calendar_rows_per_variant": 20735,
+        "decision_offset_seconds": -60,
+        "execution_offset_seconds": -59,
+        "minimum_net_ev_fraction": 0.01,
+        "policy_variants": 6,
+        "snapshot_identity": {
+          "t59_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+          "t59_sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0",
+          "t60_path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+          "t60_sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1"
+        },
+        "stake_usd": 5.0
+      }
+    },
+    "preflight": {
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet",
+          "sha256": "06952bbf1b2b0a4e9fc4cc918490fbadc540c897815b8105242201c6148dfe19",
+          "size_bytes": 1269944837
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_folds.npz",
+          "sha256": "02768c3ddd80e26720507757e065337bc54afd22691bf830c021698c49133c07",
+          "size_bytes": 40080591
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "features": 70,
+        "folds": 10,
+        "purge": "verified by saved-fold validation before fitting",
+        "source_rows": 3174805,
+        "weight_hash": "3a21a8cfecaeb10cdf0af1e63fd9833eef034954f6f530005bab71da6f1397ca"
+      }
+    },
+    "report": {
+      "outputs": [
+        {
+          "path": "reports/btc_preopen/btc_base70_capacity_tuning_20261019.md",
+          "sha256": "843fc96658f6a765adedc567bef7abb2fb76a67825571f117d3a06712eb628f8",
+          "size_bytes": 14841
+        }
+      ],
+      "status": "completed"
+    },
+    "source_identities": {
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/predictions.parquet",
+          "sha256": "07c6e74c8fa13567b16d3941de410ad756f979a47c548b043736f17400ce9a8c",
+          "size_bytes": 1840726
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/common_execution_calendar.parquet",
+          "sha256": "14791b2f1694333295a2e647db080a6be3b7bfe61488edee53a94ede87c46137",
+          "size_bytes": 12148192
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "holdout_evaluated": false,
+        "official_development_cutoff_exclusive_utc": "2026-07-01T00:00:00+00:00"
+      }
+    },
+    "source_verification": {
+      "elapsed_seconds": 0.0,
+      "outputs": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet",
+          "sha256": "06952bbf1b2b0a4e9fc4cc918490fbadc540c897815b8105242201c6148dfe19",
+          "size_bytes": 1269944837
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_folds.npz",
+          "sha256": "02768c3ddd80e26720507757e065337bc54afd22691bf830c021698c49133c07",
+          "size_bytes": 40080591
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_cv_summary.json",
+          "sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+          "size_bytes": 21254
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+          "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8",
+          "size_bytes": 11166225
+        }
+      ],
+      "status": "completed",
+      "summary": {
+        "features": 70,
+        "folds": 10,
+        "historical_single_31_reproduction": {
+          "folds_reproduced": 10,
+          "iteration_count": 31,
+          "oof_rows": 318560,
+          "passed": true
+        },
+        "purge_verified": true,
+        "rows": 3174805,
+        "weights_sha256": "3a21a8cfecaeb10cdf0af1e63fd9833eef034954f6f530005bab71da6f1397ca"
+      }
+    }
+  },
+  "started_utc": "2026-10-19T21:38:39.438621+00:00",
+  "status": "completed",
+  "study_budget_seconds": 1800.0,
+  "study_elapsed_seconds": 1681.1903862000036,
+  "training_counters": {
+    "completed_configurations": 17,
+    "completed_fold_fits": 530,
+    "completed_seed_evaluations": 53,
+    "incomplete_configurations": 1,
+    "reused_completed_seed_evaluations": 0,
+    "started_configurations": 18,
+    "started_fold_fits": 540,
+    "started_seed_evaluations": 54
+  },
+  "trial_results": {
+    "capacity_01": {
+      "completed_utc": "2026-10-19T21:42:13.116061+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 0.0,
+        "lambda_l2": 30.0,
+        "min_data_in_leaf": 32768,
+        "num_leaves": 127
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.69235719142869,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_01/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "258b060f4fd0f9d55369930c9d5e1472765ca3199330a456c7bdd7522c854522"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923473092408116,
+          "best_iteration": 24,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_01/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "72ea31554f5a0a020f1d2f4cea5dcfb6ef33363f0c607d4c3292c9dab84721c2"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923816648751687,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_01/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "8dc9ccd4ce913bb560855702c5c63c212a257a7a222ae2ffca206e0de4aef30b"
+        }
+      },
+      "state": "complete",
+      "trial_number": 1,
+      "trial_objective": 0.6923620551815568,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_01/trial_result.json",
+        "sha256": "839a711929a5b5662e8dd32caab5d473e4e8f88d8d87ccb13def8e84f3eb01e6",
+        "size_bytes": 1789
+      }
+    },
+    "capacity_02": {
+      "completed_utc": "2026-10-19T21:43:30.826542+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 1.0,
+        "lambda_l2": 30.0,
+        "min_data_in_leaf": 4096,
+        "num_leaves": 15
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6924111781973377,
+          "best_iteration": 46,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_02/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "c43e30e31cb0aca21d9df2f520bca0326547c9c22fc87bd9c8fa7e580c4bc271"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6924317922451877,
+          "best_iteration": 29,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_02/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "594ee5d3cc8ed645fa395e862a0f06501e47791b106cca0c8475b069eb8c63d0"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6924316166757072,
+          "best_iteration": 28,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_02/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "ac60509a66461b076d948f81fc2d5560fa8af4c8f56c645638895940bb86d6a6"
+        }
+      },
+      "state": "complete",
+      "trial_number": 2,
+      "trial_objective": 0.6924248623727441,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_02/trial_result.json",
+        "sha256": "4a1a77f127da733db0ef3a096277fd0a9cb2945955347a1e4ef65636661e0d90",
+        "size_bytes": 1791
+      }
+    },
+    "capacity_03": {
+      "completed_utc": "2026-10-19T21:45:12.217454+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 0.0,
+        "lambda_l2": 10.0,
+        "min_data_in_leaf": 12089,
+        "num_leaves": 63
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923551057438613,
+          "best_iteration": 25,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_03/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "1e8b1419cb2b963b2cfb3f8ed13bcf2a3e3cfea5d7e62d6e0e87006401646c14"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923826066741884,
+          "best_iteration": 23,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_03/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "406d3c52bc1739740bdfffb0855bbbcf3450413d4da62a156fb4f23db716cf60"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923531903577843,
+          "best_iteration": 19,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_03/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "a8ba6d8dfc53f4858a1d07d67bed140e32e3ba38008cd6202ac753bd62d74766"
+        }
+      },
+      "state": "complete",
+      "trial_number": 3,
+      "trial_objective": 0.6923636342586114,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_03/trial_result.json",
+        "sha256": "8724dbc2abbeb48c47c7abb93aa9a97580e9690d48a4f784b66f728f88f0e5bc",
+        "size_bytes": 1792
+      }
+    },
+    "capacity_04": {
+      "completed_utc": "2026-10-19T21:46:37.226186+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 1.0,
+        "lambda_l2": 10.0,
+        "min_data_in_leaf": 1024,
+        "num_leaves": 31
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923977674519041,
+          "best_iteration": 28,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_04/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "6eb8382c274b16eccc0a8248aa6e819b4bc01321d81794cbaa303b2086007d8c"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6924196267050694,
+          "best_iteration": 23,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_04/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "c139cea821c39ad88f99af737b6a3c4b2f9eaa4c618454137b29508c8c8ee179"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923922747215348,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_04/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "de03031de8c69ba9910300e3b68869b4c1c3393f4381019ad3c53ba0140f0f43"
+        }
+      },
+      "state": "complete",
+      "trial_number": 4,
+      "trial_objective": 0.6924032229595026,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_04/trial_result.json",
+        "sha256": "0342f0bc5de500a90a9d1f2ebb9b33ff17c16a88f6185c0a8391f069dda01963",
+        "size_bytes": 1791
+      }
+    },
+    "capacity_05": {
+      "completed_utc": "2026-10-19T21:47:59.201043+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 30.0,
+        "lambda_l2": 10.0,
+        "min_data_in_leaf": 32768,
+        "num_leaves": 15
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6924133531127548,
+          "best_iteration": 44,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_05/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "4bcccbfae663b904026b837bc7939f83901a11c213459f93ae56254ef484c68e"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6924364893094207,
+          "best_iteration": 24,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_05/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "1e7d0adf8e73ea1e5439ad47994da285c71f340d891db72f608c41790fd0ec1c"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6924389514237563,
+          "best_iteration": 40,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_05/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "cafbf4d5021b8143fe36fdce76446f8a8264ed7727a46cabec43bc741b2818f8"
+        }
+      },
+      "state": "complete",
+      "trial_number": 5,
+      "trial_objective": 0.692429597948644,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_05/trial_result.json",
+        "sha256": "0c2816fb0aebb0a90460189e7d04858ffa9113c0f1a26bdef91ff88d4824b07e",
+        "size_bytes": 1792
+      }
+    },
+    "capacity_06": {
+      "completed_utc": "2026-10-19T21:49:15.795595+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 1.0,
+        "lambda_l2": 10.0,
+        "min_data_in_leaf": 1024,
+        "num_leaves": 15
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6924125017769764,
+          "best_iteration": 36,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_06/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "8779ac78089d1eec5144dc3c8ab26c10aea13b48c7080fd8c94834adb7b03441"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6924545559848952,
+          "best_iteration": 19,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_06/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "01e4640173fed6e02932f285c5f476cc427c72228c45793fdb24b254a9c12a1c"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6924468855668603,
+          "best_iteration": 37,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_06/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "61a29aed93a6c60bcbcc5870406b900de83fffe71e96e25e8f970fe77e8a6db4"
+        }
+      },
+      "state": "complete",
+      "trial_number": 6,
+      "trial_objective": 0.6924379811095772,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_06/trial_result.json",
+        "sha256": "cc1dbf6a61fbe84beecc4959872f3d317725a0d83a89f306b09062c0fefcd319",
+        "size_bytes": 1791
+      }
+    },
+    "capacity_07": {
+      "completed_utc": "2026-10-19T21:50:32.636998+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 10.0,
+        "lambda_l2": 100.0,
+        "min_data_in_leaf": 12089,
+        "num_leaves": 15
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6924335338287365,
+          "best_iteration": 28,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_07/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "a3f7a070b81b24a7efc2f71c8b8a2364943e0b132497baff063a8ab907d898b5"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6924478721147845,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_07/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "51eadf7705cbbe7114005d38d4ccdcb69b0d73ca6a222db55528b18d72293c42"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6924313915650462,
+          "best_iteration": 34,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_07/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "d8e82da73950fa315eced9436e6b64975b87d613751db58cd978744c9a091d91"
+        }
+      },
+      "state": "complete",
+      "trial_number": 7,
+      "trial_objective": 0.6924375991695224,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_07/trial_result.json",
+        "sha256": "102b65cf68b4a1c6c393da27888de9069c462c9c42773e357e6d5b68a8a7363c",
+        "size_bytes": 1794
+      }
+    },
+    "capacity_08": {
+      "completed_utc": "2026-10-19T21:52:04.078551+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 30.0,
+        "lambda_l2": 10.0,
+        "min_data_in_leaf": 32768,
+        "num_leaves": 31
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923591523236999,
+          "best_iteration": 35,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_08/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "b2af3a26bef190dd8495b97f66426bcaba48e547268db83be0e588ad321ce248"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923821180690316,
+          "best_iteration": 38,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_08/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "6b600fee6fd6a174d2ef2909fb9da4b75af8fff7e530b08f2a385237142652ae"
+        },
+        "20261017": {
+          "best_cv_objective": 0.692379157335813,
+          "best_iteration": 28,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_08/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "dccfc6fc13227543635288cd368dd0280a561d80b59c374d5729dc68a1a5abf8"
+        }
+      },
+      "state": "complete",
+      "trial_number": 8,
+      "trial_objective": 0.6923734759095148,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_08/trial_result.json",
+        "sha256": "e2d146e02b2aefb8c34637d4e11ab2319e20f742861c23762c932fab2d2ca618",
+        "size_bytes": 1791
+      }
+    },
+    "capacity_09": {
+      "completed_utc": "2026-10-19T21:53:57.787801+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 0.0,
+        "lambda_l2": 10.0,
+        "min_data_in_leaf": 12089,
+        "num_leaves": 127
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923520262941858,
+          "best_iteration": 24,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_09/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "e06a03aa4fbcaed75aab79230eb8fc307d8c5188c2d0b713c92f14d89c94c72d"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923675912942041,
+          "best_iteration": 24,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_09/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "8c2c8bd68aac70306e2a373484d35cd4c83c2832b6ccc68ffa3b36a211afbd49"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923333576651489,
+          "best_iteration": 24,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_09/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "a448af06a5e575c129efa54156d362ba53b32421a77f2db550d561df13ddd2c2"
+        }
+      },
+      "state": "complete",
+      "trial_number": 9,
+      "trial_objective": 0.6923509917511795,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_09/trial_result.json",
+        "sha256": "d9f87e6ba1373bf810a39cc97d7789bea59117b97e99cd08e3cbd12979414ebc",
+        "size_bytes": 1793
+      }
+    },
+    "capacity_10": {
+      "completed_utc": "2026-10-19T21:55:14.497406+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 30.0,
+        "lambda_l2": 30.0,
+        "min_data_in_leaf": 12089,
+        "num_leaves": 15
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6924075355051068,
+          "best_iteration": 37,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_10/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "24766813815b95c1ca460a5d0083240d6485f4f74f1f1590bf7af6c7b144718c"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6924407232887005,
+          "best_iteration": 24,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_10/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "aaf7b632dc69d7653b4fd33b8a7dd2c2f22e30c0271613d095e7f811ea05308a"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6924184839221795,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_10/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "0e51effb7070c065b73caceaaf9a4bf897523462b8af77f504242c1da150d6c2"
+        }
+      },
+      "state": "complete",
+      "trial_number": 10,
+      "trial_objective": 0.6924222475719956,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_10/trial_result.json",
+        "sha256": "602c7ed4d747437faf11be29c77e191fbdc9406e0d06c2b587c188a0efb86d03",
+        "size_bytes": 1794
+      }
+    },
+    "capacity_11": {
+      "completed_utc": "2026-10-19T21:56:41.354897+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 1.0,
+        "lambda_l2": 30.0,
+        "min_data_in_leaf": 4096,
+        "num_leaves": 31
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923771834075502,
+          "best_iteration": 35,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_11/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "abfd60f1cfaaa1af6dd2a6dfd06c7d8a63eb53b1b5c65e33edce906ae9878137"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923940490850575,
+          "best_iteration": 26,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_11/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "1146c92b1fa1ab01c9ae06b14cead1a7d3c4c551d8ca83f26fc5c95812e07ecb"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923758485643918,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_11/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "32f326462a5f0b110650f8d4ed2fa3531040da9042de576c6cf0fde9aa25ae05"
+        }
+      },
+      "state": "complete",
+      "trial_number": 11,
+      "trial_objective": 0.6923823603523331,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_11/trial_result.json",
+        "sha256": "da4cb9e768dfa4d1eb1060620b56dc8fceb7d5cc421c4f859554b70b5697e987",
+        "size_bytes": 1792
+      }
+    },
+    "capacity_12": {
+      "completed_utc": "2026-10-19T21:59:00.753620+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 10.0,
+        "lambda_l2": 30.0,
+        "min_data_in_leaf": 1024,
+        "num_leaves": 127
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923548252203223,
+          "best_iteration": 25,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_12/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "a30b2b5d4510bfb2664bb9f40d74a8db058f99d797fe970ad90bc82796483420"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923608789941514,
+          "best_iteration": 26,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_12/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "663ee3513d593a651665f5679c762fd9e25f3c05a38421fd3b220f6fca9ee246"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923417036497775,
+          "best_iteration": 24,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_12/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "52988e4cdd2e294a0be868052ce0c50b39fd4bd2e3d10924695614d11164fae7"
+        }
+      },
+      "state": "complete",
+      "trial_number": 12,
+      "trial_objective": 0.6923524692880837,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_12/trial_result.json",
+        "sha256": "7c8d246151ada2cd24a7cacb3828e4816f6799baee7b3e7e47830e68f32fbca0",
+        "size_bytes": 1794
+      }
+    },
+    "capacity_13": {
+      "completed_utc": "2026-10-19T22:00:50.096651+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 1.0,
+        "lambda_l2": 1.0,
+        "min_data_in_leaf": 12089,
+        "num_leaves": 63
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.692337431596273,
+          "best_iteration": 31,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_13/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "9f08ca0f9d0fbcbc3a2943994cb7a3a76fc35cd4c022549fa99bc6db768d6e47"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923495802949808,
+          "best_iteration": 23,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_13/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "440e815277ce91bc4a087ac0c5ac014313c1f1838314af1634bc71620e3ef3de"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923103908907787,
+          "best_iteration": 32,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_13/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "8455373d9b654d28b6f742f9e66041d6414af1d9fc5a899c7b3c4736045d1721"
+        }
+      },
+      "state": "complete",
+      "trial_number": 13,
+      "trial_objective": 0.6923324675940109,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_13/trial_result.json",
+        "sha256": "988a28ec0d932658b9e85f804a7c44d54619054d952aba932a5a82f07f9d706b",
+        "size_bytes": 1790
+      }
+    },
+    "capacity_14": {
+      "completed_utc": "2026-10-19T22:02:19.935598+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 30.0,
+        "lambda_l2": 30.0,
+        "min_data_in_leaf": 12089,
+        "num_leaves": 31
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923605264788844,
+          "best_iteration": 32,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_14/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "a1951c4389f3f087dca6a365d3a17922ee2b90e06655d91c019662b62eae86ae"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923952452576633,
+          "best_iteration": 32,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_14/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "1eb3f359784dda26a553a524ae1e557cb71cb3931e40341cb14bfc1233f64656"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923979730970987,
+          "best_iteration": 24,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_14/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "5edd5f5bbb57a4e33a53fe13796019f845e791cd13757fcf11d7308ea0830309"
+        }
+      },
+      "state": "complete",
+      "trial_number": 14,
+      "trial_objective": 0.6923845816112154,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_14/trial_result.json",
+        "sha256": "15fc6b45ccb8c032321489391f699a076d011f6917c8230abd20545fc61bbe94",
+        "size_bytes": 1794
+      }
+    },
+    "capacity_15": {
+      "completed_utc": "2026-10-19T22:03:50.401674+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 1.0,
+        "lambda_l2": 100.0,
+        "min_data_in_leaf": 32768,
+        "num_leaves": 127
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923628176394903,
+          "best_iteration": 31,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_15/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "becb0625f6c21155dd4dd97ae2fa2bfe6d0d4073fb772ebf82bfa6e5c89d2cac"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923699871456308,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_15/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "a8ec1248e418591c28b6e4c47eb2f41e32aaf94183aa4f7210fe1f357f23219c"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923958060164068,
+          "best_iteration": 23,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_15/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "77d0cd2939437ee47e87496b9786d9466df55f615a156e21c9ecd1337d889b19"
+        }
+      },
+      "state": "complete",
+      "trial_number": 15,
+      "trial_objective": 0.6923762036005092,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_15/trial_result.json",
+        "sha256": "a8725e7a771d90436632d9fee38139d2f2e8899ba83c829ffbdca3110874e3c3",
+        "size_bytes": 1795
+      }
+    },
+    "capacity_16": {
+      "completed_utc": "2026-10-19T22:05:21.441012+00:00",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 1.0,
+        "lambda_l2": 100.0,
+        "min_data_in_leaf": 32768,
+        "num_leaves": 63
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923628289953968,
+          "best_iteration": 31,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_16/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "cf61657b482ad42187cbf199adb6cf03ec48b8daf0af074dd7b81bb90512607e"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923699871258333,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_16/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "ee1599d52e3c79b50d5bea6b2d5447799f3c48db1b6de0cd6d45ee06bcfd5608"
+        },
+        "20261017": {
+          "best_cv_objective": 0.692395806036363,
+          "best_iteration": 23,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_16/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "3268a87bcc945482817ffbe19c6b8a687c4ed9be7471a5450274ce6683e7a78e"
+        }
+      },
+      "state": "complete",
+      "trial_number": 16,
+      "trial_objective": 0.6923762073858644,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_16/trial_result.json",
+        "sha256": "15a155c901e5ebfaa95dd1e07e71213b8b3231b1e52ea7a63d1ba3af9d05187b",
+        "size_bytes": 1792
+      }
+    },
+    "capacity_17": {
+      "incomplete_reason": "study budget safety boundary reached after CV iteration 49 at 1680.196s",
+      "kind": "candidate",
+      "parameters": {
+        "lambda_l1": 0.0,
+        "lambda_l2": 100.0,
+        "min_data_in_leaf": 4096,
+        "num_leaves": 31
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923791758133647,
+          "best_iteration": 22,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_17/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "a0176c3430242783e847acd2ec184defdac9e1bc5b89541ccaafd2617e771a03"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6924009907361548,
+          "best_iteration": 27,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/capacity_17/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "676a8b7b15dcfa95900959a2901093e950a0de70ccb70e58d18a31cc07dad04e"
+        }
+      },
+      "state": "incomplete_budget",
+      "trial_number": 17
+    },
+    "control_original": {
+      "completed_utc": "2026-10-19T21:40:43.197164+00:00",
+      "kind": "control",
+      "parameters": {
+        "lambda_l1": 9.508616956284627,
+        "lambda_l2": 30.729843292781943,
+        "min_data_in_leaf": 12089,
+        "num_leaves": 81
+      },
+      "seed_results": {
+        "20261015": {
+          "best_cv_objective": 0.6923218068124216,
+          "best_iteration": 31,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/control_original/seed_20261015/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "a8758c1cca137f9af1a20834fb14b1dfd4040f9e3f0512ae3c069951773d016c"
+        },
+        "20261016": {
+          "best_cv_objective": 0.6923493132337768,
+          "best_iteration": 26,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/control_original/seed_20261016/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "d29f1f92cf33f553c4430c0b3a59bc3f5457bfc2d29d66f273f8922fb2c73d7d"
+        },
+        "20261017": {
+          "best_cv_objective": 0.6923163770781005,
+          "best_iteration": 34,
+          "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/control_original/seed_20261017/seed_result.json",
+          "reused_checkpoint": false,
+          "sha256": "54370568f2e2d92b3950cb813541a281a58308bf4fcd30f7b1b8db557cc6d0f2"
+        }
+      },
+      "state": "complete",
+      "trial_number": 0,
+      "trial_objective": 0.6923291657080997,
+      "trial_result": {
+        "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/trials/control_original/trial_result.json",
+        "sha256": "5c8ba1fbf4a87ea827ba2d568cb386d0eb1e0f150e57f391be0d30cb218bc95d",
+        "size_bytes": 1838
+      }
+    }
+  },
+  "updated_utc": "2026-10-19T22:13:59.024386+00:00"
+}

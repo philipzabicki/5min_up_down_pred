@@ -12,7 +12,7 @@
 ## BTC market–microstructure interaction development — 2026-10-19
 
 - Status: completed as a development-only exploratory test. Protocol v2 was frozen before fitting; exactly two logistic fits were run (C and X), with no additive challenger, BASE70 retraining, generator training, archive replay, or holdout evaluation.
-- Fit used 1,927 released labels through the strict pre-test boundary. Evaluation used 5,082 labeled rows over 31 observed days; only 18 input-qualified rows fell after June 12. The 384 local event partitions from June 13–28 are empty after target-market/time filtering; original source bytes and pre-filter row counts are unavailable locally, so the cause is undetermined from local artifacts. See the [empty-partition provenance audit](../reports/btc_preopen/btc_empty_partition_provenance_20261019.md).
+- Fit used 1,927 released labels through the strict pre-test boundary. Evaluation used 5,082 labeled rows over 31 observed days; only 18 input-qualified rows fell after June 12. The original-archive pilot checked only 2026-06-13T12, 2026-06-20T12, and 2026-06-28T12; all 137,377,951 source rows had zero exact market matches to the frozen index before time filtering. This explains those three sampled empty hours, not the other 381 hours. Historical source bytes remain unverifiable. See the [three-hour empty-partition provenance audit](../reports/btc_preopen/btc_empty_partition_provenance_20261019.md).
 - Crossed books were audited against the existing replay semantics and validity checks. The replay applies BUY changes to bids and SELL changes to asks while preserving side-specific source order; crossed quotes remain excluded and validation was not relaxed.
 - X did not improve on C: X−C log-loss was +0.012049 (paired 95% 3-day UTC block CI +0.002681 to +0.025441). X also underperformed MARKET by +0.018662 (CI +0.006281 to +0.036709). C, X, and MARKET produced no orders at the frozen 1% EV hurdle. RAW's restricted existing ledger had 782 settled fills and $229.60 PnL; this is a reference result, not the X strategy result.
 - Report: [microstructure interaction development](../reports/btc_preopen/btc_market_microstructure_development_20261019.md). Frozen protocol, runner, tests, report, and manifest are versioned; models, scalers, predictions, bootstrap, and ledgers remain in the local ignored data directory. No further automatic experiment or holdout scoring is planned.
@@ -93,7 +93,13 @@
 - Run manifest: `data/analysis/polymarket/BTC/btc_base70_recent365_20261018/run_manifest.json`.
 <!-- BTC_BASE70_RECENT365_20261018_END -->
 # BTC research execution status
-
+<!-- BTC_BASE70_CAPACITY_TUNING_20261019_BEGIN -->
+### BASE70 capacity tuning — 2026-10-19
+- Status: `completed`; completed configurations: `17`; started configurations: `18/32`.
+- CV work: `530` completed fold fits, `540` started; study time `1681.2/1800 seconds`.
+- Next step: No refit or holdout evaluation is authorized by this study.
+- Report and manifest: `reports/btc_preopen/btc_base70_capacity_tuning_20261019.md`, `reports/btc_preopen/btc_base70_capacity_tuning_20261019_manifest.json`.
+<!-- BTC_BASE70_CAPACITY_TUNING_20261019_END -->
 Updated: 2026-10-19 (Europe/Warsaw)
 
 ## RAW BASE70 EV–PnL attribution — 2026-10-19
