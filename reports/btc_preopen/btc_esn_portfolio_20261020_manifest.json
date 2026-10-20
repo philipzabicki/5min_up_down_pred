@@ -1,0 +1,787 @@
+{
+  "confirmation": {
+    "common_confirmation_decision_rows": 105113,
+    "common_training_rows": 2649228,
+    "confirmation_end_exclusive_utc": "2026-07-01T00:00:00Z",
+    "confirmation_is_development_only": true,
+    "confirmation_start_utc": "2025-07-01T00:00:00Z",
+    "elapsed_seconds": 15.329225499997847,
+    "feature_counts": {
+      "A": 70,
+      "B": 78,
+      "C": 146
+    },
+    "finalization_engine_sha256": "996fa602b327d0c8b480d8b9a9f5cd32f354a419315e6841cfbf06e4ef617665",
+    "finalization_runner_sha256": "32c4f7898bd06cf12ae9973619252d10887bff3500a124f79c924b61fab90d22",
+    "holdout_evaluation": false,
+    "holdout_rows_materialized": 0,
+    "identity": {
+      "baseline_data": {
+        "bytes": 1269944837,
+        "mtime_ns": 1792283629303501500,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet"
+      },
+      "baseline_summary_sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+      "config_sha256": "54b11afdfd77c1d51e39973b0e7cf7c9d20c7eb09d74e74347f69696ee2c0743",
+      "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+      "engine_sha256": "a71b271187d13d8cb29f0b7d403346e55d743af40de3f8c2e85160279df17326",
+      "experiment_id": "btc_esn_portfolio_20261020",
+      "runner_sha256": "0068563f64d3e2e3a70e2f1a62e59d94850d7addc38c0b0a45f9c3e2dab4f1a8",
+      "source_commit": "11927f3a824f6bd38f0ef4d1131f747ac467d761",
+      "source_data": {
+        "bytes": 4973420713,
+        "mtime_ns": 1792121879797728100,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet"
+      }
+    },
+    "lightgbm": {
+      "common_seeds": [
+        20261020,
+        20261021,
+        20261022
+      ],
+      "rounds": 31
+    },
+    "metrics_mean_seed_prediction": {
+      "A": {
+        "auc": 0.52199837562406,
+        "brier": 0.24962330343183883,
+        "logloss": 0.6923933087080497,
+        "n": 105113
+      },
+      "B": {
+        "auc": 0.522155328100423,
+        "brier": 0.2496122632885034,
+        "logloss": 0.6923710818417507,
+        "n": 105113
+      },
+      "C": {
+        "auc": 0.5213180092850624,
+        "brier": 0.24963921897152264,
+        "logloss": 0.6924250149422536,
+        "n": 105113
+      }
+    },
+    "nvar_feature_count": 76,
+    "paired_block_bootstrap": {
+      "B_vs_A": {
+        "block_days": 7,
+        "ci_2_5": -2.3707752084638103e-05,
+        "ci_97_5": 6.93699756270019e-05,
+        "interpretation": "conditional on the selected development procedure",
+        "mean_delta_logloss_a_minus_b": 2.2226866298971625e-05,
+        "replicates": 2000
+      },
+      "C_vs_A": {
+        "block_days": 7,
+        "ci_2_5": -0.0001334295309291666,
+        "ci_97_5": 7.420225067131069e-05,
+        "interpretation": "conditional on the selected development procedure",
+        "mean_delta_logloss_a_minus_b": -3.1706234203924115e-05,
+        "replicates": 2000
+      }
+    },
+    "polymarket_replay": false,
+    "portfolio_member_count": 1,
+    "seed_results": [
+      {
+        "A": {
+          "auc": 0.5221905312319608,
+          "brier": 0.24962125074523536,
+          "logloss": 0.6923892572489309,
+          "n": 105113
+        },
+        "B": {
+          "auc": 0.5213737593879734,
+          "brier": 0.24964532173419485,
+          "logloss": 0.6924373475836854,
+          "n": 105113
+        },
+        "C": {
+          "auc": 0.5206349210049983,
+          "brier": 0.2496671301378112,
+          "logloss": 0.6924809681903009,
+          "n": 105113
+        },
+        "seed": 20261020
+      },
+      {
+        "A": {
+          "auc": 0.5213450970969289,
+          "brier": 0.24965102550237137,
+          "logloss": 0.6924488873612812,
+          "n": 105113
+        },
+        "B": {
+          "auc": 0.5224542135934079,
+          "brier": 0.24961024268031043,
+          "logloss": 0.6923671612282276,
+          "n": 105113
+        },
+        "C": {
+          "auc": 0.5216203554463532,
+          "brier": 0.24963327042606645,
+          "logloss": 0.6924131967407753,
+          "n": 105113
+        },
+        "seed": 20261021
+      },
+      {
+        "A": {
+          "auc": 0.5215625859263685,
+          "brier": 0.24964262791598946,
+          "logloss": 0.6924319882318096,
+          "n": 105113
+        },
+        "B": {
+          "auc": 0.5217080853247751,
+          "brier": 0.24962808797905922,
+          "logloss": 0.6924026954537095,
+          "n": 105113
+        },
+        "C": {
+          "auc": 0.5207055406862106,
+          "brier": 0.24966239016726333,
+          "logloss": 0.692471353627717,
+          "n": 105113
+        },
+        "seed": 20261022
+      }
+    ],
+    "selection_and_hyperparameter_caveat": "all reported validation is conditional on this previously selected feature set and hyperparameters; it is not independent OOS for the complete baseline selection procedure",
+    "status": "confirmation_complete",
+    "training_label_available_by_utc": "2025-07-01T00:00:00Z"
+  },
+  "data_contract": {
+    "baseline_feature_order": [
+      "candle_close_location_value_15m_lag1",
+      "rp_short_imbalance",
+      "candle_body_pressure_15m_lag1",
+      "rp_short_resistance_center_dist",
+      "candle_streak_15m",
+      "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypfba_atrper1151_maper533_matypnwmaepan_souhlcc4",
+      "candle_streak_3m",
+      "candle_ret_co_5m_lag1",
+      "rp_short_support_center_dist",
+      "session_close_impulse_B3",
+      "realized_volatility_down_5m",
+      "candle_close_location_value_30m_lag1",
+      "candle_close_location_value_4h_lag1",
+      "candle_signed_vol_15m_lag1",
+      "candle_close_location_value_1h_lag1",
+      "candle_body_pressure_1h_lag1",
+      "realized_volatility_up_15m",
+      "futures_index_basis_rel_30m",
+      "session_open_impulse_NYSE",
+      "rp_medium_resistance_below",
+      "rp_all_resistance_below",
+      "realized_volatility_compression_expansion_1h_4h",
+      "futures_index_basis_rel_15m",
+      "candle_streak_5m",
+      "candle_body_pressure_30m_lag2",
+      "candle_body_pressure_4h_lag1",
+      "candle_close_location_value_4h_lag7",
+      "vp_short_log_density_ratio_to_current_bin_plus_2",
+      "candle_wick_asym_1h_lag1",
+      "candle_streak_30m",
+      "rp_medium_support_center_dist",
+      "candle_body_pressure_4h_lag7",
+      "ADX_fit_5m_preopen_v1_pop64_adxper452_atrper1990_matypadxkama_matypatrnwmatria_matypnegdmehma_matypposdmema_negdmper706_posdmper1716",
+      "candle_close_location_value_15m_lag2",
+      "session_close_impulse_BVC",
+      "candle_wick_asym_4h_lag6",
+      "futures_index_basis_rel_5m",
+      "realized_volatility_15m",
+      "candle_body_pressure_15m_lag2",
+      "candle_wick_asym_4h_lag5",
+      "realized_volatility_down_1h",
+      "candle_wick_asym_4h_lag1",
+      "futures_index_basis_rel_4h",
+      "rp_medium_resistance_center_dist",
+      "realized_volatility_up_1h",
+      "candle_wick_asym_1h_lag2",
+      "candle_close_location_value_30m_lag4",
+      "vp_short_local_above_below_volume_log_ratio",
+      "session_open_impulse_B3",
+      "candle_body_pressure_1h_lag2",
+      "vp_short_log_density_ratio_to_current_bin_minus_2",
+      "candle_wick_asym_30m_lag3",
+      "session_close_impulse_Xetra",
+      "realized_volatility_up_5m",
+      "rp_all_support_above",
+      "StochOsc_fit_5m_preopen_v1_pop64_faskper24_slodmatyptrima_slodper1052_slokmatypnwmabiw_slokper1892",
+      "BollingerBands_fit_5m_preopen_v1_pop64_maper328_masouhlcc4_matypshmma_stdmaper53_stdmatypkama_stdsouhlcc4",
+      "realized_volatility_down_15m",
+      "candle_wick_asym_1d_lag7",
+      "vp_short_log_density_ratio_to_current_bin_plus_1",
+      "candle_body_pressure_30m_lag5",
+      "rp_all_imbalance",
+      "candle_body_pressure_1d_lag2",
+      "candle_body_pressure_30m_lag1",
+      "taker_Z_1m",
+      "taker_V_1m",
+      "taker_Z_5m",
+      "taker_V_5m",
+      "taker_Z_15m",
+      "taker_V_15m"
+    ],
+    "baseline_feature_origin": "64-feature generator/feature selection and LightGBM tuning used the full development period; six taker_Z/V features were added in the 2026-10-18 development comparison",
+    "baseline_selection_independence": "all reported validation is conditional on this previously selected feature set and hyperparameters; it is not independent OOS for the complete baseline selection procedure",
+    "feature_availability": "OHLCV close-event time is Opened+1m; actual historical feed receive timestamps are not available in the source dataset",
+    "nominal_decision_at": "nominal_decision_at = Opened+1m; last closed candle is the row opened one minute earlier",
+    "target": "Close[Opened+6m] >= Open[Opened+2m]; five one-minute candles; ties resolve UP; label available at Opened+7m",
+    "training_weights": {
+      "decision_rows": 0.59,
+      "other_minute_rows": 0.1025,
+      "qualification": "source BASE70 shared complete-feature mask; target label must be available by the fit boundary"
+    }
+  },
+  "development": {
+    "baseline_feature_count": 70,
+    "baseline_filter_applied_before_materialization": "Opened >= 2020-06-09T09:33:00Z and Opened < 2026-07-01 00:00:00 and target_label_available_at < 2026-07-01 00:00:00",
+    "decision_rows": 634957,
+    "development_baseline_rows": 3174805,
+    "development_raw_rows": 3186146,
+    "first_raw_opened_utc": "2020-06-09T09:33:00+00:00",
+    "holdout_rows_materialized": 0,
+    "identity": {
+      "baseline_data": {
+        "bytes": 1269944837,
+        "mtime_ns": 1792283629303501500,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet"
+      },
+      "baseline_summary_sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+      "config_sha256": "54b11afdfd77c1d51e39973b0e7cf7c9d20c7eb09d74e74347f69696ee2c0743",
+      "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+      "engine_sha256": "a71b271187d13d8cb29f0b7d403346e55d743af40de3f8c2e85160279df17326",
+      "experiment_id": "btc_esn_portfolio_20261020",
+      "runner_sha256": "0068563f64d3e2e3a70e2f1a62e59d94850d7addc38c0b0a45f9c3e2dab4f1a8",
+      "source_commit": "11927f3a824f6bd38f0ef4d1131f747ac467d761",
+      "source_data": {
+        "bytes": 4973420713,
+        "mtime_ns": 1792121879797728100,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet"
+      }
+    },
+    "last_raw_opened_utc": "2026-06-30T23:58:00+00:00",
+    "materialization_cutoff_utc": "2026-07-01T00:00:00+00:00",
+    "source_filter_applied_before_materialization": "Opened >= 2020-06-09 09:33:00 and Opened < 2026-06-30 23:59:00 (equivalent to Opened+1m < 2026-07-01 00:00:00)",
+    "source_opened_type": "large_string",
+    "status": "development_data_prepared"
+  },
+  "downstream_budget": {
+    "budget": 2,
+    "candidate_selection": "highest individual screening ranks outside the frozen selected linear-screen portfolio",
+    "evaluated_candidates": 2,
+    "holdout_rows_materialized": 0,
+    "identity": {
+      "baseline_data": {
+        "bytes": 1269944837,
+        "mtime_ns": 1792283629303501500,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet"
+      },
+      "baseline_summary_sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+      "config_sha256": "54b11afdfd77c1d51e39973b0e7cf7c9d20c7eb09d74e74347f69696ee2c0743",
+      "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+      "engine_sha256": "a71b271187d13d8cb29f0b7d403346e55d743af40de3f8c2e85160279df17326",
+      "experiment_id": "btc_esn_portfolio_20261020",
+      "runner_sha256": "0068563f64d3e2e3a70e2f1a62e59d94850d7addc38c0b0a45f9c3e2dab4f1a8",
+      "source_commit": "11927f3a824f6bd38f0ef4d1131f747ac467d761",
+      "source_data": {
+        "bytes": 4973420713,
+        "mtime_ns": 1792121879797728100,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet"
+      }
+    },
+    "results": [
+      {
+        "config": {
+          "architecture": "single",
+          "bias_scaling": 0.25098439344058443,
+          "connectivity": 0.15,
+          "input_groups": [
+            "volume"
+          ],
+          "input_scaling": 0.12185861464964076,
+          "leak_rate": 0.541421522055282,
+          "reservoir_count": 1,
+          "reservoir_size": 128,
+          "selected_columns": [
+            "log_volume",
+            "volume_ratio_to_prior_30m_median"
+          ],
+          "spectral_radius": 0.17517072161240335,
+          "topology": "ring"
+        },
+        "mean_delta_logloss": 8.64800540425481e-05,
+        "seed_results": [
+          {
+            "augmented": {
+              "auc": 0.5244143776875995,
+              "brier": 0.24958813292522025,
+              "logloss": 0.6923224236462455,
+              "n": 52120
+            },
+            "baseline": {
+              "auc": 0.5235085512697313,
+              "brier": 0.24968530824345278,
+              "logloss": 0.6925180898222889,
+              "n": 52120
+            },
+            "delta_logloss": 0.00019566617604338532,
+            "feature_count": 78,
+            "rows": 52120,
+            "seed": 20261020
+          },
+          {
+            "augmented": {
+              "auc": 0.5243628398071418,
+              "brier": 0.24957596435052073,
+              "logloss": 0.6922980124418798,
+              "n": 52120
+            },
+            "baseline": {
+              "auc": 0.5235204725474325,
+              "brier": 0.24965217332007453,
+              "logloss": 0.6924508933118058,
+              "n": 52120
+            },
+            "delta_logloss": 0.00015288086992593097,
+            "feature_count": 78,
+            "rows": 52120,
+            "seed": 20261021
+          },
+          {
+            "augmented": {
+              "auc": 0.5235377249745803,
+              "brier": 0.24964808969202903,
+              "logloss": 0.6924431580936445,
+              "n": 52120
+            },
+            "baseline": {
+              "auc": 0.524704163687059,
+              "brier": 0.2496035948184291,
+              "logloss": 0.6923540512098029,
+              "n": 52120
+            },
+            "delta_logloss": -8.910688384167198e-05,
+            "feature_count": 78,
+            "rows": 52120,
+            "seed": 20261022
+          }
+        ],
+        "trial_number": 42
+      },
+      {
+        "config": {
+          "architecture": "single",
+          "bias_scaling": 0.2763474916139112,
+          "connectivity": 0.15,
+          "input_groups": [
+            "volume"
+          ],
+          "input_scaling": 0.11200765271584831,
+          "leak_rate": 0.5246261762928922,
+          "reservoir_count": 1,
+          "reservoir_size": 128,
+          "selected_columns": [
+            "log_volume",
+            "volume_ratio_to_prior_30m_median"
+          ],
+          "spectral_radius": 0.15316415042460502,
+          "topology": "ring"
+        },
+        "mean_delta_logloss": 7.7975992437825e-05,
+        "seed_results": [
+          {
+            "augmented": {
+              "auc": 0.523940526777584,
+              "brier": 0.24961627836479278,
+              "logloss": 0.6923791056124584,
+              "n": 52120
+            },
+            "baseline": {
+              "auc": 0.5235085380173227,
+              "brier": 0.24968530808043168,
+              "logloss": 0.6925180894954704,
+              "n": 52120
+            },
+            "delta_logloss": 0.0001389838830120338,
+            "feature_count": 78,
+            "rows": 52120,
+            "seed": 20261020
+          },
+          {
+            "augmented": {
+              "auc": 0.5243871668117001,
+              "brier": 0.24957911347135314,
+              "logloss": 0.6923043650226204,
+              "n": 52120
+            },
+            "baseline": {
+              "auc": 0.5235204666574732,
+              "brier": 0.24965217329866637,
+              "logloss": 0.6924508932684829,
+              "n": 52120
+            },
+            "delta_logloss": 0.00014652824586247615,
+            "feature_count": 78,
+            "rows": 52120,
+            "seed": 20261021
+          },
+          {
+            "augmented": {
+              "auc": 0.5237178995669931,
+              "brier": 0.24962952440643077,
+              "logloss": 0.6924056353829368,
+              "n": 52120
+            },
+            "baseline": {
+              "auc": 0.5247041681045285,
+              "brier": 0.2496035948291442,
+              "logloss": 0.6923540512313757,
+              "n": 52120
+            },
+            "delta_logloss": -5.158415156103491e-05,
+            "feature_count": 78,
+            "rows": 52120,
+            "seed": 20261022
+          }
+        ],
+        "trial_number": 43
+      }
+    ],
+    "status": "fixed_downstream_budget_complete"
+  },
+  "experiment_id": "btc_esn_portfolio_20261020",
+  "finalization_engine_sha256": "996fa602b327d0c8b480d8b9a9f5cd32f354a419315e6841cfbf06e4ef617665",
+  "finalization_runner_sha256": "32c4f7898bd06cf12ae9973619252d10887bff3500a124f79c924b61fab90d22",
+  "holdout_evaluation": false,
+  "holdout_rows_materialized": 0,
+  "identity": {
+    "baseline_data": {
+      "bytes": 1269944837,
+      "mtime_ns": 1792283629303501500,
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet"
+    },
+    "baseline_summary_sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+    "config_sha256": "54b11afdfd77c1d51e39973b0e7cf7c9d20c7eb09d74e74347f69696ee2c0743",
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "engine_sha256": "a71b271187d13d8cb29f0b7d403346e55d743af40de3f8c2e85160279df17326",
+    "experiment_id": "btc_esn_portfolio_20261020",
+    "runner_sha256": "0068563f64d3e2e3a70e2f1a62e59d94850d7addc38c0b0a45f9c3e2dab4f1a8",
+    "source_commit": "11927f3a824f6bd38f0ef4d1131f747ac467d761",
+    "source_data": {
+      "bytes": 4973420713,
+      "mtime_ns": 1792121879797728100,
+      "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet"
+    }
+  },
+  "live_configuration_changes": false,
+  "live_orders": false,
+  "performance": {
+    "benchmark_report": "reports/btc_preopen/btc_esn_portfolio_20261020_benchmark.md",
+    "compute_cap_exceeded": false,
+    "compute_cap_seconds": 14400,
+    "total_active_elapsed_seconds": 2207.0796408999963
+  },
+  "polymarket_book_replay": false,
+  "portfolio": {
+    "candidate_trials_passing_screen": 16,
+    "holdout_rows_materialized": 0,
+    "identity": {
+      "baseline_data": {
+        "bytes": 1269944837,
+        "mtime_ns": 1792283629303501500,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet"
+      },
+      "baseline_summary_sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+      "config_sha256": "54b11afdfd77c1d51e39973b0e7cf7c9d20c7eb09d74e74347f69696ee2c0743",
+      "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+      "engine_sha256": "a71b271187d13d8cb29f0b7d403346e55d743af40de3f8c2e85160279df17326",
+      "experiment_id": "btc_esn_portfolio_20261020",
+      "runner_sha256": "0068563f64d3e2e3a70e2f1a62e59d94850d7addc38c0b0a45f9c3e2dab4f1a8",
+      "source_commit": "11927f3a824f6bd38f0ef4d1131f747ac467d761",
+      "source_data": {
+        "bytes": 4973420713,
+        "mtime_ns": 1792121879797728100,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet"
+      }
+    },
+    "member_count": 1,
+    "portfolio_result": {
+      "mean_delta_logloss": 5.5233027869287334e-05,
+      "member_count": 1,
+      "positive_seed_count": 3,
+      "seed_deltas": [
+        4.8639682661111294e-05,
+        6.198289242032029e-05,
+        5.507650852643042e-05
+      ]
+    },
+    "portfolio_stages": [
+      {
+        "current_mean_delta_logloss": 5.5233027869287334e-05,
+        "member_added": 1
+      },
+      {
+        "mean_delta_logloss": 5.131154738317415e-05,
+        "member_count": 2,
+        "per_seed": [
+          {
+            "delta_logloss": 4.784990440120929e-05,
+            "fit_rows": 52972,
+            "seed": 20261020,
+            "validation_rows": 52120
+          },
+          {
+            "delta_logloss": 5.059922546457596e-05,
+            "fit_rows": 52972,
+            "seed": 20261021,
+            "validation_rows": 52120
+          },
+          {
+            "delta_logloss": 5.5485512283737215e-05,
+            "fit_rows": 52972,
+            "seed": 20261022,
+            "validation_rows": 52120
+          }
+        ],
+        "positive_seed_count": 3,
+        "seed_deltas": [
+          4.784990440120929e-05,
+          5.059922546457596e-05,
+          5.5485512283737215e-05
+        ],
+        "trial_number": 42
+      },
+      {
+        "mean_delta_logloss": 5.0682294371329206e-05,
+        "member_count": 2,
+        "per_seed": [
+          {
+            "delta_logloss": 4.8791698518568793e-05,
+            "fit_rows": 52972,
+            "seed": 20261020,
+            "validation_rows": 52120
+          },
+          {
+            "delta_logloss": 5.166655766963846e-05,
+            "fit_rows": 52972,
+            "seed": 20261021,
+            "validation_rows": 52120
+          },
+          {
+            "delta_logloss": 5.158862692578037e-05,
+            "fit_rows": 52972,
+            "seed": 20261022,
+            "validation_rows": 52120
+          }
+        ],
+        "positive_seed_count": 3,
+        "seed_deltas": [
+          4.8791698518568793e-05,
+          5.166655766963846e-05,
+          5.158862692578037e-05
+        ],
+        "trial_number": 43
+      },
+      {
+        "mean_delta_logloss": 5.4704752643057e-05,
+        "member_count": 2,
+        "per_seed": [
+          {
+            "delta_logloss": 5.021441773955804e-05,
+            "fit_rows": 52972,
+            "seed": 20261020,
+            "validation_rows": 52120
+          },
+          {
+            "delta_logloss": 6.06373818221595e-05,
+            "fit_rows": 52972,
+            "seed": 20261021,
+            "validation_rows": 52120
+          },
+          {
+            "delta_logloss": 5.326245836745347e-05,
+            "fit_rows": 52972,
+            "seed": 20261022,
+            "validation_rows": 52120
+          }
+        ],
+        "positive_seed_count": 3,
+        "seed_deltas": [
+          5.021441773955804e-05,
+          6.06373818221595e-05,
+          5.326245836745347e-05
+        ],
+        "trial_number": 45
+      },
+      {
+        "mean_delta_logloss": 2.7631865319177606e-05,
+        "member_count": 2,
+        "per_seed": [
+          {
+            "delta_logloss": 1.530793686588261e-06,
+            "fit_rows": 52972,
+            "seed": 20261020,
+            "validation_rows": 52120
+          },
+          {
+            "delta_logloss": 3.663869754610971e-05,
+            "fit_rows": 52972,
+            "seed": 20261021,
+            "validation_rows": 52120
+          },
+          {
+            "delta_logloss": 4.472610472483485e-05,
+            "fit_rows": 52972,
+            "seed": 20261022,
+            "validation_rows": 52120
+          }
+        ],
+        "positive_seed_count": 3,
+        "seed_deltas": [
+          1.530793686588261e-06,
+          3.663869754610971e-05,
+          4.472610472483485e-05
+        ],
+        "trial_number": 4
+      },
+      {
+        "current_mean_delta_logloss": 5.4704752643057e-05,
+        "member_added": 2
+      }
+    ],
+    "selected_members": [
+      {
+        "config": {
+          "architecture": "single",
+          "bias_scaling": 0.2854321560208828,
+          "connectivity": 0.15,
+          "input_groups": [
+            "volume"
+          ],
+          "input_scaling": 0.11458116879584701,
+          "leak_rate": 0.694542963838798,
+          "reservoir_count": 1,
+          "reservoir_size": 128,
+          "selected_columns": [
+            "log_volume",
+            "volume_ratio_to_prior_30m_median"
+          ],
+          "spectral_radius": 0.16062729735492653,
+          "topology": "ring"
+        },
+        "portfolio_result": {
+          "mean_delta_logloss": 5.5233027869287334e-05,
+          "member_count": 1,
+          "positive_seed_count": 3,
+          "seed_deltas": [
+            4.8639682661111294e-05,
+            6.198289242032029e-05,
+            5.507650852643042e-05
+          ]
+        },
+        "trial_number": 44
+      }
+    ],
+    "selection_rule": "greedy addition on three common seeds; require positive mean and at least two positive seed deltas; stop when the combined correction does not improve",
+    "selection_source": "linear_incremental_screen",
+    "shortlist_size": 5,
+    "status": "portfolio_frozen_before_confirmation"
+  },
+  "report_path": "reports/btc_preopen/btc_esn_portfolio_20261020.md",
+  "runner_code_recovery": {
+    "finalization_engine_sha256": "996fa602b327d0c8b480d8b9a9f5cd32f354a419315e6841cfbf06e4ef617665",
+    "finalization_runner_sha256": "32c4f7898bd06cf12ae9973619252d10887bff3500a124f79c924b61fab90d22",
+    "reason": "resume finalization after fixing stream-prefix alignment and read-only NVAR validity-mask errors",
+    "recovered_search_engine_sha256": "a71b271187d13d8cb29f0b7d403346e55d743af40de3f8c2e85160279df17326",
+    "recovered_search_runner_sha256": "0068563f64d3e2e3a70e2f1a62e59d94850d7addc38c0b0a45f9c3e2dab4f1a8"
+  },
+  "search": {
+    "attempted_trials": 48,
+    "completed_trials": 47,
+    "effective_allowance_seconds": 7200.0,
+    "elapsed_seconds": 1720.9638356000069,
+    "holdout_rows_materialized": 0,
+    "identity": {
+      "baseline_data": {
+        "bytes": 1269944837,
+        "mtime_ns": 1792283629303501500,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet"
+      },
+      "baseline_summary_sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+      "config_sha256": "54b11afdfd77c1d51e39973b0e7cf7c9d20c7eb09d74e74347f69696ee2c0743",
+      "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+      "engine_sha256": "a71b271187d13d8cb29f0b7d403346e55d743af40de3f8c2e85160279df17326",
+      "experiment_id": "btc_esn_portfolio_20261020",
+      "runner_sha256": "0068563f64d3e2e3a70e2f1a62e59d94850d7addc38c0b0a45f9c3e2dab4f1a8",
+      "source_commit": "11927f3a824f6bd38f0ef4d1131f747ac467d761",
+      "source_data": {
+        "bytes": 4973420713,
+        "mtime_ns": 1792121879797728100,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet"
+      }
+    },
+    "prior_failed_attempt_active_seconds": 158.3463175,
+    "seed_is_hyperparameter": false,
+    "seed_values": [
+      20261020,
+      20261021,
+      20261022
+    ],
+    "status": "search_complete",
+    "study_db": "data/analysis/polymarket/BTC/btc_esn_portfolio_20261020_r3/optuna.sqlite3",
+    "study_name": "btc_esn_portfolio_20261020",
+    "time_limit_seconds": 7200
+  },
+  "search_data_materialization": {
+    "baseline_feature_count": 70,
+    "baseline_filter_applied_before_materialization": "Opened >= 2020-06-09T09:33:00Z and Opened < 2025-07-01 00:00:00 and target_label_available_at < 2025-07-01 00:00:00",
+    "decision_rows": 529842,
+    "development_baseline_rows": 2649226,
+    "development_raw_rows": 2660546,
+    "first_raw_opened_utc": "2020-06-09T09:33:00+00:00",
+    "holdout_rows_materialized": 0,
+    "identity": {
+      "baseline_data": {
+        "bytes": 1269944837,
+        "mtime_ns": 1792283629303501500,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/common_complete_training_rows.parquet"
+      },
+      "baseline_summary_sha256": "9e5f75de333b07f36ca614d3b91060d1b5d4599e25bdea9288ce6c4547e7d23c",
+      "config_sha256": "54b11afdfd77c1d51e39973b0e7cf7c9d20c7eb09d74e74347f69696ee2c0743",
+      "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+      "engine_sha256": "a71b271187d13d8cb29f0b7d403346e55d743af40de3f8c2e85160279df17326",
+      "experiment_id": "btc_esn_portfolio_20261020",
+      "runner_sha256": "0068563f64d3e2e3a70e2f1a62e59d94850d7addc38c0b0a45f9c3e2dab4f1a8",
+      "source_commit": "11927f3a824f6bd38f0ef4d1131f747ac467d761",
+      "source_data": {
+        "bytes": 4973420713,
+        "mtime_ns": 1792121879797728100,
+        "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet"
+      }
+    },
+    "last_raw_opened_utc": "2025-06-30T23:58:00+00:00",
+    "materialization_cutoff_utc": "2025-07-01T00:00:00+00:00",
+    "source_filter_applied_before_materialization": "Opened >= 2020-06-09 09:33:00 and Opened < 2025-06-30 23:59:00 (equivalent to Opened+1m < 2025-07-01 00:00:00)",
+    "source_opened_type": "large_string",
+    "status": "development_data_prepared"
+  },
+  "split": {
+    "confirmation_end_exclusive_utc": "2026-07-01T00:00:00Z",
+    "confirmation_policy": "one frozen A/B/C comparison; no Optuna or portfolio reselection after confirmation begins",
+    "confirmation_start_utc": "2025-07-01T00:00:00Z",
+    "correction_fit_end_exclusive_utc": "2025-01-01T00:00:00Z",
+    "correction_fit_start_utc": "2024-07-01T00:00:00Z",
+    "existing_fold_decision": "the saved BASE70 folds use a rolling approximately three-year training span and do not satisfy the project whole-history baseline; this experiment freezes a new one-path split before search",
+    "fit_core_end_exclusive_utc": "2024-07-01T00:00:00Z",
+    "fit_core_start_utc": "2020-06-09T09:33:00Z",
+    "kind": "one chronological development path",
+    "search_validation_end_exclusive_utc": "2025-07-01T00:00:00Z",
+    "search_validation_start_utc": "2025-01-01T00:00:00Z",
+    "training_purge": "target_label_available_at <= first nominal_decision_at in the prediction block"
+  },
+  "status": "complete_development_only"
+}
