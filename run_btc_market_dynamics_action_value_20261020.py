@@ -157,7 +157,6 @@ def _read_raw_oof(start_at=None) -> pd.DataFrame:
     ).to_pandas()
     frame["market_start_utc"] = pd.to_datetime(frame.market_start_utc, utc=True)
     frame["nominal_decision_at"] = pd.to_datetime(frame.nominal_decision_at, utc=True)
-    frame["prediction_available_at_utc"] = pd.to_datetime(frame.prediction_available_at_utc, utc=True)
     study.assert_development_starts(frame.market_start_utc, context="RAW BASE70 OOF")
     if frame.market_start_utc.duplicated().any():
         raise RuntimeError("RAW BASE70 must have one forecast for every market start")
@@ -226,6 +225,35 @@ def _as_int(value, default: int = 0) -> int:
         return int(value)
     except (TypeError, ValueError):
         return int(default)
+
+
+def _as_utc_aware_timestamp(value) -> pd.Timestamp | None:
+    """Parse an explicitly zoned timestamp and normalize it to UTC."""
+    if value is None:
+        return None
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    try:
+        timestamp = pd.Timestamp(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if pd.isna(timestamp) or timestamp.tzinfo is None:
+        return None
+    return timestamp.tz_convert("UTC")
+
+
+def _prediction_availability_status(available_at, deadline) -> tuple[str, pd.Timestamp | None]:
+    """Classify recorded prediction availability against the frozen UTC deadline."""
+    deadline_utc = _as_utc_aware_timestamp(deadline)
+    if deadline_utc is None:
+        raise ValueError("prediction availability deadline must be timezone-aware")
+    available_utc = _as_utc_aware_timestamp(available_at)
+    if available_utc is None:
+        return "unproven", None
+    return ("on_time" if available_utc <= deadline_utc else "late"), available_utc
 
 
 def _market_probability(up_bid, up_ask, down_bid, down_ask):
@@ -314,7 +342,9 @@ def _static_record(raw, snapshot, market):
         "up_bid_ask_locked_t60": _as_bool(snapshot.up_bid_ask_locked),
         "down_bid_ask_locked_t60": _as_bool(snapshot.down_bid_ask_locked),
         "raw_fold_id": str(raw.fold_id),
-        "raw_prediction_available_at_utc": raw.prediction_available_at_utc,
+        "raw_prediction_available_at_utc": _as_utc_aware_timestamp(
+            raw.prediction_available_at_utc
+        ),
         "archive_window_hours_expected": _as_int(snapshot.archive_window_hours_expected),
         "archive_window_hours_source_available": _as_int(snapshot.archive_window_hours_source_available),
         "archive_window_hours_processed": _as_int(snapshot.archive_window_hours_processed),
@@ -337,21 +367,30 @@ def _load_input_tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict
     raw_map = {pd.Timestamp(row.market_start_utc): row for row in raw.itertuples(index=False)}
     t60_map = {str(row.condition_id).lower(): row for row in t60.itertuples(index=False)}
     records, reasons = [], defaultdict(int)
+    availability_counts = defaultdict(int)
     rows = []
     for market in market_index.itertuples(index=False):
         raw_row = raw_map.get(pd.Timestamp(market.market_start_utc))
         if raw_row is None:
             reasons["raw_oof_missing"] += 1
             continue
+        expected_decision = pd.Timestamp(market.market_start_utc) + pd.Timedelta(seconds=DECISION_OFFSET_SECONDS)
+        availability_status, _ = _prediction_availability_status(
+            raw_row.prediction_available_at_utc,
+            expected_decision + pd.Timedelta(seconds=1),
+        )
+        availability_counts[availability_status] += 1
         snapshot = t60_map.get(str(market.condition_id).lower())
         if snapshot is None:
             reasons["t60_snapshot_missing"] += 1
             continue
-        expected_decision = pd.Timestamp(market.market_start_utc) + pd.Timedelta(seconds=DECISION_OFFSET_SECONDS)
         if pd.Timestamp(raw_row.nominal_decision_at) != expected_decision:
             reasons["raw_decision_time_misaligned"] += 1
             continue
-        if pd.Timestamp(raw_row.prediction_available_at_utc) > expected_decision + pd.Timedelta(seconds=1):
+        if availability_status == "unproven":
+            reasons["raw_prediction_availability_unproven"] += 1
+            continue
+        if availability_status == "late":
             reasons["raw_prediction_late"] += 1
             continue
         record, reason = _static_record(raw_row, snapshot, market)
@@ -375,6 +414,12 @@ def _load_input_tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict
             "down_token_id": record["down_token_id"],
         })
     static = pd.DataFrame.from_records(records)
+    if not records:
+        raise RuntimeError(
+            "No development static candidate passed RAW prediction availability; "
+            f"unproven={availability_counts.get('unproven', 0)}, "
+            f"late={availability_counts.get('late', 0)}"
+        )
     static.sort_values("market_start_utc", kind="stable", inplace=True, ignore_index=True)
     if static.condition_id.duplicated().any() or static.market_start_utc.duplicated().any():
         raise RuntimeError("static candidate calendar has duplicate markets")
@@ -389,7 +434,14 @@ def _load_input_tables() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict
         "official_market_first_start_utc": earliest.isoformat(),
         "official_market_last_start_utc": market_index.market_start_utc.max().isoformat(),
         "raw_oof_fold_counts_joined": raw.loc[raw.market_start_utc.isin(market_index.market_start_utc), "fold_id"].value_counts().sort_index().to_dict(),
-        "raw_oof_prediction_available_at_le_decision_plus_one_second": True,
+        "raw_oof_prediction_availability_rejections": {
+            "unproven": availability_counts.get("unproven", 0),
+            "late": availability_counts.get("late", 0),
+        },
+        "raw_oof_prediction_available_at_le_decision_plus_one_second": (
+            availability_counts.get("unproven", 0) == 0
+            and availability_counts.get("late", 0) == 0
+        ),
         "holdout_rows_materialized": 0,
     }
     _write_parquet(static, STATIC_PATH)

@@ -1,0 +1,214 @@
+{
+  "availability_fix_runner_sha256": "b1cea304a0e73340c7dace7de566f9151c363c7c72599dd5b19e1c9f5df8b5cf",
+  "baseline_commit_verified": "25a013be45ded28c0bfe9e93ff19d7149df25263",
+  "current_frozen_gate": {
+    "current_evaluation_market_count": 0,
+    "current_evaluation_observed_day_count": 0,
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00+00:00",
+    "evaluation_days_gate_pass": false,
+    "evaluation_markets_gate_pass": false,
+    "folds": [
+      {
+        "causally_usable_training_label_classes": [],
+        "causally_usable_training_rows_with_raw_on_time": 0,
+        "current_eligible_evaluation_markets": 0,
+        "current_evaluation_days": 0,
+        "current_q5_two_sided_training_markets": 0,
+        "evaluation_end_exclusive_utc": "2026-06-01T00:00:00+00:00",
+        "evaluation_start_utc": "2026-05-15T00:00:00+00:00",
+        "fold_id": 1,
+        "official_released_training_labels_before_raw_availability_filter": 1760,
+        "pre_fix_evaluation_markets_from_frozen_audit": 520,
+        "pre_fix_q5_two_sided_training_markets_from_frozen_audit": 908,
+        "pre_fix_released_training_labels_from_frozen_audit": 1760,
+        "prediction_late_among_pre_fix_evaluation_candidates": 0,
+        "prediction_unproven_among_pre_fix_evaluation_candidates": 520,
+        "q5_two_sided_minimum_met": false,
+        "released_label_minimum_met": false
+      },
+      {
+        "causally_usable_training_label_classes": [],
+        "causally_usable_training_rows_with_raw_on_time": 0,
+        "current_eligible_evaluation_markets": 0,
+        "current_evaluation_days": 0,
+        "current_q5_two_sided_training_markets": 0,
+        "evaluation_end_exclusive_utc": "2026-07-01T00:00:00+00:00",
+        "evaluation_start_utc": "2026-06-01T00:00:00+00:00",
+        "fold_id": 2,
+        "official_released_training_labels_before_raw_availability_filter": 2279,
+        "pre_fix_evaluation_markets_from_frozen_audit": 117,
+        "pre_fix_q5_two_sided_training_markets_from_frozen_audit": 1207,
+        "pre_fix_released_training_labels_from_frozen_audit": 2279,
+        "prediction_late_among_pre_fix_evaluation_candidates": 0,
+        "prediction_unproven_among_pre_fix_evaluation_candidates": 117,
+        "q5_two_sided_minimum_met": false,
+        "released_label_minimum_met": false
+      }
+    ],
+    "frozen_evaluation_start_utc": "2026-05-15T00:00:00+00:00",
+    "minimum_evaluation_markets": 2000,
+    "minimum_nonempty_evaluation_folds": 2,
+    "minimum_observed_days": 20,
+    "nonempty_evaluation_fold_count": 0,
+    "nonempty_folds_gate_pass": false,
+    "overall_prefit_gate_pass": false,
+    "q5_two_sided_training_gate_pass_on_nonempty_folds": false,
+    "released_label_gate_pass_on_nonempty_folds": false
+  },
+  "historical_candle_source_probe": {
+    "complete_history_coverage_verified": false,
+    "end_time_filter": "2026-07-01T00:00:00Z minus 1 millisecond",
+    "full_archive_downloaded": false,
+    "last_sampled_bar_close_utc": "2026-06-30T23:59:59.999Z",
+    "probe_date_utc": "2026-10-20",
+    "sources": [
+      {
+        "development_samples": [
+          {
+            "rows": 4,
+            "start_utc": "2023-06-20T16:45:00Z"
+          },
+          {
+            "rows": 4,
+            "start_utc": "2026-06-30T23:56:00Z"
+          }
+        ],
+        "endpoint": "https://fapi.binance.com/fapi/v1/klines",
+        "symbol": "BTCUSDT"
+      },
+      {
+        "development_samples": [
+          {
+            "rows": 4,
+            "start_utc": "2023-06-20T16:45:00Z"
+          },
+          {
+            "rows": 4,
+            "start_utc": "2026-06-30T23:56:00Z"
+          }
+        ],
+        "endpoint": "https://dapi.binance.com/dapi/v1/indexPriceKlines",
+        "pair": "BTCUSD"
+      }
+    ]
+  },
+  "historical_prefit_gate_before_availability_fix": {
+    "evaluation_days_gate_pass": true,
+    "evaluation_market_count": 637,
+    "evaluation_markets_gate_pass": false,
+    "evaluation_observed_day_count": 22,
+    "evaluation_recovered_markets_added": 4,
+    "folds": [
+      {
+        "evaluation_end_exclusive_utc": "2026-06-01T00:00:00+00:00",
+        "evaluation_market_count": 520,
+        "evaluation_observed_days": 12,
+        "evaluation_recovered_markets_added": 0,
+        "evaluation_start_utc": "2026-05-15T00:00:00+00:00",
+        "first_decision_at_utc": "2026-05-14T23:59:00+00:00",
+        "fold_id": 1,
+        "known_two_sided_q5_training_market_count": 908,
+        "q5_two_sided_minimum_met": false,
+        "recovered_q5_training_markets_added": 0,
+        "released_label_minimum_met": true,
+        "released_training_label_classes": [
+          0,
+          1
+        ],
+        "released_training_label_count": 1760
+      },
+      {
+        "evaluation_end_exclusive_utc": "2026-07-01T00:00:00+00:00",
+        "evaluation_market_count": 117,
+        "evaluation_observed_days": 10,
+        "evaluation_recovered_markets_added": 4,
+        "evaluation_start_utc": "2026-06-01T00:00:00+00:00",
+        "first_decision_at_utc": "2026-05-31T23:59:00+00:00",
+        "fold_id": 2,
+        "known_two_sided_q5_training_market_count": 1207,
+        "q5_two_sided_minimum_met": true,
+        "recovered_q5_training_markets_added": 0,
+        "released_label_minimum_met": true,
+        "released_training_label_classes": [
+          0,
+          1
+        ],
+        "released_training_label_count": 2279
+      }
+    ],
+    "minimum_evaluation_markets": 2000,
+    "minimum_evaluation_observed_days": 20,
+    "minimum_nonempty_evaluation_folds": 2,
+    "nonempty_evaluation_fold_count": 2,
+    "nonempty_folds_gate_pass": true,
+    "overall_prefit_gate_pass": false,
+    "q5_two_sided_training_gate_pass": false,
+    "released_label_gate_pass": true,
+    "scope": {
+      "economic_scores_or_returns_read_or_computed": false,
+      "evaluation_outcome_rows_materialized": 0,
+      "model_fit_started": false,
+      "post_cutoff_rows_materialized": 0
+    }
+  },
+  "history_overlap_by_period": [
+    {
+      "history_audit_candidates": 2144,
+      "independently_verified_recovered": 0,
+      "period": "fold_1_2026-05-15_to_2026-06-01",
+      "pre_fix_history_qualified": 520,
+      "prediction_availability_unproven": 2144,
+      "prediction_late": 0,
+      "still_rejected_by_history_or_other_source_gates": 1624
+    },
+    {
+      "history_audit_candidates": 2725,
+      "independently_verified_recovered": 4,
+      "period": "fold_2_2026-06-01_to_2026-07-01",
+      "pre_fix_history_qualified": 113,
+      "prediction_availability_unproven": 2725,
+      "prediction_late": 0,
+      "still_rejected_by_history_or_other_source_gates": 2608
+    },
+    {
+      "history_audit_candidates": 1927,
+      "independently_verified_recovered": 0,
+      "period": "pre_2026-05-15",
+      "pre_fix_history_qualified": 1760,
+      "prediction_availability_unproven": 1927,
+      "prediction_late": 0,
+      "still_rejected_by_history_or_other_source_gates": 167
+    }
+  ],
+  "raw_oof": {
+    "development_rows": 318560,
+    "history_audit_candidate_rows": 6796,
+    "history_candidates_late": 0,
+    "history_candidates_unproven": 6796,
+    "joined_rows_late": 0,
+    "joined_rows_unproven": 21961,
+    "joined_rows_with_recorded_availability": 0,
+    "official_development_market_index_rows": 21962,
+    "official_index_market_starts_joined_to_raw_oof": 21961,
+    "official_index_market_starts_without_raw_oof": 1,
+    "official_index_starts_without_raw_oof": [
+      "2026-06-30T23:55:00+00:00"
+    ]
+  },
+  "scope": {
+    "economic_scoring_run": false,
+    "filter_applied_before_materialization": "market_start_utc < 2026-07-01T00:00:00Z",
+    "holdout_rows_materialized": 0,
+    "models_fitted": false,
+    "tuning_run": false
+  },
+  "unproven_prediction_availability_overlapping_h_flags": {
+    "accepted_cross_side_late_price_change": 38,
+    "book_message_counted_as_reset": 4357,
+    "equal_timestamp_or_ambiguous_event": 3088,
+    "equal_timestamp_price_conflict": 2984,
+    "ignored_same_side_stale_price_change": 246,
+    "ignored_stale_book": 118,
+    "invalid_native_quote": 973
+  }
+}

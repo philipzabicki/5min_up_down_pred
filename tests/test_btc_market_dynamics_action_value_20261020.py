@@ -103,6 +103,44 @@ class BtcMarketDynamicsActionValueTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "non-development"):
             study.assert_development_starts(starts, context="fold predictions")
 
+    def test_prediction_availability_nat_is_unproven(self):
+        status, available = runner._prediction_availability_status(
+            pd.NaT, pd.Timestamp("2026-05-14T23:59:00Z")
+        )
+        self.assertEqual(status, "unproven")
+        self.assertIsNone(available)
+
+    def test_invalid_or_timezone_naive_prediction_time_is_unproven(self):
+        deadline = pd.Timestamp("2026-05-14T23:59:00Z")
+        for value in ("not-a-time", "2026-05-14 23:58:59"):
+            with self.subTest(value=value):
+                status, available = runner._prediction_availability_status(value, deadline)
+                self.assertEqual(status, "unproven")
+                self.assertIsNone(available)
+
+    def test_prediction_availability_is_normalized_to_utc(self):
+        status, available = runner._prediction_availability_status(
+            "2026-05-15T01:58:00+02:00",
+            pd.Timestamp("2026-05-14T23:59:00Z"),
+        )
+        self.assertEqual(status, "on_time")
+        self.assertEqual(available, pd.Timestamp("2026-05-14T23:58:00Z"))
+        self.assertEqual(str(available.tz), "UTC")
+
+    def test_prediction_available_exactly_at_deadline_is_on_time(self):
+        status, available = runner._prediction_availability_status(
+            "2026-05-14T23:59:00Z", pd.Timestamp("2026-05-14T23:59:00Z")
+        )
+        self.assertEqual(status, "on_time")
+        self.assertEqual(available, pd.Timestamp("2026-05-14T23:59:00Z"))
+
+    def test_prediction_available_after_deadline_is_late(self):
+        status, available = runner._prediction_availability_status(
+            "2026-05-14T23:59:00.001Z", pd.Timestamp("2026-05-14T23:59:00Z")
+        )
+        self.assertEqual(status, "late")
+        self.assertEqual(available, pd.Timestamp("2026-05-14T23:59:00.001Z"))
+
     def test_source_or_receive_event_after_t60_is_not_causal(self):
         cutoff = 1_000
         receive = [990, 1_001, 995]
