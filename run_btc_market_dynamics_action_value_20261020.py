@@ -692,7 +692,10 @@ def _process_market_event_group(
         if event_type == "book":
             if not token["initialized"] and token_id not in runtime["first_book_receive_ns"]:
                 runtime["first_book_receive_ns"][token_id] = int(received_ns)
-            runtime["book_reset_count"] += 1
+            before_book_count = int(state["book_count"])
+            before_initialized = bool(token["initialized"])
+            before_bids = dict(token["bids"])
+            before_asks = dict(token["asks"])
         before_ambiguous = bool(token["ask_order_ambiguous"])
         before_size = None
         price = _number(getattr(row, "price", None))
@@ -701,6 +704,15 @@ def _process_market_event_group(
             before_size = token["asks"].get(round(price, 8))
         replay._update_event(state, row, int(received_ns), expected)
         after_token = state["tokens"].get(token_id)
+        if event_type == "book" and after_token is not None:
+            accepted = int(state["book_count"]) > before_book_count
+            changed_full_book = (
+                not before_initialized
+                or before_bids != after_token["bids"]
+                or before_asks != after_token["asks"]
+            )
+            if accepted and changed_full_book:
+                runtime["book_reset_count"] += 1
         if after_token is not None and not before_ambiguous and bool(after_token["ask_order_ambiguous"]):
             if token_id in relevant_ids:
                 runtime["ambiguous_event_count"] += 1

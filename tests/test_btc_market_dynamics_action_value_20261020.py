@@ -1,3 +1,4 @@
+import json
 import unittest
 
 import numpy as np
@@ -8,6 +9,66 @@ import run_btc_market_dynamics_action_value_20261020 as runner
 
 
 class BtcMarketDynamicsActionValueTests(unittest.TestCase):
+    def test_book_reset_counter_counts_only_accepted_full_book_state_changes(self):
+        state = runner.replay._new_state()
+        runtime = {
+            "first_book_receive_ns": {},
+            "depletion_trackers": {},
+            "ambiguous_event_count": 0,
+            "book_reset_count": 0,
+        }
+
+        def apply_book(source_ns, receive_ns, bids, asks):
+            group = pd.DataFrame([{
+                "event_type": "book",
+                "asset_id": "up-token",
+                "timestamp": pd.Timestamp(source_ns, unit="ns", tz="UTC"),
+                "bids": json.dumps(bids),
+                "asks": json.dumps(asks),
+            }])
+            runner._process_market_event_group(
+                state, runtime, group, receive_ns, "up-token", "down-token",
+            )
+
+        bids = [[0.49, 10.0]]
+        asks = [[0.50, 10.0]]
+        apply_book(100, 100, bids, asks)  # initial accepted snapshot
+        self.assertEqual(state["book_count"], 1)
+        self.assertEqual(runtime["book_reset_count"], 1)
+
+        apply_book(101, 110, bids, asks)  # accepted, identical full book
+        self.assertEqual(state["book_count"], 2)
+        self.assertEqual(runtime["book_reset_count"], 1)
+
+        apply_book(102, 120, bids, [[0.50, 8.0]])  # accepted, state changing
+        self.assertEqual(state["book_count"], 3)
+        self.assertEqual(runtime["book_reset_count"], 2)
+
+        apply_book(101, 130, bids, asks)  # stale and ignored by the replay
+        self.assertEqual(state["book_count"], 3)
+        self.assertEqual(runtime["book_reset_count"], 2)
+        self.assertEqual(state["out_of_order_book_events"], 1)
+
+        conflicting_group = pd.DataFrame([
+            {
+                "event_type": "book", "asset_id": "up-token",
+                "timestamp": pd.Timestamp(103, unit="ns", tz="UTC"),
+                "bids": json.dumps(bids), "asks": json.dumps([[0.50, 8.0]]),
+            },
+            {
+                "event_type": "book", "asset_id": "up-token",
+                "timestamp": pd.Timestamp(103, unit="ns", tz="UTC"),
+                "bids": json.dumps(bids), "asks": json.dumps([[0.50, 7.0]]),
+            },
+        ])
+        runner._process_market_event_group(
+            state, runtime, conflicting_group, 140, "up-token", "down-token",
+        )
+        self.assertEqual(state["book_count"], 5)
+        self.assertEqual(runtime["book_reset_count"], 3)
+        self.assertGreaterEqual(runtime["ambiguous_event_count"], 1)
+        self.assertTrue(state["tokens"]["up-token"]["ask_order_ambiguous"])
+
     def test_t60_reconstruction_compares_endpoint_event_and_book_counts(self):
         start = pd.Timestamp("2026-05-01T12:00:00Z")
         static = pd.DataFrame([{
