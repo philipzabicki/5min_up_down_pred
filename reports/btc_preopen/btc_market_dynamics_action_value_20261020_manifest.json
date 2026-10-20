@@ -1,0 +1,164 @@
+{
+  "availability": {
+    "evaluation_days_required": 20,
+    "evaluation_markets": 633,
+    "evaluation_markets_required": 2000,
+    "evaluation_markets_with_known_q5_targets_both_sides": 410,
+    "evaluation_observed_days": 22,
+    "evaluation_start_utc": "2026-05-15T00:00:00+00:00",
+    "fold_minima_pass": false,
+    "folds": [
+      {
+        "evaluation_end_exclusive_utc": "2026-06-01T00:00:00+00:00",
+        "evaluation_market_count": 520,
+        "evaluation_observed_days": 12,
+        "evaluation_start_utc": "2026-05-15T00:00:00+00:00",
+        "first_decision_at_utc": "2026-05-14T23:59:00+00:00",
+        "fold_id": 1,
+        "released_label_classes": [
+          0,
+          1
+        ],
+        "released_official_label_count": 1760,
+        "training_market_count": 1760,
+        "training_markets_with_known_q5_both_sides": 908
+      },
+      {
+        "evaluation_end_exclusive_utc": "2026-07-01T00:00:00+00:00",
+        "evaluation_market_count": 113,
+        "evaluation_observed_days": 10,
+        "evaluation_start_utc": "2026-06-01T00:00:00+00:00",
+        "first_decision_at_utc": "2026-05-31T23:59:00+00:00",
+        "fold_id": 2,
+        "released_label_classes": [
+          0,
+          1
+        ],
+        "released_official_label_count": 2279,
+        "training_market_count": 2279,
+        "training_markets_with_known_q5_both_sides": 1207
+      }
+    ],
+    "official_label_rows": 21962,
+    "official_label_rows_known": 21962,
+    "status": "blocked_missing_dynamic_history"
+  },
+  "baseline_commit": "b118f274687e33414e2c90a697a7535a738200a4",
+  "bootstrap_run": false,
+  "code_hashes": {
+    "configuration_sha256": "f795b7d4a7564a691034a245f8ac3adf762bea349ef5c5e69f4141886856b6df",
+    "feature_code_sha256": "63c171c4a3a4c8cfe818761f60033e815f43c4298368fdf93d0b5709469c7dc6",
+    "runner_sha256": "543b5e7a388b1b7c2fbb99509c0dabba396eaeba80967597d92d26a665cd3d21",
+    "test_files_sha256": {
+      "tests/test_btc_market_dynamics_action_value_20261020.py": "aa1ecb2e8b5dcb679b57151ba1e4a30e7aad152bfa2c014575587345ebe03c8c",
+      "tests/test_btc_preopen_contract.py": "d5d050aeec95d54c8f32f0487ad26243d2fc6de57cde1cd3d0548369048f840c",
+      "tests/test_btc_preopen_economic_replay.py": "4080eec6b6ef8c976c7454d0672002df579551ede00920d982cbc54f69192677",
+      "tests/test_btc_preopen_t59_reassessment.py": "d427270dcd4eaa89be49d48517d902f824f28c381949eebade9c92d2bfea8a36",
+      "tests/test_polymarket_btc5m_fee_rules.py": "2a26a6db0ec5d0d1b12b8669079b90aaac0a1b394460ea3d08fbc50217830081"
+    }
+  },
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "economic_scoring_run": false,
+  "experiment_id": "btc_market_dynamics_action_value_20261020",
+  "generated_at_utc": "2026-10-20T00:07:31.846767+00:00",
+  "inputs": {
+    "event_archive": {
+      "archive_source_manifest_sha256": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+      "compressed_bytes_in_development_scan": 1242757525,
+      "dependency_sha256": "03c8de59db70a1312f52bd072756c1832075d283ac4d30f9ec71de6c32af27b2",
+      "ordered_part_hashes_sha256": "b28ab538e229d7dae443acaf5978854a23a6c755e598397608d4c18a43a8f7e6",
+      "partition_count_in_development_scan": 1853
+    },
+    "market_index": {
+      "bytes": 7486947,
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+      "sha256": "f828da19aa9c1811118abadd3d58a00b51ff2311ceb7492138ccfc1da5dd2973"
+    },
+    "raw_base70_oof": {
+      "bytes": 11166225,
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_decision_oof.parquet",
+      "sha256": "dfaad30e79c2c98333f02f9a6da3e99686c7d5a3df1ded5a80a0d01bd98a99e8"
+    },
+    "raw_base70_oof_origin": {
+      "conditional_oof": true,
+      "earlier_official_market_prediction_rows": 0,
+      "microstructure_development_manifest": "reports/btc_preopen/btc_market_microstructure_development_20261019_manifest.json",
+      "microstructure_development_manifest_sha256": "abbf53cb08fdd9c53859138a11f12d64858713abbc8aed2a44ef8d5fe3ee49a8",
+      "source_report": "reports/btc_preopen/btc_preopen_taker_flow_20261018.md",
+      "source_run_manifest": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json"
+    },
+    "t59_ladders": {
+      "bytes": 26051278,
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t59_ask_ladders_with_source_coverage.parquet",
+      "sha256": "abee0fdaf31eaf1455b4343e985bf9d5ee38a84dd8eb7e06adf1e08fc0c380d0"
+    },
+    "t60_snapshot": {
+      "bytes": 25908421,
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/book_replay_t60_t59/t60_decision_books_with_source_coverage.parquet",
+      "sha256": "38259fadf50c28e455f5d4523610cbac827886e35922076dbba5cb33bd55e0b1"
+    }
+  },
+  "interpretation": "Feasibility only; the frozen pre-fit minima failed, so no model quality or profitability test was completed.",
+  "manifest_version": 1,
+  "models_fitted": [],
+  "next_allowed_step": "With separately verified event-history backfill, add at least 1,367 valid evaluation markets and 92 pre-fold q=$5 two-sided training markets, then rerun the same gate without relaxing minima.",
+  "promotion_evaluated": false,
+  "protocol_hash_amendment": "The runner digest was refreshed after removing terminal blank lines only. Replay, feature, policy, threshold, and input semantics were unchanged; no models were fitted.",
+  "reason_no_fit": "633 evaluation markets < 2,000 required; fold 1 has 908 known q=$5 two-sided training markets < 1,000 required.",
+  "replay": {
+    "candidate_markets": 6796,
+    "dynamic_exclusion_reasons": {
+      "book_reset_inside_depletion_window_60s": 992,
+      "invalid_native_quote_window_15s": 1,
+      "invalid_native_quote_window_60s": 659,
+      "unresolved_order_or_history_60s": 2751
+    },
+    "event_rows_at_or_after_cutoff_materialized": 0,
+    "event_rows_selected": 39013290,
+    "markets_with_valid_S_H_RAW": 2393,
+    "metadata_known_empty_partitions_skipped": 444,
+    "nonempty_partitions_scanned": 1409,
+    "t60_reconstruction": {
+      "book_count_mismatches": 0,
+      "compared_markets": 6796,
+      "event_count_mismatches": 0,
+      "max_abs_price_delta": 0.0,
+      "quote_mismatches": 0
+    }
+  },
+  "runtime": {
+    "full_event_replay_seconds": 2417.4745458000107,
+    "observed_memory_note": "PowerShell sample during replay showed about 41.6 GB system memory available and worker processes around 0.4 GB each.",
+    "runner_peak_working_set_bytes": null,
+    "workers": 4
+  },
+  "status": "blocked_missing_dynamic_history",
+  "validation": {
+    "historical_summary_incidentally_seen_not_used": true,
+    "holdout_evaluation": false,
+    "holdout_rows_materialized": 0,
+    "live_actions": false,
+    "orders_submitted": false,
+    "runner_sha256": "543b5e7a388b1b7c2fbb99509c0dabba396eaeba80967597d92d26a665cd3d21",
+    "test_count": 93,
+    "tests": "passed"
+  },
+  "versioned_artifacts": {
+    "availability": {
+      "path": "data/analysis/polymarket/BTC/btc_market_dynamics_action_value_20261020/availability.json",
+      "sha256": "3e875efca582a74671931aa1eaa1f47186121ca0f2be0ca808711c3ffeed9785"
+    },
+    "frozen_protocol": {
+      "path": "data/analysis/polymarket/BTC/btc_market_dynamics_action_value_20261020/frozen_protocol.json",
+      "sha256": "36cb9689ffa45ca0208f927dc702597c97abeede572c29fbd6cb66ad5a318a50"
+    },
+    "report": {
+      "path": "reports/btc_preopen/btc_market_dynamics_action_value_20261020.md",
+      "sha256": "6ae314fd7461d5b5e41f8342b45a1133113928f4d8c185d747a1c8be5c1b09ca"
+    },
+    "run_manifest": {
+      "path": "data/analysis/polymarket/BTC/btc_market_dynamics_action_value_20261020/run_manifest.json",
+      "sha256": "540850e41ca4322cc22c7c4d0d2de92b573cf86440f18e1118a0bcb1f64f52f4"
+    }
+  }
+}
