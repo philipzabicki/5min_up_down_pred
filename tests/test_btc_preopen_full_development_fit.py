@@ -33,6 +33,15 @@ class FullDevelopmentConfigurationTests(unittest.TestCase):
         )
 
         profile = full_development._build_profile(full_development.CONTRACT_PATH)
+        self.assertEqual(
+            profile["raw_data_path"],
+            full_development.CONFIG["development_raw_data_path"],
+        )
+        self.assertNotEqual(profile["raw_data_path"], profile["source_raw_data_path"])
+        self.assertEqual(
+            profile["development_cutoff_exclusive_utc"],
+            "2026-07-01T00:00:00Z",
+        )
         self.assertEqual(profile["calibration_oof_mode"], "selected_development_cv")
         self.assertEqual(profile["model_trials"], 60)
         self.assertEqual(profile["main_model_tuning_time_limit_seconds"], 7200)

@@ -394,7 +394,52 @@ def validate_sample_weight_array(sample_weight_np):
         raise ValueError("Sample weights must be strictly positive.")
 
 
-def load_base_ohlcv_frame(data_path):
+def validate_development_target_boundary(
+        opened_values,
+        development_cutoff_exclusive_utc,
+        *,
+        label_end_values=None,
+        labeled_mask=None,
+):
+    """Reject development inputs or labels that cross the frozen cutoff."""
+    cutoff = pd.Timestamp(development_cutoff_exclusive_utc)
+    if cutoff.tzinfo is None:
+        raise ValueError("development_cutoff_exclusive_utc must be timezone-aware")
+    cutoff = cutoff.tz_convert("UTC")
+    opened = pd.DatetimeIndex(pd.to_datetime(opened_values, utc=True, errors="raise"))
+    if (opened >= cutoff).any():
+        first_invalid = opened[opened >= cutoff].min()
+        raise ValueError(
+            "Development OHLCV input contains timestamps at or after the exclusive "
+            f"cutoff: first={first_invalid.isoformat()} cutoff={cutoff.isoformat()}"
+        )
+    if label_end_values is None:
+        if labeled_mask is not None:
+            raise ValueError("labeled_mask requires label_end_values")
+        return
+    label_end = pd.DatetimeIndex(
+        pd.to_datetime(label_end_values, utc=True, errors="raise")
+    )
+    if len(label_end) != len(opened):
+        raise ValueError("label_end_values must match opened_values")
+    if labeled_mask is None:
+        labeled = np.ones(len(opened), dtype=np.bool_)
+    else:
+        labeled = np.asarray(labeled_mask, dtype=np.bool_)
+        if labeled.ndim != 1 or len(labeled) != len(opened):
+            raise ValueError("labeled_mask must be a 1D array matching opened_values")
+    invalid = labeled & (label_end > cutoff)
+    if invalid.any():
+        first_invalid = int(np.flatnonzero(invalid)[0])
+        raise ValueError(
+            "Development target label ends after the exclusive cutoff: "
+            f"opened={opened[first_invalid].isoformat()} "
+            f"label_end={label_end[first_invalid].isoformat()} "
+            f"cutoff={cutoff.isoformat()}"
+        )
+
+
+def load_base_ohlcv_frame(data_path, *, development_cutoff_exclusive_utc=None):
     if not data_path.exists():
         raise FileNotFoundError(f"Base dataset not found: {data_path}")
 
@@ -402,6 +447,10 @@ def load_base_ohlcv_frame(data_path):
     print(f"load raw data | path={data_path}")
     df = pd.read_csv(data_path, usecols=required_columns)
     require_columns(df, required_columns)
+    if development_cutoff_exclusive_utc is not None:
+        validate_development_target_boundary(
+            df[TARGET_TIME_COL], development_cutoff_exclusive_utc
+        )
     raw_rows = len(df)
     df, drop_frozen_summary = drop_frozen_ohlc_blocks(
         df,
@@ -418,6 +467,14 @@ def load_base_ohlcv_frame(data_path):
         )
 
     df = build_target_frame(df)
+    if development_cutoff_exclusive_utc is not None:
+        opened = pd.DatetimeIndex(pd.to_datetime(df[TARGET_TIME_COL], utc=True))
+        validate_development_target_boundary(
+            opened,
+            development_cutoff_exclusive_utc,
+            label_end_values=opened + pd.Timedelta(minutes=TARGET_HORIZON_MINUTES),
+            labeled_mask=df[TARGET_COL].notna().to_numpy(dtype=np.bool_, copy=False),
+        )
     df = df[df[TARGET_COL].notna()].reset_index(drop=True)
     rows_after_target_notna = len(df)
     if rows_after_target_notna == 0:
@@ -1579,7 +1636,12 @@ def run_optuna_optimization():
         normalized_base_vp_config["feature_columns"]
     )
 
-    base_data = load_base_ohlcv_frame(BASE_DATA_PATH)
+    base_data = load_base_ohlcv_frame(
+        BASE_DATA_PATH,
+        development_cutoff_exclusive_utc=MODELING_DATASET_SETTINGS.get(
+            "development_cutoff_exclusive_utc"
+        ),
+    )
     base_df = base_data["df"]
     filtered_rows = int(base_data["row_filter_info"]["rows_after"])
     folds = make_walk_forward_folds(

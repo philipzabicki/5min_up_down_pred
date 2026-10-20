@@ -5,6 +5,7 @@
   "source_walk_forward_config": "configs/research/btc_preopen_walk_forward_20261011.json",
   "source_contract": "configs/btc_preopen_v1.json",
   "raw_data_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+  "development_raw_data_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_development_cutoff_20260701.csv",
   "official_markets_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
   "output_dir": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016",
   "report_path": "reports/btc_preopen/btc_preopen_full_development_fit_20261016.md",

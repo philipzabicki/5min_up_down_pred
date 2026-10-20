@@ -107,6 +107,68 @@ def build_preopen_contract_frame(
     return out
 
 
+def validate_development_candle_input(
+        candles: pd.DataFrame,
+        development_cutoff_exclusive_utc,
+        *,
+        opened_col: str = "Opened",
+) -> pd.Timestamp:
+    """Require a development-only candle input and return its UTC cutoff."""
+    if opened_col not in candles.columns:
+        raise ValueError(f"Missing BTC development input column: {opened_col}")
+    cutoff = pd.Timestamp(development_cutoff_exclusive_utc)
+    if cutoff.tzinfo is None:
+        raise ValueError("development_cutoff_exclusive_utc must be timezone-aware")
+    cutoff = cutoff.tz_convert("UTC")
+    opened = pd.DatetimeIndex(
+        pd.to_datetime(candles[opened_col], utc=True, errors="raise")
+    )
+    if (opened >= cutoff).any():
+        first_invalid = opened[opened >= cutoff].min()
+        raise ValueError(
+            "Development candle input contains timestamps at or after the exclusive "
+            f"cutoff: first={first_invalid.isoformat()} cutoff={cutoff.isoformat()}"
+        )
+    return cutoff
+
+
+def validate_preopen_development_labels(
+        contract_frame: pd.DataFrame,
+        development_cutoff_exclusive_utc,
+) -> None:
+    """Require every finite pre-open target to end inside development."""
+    required = (TARGET_START_COL, TARGET_END_COL, TARGET_COL)
+    missing = [column for column in required if column not in contract_frame.columns]
+    if missing:
+        raise ValueError(f"Missing pre-open development target columns: {missing}")
+    cutoff = pd.Timestamp(development_cutoff_exclusive_utc)
+    if cutoff.tzinfo is None:
+        raise ValueError("development_cutoff_exclusive_utc must be timezone-aware")
+    cutoff = cutoff.tz_convert("UTC")
+    market_start = pd.DatetimeIndex(
+        pd.to_datetime(contract_frame[TARGET_START_COL], utc=True, errors="raise")
+    )
+    label_end = pd.DatetimeIndex(
+        pd.to_datetime(contract_frame[TARGET_END_COL], utc=True, errors="raise")
+    )
+    labels = pd.to_numeric(contract_frame[TARGET_COL], errors="coerce").to_numpy(
+        dtype=np.float64, copy=False
+    )
+    labeled = np.isfinite(labels)
+    invalid = labeled & (
+        (market_start >= cutoff)
+        | (label_end > cutoff)
+    )
+    if invalid.any():
+        first_invalid = int(np.flatnonzero(invalid)[0])
+        raise ValueError(
+            "Development target reaches outside the frozen market/label boundary: "
+            f"market_start={market_start[first_invalid].isoformat()} "
+            f"label_end={label_end[first_invalid].isoformat()} "
+            f"cutoff={cutoff.isoformat()}"
+        )
+
+
 def build_preopen_return_target(contract_frame: pd.DataFrame) -> np.ndarray:
     """Return the price-proxy return over the exact pre-open contract window."""
     start = pd.to_numeric(

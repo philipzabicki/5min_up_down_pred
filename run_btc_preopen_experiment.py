@@ -36,6 +36,8 @@ from features.btc_preopen_contract import (
     last_closed_candle_opened_at,
     preopen_decision_mask,
     purge_unavailable_training_rows,
+    validate_development_candle_input,
+    validate_preopen_development_labels,
 )
 from utils.data import TARGET_WEIGHT_COL
 from utils.btc_preopen_tuning_resume import (
@@ -2071,7 +2073,30 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
     contract_path = ROOT / profile["contract_path"]
     contract = json.loads(contract_path.read_text(encoding="utf-8"))
     split = contract["chronological_split_frozen_before_tuning"]
-    raw_path = Path(profile.get("raw_data_path", RAW_CANDLES_PATH))
+    if profile.get("development_cutoff_exclusive_utc") is not None:
+        development_input = profile.get("development_input_path")
+        source_input = profile.get("source_raw_data_path")
+        if not development_input:
+            raise RuntimeError(
+                "Frozen development runs require a separate development_input_path"
+            )
+        raw_path = Path(development_input)
+        profile_raw_path = Path(profile.get("raw_data_path", development_input))
+        resolved_raw_path = (raw_path if raw_path.is_absolute() else ROOT / raw_path).resolve()
+        resolved_profile_raw_path = (
+            profile_raw_path if profile_raw_path.is_absolute() else ROOT / profile_raw_path
+        ).resolve()
+        if resolved_profile_raw_path != resolved_raw_path:
+            raise RuntimeError("Development profile raw_data_path differs from its dedicated input")
+        if source_input:
+            source_path = Path(source_input)
+            resolved_source_path = (
+                source_path if source_path.is_absolute() else ROOT / source_path
+            ).resolve()
+            if resolved_source_path == resolved_raw_path:
+                raise RuntimeError("Development input aliases the full-history source")
+    else:
+        raw_path = Path(profile.get("raw_data_path", RAW_CANDLES_PATH))
     if not raw_path.is_absolute():
         raw_path = ROOT / raw_path
     official_path = Path(profile.get("official_markets_path", DEFAULT_OFFICIAL_MARKETS_PATH))
@@ -2209,6 +2234,20 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         dataset_settings["preopen_target"] = {
             "prediction_compute_budget_seconds": PREDICTION_COMPUTE_BUDGET_SECONDS
         }
+        if profile.get("development_cutoff_exclusive_utc") is not None:
+            dataset_settings["preopen_target"].update(
+                {
+                    "development_cutoff_exclusive_utc": profile[
+                        "development_cutoff_exclusive_utc"
+                    ],
+                    "development_input_path": raw_path.resolve().as_posix(),
+                    "source_raw_data_path": (
+                        Path(profile["source_raw_data_path"])
+                        if Path(profile["source_raw_data_path"]).is_absolute()
+                        else ROOT / profile["source_raw_data_path"]
+                    ).resolve().as_posix(),
+                }
+            )
 
         stages = profile.get("stage_runtime_budgets_seconds", {})
 
@@ -2487,10 +2526,21 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             usecols=["Opened", "Open", "High", "Low", "Close", "Volume"],
         )
         raw_values["Opened"] = pd.to_datetime(raw_values["Opened"], utc=True, errors="raise")
+        if profile.get("development_cutoff_exclusive_utc") is not None:
+            validate_development_candle_input(
+                raw_values,
+                profile["development_cutoff_exclusive_utc"],
+                opened_col="Opened",
+            )
         contract_full = build_preopen_contract_frame(
             raw_values,
             prediction_compute_budget_seconds=PREDICTION_COMPUTE_BUDGET_SECONDS,
         )
+        if profile.get("development_cutoff_exclusive_utc") is not None:
+            validate_preopen_development_labels(
+                contract_full,
+                profile["development_cutoff_exclusive_utc"],
+            )
         contract_cols = [
             "Opened", TARGET_COL, TARGET_AVAILABLE_COL, DECISION_COL,
             "feature_candle_close_at", "nominal_decision_at",
@@ -2511,6 +2561,13 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         decision_at = pd.DatetimeIndex(pd.to_datetime(contract_frame["nominal_decision_at"], utc=True, errors="raise"))
         y_full = pd.to_numeric(contract_frame[TARGET_COL], errors="coerce").to_numpy(dtype=np.float64, copy=False)
         valid_labels = np.isfinite(y_full) & label_available.notna()
+        if profile.get("development_cutoff_exclusive_utc") is not None:
+            vp_module.validate_development_target_boundary(
+                opened,
+                profile["development_cutoff_exclusive_utc"],
+                label_end_values=label_available,
+                labeled_mask=valid_labels,
+            )
         fit_start = pd.Timestamp(split["feature_and_model_fit_start_utc"])
         fit_mask = (
             valid_labels

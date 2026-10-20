@@ -39,6 +39,8 @@ from features.btc_preopen_contract import (
     TARGET_START_COL as PREOPEN_TARGET_START_COL,
     build_preopen_contract_frame,
     build_preopen_target_weights,
+    validate_development_candle_input,
+    validate_preopen_development_labels,
 )
 from features.reaction_profile_fixed_grid import (
     FEATURE_VERSION as RP_FEATURE_VERSION,
@@ -136,6 +138,39 @@ def require_columns(df, required):
     missing = [col for col in required if col not in df.columns]
     if missing:
         raise ValueError(f"Missing required columns: {missing}")
+
+
+def _resolve_dataset_input_file(settings):
+    input_file = resolve_raw_dataset_input_path(settings)
+    preopen_config = settings.get("preopen_target")
+    if not isinstance(preopen_config, dict) or preopen_config.get(
+        "development_cutoff_exclusive_utc"
+    ) is None:
+        return input_file
+    development_input = preopen_config.get("development_input_path")
+    if not development_input:
+        raise ValueError(
+            "A frozen development cutoff requires an explicit development_input_path"
+        )
+    source_input = preopen_config.get("source_raw_data_path")
+    if not source_input:
+        raise ValueError(
+            "A frozen development cutoff requires source_raw_data_path to prove input separation"
+        )
+    development_input = Path(development_input)
+    if not development_input.is_absolute():
+        development_input = Path.cwd() / development_input
+    source_input = Path(source_input)
+    if not source_input.is_absolute():
+        source_input = Path.cwd() / source_input
+    if development_input.resolve() == source_input.resolve():
+        raise ValueError("The development input cannot alias the full-history source")
+    if development_input.resolve() != input_file.resolve():
+        raise ValueError(
+            "The pre-open dataset input must be the separately configured "
+            "development-only file"
+        )
+    return development_input
 
 
 _AUX_PRICE_MARKER_RE = re.compile(r"(^|[^a-z0-9])(um|index|reference)([^a-z0-9]|$)")
@@ -252,6 +287,11 @@ def build_target(df, float_dtype=np.float64, *, preopen_config=None):
                 preopen_config.get("prediction_compute_budget_seconds", 0.0)
             ),
         )
+        development_cutoff = preopen_config.get(
+            "development_cutoff_exclusive_utc"
+        )
+        if development_cutoff is not None:
+            validate_preopen_development_labels(contract, development_cutoff)
         target_frame = pd.DataFrame(
             {
                 PREOPEN_TARGET_COL: contract[PREOPEN_TARGET_COL].to_numpy(
@@ -743,7 +783,8 @@ def build_dataset_from_settings(settings):
     else:
         streak_interval_to_rule = configured_streak_interval_to_rule
 
-    input_file = resolve_raw_dataset_input_path(settings)
+    preopen_config = settings.get("preopen_target")
+    input_file = _resolve_dataset_input_file(settings)
     if not input_file.exists():
         raise FileNotFoundError(f"Missing base dataset: {input_file}")
 
@@ -793,6 +834,14 @@ def build_dataset_from_settings(settings):
         )
     print(f"float precision mode: {float_dtype_name}")
     df = pd.read_csv(input_file)
+    if isinstance(preopen_config, dict) and preopen_config.get(
+        "development_cutoff_exclusive_utc"
+    ) is not None:
+        validate_development_candle_input(
+            df,
+            preopen_config["development_cutoff_exclusive_utc"],
+            opened_col=TARGET_TIME_COL,
+        )
     df, drop_frozen_summary = drop_frozen_ohlc_blocks(
         df,
         raw_config=drop_frozen_ohlc_blocks_cfg,
@@ -981,7 +1030,6 @@ def build_dataset_from_settings(settings):
     df = add_indicator_values(df, ohlcv_np, configs, float_dtype=float_dtype)
     del ohlcv_np
 
-    preopen_config = settings.get("preopen_target")
     target_col = PREOPEN_TARGET_COL if preopen_config is not None else TARGET_COL
     df = build_target(
         df,

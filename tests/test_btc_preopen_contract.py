@@ -19,6 +19,8 @@ from features.btc_preopen_contract import (
     preopen_decision_mask,
     purge_unavailable_training_rows,
     scheduled_market_start_for_opened,
+    validate_development_candle_input,
+    validate_preopen_development_labels,
 )
 from features.btc_preopen_baseline import (
     FEATURE_COLUMNS,
@@ -77,6 +79,26 @@ class BtcPreopenContractTests(unittest.TestCase):
         # The old close-to-close six-minute return would use 103.5 -> 109.5.
         # Variant 1 uses the market window's 16:45 open -> 16:50 close instead.
         self.assertNotEqual(row[TARGET_START_PRICE_COL], row["Close"])
+
+    def test_development_input_rejects_candles_at_exclusive_cutoff(self):
+        cutoff = pd.Timestamp("2026-06-01 16:42:00Z")
+        self.assertEqual(
+            validate_development_candle_input(candles("2026-06-01 16:40", 2), cutoff),
+            cutoff,
+        )
+        with self.assertRaisesRegex(ValueError, "at or after the exclusive cutoff"):
+            validate_development_candle_input(candles("2026-06-01 16:40", 3), cutoff)
+
+    def test_development_target_must_end_no_later_than_cutoff(self):
+        row = build_preopen_contract_frame(
+            candles("2026-06-01 16:40", 10)
+        ).loc[lambda frame: frame["Opened"].eq(pd.Timestamp("2026-06-01 16:43Z"))]
+        validate_preopen_development_labels(row, "2026-06-01 16:50:00Z")
+
+        row = row.copy()
+        row.loc[:, "target_window_end_at"] = pd.Timestamp("2026-06-01 16:50:01Z")
+        with self.assertRaisesRegex(ValueError, "target reaches outside"):
+            validate_preopen_development_labels(row, "2026-06-01 16:50:00Z")
 
     def test_candle_event_close_is_nominal_time_but_receive_time_is_unobserved_in_batch(self):
         frame = build_preopen_contract_frame(candles("2026-06-01 16:40", 12))

@@ -125,6 +125,12 @@ def _validate_frozen_config() -> None:
         raise RuntimeError("Development cutoff differs from the accepted research contract")
     if CONFIG["data_cutoff_exclusive_utc"] != "2026-10-07T00:00:00Z":
         raise RuntimeError("Data cutoff differs from the accepted research contract")
+    development_raw_path = Path(CONFIG["development_raw_data_path"])
+    full_history_raw_path = Path(CONFIG["raw_data_path"])
+    if development_raw_path == full_history_raw_path:
+        raise RuntimeError("Full-development fitting requires a separate development-only candle input")
+    if "development_cutoff_20260701" not in development_raw_path.stem:
+        raise RuntimeError("Development candle input name must identify the frozen 2026-07-01 cutoff")
     if (
         CONFIG["holdout_market_start_first_inclusive_utc"] != "2026-07-01T00:00:00Z"
         or CONFIG["holdout_market_start_last_inclusive_utc"] != "2026-10-06T23:55:00Z"
@@ -186,7 +192,10 @@ def _build_profile(contract_path: Path) -> dict:
     selector = CONFIG["feature_selection"]
     profile.update({
         "contract_path": contract_path.resolve().relative_to(ROOT).as_posix(),
-        "raw_data_path": CONFIG["raw_data_path"],
+        "raw_data_path": CONFIG["development_raw_data_path"],
+        "development_input_path": CONFIG["development_raw_data_path"],
+        "source_raw_data_path": CONFIG["raw_data_path"],
+        "development_cutoff_exclusive_utc": CONFIG["development_cutoff_exclusive_utc"],
         "official_markets_path": CONFIG["official_markets_path"],
         "prediction_compute_budget_seconds": 1,
         "output_dir": f"{CONFIG['output_dir']}/pipeline",
