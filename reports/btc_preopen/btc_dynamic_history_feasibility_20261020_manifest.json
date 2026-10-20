@@ -1,0 +1,164 @@
+{
+  "experiment_id": "btc_market_dynamics_action_value_20261020",
+  "baseline_commit": "80020c1",
+  "status": "blocked_source_and_prediction_causality",
+  "original_gate": {
+    "status": "FAIL",
+    "qualified_evaluation_observations": 0,
+    "minimum_evaluation_markets": 2000,
+    "minimum_observed_days": 20,
+    "minimum_nonempty_folds": 2,
+    "minimum_released_training_labels_per_fold": 1000,
+    "minimum_q5_both_sides_training_markets_per_fold": 1000
+  },
+  "frozen_scope": {
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "evaluation_start_utc": "2026-05-15T00:00:00Z",
+    "evaluation_end_exclusive_utc": "2026-07-01T00:00:00Z",
+    "fold_1_first_decision_utc": "2026-05-14T23:59:00Z",
+    "fold_1_evaluation_end_exclusive_utc": "2026-06-01T00:00:00Z",
+    "fold_2_first_decision_utc": "2026-05-31T23:59:00Z",
+    "holdout_rows_materialized": 0,
+    "full_archive_downloaded": false,
+    "training_or_tuning_run": false,
+    "economic_scoring_run": false
+  },
+  "funnel": {
+    "local_official_development_index": 21962,
+    "local_official_development_raw_joined": 21961,
+    "local_official_development_raw_missing": 1,
+    "local_official_development_raw_availability_unproven": 21961,
+    "local_official_development_raw_late": 0,
+    "t60_snapshot_rows": 21962,
+    "static_h_candidates": 6796,
+    "static_candidates_by_partition": {
+      "before_evaluation_f1_training_prefix": 1927,
+      "fold_1_evaluation": 2144,
+      "fold_2_evaluation": 2725
+    },
+    "official_markets_by_partition": {
+      "before_evaluation_f1_training_prefix": 8433,
+      "fold_1_evaluation": 4895,
+      "fold_2_evaluation": 8634
+    },
+    "first_static_rejection_counts": {
+      "before_evaluation_f1_training_prefix": {
+        "source_or_native_book_unavailable": 4351,
+        "ask_order_ambiguous": 2155
+      },
+      "fold_1_evaluation": {
+        "source_or_native_book_unavailable": 1605,
+        "ask_order_ambiguous": 1146
+      },
+      "fold_2_evaluation": {
+        "source_or_native_book_unavailable": 5202,
+        "ask_order_ambiguous": 485,
+        "archive_window_incomplete": 214,
+        "archive_gap_after_book_init": 7,
+        "raw_oof_missing": 1
+      }
+    },
+    "audit_candidate_h": {
+      "candidates_with_source_continuity_complete": 6796,
+      "candidates_with_all_four_endpoints": 6796,
+      "candidates_missing_initialization": 0,
+      "h_valid_original": 2393,
+      "h_valid_after_four_independent_recoveries": 2397,
+      "evaluation_book_only_h_pass_in_preserved_artifacts": 637,
+      "evaluation_independent_replay_market_count": 1285,
+      "evaluation_independently_replayed_h_valid_original_sample": 40,
+      "evaluation_independently_recovered_h_valid": 4
+    },
+    "training_book_only": {
+      "fold_1_released_labels": 1760,
+      "fold_1_q5_both_sides": 908,
+      "fold_2_released_labels": 2279,
+      "fold_2_q5_both_sides": 1207,
+      "fold_1_strict_raw_usable": 0,
+      "fold_2_strict_raw_usable": 0
+    },
+    "unverified_evaluation": {
+      "official_index_markets": 13529,
+      "book_only_h_pass_in_preserved_artifacts": 637,
+      "independent_replay_h_valid_markets": 44,
+      "h_rejected_inside_static_candidate_pool": 4232,
+      "outside_static_candidate_pool": 8660,
+      "unverified_pool_upper_bound": 12892,
+      "additional_recoveries_proven_by_current_preflight": 0,
+      "strict_raw_causal_upper_bound_with_current_provenance": 0
+    }
+  },
+  "book_source_preflight": {
+    "sample_count": 3,
+    "samples": [
+      {
+        "scope": "fold_1_training",
+        "market_start_utc": "2026-05-08T08:55:00Z",
+        "first_static_rejection": "source_or_native_book_unavailable",
+        "local_events_15m": 3432,
+        "events_in_h_window": 288,
+        "book_snapshots_pre_tminus120": 0,
+        "book_events_in_h_window": 0,
+        "interpretation": "price_changes exist but sampled lookback has no initial native book snapshot and quote validity fails"
+      },
+      {
+        "scope": "fold_1_evaluation",
+        "market_start_utc": "2026-05-22T21:55:00Z",
+        "first_static_rejection": "ask_order_ambiguous",
+        "local_events_15m": 1356,
+        "events_in_h_window": 475,
+        "book_snapshots_pre_tminus120": 2,
+        "book_events_in_h_window": 0,
+        "interpretation": "event source and seed books exist; frozen ask ambiguity check fails"
+      },
+      {
+        "scope": "fold_2_evaluation",
+        "market_start_utc": "2026-06-11T04:05:00Z",
+        "first_static_rejection": "source_or_native_book_unavailable",
+        "local_events_15m": 0,
+        "local_missing_partition": "2026-06-11T04",
+        "pmxt_v2_head_status": 404,
+        "interpretation": "the local archive has no relevant market events in the checked window; the same upstream PMXT object was unavailable"
+      }
+    ],
+    "local_event_partitions": {
+      "present_development_hours": 1853,
+      "expected_development_hours": 1856,
+      "missing_hours": [
+        "2026-06-11T04",
+        "2026-06-11T05",
+        "2026-06-11T06"
+      ]
+    },
+    "alternative_snapshot_source": {
+      "name": "PredictionTicks",
+      "advertised_market_day_sample": "2026-06-13",
+      "advertised_markets": 288,
+      "advertised_depth_snapshots": 61375,
+      "advertised_cadence": "approximately 1.5 seconds",
+      "full_archive_listed_price_usd": 15,
+      "compatible_with_frozen_event_replay": false,
+      "acquired": false
+    }
+  },
+  "availability_log_inventory": {
+    "reused_prior_single_inventory": true,
+    "searched_again": false,
+    "recorded_actual_prediction_available_at_rows": 0,
+    "total_raw_oof_rows": 318560,
+    "known_locations_had_receive_or_inference_ready_times": false,
+    "new_log_source_provided": false
+  },
+  "recommendation": "B",
+  "required_missing_data": [
+    "actual input receive and RAW prediction-ready timestamps, or causal walk-forward forecast provenance",
+    "fold-local feature selection and tuning artifacts if historical pipeline causality is claimed",
+    "exact full-depth book/price-change event records and valid T-60/T-59 ladders for missing candidate markets",
+    "a verified official market index join for any earlier-than-2026-04-15 training markets proposed for use"
+  ],
+  "estimated_future_refit_cost_hours_unbenchmarked": {
+    "one_prefix_selection_and_two_fold_fits": [5, 8],
+    "repeated_selection_at_three_forecast_origins": [15, 24],
+    "performed": false
+  }
+}
