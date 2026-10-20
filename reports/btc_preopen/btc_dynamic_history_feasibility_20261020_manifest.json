@@ -1,7 +1,9 @@
 {
   "experiment_id": "btc_market_dynamics_action_value_20261020",
   "baseline_commit": "80020c1",
-  "status": "blocked_source_and_prediction_causality",
+  "status": "CLOSED_BLOCKED_DATA_AND_RAW_PROVENANCE",
+  "previous_status": "blocked_source_and_prediction_causality",
+  "closeout_classification": "blocked_data_and_raw_provenance_not_negative_strategy_result",
   "original_gate": {
     "status": "FAIL",
     "qualified_evaluation_observations": 0,
@@ -150,6 +152,25 @@
     "new_log_source_provided": false
   },
   "recommendation": "B",
+  "closeout": {
+    "closed_utc_date": "2026-10-20",
+    "original_gate_preserved": "FAIL",
+    "qualified_evaluation_observations": 0,
+    "raw_availability_proven_rows": 0,
+    "raw_availability_unproven_rows": 318560,
+    "selection_tuning_future_conditioned_for_earlier_oof": true,
+    "book_only_evaluation_pass_selected_pool_auxiliary": 637,
+    "independent_evaluation_control_scope": 44,
+    "unresolved_official_evaluation_markets": 12892,
+    "additional_recoveries_proven_by_preflight": 0,
+    "resume_conditions": [
+      "source-verified book data sufficient to pass the frozen book thresholds",
+      "causal predictions with evidence that inputs and predictions were available before each deadline",
+      "any assumed-latency reconstruction requires a separate versioned protocol"
+    ],
+    "training_tuning_economics_or_holdout_used_for_closeout": false,
+    "live_changed_or_orders_submitted": false
+  },
   "required_missing_data": [
     "actual input receive and RAW prediction-ready timestamps, or causal walk-forward forecast provenance",
     "fold-local feature selection and tuning artifacts if historical pipeline causality is claimed",

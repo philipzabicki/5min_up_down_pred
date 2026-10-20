@@ -124,3 +124,16 @@ Liczebność rynków:
 **Rekomendacja B — zamknąć wykonalność obecnego eksperymentu jako zablokowaną.** Nie uruchamiać dalszego pełnego replayu ani refitów, dopóki nie ma (1) wiarygodnych logów czasu odbioru danych wejściowych i gotowości RAW albo jawnej zgody na odtworzenie nowego fold-local pipeline’u, (2) kompletnego, dokładnego strumienia zdarzeń książki i snapshotów dla brakujących rynków w `[2026-05-15, 2026-07-01)` oraz treningu pierwszego foldu, i (3) źródłowo potwierdzonych T−60/T−59 drabin z danymi q=$5. Obecny lokalny indeks wystarcza jako populacja startów, lecz nie jako dowód spełnienia H.
 
 Nie wykonano refitu. Szacunek obliczeniowy z poprzedniego audytu — nie benchmark — wynosił około 5–8 h dla jednej selekcji prefiksowej i dwóch fitów foldowych albo 15–24 h przy powtarzaniu selekcji przy trzech originach. To koszt przyszłej przyczynowej ścieżki, nie naprawa historycznych timestampów RAW. Nie oszacowano kosztu pozyskania brakujących dokładnych danych książki; dostępny preflight nie potwierdził kompletności takiego źródła.
+
+## Końcowe zamknięcie eksperymentu — 2026-10-20
+
+**Status: `CLOSED_BLOCKED_DATA_AND_RAW_PROVENANCE`.** To zamknięcie z powodu niewystarczających danych i pochodzenia predykcji; nie jest negatywnym wynikiem strategii. Protokół, zamrożone granice, dane, wyniki i historyczne statusy pozostają zachowane. Nie uruchomiono treningu, tuningu, oceny ekonomicznej ani dalszego audytu/pobierania; holdout i live nie zostały naruszone.
+
+Blokady należy traktować oddzielnie:
+
+1. **Brak dowodu dostępności RAW:** 318 560/318 560 zachowanych predykcji OOF nie ma zarejestrowanego `prediction_available_at_utc`. Nie można wykazać, że RAW był dostępny przed decyzją; brak dowodu nie jest dowodem spóźnienia.
+2. **Przeciek selekcji/tuningu względem wcześniejszych predykcji:** selekcja cech i tuning korzystały z pełnego development, a nie z fold-local procesu przyczynowego. Wcześniejsze OOF są więc warunkowane przyszłym wyborem procesu i nie stanowią przyczynowego dowodu całego pipeline'u. Nie dopisano historycznych czasów dostępności ani nie odtworzono predykcji.
+3. **Niewystarczające zweryfikowane pokrycie książki:** 637 to pomocniczy wynik book/H dla wybranej puli przy pominięciu bramki RAW, a nie zaliczenie gate'u. 44 to zakres rynków ewaluacyjnych poddanych niezależnej kontroli, nie pełna walidacja całej puli 637. Gate pozostaje `FAIL`, z 0 kwalifikowanymi obserwacjami.
+4. **Rynki jeszcze nierozstrzygnięte:** 12 892 oficjalne starty ewaluacji pozostają poza zapisanym book/H pass: 4 232 kandydatów odrzucono przez H, a 8 660 znajdowało się poza selektorem puli audytu. To nieweryfikowana pula, nie liczba rynków odzyskiwalnych ani dowód nieodzyskiwalności. Preflight nie dowiódł żadnych dodatkowych odzysków.
+
+Eksperyment można wznowić wyłącznie po uzyskaniu źródłowo zweryfikowanych danych książki wystarczających do przejścia niezmienionych progów oraz przyczynowych predykcji z dowodem dostępności wejść i gotowości predykcji przed deadline. Rekonstrukcja oparta na założonym opóźnieniu wymaga osobnego, wersjonowanego protokołu; nie wolno używać jej do zmiany obecnego gate'u.
