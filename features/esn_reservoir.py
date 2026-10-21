@@ -19,7 +19,7 @@ except ImportError:  # pragma: no cover - exercised only without the optional JI
         return lambda function: function
 
 
-ENGINE_VERSION = "btc_esn_v1"
+ENGINE_VERSION = "btc_esn_v2"
 MINUTE_NS = pd.Timedelta(minutes=1).value
 
 
@@ -86,16 +86,35 @@ class ESNConfig:
     topology: str = "sparse"
     connectivity: float = 0.15
     input_groups: tuple[str, ...] = ("returns", "candle", "range_volatility", "volume", "basis", "time")
+    component_sizes: tuple[int, ...] | None = None
+    component_input_groups: tuple[tuple[str, ...], ...] | None = None
+    component_topologies: tuple[str, ...] | None = None
+    component_leak_rates: tuple[float, ...] | None = None
+    component_spectral_radii: tuple[float, ...] | None = None
+    component_input_scalings: tuple[float, ...] | None = None
+    component_bias_scalings: tuple[float, ...] | None = None
+    sparse_degree: int | None = None
+    component_sparse_degrees: tuple[int, ...] | None = None
+    branch_count: int = 1
+    layer_count: int = 1
 
     def __post_init__(self):
-        if self.architecture not in {"single", "parallel", "deep"}:
-            raise ValueError("architecture must be single, parallel, or deep")
-        if self.topology not in {"dense", "sparse", "ring"}:
-            raise ValueError("topology must be dense, sparse, or ring")
+        if self.architecture not in {"single", "parallel", "deep", "parallel_deep"}:
+            raise ValueError("architecture must be single, parallel, deep, or parallel_deep")
+        allowed_topologies = {"dense", "sparse", "ring", "orthogonal", "block_sparse"}
+        if self.topology not in allowed_topologies:
+            raise ValueError("unknown recurrent topology")
         if self.reservoir_size < 2 or self.reservoir_count < 1:
             raise ValueError("reservoir_size and reservoir_count are out of range")
         if self.architecture == "single" and self.reservoir_count != 1:
             raise ValueError("single architecture requires reservoir_count=1")
+        if self.architecture == "parallel_deep":
+            if self.branch_count < 2 or self.layer_count < 2:
+                raise ValueError("parallel_deep requires at least two branches and layers")
+            if self.reservoir_count != self.branch_count * self.layer_count:
+                raise ValueError("parallel_deep reservoir_count must equal branches × layers")
+        elif self.branch_count != 1 or self.layer_count != 1:
+            raise ValueError("branch_count/layer_count apply only to parallel_deep")
         if not 0.0 < self.leak_rate <= 1.0:
             raise ValueError("leak_rate must be in (0, 1]")
         if self.input_scaling <= 0.0 or self.bias_scaling < 0.0:
@@ -104,21 +123,128 @@ class ESNConfig:
             raise ValueError("spectral_radius and connectivity must be positive")
         if not self.input_groups or any(group not in INPUT_GROUPS for group in self.input_groups):
             raise ValueError("input_groups must contain known feature groups")
+        configured_sizes = self.component_sizes if self.component_sizes is not None else (self.reservoir_size,) * self.state_count
+        if sum(configured_sizes) > 2048:
+            raise ValueError("total ESN units must not exceed the frozen 2048-unit budget")
+        sizes = self.component_sizes
+        if sizes is not None and (len(sizes) != self.state_count or any(int(size) < 2 for size in sizes)):
+            raise ValueError("component_sizes must provide at least two units per component")
+        if self.component_input_groups is not None:
+            if len(self.component_input_groups) != self.state_count:
+                raise ValueError("component_input_groups must match the component count")
+            if any(group not in INPUT_GROUPS for groups in self.component_input_groups for group in groups):
+                raise ValueError("component_input_groups contains an unknown feature group")
+        for name, values, lower, upper in (
+            ("component_leak_rates", self.component_leak_rates, 0.0, 1.0),
+            ("component_spectral_radii", self.component_spectral_radii, 0.0, float("inf")),
+            ("component_input_scalings", self.component_input_scalings, 0.0, float("inf")),
+        ):
+            if values is not None and (len(values) != self.state_count or any(not lower < float(v) <= upper for v in values)):
+                raise ValueError(f"{name} must contain one valid value per component")
+        if self.component_bias_scalings is not None and (
+            len(self.component_bias_scalings) != self.state_count
+            or any(not np.isfinite(float(value)) or float(value) < 0.0 for value in self.component_bias_scalings)
+        ):
+            raise ValueError("component_bias_scalings must contain one nonnegative value per component")
+        if self.component_topologies is not None and (
+            len(self.component_topologies) != self.state_count
+            or any(topology not in allowed_topologies for topology in self.component_topologies)
+        ):
+            raise ValueError("component_topologies must contain one supported topology per component")
+        if self.sparse_degree is not None and self.sparse_degree < 1:
+            raise ValueError("sparse_degree must be positive")
+        if self.component_sparse_degrees is not None and (
+            len(self.component_sparse_degrees) != self.state_count
+            or any(int(degree) < 1 for degree in self.component_sparse_degrees)
+        ):
+            raise ValueError("component_sparse_degrees must contain one positive degree per component")
 
     @property
     def state_count(self) -> int:
         return 1 if self.architecture == "single" else self.reservoir_count
 
     @property
+    def unit_sizes(self) -> tuple[int, ...]:
+        sizes = self.component_sizes if self.component_sizes is not None else (self.reservoir_size,) * self.state_count
+        return tuple(int(size) for size in sizes)
+
+    @property
+    def total_units(self) -> int:
+        return sum(self.unit_sizes)
+
+    @property
+    def input_groups_by_component(self) -> tuple[tuple[str, ...], ...]:
+        if self.component_input_groups is not None:
+            return tuple(tuple(groups) for groups in self.component_input_groups)
+        if self.architecture == "deep":
+            return (tuple(self.input_groups),) + ((),) * (self.state_count - 1)
+        if self.architecture == "parallel_deep":
+            return tuple(tuple(self.input_groups) if layer == 0 else ()
+                         for _branch in range(self.branch_count)
+                         for layer in range(self.layer_count))
+        return (tuple(self.input_groups),) * self.state_count
+
+    @property
+    def source_components(self) -> tuple[int, ...]:
+        if self.architecture == "deep":
+            return tuple(index - 1 if index else -1 for index in range(self.state_count))
+        if self.architecture == "parallel_deep":
+            return tuple(
+                index - 1 if layer else -1
+                for branch in range(self.branch_count)
+                for layer in range(self.layer_count)
+                for index in (branch * self.layer_count + layer,)
+            )
+        return (-1,) * self.state_count
+
+    def _component_values(self, values, shared):
+        return tuple(values) if values is not None else (shared,) * self.state_count
+
+    @property
+    def leak_rates(self) -> tuple[float, ...]:
+        return self._component_values(self.component_leak_rates, self.leak_rate)
+
+    @property
+    def spectral_radii(self) -> tuple[float, ...]:
+        return self._component_values(self.component_spectral_radii, self.spectral_radius)
+
+    @property
+    def input_scalings(self) -> tuple[float, ...]:
+        return self._component_values(self.component_input_scalings, self.input_scaling)
+
+    @property
+    def bias_scalings(self) -> tuple[float, ...]:
+        return self._component_values(self.component_bias_scalings, self.bias_scaling)
+
+    @property
+    def topologies(self) -> tuple[str, ...]:
+        return self._component_values(self.component_topologies, self.topology)
+
+    @property
+    def sparse_degrees(self) -> tuple[int, ...]:
+        if self.component_sparse_degrees is not None:
+            return tuple(int(value) for value in self.component_sparse_degrees)
+        return tuple(
+            int(self.sparse_degree) if self.sparse_degree is not None
+            else max(1, int(round(self.connectivity * size)))
+            for size in self.unit_sizes
+        )
+
+    @property
     def deep(self) -> bool:
-        return self.architecture == "deep"
+        return self.architecture in {"deep", "parallel_deep"}
 
     @property
     def selected_columns(self) -> tuple[str, ...]:
+        groups = {group for component in self.input_groups_by_component for group in component}
         return tuple(
             column for group in INPUT_GROUPS for column in INPUT_GROUPS[group]
-            if group in self.input_groups
+            if group in groups
         )
+
+    def component_columns(self, index: int) -> tuple[str, ...]:
+        groups = set(self.input_groups_by_component[index])
+        return tuple(column for column in self.selected_columns if INPUT_COLUMN_GROUP[column] in groups)
 
 
 class FeatureScaler:
@@ -209,38 +335,46 @@ class FrozenProjection:
 
 
 @njit(cache=True, nogil=True)
-def _advance(states, x, win, rec_indices, rec_values, bias, leak, deep):
+def _advance(states, x, win, rec_indices, rec_values, bias, leak, component_sizes,
+             source_components, input_indices, input_counts):
     next_states = np.empty_like(states)
-    n_reservoirs, size = states.shape
+    next_states.fill(0.0)
+    n_reservoirs = states.shape[0]
     for r in range(n_reservoirs):
-        if deep and r > 0:
-            source_len = size
-        else:
-            source_len = x.shape[0]
-        for i in range(size):
+        source_component = source_components[r]
+        for i in range(component_sizes[r]):
             activation = bias[r, i]
-            if deep and r > 0:
-                for j in range(source_len):
-                    activation += win[r, i, j] * next_states[r - 1, j]
+            if source_component >= 0:
+                for j in range(component_sizes[source_component]):
+                    activation += win[r, i, j] * next_states[source_component, j]
             else:
-                for j in range(source_len):
-                    activation += win[r, i, j] * x[j]
+                for j in range(input_counts[r]):
+                    activation += win[r, i, j] * x[input_indices[r, j]]
             for edge in range(rec_indices.shape[2]):
                 j = rec_indices[r, i, edge]
                 if j >= 0:
                     activation += rec_values[r, i, edge] * states[r, j]
             candidate = np.tanh(activation)
-            next_states[r, i] = (1.0 - leak) * states[r, i] + leak * candidate
+            next_states[r, i] = (1.0 - leak[r]) * states[r, i] + leak[r] * candidate
     return next_states
 
 
 @njit(cache=True, nogil=True)
-def _run_segment(inputs, initial_states, win, rec_indices, rec_values, bias, leak, deep):
-    result = np.empty((inputs.shape[0], initial_states.size), dtype=np.float32)
+def _run_segment(inputs, initial_states, win, rec_indices, rec_values, bias, leak,
+                 component_sizes, source_components, input_indices, input_counts):
+    total_units = 0
+    for size in component_sizes:
+        total_units += size
+    result = np.empty((inputs.shape[0], total_units), dtype=np.float32)
     states = initial_states.copy()
     for row in range(inputs.shape[0]):
-        states = _advance(states, inputs[row], win, rec_indices, rec_values, bias, leak, deep)
-        result[row] = states.reshape(states.size)
+        states = _advance(states, inputs[row], win, rec_indices, rec_values, bias, leak,
+                          component_sizes, source_components, input_indices, input_counts)
+        offset = 0
+        for component in range(len(component_sizes)):
+            size = component_sizes[component]
+            result[row, offset:offset + size] = states[component, :size]
+            offset += size
     return result, states
 
 
@@ -263,52 +397,106 @@ class ESNEngine:
         self.scaler = scaler
         self.warmup_steps = int(warmup_steps)
         self._state_count = config.state_count
-        self._size = config.reservoir_size
+        self._sizes = np.asarray(config.unit_sizes, dtype=np.int32)
+        self._size = int(self._sizes.max())
+        self._total_units = config.total_units
+        self._source_components = np.asarray(config.source_components, dtype=np.int32)
         self.states = np.zeros((self._state_count, self._size), dtype=np.float32)
         self.steps_since_reset = 0
         self.last_timestamp = None
-        self._win, self._rec_indices, self._rec_values, self._bias = self._make_weights()
+        (self._win, self._rec_indices, self._rec_values, self._bias,
+         self._input_indices, self._input_counts) = self._make_weights()
 
     def _make_weights(self):
         rng = np.random.default_rng(self.seed)
-        n, size, input_size = self._state_count, self._size, len(self.config.selected_columns)
-        max_source = max(size, input_size)
-        win = np.zeros((n, size, max_source), dtype=np.float32)
-        wrec = np.zeros((n, size, size), dtype=np.float32)
-        bias = np.zeros((n, size), dtype=np.float32)
-        for reservoir in range(n):
-            source_size = size if self.config.deep and reservoir > 0 else input_size
-            win[reservoir, :, :source_size] = rng.uniform(
-                -self.config.input_scaling, self.config.input_scaling,
-                size=(size, source_size),
-            )
-            bias[reservoir] = rng.uniform(
-                -self.config.bias_scaling, self.config.bias_scaling, size=size,
-            )
-            if self.config.topology == "ring":
+        n, max_size = self._state_count, self._size
+        input_columns = self.config.selected_columns
+        input_positions = {column: index for index, column in enumerate(input_columns)}
+        component_columns = [self.config.component_columns(index) for index in range(n)]
+        input_counts = np.asarray([len(columns) for columns in component_columns], dtype=np.int32)
+        input_indices = np.full((n, max(1, int(input_counts.max(initial=0)))), -1, dtype=np.int32)
+        for component, columns in enumerate(component_columns):
+            if columns:
+                input_indices[component, :len(columns)] = [input_positions[column] for column in columns]
+        source_width = max(max_size, int(input_counts.max(initial=0)))
+        win = np.zeros((n, max_size, source_width), dtype=np.float32)
+        wrec = np.zeros((n, max_size, max_size), dtype=np.float32)
+        bias = np.zeros((n, max_size), dtype=np.float32)
+        actual_edges = []
+        radius_estimates = []
+        scaled_radii = []
+        for component, size_value in enumerate(self._sizes):
+            size = int(size_value)
+            source_component = int(self._source_components[component])
+            source_size = int(self._sizes[source_component]) if source_component >= 0 else int(input_counts[component])
+            input_scale = self.config.input_scalings[component]
+            bias_scale = self.config.bias_scalings[component]
+            bias[component, :size] = rng.uniform(-bias_scale, bias_scale, size=size)
+            if source_size:
+                win[component, :size, :source_size] = rng.uniform(
+                    -input_scale, input_scale, size=(size, source_size),
+                )
+            topology = self.config.topologies[component]
+            degree = min(int(self.config.sparse_degrees[component]), size)
+            if topology == "ring":
                 for row in range(size):
-                    wrec[reservoir, row, (row - 1) % size] = rng.normal()
-                    wrec[reservoir, row, (row + 1) % size] = rng.normal()
+                    wrec[component, row, (row - 1) % size] = rng.normal()
+                    wrec[component, row, (row + 1) % size] = rng.normal()
+            elif topology == "sparse":
+                for row in range(size):
+                    columns = rng.choice(size, size=degree, replace=False)
+                    wrec[component, row, columns] = rng.normal(size=degree)
+            elif topology == "block_sparse":
+                for start in range(0, size, degree):
+                    end = min(size, start + degree)
+                    wrec[component, start:end, start:end] = rng.normal(size=(end - start, end - start))
+            elif topology == "orthogonal":
+                orthogonal, _ = np.linalg.qr(rng.normal(size=(size, size)))
+                wrec[component, :size, :size] = orthogonal.astype(np.float32)
             else:
-                recurrent = rng.normal(size=(size, size))
-                if self.config.topology == "sparse":
-                    mask = rng.random((size, size)) < self.config.connectivity
-                    np.fill_diagonal(mask, True)
-                    recurrent *= mask
-                wrec[reservoir] = recurrent.astype(np.float32)
-            radius = float(np.max(np.abs(np.linalg.eigvals(wrec[reservoir].astype(np.float64)))))
+                wrec[component, :size, :size] = rng.normal(size=(size, size)).astype(np.float32)
+            if topology == "orthogonal":
+                radius = 1.0
+            else:
+                matrix = wrec[component, :size, :size].astype(np.float64)
+                if size <= 3 or topology == "dense" or (topology == "ring" and size <= 32):
+                    radius = float(np.max(np.abs(np.linalg.eigvals(matrix))))
+                else:
+                    from scipy.sparse import csr_matrix
+                    from scipy.sparse.linalg import ArpackNoConvergence, eigs
+                    start_vector = np.linspace(1.0, 2.0, size, dtype=np.float64)
+                    try:
+                        eigenvalues = eigs(
+                            csr_matrix(matrix), k=1, which="LM", return_eigenvectors=False,
+                            v0=start_vector, tol=1e-5, maxiter=max(1000, 10 * size),
+                        )
+                    except ArpackNoConvergence as exc:
+                        eigenvalues = exc.eigenvalues
+                        if eigenvalues is None or not len(eigenvalues):
+                            raise ValueError("sparse recurrent spectral-radius estimate did not converge") from exc
+                    radius = float(np.max(np.abs(eigenvalues)))
             if not np.isfinite(radius) or radius <= np.finfo(np.float64).eps:
                 raise ValueError("recurrent matrix has invalid spectral radius")
-            wrec[reservoir] *= np.float32(self.config.spectral_radius / radius)
-        max_degree = max(int(np.count_nonzero(wrec[r, i])) for r in range(n) for i in range(size))
-        rec_indices = np.full((n, size, max_degree), -1, dtype=np.int32)
-        rec_values = np.zeros((n, size, max_degree), dtype=np.float32)
-        for reservoir in range(n):
-            for row in range(size):
-                columns = np.flatnonzero(wrec[reservoir, row])
-                rec_indices[reservoir, row, :len(columns)] = columns
-                rec_values[reservoir, row, :len(columns)] = wrec[reservoir, row, columns]
-        return win, rec_indices, rec_values, bias
+            target_radius = float(self.config.spectral_radii[component])
+            wrec[component, :size, :size] *= np.float32(target_radius / radius)
+            radius_estimates.append(radius)
+            scaled_radii.append(target_radius)
+            actual_edges.append(int(np.count_nonzero(wrec[component, :size, :size])))
+
+        max_degree = max(int(np.count_nonzero(wrec[c, row, :self._sizes[c]]))
+                         for c in range(n) for row in range(int(self._sizes[c])))
+        rec_indices = np.full((n, max_size, max_degree), -1, dtype=np.int32)
+        rec_values = np.zeros((n, max_size, max_degree), dtype=np.float32)
+        for component, size_value in enumerate(self._sizes):
+            for row in range(int(size_value)):
+                columns = np.flatnonzero(wrec[component, row, :int(size_value)])
+                rec_indices[component, row, :len(columns)] = columns
+                rec_values[component, row, :len(columns)] = wrec[component, row, columns]
+        self.actual_recurrent_edges = tuple(actual_edges)
+        self.recurrent_radius_estimates = tuple(radius_estimates)
+        self.scaled_spectral_radii = tuple(scaled_radii)
+        self.input_columns_by_component = tuple(tuple(columns) for columns in component_columns)
+        return win, rec_indices, rec_values, bias, input_indices, input_counts
 
     @property
     def ready(self):
@@ -319,13 +507,13 @@ class ESNEngine:
         return tuple(
             f"esn_r{reservoir}_state_{unit:03d}"
             for reservoir in range(self._state_count)
-            for unit in range(self._size)
+            for unit in range(int(self._sizes[reservoir]))
         )
 
     def get_features(self):
         if not self.ready:
             return None
-        return self.states.reshape(-1).copy()
+        return np.concatenate([self.states[index, :int(size)] for index, size in enumerate(self._sizes)])
 
     def _reset(self):
         self.states.fill(0.0)
@@ -352,7 +540,8 @@ class ESNEngine:
         scaled = self.scaler.transform(raw)[0]
         self.states = _advance(
             self.states, scaled, self._win, self._rec_indices, self._rec_values,
-            self._bias, self.config.leak_rate, self.config.deep,
+            self._bias, np.asarray(self.config.leak_rates, dtype=np.float32), self._sizes,
+            self._source_components, self._input_indices, self._input_counts,
         )
         self.steps_since_reset += 1
         self.last_timestamp = ts
@@ -371,10 +560,10 @@ class ESNEngine:
         if valid.ndim != 1 or len(valid) != len(ts):
             raise ValueError("valid_mask must match batch timestamps")
         if not len(ts):
-            return np.empty((0, self.states.size), dtype=np.float32), np.empty(0, dtype=bool)
+            return np.empty((0, self._total_units), dtype=np.float32), np.empty(0, dtype=bool)
         scaled = self.scaler.transform(x)
         timestamp_ns = ts.as_unit("ns").asi8
-        states_out = np.full((len(ts), self.states.size), np.nan, dtype=np.float32)
+        states_out = np.full((len(ts), self._total_units), np.nan, dtype=np.float32)
         ready_out = np.zeros(len(ts), dtype=bool)
         if self.last_timestamp is not None:
             delta = timestamp_ns[0] - self.last_timestamp.value
@@ -392,7 +581,8 @@ class ESNEngine:
             init_steps = self.steps_since_reset
             states, final_state = _run_segment(
                 scaled[start:end], self.states, self._win, self._rec_indices,
-                self._rec_values, self._bias, self.config.leak_rate, self.config.deep,
+                self._rec_values, self._bias, np.asarray(self.config.leak_rates, dtype=np.float32),
+                self._sizes, self._source_components, self._input_indices, self._input_counts,
             )
             states_out[start:end] = states
             self.states = final_state
@@ -409,7 +599,18 @@ class ESNEngine:
         path.parent.mkdir(parents=True, exist_ok=True)
         payload = {
             "engine_version": ENGINE_VERSION,
-            "config": {**asdict(self.config), "input_groups": list(self.config.input_groups)},
+            "config": {
+                **asdict(self.config),
+                "input_groups": list(self.config.input_groups),
+                "component_sizes": None if self.config.component_sizes is None else list(self.config.component_sizes),
+                "component_input_groups": None if self.config.component_input_groups is None else [list(groups) for groups in self.config.component_input_groups],
+                "component_topologies": None if self.config.component_topologies is None else list(self.config.component_topologies),
+                "component_leak_rates": None if self.config.component_leak_rates is None else list(self.config.component_leak_rates),
+                "component_spectral_radii": None if self.config.component_spectral_radii is None else list(self.config.component_spectral_radii),
+                "component_input_scalings": None if self.config.component_input_scalings is None else list(self.config.component_input_scalings),
+                "component_bias_scalings": None if self.config.component_bias_scalings is None else list(self.config.component_bias_scalings),
+                "component_sparse_degrees": None if self.config.component_sparse_degrees is None else list(self.config.component_sparse_degrees),
+            },
             "seed": self.seed,
             "warmup_steps": self.warmup_steps,
             "scaler": self.scaler.to_dict(),
@@ -428,6 +629,13 @@ class ESNEngine:
             raise ValueError("checkpoint engine version mismatch")
         config_data = payload["config"]
         config_data["input_groups"] = tuple(config_data["input_groups"])
+        for name in ("component_sizes", "component_topologies", "component_leak_rates",
+                     "component_spectral_radii", "component_input_scalings",
+                     "component_bias_scalings", "component_sparse_degrees"):
+            if config_data.get(name) is not None:
+                config_data[name] = tuple(config_data[name])
+        if config_data.get("component_input_groups") is not None:
+            config_data["component_input_groups"] = tuple(tuple(groups) for groups in config_data["component_input_groups"])
         config = ESNConfig(**config_data)
         seed = int(payload["seed"])
         if expected_config is not None and config != expected_config:
@@ -604,11 +812,13 @@ def estimate_warmup(training_inputs, config: ESNConfig, seed: int, *,
             row = int(start + offset)
             control = _advance(
                 control, normalized[row], engine._win, engine._rec_indices,
-                engine._rec_values, engine._bias, config.leak_rate, config.deep,
+                engine._rec_values, engine._bias, np.asarray(config.leak_rates, dtype=np.float32),
+                engine._sizes, engine._source_components, engine._input_indices, engine._input_counts,
             )
             perturbed = _advance(
                 perturbed, normalized[row], engine._win, engine._rec_indices,
-                engine._rec_values, engine._bias, config.leak_rate, config.deep,
+                engine._rec_values, engine._bias, np.asarray(config.leak_rates, dtype=np.float32),
+                engine._sizes, engine._source_components, engine._input_indices, engine._input_counts,
             )
             difference = perturbed - control
             error = float(np.sqrt(np.mean(np.square(difference))))

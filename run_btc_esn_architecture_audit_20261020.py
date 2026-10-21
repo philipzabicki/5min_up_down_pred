@@ -244,12 +244,29 @@ def _ready_mask(timestamps_ns, valid, warmup_steps: int) -> np.ndarray:
 
 def _config_record(config: ESNConfig) -> dict:
     count = int(config.state_count)
+    components = []
+    for index, size in enumerate(config.unit_sizes):
+        components.append({
+            "index": index,
+            "source_component": int(config.source_components[index]),
+            "units": int(size),
+            "topology": config.topologies[index],
+            "leak_rate": float(config.leak_rates[index]),
+            "spectral_radius": float(config.spectral_radii[index]),
+            "input_scaling": float(config.input_scalings[index]),
+            "bias_scaling": float(config.bias_scalings[index]),
+            "sparse_degree": int(config.sparse_degrees[index]) if config.topologies[index] in {"sparse", "block_sparse"} else None,
+            "input_groups": list(config.input_groups_by_component[index]),
+            "input_columns": list(config.component_columns(index)),
+        })
     return {
         "architecture": config.architecture,
         "topology": config.topology,
-        "total_units": int(count * config.reservoir_size),
+        "total_units": int(config.total_units),
         "n_reservoirs": count,
         "layers": count if config.architecture == "deep" else None,
+        "branch_count": int(config.branch_count),
+        "layer_count": int(config.layer_count),
         "reservoir_size_per_layer_or_reservoir": int(config.reservoir_size),
         "leak_rate": float(config.leak_rate),
         "spectral_radius": float(config.spectral_radius),
@@ -258,10 +275,20 @@ def _config_record(config: ESNConfig) -> dict:
         "connectivity": float(config.connectivity) if config.topology == "sparse" else None,
         "input_groups": list(config.input_groups),
         "selected_columns": list(config.selected_columns),
+        "components": components,
+        "component_sizes": list(config.unit_sizes),
+        "component_input_groups": [list(groups) for groups in config.input_groups_by_component],
+        "component_topologies": list(config.topologies),
+        "component_leak_rates": list(config.leak_rates),
+        "component_spectral_radii": list(config.spectral_radii),
+        "component_input_scalings": list(config.input_scalings),
+        "component_bias_scalings": list(config.bias_scalings),
+        "component_sparse_degrees": list(config.sparse_degrees),
     }
 
 
 def _config_from_record(record: dict) -> ESNConfig:
+    components = record.get("components") or []
     return ESNConfig(
         architecture=record["architecture"],
         topology=record["topology"],
@@ -273,6 +300,17 @@ def _config_from_record(record: dict) -> ESNConfig:
         bias_scaling=float(record["bias_scaling"]),
         connectivity=0.15 if record.get("connectivity") is None else float(record["connectivity"]),
         input_groups=tuple(record["input_groups"]),
+        component_sizes=tuple(int(value) for value in record.get("component_sizes", ())) or None,
+        component_input_groups=tuple(tuple(groups) for groups in record.get("component_input_groups", ())) or None,
+        component_topologies=tuple(record.get("component_topologies", ())) or None,
+        component_leak_rates=tuple(float(value) for value in record.get("component_leak_rates", ())) or None,
+        component_spectral_radii=tuple(float(value) for value in record.get("component_spectral_radii", ())) or None,
+        component_input_scalings=tuple(float(value) for value in record.get("component_input_scalings", ())) or None,
+        component_bias_scalings=tuple(float(value) for value in record.get("component_bias_scalings", ())) or None,
+        component_sparse_degrees=tuple(int(value) for value in record.get("component_sparse_degrees", ())) or None,
+        branch_count=int(record.get("branch_count", 1)),
+        layer_count=int(record.get("layer_count", 1)),
+        sparse_degree=(None if not components else next((item["sparse_degree"] for item in components if item.get("sparse_degree") is not None), None)),
     )
 
 
@@ -377,13 +415,18 @@ def _input_anchors(input_bases: dict[str, dict]) -> list[tuple[str, dict, dict]]
     return result
 
 
-def _stream_screen_features(config: ESNConfig, seed: int, arrays: dict) -> dict:
+def _stream_screen_features(config: ESNConfig, seed: int, arrays: dict, *, capture_probe: bool = True) -> dict:
     started = time.monotonic()
     key = f"{_config_key(config)}_seed_{seed}"
     feature_path = OUT / "screen_features" / f"{key}.npz"
     feature_meta_path = feature_path.with_suffix(".json")
     bundle_path = OUT / "bundles" / f"{key}.json"
-    expected_meta = {"identity": RUN_IDENTITY, "config": _config_record(config), "seed": int(seed)}
+    expected_meta = {
+        "identity": RUN_IDENTITY,
+        "config": _config_record(config),
+        "seed": int(seed),
+        "capture_probe": bool(capture_probe),
+    }
     if feature_path.exists() and feature_meta_path.exists() and bundle_path.exists():
         if json.loads(feature_meta_path.read_text(encoding="utf-8")) != expected_meta:
             raise RuntimeError("screen-feature cache identity mismatch")
@@ -426,31 +469,40 @@ def _stream_screen_features(config: ESNConfig, seed: int, arrays: dict) -> dict:
 
     base_opened = arrays["base_opened"]
     decision = arrays["decision"]
-    correction_idx = np.flatnonzero(
-        (base_opened >= CORRECTION_START_NS) & (base_opened < CORRECTION_END_NS) & decision
-    )
-    validation_idx = np.flatnonzero(
-        (base_opened >= VALIDATION_START_NS) & (base_opened < SEARCH_END_NS) & decision
-    )
-    capture_base_idx = np.r_[correction_idx, validation_idx]
-    capture_raw_idx = np.asarray(arrays["base_to_raw"][capture_base_idx], dtype=np.int64)
-    if np.any(np.diff(capture_raw_idx) <= 0) or int(capture_raw_idx[-1]) >= stream_rows:
-        raise RuntimeError("frozen correction and validation rows do not align to the permitted raw prefix")
-    if not _scope_mask(base_opened[capture_base_idx], arrays["label_available"][capture_base_idx]).all():
-        raise RuntimeError("screen candidate contains a row or label beyond search validation")
+    if capture_probe:
+        correction_idx = np.flatnonzero(
+            (base_opened >= CORRECTION_START_NS) & (base_opened < CORRECTION_END_NS) & decision
+        )
+        validation_idx = np.flatnonzero(
+            (base_opened >= VALIDATION_START_NS) & (base_opened < SEARCH_END_NS) & decision
+        )
+        capture_base_idx = np.r_[correction_idx, validation_idx]
+        capture_raw_idx = np.asarray(arrays["base_to_raw"][capture_base_idx], dtype=np.int64)
+        if np.any(np.diff(capture_raw_idx) <= 0) or int(capture_raw_idx[-1]) >= stream_rows:
+            raise RuntimeError("frozen correction and validation rows do not align to the permitted raw prefix")
+        if not _scope_mask(base_opened[capture_base_idx], arrays["label_available"][capture_base_idx]).all():
+            raise RuntimeError("screen candidate contains a row or label beyond search validation")
+    else:
+        correction_idx = validation_idx = capture_raw_idx = np.empty(0, dtype=np.int64)
 
     work = OUT / "work" / key
     work.mkdir(parents=True, exist_ok=True)
     progress_path = work / "progress.json"
     checkpoint_path = work / "engine_checkpoint.json"
-    unit_count = config.state_count * config.reservoir_size
+    unit_count = config.total_units
     sample_path = work / "pca_sample.dat"
     capture_path = work / "capture_states.dat"
     ready_path = work / "capture_ready.dat"
     mode = "r+" if progress_path.exists() else "w+"
     sample_states = np.memmap(sample_path, mode=mode, dtype=np.float32, shape=(sample_count, unit_count))
-    capture_states = np.memmap(capture_path, mode=mode, dtype=np.float32, shape=(len(capture_base_idx), unit_count))
-    capture_ready = np.memmap(ready_path, mode=mode, dtype=np.bool_, shape=(len(capture_base_idx),))
+    capture_states = (
+        np.memmap(capture_path, mode=mode, dtype=np.float32, shape=(len(capture_raw_idx), unit_count))
+        if capture_probe else None
+    )
+    capture_ready = (
+        np.memmap(ready_path, mode=mode, dtype=np.bool_, shape=(len(capture_raw_idx),))
+        if capture_probe else None
+    )
     engine = ESNEngine(config, seed, scaler, warmup_steps=warmup_steps)
     start_row = sample_cursor = capture_cursor = 0
     if progress_path.exists():
@@ -482,17 +534,19 @@ def _stream_screen_features(config: ESNConfig, seed: int, arrays: dict) -> dict:
                 raise RuntimeError("a fit-core PCA sample precedes the measured washout")
             sample_states[sample_cursor:sample_cursor + len(locations)] = states[locations]
             sample_cursor += len(locations)
-        left = int(np.searchsorted(capture_raw_idx, start, side="left"))
-        right = int(np.searchsorted(capture_raw_idx, end, side="left"))
-        if right > left:
-            locations = capture_raw_idx[left:right] - start
-            capture_states[capture_cursor:capture_cursor + len(locations)] = states[locations]
-            capture_ready[capture_cursor:capture_cursor + len(locations)] = ready[locations]
-            capture_cursor += len(locations)
+        if capture_probe:
+            left = int(np.searchsorted(capture_raw_idx, start, side="left"))
+            right = int(np.searchsorted(capture_raw_idx, end, side="left"))
+            if right > left:
+                locations = capture_raw_idx[left:right] - start
+                capture_states[capture_cursor:capture_cursor + len(locations)] = states[locations]
+                capture_ready[capture_cursor:capture_cursor + len(locations)] = ready[locations]
+                capture_cursor += len(locations)
         if end % 262_144 == 0 or end == stream_rows:
             sample_states.flush()
-            capture_states.flush()
-            capture_ready.flush()
+            if capture_probe:
+                capture_states.flush()
+                capture_ready.flush()
             engine.save_checkpoint(checkpoint_path)
             _atomic_json(progress_path, {
                 **expected_meta,
@@ -504,9 +558,10 @@ def _stream_screen_features(config: ESNConfig, seed: int, arrays: dict) -> dict:
             })
         _check_compute_cap()
     sample_states.flush()
-    capture_states.flush()
-    capture_ready.flush()
-    if sample_cursor != sample_count or capture_cursor != len(capture_base_idx):
+    if capture_probe:
+        capture_states.flush()
+        capture_ready.flush()
+    if sample_cursor != sample_count or (capture_probe and capture_cursor != len(capture_raw_idx)):
         raise RuntimeError("screen state capture did not reach the frozen row counts")
     saturation = float(np.mean(np.abs(sample_states) >= 0.98))
     if saturation > CONFIG["screening"]["reject_saturation_fraction_above"]:
@@ -520,19 +575,27 @@ def _stream_screen_features(config: ESNConfig, seed: int, arrays: dict) -> dict:
     pca.fit(np.asarray(sample_states))
     projection = FrozenProjection(pca.mean_, pca.components_, pca.explained_variance_ratio_)
     correction_count = len(correction_idx)
-    correction_features = projection.transform(np.asarray(capture_states[:correction_count])).astype(np.float32)
-    validation_features = projection.transform(np.asarray(capture_states[correction_count:])).astype(np.float32)
-    ready_values = np.array(capture_ready, copy=True)
+    if capture_probe:
+        correction_features = projection.transform(np.asarray(capture_states[:correction_count])).astype(np.float32)
+        validation_features = projection.transform(np.asarray(capture_states[correction_count:])).astype(np.float32)
+        ready_values = np.array(capture_ready, copy=True)
+        correction_ready = ready_values[:correction_count]
+        validation_ready = ready_values[correction_count:]
+    else:
+        correction_features = np.empty((0, int(CONFIG["screening"]["state_components_total"])), dtype=np.float32)
+        validation_features = np.empty_like(correction_features)
+        correction_ready = validation_ready = np.empty(0, dtype=bool)
     output = {
         "correction_features": correction_features,
         "validation_features": validation_features,
-        "correction_ready": ready_values[:correction_count],
-        "validation_ready": ready_values[correction_count:],
+        "correction_ready": correction_ready,
+        "validation_ready": validation_ready,
         "correction_indices": correction_idx,
         "validation_indices": validation_idx,
         "warmup_steps": int(warmup_steps),
         "warmup_diagnostics": warmup_diagnostics,
         "saturation_fraction": saturation,
+        "actual_recurrent_edges": list(engine.actual_recurrent_edges),
         "projection_seed": projection_seed,
         "config": config,
         "seed": int(seed),
@@ -541,8 +604,9 @@ def _stream_screen_features(config: ESNConfig, seed: int, arrays: dict) -> dict:
         "generation_seconds": float(time.monotonic() - started),
     }
     _write_screen_cache(key, expected_meta, output)
-    del sample_states, capture_states, capture_ready
-    del ready_values
+    del sample_states
+    if capture_probe:
+        del capture_states, capture_ready, ready_values
     shutil.rmtree(work)
     return output
 
@@ -559,6 +623,7 @@ def _bundle_objects(bundle: dict) -> dict:
         "warmup_steps": int(bundle["warmup_steps"]),
         "warmup_diagnostics": bundle["warmup_diagnostics"],
         "saturation_fraction": float(bundle["saturation_fraction"]),
+        "actual_recurrent_edges": tuple(int(value) for value in bundle.get("actual_recurrent_edges", ())),
         "projection_seed": int(bundle["projection_seed"]),
     }
 
@@ -588,6 +653,7 @@ def _write_screen_cache(key: str, expected_meta: dict, output: dict) -> None:
         "warmup_steps": int(output["warmup_steps"]),
         "warmup_diagnostics": output["warmup_diagnostics"],
         "saturation_fraction": float(output["saturation_fraction"]),
+        "actual_recurrent_edges": list(output["actual_recurrent_edges"]),
         "projection_seed": int(output["projection_seed"]),
         "feature_names": [
             f"esn_{_config_key(output['config'])}_seed_{output['seed']}_pc{index:02d}"
@@ -947,14 +1013,19 @@ def _family_leaders(architecture_search: dict, input_search: dict) -> tuple[dict
     return common, input_best, finalists
 
 
-def _load_screen_cache(config: ESNConfig, seed: int, arrays: dict) -> dict:
+def _load_screen_cache(config: ESNConfig, seed: int, arrays: dict, *, capture_probe: bool = True) -> dict:
     key = f"{_config_key(config)}_seed_{seed}"
     feature_path = OUT / "screen_features" / f"{key}.npz"
     feature_meta_path = feature_path.with_suffix(".json")
     bundle_path = OUT / "bundles" / f"{key}.json"
-    expected_meta = {"identity": RUN_IDENTITY, "config": _config_record(config), "seed": int(seed)}
+    expected_meta = {
+        "identity": RUN_IDENTITY,
+        "config": _config_record(config),
+        "seed": int(seed),
+        "capture_probe": bool(capture_probe),
+    }
     if not (feature_path.exists() and feature_meta_path.exists() and bundle_path.exists()):
-        return _stream_screen_features(config, seed, arrays)
+        return _stream_screen_features(config, seed, arrays, capture_probe=capture_probe)
     if json.loads(feature_meta_path.read_text(encoding="utf-8")) != expected_meta:
         raise RuntimeError("screen-feature cache belongs to another experiment identity")
     with np.load(feature_path, allow_pickle=False) as cached:
@@ -1131,7 +1202,7 @@ def _bundle_for(config: ESNConfig, seed: int) -> dict:
     key = f"{_config_key(config)}_seed_{seed}"
     path = OUT / "bundles" / f"{key}.json"
     if not path.exists():
-        _stream_screen_features(config, seed, _load_arrays_for_screen())
+        _stream_screen_features(config, seed, _load_arrays_for_screen(), capture_probe=False)
     payload = json.loads(path.read_text(encoding="utf-8"))
     if payload.get("identity") != RUN_IDENTITY or payload.get("config") != _config_record(config) or int(payload["seed"]) != int(seed):
         raise RuntimeError("finalist feature bundle identity mismatch")
@@ -1144,7 +1215,7 @@ def _generate_full_features(config: ESNConfig, seed: int, arrays: dict) -> np.nd
     meta_path = output_path.with_suffix(".npy.json")
     bundle_path = OUT / "bundles" / f"{key}.json"
     if not bundle_path.exists():
-        _stream_screen_features(config, seed, arrays)
+        _stream_screen_features(config, seed, arrays, capture_probe=False)
     expected_meta = {
         "identity": RUN_IDENTITY,
         "config": _config_record(config),
@@ -1272,8 +1343,9 @@ def _metric_pack(target, probability) -> dict:
     }
 
 
-def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays: dict) -> dict:
-    result_path = OUT / "downstream_search_validation.json"
+def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays: dict,
+                                  *, stage_name: str = "search_validation") -> dict:
+    result_path = OUT / f"downstream_{stage_name}.json"
     if result_path.exists():
         saved = json.loads(result_path.read_text(encoding="utf-8"))
         if saved.get("identity") == RUN_IDENTITY and saved.get("status") == "search_validation_downstream_complete":
@@ -1283,20 +1355,46 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
         item["candidate_id"]: _config_from_record(item["effective_config"])
         for item in finalists
     }
-    feature_arrays = {}
-    feature_generation_seconds = {}
-    for candidate_id, config in configs.items():
-        feature_arrays[candidate_id] = {}
-        feature_generation_seconds[candidate_id] = 0.0
-        for seed in SEEDS:
-            before = time.monotonic()
-            feature_arrays[candidate_id][seed] = _generate_full_features(config, seed, arrays)
-            feature_generation_seconds[candidate_id] += float(time.monotonic() - before)
-
     selected_ids = list(portfolio["selected_candidate_ids"])
     variants = {candidate_id: [candidate_id] for candidate_id in configs}
     if selected_ids:
         variants["selected_portfolio"] = selected_ids
+    for name, members in portfolio.get("portfolio_variants", {}).items():
+        if name in variants or not members or any(member not in configs for member in members):
+            raise ValueError(f"invalid downstream variant {name!r}")
+        variants[name] = list(members)
+    progress_path = OUT / f"downstream_{stage_name}_progress.json"
+    progress_identity = {
+        "identity": RUN_IDENTITY,
+        "candidate_ids": list(configs),
+        "variants": variants,
+        "reservoir_seeds": list(SEEDS),
+        "lightgbm_seeds": list(LGBM_SEEDS),
+    }
+    if progress_path.exists():
+        progress = json.loads(progress_path.read_text(encoding="utf-8"))
+        if progress.get("progress_identity") != progress_identity:
+            raise RuntimeError("downstream checkpoint identity mismatch")
+    else:
+        progress = {
+            "progress_identity": progress_identity,
+            "baseline_metrics": {},
+            "candidate_records": {name: [] for name in variants},
+            "feature_generation_seconds": {},
+            "lightgbm_fit_seconds": 0.0,
+        }
+    feature_arrays = {}
+    feature_generation_seconds = dict(progress.get("feature_generation_seconds", {}))
+    for candidate_id, config in configs.items():
+        feature_arrays[candidate_id] = {}
+        feature_generation_seconds.setdefault(candidate_id, 0.0)
+        for seed in SEEDS:
+            before = time.monotonic()
+            feature_arrays[candidate_id][seed] = _generate_full_features(config, seed, arrays)
+            feature_generation_seconds[candidate_id] += float(time.monotonic() - before)
+            progress["feature_generation_seconds"] = feature_generation_seconds
+            _atomic_json(progress_path, progress)
+
     common_ready = np.ones(len(arrays["target"]), dtype=bool)
     for features_by_seed in feature_arrays.values():
         for features in features_by_seed.values():
@@ -1321,17 +1419,33 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
     weights = np.where(decision, 0.59, 0.1025).astype(np.float32)
     target = arrays["target"]
     validation_rows = np.flatnonzero(validation_mask)
-    baseline_metrics = {}
-    candidate_records = {name: [] for name in variants}
-    fit_seconds = 0.0
+    baseline_metrics = dict(progress.get("baseline_metrics", {}))
+    candidate_records = {name: list(rows) for name, rows in progress.get("candidate_records", {}).items()}
+    for name in variants:
+        candidate_records.setdefault(name, [])
+    fit_seconds = float(progress.get("lightgbm_fit_seconds", 0.0))
     for lgbm_seed in LGBM_SEEDS:
-        before = time.monotonic()
-        baseline = _fit_lgbm(arrays["base_x"], target, weights, train_mask, lgbm_seed)
-        fit_seconds += time.monotonic() - before
-        baseline_probability = baseline.predict(np.asarray(arrays["base_x"][validation_rows], dtype=np.float32))
-        baseline_metrics[lgbm_seed] = _metric_pack(target[validation_rows], baseline_probability)
+        seed_key = str(lgbm_seed)
+        if seed_key not in baseline_metrics:
+            before = time.monotonic()
+            baseline = _fit_lgbm(arrays["base_x"], target, weights, train_mask, lgbm_seed)
+            fit_seconds += time.monotonic() - before
+            baseline_probability = baseline.predict(np.asarray(arrays["base_x"][validation_rows], dtype=np.float32))
+            baseline_metrics[seed_key] = _metric_pack(target[validation_rows], baseline_probability)
+            progress.update({
+                "baseline_metrics": baseline_metrics,
+                "lightgbm_fit_seconds": fit_seconds,
+            })
+            _atomic_json(progress_path, progress)
+            del baseline
         for name, members in variants.items():
             for reservoir_seed in SEEDS:
+                if any(
+                    int(row["reservoir_seed"]) == int(reservoir_seed)
+                    and int(row["lightgbm_seed"]) == int(lgbm_seed)
+                    for row in candidate_records[name]
+                ):
+                    continue
                 extras = [feature_arrays[member][reservoir_seed] for member in members]
                 matrix = _AugmentedMatrix(arrays["base_x"], extras)
                 before = time.monotonic()
@@ -1339,15 +1453,39 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
                 fit_seconds += time.monotonic() - before
                 probability = model.predict(matrix[validation_rows])
                 metric = _metric_pack(target[validation_rows], probability)
+                latency = None
+                latency_count = int(CONFIG.get("downstream", {}).get("latency_sample_count", 0))
+                if latency_count > 0 and stage_name.startswith("finalists"):
+                    latency_values = np.empty(min(latency_count, len(validation_rows)), dtype=np.int64)
+                    for latency_index, row_index in enumerate(validation_rows[:len(latency_values)]):
+                        one_row = matrix[int(row_index):int(row_index) + 1]
+                        latency_start = time.perf_counter_ns()
+                        model.predict(one_row)
+                        latency_values[latency_index] = time.perf_counter_ns() - latency_start
+                    latency = {
+                        "p50_us": float(np.quantile(latency_values, 0.50) / 1_000.0),
+                        "p95_us": float(np.quantile(latency_values, 0.95) / 1_000.0),
+                        "p99_us": float(np.quantile(latency_values, 0.99) / 1_000.0),
+                        "sample_count": int(len(latency_values)),
+                    }
                 candidate_records[name].append({
                     "reservoir_seed": int(reservoir_seed),
                     "lightgbm_seed": int(lgbm_seed),
                     "metrics": metric,
-                    "delta_logloss": baseline_metrics[lgbm_seed]["logloss"] - metric["logloss"],
-                    "delta_brier": baseline_metrics[lgbm_seed]["brier"] - metric["brier"],
-                    "delta_auc": metric["auc"] - baseline_metrics[lgbm_seed]["auc"],
+                    "metrics_level": "downstream_lightgbm_search_validation",
+                    "delta_logloss": baseline_metrics[seed_key]["logloss"] - metric["logloss"],
+                    "delta_brier": baseline_metrics[seed_key]["brier"] - metric["brier"],
+                    "delta_auc": metric["auc"] - baseline_metrics[seed_key]["auc"],
                     "feature_count": int(matrix.shape[1]),
+                    "single_row_latency": latency,
                 })
+                progress.update({
+                    "baseline_metrics": baseline_metrics,
+                    "candidate_records": candidate_records,
+                    "feature_generation_seconds": feature_generation_seconds,
+                    "lightgbm_fit_seconds": fit_seconds,
+                })
+                _atomic_json(progress_path, progress)
                 del model, matrix
         del baseline
 
@@ -1364,6 +1502,8 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
         summaries[name] = {
             "mean_delta_logloss": float(np.mean(deltas)),
             "std_delta_logloss_all_pairs": float(np.std(deltas, ddof=0)),
+            "positive_pair_count": int(np.sum(deltas > 0.0)),
+            "negative_pair_count": int(np.sum(deltas < 0.0)),
             "mean_delta_brier": float(np.mean([row["delta_brier"] for row in rows])),
             "mean_delta_auc": float(np.mean([row["delta_auc"] for row in rows])),
             "per_reservoir_seed": per_reservoir,
@@ -1389,6 +1529,7 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
         "elapsed_seconds": float(time.monotonic() - started),
     }
     _atomic_json(result_path, {"identity": RUN_IDENTITY, **result})
+    progress_path.unlink(missing_ok=True)
     return result
 
 

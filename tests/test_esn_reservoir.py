@@ -54,6 +54,60 @@ class ESNReservoirTests(unittest.TestCase):
                 np.testing.assert_allclose(batch_states, np.asarray(stream_states), rtol=0.0, atol=1e-7)
                 np.testing.assert_array_equal(batch_ready, np.asarray(stream_ready))
 
+    def test_parallel_deep_supports_unequal_components_and_branch_inputs(self):
+        config = ESNConfig(
+            architecture="parallel_deep", reservoir_size=3, reservoir_count=4,
+            branch_count=2, layer_count=2, component_sizes=(3, 4, 5, 6),
+            component_input_groups=(("returns",), (), ("volume",), ()),
+            component_topologies=("ring", "sparse", "block_sparse", "orthogonal"),
+            component_leak_rates=(0.2, 0.3, 0.4, 0.5),
+            component_spectral_radii=(0.5, 0.7, 1.2, 0.9),
+            component_input_scalings=(0.2, 0.3, 0.4, 0.5),
+            component_bias_scalings=(0.0, 0.1, 0.2, 0.3),
+            component_sparse_degrees=(2, 2, 3, 2),
+            input_groups=("returns", "volume"),
+        )
+        scaler = FeatureScaler(config.selected_columns).fit(
+            self.x[:6, [INPUT_COLUMNS.index(name) for name in config.selected_columns]],
+        )
+        batch = ESNEngine(config, 71, scaler, warmup_steps=2)
+        batch_states, batch_ready = batch.update_many(
+            self.timestamps, self.x[:, [INPUT_COLUMNS.index(name) for name in config.selected_columns]],
+        )
+        stream = ESNEngine(config, 71, scaler, warmup_steps=2)
+        stream_states = []
+        stream_ready = []
+        for timestamp, row in zip(
+            self.timestamps, self.x[:, [INPUT_COLUMNS.index(name) for name in config.selected_columns]],
+        ):
+            value = stream.update_one(timestamp, row)
+            stream_ready.append(value is not None)
+            stream_states.append(stream.states[:, :].copy())
+        packed = np.asarray([
+            np.concatenate([state[index, :size] for index, size in enumerate(config.unit_sizes)])
+            for state in stream_states
+        ])
+        np.testing.assert_allclose(batch_states, packed, rtol=0.0, atol=1e-7)
+        np.testing.assert_array_equal(batch_ready, np.asarray(stream_ready))
+        self.assertEqual(batch_states.shape, (len(self.timestamps), 18))
+        self.assertEqual(config.source_components, (-1, 0, -1, 2))
+        self.assertEqual(batch.input_columns_by_component[0], tuple(INPUT_COLUMNS[:4]))
+        self.assertEqual(batch.input_columns_by_component[2], ("log_volume", "volume_ratio_to_prior_30m_median"))
+        self.assertEqual(len(batch.actual_recurrent_edges), config.state_count)
+        self.assertTrue(all(edge_count > 0 for edge_count in batch.actual_recurrent_edges))
+        partial = ESNEngine(config, 71, scaler, warmup_steps=2)
+        first, _ = partial.update_many(
+            self.timestamps[:6], self.x[:6, [INPUT_COLUMNS.index(name) for name in config.selected_columns]],
+        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            checkpoint = Path(temp_dir) / "parallel_deep.json"
+            partial.save_checkpoint(checkpoint)
+            resumed = ESNEngine.load_checkpoint(checkpoint, expected_config=config, expected_seed=71)
+            rest, _ = resumed.update_many(
+                self.timestamps[6:], self.x[6:, [INPUT_COLUMNS.index(name) for name in config.selected_columns]],
+            )
+        np.testing.assert_array_equal(np.vstack((first, rest)), batch_states)
+
     def test_deep_layer_uses_the_previous_layer_state(self):
         config = ESNConfig(
             architecture="deep", reservoir_size=8, reservoir_count=2,
@@ -141,6 +195,28 @@ class ESNReservoirTests(unittest.TestCase):
         low_edges = int(np.count_nonzero(low_engine._rec_indices >= 0))
         high_edges = int(np.count_nonzero(high_engine._rec_indices >= 0))
         self.assertGreater(high_edges, low_edges)
+
+    def test_extended_topologies_scale_the_actual_recurrent_weights(self):
+        for topology in ("sparse", "block_sparse", "orthogonal"):
+            config = ESNConfig(
+                reservoir_size=24, topology=topology, sparse_degree=4,
+                spectral_radius=0.7, input_groups=("returns",),
+            )
+            scaler = FeatureScaler(config.selected_columns).fit(self.x[:6, :4])
+            engine = ESNEngine(config, 73, scaler)
+            recurrent = np.zeros((24, 24), dtype=np.float64)
+            for row in range(24):
+                valid = engine._rec_indices[0, row] >= 0
+                recurrent[row, engine._rec_indices[0, row, valid]] = engine._rec_values[0, row, valid]
+            radius = float(np.max(np.abs(np.linalg.eigvals(recurrent))))
+            self.assertAlmostEqual(radius, 0.7, delta=0.02)
+            self.assertEqual(int(np.count_nonzero(recurrent)), engine.actual_recurrent_edges[0])
+            if topology == "sparse":
+                self.assertEqual(int(np.count_nonzero(recurrent)) // 24, 4)
+            if topology == "block_sparse":
+                self.assertLess(int(np.count_nonzero(recurrent)), 24 * 24)
+            if topology == "orthogonal":
+                np.testing.assert_allclose(recurrent.T @ recurrent, (0.7 ** 2) * np.eye(24), atol=1e-5)
 
     def test_chunk_boundary_and_gap_reset_match_stream(self):
         timestamps = pd.DatetimeIndex([
