@@ -75,16 +75,19 @@ def _sha256(path: Path) -> str:
 
 def _atomic_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.{time.monotonic_ns()}.tmp")
     temporary.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    for attempt in range(6):
-        try:
-            os.replace(temporary, path)
-            return
-        except PermissionError:
-            if attempt == 5:
-                raise
-            time.sleep(0.05 * (2 ** attempt))
+    try:
+        for attempt in range(40):
+            try:
+                os.replace(temporary, path)
+                return
+            except PermissionError:
+                if attempt == 39:
+                    raise
+                time.sleep(0.25)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _identity(prepared: dict) -> dict:
@@ -1425,6 +1428,7 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
         candidate_records.setdefault(name, [])
     fit_seconds = float(progress.get("lightgbm_fit_seconds", 0.0))
     for lgbm_seed in LGBM_SEEDS:
+        baseline = None
         seed_key = str(lgbm_seed)
         if seed_key not in baseline_metrics:
             before = time.monotonic()
@@ -1437,7 +1441,6 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
                 "lightgbm_fit_seconds": fit_seconds,
             })
             _atomic_json(progress_path, progress)
-            del baseline
         for name, members in variants.items():
             for reservoir_seed in SEEDS:
                 if any(
@@ -1487,7 +1490,8 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
                 })
                 _atomic_json(progress_path, progress)
                 del model, matrix
-        del baseline
+        if baseline is not None:
+            del baseline
 
     summaries = {}
     for name, rows in candidate_records.items():

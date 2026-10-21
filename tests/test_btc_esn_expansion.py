@@ -2,8 +2,10 @@ from pathlib import Path
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
 import run_btc_esn_expansion_20261021 as expansion
+from features.esn_reservoir import ESNConfig
 
 
 class BTCESNExpansionTests(unittest.TestCase):
@@ -48,6 +50,76 @@ class BTCESNExpansionTests(unittest.TestCase):
             protocol["probe_independent_candidate_ids"],
             changed_protocol["probe_independent_candidate_ids"],
         )
+
+    def test_downstream_pool_resume_reuses_checkpointed_ids_and_order(self):
+        candidates = expansion._initial_pool()[:3]
+        screened = [
+            {**row, "status": "screened", "probe_delta_logloss": float(index)}
+            for index, row in enumerate(candidates)
+        ]
+        checkpoint_ids = [row["candidate_id"] for row in (screened[2], screened[0], screened[1])]
+        expansion._atomic_json(
+            expansion.OUT / "downstream_exploratory_progress.json",
+            {"progress_identity": {
+                "identity": expansion.RUN_IDENTITY,
+                "candidate_ids": checkpoint_ids,
+            }},
+        )
+
+        selected, protocol = expansion._downstream_pool(screened)
+
+        self.assertEqual([row["candidate_id"] for row in selected], checkpoint_ids)
+        self.assertEqual(protocol["probe_independent_candidate_ids"], checkpoint_ids[:1])
+        self.assertEqual(protocol["screen_ranked_candidate_ids"], checkpoint_ids[1:])
+
+    def test_atomic_json_retries_transient_windows_replace_denial(self):
+        path = Path(self.temp_dir.name) / "checkpoint.json"
+        actual_replace = expansion.os.replace
+        attempts = 0
+
+        def transiently_denied(source, destination):
+            nonlocal attempts
+            attempts += 1
+            if attempts < 3:
+                raise PermissionError("temporary sharing violation")
+            actual_replace(source, destination)
+
+        with patch.object(expansion.os, "replace", side_effect=transiently_denied):
+            expansion._atomic_json(path, {"ok": True})
+
+        self.assertEqual(attempts, 3)
+        self.assertEqual(expansion.json.loads(path.read_text(encoding="utf-8")), {"ok": True})
+        self.assertEqual({entry.name for entry in path.parent.iterdir()}, {path.name})
+
+    def test_inherited_component_counts_match_architecture_shape_and_budget(self):
+        class InheritRng:
+            @staticmethod
+            def random():
+                return 0.0
+
+            @staticmethod
+            def choice(values):
+                return values[0]
+
+        rng = InheritRng()
+        parallel = ESNConfig(
+            architecture="parallel", reservoir_size=16, reservoir_count=2,
+        )
+        deep = ESNConfig(
+            architecture="deep", reservoir_size=16, reservoir_count=2,
+        )
+        parallel_deep = ESNConfig(
+            architecture="parallel_deep", reservoir_size=8, reservoir_count=4,
+            branch_count=2, layer_count=2,
+        )
+        oversized_parent = ESNConfig(
+            architecture="parallel", reservoir_size=2, reservoir_count=16,
+        )
+
+        self.assertEqual(expansion._structure(rng, "parallel", 64, parallel), (2, 2, 1))
+        self.assertEqual(expansion._structure(rng, "deep", 64, deep), (2, 1, 2))
+        self.assertEqual(expansion._structure(rng, "parallel_deep", 64, parallel_deep), (4, 2, 2))
+        self.assertEqual(expansion._structure(rng, "parallel", 16, oversized_parent), (2, 2, 1))
 
     def test_boundary_report_contains_family_and_unit_budget_rates(self):
         candidates = expansion._initial_pool()

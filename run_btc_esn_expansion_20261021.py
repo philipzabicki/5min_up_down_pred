@@ -51,9 +51,19 @@ class StageBudgetExceeded(TimeoutError):
 
 def _atomic_json(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.{time.monotonic_ns()}.tmp")
     temporary.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
-    os.replace(temporary, path)
+    try:
+        for attempt in range(40):
+            try:
+                os.replace(temporary, path)
+                return
+            except PermissionError:
+                if attempt == 39:
+                    raise
+                time.sleep(0.25)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _sha256(path: Path) -> str:
@@ -277,9 +287,16 @@ def _structure(rng, family, total_units, parent=None):
     if parent is not None and rng.random() < 0.65:
         if family == "single":
             return 1, 1, 1
-        if family in {"parallel", "deep"}:
-            return parent.reservoir_count, 1, 1
-        return parent.reservoir_count, parent.branch_count, parent.layer_count
+        count = parent.reservoir_count
+        if family == "parallel" and count >= 2 and count * 2 <= total_units:
+            return count, count, 1
+        if family == "deep" and count >= 2 and count * 2 <= total_units:
+            return count, 1, count
+        if family == "parallel_deep":
+            branches = parent.branch_count
+            layers = parent.layer_count
+            if count == branches * layers and count >= 2 and count * 2 <= total_units:
+                return count, branches, layers
     if family == "single":
         return 1, 1, 1
     if family == "parallel":
@@ -563,7 +580,8 @@ def _screen_pool(candidates, arrays, *, phase_name, target_valid=None):
             print(json.dumps({
                 "event": "screen_progress", "phase": phase_name,
                 "attempted": len(known), "valid": successes,
-                "active_seconds": _elapsed(), "last_seconds": duration,
+                "active_seconds": _elapsed(),
+                "last_seconds": float(result.get("elapsed_seconds", 0.0)),
             }), flush=True)
     return True
 
@@ -645,6 +663,33 @@ def _exploration_ids(screened, target_count):
 
 def _downstream_pool(screened):
     target = min(int(CONFIG["downstream"]["target_distinct_configs"]), len(screened))
+    progress_path = OUT / "downstream_exploratory_progress.json"
+    if progress_path.exists():
+        progress = json.loads(progress_path.read_text(encoding="utf-8"))
+        progress_identity = progress.get("progress_identity", {}).get("identity")
+        if progress_identity != RUN_IDENTITY:
+            raise RuntimeError("exploratory downstream checkpoint identity mismatch")
+        candidate_ids = progress.get("progress_identity", {}).get("candidate_ids", [])
+        by_id = {row["candidate_id"]: row for row in screened}
+        if (
+            len(candidate_ids) != target
+            or len(candidate_ids) != len(set(candidate_ids))
+            or any(candidate_id not in by_id for candidate_id in candidate_ids)
+        ):
+            raise RuntimeError("cannot reconstruct the frozen exploratory downstream pool")
+        independent_count = int(round(
+            target * float(CONFIG["downstream"]["probe_independent_exploration_fraction"])
+        ))
+        selected = [by_id[candidate_id] for candidate_id in candidate_ids]
+        return selected, {
+            "target_count": int(target),
+            "selected_count": len(selected),
+            "probe_independent_count": independent_count,
+            "probe_independent_fraction": independent_count / max(1, len(selected)),
+            "probe_independent_candidate_ids": list(candidate_ids[:independent_count]),
+            "screen_ranked_candidate_ids": list(candidate_ids[independent_count:]),
+            "exploration_rule": "stratified random by architecture family, unit-size stratum, and dynamics mode; probe score is not read in this branch",
+        }
     explore_ids = _exploration_ids(screened, target)
     remaining = [row for row in screened if row["candidate_id"] not in set(explore_ids)]
     remaining.sort(key=lambda row: row["probe_delta_logloss"], reverse=True)

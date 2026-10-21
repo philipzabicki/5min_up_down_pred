@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+import tempfile
+from unittest.mock import patch
 
 import numpy as np
 import optuna
 import pandas as pd
+import run_btc_esn_architecture_audit_20261020 as audit
 
 from run_btc_esn_architecture_audit_20261020 import (
     CONFIG,
@@ -21,6 +25,109 @@ from features.esn_reservoir import ESNConfig
 
 
 class ESNArchitectureAuditTests(unittest.TestCase):
+    def test_engine_atomic_json_retries_transient_windows_replace_denial(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "checkpoint.json"
+            actual_replace = audit.os.replace
+            attempts = 0
+
+            def transiently_denied(source, destination):
+                nonlocal attempts
+                attempts += 1
+                if attempts < 3:
+                    raise PermissionError("temporary sharing violation")
+                actual_replace(source, destination)
+
+            with patch.object(audit.os, "replace", side_effect=transiently_denied):
+                audit._atomic_json(path, {"ok": True})
+
+            self.assertEqual(attempts, 3)
+            self.assertEqual(audit.json.loads(path.read_text(encoding="utf-8")), {"ok": True})
+            self.assertEqual({entry.name for entry in path.parent.iterdir()}, {path.name})
+
+    def test_downstream_resume_skips_cached_seed_without_deleting_missing_baseline(self):
+        previous_out = audit.OUT
+        previous_identity = audit.RUN_IDENTITY
+        previous_seeds = audit.SEEDS
+        previous_lgbm_seeds = audit.LGBM_SEEDS
+        with tempfile.TemporaryDirectory() as directory:
+            audit.OUT = Path(directory)
+            audit.RUN_IDENTITY = {"test_identity": "resume"}
+            audit.SEEDS = (1,)
+            audit.LGBM_SEEDS = (10, 11)
+            try:
+                n = 101_000
+                opened = np.full(n, audit.FIT_END_NS - 60_000_000_000, dtype=np.int64)
+                available = np.full(n, audit.FIT_END_NS, dtype=np.int64)
+                decision = np.ones(n, dtype=bool)
+                opened[-1_000:] = audit.VALIDATION_START_NS
+                available[-1_000:] = audit.VALIDATION_START_NS + audit.MINUTE_NS
+                metrics = {"n": 1_000, "logloss": 0.69, "brier": 0.24, "auc": 0.5}
+                config = ESNConfig(architecture="single", reservoir_size=4, reservoir_count=1)
+                candidate_id = "cached-candidate"
+                finalist = {
+                    "candidate_id": candidate_id,
+                    "effective_config": audit._config_record(config),
+                }
+                progress_identity = {
+                    "identity": audit.RUN_IDENTITY,
+                    "candidate_ids": [candidate_id],
+                    "variants": {candidate_id: [candidate_id]},
+                    "reservoir_seeds": [1],
+                    "lightgbm_seeds": [10, 11],
+                }
+                progress_path = audit.OUT / "downstream_resume_test_progress.json"
+                audit._atomic_json(progress_path, {
+                    "progress_identity": progress_identity,
+                    "baseline_metrics": {"10": metrics},
+                    "candidate_records": {candidate_id: [{
+                        "reservoir_seed": 1,
+                        "lightgbm_seed": 10,
+                        "metrics": metrics,
+                        "delta_logloss": 0.0,
+                        "delta_brier": 0.0,
+                        "delta_auc": 0.0,
+                        "feature_count": 4,
+                        "single_row_latency": None,
+                    }]},
+                    "feature_generation_seconds": {candidate_id: 0.0},
+                    "lightgbm_fit_seconds": 0.0,
+                })
+
+                class Model:
+                    @staticmethod
+                    def predict(features):
+                        return np.full(len(features), 0.5, dtype=np.float32)
+
+                arrays = {
+                    "base_opened": opened,
+                    "label_available": available,
+                    "decision": decision,
+                    "target": np.zeros(n, dtype=np.int8),
+                    "base_x": np.zeros((n, 3), dtype=np.float32),
+                }
+                with (
+                    patch.object(audit, "_generate_full_features", return_value=np.zeros((n, 1), dtype=np.float32)),
+                    patch.object(audit, "_metric_pack", return_value=metrics),
+                    patch.object(audit, "_fit_lgbm", return_value=Model()) as fit_lgbm,
+                ):
+                    result = audit._downstream_search_validation(
+                        [finalist], {"selected_candidate_ids": [], "portfolio_variants": {}}, arrays,
+                        stage_name="resume_test",
+                    )
+
+                self.assertEqual(result["candidate_results"][candidate_id]["pair_count"], 2)
+                self.assertEqual(fit_lgbm.call_count, 2)
+                self.assertEqual(
+                    [call.args[-1] for call in fit_lgbm.call_args_list],
+                    [11, 11],
+                )
+            finally:
+                audit.OUT = previous_out
+                audit.RUN_IDENTITY = previous_identity
+                audit.SEEDS = previous_seeds
+                audit.LGBM_SEEDS = previous_lgbm_seeds
+
     def test_controlled_anchor_pool_covers_every_family_and_topology_at_128_units(self):
         anchors = _architecture_anchors()
         self.assertEqual(len(anchors), 6)
