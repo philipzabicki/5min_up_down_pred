@@ -554,3 +554,306 @@ Experiment `btc_market_dynamics_action_value_20261020`: the original run report 
 - Expanded log ranges: leak `0.0001-1.0`, spectral radius `0.01-2.0`, input scaling `0.0001-10.0`, positive bias `0.0001-3.0` plus zero, and sparse average degree `2, 4, 8, 16, 32`. The benchmark report compares them with observed R4 ranges and gives per-configuration throughput, latency, PCA/probe cost, edges, and checkpoints.
 - Inputs remain the existing fit-core, correction-fit, and `search_validation` cache ending `2025-07-01T00:00:00Z`. No rows or results beyond that cutoff were read. Confirmation, holdout, live configuration, and Polymarket replay remain excluded.
 - Protocol: [expansion configuration](../configs/research/btc_esn_expansion_20261021.json); [fit-only benchmark report](../reports/btc_preopen/btc_esn_expansion_20261021_benchmark.md). The screening runner will start only after the frozen code/configuration commit is pushed.
+
+## ESN expanded search — 2026-10-21 13:42:13 CEST
+
+- Stage: `frozen preflight complete`; next resumable step: `initial stratified screening`.
+- Detail: resource snapshot {'cpu_logical_processors': 20, 'cpu_model': 'Intel64 Family 6 Model 183 Stepping 1, GenuineIntel', 'platform': 'Windows-11-10.0.26300-SP0', 'physical_memory_bytes': 68366831616, 'available_memory_bytes': 28594782208, 'disk_free_bytes': 348410232832, 'gpu_detected': 'NVIDIA GeForce RTX 4060 Laptop GPU', 'reservoir_gpu_used': False, 'workers': 1, 'native_threads': 4}; frozen protocol targets 300 valid screens and 60 downstream candidates; active cap 43,200s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 13:50:23 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 10 unique configs attempted; 9 valid screens; active runner time 490.4s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 13:51:25 CEST
+
+- Stage: `frozen preflight complete`; next resumable step: `initial stratified screening`.
+- Detail: resource snapshot {'cpu_logical_processors': 20, 'cpu_model': 'Intel64 Family 6 Model 183 Stepping 1, GenuineIntel', 'platform': 'Windows-11-10.0.26300-SP0', 'physical_memory_bytes': 68366831616, 'available_memory_bytes': 21443158016, 'disk_free_bytes': 347750686720, 'gpu_detected': 'NVIDIA GeForce RTX 4060 Laptop GPU', 'reservoir_gpu_used': False, 'workers': 1, 'native_threads': 4}; frozen protocol targets 300 valid screens and 60 downstream candidates; active cap 43,200s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 13:59:09 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 20 unique configs attempted; 18 valid screens; active runner time 954.7s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 14:03:24 CEST
+
+- Stage: `frozen preflight complete`; next resumable step: `initial stratified screening`.
+- Detail: resource snapshot {'cpu_logical_processors': 20, 'cpu_model': 'Intel64 Family 6 Model 183 Stepping 1, GenuineIntel', 'platform': 'Windows-11-10.0.26300-SP0', 'physical_memory_bytes': 68366831616, 'available_memory_bytes': 23377928192, 'disk_free_bytes': 346949967872, 'gpu_detected': 'NVIDIA GeForce RTX 4060 Laptop GPU', 'reservoir_gpu_used': False, 'workers': 1, 'native_threads': 4}; frozen protocol targets 300 valid screens and 60 downstream candidates; active cap 43,200s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 14:10:16 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 30 unique configs attempted; 28 valid screens; active runner time 1515.7s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 14:24:16 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 40 unique configs attempted; 37 valid screens; active runner time 2355.6s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 14:34:19 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 50 unique configs attempted; 47 valid screens; active runner time 2958.6s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 14:43:57 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 60 unique configs attempted; 57 valid screens; active runner time 3536.6s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 14:50:42 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 70 unique configs attempted; 66 valid screens; active runner time 3941.2s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 15:06:33 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 80 unique configs attempted; 76 valid screens; active runner time 4892.1s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 15:10:20 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 90 unique configs attempted; 85 valid screens; active runner time 5119.7s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 15:15:53 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 100 unique configs attempted; 92 valid screens; active runner time 5452.6s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 15:22:39 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 110 unique configs attempted; 101 valid screens; active runner time 5858.9s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 15:29:06 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 120 unique configs attempted; 109 valid screens; active runner time 6245.7s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 15:44:11 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 130 unique configs attempted; 119 valid screens; active runner time 7150.9s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 15:54:05 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 140 unique configs attempted; 126 valid screens; active runner time 7744.7s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:00:55 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 150 unique configs attempted; 134 valid screens; active runner time 8153.9s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:15:06 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 160 unique configs attempted; 139 valid screens; active runner time 9005.4s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:28:17 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 170 unique configs attempted; 146 valid screens; active runner time 9796.1s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:34:38 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 180 unique configs attempted; 151 valid screens; active runner time 10177.5s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:37:20 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 190 unique configs attempted; 159 valid screens; active runner time 10339.1s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:40:08 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 200 unique configs attempted; 166 valid screens; active runner time 10507.2s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:43:06 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 210 unique configs attempted; 172 valid screens; active runner time 10685.1s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:45:29 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 220 unique configs attempted; 179 valid screens; active runner time 10828.3s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:50:51 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 230 unique configs attempted; 188 valid screens; active runner time 11150.7s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:54:50 CEST
+
+- Stage: `initial stratified screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 240 unique configs attempted; 195 valid screens; active runner time 11389.1s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 16:55:52 CEST
+
+- Stage: `frozen preflight complete`; next resumable step: `initial stratified screening`.
+- Detail: resource snapshot {'cpu_logical_processors': 20, 'cpu_model': 'Intel64 Family 6 Model 183 Stepping 1, GenuineIntel', 'platform': 'Windows-11-10.0.26300-SP0', 'physical_memory_bytes': 68366831616, 'available_memory_bytes': 54110511104, 'disk_free_bytes': 337746292736, 'gpu_detected': 'NVIDIA GeForce RTX 4060 Laptop GPU', 'reservoir_gpu_used': False, 'workers': 1, 'native_threads': 4}; frozen protocol targets 300 valid screens and 60 downstream candidates; active cap 43,200s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:00:08 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 250 unique configs attempted; 204 valid screens; active runner time 11644.7s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:03:16 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 260 unique configs attempted; 214 valid screens; active runner time 11832.4s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:05:18 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 270 unique configs attempted; 223 valid screens; active runner time 11955.0s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:09:33 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 280 unique configs attempted; 232 valid screens; active runner time 12209.3s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:19:26 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 290 unique configs attempted; 240 valid screens; active runner time 12802.3s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:28:38 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 300 unique configs attempted; 250 valid screens; active runner time 13354.3s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:30:43 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 310 unique configs attempted; 259 valid screens; active runner time 13480.0s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:34:14 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 320 unique configs attempted; 268 valid screens; active runner time 13690.5s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:38:45 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 330 unique configs attempted; 278 valid screens; active runner time 13961.7s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:43:11 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 340 unique configs attempted; 287 valid screens; active runner time 14227.6s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:47:41 CEST
+
+- Stage: `adaptive probe-guided screening`; next resumable step: `resume_screening_or_downstream`.
+- Detail: 350 unique configs attempted; 297 valid screens; active runner time 14498.1s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 17:48:16 CEST
+
+- Stage: `screening complete or budget reached`; next resumable step: `exploratory LightGBM downstream`.
+- Detail: 300 valid unique configs; 60 downstream slots selected, including 18 (30.0%) stratified independently of probe rank.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:36:47 CEST
+
+- Stage: `frozen preflight complete`; next resumable step: `initial stratified screening`.
+- Detail: resource snapshot {'cpu_logical_processors': 20, 'cpu_model': 'Intel64 Family 6 Model 183 Stepping 1, GenuineIntel', 'platform': 'Windows-11-10.0.26300-SP0', 'physical_memory_bytes': 68366831616, 'available_memory_bytes': 54127353856, 'disk_free_bytes': 331789946880, 'gpu_detected': 'NVIDIA GeForce RTX 4060 Laptop GPU', 'reservoir_gpu_used': False, 'workers': 1, 'native_threads': 4}; frozen protocol targets 300 valid screens and 60 downstream candidates; active cap 43,200s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:36:47 CEST
+
+- Stage: `screening complete or budget reached`; next resumable step: `exploratory LightGBM downstream`.
+- Detail: 300 valid unique configs; 60 downstream slots selected, including 18 (30.0%) stratified independently of probe rank.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:37:35 CEST
+
+- Stage: `frozen preflight complete`; next resumable step: `initial stratified screening`.
+- Detail: resource snapshot {'cpu_logical_processors': 20, 'cpu_model': 'Intel64 Family 6 Model 183 Stepping 1, GenuineIntel', 'platform': 'Windows-11-10.0.26300-SP0', 'physical_memory_bytes': 68366831616, 'available_memory_bytes': 54092517376, 'disk_free_bytes': 331789946880, 'gpu_detected': 'NVIDIA GeForce RTX 4060 Laptop GPU', 'reservoir_gpu_used': False, 'workers': 1, 'native_threads': 4}; frozen protocol targets 300 valid screens and 60 downstream candidates; active cap 43,200s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:37:35 CEST
+
+- Stage: `screening complete or budget reached`; next resumable step: `exploratory LightGBM downstream`.
+- Detail: 300 valid unique configs; 60 downstream slots selected, including 18 (30.0%) stratified independently of probe rank.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:39:52 CEST
+
+- Stage: `frozen preflight complete`; next resumable step: `initial stratified screening`.
+- Detail: resource snapshot {'cpu_logical_processors': 20, 'cpu_model': 'Intel64 Family 6 Model 183 Stepping 1, GenuineIntel', 'platform': 'Windows-11-10.0.26300-SP0', 'physical_memory_bytes': 68366831616, 'available_memory_bytes': 54091141120, 'disk_free_bytes': 331789930496, 'gpu_detected': 'NVIDIA GeForce RTX 4060 Laptop GPU', 'reservoir_gpu_used': False, 'workers': 1, 'native_threads': 4}; frozen protocol targets 300 valid screens and 60 downstream candidates; active cap 43,200s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:39:52 CEST
+
+- Stage: `screening complete or budget reached`; next resumable step: `exploratory LightGBM downstream`.
+- Detail: 300 valid unique configs; 60 downstream slots selected, including 18 (30.0%) stratified independently of probe rank.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:40:47 CEST
+
+- Stage: `frozen preflight complete`; next resumable step: `initial stratified screening`.
+- Detail: resource snapshot {'cpu_logical_processors': 20, 'cpu_model': 'Intel64 Family 6 Model 183 Stepping 1, GenuineIntel', 'platform': 'Windows-11-10.0.26300-SP0', 'physical_memory_bytes': 68366831616, 'available_memory_bytes': 54100086784, 'disk_free_bytes': 331789406208, 'gpu_detected': 'NVIDIA GeForce RTX 4060 Laptop GPU', 'reservoir_gpu_used': False, 'workers': 1, 'native_threads': 4}; frozen protocol targets 300 valid screens and 60 downstream candidates; active cap 43,200s.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:40:48 CEST
+
+- Stage: `screening complete or budget reached`; next resumable step: `exploratory LightGBM downstream`.
+- Detail: 300 valid unique configs; 60 downstream slots selected, including 18 (30.0%) stratified independently of probe rank.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — 2026-10-21 18:57:20 CEST
+
+- Stage: `development search complete`; next resumable step: `none`.
+- Detail: 300 valid unique screens, 60 downstream configurations, 5 finalists; selected `best_single` at ΔLL +0.000104617; report `reports/btc_preopen/btc_esn_expansion_20261021.md`.
+- Scope: fit through 2024-07-01 and search validation through 2025-07-01; no confirmation or holdout reads.
+
+## ESN expanded search — final record
+
+- Completed on development `search_validation`: 300 valid unique screens, 54 infeasible/unstable proposals, 60 downstream candidates (18 selected independently of probe rank), and 5 finalists evaluated across 3 reservoir × 3 LightGBM seeds.
+- Selected `best_single` candidate `2f219d315f0715d8501df6de`: mean paired ΔLL `+0.000104617`, SD `0.000068119`, positive in 8/9 pairs. Every tested portfolio pair scored below that single candidate; the prior `single/ring` 1×128 configuration also scored positive (`+0.000062631`) on the new seed grid.
+- Active runner time was 18,487.5 s including 7 resumes. The finalist/portfolio reserve remained 12,300 s (28.5% of the 12-hour cap). The exploratory stage cap was amended to 14,000 s based on observed feature-generation cost; see `reports/btc_preopen/btc_esn_expansion_20261021_budget_amendment.md`.
+- This remains a development search result, not independent confirmation. Confirmation was not read; no holdout rows were materialized or evaluated. Live configuration and Polymarket replay were not changed or run.
+- Full results, ranges, per-seed results, selection trace, latency, artifacts, run commands, and frozen source hashes: `reports/btc_preopen/btc_esn_expansion_20261021.md`. Preregistered execution commit: `253e3a8acf47aa064a44a0cae9d997a863d24d13`; post-run resume fixes: `d78189f`.
+- Validation after the resume fixes: `py_compile` passed and 37 ESN reservoir, architecture audit, and expansion tests passed.
