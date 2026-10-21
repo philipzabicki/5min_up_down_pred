@@ -432,3 +432,87 @@ Experiment `btc_market_dynamics_action_value_20261020`: the original run report 
 - Book coverage is independently separate: 637 is the auxiliary book/H result for the selected pool when the RAW gate is omitted; 44 evaluation markets form the independent-control scope. Neither number is a pass of the frozen gate. Another 12,892 official evaluation starts remain unresolved (4,232 H rejects plus 8,660 outside the audit selector), with no additional recoveries proven by preflight.
 - Resume only after source-verified book data can meet the frozen thresholds and causal predictions have evidence of input and prediction availability before their deadlines. Any assumed-latency reconstruction requires its own versioned protocol. No further audit, download, fit, economic scoring, or holdout work was started for closeout.
 - Closeout report and manifest: [dynamic-history feasibility and closeout](../reports/btc_preopen/btc_dynamic_history_feasibility_20261020.md), [manifest](../reports/btc_preopen/btc_dynamic_history_feasibility_20261020_manifest.json).
+
+## ESN audit r4 checkpoint — 2026-10-20 22:21:14 CEST
+
+- Stage: `frozen r4 preflight complete`.
+- Next resumable step: `architecture search anchors, then adaptive search`.
+- Detail: loaded 2,660,546 permitted raw rows and 2,649,226 BASE70 rows; exported 48 original trials; old measured search was 1721.5s for 48 trials and old downstream was 115.3s for two candidates; new runner cap is 14,400s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-20 22:23:07 CEST
+
+- Stage: `pretrial runner correction and safe resume`.
+- Next resumable step: `architecture search anchors`.
+- Detail: the anchor counter failed before scoring; identity migration verified all 6 anchors were still WAITING and zero trials had outcomes; preserved 3.376s in the four-hour cap.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-20 22:23:07 CEST
+
+- Stage: `frozen r4 preflight complete`.
+- Next resumable step: `architecture search anchors, then adaptive search`.
+- Detail: loaded 2,660,546 permitted raw rows and 2,649,226 BASE70 rows; exported 48 original trials; old measured search was 1721.5s for 48 trials and old downstream was 115.3s for two candidates; new runner cap is 14,400s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-20 22:25:12 CEST
+
+- Stage: `frozen r4 preflight complete`.
+- Next resumable step: `architecture search anchors, then adaptive search`.
+- Detail: loaded 2,660,546 permitted raw rows and 2,649,226 BASE70 rows; exported 48 original trials; old measured search was 1721.5s for 48 trials and old downstream was 115.3s for two candidates; new runner cap is 14,400s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-20 22:26:38 CEST
+
+- Stage: `frozen r4 preflight complete`.
+- Next resumable step: `architecture search anchors, then adaptive search`.
+- Detail: loaded 2,660,546 permitted raw rows and 2,649,226 BASE70 rows; exported 48 original trials; old measured search was 1721.5s for 48 trials and old downstream was 115.3s for two candidates; new runner cap is 14,400s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-20 22:28:01 CEST
+
+- Stage: `frozen r4 preflight complete`.
+- Next resumable step: `architecture search anchors, then adaptive search`.
+- Detail: loaded 2,660,546 permitted raw rows and 2,649,226 BASE70 rows; exported 48 original trials; old measured search was 1721.5s for 48 trials and old downstream was 115.3s for two candidates; new runner cap is 14,400s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-20 23:58:41 CEST
+
+- Stage: `architecture search checkpoint`.
+- Next resumable step: `input-group anchors and adaptive input search`.
+- Detail: 78 attempted architecture trials; 6/6 required family/topology anchors complete; active runner time 5515.7s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-21 00:30:09 CEST
+
+- Stage: `input-group search checkpoint`.
+- Next resumable step: `family finalists and full-set portfolio probe`.
+- Detail: 22 attempted input trials; 18/18 required family/group anchors complete; active runner time 7403.6s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-21 00:30:11 CEST
+
+- Stage: `portfolio selection checkpoint`.
+- Next resumable step: `search-validation LightGBM finalist evaluation`.
+- Detail: tested 9 family finalists; selected 0 portfolio members after incremental full-set probes; active runner time 7405.3s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-21 00:48:37 CEST
+
+- Stage: `search-validation LightGBM checkpoint`.
+- Next resumable step: `write report and manifest`.
+- Detail: evaluated 9 variants on 52,120 common validation decisions with 3 reservoir seeds crossed with 3 LightGBM seeds; active runner time 8510.9s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-21 00:48:37 CEST
+
+- Stage: `r4 complete on search-validation only`.
+- Next resumable step: `none`.
+- Detail: report `reports/btc_preopen/btc_esn_architecture_audit_20261020.md`; manifest `data/analysis/polymarket/BTC/btc_esn_architecture_audit_20261020_r4/audit_manifest.json`; active runner time 8510.9s of 14,400s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN audit r4 checkpoint — 2026-10-21 09:11:34 CEST
+
+- Stage: `corrected r4 input-group study and post-search boundary diagnostic complete`.
+- Next resumable step: `none`.
+- Detail: corrected study 59 trials, 18/18 anchors; final active compute 10850.8s of 14,400s.
+- Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.

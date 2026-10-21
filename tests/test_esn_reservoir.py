@@ -54,6 +54,94 @@ class ESNReservoirTests(unittest.TestCase):
                 np.testing.assert_allclose(batch_states, np.asarray(stream_states), rtol=0.0, atol=1e-7)
                 np.testing.assert_array_equal(batch_ready, np.asarray(stream_ready))
 
+    def test_deep_layer_uses_the_previous_layer_state(self):
+        config = ESNConfig(
+            architecture="deep", reservoir_size=8, reservoir_count=2,
+            topology="ring", input_groups=("returns",),
+        )
+        scaler = FeatureScaler(config.selected_columns).fit(self.x[:6, :4])
+        coupled = ESNEngine(config, 41, scaler, warmup_steps=0)
+        disconnected = ESNEngine(config, 41, scaler, warmup_steps=0)
+        disconnected._win[1].fill(0.0)
+        disconnected._bias[1].fill(0.0)
+        coupled_state, _ = coupled.update_many(self.timestamps[:1], self.x[:1, :4])
+        disconnected_state, _ = disconnected.update_many(self.timestamps[:1], self.x[:1, :4])
+        np.testing.assert_array_equal(coupled_state[0, :8], disconnected_state[0, :8])
+        self.assertGreater(float(np.linalg.norm(coupled_state[0, 8:] - disconnected_state[0, 8:])), 1e-6)
+
+    def test_parallel_reservoirs_have_separate_states_without_cross_talk(self):
+        config = ESNConfig(
+            architecture="parallel", reservoir_size=8, reservoir_count=2,
+            topology="sparse", connectivity=0.4, input_groups=("returns",),
+        )
+        scaler = FeatureScaler(config.selected_columns).fit(self.x[:6, :4])
+        left = ESNEngine(config, 43, scaler, warmup_steps=0)
+        right = ESNEngine(config, 43, scaler, warmup_steps=0)
+        left.update_many(self.timestamps[:1], self.x[:1, :4])
+        right.update_many(self.timestamps[:1], self.x[:1, :4])
+        self.assertFalse(np.array_equal(left.states[0], left.states[1]))
+        self.assertFalse(np.array_equal(left._rec_values[0], left._rec_values[1]))
+        right.states[0, 0] += 0.25
+        left_state, _ = left.update_many(self.timestamps[1:2], self.x[1:2, :4])
+        right_state, _ = right.update_many(self.timestamps[1:2], self.x[1:2, :4])
+        np.testing.assert_array_equal(left_state[0, 8:], right_state[0, 8:])
+        self.assertFalse(np.array_equal(left_state[0, :8], right_state[0, :8]))
+
+    def test_architecture_and_dynamics_parameters_change_computation(self):
+        common = dict(reservoir_size=8, topology="sparse", connectivity=0.4, input_groups=("returns",))
+        single = ESNConfig(architecture="single", reservoir_count=1, **common)
+        parallel = ESNConfig(architecture="parallel", reservoir_count=2, **common)
+        deep = ESNConfig(architecture="deep", reservoir_count=2, **common)
+        self.assertEqual(single.state_count * single.reservoir_size, 8)
+        self.assertEqual(parallel.state_count * parallel.reservoir_size, 16)
+        self.assertEqual(deep.state_count * deep.reservoir_size, 16)
+
+        low_radius = ESNConfig(architecture="single", reservoir_count=1, spectral_radius=0.1, **common)
+        high_radius = ESNConfig(architecture="single", reservoir_count=1, spectral_radius=0.9, **common)
+        scaler = FeatureScaler(low_radius.selected_columns).fit(self.x[:6, :4])
+        low = ESNEngine(low_radius, 47, scaler, warmup_steps=0)
+        high = ESNEngine(high_radius, 47, scaler, warmup_steps=0)
+        low_states, _ = low.update_many(self.timestamps[:4], self.x[:4, :4])
+        high_states, _ = high.update_many(self.timestamps[:4], self.x[:4, :4])
+        self.assertFalse(np.allclose(low_states[-1], high_states[-1]))
+
+    def test_ring_structure_is_seed_invariant_but_weights_are_seeded(self):
+        config = ESNConfig(
+            reservoir_size=12, topology="ring", input_groups=("returns",),
+        )
+        scaler = FeatureScaler(config.selected_columns).fit(self.x[:6, :4])
+        first = ESNEngine(config, 53, scaler, warmup_steps=0)
+        repeat = ESNEngine(config, 53, scaler, warmup_steps=0)
+        other_seed = ESNEngine(config, 59, scaler, warmup_steps=0)
+        np.testing.assert_array_equal(first._rec_indices, repeat._rec_indices)
+        np.testing.assert_array_equal(first._rec_values, repeat._rec_values)
+        np.testing.assert_array_equal(first._win, repeat._win)
+        np.testing.assert_array_equal(first._bias, repeat._bias)
+        np.testing.assert_array_equal(first._rec_indices, other_seed._rec_indices)
+        self.assertFalse(np.array_equal(first._rec_values, other_seed._rec_values))
+        self.assertFalse(np.array_equal(first._win, other_seed._win))
+        self.assertFalse(np.array_equal(first._bias, other_seed._bias))
+        for row in range(config.reservoir_size):
+            connected = first._rec_indices[0, row]
+            connected = connected[connected >= 0]
+            self.assertEqual(set(connected.tolist()), {(row - 1) % 12, (row + 1) % 12})
+
+    def test_sparse_connectivity_changes_the_recurrent_graph(self):
+        low = ESNConfig(
+            reservoir_size=24, topology="sparse", connectivity=0.05,
+            input_groups=("returns",),
+        )
+        high = ESNConfig(
+            reservoir_size=24, topology="sparse", connectivity=0.8,
+            input_groups=("returns",),
+        )
+        scaler = FeatureScaler(low.selected_columns).fit(self.x[:6, :4])
+        low_engine = ESNEngine(low, 61, scaler, warmup_steps=0)
+        high_engine = ESNEngine(high, 61, scaler, warmup_steps=0)
+        low_edges = int(np.count_nonzero(low_engine._rec_indices >= 0))
+        high_edges = int(np.count_nonzero(high_engine._rec_indices >= 0))
+        self.assertGreater(high_edges, low_edges)
+
     def test_chunk_boundary_and_gap_reset_match_stream(self):
         timestamps = pd.DatetimeIndex([
             self.timestamps[i] if i < 6 else self.timestamps[i] + pd.Timedelta(minutes=1)
