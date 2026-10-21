@@ -1,0 +1,421 @@
+{
+  "audit_scope": {
+    "study_only": "search_validation",
+    "evaluation_period": {
+      "end_exclusive_utc": "2025-07-01T00:00:00Z",
+      "start_utc": "2025-01-01T00:00:00Z"
+    },
+    "validation_decision_rows": 52120,
+    "fit_rows": 2123739,
+    "target": "target_preopen_5m_up_binance_index_proxy",
+    "target_definition": "Close[Opened+6m] >= Open[Opened+2m]; five one-minute candles; ties resolve UP; label available at Opened+7m",
+    "delta_sign": "baseline log-loss minus variant log-loss; positive favors variant",
+    "holdout_rows_materialized": 0,
+    "read_after_search_validation_cutoff": false
+  },
+  "winner": {
+    "candidate_id": "44e399a127401eb4e7ff0fa6",
+    "study": "btc_esn_architecture_audit_20261020_architecture",
+    "trial": 61,
+    "source_stage": "architecture",
+    "config": {
+      "architecture": "single",
+      "bias_scaling": 0.11590666009961913,
+      "connectivity": null,
+      "input_groups": [
+        "returns",
+        "candle",
+        "range_volatility",
+        "volume",
+        "basis",
+        "time"
+      ],
+      "input_scaling": 0.2580663119097347,
+      "layers": null,
+      "leak_rate": 0.12875637661749686,
+      "n_reservoirs": 1,
+      "reservoir_size_per_layer_or_reservoir": 128,
+      "selected_columns": [
+        "log_return_1m",
+        "log_return_5m",
+        "log_return_15m",
+        "log_return_60m",
+        "candle_body_log_return",
+        "candle_close_location",
+        "candle_upper_wick_fraction",
+        "candle_lower_wick_fraction",
+        "candle_range_fraction",
+        "realized_volatility_5m",
+        "realized_volatility_15m",
+        "realized_volatility_60m",
+        "log_volume",
+        "volume_ratio_to_prior_30m_median",
+        "index_futures_log_basis",
+        "index_futures_basis_change_1m",
+        "index_futures_basis_change_5m",
+        "hour_sin",
+        "hour_cos",
+        "weekday_sin",
+        "weekday_cos"
+      ],
+      "spectral_radius": 1.1513008725745195,
+      "topology": "ring",
+      "total_units": 128
+    },
+    "warmup_steps_by_reservoir_seed": [
+      338,
+      163,
+      130
+    ],
+    "extra_pca_features": 8,
+    "baseline_feature_count": 70,
+    "total_lightgbm_feature_count": 78,
+    "lightgbm_seeds": [
+      20261101,
+      20261102,
+      20261103
+    ],
+    "reservoir_seeds": [
+      20261020,
+      20261021,
+      20261022
+    ],
+    "seed_pair_summary": {
+      "mean_delta_logloss": 7.873187107175649e-05,
+      "population_sd_delta_logloss": 3.906014726794305e-05,
+      "min_delta_logloss": 2.0067950896596187e-05,
+      "max_delta_logloss": 0.00012423520920656905,
+      "positive_pair_count": 9,
+      "pair_count": 9
+    },
+    "metric_aggregation": "unweighted arithmetic mean of nine paired per-model log-loss deltas; not averaged predictions"
+  },
+  "portfolio": {
+    "member_candidate_ids": [
+      "06b7965395f85db9ec3b8b7f",
+      "80bc3eab86cb1ade78b095ae"
+    ],
+    "probe_delta_logloss": 0.00015827362286332156,
+    "downstream_delta_logloss": -4.680685427084342e-05,
+    "member_count": 2,
+    "total_units": 384,
+    "extra_pca_features": 16,
+    "total_lightgbm_feature_count": 86,
+    "seed_pair_summary": {
+      "mean_delta_logloss": -4.680685427084342e-05,
+      "population_sd_delta_logloss": 7.961595106561429e-05,
+      "min_delta_logloss": -0.00015245483120540637,
+      "max_delta_logloss": 6.629710982308801e-05,
+      "positive_pair_count": 3,
+      "pair_count": 9
+    },
+    "selection_metric": "probe only; no downstream LightGBM reselection recorded",
+    "member_configs": [
+      {
+        "candidate_id": "06b7965395f85db9ec3b8b7f",
+        "architecture": "single",
+        "bias_scaling": 0.36220759482074777,
+        "connectivity": 0.4198237615858855,
+        "input_groups": [
+          "range_volatility"
+        ],
+        "input_scaling": 0.8775438223278621,
+        "layers": null,
+        "leak_rate": 0.1406152569426814,
+        "n_reservoirs": 1,
+        "reservoir_size_per_layer_or_reservoir": 256,
+        "selected_columns": [
+          "candle_range_fraction",
+          "realized_volatility_5m",
+          "realized_volatility_15m",
+          "realized_volatility_60m"
+        ],
+        "spectral_radius": 1.0052597180390357,
+        "topology": "sparse",
+        "total_units": 256
+      },
+      {
+        "candidate_id": "80bc3eab86cb1ade78b095ae",
+        "architecture": "deep",
+        "bias_scaling": 0.37981034069596603,
+        "connectivity": null,
+        "input_groups": [
+          "basis"
+        ],
+        "input_scaling": 0.23391119636151508,
+        "layers": 2,
+        "leak_rate": 0.05687055713912644,
+        "n_reservoirs": 2,
+        "reservoir_size_per_layer_or_reservoir": 64,
+        "selected_columns": [
+          "index_futures_log_basis",
+          "index_futures_basis_change_1m",
+          "index_futures_basis_change_5m"
+        ],
+        "spectral_radius": 0.9457661960099929,
+        "topology": "ring",
+        "total_units": 128
+      }
+    ]
+  },
+  "search_coverage": {
+    "architecture_study": {
+      "study": "btc_esn_architecture_audit_20261020_architecture",
+      "attempted": 78,
+      "scored": 69,
+      "rejected": 6,
+      "anchors_completed": 6,
+      "anchors_expected": 6
+    },
+    "corrected_input_study": {
+      "study": "btc_esn_architecture_audit_20261020_input_groups_corrected_20261021",
+      "attempted": 59,
+      "scored": 59,
+      "anchors_completed": 18,
+      "anchors_expected": 18,
+      "sampler_seed": 20261021,
+      "fresh_study_and_sampler_state": true,
+      "effective_config_input_columns_verified": "59/59",
+      "family_bases_source": "architecture_search leaders; no candidate base or parameter range was taken from the invalid input study",
+      "invalid_initial_trials_excluded": 22,
+      "invalid_initial_scored": 20,
+      "invalid_initial_rejected": 2
+    },
+    "downstream_individual_candidates": 9,
+    "downstream_variants_including_selected_portfolio": 10
+  },
+  "rank_comparison": {
+    "candidate_count": 9,
+    "spearman_probe_vs_lightgbm_mean_delta": -0.46666666666666656,
+    "interpretation": "selected finalist pool only; descriptive",
+    "candidate_rank_table": "r4_candidate_rankings.csv"
+  },
+  "boundary": {
+    "probe_diagnostic": {
+      "architecture_scored_trials": 69,
+      "boundary_band_fraction": 0.05,
+      "method": "For each parameter, report scored-trial min/max and counts in the outer 5% of its configured range; top decile ranks by probe mean_delta_logloss. Connectivity is conditional on sparse topology and its top decile is ranked within sparse scored trials.",
+      "parameters": {
+        "bias_scaling": {
+          "all_scored_near_boundary": {
+            "high": 1,
+            "low": 1,
+            "sample_size": 69
+          },
+          "best_scored_trial": 48,
+          "boundary_pressure_signal": [
+            "none"
+          ],
+          "conditional_population": "all scored architecture trials",
+          "configured_range": [
+            0.0,
+            0.5
+          ],
+          "observed_range": [
+            0.00228504020004508,
+            0.4819836667069503
+          ],
+          "outer_band": 0.025,
+          "top_decile_near_boundary": {
+            "high": 0,
+            "low": 0,
+            "sample_size": 7
+          }
+        },
+        "connectivity": {
+          "all_scored_near_boundary": {
+            "high": 0,
+            "low": 6,
+            "sample_size": 31
+          },
+          "best_scored_trial": 34,
+          "boundary_pressure_signal": [
+            "lower"
+          ],
+          "conditional_population": "sparse topology only",
+          "configured_range": [
+            0.03,
+            0.5
+          ],
+          "observed_range": [
+            0.030729106768722578,
+            0.45505275445849025
+          ],
+          "outer_band": 0.0235,
+          "top_decile_near_boundary": {
+            "high": 0,
+            "low": 2,
+            "sample_size": 4
+          }
+        },
+        "input_scaling": {
+          "all_scored_near_boundary": {
+            "high": 0,
+            "low": 4,
+            "sample_size": 69
+          },
+          "best_scored_trial": 48,
+          "boundary_pressure_signal": [
+            "none"
+          ],
+          "conditional_population": "all scored architecture trials",
+          "configured_range": [
+            0.05,
+            1.5
+          ],
+          "observed_range": [
+            0.0579032834746408,
+            1.151472837961781
+          ],
+          "outer_band": 0.0725,
+          "top_decile_near_boundary": {
+            "high": 0,
+            "low": 0,
+            "sample_size": 7
+          }
+        },
+        "leak_rate": {
+          "all_scored_near_boundary": {
+            "high": 1,
+            "low": 24,
+            "sample_size": 69
+          },
+          "best_scored_trial": 48,
+          "boundary_pressure_signal": [
+            "lower"
+          ],
+          "conditional_population": "all scored architecture trials",
+          "configured_range": [
+            0.05,
+            1.0
+          ],
+          "observed_range": [
+            0.05041030498009617,
+            0.9832007913660838
+          ],
+          "outer_band": 0.0475,
+          "top_decile_near_boundary": {
+            "high": 0,
+            "low": 7,
+            "sample_size": 7
+          }
+        },
+        "spectral_radius": {
+          "all_scored_near_boundary": {
+            "high": 12,
+            "low": 1,
+            "sample_size": 69
+          },
+          "best_scored_trial": 48,
+          "boundary_pressure_signal": [
+            "upper"
+          ],
+          "conditional_population": "all scored architecture trials",
+          "configured_range": [
+            0.1,
+            1.2
+          ],
+          "observed_range": [
+            0.13257240087216784,
+            1.1964942770248173
+          ],
+          "outer_band": 0.05499999999999999,
+          "top_decile_near_boundary": {
+            "high": 1,
+            "low": 0,
+            "sample_size": 7
+          }
+        }
+      },
+      "top_decile_size": 7
+    },
+    "probe_top_decile_trial_numbers": [
+      48,
+      64,
+      74,
+      68,
+      77,
+      75,
+      76
+    ],
+    "probe_top_decile_family_topology": [
+      "deep/ring",
+      "deep/ring",
+      "deep/ring",
+      "deep/ring",
+      "deep/ring",
+      "deep/ring",
+      "deep/ring"
+    ],
+    "sparse_probe_top_decile_trial_numbers": [
+      34,
+      57,
+      58,
+      14
+    ],
+    "downstream_finalist_posthoc_counts": {
+      "leak_rate": {
+        "range": [
+          0.05,
+          1.0
+        ],
+        "outer_linear_5pct_band": 0.0475,
+        "population": 9,
+        "near_low_count": 5,
+        "near_high_count": 0
+      },
+      "spectral_radius": {
+        "range": [
+          0.1,
+          1.2
+        ],
+        "outer_linear_5pct_band": 0.05499999999999999,
+        "population": 9,
+        "near_low_count": 0,
+        "near_high_count": 1
+      },
+      "input_scaling": {
+        "range": [
+          0.05,
+          1.5
+        ],
+        "outer_linear_5pct_band": 0.0725,
+        "population": 9,
+        "near_low_count": 0,
+        "near_high_count": 0
+      },
+      "bias_scaling": {
+        "range": [
+          0.0,
+          0.5
+        ],
+        "outer_linear_5pct_band": 0.025,
+        "population": 9,
+        "near_low_count": 0,
+        "near_high_count": 0
+      },
+      "connectivity": {
+        "range": [
+          0.03,
+          0.5
+        ],
+        "outer_linear_5pct_band": 0.0235,
+        "population": 4,
+        "near_low_count": 1,
+        "near_high_count": 0
+      }
+    }
+  },
+  "tables": {
+    "family_topology": "reports/btc_preopen/btc_esn_architecture_audit_20261020/r4_family_topology_comparison.csv",
+    "winner_portfolio_seeds": "reports/btc_preopen/btc_esn_architecture_audit_20261020/r4_winner_portfolio_seed_results.csv",
+    "candidate_rankings": "reports/btc_preopen/btc_esn_architecture_audit_20261020/r4_candidate_rankings.csv",
+    "portfolio_probe_trace": "reports/btc_preopen/btc_esn_architecture_audit_20261020/r4_portfolio_probe_selection_trace.csv"
+  },
+  "next_step": {
+    "decision": "close this stage without more computation",
+    "scope": "freeze the best single as provisional candidate for a separately specified confirmation; retain portfolio as rejected by saved downstream mean",
+    "incremental_model_compute_seconds": 0,
+    "limitation": "No confirmation artifact or its timing was read; no independent-confirmation cost estimate is claimed."
+  }
+}

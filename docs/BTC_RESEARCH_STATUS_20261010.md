@@ -516,3 +516,32 @@ Experiment `btc_market_dynamics_action_value_20261020`: the original run report 
 - Next resumable step: `none`.
 - Detail: corrected study 59 trials, 18/18 anchors; final active compute 10850.8s of 14,400s.
 - Scope: fit-core, correction-fit, and search-validation ending `2025-07-01T00:00:00Z`; no reads beyond that cutoff.
+
+## ESN r4 interpretacja domknięta — 2026-10-21
+
+### Wykonane i potwierdzone
+
+- Na podstawie kodu i zapisanych artefaktów wskazano downstream lidera: `single/ring`, 1×128, architektura study trial 61 (`44e399a127401eb4e7ff0fa6`), średnia sparowana Δ log-loss `+0.000078732` na `search_validation`.
+- Zestawiono per-seed wyniki lidera i portfela: pełny crossed grid 3 seedów reservoiru × 3 seedów LightGBM; single dodatni w 9/9 komórek, portfel dodatni w 3/9 i ze średnią `−0.000046807`.
+- Wszystkie sześć par R4 rodzina×topologia ma co najmniej jednego ocenionego finalistę LightGBM. Probe wybrał dwumodelowy portfel, ale selekcja downstream nie zastąpiła go najlepszym single.
+- Poprawione wejścia study są zgodne w 59/59 efektywnych konfiguracji; cache identity zawiera rzeczywiste grupy i kolumny.
+- Powstały maszynowo czytelne tabele porównania rodzin, wyników seedów, rankingów oraz śladu probe portfela. Pełna interpretacja znajduje się w [raporcie audytu ESN](../reports/btc_preopen/btc_esn_architecture_audit_20261020.md).
+
+### Wykonane z ograniczeniami
+
+- Wnioski są selekcyjne dla `search_validation` 2025-01-01–2025-07-01, 52 120 wierszy; nie są niezależnym potwierdzeniem.
+- Probe kontra LightGBM ma korelację rang `−0.4667` w dziewięciu finalistach; to opis wyselekcjonowanej puli. Downstream granic parametrów nie było osobnym study.
+- Sygnały dolnej granicy leak i sparse connectivity pochodziły z probe; top 7 prób to `deep/ring`, top 4 sparse to `deep/sparse`. To nie uzasadnia automatycznego rozszerzenia zakresów.
+- Błędne 22 próby zużyły 1887.9 s, ale nie przekazały obserwacji do świeżego samplera poprawionego study. Poprawiony etap ukończył 59 prób i 18/18 kotwic; cały przebieg zamknął się w 10 850.8 s z limitu 14 400 s.
+- Seed grid 3×3 pozwala opisać wpływ obu seedów warunkowo, lecz nie daje wielu powtórzeń w komórce ani szerokiego wniosku o stabilności.
+
+### Niewykonane
+
+- Nie uruchomiono nowego study, treningu, generowania stanów ani ponownej selekcji na `search_validation`.
+- Nie odczytano holdoutu ani danych, predykcji lub wyników confirmation; nie zmieniono granic splitu ani modelu live.
+- Nie oceniono `dense` downstream w R4 i nie rozszerzono zakresów hiperparametrów.
+
+### Rekomendowany następny krok
+
+- Zamknąć obecny etap bez dalszych obliczeń. Zachować `44e399a127401eb4e7ff0fa6` jako prowizorycznego kandydata do oddzielnie zdefiniowanego potwierdzenia; portfel nie jest zwycięzcą downstream.
+- Koszt modelowy zamknięcia: 0 s nowych fitów i stanów. Referencyjny koszt zapisanej poprawionej oceny downstream: 499.3 s dla 10 wariantów, w tym 224.3 s generowania cech i 269.7 s w 93 fitach LightGBM; nie traktować go jako estymacji chronionego confirmation.

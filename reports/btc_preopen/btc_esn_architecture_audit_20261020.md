@@ -228,10 +228,164 @@ Zakres dla ciągłego parametru oznaczam jako wymagający sprawdzenia w szerszym
 
 ## Wskazówki dla następnego zakresu
 
-Leak rate wykazuje silną presję dolnej granicy (7/7 najlepszych triali w dolnych 5% zakresu); sparse connectivity również sugeruje sprawdzenie niższych wartości (2/4 własnego top decile). Dla spectral radius presja górna jest słabsza (1/7 top decile). W następnym study warto rozszerzyć dolny zakres leak rate i connectivity oraz umiarkowanie sprawdzić spectral radius powyżej 1.2. Input scaling i bias scaling nie wykazały presji w top decile.
+Pierwotnie odnotowano presję dolnej granicy leak rate (7/7 najlepszych triali w dolnych 5%), sparse connectivity (2/4) oraz słabszy sygnał górnej granicy spectral radius (1/7). Szczegółowa kontrola rankingu poniżej zawęża tę interpretację: wszystkie 7 triali top decile to `deep/ring`, a wszystkie 4 najlepsze sparse triale to `deep/sparse`. Tych historycznych sygnałów nie traktuję jako wystarczającej podstawy do rozszerzenia zakresów.
 
 Poprawiony etap można wznowić poleceniem `python run_btc_esn_input_group_correction_20261021.py`; pełny runner architektury: `python run_btc_esn_architecture_audit_20261020.py`.
 
 ## Zakres wyników
 
 Wszystkie R4 probe i downstream wyniki pozostają selekcyjne dla `search_validation`. Nie są niezależnym potwierdzeniem. Holdout i późniejsze dane/etykiety nie zostały odczytane.
+
+## Domknięcie interpretacji na podstawie kodu i zapisanych artefaktów — 2026-10-21
+
+### Werdykt w skrócie
+
+Najlepszy zapisany wynik downstream należy do kandydata `44e399a127401eb4e7ff0fa6`: study `btc_esn_architecture_audit_20261020_architecture`, trial 61, **single ESN / ring / 1×128 jednostek**, ze wszystkimi sześcioma grupami wejściowymi. Średnia sparowana downstream Δ log-loss wynosi `+0.000078731871` (raportowane `+0.000078732`).
+
+Wybrany portfel probe składał się z `06b7965395f85db9ec3b8b7f` oraz `80bc3eab86cb1ade78b095ae`. Uzyskał `+0.000158274` w probe, ale `−0.000046807` downstream. Końcowy runner **nie przestawił wyboru na najlepszy model pojedynczy** po tej ocenie: zapisał wynik LightGBM portfela i kandydatów, lecz nie wykonał selekcji portfela według LightGBM.
+
+### Zwycięzca downstream: dokładna konfiguracja
+
+| Pole | Zapisana wartość |
+|---|---|
+| Kandydat / study / trial | `44e399a127401eb4e7ff0fa6` / `btc_esn_architecture_audit_20261020_architecture` / `61` |
+| Rodzina / topologia | `single` / `ring` |
+| Reservoiry / warstwy / jednostki | 1 reservoir, 1 warstwa, 128 jednostek |
+| Grupy wejściowe | `returns`, `candle`, `range_volatility`, `volume`, `basis`, `time` |
+| Parametry | leak `0.12875637661749686`; spectral radius `1.1513008725745195`; connectivity: nie dotyczy ring; input scaling `0.2580663119097347`; bias scaling `0.11590666009961913` |
+| Seedy | reservoir `20261020, 20261021, 20261022`; LightGBM `20261101, 20261102, 20261103` |
+
+21 unikalnych kolumn wejściowych pochodzących z tych grup:
+
+- `returns`: `log_return_1m`, `log_return_5m`, `log_return_15m`, `log_return_60m`;
+- `candle`: `candle_body_log_return`, `candle_close_location`, `candle_upper_wick_fraction`, `candle_lower_wick_fraction`;
+- `range_volatility`: `candle_range_fraction`, `realized_volatility_5m`, `realized_volatility_15m`, `realized_volatility_60m`;
+- `volume`: `log_volume`, `volume_ratio_to_prior_30m_median`;
+- `basis`: `index_futures_log_basis`, `index_futures_basis_change_1m`, `index_futures_basis_change_5m`;
+- `time`: `hour_sin`, `hour_cos`, `weekday_sin`, `weekday_cos`.
+
+`FeatureScaler` wyznacza średnią i odchylenie standardowe z finite wartości wejściowych w `fit_core`, przed `2024-07-01T00:00:00Z`; zerowy scale zastępuje jedynką, a wartości niefinitywne po transformacji ustawia na zero. Warm-up mierzy zbieżność stanu z początkową perturbacją `0.25`, progiem względnej różnicy p95 `0.001` i stabilnym oknem 60 minut. Zapisane wartości dla trzech seedów reservoiru to **338, 163 i 130 minut**; wszystkie trzy diagnostyki przeszły próg.
+
+Downstream nie dostaje 128 surowych stanów. Dla każdego seedu PCA z losowanym solverem jest fitowane na 20 000 stanów z `fit_core` i redukuje stan do 8 składowych. LightGBM dostaje `BASE70 + 8 PC = 78 cech`. Wagi fitu to `0.59` dla wierszy decyzyjnych i `0.1025` dla pozostałych minut. Parametry bazowego LightGBM pochodzą z `B0_cv_summary.json`: `gbdt`, `binary`, `num_leaves=81`, `learning_rate=0.06418546619439842`, `feature_fraction=0.7962744599393133`, `feature_pre_filter=false`, `min_data_in_leaf=12089`, `lambda_l1=9.508616956284627`, `lambda_l2=30.729843292781943`, `max_bin=63`, `device_type=gpu`, `gpu_use_dp=false`, `num_threads=8`, `metric=None`, `verbosity=-1`. Każdy wariant używał **31 boosting rounds bez early stopping**; seedy LightGBM nadpisywały pola `seed`, `data_random_seed`, `feature_fraction_seed` i `bagging_seed`.
+
+Wybrany probe-owo portfel miał dwa człony: `06b7965395f85db9ec3b8b7f` — single/sparse, 1×256, grupa `range_volatility`, leak `0.1406152569426814`, radius `1.0052597180390357`, connectivity `0.4198237615858855`, input scaling `0.8775438223278621`, bias `0.36220759482074777`; oraz `80bc3eab86cb1ade78b095ae` — deep/ring, 2×64, grupa `basis`, leak `0.05687055713912644`, radius `0.9457661960099929`, input scaling `0.23391119636151508`, bias `0.37981034069596603`. Portfel łączy 384 jednostki reservoirów, 8 PCA cech na człon i `BASE70 + 16 = 86` kolumn w LightGBM. Connectivity nie dotyczy członu ring. Warm-up członów per reservoir seed wynosił odpowiednio `162/168/157` i `710/290/430` minut. Portfel używał tego samego crossed grid seedu reservoiru i LightGBM co zwycięzca single.
+
+Target to `target_preopen_5m_up_binance_index_proxy`: `Close[Opened+6m] >= Open[Opened+2m]`, pięć świec 1m, remisy jako UP; decyzja nominalna `Opened+1m`, etykieta dostępna `Opened+7m`. Downstream używał fitu 2 123 739 wierszy oraz wspólnej maski 52 120 wierszy decyzyjnych z `search_validation`, od `2025-01-01` do `2025-07-01` exclusive. Wagi dotyczą fitu; raportowany validation log-loss jest nieważoną metryką tych samych wierszy. Δ log-loss oznacza `baseline − variant`, więc wartość dodatnia jest lepsza.
+
+Poprawa `+0.000078732` to **średnia arytmetyczna dziewięciu różnic log-loss dla 3×3 sparowanych modeli**, a nie wynik pojedynczego seedu, średnia predykcji ani log-loss modelu ensemble. Baseline zależy od seedu LightGBM; ten sam baseline seed jest porównywany z każdym z trzech seedów reservoiru.
+
+### Seed × seed: zwycięzca i portfel
+
+| Wariant | Seed reservoiru | Seed LightGBM | Baseline LL | Wariant LL | Δ LL |
+|---|---:|---:|---:|---:|---:|
+| single/ring | 20261020 | 20261101 | 0.692359019 | 0.692294172 | +0.000064847 |
+| single/ring | 20261020 | 20261102 | 0.692334181 | 0.692286249 | +0.000047931 |
+| single/ring | 20261020 | 20261103 | 0.692493228 | 0.692371244 | +0.000121984 |
+| single/ring | 20261021 | 20261101 | 0.692359019 | 0.692277529 | +0.000081490 |
+| single/ring | 20261021 | 20261102 | 0.692334181 | 0.692309583 | +0.000024598 |
+| single/ring | 20261021 | 20261103 | 0.692493228 | 0.692388328 | +0.000104900 |
+| single/ring | 20261022 | 20261101 | 0.692359019 | 0.692338951 | +0.000020068 |
+| single/ring | 20261022 | 20261102 | 0.692334181 | 0.692215648 | +0.000118533 |
+| single/ring | 20261022 | 20261103 | 0.692493228 | 0.692368993 | +0.000124235 |
+| portfel wybrany probe (downstream) | 20261020 | 20261101 | 0.692359019 | 0.692511474 | −0.000152455 |
+| portfel wybrany probe (downstream) | 20261020 | 20261102 | 0.692334181 | 0.692473236 | −0.000139055 |
+| portfel wybrany probe (downstream) | 20261020 | 20261103 | 0.692493228 | 0.692462902 | +0.000030326 |
+| portfel wybrany probe (downstream) | 20261021 | 20261101 | 0.692359019 | 0.692391595 | −0.000032575 |
+| portfel wybrany probe (downstream) | 20261021 | 20261102 | 0.692334181 | 0.692447648 | −0.000113467 |
+| portfel wybrany probe (downstream) | 20261021 | 20261103 | 0.692493228 | 0.692426931 | +0.000066297 |
+| portfel wybrany probe (downstream) | 20261022 | 20261101 | 0.692359019 | 0.692408164 | −0.000049145 |
+| portfel wybrany probe (downstream) | 20261022 | 20261102 | 0.692334181 | 0.692427347 | −0.000093166 |
+| portfel wybrany probe (downstream) | 20261022 | 20261103 | 0.692493228 | 0.692431250 | +0.000061978 |
+
+| Wariant | Średnia Δ LL | SD populacyjne 9 par | Min | Max | Dodatnie pary |
+|---|---:|---:|---:|---:|---:|
+| single/ring | +0.000078732 | 0.000039060 | +0.000020068 | +0.000124235 | 9/9 |
+| portfel wybrany probe (downstream) | −0.000046807 | 0.000079616 | −0.000152455 | +0.000066297 | 3/9 |
+
+Zmieniano **oba seedy w pełnym układzie krzyżowym 3×3**. Pozwala to pokazać średnie warunkowe po seedzie reservoiru oraz po seedzie LightGBM: dla zwycięzcy każda z trzech średnich reservoiru i każda z trzech średnich LightGBM była dodatnia; dla portfela średnia po każdym seedzie reservoiru była ujemna. Trzy poziomy każdego czynnika i jeden wynik na komórkę nie pozwalają oszacować szerokiej populacyjnej stabilności ani oddzielić interakcji seedów od pozostałego szumu.
+
+### Rzeczywiste pokrycie rodzin i topologii
+
+Kod `ESNConfig` obsługuje `single`, `parallel`, `deep` oraz topologie `ring`, `sparse`, `dense`. Konfiguracja R4 przeszukiwała wyłącznie `ring` i `sparse`; `dense` nie wygenerowano ani nie oceniono downstream w R4. Dense pojawiał się tylko w osobnym, historycznym R3 searchu 48 triali, którego budżety i rozkład prób nie były wyrównane.
+
+W R4 oceniono downstream sześciu liderów probe rodzina×topologia i trzech finalistów grup wejściowych. Każda z sześciu par dostała przynajmniej jeden kandydat LightGBM; trzy pary mają po dwóch kandydatów, bo doszedł finalist input-group. „Najlepszy” oznacza tu najwyższą średnią z dziewięciu wyników w tej wyselekcjonowanej puli.
+
+| Rodzina × topologia | Screening scored / rejected / failed | Downstream kandydaci | Najlepsza downstream Δ LL (trial) | Dodatnie pary; SD populacyjne | Czas triali screeningu | Generowanie cech finalistów |
+|---|---:|---:|---:|---:|---:|---:|
+| single × ring | 4 / 1 / 1 | 1 | +0.000078732 (arch t61) | 9/9; 0.000039060 | 228.0 s | 0.004 s |
+| single × sparse | 3 / 0 / 1 | 2 | +0.000066810 (arch t31) | 6/9; 0.000084117 | 353.9 s | 163.119 s |
+| parallel × ring | 6 / 0 / 1 | 2 | +0.000001196 (arch t53) | 6/9; 0.000057389 | 271.5 s | 25.990 s |
+| parallel × sparse | 4 / 0 / 0 | 1 | +0.000032020 (arch t9) | 5/9; 0.000078448 | 364.0 s | 0.005 s |
+| deep × ring | 28 / 0 / 0 | 2 | +0.000068828 (arch t48) | 7/9; 0.000100812 | 1142.4 s | 35.180 s |
+| deep × sparse | 24 / 5 / 0 | 1 | +0.000041810 (arch t34) | 6/9; 0.000082071 | 3073.2 s | 0.004 s |
+
+Łącznie study architektury miało 78 prób: 69 ocenionych probe, 6 odrzuconych i 3 nieudane; wszystkie wymagane 6 kotwic rodzina×topologia ostatecznie ukończono. Próby screeningu były nierówne: `deep/ring` i `deep/sparse` stanowią 52 z 69 ocenionych konfiguracji, wobec 7 single i 10 parallel. Sześć kotwic architektury wyrównywało wejścia do pełnego zestawu i budżet do 128 jednostek; nie wyrównywało natomiast liczby późniejszych prób Optuny.
+
+„18/18 kotwic” oznacza inną rzecz: po jednej konfiguracji dla każdej kombinacji trzech zamrożonych baz rodzinnych i sześciu jednokrotnych grup wejściowych (`returns`, `candle`, `range_volatility`, `volume`, `basis`, `time`). Wszystkie 18 zostały ocenione probe. Bazy były `deep/ring 128u`, `parallel/ring 128u` i `single/sparse 256u`; zatem nazwy grup wejściowych były porównywalne, ale budżet jednostek, topologia i pozostałe parametry baz nie były wspólne. To kontroluje wybór grup warunkowo względem wybranej bazy, nie stanowi wyrównanego porównania rodzin.
+
+### Probe a downstream: ranking i wybór portfela
+
+W obu miejscach dodatnie Δ oznacza `baseline log-loss − augmented log-loss`. Okres i target były te same; w probe i downstream zapisano po 52 120 wierszy walidacyjnych, a w downstream każdy kandydat używał tej samej wspólnej maski. Baseline był jednak inny: probe porównywał logistyczną korektę stałych logitów BASE70 (raw-logit LightGBM seed `20261015`) z tą samą korektą rozszerzoną o PCA; kontrola i wariant probe używały `C=0.1` i wspólnych wierszy correction-fit. Downstream ponownie dopasowywał BASE70 LightGBM dla każdego seedu `20261101–20261103` i dołączał cechy ESN. Probe średniował trzy delty reservoiru, downstream dziewięć sparowanych delt 3×3. Liczb nie należy porównywać jako przyrostów względem identycznego baseline’u.
+
+Ranking probe kontra średnia downstream dla dziewięciu finalistów ma korelację Spearmana `ρ = −0.4667` (`n=9`). To wyselekcjonowana pula, a korelacja jest opisowa, nie niezależny test rankera.
+
+| Kandydat | Probe rank (Δ LL) | Downstream rank (Δ LL) |
+|---|---:|---:|
+| single/sparse 256u, `range_volatility` (`06b79653…`) | 1 (+0.000089797) | 6 (+0.000011029) |
+| deep/ring 128u, `basis` (`80bc3eab…`) | 2 (+0.000078527) | 7 (+0.000010110) |
+| parallel/ring 128u, `range_volatility+basis` (`61a793c8…`) | 3 (+0.000056151) | 9 (−0.000007840) |
+| deep/ring 128u, pełne wejścia (`b656b64a…`) | 4 (−0.000006147) | 2 (+0.000068828) |
+| deep/sparse 256u, pełne wejścia (`9d1bec12…`) | 5 (−0.000026274) | 4 (+0.000041810) |
+| parallel/ring 128u, pełne wejścia (`4785383d…`) | 6 (−0.000074351) | 8 (+0.000001196) |
+| single/sparse 256u, pełne wejścia (`fba0a1f5…`) | 7 (−0.000111475) | 3 (+0.000066810) |
+| single/ring 128u, pełne wejścia (`44e399a1…`) | 8 (−0.000167979) | 1 (+0.000078732) |
+| parallel/sparse 256u, pełne wejścia (`dcd078fc…`) | 9 (−0.000180747) | 5 (+0.000032020) |
+
+Przebieg selekcji portfela był w całości probe-only:
+
+| Runda | Skład przed | Decyzja probe | Wynik przed → po | Kryterium |
+|---|---|---|---:|---|
+| 0 | pusty | wybrano `06b79653…` single/sparse 256u, `range_volatility` | 0 → +0.000089797 | Najlepszy pojedynczy wynik spełniający dodatnią średnią i dodatnie delty w co najmniej 2/3 seedów; tutaj 3/3 |
+| 1 | `06b79653…` | wybrano `80bc3eab…` deep/ring 128u, `basis` | +0.000089797 → +0.000158274; margines +0.000068477 | Dodatni margines i wynik łączny, dodatnie delty w co najmniej 2/3 seedów; był to najlepszy kwalifikujący dodatek |
+| 2 | oba powyższe | stop; żaden z siedmiu pozostałych dodatków nie miał dodatniego marginesu | +0.000158274 → bez zmiany | Kryterium dodatniego marginesu probe |
+
+Zatem `+0.000158274` jest średnią probe log-loss baseline kontra probe rozszerzony dla trzech seedów reservoiru, przy 52 972 wierszach correction-fit i 52 120 walidacji. Downstream LightGBM ocenił 9 modeli pojedynczych oraz **jeden zapisany portfel** na 9 parach seedów. Ta ocena wykazała, że najlepszy pojedynczy model jest lepszy od portfela na wspólnych danych i seedach; nie zmieniła jednak wyniku funkcji selekcji ani zapisanego pola `selected_candidate_ids`.
+
+Z artefaktów ustalono rozbieżność rankingów i różnice baseline’ów. Nie ma dowodu pozwalającego przypisać ujemny wynik portfela przeuczeniu, liczbie cech, kompresji PCA ani konkretnemu mechanizmowi przyczynowemu.
+
+### Wpływ 22 błędnych prób wejściowych
+
+Pierwszy study `btc_esn_architecture_audit_20261020_input_groups` wykonał 22 próby (20 scored, 2 odrzucone); zapisane efektywne konfiguracje wszystkich 22 miały pełne sześć grup, więc nie testowały wyboru grup. Zostały zachowane w `input_search_search_uncorrected.json` i wykluczone z końcowego zestawu kandydatów.
+
+Korekta użyła nowej nazwy study `btc_esn_architecture_audit_20261020_input_groups_corrected_20261021` oraz świeżego stanu TPE z skonfigurowanym seedem `20261021`; nie załadowała obserwacji starego study. Użyła trzech baz wybranych z wcześniejszego, poprawnego etapu architektury, nie z 22 błędnych triali. Sprawdzenie zapisanych efektywnych konfiguracji potwierdza **59/59** zgodności `input_groups → selected_columns`. Cache key jest hashem całego efektywnego rekordu konfiguracji, zawierającego i grupy, i kolumny, z osobnym identity oraz seedem; różny zestaw wejść nie dziedziczy zatem cache po pełnym wejściu.
+
+Błędne próby zużyły 1887.9 s wspólnego limitu 14 400 s. Nie przeniosły się jednak do samplera ani nie ograniczyły kompletności: study korekcyjne ukończyło 59/59 prób i 18/18 kotwic, downstream zakończył się, a cały zapisany koszt wyniósł 10 850.8 s. Wpływ jest więc potwierdzony jako dodatkowy koszt obliczeń, bez widocznego ucięcia poprawionego etapu lub dowodu skażenia jego rankingów.
+
+### Diagnostyka granic parametrów — ograniczenie i sprostowanie
+
+Diagnostyka w manifeście pochodzi z **rankingu probe architektury**, nie z rankingu LightGBM. Kod porządkuje 69 scored triali malejąco po `mean_delta_logloss`, wybiera `ceil(10%) = 7`; connectivity liczy osobno w 31 sparse trialach i ich top 4. Zakres „blisko granicy” to zewnętrzne 5% **liniowej szerokości** skonfigurowanego przedziału; `suggest_float` nie ustawia `log=True`.
+
+Top probe triale `48, 64, 74, 68, 77, 75, 76` to wszystkie `deep/ring`; żaden nie jest kotwicą. Top sparse triale `34, 57, 58, 14` to wszystkie `deep/sparse`; również nie są kotwicami. Nierówny udział rodzin nie tworzy samych wartości granicznych, ale powoduje, że presja jest warunkowa względem DeepESN, a nie wspólna dla wszystkich rodzin.
+
+Opisowy odczyt dziewięciu finalistów downstream daje 5/9 przy dolnej granicy leak rate, 1/9 przy górnej spectral radius i 1/4 sparse przy dolnej connectivity. To mała pula wybrana probe’em, nie odrębna diagnostyka optimum. Sam zwycięzca ma leak `0.1288` (poza dolnym pasmem), spectral radius `1.1513` (w górnym paśmie), a top downstream sparse `single/sparse` ma connectivity `0.4198` (poza dolnym pasmem). Nie uzasadnia to rozszerzenia zakresu connectivity; pojedynczy zwycięzca przy górnym spectral radius nie wystarcza do rozszerzenia tego zakresu.
+
+Istniejące pomiary pozwalają ocenić warm-up dla testowanego dolnego końca leak rate: top 7 probe triali miało leak `0.0504–0.0839`, wszystkie trzy seedy stabilizowały się w **193–499 minutach** przy zamrożonym kryterium. Nie testowano leak poniżej `0.05`, więc warm-up dla wolniejszej dynamiki poniżej tego zakresu pozostaje nieznany. Wartości historycznej tabeli granic pozostają zachowane, lecz jej wcześniejsza sugestia automatycznego poszerzenia leak/connectivity jest zastąpiona powyższym, warunkowym wnioskiem.
+
+### Jednoznaczne odpowiedzi i następny krok
+
+1. Downstream wygrał `single/ring`, 1×128, study architecture trial 61, kandydat `44e399a127401eb4e7ff0fa6`, pełne wejścia; średnia Δ LL `+0.000078732`.
+2. Tak: DeepESN i parallel ESN mają downstream kandydatów dla ring i sparse w R4, po jednym liderze probe na każdą parę rodzina×topologia; nie testowano dense downstream w R4.
+3. Tak, seedy reservoiru zmieniano i krzyżowano z trzema seedami LightGBM; stabilność jest opisowa dla 3×3, nie szeroka.
+4. Nie: selekcja portfela używała przyrostu probe. Downstream oceniono tylko dla finalistów i jednego wybranego probe portfela.
+5. Tak, najlepszy pojedynczy wariant i portfel są bezpośrednio porównywalne na tych samych 52 120 wierszach, dziewięciu parach seedów i baseline’ach dla seedów LightGBM. To nadal porównanie selekcyjne na `search_validation`.
+6. Nie widać, by błąd wejść sterował poprawionym samplerem, kandydatami lub cache; zużył 1887.9 s, lecz wszystkie poprawione kotwice i downstream zostały ukończone w ramach limitu.
+
+Rekomendacja: **zamknąć obecny etap bez dalszych obliczeń**. Zachować `44e399a127401eb4e7ff0fa6` jako prowizorycznego kandydata do odrębnie zdefiniowanego potwierdzenia, a probe-owy portfel odrzucić jako zwycięzcę downstream. Kolejna analiza tej samej walidacji pogłębiłaby selekcję na tym samym okresie; diagnostyka granic jest dodatkowo skoncentrowana na DeepESN. Koszt obliczeniowy zamknięcia tego etapu wynosi **0 s nowych stanów i fitów**. Jako punkt odniesienia, poprawiona końcowa ocena 10 wariantów (9 single + jeden portfel) kosztowała 499.318 s, w tym 224.302 s generowania cech i 269.663 s dla 93 fitów LightGBM. Nie estymuję niezależnego confirmation runtime na podstawie chronionych artefaktów.
+
+### Maszynowo czytelne tabele
+
+- [Porównanie rodzin i topologii](btc_esn_architecture_audit_20261020/r4_family_topology_comparison.csv)
+- [Wszystkie pary seedów zwycięzcy i portfela](btc_esn_architecture_audit_20261020/r4_winner_portfolio_seed_results.csv)
+- [Rankingi probe i LightGBM finalistów](btc_esn_architecture_audit_20261020/r4_candidate_rankings.csv)
+- [Pełny ślad selekcji portfela probe](btc_esn_architecture_audit_20261020/r4_portfolio_probe_selection_trace.csv)
+- [Podsumowanie interpretacji i metadane](btc_esn_architecture_audit_20261020/r4_interpretation_summary.json)
