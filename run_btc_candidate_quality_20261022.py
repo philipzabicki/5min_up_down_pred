@@ -361,10 +361,11 @@ def _member_predictions(candidate_id: str, arrays: dict, rows: np.ndarray,
             )
         for reservoir_seed in FREEZE_CONFIG["model_fit"]["reservoir_seeds"]:
             key = f"{reservoir_seed}:{lightgbm_seed}"
+            stored_variant = f"{candidate_id}_r{reservoir_seed}_l{lightgbm_seed}"
             output["C"][key] = (
                 _load_new_prediction("C_fitcore_common_mask", reservoir_seed, lightgbm_seed, rows, 78)
                 if score_prediction_sources["C"] == "fit_core_common_mask_refit"
-                else _load_stored_prediction(candidate_id, reservoir_seed, lightgbm_seed, rows, 78)
+                else _load_stored_prediction(stored_variant, reservoir_seed, lightgbm_seed, rows, 78)
             )
     output["D"] = {}
     for reservoir_seed in FREEZE_CONFIG["model_fit"]["reservoir_seeds"]:
@@ -588,7 +589,7 @@ def _fit_and_bundle_models(arrays: dict, candidate_id: str, candidate: dict,
             expected_name = {
                 "A": f"baseline_l{lightgbm_seed}",
                 "B": "simple_memory_pca8",
-                "C": candidate_id,
+                "C": f"{candidate_id}_r{reservoir_seed}_l{lightgbm_seed}",
                 "D": "D_memory_plus_8f74a7951e10c11830baba75",
             }[variant]
             prediction_started = time.monotonic()
