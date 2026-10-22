@@ -864,3 +864,11 @@ Experiment `btc_market_dynamics_action_value_20261020`: the original run report 
 - Frozen protocol: 120 proposals; 18/30 downstream evaluations around sparse/512 and 12/30 architecture exploration; 20/30 promotions independent of probe rank; finalist 3x3 reservoir/LightGBM grid; PCA4 ablation; eight-feature causal-history control; at most one conditionally triggered new portfolio pair.
 - New runner cap: 43,200 active seconds including resumes, with 18,000 seconds reserved for finalists and final comparisons. Candidate ranges, seeds, selection, fixed monthly slices, and stop rules: `reports/btc_preopen/btc_esn_focused_20261022_protocol.md`.
 - Next step: run or resume `python run_btc_esn_focused_20261022.py`. This protocol is exploratory and does not provide independent confirmation.
+
+
+## ESN focused search complete - 2026-10-22
+
+- Completed all 120 frozen screens (114 valid), 30 preliminary downstream fits, 9 ESN finalists on the full 3x3 seed grid, PCA4 and simple-history comparisons; no portfolio pair met the preregistered trigger.
+- Selected development leader: `simple_memory_PCA8`, mean search-validation dLL `+0.000136588` (3/3 LightGBM seeds positive); best ESN finalist: `best_local_preliminary`, `+0.000101431` (9/9 seed pairs positive). These are development results on the reused validation interval, not independent confirmation.
+- Active runner time: `10,404.1s` of the `43,200s` cap. Confirmation/holdout remained unread; live configuration and Polymarket replay were not used.
+- Full report: `reports/btc_preopen/btc_esn_focused_20261022.md`. Resume orchestration fixes and preserved run identity are documented in the report and local `execution_hotfix.json` artifact.

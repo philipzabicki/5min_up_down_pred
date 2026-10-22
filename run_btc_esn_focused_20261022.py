@@ -35,6 +35,8 @@ RUN_PRIOR_SECONDS = 0.0
 RUN_IDENTITY = None
 RUN_STAGE_DEADLINE = None
 RUN_STAGE_NAME = None
+FROZEN_PRE_HOTFIX_RUNNER_SHA256 = "0ee2088993ac055e63105ab264632cdc1e8679b6175fbf9ef67f7418c2ebcc6a"
+FROZEN_PRE_HOTFIX_COMMIT = "95cc942b42b28561317bfa74379e1a8c83869429"
 PRIOR_SPARSE_MINUS_RING = [
     {"reservoir_seed": 20261020, "lightgbm_seed": 20261101, "delta_logloss": -0.000058539},
     {"reservoir_seed": 20261021, "lightgbm_seed": 20261101, "delta_logloss": -0.000054202},
@@ -173,7 +175,7 @@ def _focused_identity(prepared: dict) -> dict:
         "baseline_logits_sha256": _sha256(baseline_logits),
         "baseline_metadata_sha256": _sha256(baseline_metadata),
     }
-    return {
+    identity = {
         "experiment_id": CONFIG["experiment_id"],
         "frozen_source_commit": _git_commit(),
         "source_hashes": paths,
@@ -189,6 +191,24 @@ def _focused_identity(prepared: dict) -> dict:
         "holdout_evaluation": False,
         "holdout_rows_materialized": 0,
     }
+    frozen_manifest_path = OUT / "run_manifest.json"
+    if not frozen_manifest_path.exists():
+        return identity
+    frozen_identity = json.loads(frozen_manifest_path.read_text(encoding="utf-8")).get("identity")
+    if frozen_identity == identity:
+        return identity
+    frozen_runner_hash = frozen_identity.get("source_hashes", {}).get("focused_runner_sha256")
+    compatible_identity = json.loads(json.dumps(identity))
+    frozen_source_commit = frozen_identity.get("frozen_source_commit")
+    compatible_identity["frozen_source_commit"] = frozen_source_commit
+    compatible_identity["source_hashes"]["focused_runner_sha256"] = frozen_runner_hash
+    if (
+        frozen_runner_hash == FROZEN_PRE_HOTFIX_RUNNER_SHA256
+        and frozen_source_commit == FROZEN_PRE_HOTFIX_COMMIT
+        and frozen_identity == compatible_identity
+    ):
+        return frozen_identity
+    raise RuntimeError("focused-run code/data identity differs from its frozen manifest")
 
 
 def _sample_unit_lhs(count: int, rng, choices) -> np.ndarray:
@@ -875,6 +895,21 @@ def _load_final_feature(arrays, candidate_id: str, seed: int) -> np.ndarray:
     return np.load(path, mmap_mode="r", allow_pickle=False)
 
 
+def _measure_focused_finalist_latencies(finalists: list[dict], arrays: dict) -> dict:
+    engine = expansion.engine_runner
+    cache_keys = {}
+    cache_finalists = []
+    for finalist in finalists:
+        config = engine._config_from_record(finalist["effective_config"])
+        cache_key = engine._config_key(config)
+        if cache_key in cache_keys:
+            raise RuntimeError("focused finalist configs collide on an ESN bundle key")
+        cache_keys[cache_key] = finalist["candidate_id"]
+        cache_finalists.append({**finalist, "candidate_id": cache_key})
+    measured = expansion._measure_finalist_latencies(cache_finalists, arrays)
+    return {cache_keys[cache_key]: values for cache_key, values in measured.items()}
+
+
 def _prediction_path(name: str, reservoir_seed: int | None, lightgbm_seed: int) -> Path:
     seed_label = "baseline" if reservoir_seed is None else f"r{int(reservoir_seed)}"
     token = hashlib.sha256(f"{name}|{seed_label}|l{int(lightgbm_seed)}".encode("utf-8")).hexdigest()[:24]
@@ -958,11 +993,11 @@ def _score_auxiliary(name: str, matrices_by_reservoir: dict, arrays: dict,
     seed_axis = tuple(reservoir_seeds) if reservoir_seeds is not None else (None,)
     for reservoir_seed in seed_axis:
         feature_block = matrices_by_reservoir[reservoir_seed]
-        matrix = eng._AugmentedMatrix(arrays["base_x"], [feature_block])
         for lightgbm_seed in CONFIG["downstream"]["finalist_lightgbm_seeds"]:
             key = (reservoir_seed, int(lightgbm_seed))
             if key in completed:
                 continue
+            matrix = eng._AugmentedMatrix(arrays["base_x"], [feature_block])
             fit_started = time.monotonic()
             model = eng._fit_lgbm(matrix, target, weights, train_mask, int(lightgbm_seed))
             fit_seconds = time.monotonic() - fit_started
@@ -1169,10 +1204,10 @@ def _pair_trigger(leader_id: str, finalist_ids: list[str], auxiliary_results: di
         corr = float(np.corrcoef(leader_error, other_error)[0, 1])
         candidate_months = monthly_results[candidate_id]
         cross_month = any(
-            candidate_months[period] > leader_months[period]
+            candidate_months[period]["delta_logloss"] > leader_months[period]["delta_logloss"]
             for period in leader_months
         ) and any(
-            leader_months[period] > candidate_months[period]
+            leader_months[period]["delta_logloss"] > candidate_months[period]["delta_logloss"]
             for period in leader_months
         )
         if corr < float(CONFIG["portfolio"]["maximum_error_correlation"]) and cross_month:
@@ -1363,6 +1398,17 @@ def main() -> None:
     if prepared.get("materialization_cutoff_utc") != "2025-07-01T00:00:00+00:00" or prepared.get("holdout_rows_materialized") != 0:
         raise RuntimeError("reused search cache is not restricted to the frozen development cutoff")
     RUN_IDENTITY = _focused_identity(prepared)
+    current_runner_hash = _sha256(Path(__file__))
+    frozen_runner_hash = RUN_IDENTITY["source_hashes"]["focused_runner_sha256"]
+    if current_runner_hash != frozen_runner_hash:
+        _atomic_json(OUT / "execution_hotfix.json", {
+            "frozen_source_commit": RUN_IDENTITY["frozen_source_commit"],
+            "frozen_focused_runner_sha256": frozen_runner_hash,
+            "current_focused_runner_sha256": current_runner_hash,
+            "reason": "Focused runner orchestration hotfix; frozen data, features, splits, and model method unchanged.",
+            "data_and_methodology_changed": False,
+            "frozen_run_identity_preserved": True,
+        })
     summary_path = OUT / "run_summary.json"
     if summary_path.exists():
         prior_summary = json.loads(summary_path.read_text(encoding="utf-8"))
@@ -1860,7 +1906,7 @@ def main() -> None:
             if score.get("lightgbm_fit_seconds") is not None
         },
         "state_generation_seconds_by_candidate": final_result.get("state_generation_seconds_by_candidate"),
-        "finalist_latency": expansion._measure_finalist_latencies(finalists, arrays),
+        "finalist_latency": _measure_focused_finalist_latencies(finalists, arrays),
         "simple_memory_latency": _benchmark_memory_update(arrays),
     }
     prior_delta_values = np.asarray(

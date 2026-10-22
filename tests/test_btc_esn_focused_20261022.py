@@ -163,6 +163,20 @@ class FocusedSearchProtocolTests(unittest.TestCase):
             focused._set_stage_budget("focused screening", 100, ("screening",))
             self.assertEqual(focused.RUN_STAGE_DEADLINE, 281.0)
 
+    def test_frozen_identity_accepts_only_known_hotfix_commit_and_runner_hash(self):
+        prepared = {"identity": {"prepared": "same"}}
+        with patch.object(focused, "_git_commit", return_value="later_commit"), \
+             patch.object(focused, "_sha256", side_effect=lambda path: str(path)):
+            current = focused._focused_identity(prepared)
+            frozen = json.loads(json.dumps(current))
+            frozen["frozen_source_commit"] = focused.FROZEN_PRE_HOTFIX_COMMIT
+            frozen["source_hashes"]["focused_runner_sha256"] = focused.FROZEN_PRE_HOTFIX_RUNNER_SHA256
+            focused._atomic_json(focused.OUT / "run_manifest.json", {"identity": frozen})
+
+            self.assertEqual(focused._focused_identity(prepared), frozen)
+            with self.assertRaisesRegex(RuntimeError, "identity differs"):
+                focused._focused_identity({"identity": {"prepared": "changed"}})
+
     def test_area_diagnostics_cover_log_scales_inputs_sizes_and_connectivity(self):
         local = [row for row in self._screened_pool() if row["cohort"] == "local" and not row["sampling"].get("anchor")][:18]
         ranked = [dict(row, mean_delta_logloss=float(index - 8) / 100_000.0) for index, row in enumerate(local)]
@@ -209,6 +223,99 @@ class FocusedSearchProtocolTests(unittest.TestCase):
             resumed = engine._save_validation_probabilities("resume_case", None, 20261101, second, rows, 74)
         np.testing.assert_array_equal(saved, first)
         np.testing.assert_array_equal(resumed, first)
+
+    def test_auxiliary_scoring_rebuilds_matrix_for_each_lightgbm_seed(self):
+        engine = focused.expansion.engine_runner
+        reservoir_seeds = (20261023, 20261024)
+        lightgbm_seeds = [20261101, 20261102, 20261103]
+        test_config = json.loads(json.dumps(focused.CONFIG))
+        test_config["downstream"]["finalist_lightgbm_seeds"] = lightgbm_seeds
+        arrays = {
+            "base_x": np.zeros((6, 2), dtype=np.float32),
+            "target": np.asarray([0, 1, 0, 1, 0, 1], dtype=np.int8),
+            "decision": np.ones(6, dtype=bool),
+        }
+        matrices = {
+            seed: np.full((6, 1), index, dtype=np.float32)
+            for index, seed in enumerate(reservoir_seeds)
+        }
+        fit_calls = []
+
+        class FakeModel:
+            def predict(self, matrix):
+                return np.full(len(matrix), 0.6, dtype=np.float32)
+
+        def fit_lgbm(matrix, target, weights, train_mask, seed):
+            fit_calls.append((matrix.shape, seed))
+            return FakeModel()
+
+        with patch.object(focused, "CONFIG", test_config), \
+             patch.object(engine, "_fit_lgbm", side_effect=fit_lgbm), \
+             patch.object(engine, "_metric_pack", return_value={"logloss": 0.4, "brier": 0.2, "auc": 0.5}), \
+             patch.object(focused, "_load_prediction", return_value=np.full(2, 0.5, dtype=np.float32)), \
+             patch.object(engine, "_save_validation_probabilities", side_effect=lambda name, rseed, lseed, p, rows, width: p):
+            score = focused._score_auxiliary(
+                "pca4_regression", matrices, arrays, np.asarray([True] * 6),
+                np.asarray([2, 4], dtype=np.int64), feature_count=4,
+                reservoir_seeds=reservoir_seeds,
+            )
+
+        self.assertEqual(len(fit_calls), len(reservoir_seeds) * len(lightgbm_seeds))
+        self.assertEqual({shape for shape, _ in fit_calls}, {(6, 3)})
+        self.assertEqual({seed for _, seed in fit_calls}, set(lightgbm_seeds))
+        self.assertEqual(score["pair_count"], len(fit_calls))
+
+    def test_pair_trigger_compares_monthly_delta_logloss_fields(self):
+        test_config = json.loads(json.dumps(focused.CONFIG))
+        test_config["downstream"]["finalist_reservoir_seeds"] = [20261023]
+        test_config["downstream"]["finalist_lightgbm_seeds"] = [20261101]
+        auxiliary = {
+            "sparse512": {"mean_delta_logloss": 0.01, "feature_count": 8},
+            "simple_memory_pca8": {"mean_delta_logloss": 0.02, "feature_count": 8},
+        }
+        monthly = {
+            "sparse512": {
+                "2025-01": {"delta_logloss": 0.01},
+                "2025-02": {"delta_logloss": 0.03},
+            },
+            "simple_memory_pca8": {
+                "2025-01": {"delta_logloss": 0.02},
+                "2025-02": {"delta_logloss": 0.01},
+            },
+        }
+        with patch.object(focused, "CONFIG", test_config), \
+             patch.object(focused, "_load_prediction", return_value=np.asarray([0.2, 0.8])), \
+             patch.object(focused, "_candidate_prediction", return_value=np.asarray([0.3, 0.7])), \
+             patch.object(focused.np, "corrcoef", return_value=np.asarray([[1.0, 0.1], [0.1, 1.0]])):
+            trigger = focused._pair_trigger(
+                "sparse512", ["simple_memory_pca8"], auxiliary, monthly,
+                np.asarray([0, 1], dtype=np.int64),
+                {"target": np.asarray([0, 1], dtype=np.int8)},
+            )
+
+        self.assertIsNotNone(trigger)
+        self.assertEqual(trigger["candidate_id"], "simple_memory_pca8")
+        self.assertTrue(trigger["cross_month_complementarity"])
+
+    def test_finalist_latency_maps_aliases_to_cached_bundle_keys(self):
+        engine = focused.expansion.engine_runner
+        candidate = focused._make_candidate_pool()[0]
+        cache_key = engine._config_key(engine._config_from_record(candidate["effective_config"]))
+        seen = {}
+
+        def measure(finalists, arrays):
+            seen["candidate_ids"] = [row["candidate_id"] for row in finalists]
+            return {cache_key: {"20261023": {"esn_update_us": {"p50": 1.0}}}}
+
+        with patch.object(focused.expansion, "_measure_finalist_latencies", side_effect=measure):
+            result = focused._measure_focused_finalist_latencies(
+                [{"candidate_id": "focused_alias", "effective_config": candidate["effective_config"]}],
+                {},
+            )
+
+        self.assertEqual(seen["candidate_ids"], [cache_key])
+        self.assertIn("focused_alias", result)
+        self.assertEqual(result["focused_alias"]["20261023"]["esn_update_us"]["p50"], 1.0)
 
     def test_memory_feature_cache_checks_transform_identity_and_shape(self):
         pool = focused._make_candidate_pool()
