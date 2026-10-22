@@ -1,0 +1,8 @@
+{
+  "experiment_id": "btc_candidate_quality_holdout_20261022",
+  "allow_protected_data": false,
+  "scorer_implemented": false,
+  "test_start_inclusive_utc": "2026-07-01T00:00:00Z",
+  "test_end_exclusive_utc": "2026-10-07T00:00:00Z",
+  "authorization_note": "Keep false. A separately authorized future task must implement and review the one-time scorer before any protected data is opened."
+}
