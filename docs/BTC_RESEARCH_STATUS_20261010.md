@@ -857,3 +857,10 @@ Experiment `btc_market_dynamics_action_value_20261020`: the original run report 
 - This remains a development search result, not independent confirmation. Confirmation was not read; no holdout rows were materialized or evaluated. Live configuration and Polymarket replay were not changed or run.
 - Full results, ranges, per-seed results, selection trace, latency, artifacts, run commands, and frozen source hashes: `reports/btc_preopen/btc_esn_expansion_20261021.md`. Preregistered execution commit: `253e3a8acf47aa064a44a0cae9d997a863d24d13`; post-run resume fixes: `d78189f`.
 - Validation after the resume fixes: `py_compile` passed and 37 ESN reservoir, architecture audit, and expansion tests passed.
+
+## ESN focused follow-up preregistered - 2026-10-22
+
+- Scope remains fit-core, correction-fit, and existing `search_validation` through 2025-07-01. No confirmation or holdout data will be read; no split changes, live activation, or Polymarket replay.
+- Frozen protocol: 120 proposals; 18/30 downstream evaluations around sparse/512 and 12/30 architecture exploration; 20/30 promotions independent of probe rank; finalist 3x3 reservoir/LightGBM grid; PCA4 ablation; eight-feature causal-history control; at most one conditionally triggered new portfolio pair.
+- New runner cap: 43,200 active seconds including resumes, with 18,000 seconds reserved for finalists and final comparisons. Candidate ranges, seeds, selection, fixed monthly slices, and stop rules: `reports/btc_preopen/btc_esn_focused_20261022_protocol.md`.
+- Next step: run or resume `python run_btc_esn_focused_20261022.py`. This protocol is exploratory and does not provide independent confirmation.

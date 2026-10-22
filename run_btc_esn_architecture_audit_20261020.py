@@ -1346,6 +1346,41 @@ def _metric_pack(target, probability) -> dict:
     }
 
 
+def _save_validation_probabilities(name: str, reservoir_seed: int | None,
+                                   lightgbm_seed: int, probabilities,
+                                   validation_rows: np.ndarray, feature_count: int) -> np.ndarray:
+    """Persist finalist probabilities so fixed validation periods can be inspected later."""
+    seed_label = "baseline" if reservoir_seed is None else f"r{int(reservoir_seed)}"
+    token = hashlib.sha256(f"{name}|{seed_label}|l{int(lightgbm_seed)}".encode("utf-8")).hexdigest()[:24]
+    folder = OUT / "validation_predictions"
+    folder.mkdir(parents=True, exist_ok=True)
+    path = folder / f"{token}.npy"
+    metadata_path = path.with_suffix(".npy.json")
+    metadata = {
+        "identity": RUN_IDENTITY,
+        "variant": name,
+        "reservoir_seed": None if reservoir_seed is None else int(reservoir_seed),
+        "lightgbm_seed": int(lightgbm_seed),
+        "feature_count": int(feature_count),
+        "validation_rows": int(len(validation_rows)),
+        "validation_row_indices_sha256": hashlib.sha256(
+            np.asarray(validation_rows, dtype=np.int64).tobytes(),
+        ).hexdigest(),
+    }
+    if path.exists() and metadata_path.exists():
+        saved = json.loads(metadata_path.read_text(encoding="utf-8"))
+        if any(saved.get(key) != value for key, value in metadata.items()) or saved.get("probabilities_sha256") != _sha256(path):
+            raise RuntimeError("saved validation prediction identity mismatch")
+        return np.load(path, allow_pickle=False)
+    temporary = path.with_name(f"{path.stem}.{os.getpid()}.{time.monotonic_ns()}.tmp.npy")
+    with temporary.open("wb") as stream:
+        np.save(stream, np.asarray(probabilities, dtype=np.float32), allow_pickle=False)
+    metadata["probabilities_sha256"] = _sha256(temporary)
+    os.replace(temporary, path)
+    _atomic_json(metadata_path, metadata)
+    return np.load(path, allow_pickle=False)
+
+
 def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays: dict,
                                   *, stage_name: str = "search_validation") -> dict:
     result_path = OUT / f"downstream_{stage_name}.json"
@@ -1430,24 +1465,51 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
     for lgbm_seed in LGBM_SEEDS:
         baseline = None
         seed_key = str(lgbm_seed)
+        baseline_prediction_name = f"baseline_l{seed_key}"
+        baseline_token = hashlib.sha256(
+            f"{baseline_prediction_name}|baseline|l{int(lgbm_seed)}".encode("utf-8"),
+        ).hexdigest()[:24]
+        baseline_prediction_path = OUT / "validation_predictions" / f"{baseline_token}.npy"
+        baseline_prediction_exists = (
+            baseline_prediction_path.exists()
+            and baseline_prediction_path.with_suffix(".npy.json").exists()
+        ) if CONFIG.get("downstream", {}).get("save_validation_predictions", False) else True
         if seed_key not in baseline_metrics:
             before = time.monotonic()
             baseline = _fit_lgbm(arrays["base_x"], target, weights, train_mask, lgbm_seed)
             fit_seconds += time.monotonic() - before
             baseline_probability = baseline.predict(np.asarray(arrays["base_x"][validation_rows], dtype=np.float32))
+            if CONFIG.get("downstream", {}).get("save_validation_predictions", False):
+                baseline_probability = _save_validation_probabilities(
+                    baseline_prediction_name, None, lgbm_seed, baseline_probability,
+                    validation_rows, arrays["base_x"].shape[1],
+                )
             baseline_metrics[seed_key] = _metric_pack(target[validation_rows], baseline_probability)
             progress.update({
                 "baseline_metrics": baseline_metrics,
                 "lightgbm_fit_seconds": fit_seconds,
             })
             _atomic_json(progress_path, progress)
+        elif CONFIG.get("downstream", {}).get("save_validation_predictions", False) and not baseline_prediction_exists:
+            raise RuntimeError("baseline metrics exist but their frozen validation probabilities are missing")
         for name, members in variants.items():
             for reservoir_seed in SEEDS:
-                if any(
+                completed = any(
                     int(row["reservoir_seed"]) == int(reservoir_seed)
                     and int(row["lightgbm_seed"]) == int(lgbm_seed)
                     for row in candidate_records[name]
-                ):
+                )
+                prediction_name = f"{name}_r{int(reservoir_seed)}_l{seed_key}"
+                prediction_token = hashlib.sha256(
+                    f"{prediction_name}|r{int(reservoir_seed)}|l{int(lgbm_seed)}".encode("utf-8"),
+                ).hexdigest()[:24]
+                prediction_path = OUT / "validation_predictions" / f"{prediction_token}.npy"
+                if completed:
+                    if CONFIG.get("downstream", {}).get("save_validation_predictions", False) and (
+                        not prediction_path.exists()
+                        or not prediction_path.with_suffix(".npy.json").exists()
+                    ):
+                        raise RuntimeError("completed downstream fit is missing its frozen validation probabilities")
                     continue
                 extras = [feature_arrays[member][reservoir_seed] for member in members]
                 matrix = _AugmentedMatrix(arrays["base_x"], extras)
@@ -1455,6 +1517,11 @@ def _downstream_search_validation(finalists: list[dict], portfolio: dict, arrays
                 model = _fit_lgbm(matrix, target, weights, train_mask, lgbm_seed)
                 fit_seconds += time.monotonic() - before
                 probability = model.predict(matrix[validation_rows])
+                if CONFIG.get("downstream", {}).get("save_validation_predictions", False):
+                    probability = _save_validation_probabilities(
+                        prediction_name, reservoir_seed, lgbm_seed, probability,
+                        validation_rows, matrix.shape[1],
+                    )
                 metric = _metric_pack(target[validation_rows], probability)
                 latency = None
                 latency_count = int(CONFIG.get("downstream", {}).get("latency_sample_count", 0))

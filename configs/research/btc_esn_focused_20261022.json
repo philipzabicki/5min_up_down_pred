@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_esn_focused_20261022",
+  "lineage_source_commit": "94bf228",
+  "output_directory": "data/analysis/polymarket/BTC/btc_esn_focused_20261022",
+  "report_path": "reports/btc_preopen/btc_esn_focused_20261022.md",
+  "benchmark_path": "data/analysis/polymarket/BTC/btc_esn_expansion_20261021/benchmark.json",
+  "reused_search_cache_directory": "data/analysis/polymarket/BTC/btc_esn_portfolio_20261020_r3/prepared/search",
+  "reused_baseline_logits_path": "data/analysis/polymarket/BTC/btc_esn_portfolio_20261020_r3/screen_baseline_raw_score.npy",
+  "reused_baseline_metadata_path": "data/analysis/polymarket/BTC/btc_esn_portfolio_20261020_r3/screen_baseline_raw_score.npy.json",
+  "reused_baseline_summary_path": "data/analysis/polymarket/BTC/btc_esn_portfolio_20261020_r3/screen_baseline.json",
+  "baseline_feature_summary_path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/B0_cv_summary.json",
+  "split": {
+    "fit_core_start_utc": "2020-06-09T09:33:00Z",
+    "fit_core_end_exclusive_utc": "2024-07-01T00:00:00Z",
+    "correction_fit_start_utc": "2024-07-01T00:00:00Z",
+    "correction_fit_end_exclusive_utc": "2025-01-01T00:00:00Z",
+    "search_validation_start_utc": "2025-01-01T00:00:00Z",
+    "search_validation_end_exclusive_utc": "2025-07-01T00:00:00Z",
+    "label_purge": "target_label_available_at <= first nominal decision in next block"
+  },
+  "baseline": {
+    "name": "B0_BASE70",
+    "target": "target_preopen_5m_up_binance_index_proxy",
+    "target_definition": "Close[Opened+6m] >= Open[Opened+2m]; five one-minute candles; ties resolve UP; label available at Opened+7m",
+    "decision_definition": "nominal_decision_at = Opened+1m",
+    "feature_count": 70,
+    "training_weights": {
+      "decision_rows": 0.59,
+      "other_minute_rows": 0.1025
+    },
+    "lightgbm": {
+      "boosting_rounds": 31,
+      "device_type": "gpu",
+      "num_threads": 4
+    },
+    "raw_logit_training_boundary_utc": "2024-07-01T00:00:00Z",
+    "raw_logit_lightgbm_seed": 20261015
+  },
+  "resources": {
+    "workers": 1,
+    "native_threads": 4,
+    "minimum_available_ram_bytes": 8589934592,
+    "gpu_used_for_reservoir_generation": false
+  },
+  "candidate_sampling": {
+    "total_proposals": 120,
+    "local_proposals": 64,
+    "wide_candidates_per_family": 14,
+    "local_sampler_seed": 20261024,
+    "wide_sampler_seed": 20261025,
+    "local_design": "balanced Latin-hypercube-style strata over size, leak, spectral radius, input scale, bias, sparse degree, and five fixed input variants",
+    "wide_design": "four architecture families with 14 candidates each; broad log-scale dynamics, topology and causal-input subsets; one matched 512-unit family anchor for parallel, deep and parallel_deep",
+    "focused_local_ranges": {
+      "total_units": [256, 384, 512, 768, 1024],
+      "leak_rate": [0.0002, 0.01],
+      "spectral_radius": [0.0794328235, 1.258925412],
+      "input_scaling": [0.0151356125, 0.204173795],
+      "bias_scaling": [0.0, 0.0501187234],
+      "bias_positive_scaling": [0.001, 0.0501187234],
+      "bias_zero_probability": 0.2,
+      "sparse_average_degree": [4, 8, 16, 32],
+      "input_variants": [
+        "returns+candle+volume+time",
+        "returns+candle+range_volatility+volume+time",
+        "returns+candle+volume+basis+time",
+        "returns+candle+range_volatility+volume+basis+time",
+        "returns+volume+time"
+      ]
+    },
+    "wide_ranges": {
+      "architecture_families": ["single", "parallel", "deep", "parallel_deep"],
+      "total_units": [32, 2048],
+      "leak_rate": [0.0001, 1.0],
+      "spectral_radius": [0.01, 2.0],
+      "input_scaling": [0.0001, 10.0],
+      "bias_scaling": [0.0, 3.0],
+      "topologies": ["ring", "sparse", "block_sparse", "orthogonal", "dense"],
+      "dense_max_total_units": 256,
+      "orthogonal_max_total_units": 512
+    }
+  },
+  "screening": {
+    "reservoir_seed": 20261023,
+    "projection_seed_offset": 91000000,
+    "state_components_total": 8,
+    "pca_fit_rows": 20000,
+    "calibration_regularization_C": 0.1,
+    "warmup_relative_initial_state_tolerance": 0.001,
+    "warmup_stable_window_minutes": 60,
+    "warmup_max_steps_examined": 200000,
+    "reject_unstabilized_initial_state": true,
+    "reject_saturation_fraction_above": 0.25
+  },
+  "downstream": {
+    "target_distinct_configs": 30,
+    "local_count": 18,
+    "exploration_count": 12,
+    "probe_independent_target_count": 20,
+    "promotion_sampler_seed": 20261026,
+    "exploratory_reservoir_seeds": [20261023],
+    "lightgbm_seeds": [20261101, 20261102, 20261103],
+    "finalist_reservoir_seeds": [20261023, 20261024, 20261025],
+    "finalist_lightgbm_seeds": [20261101, 20261102, 20261103],
+    "finalist_sampler_seed": 20261027,
+    "maximum_finalist_candidates": 12,
+    "representation": "8 fit-core PCA components for screened/finalist ESN states; PCA4 is a frozen finalist ablation using the first four components; simple memory control uses its own fit-core PCA8",
+    "primary_metric": "paired search-validation decision-row logloss delta = baseline minus BASE70 plus added features",
+    "save_validation_predictions": true,
+    "latency_sample_count": 256
+  },
+  "memory_control": {
+    "input_groups": ["returns", "candle", "volume", "time"],
+    "lags_minutes": [1, 5, 15, 60, 240, 720],
+    "ewm_half_lives_minutes": [15, 60, 240, 720],
+    "deviation_half_lives_minutes": [60, 720],
+    "maximum_history_minutes": 720,
+    "pca_fit_rows": 20000,
+    "pca_components": 8,
+    "projection_seed": 20261028,
+    "gap_rule": "reset history on invalid input or any non-one-minute timestamp gap; never fill missing minutes"
+  },
+  "portfolio": {
+    "maximum_error_correlation": 0.995,
+    "require_cross_month_advantage": true,
+    "maximum_pairs_tested": 1,
+    "accept_only_if_full_lightgbm_mean_delta_beats_both_members_and_baseline": true
+  },
+  "reporting": {
+    "fixed_validation_months": [
+      {"name": "2025-01", "start_utc": "2025-01-01T00:00:00Z", "end_exclusive_utc": "2025-02-01T00:00:00Z"},
+      {"name": "2025-02", "start_utc": "2025-02-01T00:00:00Z", "end_exclusive_utc": "2025-03-01T00:00:00Z"},
+      {"name": "2025-03", "start_utc": "2025-03-01T00:00:00Z", "end_exclusive_utc": "2025-04-01T00:00:00Z"},
+      {"name": "2025-04", "start_utc": "2025-04-01T00:00:00Z", "end_exclusive_utc": "2025-05-01T00:00:00Z"},
+      {"name": "2025-05", "start_utc": "2025-05-01T00:00:00Z", "end_exclusive_utc": "2025-06-01T00:00:00Z"},
+      {"name": "2025-06", "start_utc": "2025-06-01T00:00:00Z", "end_exclusive_utc": "2025-07-01T00:00:00Z"}
+    ]
+  },
+  "search": {
+    "architecture_families": ["single", "parallel", "deep", "parallel_deep"],
+    "whole_experiment_compute_limit_seconds": 43200,
+    "screening_time_limit_seconds": 12000,
+    "exploratory_downstream_time_limit_seconds": 6000,
+    "memory_control_time_limit_seconds": 7200,
+    "finalist_and_portfolio_reserve_seconds": 18000,
+    "checkpointing": "identity-checked candidate screens, per-fit downstream progress, atomic memory PCA/sample/stream checkpoints, per-fit auxiliary score and probability checkpoints"
+  },
+  "excluded_data": {
+    "materialization_cutoff_exclusive_utc": "2025-07-01T00:00:00Z",
+    "read_after_cutoff": false,
+    "confirmation_read": false,
+    "holdout_evaluation": false,
+    "holdout_rows_materialized": 0,
+    "polymarket_book_replay": false,
+    "live_configuration_changes": false,
+    "live_orders": false
+  },
+  "runner": "python run_btc_esn_focused_20261022.py",
+  "resume": "python run_btc_esn_focused_20261022.py",
+  "cli_arguments": false
+}
