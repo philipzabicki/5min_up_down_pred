@@ -872,3 +872,24 @@ Experiment `btc_market_dynamics_action_value_20261020`: the original run report 
 - Selected development leader: `simple_memory_PCA8`, mean search-validation dLL `+0.000136588` (3/3 LightGBM seeds positive); best ESN finalist: `best_local_preliminary`, `+0.000101431` (9/9 seed pairs positive). These are development results on the reused validation interval, not independent confirmation.
 - Active runner time: `10,404.1s` of the `43,200s` cap. Confirmation/holdout remained unread; live configuration and Polymarket replay were not used.
 - Full report: `reports/btc_preopen/btc_esn_focused_20261022.md`. Resume orchestration fixes and preserved run identity are documented in the report and local `execution_hotfix.json` artifact.
+
+## BTC candidate quality freeze complete - 2026-10-22
+
+### 1. Development selection comparison
+
+- Froze and compared A `BASE70`, B `BASE70 + simple_memory_PCA8`, C `BASE70 + focused best ESN PCA8`, and preregistered D `BASE70 + memory + ESN`. D was frozen before its fit. All model and transform fitting used fit-core only; scores use the previously reused `search_validation` through 2025-07-01. The common scoring set has 52,120 decisions.
+- Uniform-ensemble log loss / Brier / AUC: A `0.692375219 / 0.249614437 / 0.524217`; B `0.692210070 / 0.249532059 / 0.525545`; C `0.692255246 / 0.249554627 / 0.524743`; D `0.692135666 / 0.249495066 / 0.525778`.
+- D−B log-loss improvement is `+0.000074403`, but its paired 95% block interval is `[-0.000003351, +0.000156894]` and crosses zero. This run does not establish incremental ESN information beyond B. The B−A interval is positive on this reused validation set, but the interval does not account for prior search and repeated use of the interval.
+- Full metrics, all six paired intervals, matched LightGBM seeds, prediction-source audit, hashes, exact parameters, and run details: `reports/btc_preopen/btc_candidate_quality_freeze_20261022.md`.
+
+### 2. Technical freeze and bundle readiness
+
+- Local frozen bundles and predictions: `data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/`; ordered schemas and manifests are included. Model export and prediction save/load checks passed.
+- Fresh-process replay reproduced the memory and all three ESN feature representations exactly across 2,660,546 development stream rows; checkpoint/resume, batch/stream equality, and future-perturbation prefix checks passed. All transforms are fit-core-only.
+- Main runner active time `156.74s` (4-hour cap), peak working set `3.10 GB`; one worker and four native threads. Detailed cold-start, update, and inference latency plus hardware/resource readings are in the report.
+- Run command: `python run_btc_candidate_quality_20261022.py`. No live activation or Polymarket replay was run.
+
+### 3. Non-search evaluation and exposure
+
+- The former confirmation interval, 2025-07-01 through 2026-07-01, has already been used in earlier model comparisons; it is exposed and cannot serve as a fresh test. The project holdout, 2026-07-01 through exclusive 2026-10-07, also has prior historical result exposure recorded in the research contract. Neither interval's inputs, predictions, labels, or scores were opened for this task.
+- The protected-data gate remains `allow_protected_data: false`; `python run_btc_candidate_holdout_20261022.py` exits before importing a data pipeline or opening protected files. A protected scorer is not implemented, and no external test was run. Any later authorized evaluation must be reported as historical/exposed, not unseen.
