@@ -1,8 +1,145 @@
 {
-  "experiment_id": "btc_candidate_quality_holdout_20261022",
   "allow_protected_data": false,
-  "scorer_implemented": false,
-  "test_start_inclusive_utc": "2026-07-01T00:00:00Z",
-  "test_end_exclusive_utc": "2026-10-07T00:00:00Z",
-  "authorization_note": "Keep false. A separately authorized future task must implement and review the one-time scorer before any protected data is opened."
+  "approved_period_ids": [],
+  "authorization_note": "Leave both allow_read flags and allow_protected_data false until one explicit approval covers both exact periods together. This protocol concerns already exposed historical data, not a fresh or independent test.",
+  "experiment_id": "btc_candidate_quality_holdout_20261022",
+  "inputs": {
+    "baseline_feature_dataset": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/stages/final_feature_dataset_ac0ca964ce62/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+    "decision_at": "nominal_decision_at",
+    "decision_offset_minutes": 1,
+    "development_raw_prefix": "data/analysis/polymarket/BTC/btc_esn_portfolio_20261020_r3/prepared/search",
+    "exclusive_input_opened_cutoff_utc": "2026-10-06T23:53:00Z",
+    "feature_available_at": "feature_candle_close_at",
+    "label_available_at": "target_label_available_at",
+    "label_available_offset_minutes": 7,
+    "market_start_offset_minutes": 2,
+    "raw_input_schema": [
+      "Opened",
+      "Open",
+      "High",
+      "Low",
+      "Close",
+      "Volume",
+      "UM_BTCUSDT_Close",
+      "futures_index_basis_rel_1m"
+    ],
+    "taker_flow_features": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/flow_features.parquet",
+    "target": "target_preopen_5m_up_binance_index_proxy"
+  },
+  "periods": [
+    {
+      "allow_read": false,
+      "id": "confirmation",
+      "market_start_exclusive_utc": "2026-07-01T00:00:00Z",
+      "market_start_inclusive_utc": "2025-07-01T00:00:00Z",
+      "prior_exposure": "Previously used in repository model comparisons; historical robustness only, not independent confirmation."
+    },
+    {
+      "allow_read": false,
+      "id": "holdout",
+      "market_start_exclusive_utc": "2026-10-07T00:00:00Z",
+      "market_start_inclusive_utc": "2026-07-01T00:00:00Z",
+      "prior_exposure": "Prior historical holdout results and overlapping BTC observations were viewed; historical robustness only, not unseen validation."
+    }
+  ],
+  "protocol": {
+    "bootstrap": {
+      "block_length_calendar_days": 3,
+      "draws_shared_across_candidates_and_pairs": true,
+      "method": "paired non-circular moving calendar-day blocks",
+      "replicates": 2000,
+      "seed": 20261023
+    },
+    "bundle_hash_record": "The pre_read_manifest.json stores hashes for every model, transform, procedure manifest, source dataset, code path, and development-cache array before protected-row values are read.",
+    "candidate_definitions": {
+      "A": "BASE70",
+      "B": "BASE70 + simple_memory_PCA8",
+      "C": "BASE70 + frozen_ESN_PCA8",
+      "D": "BASE70 + simple_memory_PCA8 + frozen_ESN_PCA8"
+    },
+    "common_mask": "market start in exact window; Opened+7m label availability strictly before that window's exclusive end; binary label and finite BASE70, memory, and all three ESN PCA8 features",
+    "cost_reference": {
+      "development_full_raw_to_BASE70_to_ensemble_seconds": 225.08367770002224,
+      "development_rows": 2660546,
+      "dynamic_memory_and_ESN_replay_seconds": 71.38193580001825,
+      "future_score_runtime": "Estimated 3-5 minutes of CPU scoring for roughly 105,000 confirmation and 28,000 holdout decisions, based on the measured 2.66M-row dynamic replay and 52,120-row synthetic bootstrap benchmark; add filesystem-dependent source hashing and Parquet input I/O, not benchmarked on protected inputs.",
+      "peak_working_set_bytes": 18549215232,
+      "protected_source_hash_bytes": 5441077178,
+      "protected_source_hashing": "Hashes are verified only after the immutable pre-read manifest is written; hashing cost is input-I/O and is not included in development feature timings.",
+      "streaming_benchmark": {
+        "consecutive_minute_updates": 10000,
+        "decision_samples": 1998,
+        "inference_us_p99_by_procedure": {
+          "A": 356.312,
+          "B": 287.787,
+          "C": 743.765,
+          "D": 748.353
+        },
+        "memory_plus_three_esn_PCA8_us_p50_p95_p99": [
+          652.8,
+          996.4,
+          1155.821
+        ],
+        "state_restore_seconds": 0.09664320002775639,
+        "upstream_BASE70_incremental_update_measured": false
+      },
+      "synthetic_bootstrap_benchmark": {
+        "elapsed_seconds": 26.9494216000312,
+        "replicates": 2000,
+        "rows": 52120
+      }
+    },
+    "ensemble": "equal weight within every frozen LightGBM/reservoir seed member",
+    "exclusions": "report sequential counts for out-of-window market starts, unavailable/nonbinary labels, invalid BASE70, and invalid dynamic representations",
+    "fixed_subperiods": "UTC calendar months, reported for every month intersecting each window, including partial October 2026; never select dates by results.",
+    "frozen_bundle_directory": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles",
+    "interpretation": "historical robustness of previously exposed periods; no inference about profitability",
+    "model_source": "existing fit-core bundles; no refit, tuning, or early stopping",
+    "multiple_comparison_correction": "Bonferroni familywise alpha 0.05 across only the two prespecified primary comparisons; report 97.5% two-sided percentile intervals for each. No correction for prior search history.",
+    "primary_comparisons": [
+      "D-B",
+      "B-A"
+    ],
+    "primary_metric": "log_loss",
+    "required_bundle_manifests": [
+      "A_manifest.json",
+      "B_manifest.json",
+      "C_manifest.json",
+      "D_manifest.json",
+      "transforms/simple_memory_projection.json",
+      "transforms/esn_seed_20261023.json",
+      "transforms/esn_seed_20261024.json",
+      "transforms/esn_seed_20261025.json"
+    ],
+    "result_directory": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/<frozen_run_identity_sha256>",
+    "resume_and_retention": "Each invocation appends attempts.json; pre_read_manifest.json is immutable; period checkpoints are checksum-verified and never overwritten; failed attempts remain in the same identity directory.",
+    "resume_command": "python run_btc_candidate_holdout_20261022.py",
+    "run_command": "python run_btc_candidate_holdout_20261022.py",
+    "secondary_comparisons": [
+      "C-A",
+      "C-B",
+      "D-C",
+      "D-A"
+    ],
+    "secondary_metrics": [
+      "brier",
+      "auc"
+    ],
+    "source_code_paths": [
+      "run_btc_candidate_holdout_20261022.py",
+      "run_btc_candidate_quality_20261022.py",
+      "run_btc_esn_focused_20261022.py",
+      "run_btc_esn_expansion_20261021.py",
+      "run_btc_esn_portfolio_20261020.py",
+      "run_btc_preopen_taker_flow_20261018.py",
+      "features/btc_taker_flow.py",
+      "features/esn_reservoir.py",
+      "features/causal_memory_control.py",
+      "features/btc_preopen_contract.py",
+      "create_modeling_dataset.py",
+      "utils/data.py",
+      "utils/btc_oof_audit.py"
+    ]
+  },
+  "scorer_implemented": true
 }

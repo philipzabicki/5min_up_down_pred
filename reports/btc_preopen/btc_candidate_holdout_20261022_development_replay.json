@@ -1,0 +1,189 @@
+{
+  "common_validation_rows": 52120,
+  "confirmation_read": false,
+  "decision_ids_sha256": "b8134c4abd481b29f2fe8d45b50c75a2020b4bdd761b7a5c02e1af356e1ac690",
+  "dynamic_gap_and_checkpoint_restart_exact": true,
+  "elapsed_seconds": 71.38193580001825,
+  "esn_feature_max_abs_error_by_seed_vs_frozen_cache": {
+    "20261023": {
+      "first_mismatch_row_indices": [],
+      "max_abs_error_common_finite_rows": 0.0,
+      "readiness_mask_mismatch_rows": 0
+    },
+    "20261024": {
+      "first_mismatch_row_indices": [],
+      "max_abs_error_common_finite_rows": 0.0,
+      "readiness_mask_mismatch_rows": 0
+    },
+    "20261025": {
+      "first_mismatch_row_indices": [],
+      "max_abs_error_common_finite_rows": 0.0,
+      "readiness_mask_mismatch_rows": 0
+    }
+  },
+  "feature_readiness_masks_match": true,
+  "fit_rows": 2088350,
+  "holdout_rows_materialized": 0,
+  "input_description": "frozen fit-core bundles replayed first from the development feature/raw cache, then through a complete raw-source -> BASE70 -> memory/ESN -> PCA -> LightGBM -> ensemble rebuild",
+  "memory_feature_replay_vs_frozen_cache": {
+    "first_mismatch_row_indices": [],
+    "max_abs_error_common_finite_rows": 0.0,
+    "readiness_mask_mismatch_rows": 0
+  },
+  "models_reloaded_from_frozen_fit_core_bundle": true,
+  "peak_process_working_set_bytes": 1818095616,
+  "prediction_max_abs_error_by_member_vs_frozen_source": {
+    "A:20261101": 2.980229696358805e-08,
+    "A:20261102": 2.9801604739532195e-08,
+    "A:20261103": 2.9801315637456582e-08,
+    "B:20261101": 5.407751835218022e-08,
+    "B:20261102": 4.635240291595011e-08,
+    "B:20261103": 4.541320008932814e-08,
+    "C:20261023:20261101": 2.9801371703719326e-08,
+    "C:20261023:20261102": 2.9801294543219115e-08,
+    "C:20261023:20261103": 2.9800592660222947e-08,
+    "C:20261024:20261101": 2.9799448353351465e-08,
+    "C:20261024:20261102": 2.9802174505988432e-08,
+    "C:20261024:20261103": 2.9801937917461885e-08,
+    "C:20261025:20261101": 2.9800036216443004e-08,
+    "C:20261025:20261102": 2.979976732042644e-08,
+    "C:20261025:20261103": 2.9800130474377795e-08,
+    "D:20261023:20261101": 2.9800579559591256e-08,
+    "D:20261023:20261102": 2.9802289636116086e-08,
+    "D:20261023:20261103": 2.980227764570742e-08,
+    "D:20261024:20261101": 2.9802086243257975e-08,
+    "D:20261024:20261102": 2.9801694556574887e-08,
+    "D:20261024:20261103": 2.9801611067803435e-08,
+    "D:20261025:20261101": 2.980052382639542e-08,
+    "D:20261025:20261102": 2.9801549339403266e-08,
+    "D:20261025:20261103": 2.980204538705067e-08
+  },
+  "prediction_tolerance": 2e-05,
+  "raw_to_base70_replay": {
+    "BASE70_feature_finite_mask_mismatches": 0,
+    "BASE70_feature_max_abs_error": 0.0,
+    "ESN_PCA8_finite_mask_mismatches_by_seed": {
+      "20261023": 0,
+      "20261024": 0,
+      "20261025": 0
+    },
+    "ESN_PCA8_max_abs_error_by_seed": {
+      "20261023": 0.0,
+      "20261024": 0.0,
+      "20261025": 0.0
+    },
+    "baseline_builder": "create_modeling_dataset.build_dataset_from_settings using frozen BTC profiles and BASE70 source definitions",
+    "baseline_rows_compared": 2649226,
+    "common_validation_rows": 52120,
+    "confirmation_or_holdout_read": false,
+    "feature_available_at_T_minus_60": true,
+    "fit_rows": 2088350,
+    "frozen_member_prediction_max_abs_error": 5.407751835218022e-08,
+    "frozen_member_prediction_tolerance": 2e-05,
+    "full_replay_elapsed_seconds_including_local_cache_load": 225.08367770002224,
+    "label_available_at_Opened_plus_7m": true,
+    "memory_PCA8_finite_mask_mismatches": 0,
+    "memory_PCA8_max_abs_error": 0.0,
+    "no_refit_tuning_or_early_stopping": true,
+    "peak_process_working_set_bytes": 18549215232,
+    "peak_process_working_set_gib": 17.275,
+    "preopen_decision_rows": 532110,
+    "raw_candle_validity_mask_mismatches": 0,
+    "raw_causal_input_finite_mask_mismatches": 0,
+    "raw_causal_input_max_abs_error": 1.1641532182693481e-10,
+    "raw_causal_input_width": 21,
+    "raw_development_prefix_last_opened_utc": "2025-06-30T23:58:00Z",
+    "raw_development_prefix_rows": 2660546,
+    "raw_development_prefix_sha256": "19922427e8f0c028401fe6d7002c6e9e574163b6a5a343e7a47fcb24f770b360",
+    "raw_source_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+    "raw_source_sha256_full_file_not_read": true,
+    "raw_to_BASE64_build_runtime_seconds": 119.7778035000083,
+    "raw_um_archive_manifest_sha256": "6285276610ba2272b0a8d016d54acff512a667f3a6888b346466da476b89e967",
+    "raw_um_local_archive_count": 61,
+    "raw_um_local_archive_months": [
+      "2020-06",
+      "2025-06"
+    ],
+    "scope_end_exclusive_utc": "2025-07-01T00:00:00Z",
+    "status": "passed_development_raw_to_BASE70_to_ensemble_replay",
+    "taker_flow_feature_runtime_seconds": 2.9262330000055954
+  },
+  "refit_or_early_stopping": false,
+  "scope_end_exclusive_utc": "2025-07-01T00:00:00Z",
+  "status": "passed_development_only_replay",
+  "streaming_benchmark": {
+    "cold_warmup_input_rows": 18643,
+    "cold_warmup_seconds_memory_and_three_esns": 0.4919472999754362,
+    "consecutive_minute_updates": 10000,
+    "decision_dynamic_feature_prep_us": {
+      "p50": 627.35,
+      "p95": 944.245,
+      "p99": 1064.651,
+      "samples": 1998
+    },
+    "decision_samples": 1998,
+    "inference_us_by_procedure": {
+      "A": {
+        "p50": 196.55,
+        "p95": 306.915,
+        "p99": 356.312,
+        "samples": 1998
+      },
+      "B": {
+        "p50": 112.65,
+        "p95": 220.345,
+        "p99": 287.787,
+        "samples": 1998
+      },
+      "C": {
+        "p50": 352.6,
+        "p95": 640.215,
+        "p99": 743.765,
+        "samples": 1998
+      },
+      "D": {
+        "p50": 351.85,
+        "p95": 629.1,
+        "p99": 748.353,
+        "samples": 1998
+      }
+    },
+    "memory_and_all_ESN_update_plus_PCA8_us": {
+      "p50": 652.8,
+      "p95": 996.4,
+      "p99": 1155.821,
+      "samples": 10000
+    },
+    "memory_update_plus_PCA8_us": {
+      "p50": 337.85,
+      "p95": 559.805,
+      "p99": 666.301,
+      "samples": 10000
+    },
+    "scope": "development-only real raw causal inputs through frozen memory/ESN PCA and existing fit-core boosters; BASE70 already present",
+    "state_restore_seconds_including_local_checkpoint_io": 0.09664320002775639,
+    "three_ESN_updates_plus_PCA8_us": {
+      "p50": 291.1,
+      "p95": 425.6,
+      "p99": 494.802,
+      "samples": 10000
+    },
+    "upstream_BASE70_incremental_update_measured": false
+  },
+  "synthetic_bootstrap_benchmark": {
+    "elapsed_seconds": 26.9494216000312,
+    "fixed_utc_months": 6,
+    "pairs": [
+      "B-A",
+      "C-A",
+      "C-B",
+      "D-B",
+      "D-C",
+      "D-A"
+    ],
+    "replicates": 2000,
+    "rows": 52120
+  },
+  "target_sha256": "a333332b36c3f173f83886003274d0ea48a11a27a07c8ae71c72f2d1989e4d0e",
+  "uniform_ensemble_weights": true
+}

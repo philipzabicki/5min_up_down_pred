@@ -1,3 +1,16 @@
+<!-- BTC_CANDIDATE_HOLDOUT_20261022_BEGIN -->
+## BTC candidate freeze and historical robustness scorer - 2026-10-23
+
+- Status: full development raw-source replay passed; protected scoring remains locked and was not run. No confirmation/holdout rows, labels, predictions, or scores were read.
+- Frozen procedures remain A=BASE70, B=BASE70+simple memory PCA8, C=BASE70+ESN PCA8, D=BASE70+memory+ESN. B's fit-core probabilities match its saved predictions within `5.41e-8`; A/C/D continue to use their fit-core replay sources under the previously frozen provenance rule. No result table changed and no new search or refit was run.
+- Full raw-to-BASE70 replay used exactly 2,660,546 development rows through `2025-06-30T23:58:00Z`, with local UM archives through `2025-06`. All 70 BASE features matched on 2,649,226 common rows (max error `0`); memory and all three ESN PCA8 features matched exactly; frozen member predictions matched within `5.41e-8`. T-60 and Opened+7m label timing matched.
+- Cost evidence: full raw replay plus frozen prediction took `225.08s`, peak working set `17.28 GiB`; BASE64 builder `119.78s`; dynamic representation replay `71.38s`; synthetic 2,000-replicate bootstrap benchmark at 52,120 rows `26.95s`. Full raw BASE70 one-candle incremental latency is not measured; existing state and inference percentiles exclude that stage.
+- The scorer and frozen protocol are in `run_btc_candidate_holdout_20261022.py` and `configs/research/btc_candidate_holdout_gate_20261022.json`. Default protected access is false. It requires exact approval for both windows, writes the immutable pre-read hashes before source hash verification, and keeps append-only attempts and checksummed per-period checkpoints. Targeted validation: 14 tests passed.
+- Periods are previously exposed historical robustness checks only: confirmation `[2025-07-01T00:00:00Z, 2026-07-01T00:00:00Z)` and holdout `[2026-07-01T00:00:00Z, 2026-10-07T00:00:00Z)`. Existing fit-core bundles are used without refit; `D-B` and `B-A` are primary, other pairs secondary, with the fixed 2,000 shared 3-day block bootstrap and primary-only Bonferroni intervals.
+- Current local flow-feature source ends `2026-06-30`. Exact Binance USD-M `quote_volume` and `taker_buy_quote_volume` inputs are absent for `2026-07-01` through `2026-10-06T23:52:00Z`, required for the six frozen `taker_Z/V` BASE70 controls. The scorer checks this coverage before row-value reads and will keep both periods incomplete until those inputs are available. No approximation or data download was used.
+- Evidence: [full development replay](../reports/btc_preopen/btc_candidate_holdout_20261022_development_replay.json); [candidate freeze and scorer protocol](../reports/btc_preopen/btc_candidate_quality_freeze_20261022.md). Run/resume: `python run_btc_candidate_holdout_20261022.py` after explicit approval and source coverage.
+<!-- BTC_CANDIDATE_HOLDOUT_20261022_END -->
+
 
 <!-- BTC_MARKET_MICROSTRUCTURE_DESIGN_20261019_BEGIN -->
 ## Zamknięcie oceny BASE70 i projekt mikrostruktury — 2026-10-19
