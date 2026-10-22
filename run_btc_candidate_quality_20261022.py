@@ -397,7 +397,7 @@ def _bootstrap_pairs(y: np.ndarray, dates_ns: np.ndarray, ensemble: dict[str, np
     if len(timestamps) == 0:
         raise RuntimeError("the preregistered block bootstrap requires validation observations")
     rng = np.random.default_rng(BOOTSTRAP_SEED)
-    comparisons = [("B", "A"), ("C", "A"), ("C", "B"), ("D", "B"), ("D", "C"), ("D", "A")]
+    comparisons = [("A", "B"), ("A", "C"), ("B", "C"), ("B", "D"), ("C", "D"), ("A", "D")]
     samples = {f"{right}-{left}": {metric: np.empty(BOOTSTRAP_REPLICATES) for metric in ("log_loss", "brier", "auc")}
                for left, right in comparisons}
 
