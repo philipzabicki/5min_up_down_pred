@@ -315,6 +315,23 @@ def _save_prediction(variant: str, reservoir_seed: int | None, lightgbm_seed: in
     return path, metadata
 
 
+def _load_new_prediction(variant: str, reservoir_seed: int | None, lightgbm_seed: int,
+                         rows: np.ndarray, feature_count: int) -> np.ndarray:
+    path = _new_prediction_path(variant, reservoir_seed, lightgbm_seed)
+    metadata_path = path.with_suffix(".npy.json")
+    if not path.exists() or not metadata_path.exists():
+        raise RuntimeError(f"missing fit-core prediction artifact for {variant}/{reservoir_seed}/{lightgbm_seed}")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    if (
+        metadata.get("feature_count") != int(feature_count)
+        or metadata.get("validation_rows") != len(rows)
+        or metadata.get("validation_row_indices_sha256") != _digest_array(rows.astype(np.int64))
+        or metadata.get("probabilities_sha256") != _sha256(path)
+    ):
+        raise RuntimeError(f"fit-core prediction artifact identity mismatch for {variant}/{reservoir_seed}/{lightgbm_seed}")
+    return np.load(path, allow_pickle=False)
+
+
 def _metrics(y: np.ndarray, probabilities: np.ndarray) -> dict:
     from sklearn.metrics import brier_score_loss, log_loss, roc_auc_score
 
@@ -328,20 +345,26 @@ def _metrics(y: np.ndarray, probabilities: np.ndarray) -> dict:
 
 
 def _member_predictions(candidate_id: str, arrays: dict, rows: np.ndarray,
-                        memory: np.ndarray, esn_features: dict[int, np.ndarray]) -> dict:
+                        memory: np.ndarray, esn_features: dict[int, np.ndarray],
+                        score_prediction_sources: dict[str, str]) -> dict:
     output = {"A": {}, "B": {}, "C": {}}
     seeds = FREEZE_CONFIG["model_fit"]["lightgbm_seeds"]
     for lightgbm_seed in seeds:
-        output["A"][str(lightgbm_seed)] = _load_stored_prediction(
-            f"baseline_l{lightgbm_seed}", None, lightgbm_seed, rows, 70,
-        )
-        output["B"][str(lightgbm_seed)] = _load_stored_prediction(
-            "simple_memory_pca8", None, lightgbm_seed, rows, 78,
-        )
+        for variant, candidate_name, feature_count in (
+            ("A", f"baseline_l{lightgbm_seed}", 70),
+            ("B", "simple_memory_pca8", 78),
+        ):
+            output[variant][str(lightgbm_seed)] = (
+                _load_new_prediction(f"{variant}_fitcore_common_mask", None, lightgbm_seed, rows, feature_count)
+                if score_prediction_sources[variant] == "fit_core_common_mask_refit"
+                else _load_stored_prediction(candidate_name, None, lightgbm_seed, rows, feature_count)
+            )
         for reservoir_seed in FREEZE_CONFIG["model_fit"]["reservoir_seeds"]:
             key = f"{reservoir_seed}:{lightgbm_seed}"
-            output["C"][key] = _load_stored_prediction(
-                candidate_id, reservoir_seed, lightgbm_seed, rows, 78,
+            output["C"][key] = (
+                _load_new_prediction("C_fitcore_common_mask", reservoir_seed, lightgbm_seed, rows, 78)
+                if score_prediction_sources["C"] == "fit_core_common_mask_refit"
+                else _load_stored_prediction(candidate_id, reservoir_seed, lightgbm_seed, rows, 78)
             )
     output["D"] = {}
     for reservoir_seed in FREEZE_CONFIG["model_fit"]["reservoir_seeds"]:
@@ -349,14 +372,9 @@ def _member_predictions(candidate_id: str, arrays: dict, rows: np.ndarray,
             path = _new_prediction_path(
                 "D_memory_plus_8f74a7951e10c11830baba75", reservoir_seed, lightgbm_seed,
             )
-            if not path.exists() or not path.with_suffix(".npy.json").exists():
-                raise RuntimeError(f"missing frozen D prediction for {reservoir_seed}/{lightgbm_seed}")
-            metadata = json.loads(path.with_suffix(".npy.json").read_text(encoding="utf-8"))
-            if metadata["validation_row_indices_sha256"] != _digest_array(rows.astype(np.int64)):
-                raise RuntimeError("D prediction was produced on another decision mask")
-            if metadata["probabilities_sha256"] != _sha256(path):
-                raise RuntimeError("D prediction checksum mismatch")
-            output["D"][f"{reservoir_seed}:{lightgbm_seed}"] = np.load(path, allow_pickle=False)
+            output["D"][f"{reservoir_seed}:{lightgbm_seed}"] = _load_new_prediction(
+                "D_memory_plus_8f74a7951e10c11830baba75", reservoir_seed, lightgbm_seed, rows, 86,
+            )
     return output
 
 
@@ -577,14 +595,16 @@ def _fit_and_bundle_models(arrays: dict, candidate_id: str, candidate: dict,
             computed = np.asarray(model.predict(matrix[rows]), dtype=np.float32)
             prediction_seconds = float(time.monotonic() - prediction_started)
             if variant != "D":
+                prediction_path, prediction_metadata = _save_prediction(
+                    f"{variant}_fitcore_common_mask", reservoir_seed, int(lightgbm_seed),
+                    computed, rows, 70 + added_features,
+                )
                 reference = _load_stored_prediction(
                     expected_name, reservoir_seed, int(lightgbm_seed), rows,
                     70 + added_features,
                 )
                 difference = np.abs(computed.astype(np.float64) - np.asarray(reference, dtype=np.float64))
                 max_abs = float(difference.max(initial=0.0))
-                if max_abs > 2e-5:
-                    raise RuntimeError(f"{variant} saved-prediction replay differs by {max_abs:.8g}")
             else:
                 prediction_path, prediction_metadata = _save_prediction(
                     expected_name, reservoir_seed, int(lightgbm_seed), computed, rows, 86,
@@ -610,11 +630,11 @@ def _fit_and_bundle_models(arrays: dict, candidate_id: str, candidate: dict,
                 "fit_seconds": fit_seconds,
                 "validation_prediction_seconds": prediction_seconds,
                 "saved_prediction_max_abs_error": max_abs,
+                "saved_prediction_replay_within_tolerance": max_abs <= float(FREEZE_CONFIG["prediction_replay"]["absolute_tolerance"]),
+                "prediction_path": str(prediction_path.relative_to(ROOT)),
+                "prediction_metadata": prediction_metadata,
                 "bundle_roundtrip_max_abs_error": roundtrip_difference,
             }
-            if variant == "D":
-                member["prediction_path"] = str(prediction_path.relative_to(ROOT))
-                member["prediction_metadata"] = prediction_metadata
             members.append(member)
             del model, matrix
             _check_active_limit()
@@ -626,6 +646,16 @@ def _fit_and_bundle_models(arrays: dict, candidate_id: str, candidate: dict,
             "base_feature_schema": base_feature_schema,
             "added_features": 0 if variant == "A" else 8 if variant in {"B", "C"} else 16,
             "members": members,
+            "score_prediction_source": (
+                "fit_core_common_mask_refit" if variant == "D"
+                else "existing_saved_prediction_artifacts"
+                if all(item["saved_prediction_replay_within_tolerance"] for item in members)
+                else "fit_core_common_mask_refit"
+            ),
+            "saved_prediction_replay_all_members_within_tolerance": (
+                True if variant == "D"
+                else all(item["saved_prediction_replay_within_tolerance"] for item in members)
+            ),
             "ensemble_weights": FREEZE_CONFIG["prediction_ensembles"][variant]["weights"],
             "training": common_training,
             "target": {
@@ -699,9 +729,10 @@ def _fit_and_bundle_models(arrays: dict, candidate_id: str, candidate: dict,
 
 
 def _build_comparison(arrays: dict, candidate_id: str, memory: np.ndarray,
-                      esn_features: dict[int, np.ndarray], rows: np.ndarray) -> tuple[dict, dict]:
+                      esn_features: dict[int, np.ndarray], rows: np.ndarray,
+                      score_prediction_sources: dict[str, str]) -> tuple[dict, dict]:
     y = np.asarray(arrays["target"][rows], dtype=np.int8)
-    members = _member_predictions(candidate_id, arrays, rows, memory, esn_features)
+    members = _member_predictions(candidate_id, arrays, rows, memory, esn_features, score_prediction_sources)
     ensemble = _ensemble_predictions(members)
     individual = {}
     per_seed_metrics = {}
@@ -754,6 +785,7 @@ def _build_comparison(arrays: dict, candidate_id: str, memory: np.ndarray,
         "matched_lightgbm_seed_comparisons": seed_pairs,
         "bootstrap": pair_intervals,
         "seed_metric_definition": "mean metric over individual fits; this is distinct from the metric computed on each procedure's uniformly averaged probabilities",
+        "score_prediction_sources": score_prediction_sources,
         "interpretation": FREEZE_CONFIG["D_interpretation"],
     }
     return results, members
@@ -1227,7 +1259,8 @@ def _write_report(results: dict, manifests: dict, runtime: dict, equivalence: di
         f"- Scaler/PCA fit provenance: **{comparability['transform_fit_scope_verified']}**; memory scaler/PCA and ESN scaler/PCA are fit-core-only artifacts.",
         f"- Fit-core scaler reconstruction matches the frozen memory/ESN scalers: **{comparability['transform_fit_scope_audit']['input_scalers_match_independent_fit_core_reconstruction']}**; memory PCA sample rows: {comparability['transform_fit_scope_audit']['memory_pca_fit_rows']:,}; ESN PCA sample rows per seed: {FREEZE_CONFIG['model_fit']['reservoir_seeds']} × {focused.CONFIG['screening']['pca_fit_rows']:,}.",
         f"- Maximum A/B/C saved-probability replay error: `{comparability['maximum_saved_prediction_replay_error']:.9g}`; maximum model save/load replay error: `{comparability['maximum_model_bundle_roundtrip_error']:.9g}`.",
-        "- Three orchestration fixes: the auxiliary matrix is reconstructed for every seed fit; monthly pair-trigger comparisons read each `delta_logloss` field; latency output maps candidate aliases to saved bundle keys. The first can affect auxiliary PCA4 and simple-memory fits, the second only the optional pair trigger, and the third only latency lookup. No conditional pair was part of this A/B/C comparison; the old PCA4 result remains a historical artifact outside it. Historical probability files do not carry a per-artifact runner hash, so their exact producing orchestration revision cannot be established from run identity alone. A/B/C are scored from those saved probabilities and replayed with fit-core-only model exports; the report records the maximum prediction deltas. The bundle records the exact current runner/source hashes used for its model exports.",
+        "- Three orchestration fixes: the auxiliary matrix is reconstructed for every seed fit; monthly pair-trigger comparisons read each `delta_logloss` field; latency output maps candidate aliases to saved bundle keys. The first can affect auxiliary PCA4 and simple-memory fits, the second only the optional pair trigger, and the third only latency lookup. No conditional pair was part of this A/B/C comparison; the old PCA4 result remains a historical artifact outside it. Historical probability files do not carry a per-artifact runner hash, so their exact producing orchestration revision cannot be established from run identity alone. Each procedure uses its old saved probabilities only when all fit-core model replays match within the preregistered tolerance; otherwise all members of that procedure use the fit-core-only refit probabilities. The bundle records the exact current runner/source hashes used for its model exports.",
+        f"- Scoring probability sources under the frozen replay rule: `{results['score_prediction_sources']}`.",
         "",
         "## Bundle replay and streaming checks",
         "",
@@ -1298,7 +1331,13 @@ def main() -> None:
         item["fit_seconds"] for item in model_export["procedures"]["D"]["members"]
     ))
     print("computing common metrics and preregistered paired bootstrap", flush=True)
-    results, _ = _build_comparison(arrays, candidate_id, memory, esn_features, rows)
+    score_prediction_sources = {
+        variant: model_export["procedures"][variant]["score_prediction_source"]
+        for variant in ("A", "B", "C", "D")
+    }
+    results, _ = _build_comparison(
+        arrays, candidate_id, memory, esn_features, rows, score_prediction_sources,
+    )
     results["fit_rows"] = int(train_mask.sum())
     results["fit_row_indices_sha256"] = _digest_array(np.flatnonzero(train_mask).astype(np.int64))
     results["selected_esn_candidate"] = candidate["effective_config"]
