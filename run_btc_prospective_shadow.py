@@ -196,6 +196,8 @@ class PublicBtcCandleFeed:
         elif target["role"] == "volume":
             volume = {
                 "volume": float(kline["v"]),
+                "quote_volume": float(kline["q"]) if kline.get("q") is not None else None,
+                "taker_buy_quote_volume": float(kline["Q"]) if kline.get("Q") is not None else None,
                 "auxiliary_ohlc": live_runtime._extract_live_auxiliary_ohlc_from_kline(kline),
                 "event_at_utc": event_at, "received_at_utc": received,
             }
@@ -228,6 +230,8 @@ class PublicBtcCandleFeed:
             "price_received_at_utc": price["received_at_utc"],
             "volume_event_at_utc": volume.get("event_at_utc"),
             "volume_received_at_utc": volume["received_at_utc"],
+            "quote_volume": volume.get("quote_volume"),
+            "taker_buy_quote_volume": volume.get("taker_buy_quote_volume"),
             "received_at_utc": _iso(received),
             "price_stream": live_runtime.PRICE_STREAM_NAME,
             "volume_stream": live_runtime.VOLUME_STREAM_NAME,

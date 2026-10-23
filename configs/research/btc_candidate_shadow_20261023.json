@@ -1,0 +1,74 @@
+{
+  "protocol_id": "btc_candidate_shadow_20261023",
+  "status": "frozen_before_shadow_outcomes",
+  "frozen_at_utc": "2026-10-23T18:43:41Z",
+  "candidates": {
+    "A": "BASE70",
+    "B": "BASE70 + simple_memory_PCA8",
+    "C": "BASE70 + frozen_ESN_PCA8",
+    "D": "BASE70 + simple_memory_PCA8 + frozen_ESN_PCA8",
+    "bundle_directory": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles"
+  },
+  "market_timing": {
+    "market_start": "exact Gamma BTC 5m market start T",
+    "decision_at": "T-60 seconds",
+    "input_candle_opened": "T-120 seconds",
+    "input_candle_close_and_nominal_feature_availability": "T-60 seconds",
+    "hypothetical_execution_snapshot": "T-59 seconds",
+    "late_prediction_policy": "retain actual ready time; never backdate or substitute a later row; late signal is ineligible"
+  },
+  "collection": {
+    "mode": "public GET and public Binance WebSocket only; no order methods or authenticated trading client",
+    "market_prefix": "btc-updown-5m",
+    "books_per_market": ["T-60", "T-59"],
+    "tokens_per_book": ["UP", "DOWN"],
+    "hypothetical_gross_notional_usd": 5.0,
+    "actual_fill": "unknown; no orders are sent",
+    "settlement_source": "official Gamma market payload after resolution",
+    "settlement_poll_seconds": 30
+  },
+  "runtime": {
+    "database": "data/analysis/polymarket/BTC/btc_candidate_shadow_20261023/shadow.sqlite3",
+    "commit_frequency": "each received or REST-repaired candle; each completed market attempt and outcome",
+    "checkpoint_frequency_seconds": 3600,
+    "checkpoint_after_completed_market": true,
+    "checkpoint_identity": "candidate model/transform hashes, feature order, protocol, runner and runtime-source hashes",
+    "maximum_database_bytes": 50000000000,
+    "on_size_limit": "stop and record; do not delete research data",
+    "automatic_data_deletion": false,
+    "log_rotation": "SQLite collector_events retained in the research database; WAL checkpoint/truncate hourly; no automatic database rotation or deletion",
+    "estimated_storage_gb_per_day": {
+      "low": 0.01,
+      "high": 0.06,
+      "basis": "capacity estimate for 1,152 full-depth token snapshots/day (288 markets x 2 times x 2 tokens), raw minute provenance and SQLite overhead; replace with measured bytes after reachable live pilot"
+    }
+  },
+  "precision_plan": {
+    "outcome_unit": "net PnL per $5 gross order; no-trade contributes zero",
+    "primary_comparisons": {
+      "A_vs_cash": "frozen A decision result versus zero PnL",
+      "D_vs_B": "paired difference in frozen D and B decision results on the same market window"
+    },
+    "minimum_detectable_effect_percent_of_5_usd": [0.5, 1.0, 2.0],
+    "effects_are_planning_scenarios_only": true,
+    "alpha_two_sided": 0.05,
+    "power": 0.8,
+    "familywise_correction": "Bonferroni across A-versus-cash and D-versus-B; per-test alpha 0.025",
+    "sample_size_formula": "((z_0.9875 + z_0.80) * sigma / MDE)^2; inflate for three-day block dependence using DE=1+(m-1)*rho",
+    "selected_final_mde_percent_of_5_usd": 2.0,
+    "planning_sigma_usd_per_trade": {"A_vs_cash": 4.887, "D_vs_B_trade_union": 2.176},
+    "planning_trade_rate_per_day": 6,
+    "planning_three_day_intracluster_rho": 0.05,
+    "selected_precision_thresholds": {
+      "A_vs_cash_independent_trades": 22701,
+      "D_vs_B_independent_trade_union": 4501,
+      "A_vs_cash_dependence_adjusted_trades": 41997,
+      "D_vs_B_dependence_adjusted_trade_union": 8327,
+      "complete_utc_days_at_planning_trade_rate": 7000,
+      "nonoverlapping_three_day_blocks": 2334
+    },
+    "interim_economic_looks": "none; technical completeness monitoring only",
+    "final_look": "one fixed analysis at the first complete UTC day after both dependence-adjusted transaction thresholds and the calendar threshold are met; never stop on interim economic signs",
+    "model_policy_or_threshold_changes": false
+  }
+}

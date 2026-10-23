@@ -87,7 +87,7 @@ The existing, validated execution ledger contains 1,143 markets from 2026-04-15 
 
 The calendar rule changes coincide with time, market conditions, and a different label construction. The seven checked market pages support the boundary assignment but do not validate all 79,650 individual market rules. The observed label disagreements are not attributed to Chainlink price values without the exact historical reports. Holdout outcomes have previously been inspected. The pointwise intervals are wide, particularly for TWAP30, and repeated five-minute markets cluster within days. No result here proves a causal TWAP effect, new independent confirmation, or economic advantage.
 
-**Next step:** keep A/B/C/D frozen and collect one pre-registered, no-order prospective TWAP60 shadow sample for at least 180 complete UTC days, preserving Gamma labels, exact market identity, all four predictions, and contemporaneous execution-book availability. Then rerun this fixed scorer without fitting or changing policy.
+**Correction to the earlier next-step duration:** the 180-day minimum was arbitrary and is withdrawn. The collector implementation, historical L2 source review, one-market Vike L2 reconstruction, and blocked live preflight are documented in the [shadow source and pilot report](btc_candidate_shadow_sources_and_pilot_20261023.md). Its precision plan pre-registers a $0.10 per-$5 primary MDE, Bonferroni family-wise alpha 0.05 over A-vs-cash and D-vs-B, and one final look after the transaction and three-day-block thresholds; those thresholds are calculated from the old sparse execution sample and are explicitly not representative of TWAP60. No economic interim looks or model/policy changes are allowed.
 
 ## Reproducibility artifacts
 

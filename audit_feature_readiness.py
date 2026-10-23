@@ -3794,9 +3794,14 @@ class PseudoLiveAuditPredictor(LivePredictor):
             fit_results_dir=None,
             indicator_history_requirements_path=None,
             indicator_state_by_feature=None,
+            load_model=True,
             allow_unstable_indicator_summary=AUDIT_ALLOW_UNSTABLE_INDICATOR_SUMMARY,
     ):
-        self.model, meta = load_model_and_meta(model_meta_path)
+        if load_model:
+            self.model, meta = load_model_and_meta(model_meta_path)
+        else:
+            self.model = None
+            meta = json.loads(Path(model_meta_path).read_text(encoding="utf-8"))
         self.feature_columns = list(meta.get("feature_columns", []))
         if not self.feature_columns:
             raise ValueError("Missing feature_columns in model metadata.")

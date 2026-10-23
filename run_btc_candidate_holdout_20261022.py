@@ -1252,7 +1252,10 @@ def _load_approved_arrays(config: dict, base_order: list[str]):
     }
 
 
-def _generate_dynamic_features(raw_opened, raw_x, raw_valid, memory_bundle, esn_config, esn_bundles):
+def _generate_dynamic_features(
+    raw_opened, raw_x, raw_valid, memory_bundle, esn_config, esn_bundles,
+    *, return_states=False,
+):
     """Regenerate memory/ESN PCA8 features with the exact frozen project state engines."""
     import numpy as np
     import pandas as pd
@@ -1306,6 +1309,8 @@ def _generate_dynamic_features(raw_opened, raw_x, raw_valid, memory_bundle, esn_
                 components = np.asarray(projection["components"], dtype=np.float64)
                 values = (states[ready].astype(np.float64) - mean) @ components.T
                 esn_out[seed][start:end][ready] = values.astype(np.float32)
+    if return_states:
+        return memory_out, esn_out, {"memory_state": memory_state, "esn_states": esn_states}
     return memory_out, esn_out
 
 

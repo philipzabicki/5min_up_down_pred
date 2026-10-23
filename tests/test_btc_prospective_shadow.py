@@ -120,6 +120,8 @@ class ProspectiveShadowTests(unittest.TestCase):
         self.assertEqual(rows[0]["source_metadata"]["source"], "binance_public_websocket")
         self.assertIn("price_received_at_utc", rows[0]["source_metadata"])
         self.assertIn("volume_received_at_utc", rows[0]["source_metadata"])
+        self.assertIsNone(rows[0]["source_metadata"]["quote_volume"])
+        self.assertIsNone(rows[0]["source_metadata"]["taker_buy_quote_volume"])
 
     def test_persisted_candle_round_trips_source_metadata(self):
         db = prospective._connect(Path(":memory:"))
