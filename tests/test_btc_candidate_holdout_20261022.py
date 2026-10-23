@@ -36,31 +36,34 @@ def _members(rows: int, seed: int = 7) -> dict:
 class TestBtcCandidateHoldout20261022(unittest.TestCase):
     def test_scope_requires_both_exact_periods_and_individual_approval(self):
         config = json.loads(scorer.CONFIG_PATH.read_text(encoding="utf-8"))
+        scorer.validate_scope(config)
+
+        disabled = copy.deepcopy(config)
+        disabled["allow_protected_data"] = False
         with self.assertRaises(scorer.GateBlocked):
-            scorer.validate_scope(config)
+            scorer.validate_scope(disabled)
 
-        approved = copy.deepcopy(config)
-        approved["allow_protected_data"] = True
-        approved["approved_period_ids"] = ["confirmation", "holdout"]
-        for period in approved["periods"]:
-            period["allow_read"] = True
-        scorer.validate_scope(approved)
-
-        broad = copy.deepcopy(approved)
+        broad = copy.deepcopy(config)
         broad["approved_period_ids"].append("all")
         with self.assertRaises(scorer.GateBlocked):
             scorer.validate_scope(broad)
-        changed_boundary = copy.deepcopy(approved)
+        changed_boundary = copy.deepcopy(config)
         changed_boundary["periods"][1]["market_start_exclusive_utc"] = "2026-10-08T00:00:00Z"
         with self.assertRaises(scorer.GateBlocked):
             scorer.validate_scope(changed_boundary)
 
-    def test_default_main_blocks_before_bundle_or_pipeline_access(self):
-        with patch.object(scorer, "_bundle_identity", side_effect=AssertionError("bundle access occurred")) as bundle:
-            with self.assertRaisesRegex(SystemExit, "BLOCKED"):
-                scorer.main()
-        bundle.assert_not_called()
-
+    def test_disabled_gate_blocks_before_bundle_or_pipeline_access(self):
+        config = json.loads(scorer.CONFIG_PATH.read_text(encoding="utf-8"))
+        config["allow_protected_data"] = False
+        with tempfile.TemporaryDirectory() as name:
+            path = Path(name) / "config.json"
+            path.write_text(json.dumps(config), encoding="utf-8")
+            with patch.object(scorer, "CONFIG_PATH", path), patch.object(
+                scorer, "_bundle_identity", side_effect=AssertionError("bundle access occurred"),
+            ) as bundle:
+                with self.assertRaisesRegex(SystemExit, "BLOCKED"):
+                    scorer.main()
+            bundle.assert_not_called()
     def test_common_mask_enforces_market_and_label_boundaries_and_t60(self):
         minute = 60_000_000_000
         start = int(pd.Timestamp("2025-07-01T00:00:00Z").value)
@@ -146,9 +149,11 @@ class TestBtcCandidateHoldout20261022(unittest.TestCase):
                 "taker_Z_15m": [0.0, 0.0], "taker_V_15m": [0.0, 0.0],
             })
             pq.write_table(table, path, row_group_size=1)
-            error = scorer._flow_coverage_error(path, "2026-10-06T23:53:00Z")
-        self.assertIn("2026-07-01 through 2026-10-06 23:52 UTC", error)
-        self.assertIn("quote-volume and taker-buy-quote-volume", error)
+            error = scorer._flow_coverage_error(
+                [path], "2026-06-30T23:58:00Z", "2026-10-06T23:53:00Z",
+            )
+        self.assertIn("required coverage", error)
+        self.assertIn("Binance USD-M BTCUSDT 1m quote_volume", error)
 
     def test_frozen_prediction_slots_and_equal_weight_ensembles(self):
         rows = 8

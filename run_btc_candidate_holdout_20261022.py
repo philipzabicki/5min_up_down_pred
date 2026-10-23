@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -50,6 +51,13 @@ def _atomic_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
     temporary.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(temporary, path)
+
+
+def _atomic_text(path: Path, value: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+    temporary.write_text(value, encoding="utf-8")
     os.replace(temporary, path)
 
 
@@ -167,7 +175,11 @@ def common_observation_mask(
         "excluded_missing_or_nonbinary_target": int((in_scope & decisions & ~binary).sum()),
         "excluded_label_not_released_before_period_end": int((in_scope & decisions & binary & ~label_released).sum()),
         "excluded_invalid_BASE70": int((in_scope & decisions & binary & label_released & ~valid_base).sum()),
+        "excluded_invalid_memory": int((in_scope & decisions & binary & label_released & valid_base & ~valid_memory).sum()),
+        "excluded_invalid_ESN_after_valid_memory": int((in_scope & decisions & binary & label_released & valid_base & valid_memory & ~valid_esn).sum()),
         "excluded_invalid_memory_or_ESN": int((in_scope & decisions & binary & label_released & valid_base & ~(valid_memory & valid_esn)).sum()),
+        "expected_decisions": int((in_scope & decisions).sum()),
+        "decisions_with_complete_features": int((in_scope & decisions & valid_base & valid_memory & valid_esn).sum()),
         "common_scoring_rows": int(mask.sum()),
     }
 
@@ -284,25 +296,33 @@ def _bundle_identity() -> dict:
             observed = _sha256(model_path)
             if observed != member.get("model_sha256"):
                 raise RuntimeError(f"frozen {name} model hash mismatch: {model_path.name}")
-            model_records.append({"procedure": name, "path": model_path.relative_to(ROOT).as_posix(), "sha256": observed})
-    transform_paths = [
-        BUNDLE_DIR / "transforms/simple_memory_projection.json",
-        *(BUNDLE_DIR / f"transforms/esn_seed_{seed}.json" for seed in (20261023, 20261024, 20261025)),
-    ]
+            model_records.append({
+                "procedure": name,
+                "lightgbm_seed": int(member["lightgbm_seed"]),
+                "reservoir_seed": None if member.get("reservoir_seed") is None else int(member["reservoir_seed"]),
+                "path": model_path.relative_to(ROOT).as_posix(),
+                "sha256": observed,
+                "feature_count": int(member["feature_count"]),
+                "feature_order_sha256": member["feature_order_sha256"],
+            })
+    memory_transform_path = BUNDLE_DIR / "transforms/simple_memory_projection.json"
+    esn_json_paths = [BUNDLE_DIR / f"transforms/esn_seed_{seed}.json" for seed in (20261023, 20261024, 20261025)]
+    esn_matrix_paths = [BUNDLE_DIR / f"transforms/esn_matrices_seed_{seed}.npz" for seed in (20261023, 20261024, 20261025)]
+    transform_paths = [memory_transform_path, *esn_json_paths, *esn_matrix_paths]
     transform_hashes = {path.relative_to(ROOT).as_posix(): _sha256(path) for path in transform_paths}
-    for path in transform_paths[1:]:
+    for path in esn_json_paths:
         payload = json.loads(path.read_text(encoding="utf-8"))
         identity = payload.get("identity", {})
         if identity.get("confirmation_read") is not False or identity.get("holdout_rows_materialized") != 0:
             raise RuntimeError(f"ESN transform provenance is not development-only: {path.name}")
     esn_feature_names = {}
-    for path in transform_paths[1:]:
+    for path in esn_json_paths:
         payload = json.loads(path.read_text(encoding="utf-8"))
         seed = int(payload["seed"])
         if seed in esn_feature_names:
             raise RuntimeError(f"duplicate frozen ESN transform seed: {seed}")
         esn_feature_names[seed] = payload.get("feature_names")
-    memory_payload = json.loads(transform_paths[0].read_text(encoding="utf-8"))
+    memory_payload = json.loads(memory_transform_path.read_text(encoding="utf-8"))
     if memory_payload.get("identity", {}).get("scope_end_exclusive_utc") != "2025-07-01T00:00:00Z":
         raise RuntimeError("memory transform scope differs from the frozen development-only fit")
     for name, manifest in manifests.items():
@@ -319,16 +339,41 @@ def _bundle_identity() -> dict:
             ).hexdigest()
             if member.get("feature_count") != len(expected_order) or member.get("feature_order_sha256") != expected_hash:
                 raise RuntimeError(f"{name} frozen member feature order differs from the candidate definition")
+    member_feature_orders = []
+    for name, manifest in manifests.items():
+        for member in manifest.get("members", []):
+            reservoir_seed = member.get("reservoir_seed")
+            member_feature_orders.append({
+                "procedure": name,
+                "lightgbm_seed": int(member["lightgbm_seed"]),
+                "reservoir_seed": None if reservoir_seed is None else int(reservoir_seed),
+                "feature_order": _member_feature_order(
+                    name,
+                    base_order,
+                    reservoir_seed=None if reservoir_seed is None else int(reservoir_seed),
+                    esn_names=None if reservoir_seed is None else esn_feature_names.get(int(reservoir_seed)),
+                ),
+            })
     return {
         "base_feature_order_sha256": _canonical_hash(base_order),
         "base_feature_order": base_order,
         "procedure_manifest_sha256": {name: _sha256(BUNDLE_DIR / f"{name}_manifest.json") for name in EXPECTED_PROCEDURES},
         "transform_sha256": transform_hashes,
         "model_sha256": model_records,
+        "member_feature_orders": member_feature_orders,
+        "member_count": len(model_records),
         "training_identity": manifests["A"]["training"],
         "lightgbm_seeds": sorted(int(key) for key in manifests["A"]["training"]["lgbm_parameters_by_seed"]),
         "reservoir_seeds": sorted({int(item["reservoir_seed"]) for item in manifests["C"]["members"]}),
         "uniform_ensemble_weights": {name: manifests[name]["ensemble_weights"] for name in EXPECTED_PROCEDURES},
+        "transform_parameters": {
+            "simple_memory": memory_payload.get("identity"),
+            "esn_by_seed": {
+                int(payload["seed"]): payload.get("identity")
+                for path in esn_json_paths
+                for payload in [json.loads(path.read_text(encoding="utf-8"))]
+            },
+        },
     }
 
 
@@ -344,7 +389,11 @@ def _write_preread_manifest(config: dict, identity: dict) -> Path:
         "run_identity_sha256": run_id,
         "config_sha256": _sha256(CONFIG_PATH),
         "protocol_sha256": _canonical_hash(config["protocol"]),
+        "code_commit_sha": subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=ROOT, check=True, capture_output=True, text=True,
+        ).stdout.strip(),
         "runner_sha256": _sha256(Path(__file__)),
+        "user_authorization": config["authorization_record"],
         "frozen_bundle_identity": identity["bundle"],
         "scope": [{
             "id": item["id"],
@@ -404,16 +453,31 @@ def _source_artifact_identity() -> dict:
     feature_run_manifest = ROOT / "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/run_manifest.json"
     flow_path = ROOT / Path(configured["taker_flow_features"])
     flow_manifest_path = ROOT / "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json"
+    effective_config_path = ROOT / "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/pipeline/794a69e369a3f82d/effective_config.json"
+    effective_config = json.loads(effective_config_path.read_text(encoding="utf-8"))
+    raw_record = effective_config["input_data"]
+    raw_path = ROOT / Path(configured["raw_um_ohlcv_source"])
+    if Path(raw_record["path"]).name != raw_path.name:
+        raise RuntimeError("configured raw USD-M OHLCV source differs from the frozen feature-run input")
     return {
         "baseline_feature_dataset": {
             "path": dataset_path.relative_to(ROOT).as_posix(),
             "pinned_sha256": _manifest_output_hash(feature_run_manifest, dataset_path),
+            "source_manifest_path": feature_run_manifest.relative_to(ROOT).as_posix(),
             "source_manifest_sha256": _sha256(feature_run_manifest),
         },
         "taker_flow_features": {
             "path": flow_path.relative_to(ROOT).as_posix(),
             "pinned_sha256": _manifest_output_hash(flow_manifest_path, flow_path),
+            "source_manifest_path": flow_manifest_path.relative_to(ROOT).as_posix(),
             "source_manifest_sha256": _sha256(flow_manifest_path),
+        },
+        "raw_um_ohlcv_source": {
+            "path": raw_path.relative_to(ROOT).as_posix(),
+            "pinned_sha256": raw_record["sha256"],
+            "size_bytes": int(raw_record["size_bytes"]),
+            "effective_config_path": effective_config_path.relative_to(ROOT).as_posix(),
+            "effective_config_sha256": _sha256(effective_config_path),
         },
     }
 
@@ -452,48 +516,575 @@ def _verify_source_artifacts(source_identity: dict) -> dict:
     observed = {}
     for name, record in source_identity.items():
         path = ROOT / record["path"]
+        if "size_bytes" in record and int(record["size_bytes"]) != path.stat().st_size:
+            raise RuntimeError(f"pinned source data size mismatch for {name}: {record['path']}")
         digest = _sha256(path)
         if digest != record["pinned_sha256"]:
             raise RuntimeError(f"pinned source data hash mismatch for {name}: {record['path']}")
+        source_manifest_path = record.get("source_manifest_path") or record.get("effective_config_path")
+        source_manifest_sha256 = record.get("source_manifest_sha256") or record.get("effective_config_sha256")
+        if source_manifest_path and _sha256(ROOT / source_manifest_path) != source_manifest_sha256:
+            raise RuntimeError(f"pinned source manifest hash mismatch for {name}: {source_manifest_path}")
         observed[name] = {"path": record["path"], "sha256": digest, "verified": True}
     return observed
 
 
-def _flow_coverage_error(flow_path: Path, required_opened_exclusive: str) -> str | None:
+def _flow_coverage_error(flow_paths: list[Path], required_opened_inclusive: str, required_opened_exclusive: str) -> str | None:
     """Inspect only Parquet footer statistics before opening any protected row values."""
     import pyarrow.parquet as pq
     import pandas as pd
 
-    if not flow_path.is_file():
-        return f"missing taker-flow feature source: {flow_path.relative_to(ROOT).as_posix()}"
-    parquet = pq.ParquetFile(flow_path)
-    names = parquet.schema_arrow.names
     required = ("Opened", "taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m")
-    missing = sorted(set(required) - set(names))
-    if missing:
-        return f"taker-flow input is missing BASE70 columns: {missing}"
-    opened_column = names.index("Opened")
-    maxima = []
-    for index in range(parquet.metadata.num_row_groups):
-        stats = parquet.metadata.row_group(index).column(opened_column).statistics
-        if stats is not None and stats.has_min_max:
-            maxima.append(pd.Timestamp(stats.max))
-    if not maxima:
-        return "taker-flow source has no timestamp statistics to verify coverage"
-    latest = max(maxima)
-    if latest.tzinfo is None:
-        latest = latest.tz_localize("UTC")
-    else:
-        latest = latest.tz_convert("UTC")
+    minima, maxima = [], []
+    for flow_path in flow_paths:
+        if not flow_path.is_file():
+            continue
+        parquet = pq.ParquetFile(flow_path)
+        names = parquet.schema_arrow.names
+        missing = sorted(set(required) - set(names))
+        if missing:
+            return f"taker-flow input {flow_path.relative_to(ROOT).as_posix()} is missing BASE70 columns: {missing}"
+        opened_column = names.index("Opened")
+        for index in range(parquet.metadata.num_row_groups):
+            stats = parquet.metadata.row_group(index).column(opened_column).statistics
+            if stats is not None and stats.has_min_max:
+                minima.append(pd.Timestamp(stats.min))
+                maxima.append(pd.Timestamp(stats.max))
+    if not minima or not maxima:
+        return "no taker-flow source has timestamp statistics to verify coverage"
+    earliest, latest = min(minima), max(maxima)
+    earliest = earliest.tz_localize("UTC") if earliest.tzinfo is None else earliest.tz_convert("UTC")
+    latest = latest.tz_localize("UTC") if latest.tzinfo is None else latest.tz_convert("UTC")
+    required_first = pd.Timestamp(required_opened_inclusive, tz="UTC")
     required_last = pd.Timestamp(required_opened_exclusive, tz="UTC") - pd.Timedelta(minutes=1)
-    if latest < required_last:
+    if earliest > required_first or latest < required_last:
         return (
-            "taker-flow inputs stop at " + latest.isoformat()
-            + "; the exact missing input is Binance USD-M BTCUSDT 1m quote-volume and taker-buy-quote-volume "
-            + "history (needed to produce taker_Z/taker_V at BASE70 horizons 1m, 5m, and 15m) from "
-            + "2026-07-01 through 2026-10-06 23:52 UTC. No protected row values were opened."
+            f"taker-flow input coverage is {earliest.isoformat()} through {latest.isoformat()}; "
+            f"required coverage is {required_first.isoformat()} through {required_last.isoformat()}. "
+            "The missing exact source is Binance USD-M BTCUSDT 1m quote_volume and taker_buy_quote_volume; "
+            "no protected row values were opened."
         )
     return None
+
+
+def _source_completion_identity(config: dict) -> dict | None:
+    """Verify the separately acquired, checksum-pinned Binance supplement after the pre-read freeze."""
+    import pandas as pd
+
+    manifest_path = ROOT / config["inputs"]["taker_flow_supplement_manifest"]
+    feature_path = ROOT / config["inputs"]["taker_flow_feature_supplement"]
+    if not manifest_path.is_file():
+        return None
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("status") != "completed" or not feature_path.is_file():
+        return None
+    output = manifest.get("flow_feature_output", {})
+    if output.get("path") != feature_path.relative_to(ROOT).as_posix():
+        raise RuntimeError("supplemental flow-feature path differs from its manifest")
+    if int(output.get("size_bytes", -1)) != feature_path.stat().st_size or output.get("sha256") != _sha256(feature_path):
+        raise RuntimeError("supplemental flow-feature checksum or size differs from its manifest")
+    if manifest.get("required_binance_volume_opened_inclusive_utc") != config["inputs"]["required_binance_volume_opened_inclusive_utc"]:
+        raise RuntimeError("supplemental Binance range has a different inclusive start")
+    if manifest.get("required_binance_volume_opened_exclusive_utc") != config["inputs"]["required_binance_volume_opened_exclusive_utc"]:
+        raise RuntimeError("supplemental Binance range has a different exclusive end")
+    frozen_identity = manifest.get("frozen_identity", {})
+    if frozen_identity.get("config_sha256") != _sha256(CONFIG_PATH):
+        raise RuntimeError("supplemental Binance source was prepared under a different frozen config")
+    if frozen_identity.get("protocol_sha256") != _canonical_hash(config["protocol"]):
+        raise RuntimeError("supplemental Binance source was prepared under a different frozen protocol")
+    feature_config_path = ROOT / "configs/research/btc_preopen_taker_flow_20261018.json"
+    feature_code_path = ROOT / "features/btc_taker_flow.py"
+    if (
+        frozen_identity.get("flow_feature_configuration_sha256") != _sha256(feature_config_path)
+        or manifest.get("feature_configuration_sha256") != _sha256(feature_config_path)
+    ):
+        raise RuntimeError("supplemental flow-feature configuration changed after data preparation")
+    if (
+        frozen_identity.get("flow_feature_code_sha256") != _sha256(feature_code_path)
+        or manifest.get("feature_code_sha256") != _sha256(feature_code_path)
+    ):
+        raise RuntimeError("supplemental flow feature code changed after data preparation")
+    expected_days = pd.date_range(
+        pd.Timestamp(config["inputs"]["required_binance_volume_opened_inclusive_utc"]).floor("D"),
+        (pd.Timestamp(config["inputs"]["required_binance_volume_opened_exclusive_utc"]) - pd.Timedelta(nanoseconds=1)).floor("D"),
+        freq="D",
+    ).strftime("%Y-%m-%d").tolist()
+    archives = manifest.get("downloaded_archives", [])
+    if [item.get("day") for item in archives] != expected_days:
+        raise RuntimeError("supplemental Binance source does not contain every exact requested UTC day")
+    expected_volume_rows = len(pd.date_range(
+        pd.Timestamp(config["inputs"]["required_binance_volume_opened_inclusive_utc"]),
+        pd.Timestamp(config["inputs"]["required_binance_volume_opened_exclusive_utc"]),
+        freq="min", inclusive="left",
+    ))
+    coverage = manifest.get("coverage", {})
+    if (
+        int(coverage.get("expected_volume_minutes", -1)) != expected_volume_rows
+        or int(coverage.get("observed_volume_minutes", -1)) != expected_volume_rows
+        or int(coverage.get("missing_volume_minutes", -1)) != 0
+        or int(coverage.get("invalid_ohlc_rows", -1)) != 0
+        or int(coverage.get("invalid_quote_or_taker_volume_rows", -1)) != 0
+        or int(output.get("rows", -1)) != expected_volume_rows
+    ):
+        raise RuntimeError("supplemental source manifest does not certify complete valid Binance minute coverage")
+    if any(
+        int(item.get("mismatch_rows_at_1e-7_absolute_tolerance", -1)) != 0
+        for item in coverage.get("overlap_ohlc_comparison", {}).values()
+    ):
+        raise RuntimeError("supplemental source manifest records an OHLC mismatch on overlapping rows")
+    for item in archives:
+        raw_path = ROOT / item["raw_payload_path"]
+        if not raw_path.is_file():
+            return None
+        if raw_path.stat().st_size != int(item.get("payload_size_bytes", -1)) or _sha256(raw_path) != item.get("payload_sha256"):
+            raise RuntimeError(f"preserved raw Binance payload checksum failed: {item.get('day')}")
+    warmup = manifest.get("warmup_source", {})
+    warmup_path = ROOT / config["inputs"]["taker_flow_warmup_archive"]
+    if warmup.get("path") != warmup_path.relative_to(ROOT).as_posix() or _sha256(warmup_path) != warmup.get("sha256"):
+        raise RuntimeError("local causal warm-up archive differs from its source-completion manifest")
+    return {
+        "manifest_path": manifest_path.relative_to(ROOT).as_posix(),
+        "manifest_sha256": _sha256(manifest_path),
+        "feature_path": feature_path.relative_to(ROOT).as_posix(),
+        "feature_sha256": output["sha256"],
+        "feature_size_bytes": output["size_bytes"],
+        "downloaded_archive_count": len(manifest.get("downloaded_archives", [])),
+        "coverage": manifest.get("coverage"),
+        "source_manifest": manifest,
+    }
+
+
+def _complete_taker_flow_source(config: dict, run_dir: Path, run_identity: str) -> dict:
+    """Fetch the exact missing USD-M kline range and build the frozen flow-feature supplement."""
+    import json
+    import time
+    import zipfile
+    import numpy as np
+    import pandas as pd
+    from extend_btc_preopen_cutoff_data import PAGE_ROWS, UM_ENDPOINT, _fetch
+    from features.btc_taker_flow import compute_taker_flow_features, feature_names
+
+    inputs = config["inputs"]
+    manifest_path = ROOT / inputs["taker_flow_supplement_manifest"]
+    feature_path = ROOT / inputs["taker_flow_feature_supplement"]
+    raw_dir = manifest_path.parent / "raw_by_day"
+    download_start = pd.Timestamp(inputs["required_binance_volume_opened_inclusive_utc"])
+    download_end = pd.Timestamp(inputs["required_binance_volume_opened_exclusive_utc"])
+    warmup_start = pd.Timestamp(inputs["required_taker_flow_warmup_opened_inclusive_utc"])
+    if download_start.tzinfo is None or download_end.tzinfo is None or warmup_start.tzinfo is None:
+        raise RuntimeError("supplemental input ranges must have explicit UTC offsets")
+    download_start, download_end, warmup_start = (
+        value.tz_convert("UTC") for value in (download_start, download_end, warmup_start)
+    )
+    if download_end <= download_start or warmup_start >= download_start:
+        raise RuntimeError("supplemental source range or warm-up boundary is invalid")
+
+    frozen_identity = {
+        "config_sha256": _sha256(CONFIG_PATH),
+        "protocol_sha256": _canonical_hash(config["protocol"]),
+        "required_binance_volume_opened_inclusive_utc": inputs["required_binance_volume_opened_inclusive_utc"],
+        "required_binance_volume_opened_exclusive_utc": inputs["required_binance_volume_opened_exclusive_utc"],
+        "required_flow_feature_opened_inclusive_utc": inputs["required_flow_feature_opened_inclusive_utc"],
+        "required_flow_feature_opened_exclusive_utc": inputs["required_flow_feature_opened_exclusive_utc"],
+        "required_taker_flow_warmup_opened_inclusive_utc": inputs["required_taker_flow_warmup_opened_inclusive_utc"],
+        "flow_feature_configuration_sha256": _sha256(ROOT / "configs/research/btc_preopen_taker_flow_20261018.json"),
+        "flow_feature_code_sha256": _sha256(ROOT / "features/btc_taker_flow.py"),
+    }
+    pre_read = json.loads((run_dir / "pre_read_manifest.json").read_text(encoding="utf-8"))
+    this_execution = {
+        "run_identity_sha256": run_identity,
+        "pre_read_manifest_sha256": _sha256(run_dir / "pre_read_manifest.json"),
+        "code_commit_sha": pre_read["code_commit_sha"],
+        "recorded_utc": datetime.now(timezone.utc).isoformat(),
+    }
+    if manifest_path.is_file():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest.get("frozen_identity") != frozen_identity:
+            raise RuntimeError("existing source-completion checkpoint belongs to another frozen run")
+        if manifest.get("status") == "completed":
+            if feature_path.is_file():
+                verified = _source_completion_identity(config)
+                if verified is not None:
+                    return verified
+            manifest["recovery_reason"] = "completed supplement artifact or raw payload was missing; resuming from preserved checkpoints"
+        executions = manifest.setdefault("pre_read_executions", [])
+        if not any(item.get("run_identity_sha256") == run_identity for item in executions):
+            executions.append(this_execution)
+    else:
+        manifest = {
+            "schema_version": 1,
+            "experiment_id": config["experiment_id"],
+            "status": "planned",
+            "created_utc": datetime.now(timezone.utc).isoformat(),
+            "frozen_identity": frozen_identity,
+            "pre_read_executions": [this_execution],
+            "source": {
+                "market_type": "Binance USD-M Futures",
+                "symbol": "BTCUSDT",
+                "interval": "1m",
+                "endpoint": UM_ENDPOINT,
+                "payload_fields": [
+                    "open_time_ms", "open", "high", "low", "close", "base_volume",
+                    "close_time_ms", "quote_volume", "trade_count", "taker_buy_base_volume",
+                    "taker_buy_quote_volume", "ignore",
+                ],
+                "quote_volume_unit": "USDT quote asset amount per kline",
+                "taker_buy_quote_volume_unit": "USDT quote asset amount per kline",
+                "download_method": "existing exact-range Binance REST paginator from extend_btc_preopen_cutoff_data.py",
+                "page_limit": PAGE_ROWS,
+                "raw_payload_format": "canonical JSON arrays containing the unchanged Binance kline fields",
+            },
+            "downloaded_archives": [],
+        }
+    manifest["status"] = "downloading"
+    manifest.setdefault("downloaded_archives", [])
+    _atomic_json(manifest_path, manifest)
+
+    by_day = {item["day"]: item for item in manifest["downloaded_archives"]}
+    expected_index = pd.date_range(download_start, download_end, freq="min", inclusive="left")
+    days = pd.date_range(download_start.floor("D"), (download_end - pd.Timedelta(nanoseconds=1)).floor("D"), freq="D")
+    import requests
+
+    download_elapsed = 0.0
+    for day_start in days:
+        day = day_start.strftime("%Y-%m-%d")
+        partition_start = max(day_start, download_start)
+        partition_end = min(day_start + pd.Timedelta(days=1), download_end)
+        stop = partition_end - pd.Timedelta(milliseconds=1)
+        expected_rows = len(pd.date_range(partition_start, partition_end, freq="min", inclusive="left"))
+        raw_path = raw_dir / f"BTCUSDT-1m-{day}.json"
+        prior = by_day.get(day)
+        recover_missing_payload = False
+        if prior and prior.get("status") == "completed":
+            if raw_path.is_file() and _sha256(raw_path) != prior.get("payload_sha256"):
+                raise RuntimeError(f"downloaded Binance payload changed after checkpoint: {day}")
+            if raw_path.is_file():
+                continue
+            recover_missing_payload = True
+        elif raw_path.exists():
+            raise RuntimeError(f"unregistered raw Binance payload exists; refusing to overwrite it: {raw_path}")
+        params = {
+            "symbol": "BTCUSDT",
+            "interval": "1m",
+            "startTime": int(partition_start.timestamp() * 1000),
+            "endTime": int(stop.timestamp() * 1000),
+            "limit": PAGE_ROWS,
+        }
+        request_url = requests.Request("GET", UM_ENDPOINT, params=params).prepare().url
+        started_utc = datetime.now(timezone.utc).isoformat()
+        started = time.perf_counter()
+        last_error = None
+        rows = None
+        for attempt in range(1, 4):
+            try:
+                rows = _fetch(UM_ENDPOINT, "symbol", "BTCUSDT", partition_start, stop)
+                break
+            except Exception as exc:
+                last_error = exc
+                if attempt < 3:
+                    time.sleep(1.5 * attempt)
+        if rows is None:
+            manifest["status"] = "failed_download"
+            manifest["failure"] = {"day": day, "error": f"{type(last_error).__name__}: {last_error}"}
+            _atomic_json(manifest_path, manifest)
+            raise RuntimeError(f"Binance USD-M REST download failed for {day}") from last_error
+        if len(rows) != expected_rows:
+            raise RuntimeError(f"Binance returned {len(rows)} rows for {day}; expected {expected_rows}")
+        payload = json.dumps(rows, separators=(",", ":"))
+        payload_text = payload + "\n"
+        payload_sha256 = hashlib.sha256(payload_text.encode("utf-8")).hexdigest()
+        if recover_missing_payload and payload_sha256 != prior.get("payload_sha256"):
+            raise RuntimeError(f"re-fetched Binance payload differs from its preserved checkpoint: {day}")
+        _atomic_text(raw_path, payload_text)
+        completed_utc = datetime.now(timezone.utc).isoformat()
+        item = {
+            "day": day,
+            "status": "completed",
+            "endpoint": UM_ENDPOINT,
+            "request_url": request_url,
+            "market_type": "USD-M Futures",
+            "symbol": "BTCUSDT",
+            "interval": "1m",
+            "opened_inclusive_utc": partition_start.isoformat().replace("+00:00", "Z"),
+            "opened_exclusive_utc": partition_end.isoformat().replace("+00:00", "Z"),
+            "download_started_utc": started_utc,
+            "download_completed_utc": completed_utc,
+            "elapsed_seconds": time.perf_counter() - started,
+            "expected_rows": expected_rows,
+            "observed_rows": len(rows),
+            "raw_payload_path": raw_path.relative_to(ROOT).as_posix(),
+            "payload_sha256": _sha256(raw_path),
+            "payload_size_bytes": raw_path.stat().st_size,
+            "checksum_kind": "SHA-256 of preserved canonical raw API row payload; Binance REST does not publish a sidecar checksum",
+            "timestamp_grid_validation": "passed by the existing exact-range paginator",
+        }
+        if recover_missing_payload:
+            item["recovered_missing_raw_payload_utc"] = completed_utc
+            item["prior_download_completed_utc"] = prior.get("download_completed_utc")
+        by_day[day] = item
+        manifest["downloaded_archives"] = [by_day[key] for key in sorted(by_day)]
+        download_elapsed += item["elapsed_seconds"]
+        manifest["download_elapsed_seconds_this_attempt"] = download_elapsed
+        _atomic_json(manifest_path, manifest)
+        print(f"Downloaded exact Binance USD-M BTCUSDT 1m partition {day}: {expected_rows} rows", flush=True)
+
+    if set(by_day) != {day.strftime("%Y-%m-%d") for day in days}:
+        raise RuntimeError("the downloaded Binance day partitions do not cover the exact approved date range")
+    manifest["downloaded_archives"] = [by_day[key] for key in sorted(by_day)]
+    manifest["status"] = "validating_source_and_features"
+    _atomic_json(manifest_path, manifest)
+    validation_started = time.perf_counter()
+
+    columns = [
+        "open_time", "open", "high", "low", "close", "base_volume", "close_time",
+        "quote_volume", "trade_count", "taker_buy_base_volume", "taker_buy_quote_volume", "ignore",
+    ]
+    api_frames = []
+    day_audits = []
+    for day, item in sorted(by_day.items()):
+        rows = json.loads((ROOT / item["raw_payload_path"]).read_text(encoding="utf-8"))
+        frame = pd.DataFrame(rows, columns=columns)
+        opened_ms = pd.to_numeric(frame["open_time"], errors="coerce")
+        close_ms = pd.to_numeric(frame["close_time"], errors="coerce")
+        opened = pd.to_datetime(opened_ms, unit="ms", utc=True, errors="coerce")
+        day_start = pd.Timestamp(day, tz="UTC")
+        day_end = min(day_start + pd.Timedelta(days=1), download_end)
+        expected_day = pd.date_range(max(day_start, download_start), day_end, freq="min", inclusive="left")
+        if opened.isna().any() or not opened.is_monotonic_increasing or opened.duplicated().any():
+            raise RuntimeError(f"Binance API timestamps are invalid, duplicated, or unordered on {day}")
+        if not opened.equals(pd.Series(expected_day, index=opened.index)):
+            raise RuntimeError(f"Binance API open timestamps do not exactly cover the requested minute partition {day}")
+        if not close_ms.eq(opened_ms + 59_999).all():
+            raise RuntimeError(f"Binance close-time milliseconds are invalid on {day}")
+        for name in ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume"):
+            frame[name] = pd.to_numeric(frame[name], errors="coerce")
+        price_valid = (
+            np.isfinite(frame[["open", "high", "low", "close"]].to_numpy(dtype=np.float64)).all(axis=1)
+            & frame["open"].gt(0).to_numpy() & frame["high"].gt(0).to_numpy()
+            & frame["low"].gt(0).to_numpy() & frame["close"].gt(0).to_numpy()
+            & frame["high"].ge(np.maximum(frame["open"], frame["close"])).to_numpy()
+            & frame["low"].le(np.minimum(frame["open"], frame["close"])).to_numpy()
+            & frame["high"].ge(frame["low"]).to_numpy()
+        )
+        quote = frame["quote_volume"].to_numpy(dtype=np.float64)
+        taker_buy = frame["taker_buy_quote_volume"].to_numpy(dtype=np.float64)
+        volume_valid = (
+            np.isfinite(quote) & np.isfinite(taker_buy) & (quote >= 0.0)
+            & (taker_buy >= 0.0) & (taker_buy <= quote)
+        )
+        if not price_valid.all() or not volume_valid.all():
+            raise RuntimeError(f"Binance OHLC or quote-volume invariants failed on {day}")
+        frame["Opened"] = opened
+        api_frames.append(frame.loc[:, ["Opened", "open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume"]].set_index("Opened"))
+        day_audits.append({
+            "day": day,
+            "expected_rows": int(len(expected_day)),
+            "observed_rows": int(len(frame)),
+            "timestamp_unit": "milliseconds since Unix epoch UTC",
+            "off_minute_or_duplicate_rows": 0,
+            "close_time_errors": 0,
+            "missing_minutes": 0,
+            "invalid_ohlc_rows": 0,
+            "invalid_quote_volume_rows": 0,
+            "taker_buy_quote_volume_above_quote_volume": 0,
+            "raw_payload_sha256": item["payload_sha256"],
+        })
+    api_raw = pd.concat(api_frames, axis=0).sort_index(kind="stable")
+    if api_raw.index.has_duplicates or not api_raw.index.is_monotonic_increasing:
+        raise RuntimeError("Binance USD-M source partitions overlap or are unordered")
+    if not api_raw.index.equals(expected_index):
+        raise RuntimeError("Binance USD-M source partitions have a missing or extra minute")
+
+    warmup_path = ROOT / inputs["taker_flow_warmup_archive"]
+    checksum_path = ROOT / inputs["taker_flow_warmup_archive_checksum"]
+    old_flow_manifest_path = ROOT / "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json"
+    old_flow_manifest = json.loads(old_flow_manifest_path.read_text(encoding="utf-8"))
+    warmup_record = old_flow_manifest.get("binance_month_archives", {}).get("2026-06")
+    if not warmup_record or warmup_path.relative_to(ROOT).as_posix() != warmup_record.get("zip_path"):
+        raise RuntimeError("local June warm-up archive is not the previously pinned Binance monthly source")
+    checksum_parts = checksum_path.read_text(encoding="utf-8").strip().split()
+    if len(checksum_parts) < 2 or checksum_parts[-1].lstrip("*") != warmup_path.name:
+        raise RuntimeError("local June warm-up Binance checksum sidecar is malformed")
+    warmup_sha = _sha256(warmup_path)
+    if warmup_sha != checksum_parts[0].lower() or warmup_sha != warmup_record.get("sha256"):
+        raise RuntimeError("local June warm-up Binance archive failed its pinned checksum")
+    with zipfile.ZipFile(warmup_path) as archive:
+        members = [name for name in archive.namelist() if name.lower().endswith(".csv")]
+        if len(members) != 1 or Path(members[0]).name != "BTCUSDT-1m-2026-06.csv":
+            raise RuntimeError("local June warm-up Binance archive has an unexpected CSV member")
+        with archive.open(members[0]) as handle:
+            warmup = pd.read_csv(handle, header=None, names=columns, usecols=list(range(11)))
+    warmup_open_ms = pd.to_numeric(warmup["open_time"], errors="coerce")
+    warmup["Opened"] = pd.to_datetime(warmup_open_ms, unit="ms", utc=True, errors="coerce")
+    warmup = warmup.loc[warmup["Opened"].ge(warmup_start) & warmup["Opened"].lt(download_start)].copy()
+    if not pd.to_numeric(warmup["close_time"], errors="coerce").eq(
+        pd.to_numeric(warmup["open_time"], errors="coerce") + 59_999,
+    ).all():
+        raise RuntimeError("local June warm-up archive has invalid millisecond close times")
+    for name in ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume"):
+        warmup[name] = pd.to_numeric(warmup[name], errors="coerce")
+    warmup_expected = pd.date_range(warmup_start, download_start, freq="min", inclusive="left")
+    if warmup["Opened"].isna().any() or warmup["Opened"].duplicated().any():
+        raise RuntimeError("local June warm-up source has invalid or duplicate timestamps")
+    warmup = warmup.set_index("Opened").sort_index(kind="stable")
+    if not warmup.index.equals(warmup_expected):
+        raise RuntimeError("local June warm-up archive has a gap in the required causal history")
+    warmup_raw = warmup.loc[:, ["open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume"]]
+    warmup_quote = warmup_raw["quote_volume"].to_numpy(dtype=np.float64)
+    warmup_taker = warmup_raw["taker_buy_quote_volume"].to_numpy(dtype=np.float64)
+    warmup_open = warmup_raw["open"].to_numpy(dtype=np.float64)
+    warmup_high = warmup_raw["high"].to_numpy(dtype=np.float64)
+    warmup_low = warmup_raw["low"].to_numpy(dtype=np.float64)
+    warmup_close = warmup_raw["close"].to_numpy(dtype=np.float64)
+    if (
+        not np.isfinite(warmup_raw.to_numpy(dtype=np.float64)).all()
+        or (warmup_open <= 0.0).any() or (warmup_high <= 0.0).any()
+        or (warmup_low <= 0.0).any() or (warmup_close <= 0.0).any()
+        or (warmup_high < np.maximum(warmup_open, warmup_close)).any()
+        or (warmup_low > np.minimum(warmup_open, warmup_close)).any()
+        or (warmup_high < warmup_low).any()
+        or (warmup_quote < 0.0).any() or (warmup_taker < 0.0).any()
+        or (warmup_taker > warmup_quote).any()
+    ):
+        raise RuntimeError("local June warm-up archive has invalid prices or quote-volume values")
+    combined_raw = pd.concat([warmup_raw, api_raw], axis=0).sort_index(kind="stable")
+    required_raw_grid = pd.date_range(warmup_start, download_end, freq="min", inclusive="left")
+    if combined_raw.index.has_duplicates or not combined_raw.index.equals(required_raw_grid):
+        raise RuntimeError("local warm-up and downloaded Binance source do not form the required continuous UTC minute grid")
+
+    raw_source_path = ROOT / inputs["raw_um_ohlcv_source"]
+    overlap_columns = ["UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close"]
+    overlap_parts = []
+    for chunk in pd.read_csv(raw_source_path, usecols=["Opened", *overlap_columns], chunksize=250_000):
+        opened = pd.to_datetime(chunk["Opened"], utc=True, errors="coerce")
+        keep = opened.ge(download_start) & opened.lt(download_end)
+        if keep.any():
+            part = chunk.loc[keep, overlap_columns].copy()
+            part["Opened"] = opened.loc[keep].to_numpy()
+            for name in overlap_columns:
+                part[name] = pd.to_numeric(part[name], errors="coerce")
+            overlap_parts.append(part)
+    if not overlap_parts:
+        raise RuntimeError("no overlapping USD-M OHLC rows were available for source consistency checks")
+    existing_ohlc = pd.concat(overlap_parts, ignore_index=True)
+    existing_ohlc.sort_values("Opened", kind="stable", inplace=True)
+    if existing_ohlc["Opened"].duplicated().any():
+        raise RuntimeError("existing local USD-M OHLC overlap contains duplicate timestamps")
+    api_ohlc = api_raw.reset_index().rename(columns={
+        "open": "new_open", "high": "new_high", "low": "new_low", "close": "new_close",
+    })
+    overlap = existing_ohlc.merge(api_ohlc, on="Opened", how="inner", validate="one_to_one")
+    if overlap.empty:
+        raise RuntimeError("existing local USD-M OHLC source had no matching rows with the downloaded Binance source")
+    overlap_errors = {}
+    for old_name, new_name in zip(overlap_columns, ("new_open", "new_high", "new_low", "new_close")):
+        delta = np.abs(overlap[old_name].to_numpy(dtype=np.float64) - overlap[new_name].to_numpy(dtype=np.float64))
+        overlap_errors[old_name] = {
+            "rows_compared": int(len(delta)),
+            "mismatch_rows_at_1e-7_absolute_tolerance": int((delta > 1e-7).sum()),
+            "maximum_absolute_difference": float(delta.max()),
+        }
+        if not np.isfinite(delta).all() or (delta > 1e-7).any():
+            raise RuntimeError(f"Binance USD-M overlap differs from the existing local source for {old_name}")
+    validation_elapsed = time.perf_counter() - validation_started
+
+    flow_config_path = ROOT / "configs/research/btc_preopen_taker_flow_20261018.json"
+    flow_config = json.loads(flow_config_path.read_text(encoding="utf-8"))["flow_features"]
+    flow_started = time.perf_counter()
+    generated = compute_taker_flow_features(
+        combined_raw,
+        horizons=tuple(int(value) for value in flow_config["horizons_minutes"]),
+        qbar_window=int(flow_config["qbar_window_minutes"]),
+        sigma_window=int(flow_config["sigma_window_minutes"]),
+        beta_window=int(flow_config["beta_window_minutes"]),
+        minimum_beta_pairs=int(flow_config["minimum_beta_pairs"]),
+        beta_variance_tolerance=float(flow_config["beta_variance_tolerance"]),
+        sigma_floor=float(flow_config["sigma_floor"]),
+        sigma_ddof=int(flow_config["sigma_ddof"]),
+    )
+    control_features, _ = feature_names(tuple(int(value) for value in flow_config["horizons_minutes"]))
+    feature_mask = (generated.index >= download_start) & (generated.index < download_end)
+    supplement = generated.loc[feature_mask, control_features].copy()
+    supplement.index.name = "Opened"
+    if not supplement.index.equals(expected_index):
+        raise RuntimeError("computed frozen taker-flow controls do not cover the exact new Binance input range")
+    supplement_frame = supplement.reset_index()
+    feature_elapsed = time.perf_counter() - flow_started
+    if feature_path.exists():
+        existing_features = pd.read_parquet(feature_path)
+        try:
+            pd.testing.assert_frame_equal(existing_features, supplement_frame, check_exact=True)
+        except AssertionError as exc:
+            raise RuntimeError("existing partial flow-feature output differs from the frozen recomputation") from exc
+    else:
+        temporary = feature_path.with_suffix(feature_path.suffix + f".{os.getpid()}.tmp")
+        feature_path.parent.mkdir(parents=True, exist_ok=True)
+        supplement_frame.to_parquet(temporary, index=False, compression="zstd")
+        os.replace(temporary, feature_path)
+
+    expected_volume_rows = int(len(expected_index))
+    finite_feature_rows = int(np.isfinite(supplement_frame[control_features].to_numpy(dtype=np.float64)).all(axis=1).sum())
+    manifest.update({
+        "status": "completed",
+        "completed_utc": datetime.now(timezone.utc).isoformat(),
+        "required_binance_volume_opened_inclusive_utc": inputs["required_binance_volume_opened_inclusive_utc"],
+        "required_binance_volume_opened_exclusive_utc": inputs["required_binance_volume_opened_exclusive_utc"],
+        "required_flow_feature_opened_inclusive_utc": inputs["required_flow_feature_opened_inclusive_utc"],
+        "required_flow_feature_opened_exclusive_utc": inputs["required_flow_feature_opened_exclusive_utc"],
+        "downloaded_archives": [by_day[key] for key in sorted(by_day)],
+        "warmup_source": {
+            "path": warmup_path.relative_to(ROOT).as_posix(),
+            "checksum_path": checksum_path.relative_to(ROOT).as_posix(),
+            "sha256": warmup_sha,
+            "source_url": warmup_record.get("data_source_url"),
+            "checksum_source_url": warmup_record.get("checksum_source_url"),
+            "opened_inclusive_utc": warmup_start.isoformat().replace("+00:00", "Z"),
+            "opened_exclusive_utc": download_start.isoformat().replace("+00:00", "Z"),
+            "rows": int(len(warmup_raw)),
+            "already_available_locally": True,
+        },
+        "coverage": {
+            "market_type": "USD-M Futures",
+            "symbol": "BTCUSDT",
+            "interval": "1m",
+            "timestamp_unit": "milliseconds since Unix epoch UTC",
+            "required_volume_first_opened_utc": expected_index[0].isoformat().replace("+00:00", "Z"),
+            "required_volume_last_opened_utc": expected_index[-1].isoformat().replace("+00:00", "Z"),
+            "expected_volume_minutes": expected_volume_rows,
+            "observed_volume_minutes": int(len(api_raw)),
+            "missing_volume_minutes": int(expected_volume_rows - len(api_raw)),
+            "invalid_ohlc_rows": 0,
+            "invalid_quote_or_taker_volume_rows": 0,
+            "overlap_ohlc_comparison": overlap_errors,
+            "overlap_rows_compared": int(len(overlap)),
+            "values_imputed_or_approximated": False,
+            "per_day_validation": day_audits,
+            "flow_feature_rows": int(len(supplement_frame)),
+            "flow_feature_rows_with_all_six_controls_finite": finite_feature_rows,
+            "flow_feature_first_opened_utc": supplement_frame["Opened"].iloc[0].isoformat().replace("+00:00", "Z"),
+            "flow_feature_last_opened_utc": supplement_frame["Opened"].iloc[-1].isoformat().replace("+00:00", "Z"),
+        },
+        "feature_configuration": flow_config,
+        "feature_configuration_sha256": _sha256(flow_config_path),
+        "feature_code_sha256": _sha256(ROOT / "features/btc_taker_flow.py"),
+        "flow_feature_output": {
+            "path": feature_path.relative_to(ROOT).as_posix(),
+            "sha256": _sha256(feature_path),
+            "size_bytes": feature_path.stat().st_size,
+            "rows": int(len(supplement_frame)),
+            "columns": ["Opened", *control_features],
+        },
+        "timings_seconds": {
+            "download_seconds_total": float(sum(float(item.get("elapsed_seconds", 0.0)) for item in by_day.values())),
+            "source_validation_and_overlap_seconds": float(validation_elapsed),
+            "feature_generation_seconds": float(feature_elapsed),
+        },
+    })
+    _atomic_json(manifest_path, manifest)
+    verified = _source_completion_identity(config)
+    if verified is None:
+        raise RuntimeError("completed Binance flow supplement failed its final identity check")
+    return verified
 
 
 def _append_raw_validity(development_valid, source_frame, append_raw):
@@ -514,7 +1105,10 @@ def _load_approved_arrays(config: dict, base_order: list[str]):
 
     _, development = quality._configure_source_run()
     source_path = ROOT / config["inputs"]["baseline_feature_dataset"]
-    flow_path = ROOT / config["inputs"]["taker_flow_features"]
+    flow_paths = [
+        ROOT / config["inputs"]["taker_flow_features"],
+        ROOT / config["inputs"]["taker_flow_feature_supplement"],
+    ]
     flow_names = ["taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m"]
     source_features = [name for name in base_order if name not in set(flow_names)]
     required_source = source_features + config["inputs"]["raw_input_schema"] + [
@@ -558,11 +1152,18 @@ def _load_approved_arrays(config: dict, base_order: list[str]):
         raise RuntimeError("source labels do not follow the frozen Opened+7m availability contract")
 
     flow_start = raw_tail_start.strftime("%Y-%m-%d %H:%M:%S")
-    flow_frame = pd.read_parquet(
-        flow_path, columns=["Opened", *flow_names],
-        filters=[("Opened", ">=", flow_start), ("Opened", "<", cutoff.strftime("%Y-%m-%d %H:%M:%S"))],
-    )
+    flow_parts = [
+        pd.read_parquet(
+            path, columns=["Opened", *flow_names],
+            filters=[("Opened", ">=", flow_start), ("Opened", "<", cutoff.strftime("%Y-%m-%d %H:%M:%S"))],
+        )
+        for path in flow_paths if path.is_file()
+    ]
+    flow_frame = pd.concat(flow_parts, ignore_index=True)
     flow_frame["Opened"] = pd.to_datetime(flow_frame["Opened"], utc=True, errors="raise")
+    flow_frame.sort_values("Opened", kind="stable", inplace=True)
+    if flow_frame["Opened"].duplicated().any():
+        raise RuntimeError("original and supplemental taker-flow features overlap")
     source_frame = source_frame.merge(flow_frame, on="Opened", how="left", validate="one_to_one", sort=False)
     source_frame.sort_values("Opened", kind="stable", inplace=True)
 
@@ -847,8 +1448,10 @@ def score_period(
     target, dates_ns, members, *, lightgbm_seeds, reservoir_seeds,
     period_start_utc: str, period_end_utc: str,
 ) -> dict:
+    import time
     import numpy as np
 
+    score_started = time.perf_counter()
     ensemble = ensemble_predictions(members, lightgbm_seeds, reservoir_seeds)
     summary = {name: score_metrics(target, values) for name, values in ensemble.items()}
     member_metrics = {
@@ -913,6 +1516,9 @@ def score_period(
             "candidate_metrics": metrics_by_candidate,
             "pairwise_differences": month_pairs,
         }
+    bootstrap_started = time.perf_counter()
+    bootstrap = _fixed_interval_results(target, dates_ns, ensemble)
+    bootstrap_seconds = time.perf_counter() - bootstrap_started
     return {
         "rows": int(len(target)),
         "target_positive_fraction": float(np.mean(target)),
@@ -922,12 +1528,105 @@ def score_period(
         "uniform_ensemble_metrics": summary,
         "uniform_ensemble_pairwise_differences": pairwise,
         "fixed_utc_calendar_month_metrics": month_metrics,
-        "bootstrap": _fixed_interval_results(target, dates_ns, ensemble),
+        "bootstrap": bootstrap,
+        "timings_seconds": {
+            "metrics_and_subperiods_seconds": max(0.0, time.perf_counter() - score_started - bootstrap_seconds),
+            "bootstrap_seconds": bootstrap_seconds,
+            "scoring_total_seconds": time.perf_counter() - score_started,
+        },
         "not_a_profitability_test": True,
     }
 
 
+def save_period_prediction_artifacts(
+    run_dir: Path, run_identity: str, period_id: str, start_ns: int, end_ns: int,
+    inputs: dict, common_mask, memory, esn, rows, members, ensemble,
+) -> dict:
+    """Persist common-sample predictions and the full expected-decision eligibility mask."""
+    import numpy as np
+    import pandas as pd
+
+    market_start_ns = inputs["opened_ns"] + 2 * 60_000_000_000
+    in_scope = (market_start_ns >= int(start_ns)) & (market_start_ns < int(end_ns))
+    expected = in_scope & inputs["decision_flag"]
+    label_released = inputs["label_available_ns"] < int(end_ns)
+    target = np.asarray(inputs["target"])
+    eligibility = pd.DataFrame({
+        "Opened": pd.to_datetime(inputs["opened_ns"][expected], utc=True),
+        "market_start_utc": pd.to_datetime(market_start_ns[expected], utc=True),
+        "label_available_at_utc": pd.to_datetime(inputs["label_available_ns"][expected], utc=True),
+        "target": target[expected],
+        "binary_target": np.isin(target[expected], (0, 1)),
+        "label_released_strictly_before_period_end": label_released[expected],
+        "BASE70_complete": np.isfinite(inputs["base_x"][expected]).all(axis=1),
+        "memory_PCA8_complete": np.isfinite(memory[expected]).all(axis=1),
+        "all_ESN_PCA8_complete": np.logical_and.reduce([
+            np.isfinite(values[expected]).all(axis=1) for values in esn.values()
+        ]),
+        "common_evaluation_mask": np.asarray(common_mask, dtype=bool)[expected],
+    })
+    for seed, values in sorted(esn.items()):
+        eligibility[f"ESN_{seed}_PCA8_complete"] = np.isfinite(values[expected]).all(axis=1)
+
+    predictions = pd.DataFrame({
+        "Opened": pd.to_datetime(inputs["opened_ns"][rows], utc=True),
+        "market_start_utc": pd.to_datetime(market_start_ns[rows], utc=True),
+        "target": target[rows].astype(np.int8),
+        "common_evaluation_mask": True,
+    })
+    for name in EXPECTED_PROCEDURES:
+        predictions[f"ensemble_probability_{name}"] = ensemble[name]
+        for member_key, values in sorted(members[name].items()):
+            predictions[f"member_probability_{name}_{member_key.replace(':', '_')}"] = values
+
+    artifact_manifest_path = run_dir / f"period_{period_id}_artifacts.json"
+    common_mask_hash = hashlib.sha256(np.asarray(common_mask, dtype=np.uint8).tobytes()).hexdigest()
+    if artifact_manifest_path.is_file():
+        prior = json.loads(artifact_manifest_path.read_text(encoding="utf-8"))
+        if prior.get("run_identity_sha256") != run_identity or prior.get("common_mask_sha256") != common_mask_hash:
+            raise RuntimeError(f"existing {period_id} artifact manifest belongs to a different common mask or run")
+        for record in prior.get("artifacts", {}).values():
+            prior_path = ROOT / record["path"]
+            if not prior_path.is_file() or _sha256(prior_path) != record.get("sha256"):
+                raise RuntimeError(f"existing {period_id} prediction artifact failed its checksum")
+        prior["manifest_path"] = artifact_manifest_path.relative_to(ROOT).as_posix()
+        prior["manifest_sha256"] = _sha256(artifact_manifest_path)
+        return prior
+
+    artifacts = {}
+    for kind, frame in (("predictions", predictions), ("eligibility", eligibility)):
+        path = run_dir / f"period_{period_id}_{kind}.parquet"
+        if path.exists():
+            existing = pd.read_parquet(path)
+            try:
+                pd.testing.assert_frame_equal(existing, frame, check_exact=True)
+            except AssertionError as exc:
+                raise RuntimeError(f"existing partial {kind} artifact differs from the frozen rerun: {path.name}") from exc
+        else:
+            temporary = path.with_suffix(path.suffix + f".{os.getpid()}.tmp")
+            frame.to_parquet(temporary, index=False, compression="zstd")
+            os.replace(temporary, path)
+        artifacts[kind] = {
+            "path": path.relative_to(ROOT).as_posix(),
+            "sha256": _sha256(path),
+            "size_bytes": path.stat().st_size,
+            "rows": int(len(frame)),
+        }
+    artifact_manifest = {
+        "period_id": period_id,
+        "run_identity_sha256": run_identity,
+        "common_mask_sha256": common_mask_hash,
+        "artifacts": artifacts,
+    }
+    _atomic_json(artifact_manifest_path, artifact_manifest)
+    artifact_manifest["manifest_path"] = artifact_manifest_path.relative_to(ROOT).as_posix()
+    artifact_manifest["manifest_sha256"] = _sha256(artifact_manifest_path)
+    return artifact_manifest
+
+
 def main() -> None:
+    import time
+
     config = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     try:
         validate_scope(config)
@@ -950,9 +1649,13 @@ def main() -> None:
     }
     run_dir = _write_preread_manifest(config, identity)
     run_identity = json.loads((run_dir / "pre_read_manifest.json").read_text(encoding="utf-8"))["run_identity_sha256"]
+    execution_started = time.perf_counter()
+    stage_timings = {}
     record_attempt(run_dir, "started")
     try:
+        source_hash_started = time.perf_counter()
         source_verification = _verify_source_artifacts(identity["source_data"])
+        stage_timings["pinned_source_hash_verification_seconds"] = time.perf_counter() - source_hash_started
         _atomic_json(run_dir / "source_verification.json", {
             "run_identity_sha256": run_identity,
             "artifacts": source_verification,
@@ -967,9 +1670,34 @@ def main() -> None:
             "protected_rows_scored": 0,
         })
         raise
-    flow_path = ROOT / config["inputs"]["taker_flow_features"]
+    flow_paths = [
+        ROOT / config["inputs"]["taker_flow_features"],
+        ROOT / config["inputs"]["taker_flow_feature_supplement"],
+    ]
     try:
-        missing_input = _flow_coverage_error(flow_path, config["inputs"]["exclusive_input_opened_cutoff_utc"])
+        supplement_identity = _source_completion_identity(config)
+        source_verification_path = run_dir / "source_verification.json"
+        verification = json.loads(source_verification_path.read_text(encoding="utf-8"))
+        verification["supplemental_source_data"] = supplement_identity
+        _atomic_json(source_verification_path, verification)
+        missing_input = _flow_coverage_error(
+            flow_paths,
+            config["inputs"]["required_flow_feature_opened_inclusive_utc"],
+            config["inputs"]["required_flow_feature_opened_exclusive_utc"],
+        )
+        if supplement_identity is None:
+            print("Required taker-flow supplement is missing or incomplete; starting/resuming the approved exact-range Binance source completion.", flush=True)
+            supplement_identity = _complete_taker_flow_source(config, run_dir, run_identity)
+            missing_input = _flow_coverage_error(
+                flow_paths,
+                config["inputs"]["required_flow_feature_opened_inclusive_utc"],
+                config["inputs"]["required_flow_feature_opened_exclusive_utc"],
+            )
+            verification = json.loads(source_verification_path.read_text(encoding="utf-8"))
+            verification["supplemental_source_data"] = supplement_identity
+            _atomic_json(source_verification_path, verification)
+        if missing_input is None and supplement_identity is None:
+            missing_input = "supplemental Binance flow-source provenance manifest is missing"
     except Exception as exc:
         record_attempt(run_dir, "failed_input_preflight", detail=f"{type(exc).__name__}: {exc}")
         _atomic_json(run_dir / "run_manifest.json", {
@@ -991,21 +1719,26 @@ def main() -> None:
         raise SystemExit("BLOCKED_INPUT: " + missing_input)
 
     try:
+        input_load_started = time.perf_counter()
         inputs = _load_approved_arrays(config, bundle["base_feature_order"])
+        stage_timings["protected_input_read_and_join_seconds"] = time.perf_counter() - input_load_started
         memory_bundle = json.loads((BUNDLE_DIR / "transforms/simple_memory_projection.json").read_text(encoding="utf-8"))
         esn_bundles = {
             seed: json.loads((BUNDLE_DIR / f"transforms/esn_seed_{seed}.json").read_text(encoding="utf-8"))
             for seed in bundle["reservoir_seeds"]
         }
+        feature_started = time.perf_counter()
         memory, esn = _generate_dynamic_features(
             inputs["raw_opened"], inputs["raw_x"], inputs["raw_valid"],
             memory_bundle, inputs["esn_config"], esn_bundles,
         )
+        stage_timings["memory_and_ESN_feature_replay_seconds"] = time.perf_counter() - feature_started
         raw_rows = inputs["raw_rows"]
         selected_memory = memory[raw_rows]
         selected_esn = {seed: values[raw_rows] for seed, values in esn.items()}
         boosters = _load_frozen_boosters(bundle)
         completed = []
+        prediction_seconds = 0.0
         for period in config["periods"]:
             period_id = period["id"]
             prior = load_period_checkpoint(run_dir, period_id, run_identity)
@@ -1022,17 +1755,25 @@ def main() -> None:
             rows = __import__("numpy").flatnonzero(mask)
             if not len(rows):
                 raise RuntimeError(f"no common scoring rows remain for mandatory period {period_id}")
+            prediction_started = time.perf_counter()
             members = predict_members(
                 inputs["base_x"][rows], selected_memory[rows],
                 {seed: values[rows] for seed, values in selected_esn.items()}, boosters,
                 lightgbm_seeds=bundle["lightgbm_seeds"], reservoir_seeds=bundle["reservoir_seeds"],
             )
+            period_prediction_seconds = time.perf_counter() - prediction_started
+            prediction_seconds += period_prediction_seconds
             market_start_ns = inputs["opened_ns"][rows] + 2 * 60_000_000_000
             result = score_period(
                 inputs["target"][rows], market_start_ns, members,
                 lightgbm_seeds=bundle["lightgbm_seeds"], reservoir_seeds=bundle["reservoir_seeds"],
                 period_start_utc=period["market_start_inclusive_utc"],
                 period_end_utc=period["market_start_exclusive_utc"],
+            )
+            ensemble = ensemble_predictions(members, bundle["lightgbm_seeds"], bundle["reservoir_seeds"])
+            period_artifacts = save_period_prediction_artifacts(
+                run_dir, run_identity, period_id, start_ns, end_ns,
+                inputs, mask, selected_memory, selected_esn, rows, members, ensemble,
             )
             result.update({
                 "period_id": period_id,
@@ -1043,6 +1784,10 @@ def main() -> None:
                 "exclusions": exclusions,
                 "decision_ids_sha256": hashlib.sha256(inputs["decision_ns"][rows].astype("<i8", copy=False).tobytes()).hexdigest(),
                 "target_sha256": hashlib.sha256(inputs["target"][rows].astype("i1", copy=False).tobytes()).hexdigest(),
+                "expected_decisions": exclusions["expected_decisions"],
+                "decisions_with_complete_features": exclusions["decisions_with_complete_features"],
+                "prediction_artifacts": period_artifacts,
+                "timings_seconds": result["timings_seconds"] | {"member_prediction_seconds": period_prediction_seconds},
                 "score_source": "frozen fit-core model bundles; no refit, tuning, calibration, or test early stopping",
             })
             save_period_checkpoint(run_dir, period_id, run_identity, result)
@@ -1054,6 +1799,15 @@ def main() -> None:
             "run_identity_sha256": run_identity,
             "completed_periods": completed,
             "protected_rows_scored": True,
+            "supplemental_source_data": supplement_identity,
+            "timings_seconds": stage_timings | {
+                "member_prediction_total_seconds": prediction_seconds,
+                "end_to_end_after_pre_read_seconds": time.perf_counter() - execution_started,
+            },
+            "period_artifacts": {
+                period: load_period_checkpoint(run_dir, period, run_identity)["result"]["prediction_artifacts"]
+                for period in completed
+            },
             "not_fresh_or_independent_validation": True,
             "not_a_profitability_test": True,
         })
