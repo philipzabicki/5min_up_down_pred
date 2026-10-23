@@ -1129,11 +1129,12 @@ def _load_approved_arrays(config: dict, base_order: list[str]):
     ]
     raw_tail_start = pd.Timestamp(int(development["raw_opened"][-1]), unit="ns", tz="UTC") - pd.Timedelta(days=1)
     cutoff = pd.Timestamp(config["inputs"]["exclusive_input_opened_cutoff_utc"])
+    source_start = raw_tail_start.to_pydatetime()
+    source_end = cutoff.to_pydatetime()
     source_frame = pd.read_parquet(
         source_path,
         columns=list(dict.fromkeys(required_source)),
-        filters=[("Opened", ">=", raw_tail_start.strftime("%Y-%m-%d %H:%M:%S")),
-                 ("Opened", "<", cutoff.strftime("%Y-%m-%d %H:%M:%S"))],
+        filters=[("Opened", ">=", source_start), ("Opened", "<", source_end)],
     )
     source_frame["Opened"] = pd.to_datetime(source_frame["Opened"], utc=True, errors="raise")
     source_frame[config["inputs"]["decision_at"]] = pd.to_datetime(
@@ -1162,11 +1163,10 @@ def _load_approved_arrays(config: dict, base_order: list[str]):
     if not np.array_equal(available_ns, opened_ns + 7 * minute_ns):
         raise RuntimeError("source labels do not follow the frozen Opened+7m availability contract")
 
-    flow_start = raw_tail_start.strftime("%Y-%m-%d %H:%M:%S")
     flow_parts = [
         pd.read_parquet(
             path, columns=["Opened", *flow_names],
-            filters=[("Opened", ">=", flow_start), ("Opened", "<", cutoff.strftime("%Y-%m-%d %H:%M:%S"))],
+            filters=[("Opened", ">=", source_start), ("Opened", "<", source_end)],
         )
         for path in flow_paths if path.is_file()
     ]

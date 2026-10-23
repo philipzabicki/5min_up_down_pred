@@ -43,6 +43,21 @@ class TestBtcCandidateHoldout20261022(unittest.TestCase):
         self.assertTrue(scorer._same_utc_timestamps(milliseconds, microseconds))
         self.assertFalse(scorer._same_utc_timestamps(milliseconds, shifted))
 
+    def test_parquet_utc_range_filters_use_aware_datetime_values(self):
+        frame = pd.DataFrame({
+            "Opened": pd.date_range("2026-07-01", periods=3, freq="min", tz="UTC"),
+            "value": [1, 2, 3],
+        })
+        with tempfile.TemporaryDirectory() as name:
+            path = Path(name) / "timestamps.parquet"
+            frame.to_parquet(path, index=False)
+            filtered = pd.read_parquet(path, filters=[
+                ("Opened", ">=", pd.Timestamp("2026-07-01T00:01:00Z").to_pydatetime()),
+                ("Opened", "<", pd.Timestamp("2026-07-01T00:03:00Z").to_pydatetime()),
+            ])
+
+        self.assertEqual(filtered["value"].tolist(), [2, 3])
+
     def test_scope_requires_both_exact_periods_and_individual_approval(self):
         config = json.loads(scorer.CONFIG_PATH.read_text(encoding="utf-8"))
         scorer.validate_scope(config)
