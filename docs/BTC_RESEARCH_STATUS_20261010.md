@@ -9,6 +9,19 @@
 - Report: [settlement-regime disagreement analysis](../reports/btc_preopen/btc_discrepancy_regimes_20261023.md). [Saved changelog excerpt](../reports/btc_preopen/sources/polymarket_predictions_changelog_capture_20261023.md). [Deterministic 43-market sample manifest](../reports/btc_preopen/btc_discrepancy_regimes_20261023_sample_manifest.csv). Full local row-level assignment ledger and summary tables are under `data/analysis/polymarket/BTC/btc_discrepancy_regimes_20261023/`.
 <!-- BTC_DISCREPANCY_REGIMES_20261023_END -->
 
+<!-- BTC_CANDIDATE_SETTLEMENT_REGIMES_20261023_BEGIN -->
+## Frozen A/B/C/D quality by historical settlement rule - 2026-10-23
+
+- Status: completed retrospective scoring of the saved common A/B/C/D predictions against the existing official Gamma outcomes and Binance proxy labels. No fitting, refit, calibration, threshold/policy change, Chainlink retrieval, book replay, or economic recomputation.
+- Common mask: 79,650/79,650 valid official labels, all four ensemble predictions finite, unique `(condition_id, market_start_utc)` keys, and exact one-to-one assignment join. Counts reconcile to confirmation 51,430 and holdout 28,220. The 79,650 rows split into confirmation/single-price 51,430; holdout/single-price 10,654; holdout/TWAP30 2,016; and holdout/TWAP60 15,550. Seven pages have direct rule evidence; the other 79,643 assignments remain calendar-based. Unknown/conflict count is zero under the supplied boundaries.
+- Point results on Gamma: B improves A in confirmation single-price (+0.000056 LL) and TWAP60 (+0.000063), but not holdout single-price (−0.000010) or TWAP30 (−0.000178). In TWAP60 D−B is +0.000020 LL, +0.000010 Brier, and +0.000305 AUC, but all pointwise paired 95% intervals include zero. Regime ranking varies; the label-switch decomposition shows disagreement rows account for the apparent TWAP60 D−B sign change. These results are retrospective and not causal.
+- Uncertainty: 2,000 paired circular three-day UTC block replications per group; same resamples across models and both targets, without blocks crossing groups. TWAP30 has only seven possible block starts / two non-overlapping blocks; TWAP60 has 54 days / 18 non-overlapping blocks. The sampled holdout is too short to resolve the small point differences.
+- Existing execution ledger: 1,143 validated markets, all confirmation/single-price (2.22% of that group), and zero in holdout single-price, TWAP30, or TWAP60. Earlier +$28.01 B and +$22.66 D economics do not evaluate the current TWAP60 rule. Missing TWAP60 book history does not block the saved-prediction metrics.
+- Next step: retain the frozen procedures and collect a pre-registered, no-order TWAP60 shadow sample for at least 180 complete UTC days with Gamma labels, market identity, predictions, and contemporaneous book availability; score it without fitting or policy changes.
+- Report: [settlement-regime A/B/C/D quality assessment](../reports/btc_preopen/btc_candidate_settlement_regimes_20261023.md). Extension runner: [saved-ledger analysis](../extend_btc_candidate_attribution_regimes_20261023.py). Local market-level table, paired intervals, target-shift attribution, weekly/monthly diagnostics, calibration bins, member metrics, coverage, and manifest are under `data/analysis/polymarket/BTC/btc_candidate_settlement_regimes_20261023/`.
+- Runtime: 68.5 seconds active; sampled peak working set 727,691,264 bytes (694 MiB). No Chainlink API or book archive was accessed.
+<!-- BTC_CANDIDATE_SETTLEMENT_REGIMES_20261023_END -->
+
 <!-- BTC_CANDIDATE_POLYMARKET_TARGET_20261023_BEGIN -->
 ## Official Polymarket target assessment of frozen BTC A/B/C/D — 2026-10-23
 
