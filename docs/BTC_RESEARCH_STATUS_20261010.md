@@ -1,3 +1,14 @@
+<!-- BTC_DISCREPANCY_REGIMES_20261023_BEGIN -->
+## Binance–Polymarket disagreement by historical settlement rule - 2026-10-23
+
+- Status: complete on the existing 79,650 resolved-label common sample; no model changes, training, economic rescoring, Chainlink request, or paid access.
+- Seven individual Polymarket rules pages (including the directly adjacent markets around both boundaries) confirm single-price → TWAP30 at 2026-08-07 00:00 UTC and TWAP30 → TWAP60 at 2026-08-14 00:00 UTC. All seven page rules match the supplied calendar; no conflict observed. The accessible changelog text capture omits the cited changes. Per-market rule text is absent for the other 79,643 rows, which are date-assigned for analysis and remain unconfirmed individually.
+- Calendar-assigned disagreement rates: single price 2,256/62,084 (3.63%), TWAP30 175/2,016 (8.68%), TWAP60 1,762/15,550 (11.33%). Single-price confirmation is 1,980/51,430 (3.85%) and single-price holdout is 276/10,654 (2.59%); the observed increase is in post-transition holdout, without causal attribution. All seven frozen Binance move bins have shared support across the three assigned regimes.
+- Correction: the prior report's 60s-for-all-sample contract description was too broad; saved Gamma labels and disagreement rates remain unchanged. The previous report also had incorrect aggregate direction cells: corrected confirmation directions are 986/994, and holdout directions 1,090/1,123. Monthly direction sums and total disagreement counts/rates remain unchanged.
+- Chainlink feasibility: Polymarket RTDS exposes live BTC/USD TWAP30/60 updates without credentials, but has no snapshot/history/replay. Direct Data Streams history requires authorized credentials; no local credentials or exact target TWAP FeedIDs were found, and historical retention is undocumented. The cached regular BTC/USD stream is the wrong feed and too short. No report requests were made; subscription cost is not published. Next useful step is to confirm the two TWAP FeedIDs, history entitlement, and written pricing for the 43-market sample before any request.
+- Report: [settlement-regime disagreement analysis](../reports/btc_preopen/btc_discrepancy_regimes_20261023.md). [Saved changelog excerpt](../reports/btc_preopen/sources/polymarket_predictions_changelog_capture_20261023.md). [Deterministic 43-market sample manifest](../reports/btc_preopen/btc_discrepancy_regimes_20261023_sample_manifest.csv). Full local row-level assignment ledger and summary tables are under `data/analysis/polymarket/BTC/btc_discrepancy_regimes_20261023/`.
+<!-- BTC_DISCREPANCY_REGIMES_20261023_END -->
+
 <!-- BTC_CANDIDATE_POLYMARKET_TARGET_20261023_BEGIN -->
 ## Official Polymarket target assessment of frozen BTC A/B/C/D — 2026-10-23
 
