@@ -1129,8 +1129,10 @@ def _load_approved_arrays(config: dict, base_order: list[str]):
     ]
     raw_tail_start = pd.Timestamp(int(development["raw_opened"][-1]), unit="ns", tz="UTC") - pd.Timedelta(days=1)
     cutoff = pd.Timestamp(config["inputs"]["exclusive_input_opened_cutoff_utc"])
-    source_start = raw_tail_start.to_pydatetime()
-    source_end = cutoff.to_pydatetime()
+    source_start = raw_tail_start.strftime("%Y-%m-%d %H:%M:%S")
+    source_end = cutoff.strftime("%Y-%m-%d %H:%M:%S")
+    flow_start = raw_tail_start.to_pydatetime()
+    flow_end = cutoff.to_pydatetime()
     source_frame = pd.read_parquet(
         source_path,
         columns=list(dict.fromkeys(required_source)),
@@ -1166,7 +1168,7 @@ def _load_approved_arrays(config: dict, base_order: list[str]):
     flow_parts = [
         pd.read_parquet(
             path, columns=["Opened", *flow_names],
-            filters=[("Opened", ">=", source_start), ("Opened", "<", source_end)],
+            filters=[("Opened", ">=", flow_start), ("Opened", "<", flow_end)],
         )
         for path in flow_paths if path.is_file()
     ]

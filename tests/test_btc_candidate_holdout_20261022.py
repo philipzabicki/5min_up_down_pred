@@ -58,6 +58,23 @@ class TestBtcCandidateHoldout20261022(unittest.TestCase):
 
         self.assertEqual(filtered["value"].tolist(), [2, 3])
 
+    def test_large_string_timestamp_parquet_filters_use_iso_text(self):
+        frame = pd.DataFrame({
+            "Opened": [
+                "2026-07-01 00:00:00", "2026-07-01 00:01:00", "2026-07-01 00:02:00",
+            ],
+            "value": [1, 2, 3],
+        })
+        with tempfile.TemporaryDirectory() as name:
+            path = Path(name) / "timestamps.parquet"
+            frame.to_parquet(path, index=False)
+            filtered = pd.read_parquet(path, filters=[
+                ("Opened", ">=", "2026-07-01 00:01:00"),
+                ("Opened", "<", "2026-07-01 00:03:00"),
+            ])
+
+        self.assertEqual(filtered["value"].tolist(), [2, 3])
+
     def test_scope_requires_both_exact_periods_and_individual_approval(self):
         config = json.loads(scorer.CONFIG_PATH.read_text(encoding="utf-8"))
         scorer.validate_scope(config)
