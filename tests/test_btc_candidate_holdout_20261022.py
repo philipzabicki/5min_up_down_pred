@@ -75,6 +75,30 @@ class TestBtcCandidateHoldout20261022(unittest.TestCase):
 
         self.assertEqual(filtered["value"].tolist(), [2, 3])
 
+    def test_finalizer_reads_artifacts_from_verified_period_results(self):
+        with tempfile.TemporaryDirectory() as name:
+            run_dir = Path(name)
+            for period in scorer.PROTECTED_WINDOWS:
+                scorer.save_period_checkpoint(
+                    run_dir,
+                    period,
+                    "frozen-run-id",
+                    {"prediction_artifacts": {"manifest_path": f"{period}.json"}},
+                )
+
+            scorer.finalize_completed_run(
+                run_dir,
+                "frozen-run-id",
+                {"manifest_path": "source.json"},
+                {"end_to_end_after_pre_read_seconds": 1.0},
+            )
+            manifest = json.loads((run_dir / "run_manifest.json").read_text(encoding="utf-8"))
+            attempts = json.loads((run_dir / "attempts.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(manifest["status"], "completed_historical_robustness_scoring")
+        self.assertEqual(manifest["period_artifacts"]["confirmation"]["manifest_path"], "confirmation.json")
+        self.assertEqual(attempts["attempts"][-1]["status"], "completed")
+
     def test_scope_requires_both_exact_periods_and_individual_approval(self):
         config = json.loads(scorer.CONFIG_PATH.read_text(encoding="utf-8"))
         scorer.validate_scope(config)

@@ -106,6 +106,38 @@ def record_attempt(run_dir: Path, status: str, *, detail: str | None = None) -> 
     _atomic_json(path, history)
 
 
+def finalize_completed_run(
+    run_dir: Path,
+    run_identity: str,
+    supplemental_source_data: dict,
+    timings_seconds: dict,
+    *,
+    recovery_detail: str | None = None,
+) -> None:
+    period_results = {
+        period: load_period_checkpoint(run_dir, period, run_identity)
+        for period in PROTECTED_WINDOWS
+    }
+    if any(result is None for result in period_results.values()):
+        raise RuntimeError("cannot finalize the run before both mandatory period checkpoints exist")
+    _atomic_json(run_dir / "run_manifest.json", {
+        "status": "completed_historical_robustness_scoring",
+        "run_identity_sha256": run_identity,
+        "completed_periods": list(PROTECTED_WINDOWS),
+        "protected_rows_scored": True,
+        "supplemental_source_data": supplemental_source_data,
+        "timings_seconds": timings_seconds,
+        "period_artifacts": {
+            period: period_results[period]["prediction_artifacts"]
+            for period in PROTECTED_WINDOWS
+        },
+        "not_fresh_or_independent_validation": True,
+        "not_a_profitability_test": True,
+        **({"completion_recovery": recovery_detail} if recovery_detail else {}),
+    })
+    record_attempt(run_dir, "completed", detail=recovery_detail)
+
+
 def validate_scope(config: dict) -> None:
     """Require explicit approval for both exact windows; no broad flag can widen scope."""
     if config.get("experiment_id") != "btc_candidate_quality_holdout_20261022":
@@ -1807,24 +1839,15 @@ def main() -> None:
             completed.append(period_id)
         if completed != list(PROTECTED_WINDOWS):
             raise RuntimeError("both mandatory periods were not completed in the frozen order")
-        _atomic_json(run_dir / "run_manifest.json", {
-            "status": "completed_historical_robustness_scoring",
-            "run_identity_sha256": run_identity,
-            "completed_periods": completed,
-            "protected_rows_scored": True,
-            "supplemental_source_data": supplement_identity,
-            "timings_seconds": stage_timings | {
+        finalize_completed_run(
+            run_dir,
+            run_identity,
+            supplement_identity,
+            stage_timings | {
                 "member_prediction_total_seconds": prediction_seconds,
                 "end_to_end_after_pre_read_seconds": time.perf_counter() - execution_started,
             },
-            "period_artifacts": {
-                period: load_period_checkpoint(run_dir, period, run_identity)["result"]["prediction_artifacts"]
-                for period in completed
-            },
-            "not_fresh_or_independent_validation": True,
-            "not_a_profitability_test": True,
-        })
-        record_attempt(run_dir, "completed")
+        )
     except Exception as exc:
         record_attempt(run_dir, "failed", detail=f"{type(exc).__name__}: {exc}")
         _atomic_json(run_dir / "run_manifest.json", {
