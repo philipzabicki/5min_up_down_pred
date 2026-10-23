@@ -654,6 +654,17 @@ def _source_completion_identity(config: dict) -> dict | None:
     }
 
 
+def _same_utc_timestamps(left, right) -> bool:
+    import numpy as np
+    import pandas as pd
+
+    def as_nanoseconds(values):
+        timestamps = pd.DatetimeIndex(pd.to_datetime(values, utc=True))
+        return timestamps.astype("datetime64[ns, UTC]").asi8
+
+    return bool(np.array_equal(as_nanoseconds(left), as_nanoseconds(right)))
+
+
 def _complete_taker_flow_source(config: dict, run_dir: Path, run_identity: str) -> dict:
     """Fetch the exact missing USD-M kline range and build the frozen flow-feature supplement."""
     import json
@@ -852,7 +863,7 @@ def _complete_taker_flow_source(config: dict, run_dir: Path, run_identity: str) 
         expected_day = pd.date_range(max(day_start, download_start), day_end, freq="min", inclusive="left")
         if opened.isna().any() or not opened.is_monotonic_increasing or opened.duplicated().any():
             raise RuntimeError(f"Binance API timestamps are invalid, duplicated, or unordered on {day}")
-        if not opened.equals(pd.Series(expected_day, index=opened.index)):
+        if not _same_utc_timestamps(opened, expected_day):
             raise RuntimeError(f"Binance API open timestamps do not exactly cover the requested minute partition {day}")
         if not close_ms.eq(opened_ms + 59_999).all():
             raise RuntimeError(f"Binance close-time milliseconds are invalid on {day}")
@@ -892,7 +903,7 @@ def _complete_taker_flow_source(config: dict, run_dir: Path, run_identity: str) 
     api_raw = pd.concat(api_frames, axis=0).sort_index(kind="stable")
     if api_raw.index.has_duplicates or not api_raw.index.is_monotonic_increasing:
         raise RuntimeError("Binance USD-M source partitions overlap or are unordered")
-    if not api_raw.index.equals(expected_index):
+    if not _same_utc_timestamps(api_raw.index, expected_index):
         raise RuntimeError("Binance USD-M source partitions have a missing or extra minute")
 
     warmup_path = ROOT / inputs["taker_flow_warmup_archive"]
@@ -927,7 +938,7 @@ def _complete_taker_flow_source(config: dict, run_dir: Path, run_identity: str) 
     if warmup["Opened"].isna().any() or warmup["Opened"].duplicated().any():
         raise RuntimeError("local June warm-up source has invalid or duplicate timestamps")
     warmup = warmup.set_index("Opened").sort_index(kind="stable")
-    if not warmup.index.equals(warmup_expected):
+    if not _same_utc_timestamps(warmup.index, warmup_expected):
         raise RuntimeError("local June warm-up archive has a gap in the required causal history")
     warmup_raw = warmup.loc[:, ["open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume"]]
     warmup_quote = warmup_raw["quote_volume"].to_numpy(dtype=np.float64)
@@ -949,7 +960,7 @@ def _complete_taker_flow_source(config: dict, run_dir: Path, run_identity: str) 
         raise RuntimeError("local June warm-up archive has invalid prices or quote-volume values")
     combined_raw = pd.concat([warmup_raw, api_raw], axis=0).sort_index(kind="stable")
     required_raw_grid = pd.date_range(warmup_start, download_end, freq="min", inclusive="left")
-    if combined_raw.index.has_duplicates or not combined_raw.index.equals(required_raw_grid):
+    if combined_raw.index.has_duplicates or not _same_utc_timestamps(combined_raw.index, required_raw_grid):
         raise RuntimeError("local warm-up and downloaded Binance source do not form the required continuous UTC minute grid")
 
     raw_source_path = ROOT / inputs["raw_um_ohlcv_source"]
@@ -1006,7 +1017,7 @@ def _complete_taker_flow_source(config: dict, run_dir: Path, run_identity: str) 
     feature_mask = (generated.index >= download_start) & (generated.index < download_end)
     supplement = generated.loc[feature_mask, control_features].copy()
     supplement.index.name = "Opened"
-    if not supplement.index.equals(expected_index):
+    if not _same_utc_timestamps(supplement.index, expected_index):
         raise RuntimeError("computed frozen taker-flow controls do not cover the exact new Binance input range")
     supplement_frame = supplement.reset_index()
     feature_elapsed = time.perf_counter() - flow_started

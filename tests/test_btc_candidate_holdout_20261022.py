@@ -34,6 +34,15 @@ def _members(rows: int, seed: int = 7) -> dict:
 
 
 class TestBtcCandidateHoldout20261022(unittest.TestCase):
+    def test_utc_timestamp_validation_ignores_datetime_storage_resolution(self):
+        start = pd.Timestamp("2026-07-01T00:00:00Z")
+        milliseconds = pd.date_range(start, periods=4, freq="min").as_unit("ms")
+        microseconds = pd.date_range(start, periods=4, freq="min").as_unit("us")
+        shifted = microseconds + pd.Timedelta(minutes=1)
+
+        self.assertTrue(scorer._same_utc_timestamps(milliseconds, microseconds))
+        self.assertFalse(scorer._same_utc_timestamps(milliseconds, shifted))
+
     def test_scope_requires_both_exact_periods_and_individual_approval(self):
         config = json.loads(scorer.CONFIG_PATH.read_text(encoding="utf-8"))
         scorer.validate_scope(config)
