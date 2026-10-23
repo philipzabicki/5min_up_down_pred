@@ -475,7 +475,7 @@ def _source_artifact_identity() -> dict:
         "raw_um_ohlcv_source": {
             "path": raw_path.relative_to(ROOT).as_posix(),
             "pinned_sha256": raw_record["sha256"],
-            "size_bytes": int(raw_record["size_bytes"]),
+            "size_bytes": int(raw_record["size"]),
             "effective_config_path": effective_config_path.relative_to(ROOT).as_posix(),
             "effective_config_sha256": _sha256(effective_config_path),
         },
