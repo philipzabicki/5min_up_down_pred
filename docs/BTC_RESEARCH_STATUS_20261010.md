@@ -1,3 +1,17 @@
+<!-- BTC_CANDIDATE_POLYMARKET_TARGET_20261023_BEGIN -->
+## Official Polymarket target assessment of frozen BTC A/B/C/D — 2026-10-23
+
+- Status: completed saved-prediction scoring for run ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b on official Gamma outcomes. No fit, refit, calibration, ESN search, live activation, or order submission.
+- Confirmation: 105,117 predictions, 51,457 exact Gamma matches, 51,430 official labels. Holdout: 28,223 predictions, 28,221 matches, 28,220 official labels. Binance-proxy disagreement rates are 3.85% and 7.84% respectively.
+- B−A log-loss point deltas are +0.000055587 confirmation and +0.000018034 holdout. D−B is −0.000043842 confirmation and +0.000076370 holdout. All Bonferroni-adjusted primary 97.5% intervals cross zero on full and T−59-qualified samples.
+- T−59 provenance-qualified two-sided full-$5 samples: 5,609 confirmation and 17,564 holdout. Exact saved T−60 source exists only Apr 15–May 18; 4,066 rows pass fixed-$5 checks, and the common T−60/T−59 economic sample is 1,143 confirmation markets and zero holdout markets.
+- Sparse confirmation diagnostic: independent $5 PnL A −$108.80, B +$28.01, C +$20.42, D +$22.66. D differs from B on 86/1,143 decisions; changed participation contributes −$5.35 versus B. Self-financing $100 ending cash/equity is A $4.58 (139 signals rejected for insufficient cash), B $128.01, C $120.42, D $122.66 under idealized settlement release. No holdout economic result is available; these are not full-coverage execution findings.
+- The economic result assumes saved A/B/C/D probabilities were available at T−60; their per-prediction runtime timestamps are absent. T−60 source stores best ask and size, not full ladders, and only single-level $5 fills are repriced. This assessment does not establish live readiness.
+- The earlier CLOSED_BLOCKED_DATA_AND_RAW_PROVENANCE and blocked_missing_dynamic_history gates remain active for the separate dynamic-history/RAW OOF experiment. They do not block scoring saved predictions against available Gamma labels, but remain relevant to historical raw-source completeness and live claims.
+- Report: [official Polymarket target assessment](../reports/btc_preopen/btc_candidate_polymarket_target_20261023.md). Protocol: [frozen v3 manifest](../reports/btc_preopen/btc_candidate_polymarket_target_20261023_v3_manifest.json). Local quality tables, matched markets, execution decision ledger, portfolios, and daily PnL are under data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/.
+- Runtime: 101.62 seconds; sampled peak working set 1.80 GiB. No full replay or data fetch was run.
+<!-- BTC_CANDIDATE_POLYMARKET_TARGET_20261023_END -->
+
 <!-- BTC_CANDIDATE_HOLDOUT_20261022_BEGIN -->
 
 ## BTC candidate freeze and historical robustness scorer - 2026-10-23
