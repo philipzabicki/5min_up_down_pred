@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "experiment_id": "btc_candidate_attribution_20261023",
+  "status": "frozen_before_analysis",
+  "created_utc": "2026-10-23T01:50:45.856146+00:00",
+  "parent_protocol_sha256": "16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503",
+  "parent_run_identity_sha256": "ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b",
+  "periods_market_start_utc": {
+    "confirmation": {
+      "inclusive": "2025-07-01T00:00:00Z",
+      "exclusive": "2026-07-01T00:00:00Z",
+      "historically_exposed": true
+    },
+    "holdout": {
+      "inclusive": "2026-07-01T00:00:00Z",
+      "exclusive": "2026-10-07T00:00:00Z",
+      "historically_exposed": true
+    }
+  },
+  "frozen_procedures": {
+    "A": "BASE70",
+    "B": "BASE70 + simple_memory_PCA8",
+    "C": "BASE70 + ESN PCA8 (auxiliary)",
+    "D": "BASE70 + simple_memory_PCA8 + ESN PCA8"
+  },
+  "target_contract": {
+    "name": "target_preopen_5m_up_binance_index_proxy",
+    "source": "Binance COIN-M BTCUSD index 1m OHLCV",
+    "formula": "Close[Opened+6m] >= Open[Opened+2m]",
+    "window_start": "Opened + 2 minutes",
+    "window_end": "Opened + 7 minutes, exclusive candle boundary",
+    "label_available_at": "Opened + 7 minutes",
+    "proxy_of_official_settlement": true,
+    "official_and_proxy_labels_are_never_mixed": true
+  },
+  "decision_timing": {
+    "schedule": "every 5 minutes at UTC minute divisible by 5",
+    "nominal_decision_offset_before_market_start_seconds": 60,
+    "prediction_window_offset_after_decision_seconds": 60,
+    "prediction_window_seconds": 300,
+    "settlement_source": "official Polymarket BTC Up/Down 5m outcome",
+    "settlement_price_source": "Chainlink BTC/USD TWAP 60s stream named by Gamma resolutionSource",
+    "tie_policy": "UP",
+    "missing_official_outcome_policy": "exclude from official-label metrics; retain price-proxy row when complete",
+    "missing_window_candle_policy": "target missing unless all five 1m target-window candles exist"
+  },
+  "official_label_source": "Saved Gamma BTC series 10684 record; validated one-hot outcomePrices, UP/DOWN token orientation, condition ID, slug epoch, closed state and resolved_at.",
+  "resolution_rule_reference": "https://polymarket.com/event/btc-updown-5m-1789117200",
+  "descriptive_absolute_binance_return_bins_bps": [
+    {
+      "label": "exact_zero",
+      "lower_exclusive": null,
+      "upper_inclusive": 0.0
+    },
+    {
+      "label": "(0,1]",
+      "lower_exclusive": 0.0,
+      "upper_inclusive": 1.0
+    },
+    {
+      "label": "(1,5]",
+      "lower_exclusive": 1.0,
+      "upper_inclusive": 5.0
+    },
+    {
+      "label": "(5,10]",
+      "lower_exclusive": 5.0,
+      "upper_inclusive": 10.0
+    },
+    {
+      "label": "(10,25]",
+      "lower_exclusive": 10.0,
+      "upper_inclusive": 25.0
+    },
+    {
+      "label": "(25,50]",
+      "lower_exclusive": 25.0,
+      "upper_inclusive": 50.0
+    },
+    {
+      "label": ">50",
+      "lower_exclusive": 50.0,
+      "upper_inclusive": null
+    }
+  ],
+  "near_tie_description": "absolute Binance return <= 5 basis points; descriptive only",
+  "quality": {
+    "metrics": [
+      "log_loss",
+      "Brier"
+    ],
+    "probability_clip": 1e-07,
+    "subgroups": [
+      "all official rows",
+      "Binance/Gamma agreement",
+      "Binance/Gamma disagreement"
+    ],
+    "delta_convention": "B-A = loss(A)-loss(B); D-B = loss(B)-loss(D); positive favors the right-hand model."
+  },
+  "economics": {
+    "source": "Existing 1,143-row common official/T-60/T-59 ledger",
+    "gross_order_notional_usd": 5.0,
+    "initial_free_cash_usd": 100.0,
+    "accounting": "No borrowing; $5 gross cost basis locked until saved release time; equity is free cash plus gross cost basis, not mark-to-market.",
+    "no_replay_refit_or_policy_change": true
+  },
+  "input_sha256": {
+    "reports/btc_preopen/btc_candidate_polymarket_target_20261023_v3_manifest.json": "16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503",
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/quality_summary.json": "8f846708b95bb4937daac9ffc4b14d9a7633761c0d9a65f05168225f4cc90d79",
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/economic_summary.json": "3dcbf35e4de32e6d3469d7cd6f44da479ef09685b0d0fef2a5e1d0b60a10ab3f",
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/economic_decision_ledger.parquet": "c0432980574e91ecd87529c8367e89f1b08c0cc119b81c345bb7de5acc8fc1a4",
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/self_financing_portfolio_ledger.csv": "47563c5535614871665134e727cb3f3a6330c89d7ccd18191d475f197eafcf3a",
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/daily_pnl_contributions.csv": "7a76f83eb76480bc0699a85b6d000977208c6db1d5550cd22f77a1358fb0f526",
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/confirmation_market_matches.parquet": "4587e0fdb5b922142aa33de0f099bd0f7aedd696d8eb1dd19a47c7f733f31f32",
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/holdout_market_matches.parquet": "7e01188ae22c724b7a47325d8a5ffdca96fab5493ac6a2936b39ea31245fba57",
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+    "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv": "130e415b2e092a09caba773aed7b4f717d3b2b0d7aede658ba8e85901da91022",
+    "configs/btc_preopen_v1.json": "57d5f59bdd5cfcd87c93f007d04afdd50fec70c0be9de04e1eb467eff70b8216",
+    "docs/BTC_RESEARCH_CONTRACT.md": "4de218fbea11e972e1bbe51f1f0857f9171cac30d04b6bbb22fec87c2e2ceda5",
+    "docs/polymarket_btc_experiment.md": "65e4f0b17ff8cb7237b5e8effc47910651383e6b3c6f7fff5d3b1de601af4600",
+    "run_btc_candidate_polymarket_target_20261023.py": "24d8e219bddc5db459d8d4f6b7f143d0b3470328429a9685c7aa73de43e255a2",
+    "run_btc_candidate_attribution_20261023.py": "9cf226dcf86f15f067f58557c6fcb70ff3ff091eec9fb9ac6d9593cb57060357"
+  }
+}
