@@ -1,3 +1,5 @@
+> Canonical recovery, 2026-10-25, input HEAD `cf885b0`: [PROJECT_STATE](../PROJECT_STATE.md), [decisions/invariants](../DECISIONS.md), [experiments](../EXPERIMENTS.md), [tasks](../TASKS.md), [audit/evidence](PROJECT_STATE_AUDIT_20261025.md). This file remains the detailed historical checkpoint log; its older `next step`, `running`, and completion claims must be read with their dated scope. Full discovery currently has 665 PASS, 2 FAIL and 8 ERROR (675 total). The October 22 statement that the protected scorer is unimplemented/gated false was superseded by October 23 code, approval and completed retrospective scoring (E0030). The old 180-day A/B/C/D recommendation was superseded by D0010. The separate dynamic-history gate and zero-window shadow pilot remain blocked. No training, refit, protected-row scoring, collector launch or order was performed by this recovery.
+
 <!-- BTC_CANDIDATE_SHADOW_20261023_BEGIN -->
 ## Frozen BTC A/B/C/D read-only shadow collector and L2 sources — 2026-10-23
 

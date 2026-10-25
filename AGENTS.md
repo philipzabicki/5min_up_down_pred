@@ -1,5 +1,14 @@
 # CLAUDE.md
 
+## Canonical project state
+
+- Before work, read [PROJECT_STATE.md](PROJECT_STATE.md), active entries in [DECISIONS.md](DECISIONS.md), the relevant [TASKS.md](TASKS.md) task and [EXPERIMENTS.md](EXPERIMENTS.md) records.
+- Repository code, tests and artifacts take precedence over chat reports. Historical checkpoint prose is not the current state; `docs/BTC_RESEARCH_STATUS_20261010.md` remains the detailed checkpoint log and `docs/BTC_RESEARCH_CONTRACT.md` remains binding.
+- After a task, update applicable canonical records with evidence, preserving decision/experiment IDs and superseded history. Link significant changes to a task, decision or experiment ID where applicable.
+- Do not change protected invariants without an explicit recorded decision. Do not use protected holdout data for development; prior exposure and a saved one-time evaluation approval do not authorize a new run.
+- Passing tests do not imply reference validation, statistical support or production readiness. Keep UNKNOWN and NOT_VERIFIED_IN_THIS_AUDIT explicit.
+- Do not start the next milestone while its prerequisite gate remains unmet. Blocked data/provenance gates may not be bypassed by changing counts, samples or nominal timestamps.
+
 Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.

@@ -1,5 +1,7 @@
 # 5min Up/Down Prediction
 
+Current audited state: [PROJECT_STATE.md](PROJECT_STATE.md). Use the linked decisions, experiments, tasks and [2026-10-25 audit](docs/PROJECT_STATE_AUDIT_20261025.md) before treating historical workflow descriptions or checkpoint reports as current completion/validation claims.
+
 Experimental machine learning pipeline for predicting whether a crypto candle closes up over a 5-minute horizon, with optional live inference and Polymarket 5-minute up/down market execution.
 
 This repository is research and automation tooling. It can connect to live markets and, through `run.py`, submit real orders when configured to do so. Review the live settings and secrets carefully before running anything that can trade.

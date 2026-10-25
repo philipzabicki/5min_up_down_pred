@@ -1,0 +1,797 @@
+{
+  "audit_date": "2026-10-25 Europe/Warsaw",
+  "audited_head": "cf885b0428e0c6041d471e6bca97597ff04dc4ec",
+  "scope": "Metadata, saved previously evaluated result JSON and read-only SQLite inspection; no protected raw rows, prediction Parquets, training, refit, replay or new scoring. Hashes verify present files, not historical numerical truth.",
+  "python": "3.14.4 (tags/v3.14.4:23116f9, Apr  7 2026, 14:10:54) [MSC v.1944 64 bit (AMD64)]",
+  "executable": "C:\\Users\\philipz\\.pyenv\\pyenv-win\\versions\\3.14.4\\python.exe",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "versions": {
+    "numpy": "2.4.4",
+    "pandas": "3.0.2",
+    "lightgbm": "4.6.0",
+    "pyarrow": "24.0.0",
+    "numba": "0.65.1",
+    "optuna": "4.8.0",
+    "scikit-learn": "1.8.0",
+    "py-clob-client-v2": "NO_DISTRIBUTION_METADATA"
+  },
+  "test_file_count": 80,
+  "tests": [
+    {
+      "local_log": "C:\\Users\\philipz\\AppData\\Local\\Temp\\5min_state_recovery_unittest_20261025.log",
+      "sha256": "6811abae8344a696e228b7dd5462efff0b51391e79d7236bc55bfcde79f6d8c2",
+      "tests": 675,
+      "unittest_seconds": 51.735,
+      "summary": "FAIL",
+      "command": "python -m unittest discover -s tests -v",
+      "passed": 665,
+      "failures": 2,
+      "errors": 8,
+      "skipped": 0,
+      "expected_failures": 0,
+      "unexpected_successes": 0,
+      "command_wall_seconds": 62.6532653
+    },
+    {
+      "local_log": "C:\\Users\\philipz\\AppData\\Local\\Temp\\5min_audit_test_btc_esn_architecture_audit.py.log",
+      "sha256": "5e551783420bddf1d8d4b95cb1526dc9f95ad4ae0aefabd4d083c51483ada6c2",
+      "tests": 7,
+      "unittest_seconds": 0.515,
+      "summary": "PASS",
+      "command": "python -m unittest discover -s tests -p test_btc_esn_architecture_audit.py -v",
+      "passed": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0,
+      "unexpected_successes": 0,
+      "command_wall_seconds": 2.9217186
+    },
+    {
+      "local_log": "C:\\Users\\philipz\\AppData\\Local\\Temp\\5min_audit_test_btc_esn_expansion.py.log",
+      "sha256": "a445adc52bc90a9fed42968ac72627b75e25f70d9484854bd1b9bad2129bc2e8",
+      "tests": 8,
+      "unittest_seconds": 0.93,
+      "summary": "PASS",
+      "command": "python -m unittest discover -s tests -p test_btc_esn_expansion.py -v",
+      "passed": 8,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0,
+      "unexpected_successes": 0,
+      "command_wall_seconds": 3.1661095
+    },
+    {
+      "local_log": "C:\\Users\\philipz\\AppData\\Local\\Temp\\5min_audit_test_optimize_trade_policy.py.log",
+      "sha256": "6c154aa4f54aed5c6bd0dc1871c39cd9192e21ead22ca41e668f33f0514c49c9",
+      "tests": 6,
+      "unittest_seconds": 0.024,
+      "summary": "FAIL",
+      "command": "python -m unittest discover -s tests -p test_optimize_trade_policy.py -v",
+      "passed": 5,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0,
+      "unexpected_successes": 0,
+      "command_wall_seconds": 0.9550551
+    },
+    {
+      "local_log": "C:\\Users\\philipz\\AppData\\Local\\Temp\\5min_audit_test_run_multi_asset_latency.py.log",
+      "sha256": "a25b35f213ec9724d37b87823fcff271094f64e19f97a2cdae117430472656ce",
+      "tests": 15,
+      "unittest_seconds": 0.005,
+      "summary": "FAIL",
+      "command": "python -m unittest discover -s tests -p test_run_multi_asset_latency.py -v",
+      "passed": 14,
+      "failures": 1,
+      "errors": 0,
+      "skipped": 0,
+      "expected_failures": 0,
+      "unexpected_successes": 0,
+      "command_wall_seconds": 2.2700709
+    }
+  ],
+  "local_artifact_records": [
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/run_manifest.json",
+      "exists": true,
+      "bytes": 44229,
+      "sha256": "e7ed25b5a30594768fe4e71732f2e3f2ae627fdf44a3f70f5379537d810e8f71",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null,
+        "next_step": "No refit or holdout evaluation is authorized by this study."
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_ev_pnl_attribution_20261019/run_manifest.json",
+      "exists": true,
+      "bytes": 13234,
+      "sha256": "0d4656d94e7daac6116a7cfa8b713bdaee65f60e0b0c69742fadbae178d458df",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_full_features_20261018/run_manifest.json",
+      "exists": true,
+      "bytes": 136479,
+      "sha256": "1b3f3779b559a78d8579f3123eebeeda25420a2dce4b9c5089aff6d9ee1f76cd",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null,
+        "next_step": "Experiment complete; review the separate probability-quality and after-cost economic results. Do not start another experiment automatically."
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_information_value_20261018/run_manifest.json",
+      "exists": true,
+      "bytes": 172947,
+      "sha256": "146d183f8a3ef48058cd93ca2b086ca3d90a167007a3e49c4f9df88b51e42f1d",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null,
+        "next_step": "Experiment complete; no follow-up experiment is started automatically."
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_raw_holdout_20261018/run_manifest.json",
+      "exists": true,
+      "bytes": 204417,
+      "sha256": "5df89d74f8a779e9be000edc43132eb6d3065e71bb3e9ab88a3cc541b80e2122",
+      "recorded_status": {
+        "status": "completed_historical_holdout_assessment",
+        "next_step": null
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_recent365_20261018/run_manifest.json",
+      "exists": true,
+      "bytes": 137703,
+      "sha256": "dce76326a4818e0f21fb179b7213653feacd013c1da5303365f27cf809292291",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null,
+        "next_step": "Review the single RECENT365 comparison; do not extend to another window automatically."
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_seed_stability_20261018/run_manifest.json",
+      "exists": true,
+      "bytes": 279193,
+      "sha256": "8a9ad17c22699ae1e704f772ddcfaa50864fa16fe7ef7ab392577e416263f7cd",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null,
+        "next_step": "Resume downstream quality and economic analysis using the 40 verified saved fits."
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/run_manifest.json",
+      "exists": true,
+      "bytes": 582,
+      "sha256": "ba523e7cb32aa7c44c2795d64e966c96c4c32794cd3ee65da0eb1006acebee00",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_conditional_market_offset_20261018/run_manifest.json",
+      "exists": true,
+      "bytes": 599,
+      "sha256": "249d10c3ef2769b9d376b4ecef39a9a3338416029a06034521b08757984227d0",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_esn_architecture_audit_20261020_r4/run_state.json",
+      "exists": true,
+      "bytes": 2212,
+      "sha256": "7f3ee1606f6c1a6d8cefb6c545aac3b2e5afb5e3d1c611dd1a56dd9b0cb118d8",
+      "recorded_status": {
+        "status": "complete_search_validation_only_with_corrected_input_stage"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_esn_focused_20261022/run_manifest.json",
+      "exists": true,
+      "bytes": 15215,
+      "sha256": "a6c62dbc192f54295dc1adba0650f6402893ae266add881ed53fbc102e33e7e8",
+      "recorded_status": {
+        "status": "frozen_before_screening"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_esn_portfolio_20261020_r3/run_state.json",
+      "exists": true,
+      "bytes": 27614,
+      "sha256": "f86e67b263cf99ff028e088958e30a305ad97d97ef9b6f455f1659628ecd8c73",
+      "recorded_status": {
+        "status": "search_and_portfolio_complete"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_market_base70_frozen_holdout_20261019/run_manifest.json",
+      "exists": true,
+      "bytes": 25252,
+      "sha256": "dcd2fd0acb45547d43009ab15e5eb4414b8a336e9c1c0725d154e8794168c56c",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_market_base70_incremental_20261019/run_manifest.json",
+      "exists": true,
+      "bytes": 49796,
+      "sha256": "905acc398c94950b5474ce677137b895cd43b83c4112921295627080565b3b70",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null,
+        "next_step": "Review the development-only report; do not extend the experiment unless a new hypothesis is frozen."
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_market_basis_vol_interaction_20261017/run_manifest.json",
+      "exists": true,
+      "bytes": 1069,
+      "sha256": "1a2869e4953e8f49cc313eb032d8afe4cbe870ada7fab3f705be1287851f5027",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_market_dynamics_action_value_20261020/run_manifest.json",
+      "exists": true,
+      "bytes": 729719,
+      "sha256": "540850e41ca4322cc22c7c4d0d2de92b573cf86440f18e1118a0bcb1f64f52f4",
+      "recorded_status": {
+        "status": "blocked_missing_dynamic_history",
+        "current_stage": "availability_gates"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016/run_manifest.json",
+      "exists": true,
+      "bytes": 9741,
+      "sha256": "6fc045bc1ee74537868192e55f43b89352d751cb69dc496967b27d7836fab23c",
+      "recorded_status": {
+        "status": "completed",
+        "error": "KeyError: 'k'"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_full_development_fit_20261016_recovery_archive_20261016_191023/run_manifest.json",
+      "exists": true,
+      "bytes": 6185,
+      "sha256": "b86667b0e62b7339b9a8967a5229f650e47ff2c4e05f1a3f5f02f78e0851935b",
+      "recorded_status": {
+        "status": "failed",
+        "error": "KeyError: 'k'"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/model_update_manifest.json",
+      "exists": true,
+      "bytes": 71244,
+      "sha256": "2ad94b54ba3056bf73c1605b54b3054625f6f336c3c1a16de6e71ce80d97f906",
+      "recorded_status": {
+        "status": "development_selection_frozen"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_return_regression_20261017/run_manifest.json",
+      "exists": true,
+      "bytes": 9720,
+      "sha256": "8b7fe5873d793b538a603b8cdbb78bdc97ecfc3d632ef72c821f17c561554777",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/run_manifest.json",
+      "exists": true,
+      "bytes": 233620,
+      "sha256": "6285276610ba2272b0a8d016d54acff512a667f3a6888b346466da476b89e967",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null,
+        "next_step": "Experiment complete; review the report and saved artifacts."
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_vp_rp_ablation_20261015/model_update_manifest.json",
+      "exists": true,
+      "bytes": 25791,
+      "sha256": "fb3d073aa3bc83f8bd987086fccf474d9ec19456e3274b0913290d122983d316",
+      "recorded_status": {
+        "status": "interrupted_scope_change"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_vp_rp_tuning_20261016/model_update_manifest.json",
+      "exists": true,
+      "bytes": 13267,
+      "sha256": "7e8900d7b99f00665e7246460800c6580c7d78f56618e3582d3a28906d19002b",
+      "recorded_status": {
+        "status": "interrupted_scope_change"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_preopen_zv_ablation_20261018/run_manifest.json",
+      "exists": true,
+      "bytes": 150512,
+      "sha256": "20bb77db2008ceae44710ccd6222e8f91f03b98280983e804cfedfc65ed0ca57",
+      "recorded_status": {
+        "status": "completed",
+        "active_stage": null,
+        "next_step": "Comparison complete; review the report and saved artifacts"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011/research_manifest.json",
+      "exists": true,
+      "bytes": 4425,
+      "sha256": "6316f8f0a382062a4a028a7753960f45cbb4dc966b6ddabf6288adfd9cdb65bf",
+      "recorded_status": {
+        "status": "running"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry/research_manifest.json",
+      "exists": true,
+      "bytes": 11280,
+      "sha256": "c9f5b494a7eb8ddaa8d425d17f1c73457e44b146460a35592d4d6d53f55145a2",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261012_fee_correction/research_manifest.json",
+      "exists": true,
+      "bytes": 13304,
+      "sha256": "2f6ae18b027d35355666cdb579856bf7ffab8a0259ce80b35bacb3db731a404c",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/run_manifest.json",
+      "exists": true,
+      "bytes": 2103,
+      "sha256": "9f61bdd22f6eaefe5aff9a979685b5843c3e0fa79a4bb395c3da7ed439171f6c",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/candidate_comparison.json",
+      "exists": true,
+      "bytes": 17568,
+      "sha256": "ab7905fe69f74ddb5a139702b005e4520d13c10018e8633af127cceaa8c2cb7f",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/runtime.json",
+      "exists": true,
+      "bytes": 5155,
+      "sha256": "81d18939df3094c4faa5b931d3973ca799f9e3992ea43df34f41c142399d8e4b",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/stream_verification.json",
+      "exists": true,
+      "bytes": 1493,
+      "sha256": "2b15198b146b12bdf7c30516f4775ce0ba227c230ac587fba347b5f0dda04586",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_attribution_20261023/validation.json",
+      "exists": true,
+      "bytes": 1208,
+      "sha256": "59aac06a1ab6868537ad9a674e8894e1b03cdf377b8e70ce14bd1ff59df4cb2b",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_attribution_20261023/analysis_summary.json",
+      "exists": true,
+      "bytes": 17243,
+      "sha256": "cbce682ff49a18e724df539955361027cce8e7dab2641c58e72817c0c3615c47",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/quality_summary.json",
+      "exists": true,
+      "bytes": 34271,
+      "sha256": "8f846708b95bb4937daac9ffc4b14d9a7633761c0d9a65f05168225f4cc90d79",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/economic_summary.json",
+      "exists": true,
+      "bytes": 19601,
+      "sha256": "3dcbf35e4de32e6d3469d7cd6f44da479ef09685b0d0fef2a5e1d0b60a10ab3f",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_settlement_regimes_20261023/analysis_manifest.json",
+      "exists": true,
+      "bytes": 7623,
+      "sha256": "2d470eb13509bb42afa384ef0c0d9a3da37126cca7e6c8b861b792db384fd783",
+      "recorded_status": {
+        "status": "completed"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_discrepancy_regimes_20261023/analysis_metadata.json",
+      "exists": true,
+      "bytes": 1544,
+      "sha256": "f1a5f6324866186490fb10d7e470d63fa6d8d0a75f052fa1003df11862b67ff9",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_dynamic_history_audit_20261020_v1/final_prefit_gate.json",
+      "exists": true,
+      "bytes": 2071,
+      "sha256": "d5cc75d48cc7e660d700d9fd799f6da1aa96110993b77f6a34333755700e80ee",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_base70_capacity_tuning_20261019/selection.json",
+      "exists": true,
+      "bytes": 1186,
+      "sha256": "14130f68ead1477f484ae50466589d4202a37676d70dd73134534d97b6829e3d",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_esn_focused_20261022/run_summary.json",
+      "exists": true,
+      "bytes": 192483,
+      "sha256": "e7633ac2d0003dd25876dade95ee166d3feeba51496abef2347ee9608d7d49d5",
+      "recorded_status": {
+        "status": "complete_search_validation_only"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_esn_expansion_20261021/final_downstream_comparison.json",
+      "exists": true,
+      "bytes": 71123,
+      "sha256": "3cedbf522ba944f7ba7249a91ecaf4f64dba3456b1be3077aad3bc60a93e3075",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_esn_portfolio_20261020_r3/prepared/search/prepared_manifest.json",
+      "exists": true,
+      "bytes": 1897,
+      "sha256": "28dc2611ff47a75b4b542552353efa0ff23b249bf00ac2fbe6d32afd715b0b4c",
+      "recorded_status": {
+        "status": "development_data_prepared"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/evaluation.json",
+      "exists": true,
+      "bytes": 21154,
+      "sha256": "69eac478b7210ebf8806b192376af72578ccf9dfd488b26813d869dcd7265afd",
+      "recorded_status": {
+        "status": "causal_raw_feature_baseline_completed; full target-specific tuning remains pending"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b/run_manifest.json",
+      "exists": true,
+      "bytes": 248939,
+      "sha256": "aa55071e66948a869c030f04eb7da10b70d51dcb1a398f3bc3d7d07e9f2975ee",
+      "recorded_status": {
+        "status": "completed_historical_robustness_scoring"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b/pre_read_manifest.json",
+      "exists": true,
+      "bytes": 149699,
+      "sha256": "9e7e3047a35915f615281dfaf9fc6b0fac3f3d57d5cd5ff59206559f6d2a3cd0",
+      "recorded_status": {
+        "status": "pre_read_frozen"
+      }
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b/attempts.json",
+      "exists": true,
+      "bytes": 718,
+      "sha256": "f043cd27e4a6dc146418995347dd7f575cdb91e7940201ecca972de06b5e2a18",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b/period_confirmation.json",
+      "exists": true,
+      "bytes": 39747,
+      "sha256": "87432c8a44425f1650dd9e57627327c38865d309ec679fb04899dcd2288d64db",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b/period_holdout.json",
+      "exists": true,
+      "bytes": 22495,
+      "sha256": "d1ae353620d7a6e2770782d74799e7fa340903f95b0b6a05911f0e0070e4a972",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b/period_confirmation_artifacts.json",
+      "exists": true,
+      "bytes": 948,
+      "sha256": "b0abb75197a0332d3cdc4bd980dd10db3ec2c4bcdece96652e60cfbee54d1b49",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b/period_holdout_artifacts.json",
+      "exists": true,
+      "bytes": 929,
+      "sha256": "9a81a94c52909d88c79b90fea8219c51b0146f783aca76bae23d8d9284c82d97",
+      "recorded_status": {}
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_holdout_20261022/source_completion/source_completion_manifest.json",
+      "exists": true,
+      "bytes": 176480,
+      "sha256": "f5a756de916c47dedbd94ef7a50a4368d390be626856a8981c9cd5f7068f057f",
+      "recorded_status": {
+        "status": "completed"
+      }
+    }
+  ],
+  "shadow_readonly_table_counts": {
+    "collector_events": 2,
+    "candles": 0,
+    "predictions": 0,
+    "markets": 0,
+    "snapshots": 0,
+    "market_attempts": 0,
+    "official_outcomes": 0,
+    "checkpoints": 0
+  },
+  "shadow_preflight_events": [
+    {
+      "observed_at_utc": "2026-10-23T18:46:51.080680+00:00",
+      "event_type": "network_preflight",
+      "payload": {
+        "binance": {
+          "status_code": 200,
+          "transport_ok": true,
+          "url": "https://fapi.binance.com/fapi/v1/time"
+        },
+        "clob": {
+          "error": "ConnectionError: HTTPSConnectionPool(host='clob.polymarket.com', port=443): Max retries exceeded with url: /book?token_id=0 (Caused by NameResolutionError(\"HTTPSConnection(host='clob.polymarket.com', port=443): Failed to resolve 'clob.polymarket.com' ([Errno 11002] getaddrinfo failed)\"))",
+          "transport_ok": false,
+          "url": "https://clob.polymarket.com/book?token_id=0"
+        },
+        "gamma": {
+          "error": "ConnectionError: HTTPSConnectionPool(host='gamma-api.polymarket.com', port=443): Max retries exceeded with url: /markets/slug/btc-updown-5m-1792781400 (Caused by NameResolutionError(\"HTTPSConnection(host='gamma-api.polymarket.com', port=443): Failed to resolve 'gamma-api.polymarket.com' ([Errno 11002] getaddrinfo failed)\"))",
+          "transport_ok": false,
+          "url": "https://gamma-api.polymarket.com/markets/slug/btc-updown-5m-1792781400"
+        }
+      }
+    },
+    {
+      "observed_at_utc": "2026-10-23T18:54:05.210786+00:00",
+      "event_type": "network_preflight",
+      "payload": {
+        "binance": {
+          "status_code": 200,
+          "transport_ok": true,
+          "url": "https://fapi.binance.com/fapi/v1/time"
+        },
+        "clob": {
+          "error": "ConnectionError: HTTPSConnectionPool(host='clob.polymarket.com', port=443): Max retries exceeded with url: /book?token_id=0 (Caused by NameResolutionError(\"HTTPSConnection(host='clob.polymarket.com', port=443): Failed to resolve 'clob.polymarket.com' ([Errno 11002] getaddrinfo failed)\"))",
+          "transport_ok": false,
+          "url": "https://clob.polymarket.com/book?token_id=0"
+        },
+        "gamma": {
+          "error": "ConnectionError: HTTPSConnectionPool(host='gamma-api.polymarket.com', port=443): Max retries exceeded with url: /markets/slug/btc-updown-5m-1792781700 (Caused by NameResolutionError(\"HTTPSConnection(host='gamma-api.polymarket.com', port=443): Failed to resolve 'gamma-api.polymarket.com' ([Errno 11002] getaddrinfo failed)\"))",
+          "transport_ok": false,
+          "url": "https://gamma-api.polymarket.com/markets/slug/btc-updown-5m-1792781700"
+        }
+      }
+    }
+  ],
+  "not_recomputed": [
+    "historical numerical metrics",
+    "bootstrap intervals",
+    "source raw-data checksums",
+    "full archive coverage",
+    "full-pipeline OOS validation",
+    "real exchange execution"
+  ],
+  "current_claim_sources": {
+    "attribution_validation": {
+      "prediction_rows": 133340,
+      "official_rows": 79650,
+      "gamma_matched_prediction_rows": 79678,
+      "official_outcome_price_one_hot_rows": 79650,
+      "exact_market_start_timing_rows": 133340,
+      "exact_t60_timing_rows": 133340,
+      "matched_gamma_series_10684_rows": 79678,
+      "matched_gamma_slug_epoch_aligned_rows": 79678,
+      "matched_gamma_event_start_aligned_rows": 79678,
+      "binance_windows_with_all_five_candles": 133340,
+      "binance_target_reconstruction_matches_saved": 133340,
+      "exact_binance_return_ties": 5,
+      "official_label_exclusion_reasons": {
+        "not_closed_or_no_resolution_time": 14,
+        "ambiguous_outcomes_or_prices": 13,
+        "nonbinary_or_ambiguous_outcome_prices": 1
+      },
+      "target_mismatch_counts_by_period": {
+        "confirmation": 1980,
+        "holdout": 2213
+      },
+      "target_mismatch_rates_by_period": {
+        "confirmation": 0.03849893058526152,
+        "holdout": 0.07841956059532247
+      },
+      "quality_decomposition_rows_sum_to_full_delta": true,
+      "economic_accounting_identities_pass": true,
+      "t60_prediction_runtime_availability": "not archived; no timestamp synthesized",
+      "official_chainlink_price_prints": "not present in saved Gamma/market-match artifacts"
+    },
+    "dynamic_prefit_gate": {
+      "evaluation_days_gate_pass": true,
+      "evaluation_market_count": 637,
+      "evaluation_markets_gate_pass": false,
+      "evaluation_observed_day_count": 22,
+      "evaluation_recovered_markets_added": 4,
+      "folds": [
+        {
+          "evaluation_end_exclusive_utc": "2026-06-01T00:00:00+00:00",
+          "evaluation_market_count": 520,
+          "evaluation_observed_days": 12,
+          "evaluation_recovered_markets_added": 0,
+          "evaluation_start_utc": "2026-05-15T00:00:00+00:00",
+          "first_decision_at_utc": "2026-05-14T23:59:00+00:00",
+          "fold_id": 1,
+          "known_two_sided_q5_training_market_count": 908,
+          "q5_two_sided_minimum_met": false,
+          "recovered_q5_training_markets_added": 0,
+          "released_label_minimum_met": true,
+          "released_training_label_classes": [
+            0,
+            1
+          ],
+          "released_training_label_count": 1760
+        },
+        {
+          "evaluation_end_exclusive_utc": "2026-07-01T00:00:00+00:00",
+          "evaluation_market_count": 117,
+          "evaluation_observed_days": 10,
+          "evaluation_recovered_markets_added": 4,
+          "evaluation_start_utc": "2026-06-01T00:00:00+00:00",
+          "first_decision_at_utc": "2026-05-31T23:59:00+00:00",
+          "fold_id": 2,
+          "known_two_sided_q5_training_market_count": 1207,
+          "q5_two_sided_minimum_met": true,
+          "recovered_q5_training_markets_added": 0,
+          "released_label_minimum_met": true,
+          "released_training_label_classes": [
+            0,
+            1
+          ],
+          "released_training_label_count": 2279
+        }
+      ],
+      "minimum_evaluation_markets": 2000,
+      "minimum_evaluation_observed_days": 20,
+      "minimum_nonempty_evaluation_folds": 2,
+      "nonempty_evaluation_fold_count": 2,
+      "nonempty_folds_gate_pass": true,
+      "overall_prefit_gate_pass": false,
+      "q5_two_sided_training_gate_pass": false,
+      "released_label_gate_pass": true,
+      "scope": {
+        "economic_scores_or_returns_read_or_computed": false,
+        "evaluation_outcome_rows_materialized": 0,
+        "model_fit_started": false,
+        "post_cutoff_rows_materialized": 0
+      }
+    }
+  },
+  "test_warnings": [
+    "Pandas4Warning: deprecated copy argument, audit_feature_readiness.py:2968 and features/candle_features.py:941",
+    "ResourceWarning: unclosed sqlite3 connection"
+  ],
+  "git_initial": {
+    "branch": "audit/btc-dynamic-history-20261020",
+    "upstream": "origin/audit/btc-dynamic-history-20261020",
+    "ahead": 0,
+    "behind": 0,
+    "working_tree_clean": true,
+    "modified": [],
+    "staged": [],
+    "untracked_reported_by_git": [],
+    "unpushed_commits": [],
+    "available_commit_count": 262,
+    "tags": [],
+    "remote_heads": {
+      "audit/btc-dynamic-history-20261020": "cf885b0428e0c6041d471e6bca97597ff04dc4ec",
+      "main": "3d95f641288f57e5f7d4c9ed77c621b5f678daaf"
+    },
+    "release_query": {
+      "url": "https://api.github.com/repos/philipzabicki/5min_up_down_pred/releases?per_page=100",
+      "method": "GET via connected GitHub tool",
+      "result": []
+    }
+  },
+  "resource_snapshot": {
+    "cpu": "Intel Core i7-13650HX",
+    "physical_cores": 14,
+    "logical_processors": 20,
+    "physical_memory_kib": 66764484,
+    "initial_free_memory_kib": 46761236,
+    "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+    "gpu_total_mib": 8188,
+    "gpu_used_mib_sampled": 1602,
+    "disk_D_free_bytes_sampled": 157756440576,
+    "other_python_processes_present": true,
+    "processes_terminated": false,
+    "note": "Resource samples are not simultaneous and are not benchmark measurements."
+  },
+  "audited_source_sha256": {
+    "features/btc_preopen_contract.py": "111d2d794b4eb760e52fedeee22270858db981e613bef083898970b5efd5e61b",
+    "features/esn_reservoir.py": "274ea86d6d628e74be71899d8327016af6eda7fc13c6a3c2e6ba533661c63ff4",
+    "features/causal_memory_control.py": "a082c576e5ba8d0706e05d4a99937930558f68f453d24f48cf4481921e244c23",
+    "run.py": "95073d8711ccc95c4409c8f5bf12b52f31613fc446b81b292fbb412972d345fd",
+    "train_lgbm.py": "ebff24e29a8bcc947154d50b4971d457bf190b2b3581c0f8f3e4d8bbb70421a6",
+    "run_btc_candidate_quality_20261022.py": "6e60bee961457991db3384e8add5bebbcdf7b0c1c98c9ac15b534e697d6879ae",
+    "run_btc_candidate_holdout_20261022.py": "48acfa716464f40731c4be1a7cddcd6e939c34d7c79ad78a82dac0769bf45a1e",
+    "run_btc_candidate_shadow_20261023.py": "e70ba995117627aa810f8a4dbf665901ae7bb6b8a0b5afa007f3ba57621f0421",
+    "run_btc_esn_focused_20261022.py": "4c01184dbb7eb8055a39d9e050beabac2f282a8f59eec032d26c219a2cd871cd",
+    "run_btc_esn_expansion_20261021.py": "402053f5f31f9a83b984c4922b29409bdfd0b612ee254516ad468e35236aefe4",
+    "run_btc_esn_architecture_audit_20261020.py": "db5f538a3fff14c990bfb1007631672a6c019e18cc60aad1a149655b0e6aa6c0",
+    "run_btc_preopen_full_development_fit.py": "71592f71d603f0909c7cb9c33caee1f8d1a43dd559194bf5033173115fe521b8",
+    "run_btc_preopen_deployment_refit.py": "4d6353ac7883f2381db74eb5cc9f5fe60701cb4fe76470b74866d8aae2b2e585",
+    "run_btc_market_dynamics_action_value_20261020.py": "b1cea304a0e73340c7dace7de566f9151c363c7c72599dd5b19e1c9f5df8b5cf",
+    "utils/polymarket_btc5m_fee_rules.py": "9bbdce425e6014f407d79cc2a25ca2456a4d224255302eb008d76f8e111cab56",
+    "optimize_trade_policy.py": "0f4ea5fc93ac92b22d9e3c3d55a0df51644486f6059f8b283391315161d882f8",
+    "tests/test_btc_candidate_holdout_20261022.py": "4c7eb9f201aa84eafba669ef7e8d6457008e431fae52f4cda09c2ac1b92990e8",
+    "tests/test_run_multi_asset_latency.py": "512f9d6a98b8be6f094d24cd5da12569293f1b5efc838a63d7f6f69f9c772304",
+    "tests/test_optimize_trade_policy.py": "505c0168ce38b378cd7ea5cbbde7c1c1224ed530e7b248cbec7b26bd01a6f5a8",
+    "configs/research/btc_candidate_shadow_20261023.json": "2cffa6e93a801197a4ecea7d7bab5256cf73476ff002abb9155f18e7d5c1657c",
+    "configs/research/btc_candidate_holdout_gate_20261022.json": "17c738692df5727a6eebf016c476b3c76f2594fdc9519938a4c95112bcbac2c5",
+    "configs/runtime/active.json": "940741b1edb75cb34e8a78b3cb7710c3ca9a8b1db524455f4b2753b8088c9f17",
+    "configs/live.json": "00adc6d06b48a7426fe925b2feeba5f29a21bf15c52cd308b14b40bff9b957ef"
+  },
+  "specific_diagnostics": {
+    "submit_success_fixture_error": "'PolymarketLiveTrader' object has no attribute 'pm_user_trade_monitor'",
+    "slippage_assertion": {
+      "expected": 3,
+      "current_module_constant": 2
+    },
+    "shadow_readiness_deadline": "T-60",
+    "generic_preopen_prediction_deadline": "T-59",
+    "deadline_equivalence": "UNRESOLVED: T0007",
+    "esn_state_mutation_chain": [
+      "candidate checkpoint test",
+      "quality._configure_source_run",
+      "focused._configure_engines",
+      "expansion.CONFIG and shared architecture engine globals reassigned"
+    ]
+  },
+  "documentation_checks": {
+    "local_markdown_links_checked": 180,
+    "missing_local_links": 0,
+    "root_experiment_records": 34,
+    "decision_records": 15,
+    "task_records": 8,
+    "required_audit_sections": 14,
+    "local_metadata_hashes_verified": 51,
+    "source_hashes_verified": 23,
+    "test_count_reconciliation": "PASS",
+    "secret_pattern_scan": "PASS",
+    "git_diff_check": "PASS",
+    "note": "Checks cover the nine audit paths; no full training/backtest rerun for documentation."
+  }
+}
