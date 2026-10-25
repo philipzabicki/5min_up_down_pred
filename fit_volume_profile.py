@@ -56,6 +56,10 @@ TARGET_TIME_COL = "Opened"
 TARGET_PRICE_COL = "Close"
 TARGET_COL = "target_5m_candle_up"
 TARGET_HORIZON_MINUTES = 5
+BTC_DEVELOPMENT_SPLIT_CONFIG_PATH = (
+    Path(__file__).resolve().parent
+    / "configs/research/btc_preopen_walk_forward_20261011.json"
+)
 
 MODELING_DATASET_SETTINGS = load_modeling_dataset_settings()
 BASE_DATA_PATH = Path(MODELING_DATASET_SETTINGS["raw_data_dir"]) / str(
@@ -439,9 +443,38 @@ def validate_development_target_boundary(
         )
 
 
+def validate_development_csv_input(data_path, development_cutoff_exclusive_utc):
+    with pd.read_csv(
+        data_path,
+        usecols=[TARGET_TIME_COL],
+        chunksize=250_000,
+    ) as reader:
+        for chunk in reader:
+            validate_development_target_boundary(
+                chunk[TARGET_TIME_COL], development_cutoff_exclusive_utc
+            )
+
+
+def development_cutoff_for_dataset(dataset_settings):
+    if str(dataset_settings.get("active_asset", "")).upper() == "BTC":
+        split_config = json.loads(
+            BTC_DEVELOPMENT_SPLIT_CONFIG_PATH.read_text(encoding="utf-8")
+        )
+        cutoff = split_config.get("development_cutoff_exclusive_utc")
+        if cutoff is None:
+            raise ValueError(
+                "BTC volume-profile optimization requires the frozen development cutoff"
+            )
+        return cutoff
+    return dataset_settings.get("development_cutoff_exclusive_utc")
+
+
 def load_base_ohlcv_frame(data_path, *, development_cutoff_exclusive_utc=None):
     if not data_path.exists():
         raise FileNotFoundError(f"Base dataset not found: {data_path}")
+
+    if development_cutoff_exclusive_utc is not None:
+        validate_development_csv_input(data_path, development_cutoff_exclusive_utc)
 
     required_columns = [TARGET_TIME_COL, *RAW_OHLCV_COLS]
     print(f"load raw data | path={data_path}")
@@ -472,7 +505,9 @@ def load_base_ohlcv_frame(data_path, *, development_cutoff_exclusive_utc=None):
         validate_development_target_boundary(
             opened,
             development_cutoff_exclusive_utc,
-            label_end_values=opened + pd.Timedelta(minutes=TARGET_HORIZON_MINUTES),
+            # Opened names each one-minute candle; its Close is available one
+            # minute after the timestamp of the future candle used by the label.
+            label_end_values=opened + pd.Timedelta(minutes=TARGET_HORIZON_MINUTES + 1),
             labeled_mask=df[TARGET_COL].notna().to_numpy(dtype=np.bool_, copy=False),
         )
     df = df[df[TARGET_COL].notna()].reset_index(drop=True)
@@ -1630,6 +1665,7 @@ def run_optuna_optimization():
     )
 
     dataset_settings = load_modeling_dataset_settings()
+    development_cutoff = development_cutoff_for_dataset(dataset_settings)
     base_vp_config = dataset_settings.get("volume_profile_fixed_range") or {}
     normalized_base_vp_config = normalize_volume_profile_config(base_vp_config)
     monotone_constraint_summary = summarize_lgbm_monotone_constraints(
@@ -1638,9 +1674,7 @@ def run_optuna_optimization():
 
     base_data = load_base_ohlcv_frame(
         BASE_DATA_PATH,
-        development_cutoff_exclusive_utc=MODELING_DATASET_SETTINGS.get(
-            "development_cutoff_exclusive_utc"
-        ),
+        development_cutoff_exclusive_utc=development_cutoff,
     )
     base_df = base_data["df"]
     filtered_rows = int(base_data["row_filter_info"]["rows_after"])

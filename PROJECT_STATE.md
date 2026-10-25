@@ -16,8 +16,8 @@ Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TAS
 
 ## Verified working
 
-- Full discovery at audited HEAD: **675 tests, 665 PASS, 2 FAIL, 8 ERROR, 0 SKIP, 0 XFAIL**, 51.735 s runner / 62.653 s wall. Only passing assertions verified; commands/failures: audit section 12.
-- ESN architecture and expansion modules pass in separate fresh processes (7/7 and 8/8); full-suite isolation is broken (T0001).
+- Full discovery at audited HEAD: **675 tests, 665 PASS, 2 FAIL, 8 ERROR, 0 SKIP, 0 XFAIL**, 51.735 s runner / 62.653 s wall. This is the preserved baseline; follow-up results below supersede its test status.
+- Follow-up on 2026-10-25: **680 tests, 680 PASS, 0 FAIL, 0 ERROR, 0 SKIP, 0 XFAIL**, 45.157 s, exit code 0 after fixes T0001-T0003.
 - Read-only candidate shadow SQLite: two preflight events, zero data/market/checkpoint rows (E0034).
 - Completed frozen scorer/period/approval/source records exist and were hashed; historical scores were not recomputed (E0030).
 
@@ -32,20 +32,20 @@ Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TAS
 
 - Complete independent nested pipeline validation is not established by conditional OOF or one-pass fitting (D0005/E0013).
 - Earlier model-update B stopped below its successful-trial minimum; no B holdout score (E0009).
-- Shadow has tests but no pilot/live latency. T-60 readiness cutoff differs from generic T-59 prediction deadline; feasibility unresolved (T0007).
+- Shadow timing code now uses the T-60 information cutoff and T-59 readiness deadline, retains actual event/receive/ready timestamps, and rejects late books; live timing remains unmeasured because endpoint preflight failed (T0007/T0004).
 - Deployment refit code exists; configured original holdout prerequisite/output absent (T0006).
 
-## Known broken
+## Cleared test failures
 
-- Full-suite ESN state/configuration isolation: 8 errors; isolated affected modules pass (T0001).
-- Optimizer test expects 3 slippage ticks while current module constant sets 2 (T0002).
-- Mocked successful submit test returns `submission_error`: its constructed trader lacks `pm_user_trade_monitor` (T0003). This does not prove a real exchange failure.
+- T0001 ESN shared-module state is restored after the candidate checkpoint test; suspect test order now passes.
+- T0002 stale test expectations were aligned to the fixed 2-tick code/runtime value; runtime policy was not changed.
+- T0003 fake submit fixture now matches real trader initialization. This was not a real exchange failure.
 - README names absent `optimize_lgbm_optuna.py` and `.python-version`; current optimizer is `optimize_lgbm_hyperparameters.py` (T0006).
 
 ## Blocked
 
 - Dynamic gate: 637/2,000 evaluation; fold1 $5 training 908/1,000; RAW timing provenance missing. No model result (E0024).
-- Shadow: saved DNS failures, zero windows; current connectivity not retried (T0004).
+- Shadow: bounded 2026-10-25 same-interpreter preflight reached Binance time (HTTP 200, valid schema) but Gamma and CLOB DNS resolution failed. No collector was started; pilot remains 0/3 (T0004).
 - Exact historical Chainlink TWAP access/coverage/cost and TWAP60 L2 missing; no acquisition authorized (T0005).
 
 ## Unknown / needs verification
@@ -70,6 +70,5 @@ Legacy market-open/Kacho, original fees/minimum units/T59 selection, interrupted
 
 ## Next recommended actions
 
-1. T0001-T0003: recover reliable test isolation and resolve the two persistent test discrepancies in a separate implementation task.
-2. T0007 then T0004: reconcile the readiness deadline, diagnose current public endpoint reachability and complete a no-order three-window pilot before claiming live collection or latency.
-3. T0005: verify exact historical TWAP/L2 source access, identity, coverage and cost before any separately authorized acquisition.
+1. T0004/T0007: after Gamma/CLOB DNS access is restored, rerun bounded schema preflight and complete the frozen no-order three-window pilot; collect real receipt/compute/book timing before closing T0007.
+2. T0005: verify exact historical TWAP/L2 source access, identity, coverage and cost before any separately authorized acquisition.

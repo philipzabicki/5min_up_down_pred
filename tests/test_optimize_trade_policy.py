@@ -239,7 +239,7 @@ class OptimizeTradePolicyTests(unittest.TestCase):
         self.assertTrue(summary["runtime_config_saved"])
         self.assertIn(runtime_path, saved_paths)
         self.assertEqual(summary["asset"], "ETH")
-        self.assertEqual(summary["fixed_params"]["submitted_price_slippage_ticks"], 3)
+        self.assertEqual(summary["fixed_params"]["submitted_price_slippage_ticks"], 2)
         self.assertNotIn("submitted_price_slippage_ticks", summary["search_space"])
         self.assertEqual(
             saved_runtime["assets"]["BTC"]["submitted_price_slippage_ticks"],
@@ -248,7 +248,7 @@ class OptimizeTradePolicyTests(unittest.TestCase):
         self.assertAlmostEqual(saved_runtime["assets"]["BTC"]["extra_buffer"], 0.01)
         self.assertEqual(
             saved_runtime["assets"]["ETH"]["submitted_price_slippage_ticks"],
-            3,
+            2,
         )
         self.assertAlmostEqual(
             saved_runtime["assets"]["ETH"]["extra_buffer"],

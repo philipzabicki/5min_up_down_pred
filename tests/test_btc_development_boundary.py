@@ -65,7 +65,7 @@ class VolumeProfileDevelopmentBoundaryTests(unittest.TestCase):
         opened = pd.DatetimeIndex(
             ["2026-06-01T00:04:00Z", "2026-06-01T00:05:00Z"]
         )
-        ends = opened + pd.Timedelta(minutes=5)
+        ends = opened + pd.Timedelta(minutes=6)
         validate_development_target_boundary(
             opened,
             cutoff,
@@ -85,6 +85,14 @@ class VolumeProfileDevelopmentBoundaryTests(unittest.TestCase):
                 label_end_values=ends + pd.Timedelta(seconds=1),
                 labeled_mask=[False, True],
             )
+
+    def test_btc_optimizer_cutoff_comes_from_frozen_walk_forward_config(self):
+        from fit_volume_profile import development_cutoff_for_dataset
+
+        self.assertEqual(
+            development_cutoff_for_dataset({"active_asset": "BTC"}),
+            "2026-07-01T00:00:00Z",
+        )
 
     def test_modeling_target_builder_rejects_a_finite_label_past_cutoff(self):
         opened = pd.date_range("2026-06-01T16:40:00Z", periods=15, freq="min")

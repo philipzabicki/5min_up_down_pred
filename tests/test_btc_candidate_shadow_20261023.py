@@ -2,6 +2,7 @@ import ast
 import json
 import sqlite3
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,12 +21,37 @@ class TestBtcCandidateShadow20261023(unittest.TestCase):
     def test_market_timing_and_late_prediction_keep_actual_readiness(self):
         timing = shadow.market_timing("2026-10-23T12:00:00Z")
         self.assertEqual(timing["decision_deadline_utc"], pd.Timestamp("2026-10-23T11:59:00Z"))
+        self.assertEqual(timing["decision_information_cutoff_utc"], pd.Timestamp("2026-10-23T11:59:00Z"))
+        self.assertEqual(timing["prediction_ready_deadline_utc"], pd.Timestamp("2026-10-23T11:59:01Z"))
         self.assertEqual(timing["execution_snapshot_utc"], pd.Timestamp("2026-10-23T11:59:01Z"))
         self.assertEqual(timing["input_opened_utc"], pd.Timestamp("2026-10-23T11:58:00Z"))
-        late = shadow.prediction_timeliness("2026-10-23T11:59:00.250Z", timing["decision_deadline_utc"])
+        on_time = shadow.prediction_timeliness(
+            timing["prediction_ready_deadline_utc"], timing["prediction_ready_deadline_utc"]
+        )
+        self.assertTrue(on_time["timely"])
+        late = shadow.prediction_timeliness(
+            "2026-10-23T11:59:01.250Z", timing["prediction_ready_deadline_utc"]
+        )
         self.assertFalse(late["timely"])
         self.assertAlmostEqual(late["lateness_seconds"], 0.25)
-        self.assertTrue(shadow.prediction_timeliness(timing["decision_deadline_utc"], timing["decision_deadline_utc"])["timely"])
+        self.assertEqual(late["ready_at_utc"], pd.Timestamp("2026-10-23T11:59:01.250Z"))
+
+    def test_prediction_rejects_input_candle_closing_after_t60_cutoff(self):
+        market_start = pd.Timestamp("2030-01-01T00:05:00Z")
+        input_opened = market_start - pd.Timedelta(minutes=2)
+        timing = shadow.market_timing(market_start)
+        source_metadata = {
+            "price_candle_close_at_utc": timing["decision_information_cutoff_utc"].isoformat(),
+            "volume_candle_close_at_utc": (
+                timing["decision_information_cutoff_utc"] + pd.Timedelta(milliseconds=1)
+            ).isoformat(),
+        }
+        with self.assertRaisesRegex(ValueError, "closed after the T-60 information cutoff"):
+            shadow._predict_market(
+                None,
+                SimpleNamespace(opened_candles=[input_opened]),
+                {}, {}, [], market_start, input_opened, input_opened, source_metadata,
+            )
 
     def test_up_down_mapping_is_explicit_and_rejects_ambiguity(self):
         market = {"outcomes": '["Down", "Up"]', "clobTokenIds": '["down-id", "up-id"]'}
@@ -63,6 +89,18 @@ class TestBtcCandidateShadow20261023(unittest.TestCase):
         }
         ensembles = {candidate: np.asarray([0.5 + index / 100], dtype=np.float64)
                      for index, candidate in enumerate("ABCD")}
+        timing_close = (
+            shadow.market_timing(market_start)["decision_information_cutoff_utc"]
+            - pd.Timedelta(milliseconds=1)
+        ).isoformat()
+        source_metadata = {
+            "price_event_at_utc": (input_opened + pd.Timedelta(minutes=1)).isoformat(),
+            "volume_event_at_utc": (input_opened + pd.Timedelta(minutes=1)).isoformat(),
+            "price_received_at_utc": (input_opened + pd.Timedelta(minutes=1)).isoformat(),
+            "volume_received_at_utc": (input_opened + pd.Timedelta(minutes=1)).isoformat(),
+            "price_candle_close_at_utc": timing_close,
+            "volume_candle_close_at_utc": timing_close,
+        }
         runtime = {
             "base_order": order,
             "last_memory": np.zeros(8),
@@ -77,7 +115,12 @@ class TestBtcCandidateShadow20261023(unittest.TestCase):
              mock.patch.object(shadow.candidates, "ensemble_predictions", return_value=ensembles):
             result = shadow._predict_market(
                 connection, predictor, runtime, {}, order, market_start, input_opened,
-                input_opened + pd.Timedelta(minutes=1), {},
+                input_opened + pd.Timedelta(minutes=1), source_metadata,
+                input_received_monotonic=time.monotonic(),
+                source_received_monotonic={
+                    "price": time.monotonic() - 0.01,
+                    "volume": time.monotonic(),
+                },
             )
         stored = connection.execute(
             "SELECT timely,members_json,ensembles_json FROM predictions WHERE market_start_utc=?",
@@ -86,6 +129,11 @@ class TestBtcCandidateShadow20261023(unittest.TestCase):
         self.assertIsNotNone(stored)
         self.assertTrue(result["timely"])
         self.assertTrue(bool(stored[0]))
+        self.assertEqual(
+            result["timings"]["prediction_ready_deadline_utc"],
+            "2030-01-01T00:04:01+00:00",
+        )
+        self.assertGreaterEqual(result["timings"]["input_to_ready_seconds"], 0.0)
         self.assertEqual(json.loads(stored[1])["D"]["member"], 0.53)
         self.assertEqual(json.loads(stored[2])["D"], 0.53)
         connection.close()
@@ -119,6 +167,46 @@ class TestBtcCandidateShadow20261023(unittest.TestCase):
         self.assertFalse(result["down"]["priceable"])
         self.assertEqual(result["up"]["reason"], "snapshot_quality_invalid")
         self.assertEqual(result["up"]["token_id"], "up-id")
+
+    def test_execution_check_rejects_snapshot_received_after_t59(self):
+        metadata = {"tokens": {"up": "up-id", "down": "down-id"}, "fee_model": {"rate": 0.07, "exponent": 1}}
+        book = {
+            "ask_levels": [{"price": "0.50", "size": "20"}],
+            "book_timestamp_age_seconds": 0.1,
+            "book_timestamp_utc": "2026-10-23T11:59:00.900Z",
+            "received_at_utc": "2026-10-23T11:59:01.250Z",
+        }
+        snapshot = {"quote_valid": True, "up_book": book, "down_book": book}
+        result = shadow._execution_checks(snapshot, metadata, "2026-10-23T12:00:00Z")
+        self.assertFalse(result["up"]["priceable"])
+        self.assertEqual(result["up"]["reason"], "snapshot_received_after_execution_deadline")
+        self.assertEqual(result["up"]["actual_fill"], "unknown")
+        self.assertEqual(result["up"]["book_received_at_utc"], book["received_at_utc"])
+
+    def test_execution_check_keeps_missing_books_unpriceable(self):
+        metadata = {"tokens": {"up": "up-id", "down": "down-id"}, "fee_model": {"rate": 0.07, "exponent": 1}}
+        result = shadow._execution_checks(
+            {"quote_valid": True, "up_book": None, "down_book": None},
+            metadata,
+            "2026-10-23T12:00:00Z",
+        )
+        self.assertEqual(result["up"]["reason"], "book_unavailable")
+        self.assertFalse(result["up"]["priceable"])
+
+    def test_repeated_market_attempt_replaces_the_same_window(self):
+        connection = shadow._connect(Path(":memory:"))
+        market_start = pd.Timestamp("2026-10-23T12:00:00Z")
+        shadow._failed_market_attempt(connection, market_start, "first_failure", "first")
+        shadow._failed_market_attempt(connection, market_start, "retry_failure", "retry")
+        self.assertEqual(
+            connection.execute("SELECT COUNT(*) FROM market_attempts").fetchone()[0],
+            1,
+        )
+        self.assertEqual(
+            connection.execute("SELECT status FROM market_attempts").fetchone()[0],
+            "retry_failure",
+        )
+        connection.close()
 
     def test_candle_duplicate_keeps_the_second_raw_provenance_event(self):
         with tempfile.TemporaryDirectory() as temp_dir:

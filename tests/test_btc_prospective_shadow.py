@@ -99,11 +99,11 @@ class ProspectiveShadowTests(unittest.TestCase):
         event = opened + 60000
         price = {
             "e": "indexPrice_kline", "E": event, "ps": "BTCUSD",
-            "k": {"t": opened, "o": "60000", "h": "60100", "l": "59900", "c": "60050", "n": 12, "x": True},
+            "k": {"t": opened, "T": opened + 59999, "o": "60000", "h": "60100", "l": "59900", "c": "60050", "n": 12, "x": True},
         }
         volume = {
             "e": "kline", "E": event, "k": {
-                "t": opened, "s": "BTCUSDT", "o": "60001", "h": "60101",
+                "t": opened, "T": opened + 59999, "s": "BTCUSDT", "o": "60001", "h": "60101",
                 "l": "59901", "c": "60051", "v": "123.5", "x": True,
             },
         }
@@ -120,6 +120,11 @@ class ProspectiveShadowTests(unittest.TestCase):
         self.assertEqual(rows[0]["source_metadata"]["source"], "binance_public_websocket")
         self.assertIn("price_received_at_utc", rows[0]["source_metadata"])
         self.assertIn("volume_received_at_utc", rows[0]["source_metadata"])
+        expected_close = prospective._iso(pd.to_datetime(opened + 59999, unit="ms", utc=True))
+        self.assertEqual(rows[0]["source_metadata"]["price_candle_close_at_utc"], expected_close)
+        self.assertEqual(rows[0]["source_metadata"]["volume_candle_close_at_utc"], expected_close)
+        self.assertIsInstance(rows[0]["received_monotonic"], float)
+        self.assertEqual(set(rows[0]["source_received_monotonic"]), {"price", "volume"})
         self.assertIsNone(rows[0]["source_metadata"]["quote_volume"])
         self.assertIsNone(rows[0]["source_metadata"]["taker_buy_quote_volume"])
 

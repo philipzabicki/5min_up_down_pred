@@ -145,6 +145,13 @@ class PublicBtcCandleFeed:
         except (KeyError, TypeError, ValueError, OverflowError):
             return None
 
+    @staticmethod
+    def _candle_close_time(kline):
+        try:
+            return _iso(pd.to_datetime(int(kline["T"]), unit="ms", utc=True))
+        except (KeyError, TypeError, ValueError, OverflowError):
+            return None
+
     def _handle_message(self, target, message):
         data = live_runtime._load_ws_payload(message)
         if not isinstance(data, dict):
@@ -154,7 +161,9 @@ class PublicBtcCandleFeed:
             return
         opened = _utc(pd.to_datetime(int(kline["t"]), unit="ms", utc=True))
         received = _iso()
+        received_monotonic = time.monotonic()
         event_at = self._event_time(data)
+        candle_close_at = self._candle_close_time(kline)
         label = target["label"]
         self._update_status(
             label, last_message_at_utc=received,
@@ -178,13 +187,16 @@ class PublicBtcCandleFeed:
                 "t": int(kline["t"]), "o": float(kline["o"]),
                 "h": float(kline["h"]), "l": float(kline["l"]),
                 "c": float(kline["c"]), "v": price_volume,
-                "event_at_utc": event_at, "received_at_utc": received,
+                "event_at_utc": event_at, "candle_close_at_utc": candle_close_at,
+                "received_at_utc": received, "received_monotonic": received_monotonic,
             }
             if live_runtime.VOLUME_SOURCE == live_runtime.PRICE_SOURCE:
                 self._emit(opened, price, {
                     "volume": price["v"], "auxiliary_ohlc": {},
                     "event_at_utc": price["event_at_utc"],
+                    "candle_close_at_utc": price["candle_close_at_utc"],
                     "received_at_utc": price["received_at_utc"],
+                    "received_monotonic": price["received_monotonic"],
                 })
             else:
                 with self.lock:
@@ -199,7 +211,8 @@ class PublicBtcCandleFeed:
                 "quote_volume": float(kline["q"]) if kline.get("q") is not None else None,
                 "taker_buy_quote_volume": float(kline["Q"]) if kline.get("Q") is not None else None,
                 "auxiliary_ohlc": live_runtime._extract_live_auxiliary_ohlc_from_kline(kline),
-                "event_at_utc": event_at, "received_at_utc": received,
+                "event_at_utc": event_at, "candle_close_at_utc": candle_close_at,
+                "received_at_utc": received, "received_monotonic": received_monotonic,
             }
             with self.lock:
                 self.pending_volume[opened] = volume
@@ -224,11 +237,17 @@ class PublicBtcCandleFeed:
         received = max(
             _utc(price["received_at_utc"]), _utc(volume["received_at_utc"])
         )
+        source_received_monotonic = {
+            "price": price.get("received_monotonic"),
+            "volume": volume.get("received_monotonic"),
+        }
         metadata = {
             "source": "binance_public_websocket",
             "price_event_at_utc": price.get("event_at_utc"),
+            "price_candle_close_at_utc": price.get("candle_close_at_utc"),
             "price_received_at_utc": price["received_at_utc"],
             "volume_event_at_utc": volume.get("event_at_utc"),
+            "volume_candle_close_at_utc": volume.get("candle_close_at_utc"),
             "volume_received_at_utc": volume["received_at_utc"],
             "quote_volume": volume.get("quote_volume"),
             "taker_buy_quote_volume": volume.get("taker_buy_quote_volume"),
@@ -237,7 +256,15 @@ class PublicBtcCandleFeed:
             "volume_stream": live_runtime.VOLUME_STREAM_NAME,
         }
         try:
-            self.rows.put_nowait({"row": record, "received_at_utc": _iso(received), "source_metadata": metadata})
+            self.rows.put_nowait({
+                "row": record,
+                "received_at_utc": _iso(received),
+                "received_monotonic": max(
+                    value for value in source_received_monotonic.values() if value is not None
+                ),
+                "source_received_monotonic": source_received_monotonic,
+                "source_metadata": metadata,
+            })
         except queue_module.Full:
             with self.lock:
                 state = self.status.setdefault("feed", {})

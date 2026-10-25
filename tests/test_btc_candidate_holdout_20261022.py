@@ -319,6 +319,11 @@ class TestBtcCandidateHoldout20261022(unittest.TestCase):
         from features.causal_memory_control import CausalMemoryState
         from features.esn_reservoir import ESNEngine, FeatureScaler, INPUT_COLUMNS
         import run_btc_candidate_quality_20261022 as quality
+        import run_btc_esn_expansion_20261021 as expansion
+        import run_btc_esn_focused_20261022 as focused
+
+        for module in (focused, expansion, expansion.engine_runner):
+            self.enterContext(patch.dict(module.__dict__))
 
         _, arrays = quality._configure_source_run()
         candidate_id, _, _, _, details = quality._load_frozen_inputs(arrays)

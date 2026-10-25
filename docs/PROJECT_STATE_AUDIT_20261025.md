@@ -302,7 +302,7 @@ Read-only metadata evidence generation used Python `Path.read_bytes`/SHA-256 on 
 
 Documentation acceptance checks passed: 180 local Markdown links, zero missing targets; 34 root experiment records (plus explicit variants), 15 decision records, 8 task records, all 14 required report sections; JSON parsing, 51 present local metadata hashes and 23 unchanged source/config/test hashes; test-count reconciliation, secret-pattern scan and `git diff --check`. Largest new file is about 54 KB. Final staged-diff/whitespace review precedes the focused commit. Diagnostic shell quoting was corrected after one search expanded outside its intended scope; it was stopped, produced no implementation changes and its unrelated output is not used as audit evidence.
 
-## 13. Git changes made by this audit
+## 13. Git changes made by the original recovery audit
 
 Only these intended paths belong in the audit commit:
 
@@ -316,12 +316,46 @@ Only these intended paths belong in the audit commit:
 - `README.md` (current-state navigation only).
 - `docs/BTC_RESEARCH_STATUS_20261010.md` (current-state/supersession notice, old history retained).
 
-No source algorithm, feature definition, data split, model, runtime trading setting, test, raw data or earlier result changed. Temp unittest logs stay outside Git. The normal push is required by the existing AGENTS Git rules; only the new audit commit may be pushed, after checking outgoing commits. No merge/release/deployment/order is authorized.
+The original recovery commit changed no source algorithm, feature definition, data split, model, runtime trading setting, test, raw data or earlier result. Temp unittest logs stay outside Git. The normal push was required by the existing AGENTS Git rules; only the recovery commit was pushed then. No merge/release/deployment/order was authorized.
 
-## 14. Recommended next tasks
+## 14. Recommended next tasks at recovery (historical)
 
 1. T0001-T0003: repair full-suite state isolation and resolve the two persistent discrepancies in separately scoped implementation work, preserving model/experiment semantics.
 2. T0007 -> T0004: resolve nominal decision vs actual readiness deadline, then verify public connectivity and complete a three-window no-order pilot with actual timing and failure denominators.
 3. T0005: independently verify exact historical TWAP feed/L2 identity, coverage, entitlement and cost before any separately authorized acquisition/reconstruction. Do not repeat old tuning or relax failed gates to conceal missing data.
 
 T0006 is a smaller reproducibility/documentation prerequisite before using legacy training/refit instructions. No new milestone or experiment is automatically started by this list.
+
+## 15. Continuation on 2026-10-25
+
+Starting point was branch `audit/btc-dynamic-history-20261020`, HEAD `d9e8417b116c61123641df066c56750cf5c617b5`, tracking `origin/audit/btc-dynamic-history-20261020`, with a clean worktree. This continuation used existing T0001-T0007 and D0001-D0014. No holdout evaluation, training, Optuna, feature selection, replay, paid acquisition, account creation, order, or model activation was performed.
+
+### T0001-T0003 test failures
+
+| Task | Cause established from source/history | Scoped correction | Validation |
+|---|---|---|---|
+| T0001 | Candidate checkpoint test called `_configure_source_run`, whose `focused._configure_engines` replaces shared ESN architecture/expansion globals and callbacks. Fresh ESN tests passed 15/15; running the candidate checkpoint test first reproduced the eight errors; reversing order passed. | The test now restores the focused, expansion, and expansion engine-runner module dictionaries with `patch.dict` cleanup. | Candidate checkpoint followed by ESN module tests passed 16/16. |
+| T0002 | `SUBMITTED_PRICE_SLIPPAGE_TICKS` and active per-asset runtime config are 2; Git history introduced the constant and test expectation of 3 together. | Corrected only stale test expectations to the authoritative fixed value 2. | `tests.test_optimize_trade_policy`: 6/6 PASS. No runtime/search setting changed. |
+| T0003 | The `__new__` fake trader omitted `pm_user_trade_monitor`, which real `PolymarketLiveTrader.__init__` sets to `None`. | Initialized that fixture field; kept mocked call/identity/timestamp assertions. | `tests.test_run_multi_asset_latency`: 15/15 PASS. No client/order invoked. |
+
+`tests.test_btc_development_boundary`: 5/5 PASS. `tests.test_btc_candidate_shadow_20261023`: 14/14 PASS. `tests.test_btc_prospective_shadow`: 19/19 PASS. The final direct full command `python -m unittest discover -s tests -v` completed with exit code 0: **680 tests, 680 PASS, 0 FAIL, 0 ERROR, 0 SKIP, 0 XFAIL**, 45.157 seconds. An initial PowerShell `Select-Object` pipeline run printed `OK` but reported wrapper exit 1; the direct command was repeated to settle that status discrepancy and exited 0.
+
+### VP protected-input check
+
+The active BTC modeling settings have no development cutoff, and the prior standalone `run_optuna_optimization()` passed that missing value into the loader. The raw path resolves to `data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv`; it is 323,586,300 bytes. A bounded 250,000-row-at-a-time scan read only `Opened`: 3,321,148 timestamps from `2020-06-09T09:33Z` to `2026-10-02T18:00Z`, including 135,001 at/after the exclusive `2026-07-01T00:00:00Z` cutoff. SHA-256 `0a97ce5f4c2d57f6788e112c432b55b41e71be246efc5cc37cb12e8b26e2a1d9` matches the existing manifest. No feature/OHLC columns from protected rows were inspected.
+
+The BTC VP path now loads its cutoff from the frozen `btc_preopen_walk_forward_20261011.json` split config and scans only `Opened` in bounded chunks before reading model columns. The boundary uses the existing VP target builder: a row compares current `Close` with `Close[Opened+5m]`; that future minute candle close becomes available at `Opened+6m`. Synthetic boundary tests cover this. Calling the loader on the current mixed-period file rejects at the first timestamp `2026-07-01T00:00:00Z`; no Optuna call or study resume occurred. This establishes present-path protection. Evidence that a historical VP optimization actually consumed protected rows, or that a result propagated into a named model/feature set, remains **UNKNOWN**; absence of a run log is not proof of safety.
+
+### T0007 timing and T0004 preflight
+
+Source authority is D0003 plus the binding contract and `features/btc_preopen_contract.py`: T-60 is the information cutoff; actual receipt/features/prediction can complete by T-59 within the one-second budget; T-59 is only the already-decided hypothetical execution check. Candidate shadow now requires both Binance kline close events to be no later than T-60, retains actual source/event/receive/ready UTC times, measures durations with the monotonic clock, and marks prediction ready through T-59. A book missing local receipt time or received/source-timestamped after the T-60/T-59 cutoff cannot be priced as if available earlier. Late windows retain their actual times and reasons.
+
+The bounded same-interpreter preflight at `2026-10-25T22:44:41.910015Z` got Binance `/fapi/v1/time` HTTP 200 in 0.494 s with a valid integer `serverTime`. The next Gamma slug was for `2026-10-25T22:45:00Z`; DNS resolution failed for `gamma-api.polymarket.com`. A separate public CLOB book reachability probe failed DNS for `clob.polymarket.com` in 0.084 s. Thus current market identity/token mapping and valid CLOB book schema were not obtainable. No collector was started, no substitute window was selected, and no retry loop was run. The shadow DB was checked read-only: two existing preflight events and zero candles/markets/snapshots/predictions/attempts/outcomes/checkpoints. Planned windows were 3; observed, complete, timing-qualified and resolved windows were each 0. Live receipt/compute/book timing, latency, eligibility feasibility, storage growth and outcomes remain **UNKNOWN**. T0004 remains BLOCKED; T0007 code/tests are aligned to the contract, but its live evidence acceptance is pending T0004.
+
+### T0005 and protected invariants
+
+The existing source matrix was rechecked without external acquisition. PMXT ends 2026-08-10, before TWAP60 starts August 14. Vike's BTC/5m target-family layout omits Aug 14-21 and the reviewed mixed route estimates 101.88 GB behind a free API key. PMData's account/key and 3,888 reported quota units for 54 daily BTC 5m L2 archives remain unverified against an account. Marketlens target-period coverage and exact Pro price remain UNKNOWN. Public CLOB `/book` is a current snapshot source, not historical full-depth event history. Official Chainlink price-report reconstruction remains missing. No purchase/download was made.
+
+Dynamic-history counts remain `637/2,000` evaluation markets and `908/1,000` fold-1 two-sided $5 training markets before RAW timing eligibility; these are not qualifying gate counts. `prediction_available_at_utc` remains missing in `318,560/318,560` RAW OOF rows, so current qualified RAW availability remains 0 and D0011 stays closed. No thresholds, folds, sample periods or availability timestamps changed.
+
+The frozen A/B/C/D members, data splits, labels, fee/accounting settings, runtime trading configuration and holdout records were not modified. The only timing change clarifies D0003 in the dedicated no-order collector; actual fills remain UNKNOWN. Existing source/pilot report and E0034 record carry the endpoint blocker. No full-replay or economic claim follows from these repairs.

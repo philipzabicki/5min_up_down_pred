@@ -72,20 +72,24 @@ def _canonical_hash(value) -> str:
 
 def market_timing(market_start) -> dict:
     start = _utc(market_start)
+    decision_deadline = start - pd.Timedelta(seconds=60)
+    execution_snapshot = start - pd.Timedelta(seconds=59)
     return {
         "market_start_utc": start,
-        "decision_deadline_utc": start - pd.Timedelta(seconds=60),
-        "execution_snapshot_utc": start - pd.Timedelta(seconds=59),
+        "decision_deadline_utc": decision_deadline,
+        "decision_information_cutoff_utc": decision_deadline,
+        "prediction_ready_deadline_utc": execution_snapshot,
+        "execution_snapshot_utc": execution_snapshot,
         "input_opened_utc": start - pd.Timedelta(minutes=2),
     }
 
 
-def prediction_timeliness(ready_at, decision_deadline) -> dict:
+def prediction_timeliness(ready_at, prediction_ready_deadline) -> dict:
     ready = _utc(ready_at)
-    deadline = _utc(decision_deadline)
+    deadline = _utc(prediction_ready_deadline)
     return {
         "ready_at_utc": ready,
-        "decision_deadline_utc": deadline,
+        "prediction_ready_deadline_utc": deadline,
         "timely": bool(ready <= deadline),
         "lateness_seconds": max(0.0, (ready - deadline).total_seconds()),
     }
@@ -524,11 +528,21 @@ def _flow_row(connection, opened):
 
 def _predict_market(
     connection, predictor, runtime, boosters, base_order, market_start,
-    input_opened, input_received, source_metadata,
+    input_opened, input_received, source_metadata, *, input_received_monotonic=None,
+    source_received_monotonic=None,
 ):
     timing = market_timing(market_start)
     if _utc(input_opened) != timing["input_opened_utc"]:
         raise ValueError("market signal input candle is not the frozen T-120 open")
+    candle_close_times = [
+        _utc(source_metadata[key])
+        for key in ("price_candle_close_at_utc", "volume_candle_close_at_utc")
+        if source_metadata.get(key)
+    ]
+    if len(candle_close_times) != 2:
+        raise ValueError("price and volume candle-close event times are required")
+    if max(candle_close_times) > timing["decision_information_cutoff_utc"]:
+        raise ValueError("input candle closed after the T-60 information cutoff")
     if pd.Timestamp(predictor.opened_candles[-1]) != timing["input_opened_utc"]:
         raise ValueError("BASE64 runtime is not synchronized to the exact decision candle")
     feature_started = _utc()
@@ -563,9 +577,9 @@ def _predict_market(
         tuple(sorted(runtime["esn_engines"])),
     )
     inference_elapsed = time.perf_counter() - inference_clock
+    ready_monotonic = time.monotonic()
     ready_at = _utc()
-    deadline = timing["decision_deadline_utc"]
-    timely = prediction_timeliness(ready_at, deadline)
+    timely = prediction_timeliness(ready_at, timing["prediction_ready_deadline_utc"])
     members = {name: {key: float(value[0]) for key, value in rows.items()} for name, rows in member_rows.items()}
     ensemble_values = {name: float(value[0]) for name, value in ensembles.items()}
     source_receipts = [
@@ -578,21 +592,35 @@ def _predict_market(
         for key in ("price_event_at_utc", "volume_event_at_utc")
         if source_metadata.get(key)
     ]
+    source_receipt_monotonic = [
+        float(source_received_monotonic[key])
+        for key in ("price", "volume")
+        if source_received_monotonic and source_received_monotonic.get(key) is not None
+    ]
     timings = {
         **dict(runtime.get("last_update_timings") or {}),
         "price_event_at_utc": source_metadata.get("price_event_at_utc"),
         "volume_event_at_utc": source_metadata.get("volume_event_at_utc"),
         "price_received_at_utc": source_metadata.get("price_received_at_utc"),
         "volume_received_at_utc": source_metadata.get("volume_received_at_utc"),
+        "price_candle_close_at_utc": source_metadata.get("price_candle_close_at_utc"),
+        "volume_candle_close_at_utc": source_metadata.get("volume_candle_close_at_utc"),
         "source_pair_receive_skew_seconds": (
-            (max(source_receipts) - min(source_receipts)).total_seconds()
-            if len(source_receipts) > 1 else 0.0
+            max(source_receipt_monotonic) - min(source_receipt_monotonic)
+            if len(source_receipt_monotonic) > 1 else None
         ),
         "latest_source_event_to_receive_seconds": (
             (max(source_receipts) - max(source_events)).total_seconds()
             if source_receipts and source_events else None
         ),
         "input_received_at_utc": _iso(input_received),
+        "decision_information_cutoff_utc": _iso(
+            timing["decision_information_cutoff_utc"]
+        ),
+        "prediction_ready_deadline_utc": _iso(
+            timing["prediction_ready_deadline_utc"]
+        ),
+        "planned_entry_at_utc": _iso(timing["execution_snapshot_utc"]),
         "feature_started_at_utc": _iso(feature_started),
         "feature_finished_at_utc": _iso(inference_started),
         "feature_seconds": feature_elapsed,
@@ -602,8 +630,13 @@ def _predict_market(
         "inference_started_at_utc": _iso(inference_started),
         "inference_finished_at_utc": _iso(ready_at),
         "inference_seconds": inference_elapsed,
-        "input_to_ready_seconds": max(0.0, (ready_at - _utc(input_received)).total_seconds()),
-        "decision_lateness_seconds": timely["lateness_seconds"],
+        "input_to_ready_seconds": (
+            max(0.0, ready_monotonic - float(input_received_monotonic))
+            if input_received_monotonic is not None else None
+        ),
+        "prediction_readiness_lateness_seconds": timely["lateness_seconds"],
+        "duration_clock": "time.monotonic",
+        "source_event_to_receive_delta_clock": "UTC wall clock; source/local clock offset unknown",
         "feature_nonfinite_columns": list(base_snapshot["nonfinite_feature_indices"]),
     }
     connection.execute(
@@ -741,6 +774,8 @@ def _apply_update(connection, predictor, runtime, update, *, allow_signal, persi
         _predict_market(
             connection, predictor, runtime, runtime["boosters"], runtime["base_order"],
             market_start, opened, update["received_at_utc"], update.get("source_metadata") or {},
+            input_received_monotonic=update.get("received_monotonic"),
+            source_received_monotonic=update.get("source_received_monotonic"),
         )
     except ValueError as exc:
         _event(connection, "prediction_unavailable", {
@@ -1034,6 +1069,7 @@ def _failed_market_attempt(connection, market_start, status, error):
     timings = {
         "failed_at_utc": _iso(),
         "decision_deadline_utc": _iso(timing["decision_deadline_utc"]),
+        "prediction_ready_deadline_utc": _iso(timing["prediction_ready_deadline_utc"]),
         "execution_snapshot_utc": _iso(timing["execution_snapshot_utc"]),
     }
     connection.execute(
@@ -1051,6 +1087,7 @@ def _failed_market_attempt(connection, market_start, status, error):
 
 def _execution_checks(snapshot, metadata, market_start):
     results = {}
+    execution_deadline = market_timing(market_start)["execution_snapshot_utc"]
     for side in ("up", "down"):
         book = snapshot.get(f"{side}_book")
         if not book:
@@ -1066,6 +1103,32 @@ def _execution_checks(snapshot, metadata, market_start):
                 "book_received_at_utc": book.get("received_at_utc"),
                 "book_timestamp_utc": book.get("book_timestamp_utc"),
                 "book_age_seconds": age,
+            }
+            continue
+        received_at = book.get("received_at_utc")
+        if received_at is None or _utc(received_at) > execution_deadline:
+            results[side] = {
+                "priceable": False,
+                "reason": (
+                    "book_receive_time_missing"
+                    if received_at is None
+                    else "snapshot_received_after_execution_deadline"
+                ),
+                "actual_fill": "unknown",
+                "token_id": str(metadata["tokens"][side]),
+                "book_received_at_utc": received_at,
+                "book_timestamp_utc": book.get("book_timestamp_utc"),
+            }
+            continue
+        book_event_at = book.get("book_timestamp_utc")
+        if book_event_at is not None and _utc(book_event_at) > execution_deadline:
+            results[side] = {
+                "priceable": False,
+                "reason": "book_event_after_execution_deadline",
+                "actual_fill": "unknown",
+                "token_id": str(metadata["tokens"][side]),
+                "book_received_at_utc": received_at,
+                "book_timestamp_utc": book_event_at,
             }
             continue
         levels = [(item["price"], item["size"]) for item in book.get("ask_levels", [])]
@@ -1132,7 +1195,7 @@ def _collect_market(connection, session, feed, predictor, runtime, market_start)
         for snapshot in (t60, t59) for side in ("up", "down")
     )
     if prediction_payload is None:
-        status = "prediction_unavailable_by_T-60"
+        status = "prediction_unavailable_by_T-59"
     elif not prediction_payload["timely"]:
         status = "prediction_ready_late"
     elif not full_books:
@@ -1144,6 +1207,12 @@ def _collect_market(connection, session, feed, predictor, runtime, market_start)
     timings = {
         "market_metadata_seconds": metadata_elapsed,
         "decision_deadline_utc": _iso(timing["decision_deadline_utc"]),
+        "decision_information_cutoff_utc": _iso(
+            timing["decision_information_cutoff_utc"]
+        ),
+        "prediction_ready_deadline_utc": _iso(
+            timing["prediction_ready_deadline_utc"]
+        ),
         "execution_snapshot_utc": _iso(timing["execution_snapshot_utc"]),
         "t60_book_seconds": t60["request_duration_seconds"],
         "t59_book_seconds": t59["request_duration_seconds"],
@@ -1157,7 +1226,23 @@ def _collect_market(connection, session, feed, predictor, runtime, market_start)
         ).total_seconds(),
         "t60_snapshot_quality_valid": bool(t60["quote_valid"]),
         "t59_snapshot_quality_valid": bool(t59["quote_valid"]),
+        "decision_snapshot_received_by_cutoff": bool(
+            t60.get("received_at_utc")
+            and _utc(t60["received_at_utc"]) <= timing["decision_information_cutoff_utc"]
+        ),
+        "execution_snapshot_received_by_entry": bool(
+            t59.get("received_at_utc")
+            and _utc(t59["received_at_utc"]) <= timing["execution_snapshot_utc"]
+        ),
         "prediction_timely": None if prediction_payload is None else prediction_payload["timely"],
+        "window_timing_qualified": bool(
+            prediction_payload is not None
+            and prediction_payload["timely"]
+            and t60.get("received_at_utc")
+            and _utc(t60["received_at_utc"]) <= timing["decision_information_cutoff_utc"]
+            and t59.get("received_at_utc")
+            and _utc(t59["received_at_utc"]) <= timing["execution_snapshot_utc"]
+        ),
         "full_depth_both_tokens_at_both_times": full_books,
     }
     connection.execute(

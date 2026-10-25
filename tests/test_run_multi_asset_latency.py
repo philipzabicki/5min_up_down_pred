@@ -291,6 +291,7 @@ class LiveSubmitTelemetryTests(unittest.TestCase):
         )
         trader.pm_client = object()
         trader.pm_cash_balance_usdc = 100.0
+        trader.pm_user_trade_monitor = None
         trader.live_trade_policy = {
             "submitted_price_mode": "entry_price",
             "submitted_price_slippage_ticks": 0,

@@ -104,3 +104,19 @@ For a single final look, the protocol selects the 2% MDE and the conservative ol
 - [PMData Polymarket history](https://pmdata.dev/docs/historical-data-details/polymarket), [API access and quotas](https://pmdata.dev/docs/api-reference), and [YES-only L2 FAQ](https://pmdata.dev/faq), checked 2026-10-23.
 - [Marketlens dataset](https://marketlens.trade/polymarket-dataset) and [public sample archive](https://github.com/marketlenstrade/polymarket-historical-data), checked 2026-10-23.
 - Polymarket [CLOB current order book](https://docs.polymarket.com/api-reference/market-data/get-order-book.md) and [historical price endpoint](https://docs.polymarket.com/api-reference/markets/get-prices-history.md), checked 2026-10-23.
+
+## 2026-10-25 continuation: timing correction and bounded preflight
+
+The binding timing interpretation remains D0003: source information cutoff at T-60, prediction readiness through T-59, and the T-59 book only tests execution of the already-fixed decision. The shadow collector now records Binance kline close event times separately from Binance event and local receive times; UTC timestamps remain durable, while elapsed durations and paired receive skew use `time.monotonic`. A prediction is eligible only when both input kline close events are no later than T-60 and actual prediction readiness is no later than T-59. A REST book with missing receipt time or source/receipt time after its T-60/T-59 boundary remains recorded but cannot be used to price that historical snapshot. No timestamps are backdated.
+
+Bounded public GET preflight in the repository interpreter, 2026-10-25 22:44 UTC:
+
+| Endpoint | Result | Schema/identity | Consequence |
+|---|---|---|---|
+| Binance `/fapi/v1/time` | HTTP 200 in 0.494 s | JSON object with integer `serverTime` | Passed transport/schema check |
+| Gamma next BTC 5m slug | DNS `NameResolutionError` for `gamma-api.polymarket.com` | No market/token/condition schema available | Pilot gate failed |
+| CLOB `/book?token_id=0` reachability probe | DNS `NameResolutionError` for `clob.polymarket.com` in 0.084 s | No HTTP response; no book schema available | Pilot gate failed |
+
+The Gamma lookup used the next scheduled five-minute market start, `2026-10-25T22:45:00Z`; request began at `22:44:41.910015Z`. Since Gamma did not return the current market's token mapping, no CLOB request using a valid current token could be made. The collector was not started, and no market was substituted or retried. Pilot planned/observed/complete/timing-qualified/resolved windows: **3/0/0/0/0**. Actual fills, readiness feasibility, book latency and storage growth remain UNKNOWN. The existing database was checked read-only: two earlier preflight events; zero candles, markets, snapshots, predictions, attempts, outcomes, or checkpoints. No new DB rows were written.
+
+The full suite after T0001-T0003 and timing changes passed: `python -m unittest discover -s tests -v`, 680 tests in 45.157 s, exit code 0. Focused timing tests passed 14/14 candidate-shadow and 19/19 prospective-feed tests. These are code checks, not a live pilot or performance evidence. T0004 remains BLOCKED pending Gamma/CLOB DNS and a valid schema preflight; T0007's code interpretation is resolved but measured live timing is pending that pilot.
