@@ -1,0 +1,463 @@
+{
+  "experiment_id": "E0037",
+  "status": "source_coverage_complete",
+  "protocol_sha256": "38a6221f0d904112ead40197583dd3310bb27d9702ec4524e43df0144dca3dc1",
+  "runner_sha256": "31f5165feb76608682295a331a8e0fda72c5f780b5723bf9aaeecc46e4e37057",
+  "input_hashes_verified": {
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/confirmation_market_matches.parquet": "4587e0fdb5b922142aa33de0f099bd0f7aedd696d8eb1dd19a47c7f733f31f32",
+    "reports/btc_preopen/btc_candidate_polymarket_target_20261023_v3_manifest.json": "16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503",
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+    "configs/research/btc_resolution_development_20261026.json": "6e5812ca9fee860313c2e64fdd4a39111a03df55a2da37134df86c17fad04ed6",
+    "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/economic_decision_ledger.parquet": "c0432980574e91ecd87529c8367e89f1b08c0cc119b81c345bb7de5acc8fc1a4",
+    "reports/btc_preopen/entry_snapshots.parquet": "1df26fe04d2e8d0f0fb9a3820184ce4a5b10c42383b8d424975dde44ef6a84b9",
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+    "data/analysis/polymarket/BTC/preopen_v1/pmxt_v2_archive_full_scenarios/market_index.parquet": "e159e2bd96acc55c4765a77ea5d6357c6dff8b230143aa16461cde6fbc569fc6",
+    "configs/polymarket_btc5m_fee_regimes_v2.json": "b47cb594512b3671f67ab3cee3a673ff43b7dcd15f7514803e1bcde8238ec1e2",
+    "utils/polymarket_btc5m_fee_rules.py": "9bbdce425e6014f407d79cc2a25ca2456a4d224255302eb008d76f8e111cab56",
+    "run_btc_preopen_economic_replay.py": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528",
+    "run_btc_preopen_t59_reassessment.py": "b1b3945ec12d845d70d75d1df1b78351e1bfd25046dde1c53e16f8c141cba9c8",
+    "utils/btc_resolution_portfolio.py": "4af144f307db129f208687dd4ef7c38d002382b0b24048066772ef0d4964c9c1",
+    "run_btc_resolution_development_20261026.py": "11fd99afa71a787cae135e1334416d9ccbc4c7bb4e0275edd1de17a361b28414",
+    "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/manifest.json": "c0b6cb07275767a0e7ef08ca964c56be5887dec29fc10557567d770181db8c5f",
+    "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c/README.md": "7a3248fae03457a0da11b0acd4121e4e936edf2c1d89a1b6f39e3e0d5e2015d6",
+    "data/raw/polymarket/kachoio/42d917dc8e3205dde8ac909792af0cce2d715c9f/manifest.json": "74e2ec5abe1abe820067fcbff2bf190fa93a2bb8cc68730a919cf0b9e4e96930",
+    "data/raw/polymarket/kachoio/42d917dc8e3205dde8ac909792af0cce2d715c9f/README.md": "e0c5ce6504f08ea595237ebb51b230d6d5471edb400aabd94d5b4ac0e18e334a",
+    "PMXT development event parts": "3fe6416a8b6a4d1c511bc9c75c11c9bed2bfc52a3411d58b780304828b04622c"
+  },
+  "identity_audit": {
+    "gamma_markets": 51458,
+    "candidate_rows_total": 105117,
+    "candidate_rows_with_condition_id": 51457,
+    "candidate_rows_without_condition_id": 53660,
+    "candidate_rows_without_condition_id_with_A_to_D": 53660,
+    "candidate_rows_without_condition_id_missing_A_to_D": 0,
+    "candidate_condition_ids_not_in_gamma": 0,
+    "gamma_markets_without_saved_candidate_row": 1,
+    "candidate_probability_rows_missing_any_A_to_D": 0,
+    "duplicate_gamma_condition_ids": 0,
+    "duplicate_candidate_condition_ids": 0,
+    "candidate_calendar_rows_without_gamma_id_by_month": {
+      "2025-07": 8928,
+      "2025-08": 8928,
+      "2025-09": 8640,
+      "2025-10": 8928,
+      "2025-11": 8639,
+      "2025-12": 4959,
+      "2026-01": 1452,
+      "2026-02": 3175,
+      "2026-04": 4,
+      "2026-05": 1,
+      "2026-06": 6
+    }
+  },
+  "source_hours": {
+    "pmxt_advertised_development_hours": 1877,
+    "pmxt_processed_development_hours": 1853,
+    "pmxt_unprocessed_advertised_development_hours": 24,
+    "pmxt_unprocessed_hours": [
+      "2026-04-13T19:00:00+00:00",
+      "2026-04-13T20:00:00+00:00",
+      "2026-04-13T21:00:00+00:00",
+      "2026-04-13T22:00:00+00:00",
+      "2026-04-13T23:00:00+00:00",
+      "2026-04-14T00:00:00+00:00",
+      "2026-04-14T01:00:00+00:00",
+      "2026-04-14T02:00:00+00:00",
+      "2026-04-14T03:00:00+00:00",
+      "2026-04-14T04:00:00+00:00",
+      "2026-04-14T05:00:00+00:00",
+      "2026-04-14T06:00:00+00:00",
+      "2026-04-14T07:00:00+00:00",
+      "2026-04-14T08:00:00+00:00",
+      "2026-04-14T09:00:00+00:00",
+      "2026-04-14T10:00:00+00:00",
+      "2026-04-14T11:00:00+00:00",
+      "2026-04-14T12:00:00+00:00",
+      "2026-04-14T13:00:00+00:00",
+      "2026-04-14T14:00:00+00:00",
+      "2026-04-14T15:00:00+00:00",
+      "2026-06-11T04:00:00+00:00",
+      "2026-06-11T05:00:00+00:00",
+      "2026-06-11T06:00:00+00:00"
+    ],
+    "pmxt_local_development_parts": 1853,
+    "pmxt_local_development_bytes": 1242757525
+  },
+  "pmxt_replay": {
+    "status": "complete",
+    "markets": 51458,
+    "event_rows_applied": 104859384,
+    "partitions_scanned": 1853,
+    "archive_fingerprint_sha256": "69a30d8bf3119d24d0dece56d7b480684f53c884aee99572bcbb1ddbee14a8a0",
+    "current_archive_content_fingerprint_sha256": "69a30d8bf3119d24d0dece56d7b480684f53c884aee99572bcbb1ddbee14a8a0",
+    "current_archive_metadata_fingerprint_sha256": "11ba55db4a5cc1ddc534989a169465e051cf4edc299c3dae786761454ded3190",
+    "replay_dependency_manifest_version": 3,
+    "replay_dependency_sha256": "34d0595ba42851e02ba208dc2518f9968f9082fb024deebb63ec417ca59d4ffd",
+    "replay_dependency_manifest_path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t59_replay_dependencies.json",
+    "replay_dependencies_match_current": true,
+    "snapshot_artifact_integrity_verified": true,
+    "replay_provenance_verified": true,
+    "cached_snapshot_integrity_verified": true,
+    "cached_snapshot_provenance_verified": true,
+    "reused_verified_complete_snapshot_artifact": true,
+    "resumed_after_partition_count": 0,
+    "partitions_replayed_this_session": 1853,
+    "worker_count_this_session": 6,
+    "checkpoint_migration": null,
+    "elapsed_seconds": 4942.444913499989,
+    "snapshot_sha256": "f9fa7a55e52504c38a5bdc513cc980ca5a2222ced027b2429424f83666dccd99",
+    "decision_snapshot_path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t60_decision_books.parquet",
+    "decision_snapshot_sha256": "3abed12c3fe2d4762f8536d103b11ba3848e6a21a7c6bef68af5f5fc0c4acdbd",
+    "decision_snapshot_markets": 51458,
+    "decision_time_semantics": "T-60 decision snapshot captured before any event with receive timestamp later than market_start - 60 seconds",
+    "execution_time_semantics": "T-59 execution snapshot captured before any event with receive timestamp later than market_start - 59 seconds",
+    "semantics": "single chronological replay captures T-60 decision and T-59 execution snapshots; native token asks retained separately from bids; events grouped by receive timestamp and source-ordered within equal receive times; no later receive events accepted at either snapshot",
+    "synthetic_nominal_prediction_available_at_column_removed": true,
+    "outcome_and_prediction_columns_read": false,
+    "holdout_event_partitions_read": 0,
+    "protocol_sha256": "38a6221f0d904112ead40197583dd3310bb27d9702ec4524e43df0144dca3dc1",
+    "full_replay_elapsed_seconds": 4942.444913499989,
+    "full_replay_partitions_scanned": 1853,
+    "full_replay_event_rows_applied": 104859384,
+    "full_replay_worker_count": 6,
+    "current_invocation_reused_verified_snapshot": true,
+    "current_invocation_partitions_replayed": 0,
+    "current_invocation_worker_count": 0,
+    "current_invocation_elapsed_seconds": 12.916847399999824
+  },
+  "pmxt_coverage": {
+    "gamma_markets": 51458,
+    "official_label_valid": 51430,
+    "prediction_present": 51457,
+    "official_label_and_prediction": 51430,
+    "prediction_ready_timestamp_present": 0,
+    "t60_any_fixed5_native_side": 9250,
+    "t60_both_fixed5_native_sides": 5688,
+    "t59_any_fixed5_native_depth": 9333,
+    "joint_t60_t59_fixed5_source": 5685,
+    "prediction_and_joint_source": 5685,
+    "label_prediction_and_joint_source": 5684,
+    "first_exclusion_counts": {
+      "no_usable_two_sided_native_t60_BBO_at_fixed5": 45743,
+      "none_source_evaluable_under_retrospective_assumption": 5684,
+      "official_label_invalid_or_unavailable": 27,
+      "no_usable_native_t59_depth_at_fixed5": 3,
+      "missing_saved_candidate_probabilities": 1
+    },
+    "monthly": {
+      "2025-12": {
+        "gamma_markets": 3969,
+        "official_label_valid": 3962,
+        "prediction_present": 3969,
+        "official_label_and_prediction": 3962,
+        "t60_any_fixed5_native_side": 0,
+        "t60_both_fixed5_native_sides": 0,
+        "t59_any_fixed5_native_depth": 0,
+        "joint_t60_t59_fixed5_source": 0,
+        "prediction_and_joint_source": 0,
+        "label_prediction_and_joint_source": 0,
+        "first_exclusion_counts": {
+          "no_usable_two_sided_native_t60_BBO_at_fixed5": 3962,
+          "official_label_invalid_or_unavailable": 7
+        }
+      },
+      "2026-01": {
+        "gamma_markets": 7475,
+        "official_label_valid": 7469,
+        "prediction_present": 7475,
+        "official_label_and_prediction": 7469,
+        "t60_any_fixed5_native_side": 0,
+        "t60_both_fixed5_native_sides": 0,
+        "t59_any_fixed5_native_depth": 0,
+        "joint_t60_t59_fixed5_source": 0,
+        "prediction_and_joint_source": 0,
+        "label_prediction_and_joint_source": 0,
+        "first_exclusion_counts": {
+          "no_usable_two_sided_native_t60_BBO_at_fixed5": 7469,
+          "official_label_invalid_or_unavailable": 6
+        }
+      },
+      "2026-02": {
+        "gamma_markets": 4889,
+        "official_label_valid": 4887,
+        "prediction_present": 4889,
+        "official_label_and_prediction": 4887,
+        "t60_any_fixed5_native_side": 0,
+        "t60_both_fixed5_native_sides": 0,
+        "t59_any_fixed5_native_depth": 0,
+        "joint_t60_t59_fixed5_source": 0,
+        "prediction_and_joint_source": 0,
+        "label_prediction_and_joint_source": 0,
+        "first_exclusion_counts": {
+          "no_usable_two_sided_native_t60_BBO_at_fixed5": 4887,
+          "official_label_invalid_or_unavailable": 2
+        }
+      },
+      "2026-03": {
+        "gamma_markets": 8928,
+        "official_label_valid": 8928,
+        "prediction_present": 8928,
+        "official_label_and_prediction": 8928,
+        "t60_any_fixed5_native_side": 0,
+        "t60_both_fixed5_native_sides": 0,
+        "t59_any_fixed5_native_depth": 0,
+        "joint_t60_t59_fixed5_source": 0,
+        "prediction_and_joint_source": 0,
+        "label_prediction_and_joint_source": 0,
+        "first_exclusion_counts": {
+          "no_usable_two_sided_native_t60_BBO_at_fixed5": 8928
+        }
+      },
+      "2026-04": {
+        "gamma_markets": 8636,
+        "official_label_valid": 8634,
+        "prediction_present": 8636,
+        "official_label_and_prediction": 8634,
+        "t60_any_fixed5_native_side": 1652,
+        "t60_both_fixed5_native_sides": 464,
+        "t59_any_fixed5_native_depth": 1661,
+        "joint_t60_t59_fixed5_source": 462,
+        "prediction_and_joint_source": 462,
+        "label_prediction_and_joint_source": 462,
+        "first_exclusion_counts": {
+          "no_usable_two_sided_native_t60_BBO_at_fixed5": 8170,
+          "none_source_evaluable_under_retrospective_assumption": 462,
+          "official_label_invalid_or_unavailable": 2,
+          "no_usable_native_t59_depth_at_fixed5": 2
+        }
+      },
+      "2026-05": {
+        "gamma_markets": 8927,
+        "official_label_valid": 8917,
+        "prediction_present": 8927,
+        "official_label_and_prediction": 8917,
+        "t60_any_fixed5_native_side": 4456,
+        "t60_both_fixed5_native_sides": 2353,
+        "t59_any_fixed5_native_depth": 4526,
+        "joint_t60_t59_fixed5_source": 2353,
+        "prediction_and_joint_source": 2353,
+        "label_prediction_and_joint_source": 2352,
+        "first_exclusion_counts": {
+          "no_usable_two_sided_native_t60_BBO_at_fixed5": 6565,
+          "none_source_evaluable_under_retrospective_assumption": 2352,
+          "official_label_invalid_or_unavailable": 10
+        }
+      },
+      "2026-06": {
+        "gamma_markets": 8634,
+        "official_label_valid": 8633,
+        "prediction_present": 8633,
+        "official_label_and_prediction": 8633,
+        "t60_any_fixed5_native_side": 3142,
+        "t60_both_fixed5_native_sides": 2871,
+        "t59_any_fixed5_native_depth": 3146,
+        "joint_t60_t59_fixed5_source": 2870,
+        "prediction_and_joint_source": 2870,
+        "label_prediction_and_joint_source": 2870,
+        "first_exclusion_counts": {
+          "no_usable_two_sided_native_t60_BBO_at_fixed5": 5762,
+          "none_source_evaluable_under_retrospective_assumption": 2870,
+          "no_usable_native_t59_depth_at_fixed5": 1,
+          "missing_saved_candidate_probabilities": 1
+        }
+      }
+    },
+    "outcomes_or_pnl_read": false,
+    "gamma_coverage_rows": 51458,
+    "unmapped_candidate_rows": 53660,
+    "coverage_manifest_rows": 105118
+  },
+  "e0036_source_parity": {
+    "control_experiment_id": "E0036",
+    "protocol_sha256": "38a6221f0d904112ead40197583dd3310bb27d9702ec4524e43df0144dca3dc1",
+    "outcomes_or_pnl_read": false,
+    "t60": {
+      "control_markets": 1143,
+      "source_fields_compared": 20574,
+      "status": "failed",
+      "mismatches_first_20": [
+        {
+          "condition_id": "0xe4d40fb41d0acedbcae8592f00ec3ac0f6e662f89260c11a65443385996537a3",
+          "field": "bbo_at_entry_ask_mismatches",
+          "new": 1,
+          "saved": 0
+        }
+      ]
+    },
+    "t59": {
+      "control_markets": 1143,
+      "source_fields_compared": 27432,
+      "status": "passed",
+      "mismatches_first_20": []
+    },
+    "status": "failed"
+  },
+  "before_economic_results_gate": "blocked_by_e0036_source_parity",
+  "obadiaha_proxy": {
+    "source_class": "separate proxy; capture timestamp only, no event/receive timestamp",
+    "march_market_start_window_utc": [
+      "2026-03-01T00:00:00+00:00",
+      "2026-03-20T00:00:00+00:00"
+    ],
+    "gamma_markets": 5472,
+    "source_parts": 19,
+    "source_rows_mapped_to_gamma_native_tokens": 787628,
+    "t60_both_native_within_10s": 0,
+    "t59_both_native_within_10s": 0,
+    "joint_t60_t59_proxy": 0,
+    "t59_top10_fixed5_depth_both_sides": 0,
+    "monthly": {
+      "2026-03": {
+        "gamma_markets": 5472,
+        "t60_both_native_within_10s": 0,
+        "t59_both_native_within_10s": 0,
+        "joint_t60_t59_proxy": 0,
+        "t59_top10_fixed5_depth_both_sides": 0
+      }
+    },
+    "outcomes_or_pnl_read": false
+  },
+  "kachoio_preopen_control": {
+    "source_class": "1-second within-market BBO; no ask depth",
+    "source_market_rows": 15682,
+    "source_tick_rows": 4704518,
+    "source_tick_start_utc": "2026-03-24T22:10:00+00:00",
+    "source_tick_end_utc": "2026-05-18T10:34:59+00:00",
+    "gamma_ids_with_source_ticks": 15682,
+    "markets_first_tick_at_or_after_start": 15682,
+    "markets_first_tick_before_start": 0,
+    "matched_development_t60_preopen_tick_rows": 0,
+    "matched_development_t59_preopen_tick_rows": 0,
+    "matched_development_markets_with_any_t60_preopen_tick": 0,
+    "matched_development_markets_with_any_t59_preopen_tick": 0,
+    "t59_ask_depth_available": false,
+    "outcomes_or_pnl_read": false
+  },
+  "coverage_manifest_path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/coverage_manifest.parquet",
+  "coverage_manifest_sha256": "ea0228ad28dedc1f72f8f51eb35d4332a7e67973e0d1f80346c43b2340e09007",
+  "obadiaha_coverage_path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/obadiaha_proxy_coverage.parquet",
+  "outcomes_or_pnl_read": false,
+  "holdout_parts_read": 0,
+  "prediction_ready_timestamps_invented": false,
+  "economics_run": false,
+  "overall_result_status": "partial_blocked",
+  "blocked_reason": "E0036 T-60 parity failed on one UP ask BBO mismatch; prediction readiness remains unverified; payout and economic calculations were not run.",
+  "machine_manifest": {
+    "path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/coverage_manifest.parquet",
+    "sha256": "ea0228ad28dedc1f72f8f51eb35d4332a7e67973e0d1f80346c43b2340e09007",
+    "rows": 105118,
+    "gamma_market_rows": 51458,
+    "unmapped_candidate_rows": 53660,
+    "first_exclusion_counts_including_unmapped": {
+      "no_gamma_market_mapping": 53660,
+      "no_usable_two_sided_native_t60_BBO_at_fixed5": 45743,
+      "none_source_evaluable_under_retrospective_assumption": 5684,
+      "official_label_invalid_or_unavailable": 27,
+      "no_usable_native_t59_depth_at_fixed5": 3,
+      "missing_saved_candidate_probabilities": 1
+    },
+    "additional_quality_flag_counts": {
+      "decision_side_comparison_incomplete": 3562,
+      "gamma_market_id_mapping_missing": 53660,
+      "prediction_ready_timestamp_missing": 51458,
+      "readiness_unknown": 105118,
+      "t59_25h_source_gap": 29245,
+      "t59_archive_entry_hour_unavailable": 29234,
+      "t59_depth_without_usable_t60_decision_BBO": 116,
+      "t59_documented_gap_after_book_initialization": 45,
+      "t59_documented_gap_after_fee_update": 3,
+      "t60_25h_source_gap": 29245,
+      "t60_archive_entry_hour_unavailable": 29234,
+      "t60_documented_gap_after_book_initialization": 45,
+      "t60_only_one_native_side": 3562,
+      "t60_usable_but_no_t59_fixed5_depth": 33
+    }
+  },
+  "candidate_provenance": {
+    "manifest_path": "reports/btc_preopen/btc_candidate_polymarket_target_20261023_v3_manifest.json",
+    "manifest_sha256": "16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503",
+    "run_identity_sha256": "ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b",
+    "saved_probabilities_reused_without_inference": true,
+    "matched_gamma_markets_with_measured_prediction_ready_timestamp": 0,
+    "full_pipeline_independent_selection_calibration_proven": false,
+    "classification": "retrospective_conditional; readiness unknown"
+  },
+  "parity_investigation": {
+    "control_experiment_id": "E0036",
+    "status": "failed",
+    "t59_status": "passed",
+    "t59_fields_compared": 27432,
+    "t60_fields_compared": 20574,
+    "mismatch_count": 1,
+    "condition_id": "0xe4d40fb41d0acedbcae8592f00ec3ac0f6e662f89260c11a65443385996537a3",
+    "market_start_utc": "2026-04-30T07:00:00Z",
+    "field": "bbo_at_entry_ask_mismatches",
+    "new_value": 1,
+    "saved_value": 0,
+    "saved_bbo_check_count": 0,
+    "t60_cutoff_utc": "2026-04-30T06:59:00Z",
+    "reconstructed_up_ask": 0.51,
+    "reported_up_best_ask": 0.52,
+    "reconstructed_up_ask_size_shares": 236.98,
+    "last_0_51_level_event_source_timestamp_utc": "2026-04-30T06:58:37.664Z",
+    "last_0_51_level_event_receive_timestamp_utc": "2026-04-30T06:58:37.778Z",
+    "latest_processed_0_52_bbo_source_timestamp_utc": "2026-04-30T06:58:59.738Z",
+    "latest_processed_0_52_bbo_receive_timestamp_utc": "2026-04-30T06:58:59.863Z",
+    "local_stream_has_later_0_51_removal_before_cutoff": false,
+    "cause": "unresolved from available local source; archive event omission versus other source behavior not determined"
+  },
+  "minimum_order_unit_audit": {
+    "local_gamma_rows": 80127,
+    "available_field": "order_min_size_shares_current",
+    "unique_values": [
+      5.0
+    ],
+    "capture_timestamp_present": false,
+    "historical_usdc_minimum_established": false,
+    "correction": "use only explicitly USD/USDC-labeled minimum; otherwise frozen $5 USDC fallback; never round requested size upward",
+    "decision_id": "D0019",
+    "code_change_after_e0037_source_replay": true,
+    "economics_rerun": false
+  },
+  "economic_results": {
+    "status": "not_run_blocked_by_parity",
+    "outcomes_or_pnl_read": false,
+    "payout_delay_scenarios_seconds": [
+      60,
+      300,
+      1800,
+      7200
+    ],
+    "payout_sensitivity_computed": false,
+    "monthly_account_paths_computed": false,
+    "prior_e0036_results_modified": false
+  },
+  "validation": {
+    "t0009_focused_tests": "10/10 passed",
+    "t59_reassessment_tests": "34/34 passed",
+    "full_unittest_discovery": {
+      "passed": 696,
+      "failed": 0,
+      "errors": 0,
+      "elapsed_seconds": 55.837
+    }
+  },
+  "source_only_smoke": {
+    "status": "passed; source-only; no outcome/PnL read",
+    "runner_sha256": "3d9a27752b14d2ee5e02f0c36b6b3ddc3c59b4993c357830e1d6be19bcbcc283",
+    "pmxt_exact": {
+      "condition_id": "0xfe21d75161d71bec075cedee0f0d6b2cd57beeebbba939ece415da2ef965f978",
+      "market_start_utc": "2026-05-18T09:15:00Z",
+      "saved_quote_parity": "passed",
+      "source_quality": "rejected by saved source-quality checks; no trade",
+      "no_future_event_checks": "passed"
+    },
+    "obadiaha_proxy": {
+      "condition_id": "0x63aa6cc4782925cf7ea6631422ddcfc0acd1770fb4ae6c046bd4f9af53effa08",
+      "market_start_utc": "2026-03-01T20:05:00Z",
+      "sample_class": "10-second proxy; both native books 4.095 seconds before T-60/T-59 cutoffs; no event/receive timestamp",
+      "no_trade": true
+    }
+  }
+}

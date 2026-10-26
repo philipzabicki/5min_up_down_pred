@@ -104,6 +104,28 @@ class BtcPreopenT59ReassessmentTests(unittest.TestCase):
         self.assertEqual(result["reason"], "below_minimum_order_usd")
         self.assertEqual(result["requested_order_usd"], 4.0)
 
+    def test_share_labeled_current_minimum_does_not_override_usdc_fallback(self):
+        result = assessment._price_side(
+            self._entry_snapshot(),
+            {
+                "up_token_id": "up-token", "order_min_size_shares_current": 2.0,
+                "market_start_utc": pd.Timestamp("2026-04-15T17:05:00Z"),
+            },
+            "up", 4.75,
+        )
+
+        self.assertFalse(result["priceable"])
+        self.assertEqual(result["reason"], "below_minimum_order_usd")
+        self.assertEqual(result["minimum_order_size_usd"], 5.0)
+        self.assertEqual(result["minimum_order_size_source"], "fallback_5_usdc_assumption")
+        self.assertEqual(result["requested_order_usd"], 4.75)
+
+    def test_gamma_minimum_reader_ignores_share_named_column(self):
+        frame = pd.DataFrame({"order_min_size_shares_current": [2.0]})
+        result = assessment._gamma_order_minimum_usdc(frame)
+
+        self.assertTrue(result.isna().all())
+
     def test_future_source_observation_cannot_qualify_a_quote(self):
         reason = assessment._ask_base_reason(
             self._entry_snapshot(

@@ -1,6 +1,6 @@
 # BTC Research Contract
 
-Status: binding research decisions, recorded 2026-10-10 and updated by D0018 on 2026-10-26 (Europe/Warsaw). All computation timestamps and interval boundaries below are UTC. This contract governs BTC prediction training, learned features, calibration, policy selection, historical replay, and the evaluated holdout. It does not authorize live orders.
+Status: binding research decisions, recorded 2026-10-10 and updated by D0018/D0019 on 2026-10-26 (Europe/Warsaw). All computation timestamps and interval boundaries below are UTC. This contract governs BTC prediction training, learned features, calibration, policy selection, historical replay, and the evaluated holdout. It does not authorize live orders.
 
 ## Data periods and validation
 
@@ -31,7 +31,7 @@ Status: binding research decisions, recorded 2026-10-10 and updated by D0018 on 
 
 - On a verified complete replayed book, price a taker order by walking the relevant levels and computing size-specific VWAP. Known insufficient depth is an execution constraint; match the existing live order type and its full/partial-fill semantics.
 - On top-of-book or otherwise incomplete depth, price at the latest available ask for a buy or bid for a sell as an explicit proxy assumption. Unknown depth is not zero liquidity and alone does not make the order unpriceable.
-- Compare requested gross BUY amount in USDC with Gamma `orderMinSize` when that market metadata is available; otherwise use the accepted `$5` USDC fallback. Historical Gamma minimums are not available, so report this limitation. A partial fill may end below the minimum after the requested order passed the check.
+- Compare requested gross BUY amount in USDC only with a minimum whose unit is verified as USDC; ignore share-labeled fields. If historical USDC minimum data are unavailable or unverified, use the accepted `$5` USDC fallback and do not project current market metadata backward. Historical Gamma minimums are not available, so report this limitation. A partial fill may end below the minimum after the requested order passed the check (D0004/D0019).
 - Never label a top-of-book proxy as full-book VWAP. Every ledger entry records `execution_source`, `depth_known`, and `execution_assumption`, plus requested/filled size and the specific no-fill/partial-fill reason when applicable.
 - Report full-book versus proxy trade shares and outcomes. Run adverse-price/slippage sensitivity on the completed path and estimate the incremental cost that removes the observed advantage. Apply the same information rules on exit bids.
 - Historical recorded liquidity is not a live-liquidity forecast; retain that limitation in the report without using it to omit the requested historical analysis.

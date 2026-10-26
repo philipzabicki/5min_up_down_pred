@@ -4,12 +4,47 @@ import tempfile
 from pathlib import Path
 from unittest import mock
 
+import numpy as np
 import pandas as pd
 
 import run_btc_t0009_resolution_coverage_20261026 as coverage
 
 
 class BtcT0009ResolutionCoverageTests(unittest.TestCase):
+    def test_parity_normalization_converts_numpy_ask_ladders_to_comparable_lists(self):
+        value = np.array([[0.50, 4.0], [0.51, 8.0]])
+
+        self.assertEqual(coverage._jsonable(value), [[0.5, 4.0], [0.51, 8.0]])
+
+    def test_t60_side_comparison_requires_both_native_fixed_five_bbos(self):
+        both_sides = {
+            "up": {"native_token": True, "fixed5_full_depth": True},
+            "down": {"native_token": True, "fixed5_full_depth": True},
+        }
+        one_side = {**both_sides, "down": {"native_token": True, "fixed5_full_depth": False}}
+        complemented_side = {**both_sides, "down": {"native_token": False, "fixed5_full_depth": True}}
+
+        self.assertTrue(coverage._t60_decision_is_usable(both_sides))
+        self.assertFalse(coverage._t60_decision_is_usable(one_side))
+        self.assertFalse(coverage._t60_decision_is_usable(complemented_side))
+
+    def test_unmapped_calendar_rows_remain_explicit_in_coverage_manifest(self):
+        rows = pd.DataFrame({
+            "market_start_utc": pd.to_datetime([
+                "2025-07-01T00:00:00Z", "2025-07-01T00:05:00Z",
+            ], utc=True),
+            "prediction_present": [True, False],
+        })
+
+        result = coverage._unmapped_candidate_coverage(rows)
+
+        self.assertEqual(len(result), 2)
+        self.assertTrue(result.condition_id.isna().all())
+        self.assertEqual(result.first_exclusion_reason.tolist(), [
+            "no_gamma_market_mapping", "no_gamma_market_mapping",
+        ])
+        self.assertEqual(result.prediction_present.tolist(), [True, False])
+
     def _snapshot(self, *, case, up_ask_levels=None, up_size=20.0, **updates):
         start = pd.Timestamp("2026-04-15T17:05:00Z")
         entry = start - pd.Timedelta(seconds=60 if case == "t60" else 59)

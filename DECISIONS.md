@@ -164,6 +164,15 @@ Decision: evaluate purchase of UP/DOWN at the frozen T-59 execution for a T-60 d
 Reason: the current research question is buy-and-hold economics through official resolution; sale timing is outside the active scope.
 Consequences: D0017's holdout gate is resolution-based economics. Current E0036 results are a sparse, previously exposed confirmation diagnostic, not full-development validation. Actual payout availability and historical T-60 prediction-ready timestamps remain unverified. No new holdout run, live/shadow process, or order is authorized by this decision.
 
+## D0019 - Minimum-order checks require verified USDC units
+
+Status: ACTIVE. Date: 2026-10-26.
+Source: T0009 minimum-order audit; D0004; [Polymarket Market Details](https://docs.polymarket.com/market-data/market-details), [Place Orders](https://docs.polymarket.com/trading/place-orders), and [py-sdk issue #302](https://github.com/Polymarket/py-sdk/issues/302).
+Supersedes: no decision; clarifies D0004's minimum-order unit rule.
+Decision: compare a requested gross BUY in USDC only with a minimum whose unit is verified as USDC. Ignore share-labeled minimum fields for that check. If historical USDC minimum data are unavailable or unverified, use the frozen $5 USDC fallback; reject below-minimum requests without rounding them upward. Do not project current market metadata backward as historical evidence.
+Reason: available Gamma and CLOB fields use different unit labels, the local historical file contains only a share-labeled field without capture times, and the minimum-order constraint cannot be treated as unit-equivalent without evidence.
+Consequences: the T-59 helper now ignores the share-labeled Gamma field. This code correction does not establish historical market minima or change the frozen E0037 source-only result. Any later economics run must pin the corrected source identity and pass the source-parity gate first.
+
 ## Protected invariant register
 
 Changes require an explicit recorded decision and applicable authorization, never an incidental implementation edit. Sources refer to the entries above and their linked original evidence.
@@ -175,7 +184,7 @@ Changes require an explicit recorded decision and applicable authorization, neve
 | T-60 choice / T-59 execution, actual readiness retained | No execution-time leakage | D0003 | 2026-10-10 | Explicit timing protocol and measured availability |
 | Same-market causal continuity, no future qualification | No invented quotes across gaps | D0004 | 2026-10-10 | Source-backed revised continuity rule, equivalence review |
 | Full-depth VWAP vs explicitly labeled proxy | No fictitious liquidity claim | D0004 | 2026-10-10 | Verified depth/source semantics and ledger audit |
-| Gamma minimum in gross USDC, fallback $5 | Prevent unit errors | D0004 | 2026-10-12 | Authoritative changed rule and boundary tests |
+| Gamma minimum in gross USDC, fallback $5 | Prevent unit errors | D0004/D0019 | 2026-10-12/26 | Authoritative changed rule and boundary tests |
 | Accepted dated fee estimate, precision/rounding and single debit | Comparable net cashflow | D0006 | 2026-10-10/12 | Explicit fee decision; no reopening date research incidentally |
 | Independent $100 portfolios, cash locking, no credit | Feasible account path | D0006 | 2026-10-10 | New accounting protocol with ledgers |
 | $5 gross and 5% free-cash controls, no added cap | Preserve required comparisons | D0006 | 2026-10-10 | Explicit revised experiment scope |

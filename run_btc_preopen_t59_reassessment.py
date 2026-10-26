@@ -803,9 +803,8 @@ def _float_or_none(value):
 
 
 def _gamma_order_minimum_usdc(frame: pd.DataFrame) -> pd.Series:
-    for column in ("order_min_size_usd_current", "order_min_size_shares_current"):
-        if column in frame.columns:
-            return pd.to_numeric(frame[column], errors="coerce")
+    if "order_min_size_usd_current" in frame.columns:
+        return pd.to_numeric(frame["order_min_size_usd_current"], errors="coerce")
     return pd.Series(np.nan, index=frame.index, dtype="float64")
 
 
@@ -2519,9 +2518,7 @@ def _price_side(snapshot: dict, market: dict, side: str, gross_usd: float) -> di
     fill["depth_known"] = depth_known
     fill["execution_assumption"] = execution_assumption
     fill["quote_age_seconds"] = _float_or_none(snapshot.get(f"{side}_ask_age_seconds"))
-    minimum = _float_or_none(
-        market.get("order_min_size_usd_current", market.get("order_min_size_shares_current"))
-    )
+    minimum = _float_or_none(market.get("order_min_size_usd_current"))
     minimum_source = "current_gamma_orderMinSize_usdc" if minimum is not None and minimum > 0.0 else "fallback_5_usdc_assumption"
     if minimum is None or minimum <= 0.0:
         minimum = MIN_ORDER_USD_FALLBACK
@@ -2614,13 +2611,8 @@ def _market_statuses(
     calendar["t59_snapshot_available"] = calendar.snapshot_entry_time_utc.notna()
     if "causal_prediction_available" not in calendar:
         calendar["causal_prediction_available"] = calendar.prediction_source.ne("none")
-    minimum_column = (
-        "order_min_size_usd_current"
-        if "order_min_size_usd_current" in calendar
-        else "order_min_size_shares_current"
-    )
     minimums = pd.to_numeric(
-        calendar.get(minimum_column, pd.Series(index=calendar.index, dtype="float64")),
+        calendar.get("order_min_size_usd_current", pd.Series(index=calendar.index, dtype="float64")),
         errors="coerce",
     )
     has_current_minimum = minimums.notna() & minimums.gt(0.0)

@@ -10,7 +10,7 @@ Predict BTC five-minute Binance-index direction before a Polymarket market opens
 
 ## Current phase
 
-Historical research and frozen A/B/C/D comparison; **no demonstrated production readiness or repeatable trading advantage**. A=BASE70, B=A+simple-memory PCA8, C=A+ESN PCA8, D=A+memory+ESN. E0036 calculated the existing 1,143-market confirmation intersection under resolution accounting; it is sparse, previously exposed and not full-development evidence. Full development economics remain blocked by T-60 source coverage and causal-provenance gaps (T0009), not by absent sale rules. T0008/E0035 sale-policy work is deferred/out-of-scope under D0018. The old A/B/C/D no-order pilot remains historically blocked at 0/3 and is not an active next step under D0017. Dynamic-history/action-value research remains independently blocked before fitting.
+Historical research and frozen A/B/C/D comparison; **no demonstrated production readiness or repeatable trading advantage**. A=BASE70, B=A+simple-memory PCA8, C=A+ESN PCA8, D=A+memory+ESN. E0036 calculated the existing 1,143-market confirmation intersection under resolution accounting; it is sparse, previously exposed and not full-development evidence. E0037 completed source-only coverage but failed the T-60 parity gate; T0009 remains blocked by the source mismatch, coverage gaps and missing causal-readiness timestamps. T0008/E0035 sale-policy work is deferred/out-of-scope under D0018. The old A/B/C/D no-order pilot remains historically blocked at 0/3 and is not an active next step under D0017. Dynamic-history/action-value research remains independently blocked before fitting.
 
 Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TASKS.md). Details/matrices/provenance: [audit report](docs/PROJECT_STATE_AUDIT_20261025.md), [evidence](reports/project_state_recovery_20261025.json). The [BTC status](docs/BTC_RESEARCH_STATUS_20261010.md) remains the checkpoint history; [research contract](docs/BTC_RESEARCH_CONTRACT.md) remains binding.
 
@@ -20,6 +20,7 @@ Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TAS
 - Follow-up on 2026-10-25: **680 tests, 680 PASS, 0 FAIL, 0 ERROR, 0 SKIP, 0 XFAIL**, 45.157 s, exit code 0 after fixes T0001-T0003.
 - Sale-ledger regression on 2026-10-26: the focused PMXT initialization and exit-accounting modules passed **30/30** tests after correcting the no-sale settlement fallback; full discovery passed **680/680** tests in **40.247 s**, exit code 0. This validates mechanics only.
 - E0036 resolution ledger: settlement regression **3/3**, existing replay/accounting tests **24/24**, and full discovery **683/683** passed (51.332 s, exit code 0). The hash-verified sparse confirmation run reproduced E0031 fixed-$5 economics and separately computed the 5%-of-free-cash control, cost-basis drawdown and event accounting. This validates code mechanics, not strategy profitability or production readiness.
+- E0037 source-only validation on 2026-10-26: focused T0009 tests **10/10**, T-59 reassessment tests **34/34**, and full discovery **696/696** passed (55.837 s, exit code 0). The full local development PMXT snapshot was hash/provenance verified and reused. E0036 T-60 source parity still failed; no economic results were produced.
 - Read-only candidate shadow SQLite: two preflight events, zero data/market/checkpoint rows (E0034).
 - Completed frozen scorer/period/approval/source records exist and were hashed; historical scores were not recomputed (E0030).
 
@@ -48,7 +49,7 @@ Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TAS
 ## Blocked
 
 - Dynamic gate: 637/2,000 evaluation; fold1 $5 training 908/1,000; RAW timing provenance missing. No model result (E0024).
-- Resolution economics: full-development T-60 entry coverage and historical prediction-ready telemetry remain incomplete. E0036 covers only 1,143 confirmation markets (2.22% of confirmation official labels), from 2026-04-15 through 2026-05-18; T0009 is the active gate. Actual redemption availability is unknown; E0036 reused the existing 60-second payout-availability assumption and does not claim it bounds real redemption latency.
+- Resolution economics: E0037's source-only manifest includes 51,458 Gamma markets and 53,660 unmapped candidate rows; only 5,684 Gamma rows have valid labels, predictions and joint native T-60/T-59 source coverage under retrospective assumptions. Prediction-ready timestamps are absent, and E0036 T-60 parity failed on one UP ask mismatch. T0009 remains blocked; no payout sensitivity or new economics ran. Actual redemption availability is unknown; E0036's 60-second assumption does not claim to bound real redemption latency.
 - Sale-policy study: T0008/E0035 are deferred/out-of-scope, not blockers for the active resolution strategy. The sale simulator still keeps unfilled exits open and never treats them as settlement.
 - Shadow: bounded 2026-10-25 same-interpreter preflight reached Binance time (HTTP 200, valid schema) but Gamma and CLOB DNS resolution failed. No collector was started; pilot remains 0/3. Under D0017 this is retained history, not an active next step (T0004).
 - Exact historical Chainlink TWAP access/coverage/cost and TWAP60 L2 missing; no acquisition authorized (T0005).
@@ -59,11 +60,11 @@ Real fills/ACKs/fees and operational live readiness; full-pipeline independent O
 
 ## Active experiments
 
-E0036 PARTIAL on the available confirmation subset. E0037 is frozen before results for the authorized development-only T0009 source reconstruction and payout sensitivity; the protocol must be committed before replay. T0009 remains BLOCKED pending exact source coverage and candidate-provenance evidence. E0034/E0024 BLOCKED; E0010 PLANNED/deferred. Other outcomes: EXPERIMENTS. Stale `running` manifests do not prove active processes.
+E0036 PARTIAL on the available confirmation subset. E0037 PARTIAL: source coverage completed, but T-60 parity failed and economics remain blocked. T0009 remains BLOCKED pending source-parity resolution and candidate-readiness provenance. E0034/E0024 BLOCKED; E0010 PLANNED/deferred. Other outcomes: EXPERIMENTS. Stale `running` manifests do not prove active processes.
 
 ## Active decisions
 
-D0001-D0008, D0011-D0014, D0017, and D0018 govern splits/exposure, targets/timing, execution/fees/accounting, causal selection, candidate identity, source provenance, active resolution economics, and the holdout-before-pilot gate. D0016 continues to govern inactive sale-simulation accounting only. D0010 supersedes the old arbitrary 180-day A/B/C/D shadow recommendation. D0009 is the separate deferred older prospective protocol.
+D0001-D0008, D0011-D0014, D0017-D0019 govern splits/exposure, targets/timing, execution/fees/accounting, causal selection, candidate identity, source provenance, active resolution economics, the holdout-before-pilot gate, and verified minimum-order units. D0016 continues to govern inactive sale-simulation accounting only. D0010 supersedes the old arbitrary 180-day A/B/C/D shadow recommendation. D0009 is the separate deferred older prospective protocol.
 
 ## Protected invariants
 
@@ -75,4 +76,4 @@ Legacy market-open/Kacho, original fees/minimum units/T59 selection, interrupted
 
 ## Next recommended actions
 
-1. T0009: inventory and verify existing local development T-60/T-59 sources, market/token mapping, official outcomes and causal cutoffs; produce exact coverage gaps before any additional development economics. No holdout evaluation or data acquisition is included.
+1. T0009: resolve the E0036 T-60 source mismatch with source-backed evidence, restore exact parity, and establish or classify saved prediction-readiness provenance. Do not run payout sensitivities or development economics before the parity gate passes. No holdout evaluation or data acquisition is included.

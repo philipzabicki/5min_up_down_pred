@@ -6,6 +6,7 @@ import hashlib
 import json
 import math
 import os
+import time
 from pathlib import Path
 
 import numpy as np
@@ -60,7 +61,7 @@ def _date_filter(dataset: ds.Dataset, field: str = "market_start_utc"):
     return (ds.field(field) >= start) & (ds.field(field) < end)
 
 
-def _load_development_universe() -> tuple[pd.DataFrame, dict]:
+def _load_development_universe() -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     gamma_dataset = ds.dataset(GAMMA_PATH, format="parquet")
     gamma = gamma_dataset.to_table(
         columns=["condition_id", "market_slug", "market_start_utc", "up_token_id", "down_token_id"],
@@ -83,6 +84,10 @@ def _load_development_universe() -> tuple[pd.DataFrame, dict]:
     )
     matches = match_table.to_pandas()
     matches["condition_id"] = matches.condition_id.astype("string").str.lower()
+    matches["prediction_present"] = matches[[
+        "ensemble_probability_A", "ensemble_probability_B",
+        "ensemble_probability_C", "ensemble_probability_D",
+    ]].notna().all(axis=1)
     no_id_rows = matches.loc[matches.condition_id.isna()].copy()
     candidates = matches.loc[matches.condition_id.notna()].copy()
     candidates["candidate_market_start_utc"] = pd.to_datetime(
@@ -91,10 +96,6 @@ def _load_development_universe() -> tuple[pd.DataFrame, dict]:
     candidates.drop(columns=["market_start_utc"], inplace=True)
     if candidates.condition_id.duplicated().any():
         raise RuntimeError("Saved candidate predictions have duplicate Gamma condition IDs")
-    candidates["prediction_present"] = candidates[[
-        "ensemble_probability_A", "ensemble_probability_B",
-        "ensemble_probability_C", "ensemble_probability_D",
-    ]].notna().all(axis=1)
     candidates["prediction_ready_timestamp_present"] = False
 
     universe = gamma.merge(candidates, on="condition_id", how="left", validate="one_to_one")
@@ -115,8 +116,11 @@ def _load_development_universe() -> tuple[pd.DataFrame, dict]:
     no_id_monthly = no_id_rows.groupby("month_utc", dropna=False).size().to_dict()
     identity = {
         "gamma_markets": len(gamma),
+        "candidate_rows_total": len(matches),
         "candidate_rows_with_condition_id": len(candidates),
         "candidate_rows_without_condition_id": len(no_id_rows),
+        "candidate_rows_without_condition_id_with_A_to_D": int(no_id_rows.prediction_present.sum()),
+        "candidate_rows_without_condition_id_missing_A_to_D": int((~no_id_rows.prediction_present).sum()),
         "candidate_condition_ids_not_in_gamma": int((~candidates.condition_id.isin(gamma.condition_id)).sum()),
         "gamma_markets_without_saved_candidate_row": int((~gamma.condition_id.isin(candidates.condition_id)).sum()),
         "candidate_probability_rows_missing_any_A_to_D": int((~candidates.prediction_present).sum()),
@@ -128,7 +132,36 @@ def _load_development_universe() -> tuple[pd.DataFrame, dict]:
     }
     if identity["candidate_condition_ids_not_in_gamma"]:
         raise RuntimeError("A saved candidate condition ID has no exact development Gamma row")
-    return universe, identity
+    return universe, no_id_rows, identity
+
+
+def _unmapped_candidate_coverage(no_id_rows: pd.DataFrame) -> pd.DataFrame:
+    starts = pd.to_datetime(no_id_rows.market_start_utc, utc=True)
+    return pd.DataFrame({
+        "condition_id": pd.Series(pd.NA, index=no_id_rows.index, dtype="string"),
+        "market_slug": pd.NA,
+        "market_start_utc": starts,
+        "up_token_id": pd.NA,
+        "down_token_id": pd.NA,
+        "official_label_valid": False,
+        "prediction_present": no_id_rows.prediction_present.astype(bool),
+        "prediction_ready_timestamp_present": False,
+        "token_mapping_present": False,
+        "t60_source_status": "no_gamma_market_mapping",
+        "t60_decision_source_status": "no_gamma_market_mapping",
+        "t59_source_status": "no_gamma_market_mapping",
+        "native_token_status": "no_gamma_market_mapping",
+        "minimum_depth_status": "no_gamma_market_mapping",
+        "t60_up_reason": "no_gamma_market_mapping",
+        "t60_down_reason": "no_gamma_market_mapping",
+        "t59_up_reason": "no_gamma_market_mapping",
+        "t59_down_reason": "no_gamma_market_mapping",
+        "first_exclusion_reason": "no_gamma_market_mapping",
+        "additional_quality_flags": "gamma_market_id_mapping_missing; readiness_unknown",
+        "source_joint_fixed5_coverage": False,
+        "source_gap_status": "no_gamma_market_mapping",
+        "monthly_utc": starts.dt.strftime("%Y-%m"),
+    })
 
 
 def _make_development_replay_index(
@@ -191,6 +224,7 @@ def _replay_development_sources(
     old_out_dir, old_workers = t59.OUT_DIR, t59.T59_REPLAY_WORKERS
     t59.OUT_DIR = replay_dir
     t59.T59_REPLAY_WORKERS = 6
+    invocation_started = time.perf_counter()
     try:
         snapshots_t59, replay_manifest = t59._replay_t59(
             replay_index,
@@ -200,6 +234,23 @@ def _replay_development_sources(
     finally:
         t59.OUT_DIR = old_out_dir
         t59.T59_REPLAY_WORKERS = old_workers
+    invocation_elapsed = time.perf_counter() - invocation_started
+    reused = bool(replay_manifest.get("reused_verified_complete_snapshot_artifact"))
+    replay_manifest["full_replay_elapsed_seconds"] = replay_manifest.get("elapsed_seconds")
+    replay_manifest["full_replay_partitions_scanned"] = replay_manifest.get("partitions_scanned")
+    replay_manifest["full_replay_event_rows_applied"] = replay_manifest.get("event_rows_applied")
+    replay_manifest["full_replay_worker_count"] = replay_manifest.get("worker_count_this_session")
+    replay_manifest["current_invocation_reused_verified_snapshot"] = reused
+    replay_manifest["current_invocation_partitions_replayed"] = 0 if reused else int(
+        replay_manifest.get("partitions_replayed_this_session", 0)
+    )
+    replay_manifest["current_invocation_worker_count"] = 0 if reused else int(
+        replay_manifest.get("worker_count_this_session", 0)
+    )
+    replay_manifest["current_invocation_elapsed_seconds"] = invocation_elapsed
+    if reused:
+        replay_manifest["cached_snapshot_integrity_verified"] = True
+        replay_manifest["cached_snapshot_provenance_verified"] = True
 
     snapshots_t60 = pd.read_parquet(replay_dir / "t60_decision_books.parquet")
     for frame in (snapshots_t60, snapshots_t59):
@@ -368,6 +419,14 @@ def _side_statuses(snapshot: dict, market: dict, case: str, gross_usd: float = 5
     return result
 
 
+def _t60_decision_is_usable(side_statuses: dict) -> bool:
+    return all(
+        bool(side_statuses.get(side, {}).get("native_token"))
+        and bool(side_statuses.get(side, {}).get("fixed5_full_depth"))
+        for side in ("up", "down")
+    )
+
+
 def _source_coverage_manifest(
     universe: pd.DataFrame,
     snapshots_t60: pd.DataFrame,
@@ -444,8 +503,14 @@ def _source_coverage_manifest(
         t60_side_rows.append(t60_sides)
         t59_side_rows.append(t59_sides)
         t60_usable = any(item["fixed5_full_depth"] for item in t60_sides.values())
+        t60_decision_usable = _t60_decision_is_usable(t60_sides)
         t59_usable = any(item["fixed5_full_depth"] for item in t59_sides.values())
         coverage.at[position, "t60_source_status"] = "at_least_one_native_fixed5_BBO" if t60_usable else "no_native_fixed5_side"
+        coverage.at[position, "t60_decision_source_status"] = (
+            "both_native_fixed5_BBO_sides" if t60_decision_usable
+            else "one_native_fixed5_BBO_side" if t60_usable
+            else "no_native_fixed5_BBO_side"
+        )
         coverage.at[position, "t59_source_status"] = "at_least_one_native_fixed5_depth" if t59_usable else "no_native_fixed5_depth_side"
         coverage.at[position, "native_token_status"] = (
             "both_sides_native" if all(item["native_token"] for item in t59_sides.values())
@@ -463,6 +528,8 @@ def _source_coverage_manifest(
             flags.append("gamma_native_token_mapping_missing")
         if t60_usable and not t59_usable:
             flags.append("t60_usable_but_no_t59_fixed5_depth")
+        if t60_usable and not t60_decision_usable:
+            flags.append("t60_only_one_native_side; decision_side_comparison_incomplete")
         if t59_usable and not t60_usable:
             flags.append("t59_depth_without_usable_t60_decision_BBO")
         if not bool(t60_row.get("t60_archive_entry_hour_available")):
@@ -487,8 +554,8 @@ def _source_coverage_manifest(
             exclusion = "missing_saved_candidate_probabilities"
         elif not label_status:
             exclusion = "official_label_invalid_or_unavailable"
-        elif not t60_usable:
-            exclusion = "no_usable_native_t60_BBO_at_fixed5"
+        elif not t60_decision_usable:
+            exclusion = "no_usable_two_sided_native_t60_BBO_at_fixed5"
         elif not t59_usable:
             exclusion = "no_usable_native_t59_depth_at_fixed5"
         else:
@@ -506,7 +573,7 @@ def _source_coverage_manifest(
     coverage["first_exclusion_reason"] = first_exclusions
     coverage["additional_quality_flags"] = additional_flags
     coverage["source_joint_fixed5_coverage"] = (
-        coverage.t60_source_status.eq("at_least_one_native_fixed5_BBO")
+        coverage.t60_decision_source_status.eq("both_native_fixed5_BBO_sides")
         & coverage.t59_source_status.eq("at_least_one_native_fixed5_depth")
     )
     coverage["source_gap_status"] = "no_observed_gap_after_state_initialization"
@@ -541,6 +608,7 @@ def _source_coverage_manifest(
             "prediction_present": int(group.prediction_present.sum()),
             "official_label_and_prediction": int((group.official_label_valid & group.prediction_present).sum()),
             "t60_any_fixed5_native_side": int(group.t60_source_status.eq("at_least_one_native_fixed5_BBO").sum()),
+            "t60_both_fixed5_native_sides": int(group.t60_decision_source_status.eq("both_native_fixed5_BBO_sides").sum()),
             "t59_any_fixed5_native_depth": int(group.t59_source_status.eq("at_least_one_native_fixed5_depth").sum()),
             "joint_t60_t59_fixed5_source": int(group.source_joint_fixed5_coverage.sum()),
             "prediction_and_joint_source": int((group.prediction_present & group.source_joint_fixed5_coverage).sum()),
@@ -558,6 +626,7 @@ def _source_coverage_manifest(
         "official_label_and_prediction": int((coverage.official_label_valid & coverage.prediction_present).sum()),
         "prediction_ready_timestamp_present": int(coverage.prediction_ready_timestamp_present.sum()),
         "t60_any_fixed5_native_side": int(coverage.t60_source_status.eq("at_least_one_native_fixed5_BBO").sum()),
+        "t60_both_fixed5_native_sides": int(coverage.t60_decision_source_status.eq("both_native_fixed5_BBO_sides").sum()),
         "t59_any_fixed5_native_depth": int(coverage.t59_source_status.eq("at_least_one_native_fixed5_depth").sum()),
         "joint_t60_t59_fixed5_source": int(coverage.source_joint_fixed5_coverage.sum()),
         "prediction_and_joint_source": int((coverage.prediction_present & coverage.source_joint_fixed5_coverage).sum()),
@@ -576,6 +645,8 @@ def _source_coverage_manifest(
 def _jsonable(value):
     if value is None or value is pd.NA:
         return None
+    if isinstance(value, np.ndarray):
+        value = value.tolist()
     if isinstance(value, (list, dict, tuple)):
         return json.loads(json.dumps(value, default=str))
     try:
@@ -609,7 +680,7 @@ def _parity_check(snapshots_t60: pd.DataFrame, snapshots_t59: pd.DataFrame) -> d
             "up_quote_source_token_id", "down_quote_source_token_id", "up_quote_complemented", "down_quote_complemented",
             "no_future_event_at_entry", "no_future_source_event_at_entry",
         ],
-        filter=ds.field("entry_case").eq("prestart_c0_o0") & ds.field("condition_id").isin(control_ids),
+        filter=(ds.field("entry_case") == "prestart_c0_o0") & ds.field("condition_id").isin(control_ids),
     ).to_pandas()
     t59_old_dataset = ds.dataset(
         ROOT / "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet",
@@ -624,7 +695,7 @@ def _parity_check(snapshots_t60: pd.DataFrame, snapshots_t59: pd.DataFrame) -> d
             "up_ask_levels", "down_ask_levels", "up_ask_order_ambiguous", "down_ask_order_ambiguous",
             "up_bid_ask_crossed", "down_bid_ask_crossed", "no_future_event_at_entry", "no_future_source_event_at_entry",
         ],
-        filter=ds.field("entry_case").eq(T59_ENTRY_CASE) & ds.field("condition_id").isin(control_ids),
+        filter=(ds.field("entry_case") == T59_ENTRY_CASE) & ds.field("condition_id").isin(control_ids),
     ).to_pandas()
     if len(control_ids) != 1143 or len(set(control_ids)) != 1143:
         raise RuntimeError(f"Frozen E0036 ledger identity is not 1,143 unique markets: {len(set(control_ids))}")
@@ -879,7 +950,7 @@ def run_coverage() -> None:
     checked_hashes = _verify_frozen_sources(protocol)
     output_dir = OUTPUT_ROOT / f"btc_t0009_resolution_coverage_20261026_{protocol_hash[:12]}"
     output_dir.mkdir(parents=True, exist_ok=True)
-    universe, identity = _load_development_universe()
+    universe, no_id_rows, identity = _load_development_universe()
     replay_index, development_parts = _make_development_replay_index(universe, output_dir)
     advertised, processed = _development_hour_sets(protocol, development_parts)
     archive_manifest_hash = protocol["inputs"]["pmxt_archive"]["manifest_sha256"]
@@ -893,6 +964,14 @@ def run_coverage() -> None:
     coverage, coverage_summary = _source_coverage_manifest(
         universe, t60, t59_snapshots, advertised, processed,
     )
+    coverage_summary["gamma_coverage_rows"] = len(coverage)
+    coverage_summary["unmapped_candidate_rows"] = len(no_id_rows)
+    coverage_summary["coverage_manifest_rows"] = len(coverage) + len(no_id_rows)
+    coverage = pd.concat(
+        [coverage, _unmapped_candidate_coverage(no_id_rows)],
+        ignore_index=True,
+        sort=False,
+    )
     probability_columns = [
         "ensemble_probability_A", "ensemble_probability_B", "ensemble_probability_C", "ensemble_probability_D",
         "nominal_decision_time_utc", "candidate_market_start_utc",
@@ -903,8 +982,6 @@ def run_coverage() -> None:
     parity = _parity_check(t60, t59_snapshots)
     parity_path = output_dir / "e0036_source_parity.json"
     parity_path.write_text(json.dumps(parity, indent=2, ensure_ascii=False, default=str) + "\n", encoding="utf-8")
-    if parity["status"] != "passed":
-        raise RuntimeError("E0036 source parity failed; stop before economics and inspect the mismatch report")
     obadiaha_coverage, obadiaha_summary = _obadiaha_development_coverage(universe, output_dir)
     kachoio_summary = _kachoio_preopen_control(universe)
     source_window_summary = {
@@ -926,6 +1003,9 @@ def run_coverage() -> None:
         "pmxt_replay": replay_manifest,
         "pmxt_coverage": coverage_summary,
         "e0036_source_parity": parity,
+        "before_economic_results_gate": (
+            "passed" if parity["status"] == "passed" else "blocked_by_e0036_source_parity"
+        ),
         "obadiaha_proxy": obadiaha_summary,
         "kachoio_preopen_control": kachoio_summary,
         "coverage_manifest_path": coverage_path.relative_to(ROOT).as_posix(),
@@ -946,12 +1026,17 @@ def run_coverage() -> None:
         "source_hours": source_window_summary,
         "pmxt_coverage": coverage_summary,
         "e0036_source_parity_status": parity["status"],
+        "before_economic_results_gate": summary["before_economic_results_gate"],
         "obadiaha_proxy": obadiaha_summary,
         "kachoio_preopen_control": kachoio_summary,
         "coverage_manifest_path": summary["coverage_manifest_path"],
         "summary_path": summary_path.relative_to(ROOT).as_posix(),
         "outcomes_or_pnl_read": False,
     }, indent=2, ensure_ascii=False, default=str))
+    if parity["status"] != "passed":
+        raise RuntimeError(
+            "E0036 source parity failed; complete source-only outputs were saved, economics remain blocked"
+        )
 
 
 def _verify_frozen_sources(protocol: dict) -> dict[str, str]:
