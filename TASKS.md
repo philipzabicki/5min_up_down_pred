@@ -2,9 +2,11 @@
 
 Recovered 2026-10-25 at `cf885b0`. These are observed gaps, not authorization to implement or run experiments. IDs are stable. DONE requires the stated acceptance evidence; a passing test subset cannot close a full-suite task. Consult [PROJECT_STATE](PROJECT_STATE.md), [DECISIONS](DECISIONS.md), and the relevant [experiment](EXPERIMENTS.md) first.
 
-## Continuation plan - 2026-10-25
+## Superseded continuation plan - 2026-10-25
 
 Scope: continue T0001-T0005 and T0007 from the recovered HEAD; preserve D0001-D0014 and frozen A/B/C/D. No protected-data evaluation, training, tuning, replay, orders, or paid acquisition.
+
+Disposition 2026-10-26: the former step 4 (repair DNS, then run the three-window shadow pilot) is superseded by D0017. Preserve its T0004/E0034 historical blocker and 0/3 result; do not resume it as the next action.
 
 1. Reproduce and classify the eight T0001 errors and two T0002/T0003 failures, using fresh and suspect-order runs where relevant; resolve intended behavior from code, tests, active decisions and history before editing. Acceptance: focused regressions pass without masking or changing protected semantics.
 2. Check the current VP optimization input boundary and available manifests only; establish current admissibility separately from historical execution/model lineage. Acceptance: evidence-backed protection result, or explicit UNKNOWN, without reading protected feature rows.
@@ -12,6 +14,14 @@ Scope: continue T0001-T0005 and T0007 from the recovered HEAD; preserve D0001-D0
 4. If critical timing and no-order checks pass, freeze the existing shadow manifest before one predeclared series of three consecutive BTC 5m windows, run bounded public preflight/collection with the dedicated collector, then close it and report all planned/observed/complete/timely/resolved counts. Stop on a recorded blocker; do not substitute windows or retry until success.
 5. Independently inspect existing TWAP/L2 indexes, manifests and bounded samples plus RAW OOF provenance; do not acquire data. Acceptance: short source-availability matrix, exact missing evidence, and correct interpretation of the 637/2,000 and 908/1,000 gates.
 6. Run the required focused checks and one full unittest discovery after fixes; record environment and PASS/FAIL/ERROR/SKIP/XFAIL counts. Update the existing task, experiment, decision (only if needed), and project-state records with evidence. Commit and normally push only this work.
+
+## Current continuation plan - 2026-10-26
+
+Scope: continue the historical BTC evaluation under D0016/D0017. Preserve the frozen candidates and split boundaries. No holdout evaluation, training, tuning, full replay, data acquisition, collector, DNS pilot check, shadow/live process, or order.
+
+1. T0008: freeze the active sale rule and position lifecycle before any new economic replay. Specify the sale decision times/trigger, maximum holding horizon, order type and delay, partial and unfilled-sale behavior, fee treatment, and cash locking for overlapping positions. Do not select these terms from observed outcomes.
+2. After that protocol is recorded and committed, audit exact per-market entry-to-exit coverage from existing indexes/manifests. Emit a market/token/hour gap manifest before any replay or acquisition; only then assess whether the existing development cohort is priceable under the frozen contract.
+3. Keep T0004 out of the next-action queue. Reconsider live/shadow only after positive sale-based economics on the fixed holdout and separate explicit user authorization.
 
 ## T0000 - Recover canonical project state
 
@@ -62,6 +72,7 @@ Depends on: T0007 for readiness semantics; preserve D0008/D0010 frozen identitie
 Acceptance criteria: diagnose public endpoint access without credentials/orders; under separately continued collection scope capture at least three complete scheduled windows with exact Gamma market/token mapping, timely actual prediction timestamps, both T60/T59 snapshots and later official outcomes; report all failed/late attempts, measured latency and storage growth. Leave actual fills UNKNOWN. Preserve protocol and no-order behavior.
 Evidence required: preflight responses/timestamps, read-only DB counts/sample identities, runner/model/config hashes, per-stage runtime timing, restart/checkpoint evidence, and explicit collector process state/stop procedure. A synthetic test or successful Binance-only probe cannot close this task.
 2026-10-25 disposition: no window was scheduled or substituted after the public endpoint gate failed. Actual pilot count remains 0/3; observed/complete/timely/resolved counts are all zero. Fills remain UNKNOWN. Resume only after Gamma and CLOB DNS access is restored and a fresh bounded schema preflight passes.
+2026-10-26 disposition under D0017: retain the blocked 0/3 history, but do not resume this pilot or run DNS diagnostics as the next step. Reconsider only after positive sale-based economics on the fixed holdout and separate explicit user authorization.
 
 ## T0005 - Establish exact historical TWAP and L2 source feasibility
 
@@ -91,3 +102,13 @@ Depends on: D0003/D0010 and frozen protocol review; precedes T0004 pilot-validat
 Acceptance criteria: establish and record the intended difference (or required correction) between nominal decision time, data cutoff, actual prediction readiness and execution time. Preserve causality and actual timestamps; do not simply backdate or loosen a gate to obtain passing windows. If behavior changes, use explicit decision/protocol identity and separately authorized implementation work.
 Evidence required: source-of-authority comparison, deterministic boundary cases and then actual no-order receipt/compute timing; report whether the intended path can produce eligible decisions. A unit assertion encoding the current strict deadline is not reference validation of that deadline.
 Evidence: candidate shadow now accepts only T-120 input candles whose two Binance kline close events are no later than the T-60 information cutoff, retains actual UTC receive/event/ready times, measures durations and pair skew with `time.monotonic`, and uses T-59 as the prediction-ready deadline. T-60/T-59 REST books retain actual request/receive/source timestamps; late or missing books are not priceable. Boundary, late candle/readiness/book, missing-book and duplicate-window tests pass (`tests.test_btc_candidate_shadow_20261023`: 14/14; `tests.test_btc_prospective_shadow`: 19/19). Real receipt/compute timing remains unmeasured because T0004 public preflight failed DNS.
+
+## T0008 - Freeze sale-based position lifecycle before economics
+
+Status: BLOCKED (active contract gap; D0016).
+Priority: P0.
+Reason: the binding contract previously released positions at official resolution, which D0016 now prohibits. The existing A/B/C/D economic diagnostic used settlement outcomes; older `close_at_60s` and threshold studies are not the active strategy. No current sale trigger/redecision schedule or maximum position horizon is frozen.
+Depends on: D0003/D0004/D0006/D0016; preserve D0001/D0008/D0011 and D0017. No holdout or live/shadow work.
+Acceptance criteria: record the exact sale trigger and decision times, maximum holding horizon, order type and delay, partial/unfilled-fill rules, fee handling, remaining-share treatment, and overlapping-position cash lock/release. Before any outcome review, freeze the candidate IDs, cohort/splits, entry policy, execution path, capital controls, costs, coverage gates, and metrics. Then use existing manifests to produce per-market/token/hour required-range gaps; do not invent missing quotes or use official resolution as an exit.
+Evidence required: source-backed active contract, frozen protocol/hash, testable execution semantics, and exact market-path inventory. Do not run a development replay while the exit contract is unresolved. Any later holdout result requires its own approved scope; it does not authorize a pilot.
+2026-10-26 audit evidence: E0035 and [the sale-strategy gate report](reports/btc_preopen/btc_historical_sale_strategy_gate_20261026.md) confirm no active sale trigger/redecision schedule or maximum horizon. Existing entry and legacy path counts do not establish current A/B/C/D exit coverage, so market-specific required ranges were not fabricated. The prior no-fill-to-resolution fallback is corrected; focused modules pass 30/30 and full discovery passes 680/680. No replay or holdout evaluation was run. T0008 remains blocked pending an outcome-independent sale contract.

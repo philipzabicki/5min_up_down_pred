@@ -523,8 +523,12 @@ def _fresh_sale(quote: dict | None, shares: float, rule: dict) -> dict | None:
 
 
 def _exit_plan(market: dict, path: dict | None, exit_policy: dict, shares: float, cash_debit: float) -> dict:
-    if exit_policy["kind"] == "hold" or not path:
-        return {"sale": None, "trigger_offset_seconds": None, "attempt_count": 0, "exit_status": "hold_to_resolution"}
+    if exit_policy["kind"] == "hold":
+        return {"sale": None, "trigger_offset_seconds": None, "attempt_count": 0, "exit_status": "no_sale_policy_open"}
+    if not path:
+        return {"sale": None, "trigger_offset_seconds": None, "attempt_count": 0, "exit_status": "exit_quote_path_missing_open"}
+    if market.get("resolved_ns") is None:
+        return {"sale": None, "trigger_offset_seconds": None, "attempt_count": 0, "exit_status": "exit_resolution_time_missing_open"}
     resolved_ns = int(market["resolved_ns"])
     start_ns = int(market["market_start_ns"])
     rule = market["fee_rule"]
@@ -533,11 +537,11 @@ def _exit_plan(market: dict, path: dict | None, exit_policy: dict, shares: float
         decision_ns = start_ns + offset * 1_000_000_000
         arrival_ns = decision_ns + exit_quotes.ORDER_DELAY_SECONDS * 1_000_000_000
         if arrival_ns >= resolved_ns:
-            return {"sale": None, "trigger_offset_seconds": None, "attempt_count": 0, "exit_status": "time_close_after_resolution"}
+            return {"sale": None, "trigger_offset_seconds": None, "attempt_count": 0, "exit_status": "time_close_after_resolution_open"}
         quote = path["quotes"].get(str(offset), {}).get("arrival", {}).get(market["_chosen_side"])
         sale = _fresh_sale(quote, shares, rule)
         if sale is None:
-            return {"sale": None, "trigger_offset_seconds": offset, "attempt_count": 1, "exit_status": "time_exit_unfilled_hold"}
+            return {"sale": None, "trigger_offset_seconds": offset, "attempt_count": 1, "exit_status": "time_exit_unfilled_open"}
         return {
             "sale": {**sale, "exit_time_ns": int(quote["quote_received_ns"]), "quote": quote},
             "trigger_offset_seconds": offset, "attempt_count": 1, "exit_status": "time_exit_filled",
@@ -572,7 +576,7 @@ def _exit_plan(market: dict, path: dict | None, exit_policy: dict, shares: float
                     "attempt_count": attempts,
                     "exit_status": "threshold_exit_filled",
                 }
-    status = "threshold_trigger_unfilled_hold" if triggered_at is not None else "threshold_not_triggered_hold"
+    status = "threshold_trigger_unfilled_open" if triggered_at is not None else "threshold_not_triggered_open"
     return {"sale": None, "trigger_offset_seconds": triggered_at, "attempt_count": attempts, "exit_status": status}
 
 
@@ -620,41 +624,27 @@ def _simulate_exit_portfolio(
     def process_event(event) -> None:
         nonlocal cash, locked, fees_paid, turnover, open_positions
         when_ns, _, cid, kind, position = event
+        if kind != "sale":
+            raise RuntimeError(f"Unsupported exit portfolio event: {kind}")
         row = position["trade_row"]
-        if kind == "sale":
-            sale = position["exit_plan"]["sale"]
-            cash += float(sale["net_proceeds_usd"])
-            locked -= float(position["gross_usd"])
-            fees_paid += float(sale["fee_cash_usd"] or 0.0)
-            turnover += float(sale["gross_proceeds_usd"])
-            row.update({
-                "actual_exit_type": "sale",
-                "actual_exit_time_utc": pd.Timestamp(when_ns, unit="ns", tz="UTC").isoformat(),
-                "exit_gross_proceeds_usd": float(sale["gross_proceeds_usd"]),
-                "exit_fee_cash_usd": float(sale["fee_cash_usd"] or 0.0),
-                "exit_net_proceeds_usd": float(sale["net_proceeds_usd"]),
-                "exit_vwap": float(sale["vwap"]),
-                "exit_price_levels": sale["price_levels"],
-                "exit_quote_source": position["path_source"],
-                "net_pnl_usd": float(sale["net_proceeds_usd"]) - float(position["cash_debit_usd"]),
-                "cash_after_exit_usd": cash,
-            })
-        else:
-            payout = float(position["payout_usd"])
-            cash += payout
-            locked -= float(position["gross_usd"])
-            row.update({
-                "actual_exit_type": "resolution",
-                "actual_exit_time_utc": pd.Timestamp(when_ns, unit="ns", tz="UTC").isoformat(),
-                "exit_gross_proceeds_usd": 0.0,
-                "exit_fee_cash_usd": 0.0,
-                "exit_net_proceeds_usd": payout,
-                "exit_vwap": None,
-                "exit_price_levels": [],
-                "exit_quote_source": None,
-                "net_pnl_usd": payout - float(position["cash_debit_usd"]),
-                "cash_after_exit_usd": cash,
-            })
+        sale = position["exit_plan"]["sale"]
+        cash += float(sale["net_proceeds_usd"])
+        locked -= float(position["gross_usd"])
+        fees_paid += float(sale["fee_cash_usd"] or 0.0)
+        turnover += float(sale["gross_proceeds_usd"])
+        row.update({
+            "position_status": "closed",
+            "actual_exit_type": "sale",
+            "actual_exit_time_utc": pd.Timestamp(when_ns, unit="ns", tz="UTC").isoformat(),
+            "exit_gross_proceeds_usd": float(sale["gross_proceeds_usd"]),
+            "exit_fee_cash_usd": float(sale["fee_cash_usd"] or 0.0),
+            "exit_net_proceeds_usd": float(sale["net_proceeds_usd"]),
+            "exit_vwap": float(sale["vwap"]),
+            "exit_price_levels": sale["price_levels"],
+            "exit_quote_source": position["path_source"],
+            "net_pnl_usd": float(sale["net_proceeds_usd"]) - float(position["cash_debit_usd"]),
+            "cash_after_exit_usd": cash,
+        })
         open_positions -= 1
         record(int(when_ns), kind, cid)
 
@@ -686,9 +676,6 @@ def _simulate_exit_portfolio(
         snapshot = market.get("snapshot")
         if snapshot is None:
             skip("missing_t59_market_snapshot", entry_ns)
-            continue
-        if market.get("outcome") is None or market.get("resolved_ns") is None:
-            skip("missing_official_outcome_or_resolution_time", entry_ns)
             continue
         if market.get("p_candidate_platt") is None:
             skip("missing_causal_prediction", entry_ns)
@@ -729,11 +716,6 @@ def _simulate_exit_portfolio(
 
         market_for_exit = {**market, "_chosen_side": chosen}
         plan = _exit_plan(market_for_exit, path, exit_policy, float(fill["shares"]), debit)
-        won = int(market["outcome"]) == int(chosen == "up")
-        payout = float(fill["shares"]) if won else 0.0
-        release_ns = readiness.release_time_ns(
-            int(market["market_start_ns"]), int(market["resolved_ns"]), 60,
-        )
         rule = market["fee_rule"]
         entry_fee = float(fill.get("fee_usd") or 0.0)
         cash -= debit
@@ -746,12 +728,11 @@ def _simulate_exit_portfolio(
             "entry_role": scenario["role"],
             "entry_scenario_id": scenario["scenario_id"],
             "exit_policy": exit_policy["id"],
+            "position_status": "open",
             "condition_id": cid,
             "market_start_utc": market["market_start_utc"].isoformat(),
             "entry_time_utc": pd.Timestamp(entry_ns, unit="ns", tz="UTC").isoformat(),
             "chosen_side": chosen,
-            "outcome_up": int(market["outcome"]),
-            "won": bool(won),
             "predicted_net_return": float(evaluations[chosen]["ev_usd"]) / debit,
             "minimum_net_return": float(scenario["minimum_net_return"]),
             "gross_usd": float(fill["gross_usd"]),
@@ -773,8 +754,6 @@ def _simulate_exit_portfolio(
             "exit_trigger_offset_seconds": plan["trigger_offset_seconds"],
             "exit_attempt_count": plan["attempt_count"],
             "exit_status": plan["exit_status"],
-            "payout_at_resolution_usd": payout,
-            "assumed_cash_release_utc": pd.Timestamp(release_ns, unit="ns", tz="UTC").isoformat(),
         }
         trade_rows.append(trade_row)
         record(entry_ns, "entry", cid)
@@ -785,24 +764,18 @@ def _simulate_exit_portfolio(
                 "exit_plan": plan,
                 "gross_usd": float(fill["gross_usd"]),
                 "cash_debit_usd": debit,
-                "payout_usd": payout,
                 "path_source": path["source"],
-            }))
-        else:
-            heapq.heappush(pending, (release_ns, 0, cid, "settlement", {
-                "trade_row": trade_row,
-                "exit_plan": plan,
-                "gross_usd": float(fill["gross_usd"]),
-                "cash_debit_usd": debit,
-                "payout_usd": payout,
-                "path_source": None,
             }))
         process_sales_at_entry(entry_ns)
 
     while pending:
         process_event(heapq.heappop(pending))
-    if abs(cash - 100.0 - sum(float(row.get("net_pnl_usd", 0.0)) for row in trade_rows)) > 1e-6:
+    open_trade_rows = [row for row in trade_rows if row["position_status"] == "open"]
+    closed_trade_rows = [row for row in trade_rows if row["position_status"] == "closed"]
+    if not open_trade_rows and abs(cash - 100.0 - sum(float(row["net_pnl_usd"]) for row in closed_trade_rows)) > 1e-6:
         raise RuntimeError("Exit portfolio ledger does not reconcile to ending cash")
+    if open_positions != len(open_trade_rows):
+        raise RuntimeError("Open exit positions do not reconcile to the trade ledger")
     if locked < -1e-8 or cash < -1e-8:
         raise RuntimeError("Exit portfolio cash or locked cost became negative")
 
@@ -813,8 +786,12 @@ def _simulate_exit_portfolio(
         first_month = pd.Timestamp(event_frame["timestamp_ns"].min(), unit="ns", tz="UTC").replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         last_month = pd.Timestamp(event_frame["timestamp_ns"].max(), unit="ns", tz="UTC").replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         previous_equity, previous_fees, previous_turnover = 100.0, 0.0, 0.0
+        previous_open_positions = 0
         entry_counts = Counter(pd.Timestamp(row["entry_time_utc"]).strftime("%Y-%m") for row in trade_rows)
-        exit_counts = Counter(pd.Timestamp(row["actual_exit_time_utc"]).strftime("%Y-%m") for row in trade_rows)
+        exit_counts = Counter(
+            pd.Timestamp(row["actual_exit_time_utc"]).strftime("%Y-%m")
+            for row in trade_rows if row.get("actual_exit_time_utc") is not None
+        )
         for month in pd.date_range(first_month, last_month, freq="MS", tz="UTC"):
             label = month.strftime("%Y-%m")
             rows = event_frame.loc[event_frame["month_utc"].eq(label)]
@@ -823,10 +800,12 @@ def _simulate_exit_portfolio(
                 closing_fees, closing_turnover = previous_fees, previous_turnover
                 monthly_dd = 0.0
                 min_cash_month = None
+                closing_open_positions = previous_open_positions
             else:
                 closing = float(rows.iloc[-1]["equity_usd"])
                 closing_fees = float(rows.iloc[-1]["fees_paid_cumulative_usd"])
                 closing_turnover = float(rows.iloc[-1]["turnover_cumulative_usd"])
+                closing_open_positions = int(rows.iloc[-1]["open_positions"])
                 path_equity = [previous_equity, *rows["equity_usd"].astype(float).tolist()]
                 peak = path_equity[0]
                 monthly_dd = 0.0
@@ -839,7 +818,9 @@ def _simulate_exit_portfolio(
                 "exit_policy": exit_policy["id"], "month_utc": label,
                 "opening_cost_basis_equity_usd": previous_equity,
                 "closing_cost_basis_equity_usd": closing,
-                "net_pnl_usd": closing - previous_equity,
+                "net_pnl_usd": closing - previous_equity if closing_open_positions == 0 else None,
+                "position_lifecycle_complete": closing_open_positions == 0,
+                "closing_open_positions": closing_open_positions,
                 "entry_count": int(entry_counts[label]),
                 "exit_count": int(exit_counts[label]),
                 "gross_turnover_usd": closing_turnover - previous_turnover,
@@ -848,8 +829,10 @@ def _simulate_exit_portfolio(
                 "minimum_free_cash_usd": min_cash_month,
             })
             previous_equity, previous_fees, previous_turnover = closing, closing_fees, closing_turnover
+            previous_open_positions = closing_open_positions
 
-    total_pnl = cash - 100.0
+    lifecycle_complete = not open_trade_rows
+    total_pnl = cash - 100.0 if lifecycle_complete else None
     summary = {
         **{key: scenario.get(key) for key in ("role", "scenario_id", "policy", "cap_usd", "sizing_id", "minimum_net_return")},
         "exit_policy": exit_policy["id"],
@@ -860,13 +843,21 @@ def _simulate_exit_portfolio(
         "trade_count": len(trade_rows),
         "sold_count": sum(row.get("actual_exit_type") == "sale" for row in trade_rows),
         "held_to_resolution_count": sum(row.get("actual_exit_type") == "resolution" for row in trade_rows),
+        "open_position_count": len(open_trade_rows),
+        "position_lifecycle_complete": lifecycle_complete,
+        "economic_result_status": "complete" if lifecycle_complete else "incomplete_open_positions",
         "skip_count": sum(skips.values()),
         "skip_reasons": json.dumps(dict(skips), sort_keys=True),
         "initial_cash_usd": 100.0,
-        "ending_cash_after_all_releases_usd": cash,
+        "ending_cash_after_all_releases_usd": cash if lifecycle_complete else None,
+        "ending_free_cash_usd": cash,
         "ending_locked_cost_basis_usd": locked,
+        "ending_cost_basis_equity_usd": cash + locked,
         "net_pnl_usd": total_pnl,
-        "trade_pnl_sum_usd": float(sum(float(row.get("net_pnl_usd", 0.0)) for row in trade_rows)),
+        "trade_pnl_sum_usd": (
+            float(sum(float(row["net_pnl_usd"]) for row in closed_trade_rows))
+            if lifecycle_complete else None
+        ),
         "gross_turnover_usd": turnover,
         "fees_paid_estimated_usd": fees_paid,
         "maximum_drawdown_cost_basis_equity": max_drawdown,
@@ -1359,6 +1350,9 @@ def _write_report(config, provenance, summary: pd.DataFrame, monthly: pd.DataFra
     def fmt_usd(value):
         return f"${value:,.2f}"
 
+    def fmt_optional_usd(value):
+        return "INCOMPLETE" if pd.isna(value) else fmt_usd(float(value))
+
     selected_id = str(selected["scenario_id"])
     challenger_monthly = monthly.loc[monthly.scenario_id.astype(str).eq(str(challenger.get("scenario_id", "")))]
     challenger_oos = challenger_monthly.loc[challenger_monthly.period_role.eq("out_of_sample")]
@@ -1470,8 +1464,8 @@ def _write_report(config, provenance, summary: pd.DataFrame, monthly: pd.DataFra
                     f"| {role_labels.get(row.entry_role, row.entry_role)} | {row.exit_policy} | "
                     f"{int(getattr(row, 'common_market_count', 0)):,} | {int(getattr(row, 'trade_count', 0)):,} | "
                     f"{int(getattr(row, 'sold_count', 0)):,} | {int(getattr(row, 'held_to_resolution_count', 0)):,} | "
-                    f"{fmt_usd(float(getattr(row, 'net_pnl_usd', 0.0)))} | "
-                    f"{fmt_usd(float(getattr(row, 'ending_cash_after_all_releases_usd', 100.0)))} | "
+                    f"{fmt_optional_usd(getattr(row, 'net_pnl_usd', None))} | "
+                    f"{fmt_optional_usd(getattr(row, 'ending_cash_after_all_releases_usd', None))} | "
                     f"{fmt_usd(float(getattr(row, 'fees_paid_estimated_usd', 0.0)))} | "
                     f"{float(getattr(row, 'maximum_drawdown_cost_basis_equity', 0.0)):.1%} |"
                 )

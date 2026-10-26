@@ -978,4 +978,16 @@ Experiment `btc_market_dynamics_action_value_20261020`: the original run report 
 - T0004 preflight at 2026-10-25 22:44 UTC: Binance time passed (HTTP 200, valid schema); Gamma and CLOB failed DNS. The dedicated collector did not start. Pilot remains 0/3; the read-only database still has two older preflight events and zero market data/windows/checkpoints.
 - T0005 remains blocked: no exact official historical Chainlink TWAP reports or TWAP60 L2 history acquired; existing source/access matrix and the 637/2,000, 908/1,000, and RAW OOF timing gates remain unchanged.
 
-Next resumable step: once Gamma/CLOB DNS access works, repeat bounded public schema preflight in the same interpreter, freeze the three consecutive window manifest, then run only the dedicated no-order collector. Do not start training, protected evaluation, replay, acquisition or live trading from this checkpoint.
+That next-step recommendation was superseded on 2026-10-26 by D0017. The historical T0004 preflight and 0/3 pilot status remain unchanged; no DNS diagnostic, collector, or pilot is the active next step.
+
+## Sale-based historical evaluation checkpoint — 2026-10-26
+
+- D0016 records the user's requirement for executed buys and sells with costs. No position may be settled to create a missing exit; a failed/unavailable sale retains the shares, paid fee, and locked cost and makes the result incomplete.
+- The active sale trigger/redecision schedule and maximum holding horizon are absent. Existing `close_at_60s`, threshold, and resolution-based studies are historical variants, not an active contract. No development or holdout economics were run.
+- The frozen candidate family remains A=BASE70, B=BASE70+simple-memory PCA8, C=BASE70+focused ESN PCA8 (auxiliary), and D=BASE70+memory+ESN PCA8. Exact manifest hashes and source/coverage caveats are in [the gate report](../reports/btc_preopen/btc_historical_sale_strategy_gate_20261026.md).
+- The PMXT full-book snapshot with empty bids already initializes the native ask book and has a passing regression. A separate exit-ledger bug was reproduced with a small fixture: an unfilled sale became a resolution payout. The code now retains the open position and returns incomplete PnL; the focused regression suite passed 30/30.
+- Current A/B/C/D entry diagnostics have T−60/T−59 entry coverage only; no current sale-path coverage is established. Market-specific exit-gap intervals cannot be listed until the exit schedule and maximum horizon are frozen. The structured inventory records this as UNSPECIFIED rather than fabricating a range.
+- E0024's 637/2,000 and 908/1,000 counts remain pre-RAW auxiliary counts; 44 is a verifier sample, and the final RAW-provenance-qualified count is zero.
+- D0017 removes the earlier “repair DNS, then run three shadow windows” recommendation from the active queue. No shadow/live process, order, DNS probe, holdout-row materialization/evaluation, training, or source acquisition occurred.
+
+Next resumable step: T0008 — freeze the sale trigger, decision schedule, maximum holding horizon, order/fill rules, and cash lifecycle before generating market-specific gaps or running a replay.

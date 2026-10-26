@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "experiment_id": "E0035",
+  "task_id": "T0008",
+  "status": "BLOCKED_CONTRACT_GAP",
+  "audit_date": "2026-10-26",
+  "audit_input_head": "6572bf40de8761a905af8fa71e7073c91100c584",
+  "decisions": ["D0016", "D0017"],
+  "scope": {
+    "split_changes": false,
+    "holdout_evaluation": false,
+    "training_or_tuning": false,
+    "historical_replay": false,
+    "data_acquisition": false,
+    "live_or_shadow_activity": false,
+    "raw_prediction_rows_loaded": false
+  },
+  "candidate_identity": {
+    "freeze_config": "configs/research/btc_candidate_quality_freeze_20261022.json",
+    "freeze_config_sha256": "0fbade42eb91d48e876d4178d15de1da6a86e185c44f915bc0620603f907e175",
+    "E0030_run_identity": "ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b",
+    "procedures": {
+      "A": {
+        "name": "BASE70",
+        "candidate_id": "BASE70",
+        "procedure_manifest_sha256": "28368afa62f824b5d2592eb61f87cb7a48ba8b66d0afc0a97ccdf6f334c9f1ef"
+      },
+      "B": {
+        "name": "BASE70 + simple-memory PCA8",
+        "candidate_id": "simple_memory_pca8",
+        "procedure_manifest_sha256": "66eddd315dc38326f6f64959cd4a4fd8d053a6cd189ef7cceac5b3c35bd6a567"
+      },
+      "C": {
+        "name": "BASE70 + focused ESN PCA8 (auxiliary ablation)",
+        "candidate_id": "8f74a7951e10c11830baba75",
+        "procedure_manifest_sha256": "f5ca0f29908e473b7e67be344c9430da0163cfd80f29d8bba9ce3931985f4d45"
+      },
+      "D": {
+        "name": "BASE70 + simple-memory PCA8 + focused ESN PCA8",
+        "candidate_id": "D_memory_plus_8f74a7951e10c11830baba75",
+        "procedure_manifest_sha256": "c4910eb9d4fff03680fe36242c6d338abb2dcbc422803e94bd15c700869e6119"
+      }
+    }
+  },
+  "active_contract_gap": {
+    "sale_trigger_or_decision_schedule": "UNSPECIFIED",
+    "maximum_holding_horizon": "UNSPECIFIED",
+    "exit_order_type_and_delay": "UNSPECIFIED",
+    "partial_and_unfilled_exit_semantics": "UNSPECIFIED",
+    "market_specific_required_quote_ranges": "NOT_GENERATED",
+    "reason": "A per-market exit interval cannot be inferred without choosing a sale rule or horizon. No choice may be made from observed outcomes."
+  },
+  "known_structural_coverage": {
+    "E0031_candidate_entry": {
+      "t59_native_ask_snapshots": 50184,
+      "t60_exact_snapshots_confirmation": 9407,
+      "t60_fixed_5_checks_confirmation": 4066,
+      "t59_provenance_qualified_full_5_fills_confirmation": 5609,
+      "common_t60_t59_confirmation_markets": 1143,
+      "exact_t60_holdout_snapshots": 0,
+      "interpretation": "Entry-path counts only; no full sale-path or current-contract lifecycle coverage is established."
+    },
+    "E0006_legacy_exit_sample": {
+      "kacho_300_second_paths": "4454/4454 legacy markets",
+      "post_start_five_second_decisions": "4454/4454 legacy markets",
+      "prestart_full_position_exit_quote_observations": 23931,
+      "poststart_full_position_exit_quote_observations": 126675,
+      "interpretation": "Different legacy policy/sample; Kacho is sampled top-of-book and is not a current A/B/C/D full-depth path count."
+    },
+    "E0024_dynamic_history": {
+      "pmxt_development_hours_verified": "1853/1856",
+      "pmxt_hours_nonempty": 1409,
+      "pmxt_hours_confirmed_empty": 444,
+      "missing_hours_utc": [
+        "2026-06-11T04:00:00Z",
+        "2026-06-11T05:00:00Z",
+        "2026-06-11T06:00:00Z"
+      ],
+      "independent_verifier_sample": "44 cases (40 prior plus 4 recovered), not the 637-market qualifying cohort",
+      "final_raw_provenance_qualified_gate": 0
+    }
+  },
+  "known_source_ranges_not_acquired": [
+    {
+      "source": "Local PMXT v2",
+      "object_or_hour": "Local manifest coverage ends 2026-08-10T00:00:00Z",
+      "market_scope": "BTC 5m TWAP60 holdout regime; structural note only",
+      "token_scope": "native UP and DOWN",
+      "required_interval_utc": "[2026-08-14T00:00:00Z, 2026-10-07T00:00:00Z)",
+      "status": "NOT_PRESENT_LOCALLY",
+      "reason": "TWAP60 begins after the local PMXT archive end. This is not a current development exit requirement and no holdout economics were evaluated."
+    },
+    {
+      "source": "Vike BTC 5m family layout",
+      "object_or_hour": "2026-08-14 through 2026-08-21 family dates",
+      "market_scope": "BTC 5m; structural note only",
+      "token_scope": "both token books",
+      "required_interval_utc": "[2026-08-14T00:00:00Z, 2026-08-22T00:00:00Z)",
+      "status": "FAMILY_LAYOUT_HOLE",
+      "reason": "Existing 2026-10-23 source review found an eight-day family-layout hole. Mixed-layout acquisition was estimated at 101.88 GB; no download or account access was started."
+    },
+    {
+      "source": "PMXT exit path for frozen A/B/C/D development cohort",
+      "object_or_hour": "per-market objects cannot yet be enumerated",
+      "market_scope": "frozen development cohort after an exit rule is recorded",
+      "token_scope": "native UP and DOWN",
+      "required_interval_utc": null,
+      "status": "REQUIRED_INTERVAL_UNSPECIFIED",
+      "reason": "T0008 must first freeze sale decision times and maximum holding horizon; do not infer a gap interval from results."
+    }
+  ],
+  "prior_pilot": {
+    "experiment_id": "E0034",
+    "task_id": "T0004",
+    "historical_status": "BLOCKED",
+    "planned_observed_complete_timing_qualified_resolved": "3/0/0/0/0",
+    "current_disposition": "NOT_IN_ACTIVE_NEXT_ACTION_QUEUE_UNDER_D0017"
+  },
+  "next_action": "T0008: freeze sale trigger, decision schedule, maximum holding horizon, execution/fill rules, and cash lifecycle before market-specific gap generation or replay."
+}

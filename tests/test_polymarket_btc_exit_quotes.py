@@ -197,14 +197,14 @@ class PolymarketBtcExitQuoteTests(unittest.TestCase):
         self.assertAlmostEqual(summary["ending_cash_after_all_releases_usd"], 102.09032)
         self.assertAlmostEqual(summary["fees_paid_estimated_usd"], 0.30968)
 
-    def test_unfilled_fixed_close_holds_to_official_settlement(self):
+    def test_unfilled_fixed_close_keeps_position_open_without_settlement_fallback(self):
         start = pd.Timestamp("2026-05-10T12:05:00Z")
         rule = fee_rules.resolve_market_fee_rule(None, start - pd.Timedelta(seconds=59))
         market = {
             **self._market(),
             "market_start_ns": int(start.value), "entry_ns": int((start-pd.Timedelta(seconds=59)).value),
             "market_start_utc": start, "resolved_ns": int((start+pd.Timedelta(seconds=310)).value),
-            "resolved_at_utc": start+pd.Timedelta(seconds=310), "outcome": 1.0,
+            "resolved_at_utc": start+pd.Timedelta(seconds=310), "outcome": None,
             "p_candidate_platt": 0.9, "fee_rule": rule,
         }
         market["snapshot"].update({
@@ -229,14 +229,27 @@ class PolymarketBtcExitQuoteTests(unittest.TestCase):
             "role": "test", "scenario_id": "fixed5", "policy": "fixed_5_usd",
             "cap_usd": None, "sizing_id": "fixed_5_usd", "minimum_net_return": 0.0,
         }
-        summary, _, trades, _ = _simulate_exit_portfolio(
+        summary, monthly, trades, _ = _simulate_exit_portfolio(
             [market], scenario=scenario,
             exit_policy={"id": "close_at_60s", "kind": "time", "offset_seconds": 60},
             quote_paths={"0xmarket": path}, common_market_ids={"0xmarket"},
         )
-        self.assertEqual(trades[0]["exit_status"], "time_exit_unfilled_hold")
-        self.assertEqual(trades[0]["actual_exit_type"], "resolution")
-        self.assertAlmostEqual(summary["ending_cash_after_all_releases_usd"], 104.825)
+        self.assertEqual(trades[0]["exit_status"], "time_exit_unfilled_open")
+        self.assertEqual(trades[0]["position_status"], "open")
+        self.assertNotIn("actual_exit_type", trades[0])
+        self.assertNotIn("payout_at_resolution_usd", trades[0])
+        self.assertEqual(summary["economic_result_status"], "incomplete_open_positions")
+        self.assertEqual(summary["open_position_count"], 1)
+        self.assertFalse(summary["position_lifecycle_complete"])
+        self.assertIsNone(summary["net_pnl_usd"])
+        self.assertIsNone(summary["ending_cash_after_all_releases_usd"])
+        self.assertAlmostEqual(summary["ending_free_cash_usd"], 94.825)
+        self.assertAlmostEqual(summary["ending_locked_cost_basis_usd"], 5.0)
+        self.assertAlmostEqual(summary["ending_cost_basis_equity_usd"], 99.825)
+        self.assertAlmostEqual(summary["fees_paid_estimated_usd"], 0.175)
+        self.assertIsNone(monthly[0]["net_pnl_usd"])
+        self.assertFalse(monthly[0]["position_lifecycle_complete"])
+        self.assertEqual(monthly[0]["closing_open_positions"], 1)
 
 
 if __name__ == "__main__":
