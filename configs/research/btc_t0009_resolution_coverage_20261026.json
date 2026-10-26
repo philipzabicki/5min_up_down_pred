@@ -1,0 +1,158 @@
+{
+  "experiment_id": "E0037",
+  "status": "frozen_before_new_results",
+  "frozen_at_utc": "2026-10-26T17:46:36Z",
+  "freeze_commit_required_before": "sample_reconstruction_or_economic_outputs",
+  "source_head": "c18b20fc46585b0672fe178dcfdeb06a0be9410d",
+  "source_branch": "audit/btc-dynamic-history-20261020",
+  "decision_ids": ["D0001", "D0003", "D0004", "D0005", "D0006", "D0008", "D0012", "D0018"],
+  "source_experiment_id": "E0031",
+  "control_experiment_id": "E0036",
+  "scope": {
+    "market_start_inclusive_utc": "2025-07-01T00:00:00Z",
+    "market_start_exclusive_utc": "2026-07-01T00:00:00Z",
+    "candidate_source": "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/confirmation_market_matches.parquet",
+    "candidate_source_sha256": "4587e0fdb5b922142aa33de0f099bd0f7aedd696d8eb1dd19a47c7f733f31f32",
+    "candidate_market_rule": "Use one saved row per non-null Gamma condition_id with market_start inside the frozen development interval and all A/B/C/D probabilities present. Keep rows without Gamma condition_id as no-market-mapping coverage records; do not turn them into trades.",
+    "preliminary_identity_audit": {
+      "confirmation_rows": 105117,
+      "rows_without_gamma_condition_id": 53660,
+      "distinct_gamma_condition_ids": 51457,
+      "duplicate_condition_ids": 0,
+      "missing_candidate_probabilities": 0,
+      "official_label_valid_count_reference": 51430,
+      "official_label_count_source": "Existing E0031/E0036 canonical record; re-count only as label-status coverage after protocol freeze"
+    },
+    "holdout_filter": "Exclude market_start_utc >= 2026-07-01T00:00:00Z before any join or projection of label columns; do not open the holdout match file."
+  },
+  "candidate_identity": {
+    "saved_prediction_run_identity_sha256": "ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b",
+    "candidate_manifest_path": "reports/btc_preopen/btc_candidate_polymarket_target_20261023_v3_manifest.json",
+    "candidate_manifest_sha256": "16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503",
+    "procedures": {
+      "A": {"name": "BASE70", "manifest_sha256": "28368afa62f824b5d2592eb61f87cb7a48ba8b66d0afc0a97ccdf6f334c9f1ef"},
+      "B": {"name": "BASE70 + simple memory PCA8", "manifest_sha256": "66eddd315dc38326f6f64959cd4a4fd8d053a6cd189ef7cceac5b3c35bd6a567"},
+      "C": {"name": "BASE70 + frozen ESN PCA8 (auxiliary)", "manifest_sha256": "f5ca0f29908e473b7e67be344c9430da0163cfd80f29d8bba9ce3931985f4d45"},
+      "D": {"name": "BASE70 + memory + ESN PCA8", "manifest_sha256": "c4910eb9d4fff03680fe36242c6d338abb2dcbc422803e94bd15c700869e6119"}
+    },
+    "use_existing_probabilities_only": true,
+    "new_training_tuning_or_model_scoring": false,
+    "readiness_timestamp": "Not present per prediction row. Do not create synthetic telemetry. Treat nominal T-60 availability as an assumption and results as retrospective/conditional unless the full saved lineage proves stricter causality."
+  },
+  "inputs": {
+    "gamma_market_index": {"path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet", "sha256": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba"},
+    "e0036_protocol": {"path": "configs/research/btc_resolution_development_20261026.json", "sha256": "6e5812ca9fee860313c2e64fdd4a39111a03df55a2da37134df86c17fad04ed6"},
+    "e0036_economic_ledger": {"path": "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/economic_decision_ledger.parquet", "sha256": "c0432980574e91ecd87529c8367e89f1b08c0cc119b81c345bb7de5acc8fc1a4"},
+    "e0036_t60_snapshots": {"path": "reports/btc_preopen/entry_snapshots.parquet", "sha256": "1df26fe04d2e8d0f0fb9a3820184ce4a5b10c42383b8d424975dde44ef6a84b9"},
+    "e0036_t59_native_ask_ladders": {"path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet", "sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941"},
+    "pmxt_archive": {
+      "manifest_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json",
+      "manifest_sha256": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+      "event_parts_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/event_parts",
+      "development_parts": 1853,
+      "development_part_bytes": 1242757525,
+      "development_source_rows": 152378189,
+      "development_filename_interval": ["2026-04-14T16.parquet", "2026-06-30T23.parquet"],
+      "development_part_list_content_schema_fingerprint_sha256": "3fe6416a8b6a4d1c511bc9c75c11c9bed2bfc52a3411d58b780304828b04622c",
+      "pmxt_v2_advertised_hours": 2835,
+      "pmxt_v2_processed_hours": 2813,
+      "pmxt_v2_missing_hours": ["2026-06-11T04:00:00Z", "2026-06-11T05:00:00Z", "2026-06-11T06:00:00Z"],
+      "holdout_parts_rule": "Do not read event partitions whose UTC hour begins at or after 2026-07-01T00:00:00Z."
+    },
+    "old_limited_pmxt_market_index": {"path": "data/analysis/polymarket/BTC/preopen_v1/pmxt_v2_archive_full_scenarios/market_index.parquet", "sha256": "e159e2bd96acc55c4765a77ea5d6357c6dff8b230143aa16461cde6fbc569fc6", "rows": 9407, "market_start_min_utc": "2026-04-15T17:05:00Z", "market_start_max_utc": "2026-05-18T10:30:00Z", "interpretation": "Older saved index boundary, not the physical PMXT archive end; use the full frozen development cutoff."},
+    "obadiaha": {
+      "root": "data/raw/polymarket/obadiaha/11793901f0ac89c5a6c51123a6ccd29a3aaf8f4c",
+      "manifest_sha256": "c0b6cb07275767a0e7ef08ca964c56be5887dec29fc10557567d770181db8c5f",
+      "readme_sha256": "7a3248fae03457a0da11b0acd4121e4e936edf2c1d89a1b6f39e3e0d5e2015d6",
+      "march_2026_daily_part_list_fingerprint_sha256": "a63527afb3350467fea36940d64e398e0944361345f8d17e398e4e4412f53878",
+      "march_2026_parts": 19,
+      "march_2026_part_bytes": 132424682,
+      "capture_semantics": "10-second sampled CLOB /book snapshots; native token IDs; top 10 levels; one timestamp without independent event/receive time. Proxy only: nearest prior snapshot no older than 10 seconds; no cross-market carry."
+    },
+    "kachoio": {
+      "root": "data/raw/polymarket/kachoio/42d917dc8e3205dde8ac909792af0cce2d715c9f",
+      "manifest_sha256": "74e2ec5abe1abe820067fcbff2bf190fa93a2bb8cc68730a919cf0b9e4e96930",
+      "readme_sha256": "e0c5ce6504f08ea595237ebb51b230d6d5471edb400aabd94d5b4ac0e18e334a",
+      "markets_sha256": "8e0ed78021bd98d3dba18829266103ebd9b46a77f6ba872a1c7f98be77b506bd",
+      "ticks_sha256": "173760b951ac0a2c795e1c3873a506e2fd4372db356dd3515f06582820ff975e",
+      "capture_semantics": "1-second within-market BBO samples with displayed size and no ask depth, observed 2026-03-24T22:10Z through 2026-05-18T10:34:59Z. Prior source audit found no rows at or before T-60/T-59; reconfirm as a negative pre-open coverage control."
+    },
+    "fees": {"config_path": "configs/polymarket_btc5m_fee_regimes_v2.json", "config_sha256": "b47cb594512b3671f67ab3cee3a673ff43b7dcd15f7514803e1bcde8238ec1e2", "helper_path": "utils/polymarket_btc5m_fee_rules.py", "helper_sha256": "9bbdce425e6014f407d79cc2a25ca2456a4d224255302eb008d76f8e111cab56"},
+    "code": {
+      "economic_replay_path": "run_btc_preopen_economic_replay.py", "economic_replay_sha256": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528",
+      "t59_replay_path": "run_btc_preopen_t59_reassessment.py", "t59_replay_sha256": "b1b3945ec12d845d70d75d1df1b78351e1bfd25046dde1c53e16f8c141cba9c8",
+      "portfolio_path": "utils/btc_resolution_portfolio.py", "portfolio_sha256": "4af144f307db129f208687dd4ef7c38d002382b0b24048066772ef0d4964c9c1",
+      "e0036_runner_path": "run_btc_resolution_development_20261026.py", "e0036_runner_sha256": "11fd99afa71a787cae135e1334416d9ccbc4c7bb4e0275edd1de17a361b28414"
+    }
+  },
+  "source_only_smoke_tests": [
+    {"selection_rule": "Earliest saved PMXT candidate strictly after E0036's maximum start; time/source only, no outcomes or PnL.", "condition_id": "0xfe21d75161d71bec075cedee0f0d6b2cd57beeebbba939ece415da2ef965f978", "market_start_utc": "2026-05-18T09:15:00Z", "checks": ["native Gamma token mapping", "T-60/T-59 cutoffs", "no future receive/source event", "BBO reconciliation and T-59 quality reason", "quote parity against existing rows"]},
+    {"selection_rule": "Earliest Obadiaha market in March source coverage with both native books sampled no more than 10 seconds before both cutoffs; time/source only, no outcomes or PnL.", "condition_id": "0x63aa6cc4782925cf7ea6631422ddcfc0acd1770fb4ae6c046bd4f9af53effa08", "market_start_utc": "2026-03-01T20:05:00Z", "checks": ["native token mapping", "prior sample age at both cutoffs", "top-10 level order and depth walk", "sampled-proxy classification without event/receive timestamps"]}
+  ],
+  "entry_policy": {
+    "decision_cutoff": "market_start_utc - 60 seconds",
+    "execution_cutoff": "market_start_utc - 59 seconds",
+    "candidate_probabilities": "Use unchanged E0031 saved A/B/C/D values. Nominal decision time is T-60. Missing prediction_available_at_utc stays missing; no invented runtime timestamp.",
+    "side_selection": "At T-60 calculate expected net payout for UP/DOWN using native best ask, displayed size, and frozen fee regime at the requested gross. Require a full single-level fill and strictly positive expected net payout; choose the greater value, exact tie toward UP. At T-59 walk only the chosen native ask ladder; accept full fills only.",
+    "fixed_control_gross_usd": 5.0,
+    "free_cash_control_fraction": 0.05,
+    "free_cash_basis": "Cash at T-60 after releasing only positions whose scenario payout time has passed.",
+    "initial_cash_usd": 100.0,
+    "no_credit_or_deposits": true,
+    "no_additional_position_cap": true,
+    "below_minimum_sizing": "Reject requested gross below the frozen minimum; never raise a request such as $4.75 to $5.00.",
+    "fees": "Preserve existing V1 share-fee/V2 cash-fee and precision behavior once; T-60 fee for decision EV, T-59 fee for execution. No sale or payout fee."
+  },
+  "minimum_order_audit": {
+    "historical_orderMinSize_value": "UNKNOWN",
+    "historical_unit": "UNKNOWN",
+    "historical_market_specific_value": "Unavailable in reviewed local snapshots.",
+    "fallback_usd": 5.0,
+    "current_gamma_field_is_not_historical_evidence": true,
+    "official_primary_source_unit_ambiguity": "https://github.com/Polymarket/py-sdk/issues/302",
+    "sdk_field_mapping_source": "https://github.com/Polymarket/py-sdk/blob/main/src/polymarket/models/gamma/market.py",
+    "change_rule": "Do not change the fallback or sizing absent dated authoritative evidence and an explicit recorded decision."
+  },
+  "payout_sensitivity": {
+    "base_time": "max(market_start_utc + 5 minutes, Gamma resolved_at_utc)",
+    "delay_seconds": [60, 300, 1800, 7200],
+    "resolved_at_semantics": "Gamma resolution metadata; actual outcome observation and redemption availability are not archived. None of the delays is claimed actual or conservative.",
+    "accounting": "Rerun each chronological $100 path separately per delay. Release only when scenario availability passes; retain unsettled positions/cost at development cutoff."
+  },
+  "cohorts": {
+    "e0036_parity": "Reproduce the unchanged 1,143-market control; investigate any difference before interpreting extended results.",
+    "pmxt_exact": "One chronological replay for all candidate Gamma IDs and both cutoffs, development event parts only. T-60 needs usable native BBO/displayed size; T-59 needs valid native ask depth sufficient for the requested notional. Enforce receive/source cutoffs, known fees, no complementary liquidity, and no undocumented archive gaps after book/fee initialization. Report only coverage-conditional accounts; missing-source opportunities remain unknown, never silently no-trade.",
+    "obadiaha_proxy": "Separate March 1-19 cohort using nearest prior sample no older than 10 seconds at each cutoff and both native top-10 books. Top-10 depth shortfall is unknown depth, not proven no liquidity. Do not merge with PMXT or E0036.",
+    "kachoio": "Verify pre-open availability; if its ticks still begin at market start, retain only as a negative source-coverage control; no T-59 depth is available."
+  },
+  "coverage_manifest": {
+    "one_row_per_candidate_calendar_row_and_market_id": true,
+    "fields": ["condition_id", "market_start_utc", "up_token_id", "down_token_id", "official_label_valid", "prediction_present", "prediction_ready_timestamp_present", "t60_source_status", "t59_source_status", "native_token_status", "source_gap_status", "minimum_depth_status", "first_exclusion_reason", "additional_quality_flags"],
+    "reporting": "Monthly funnel and exact first-exclusion counts, preserving all later quality flags. No-Gamma-ID calendar rows get a separate no-market-mapping count. Distinguish full Gamma development, official-label, prediction, reconstructed, and common evaluable denominators.",
+    "no_full_development_claim_if_material_gaps": true
+  },
+  "outputs": {
+    "local_artifact_root": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_<protocol_sha256_12>",
+    "tracked_report": "reports/btc_preopen/btc_t0009_resolution_coverage_20261026.md",
+    "tracked_summary": "reports/btc_preopen/btc_t0009_resolution_coverage_20261026.json",
+    "required_metrics": ["independent $5 trades", "$100 fixed-$5 and 5%-free-cash accounts", "monthly paths", "coverage", "signals", "fills/rejections", "fees", "payouts", "locked/free cash", "ending equity/PnL", "cost-basis drawdown", "unsettled positions", "four payout delays", "separate exact/proxy cohorts"],
+    "local_ladders_ledgers": "Ignored data/analysis only; do not commit raw data, checkpoints, model binaries, caches, or bulky output."
+  },
+  "analysis_limits": {
+    "holdout_rows_or_outcomes": false,
+    "paid_or_external_data_acquisition": false,
+    "new_training_tuning_or_feature_search": false,
+    "entry_policy_search": false,
+    "sale_exit_policy_research": false,
+    "live_shadow_collector_orders_or_dns_pilot": false,
+    "production_readiness_claim": false,
+    "portfolio_bootstrap": false,
+    "provenance_conclusion": "If full-pipeline fold-local independence cannot be proven from saved evidence, report retrospective/conditional economics only; preserve E0024 historical status and do not imply independent validation or holdout authorization."
+  },
+  "validation_gate": {
+    "before_sample_results": "Commit protocol and register entries.",
+    "before_economic_results": "Pass both declared source-only smoke checks and E0036 parity; verify selected hashes and development filters.",
+    "tests": "Add focused independent-example regressions for requested invariants; run focused and relevant full test suites after code changes.",
+    "t0009_close": "Remain blocked while material development source/provenance gaps persist; a manifest or positive conditional subset is insufficient."
+  }
+}

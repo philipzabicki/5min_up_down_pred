@@ -59,7 +59,7 @@ Real fills/ACKs/fees and operational live readiness; full-pipeline independent O
 
 ## Active experiments
 
-E0036 PARTIAL on the available confirmation subset. E0034/E0024 BLOCKED; E0010 PLANNED/deferred. Other outcomes: EXPERIMENTS. Stale `running` manifests do not prove active processes.
+E0036 PARTIAL on the available confirmation subset. E0037 is frozen before results for the authorized development-only T0009 source reconstruction and payout sensitivity; the protocol must be committed before replay. T0009 remains BLOCKED pending exact source coverage and candidate-provenance evidence. E0034/E0024 BLOCKED; E0010 PLANNED/deferred. Other outcomes: EXPERIMENTS. Stale `running` manifests do not prove active processes.
 
 ## Active decisions
 
