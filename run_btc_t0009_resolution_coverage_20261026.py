@@ -152,8 +152,6 @@ def _make_development_replay_index(
         archive, on="condition_id", how="left", validate="one_to_one",
     )
     replay_index["archive_source"] = replay_index.archive_source.fillna("no_local_pmxt_index_row")
-    replay_index["archive_entry_hour_available"] = replay_index.archive_entry_hour_available.fillna(False).astype(bool)
-    replay_index["archive_freshness_window_available"] = replay_index.archive_freshness_window_available.fillna(False).astype(bool)
     replay_index["resolved_at_utc"] = pd.NaT
     replay_index["target_polymarket_up"] = None
     replay_index["p_model_raw"] = None
@@ -162,7 +160,6 @@ def _make_development_replay_index(
     replay_index["p_candidate_platt"] = None
     replay_index["up_token_id"] = replay_index.up_token_id.fillna("").astype(str)
     replay_index["down_token_id"] = replay_index.down_token_id.fillna("").astype(str)
-    replay_index["archive_source"] = replay_index.archive_source.fillna("no_local_pmxt_index_row")
     replay_index.sort_values("market_start_utc", kind="stable", inplace=True)
     replay_index.reset_index(drop=True, inplace=True)
 

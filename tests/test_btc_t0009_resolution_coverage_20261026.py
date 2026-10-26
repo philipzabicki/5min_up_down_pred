@@ -1,4 +1,7 @@
 import unittest
+import tempfile
+from pathlib import Path
+from unittest import mock
 
 import pandas as pd
 
@@ -114,6 +117,37 @@ class BtcT0009ResolutionCoverageTests(unittest.TestCase):
         self.assertEqual(result["archive_window_hours_source_available"], len(expected))
         self.assertEqual(result["archive_window_hours_processed"], len(expected) - 1)
         self.assertEqual(result["archive_window_unprocessed_hours"], 1)
+
+    def test_development_index_uses_only_projected_pmxt_identity_fields(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            index_path = root / "market_index.parquet"
+            parts_dir = root / "parts"
+            parts_dir.mkdir()
+            start = pd.Timestamp("2026-04-15T17:05:00Z")
+            pd.DataFrame([{
+                "condition_id": "market-1",
+                "market_slug": "btc-updown-5m-123",
+                "market_start_utc": start,
+                "archive_source": "pmxt_v2",
+            }]).to_parquet(index_path, index=False)
+            universe = pd.DataFrame([{
+                "condition_id": "market-1",
+                "market_slug": "btc-updown-5m-123",
+                "market_start_utc": start,
+                "up_token_id": "native-up",
+                "down_token_id": "native-down",
+            }])
+
+            with mock.patch.object(coverage, "PMXT_MARKET_INDEX_PATH", index_path), mock.patch.object(
+                coverage, "PMXT_PARTS", parts_dir,
+            ):
+                replay_index, parts = coverage._make_development_replay_index(universe, root / "output")
+
+        self.assertEqual(parts, [])
+        self.assertEqual(replay_index.loc[0, "archive_source"], "pmxt_v2")
+        self.assertIsNone(replay_index.loc[0, "target_polymarket_up"])
+        self.assertIsNone(replay_index.loc[0, "p_candidate_raw"])
 
 
 if __name__ == "__main__":
