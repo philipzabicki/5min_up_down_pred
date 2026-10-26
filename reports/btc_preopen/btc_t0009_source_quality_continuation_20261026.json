@@ -1,20 +1,32 @@
 {
   "experiment_id": "E0038",
-  "status": "frozen_before_economics_v2_pending_commit",
-  "protocol_path": "configs/research/btc_t0009_source_quality_continuation_20261026_v2.json",
-  "protocol_sha256": "98934fda651524a8da36c31e78c3970780c24b55f6e2a7cdfae37a2349f3dcae",
-  "supersedes_protocol": {
-    "path": "configs/research/btc_t0009_source_quality_continuation_20261026.json",
-    "working_file_sha256": "1dd1fcfad459a45318f3b8cd7936acd7bbdd32d140c088135c2cd5245929eee1",
-    "committed_blob_sha256": "bb185b4bf5969e055964de9603f4becd9dc69c5b2ac0019b00dcfed032f3b6fb",
-    "disposition": "runner stopped at commit guard before data/outcome loading; no economics generated"
-  },
-  "economics_run": false,
+  "status": "frozen_before_economic_replay_correction_v3_pending_commit",
+  "protocol_path": "configs/research/btc_t0009_source_quality_continuation_20261026_v3.json",
+  "protocol_sha256": "5852107c07e0bb1768fcfe9693322bd8b9b377963110424c8f09ac08e28d8008",
+  "prior_protocols": [
+    {
+      "path": "configs/research/btc_t0009_source_quality_continuation_20261026.json",
+      "working_file_sha256": "1dd1fcfad459a45318f3b8cd7936acd7bbdd32d140c088135c2cd5245929eee1",
+      "committed_blob_sha256": "bb185b4bf5969e055964de9603f4becd9dc69c5b2ac0019b00dcfed032f3b6fb",
+      "disposition": "runner stopped at commit guard before data/outcome loading; no economics generated"
+    },
+    {
+      "path": "configs/research/btc_t0009_source_quality_continuation_20261026_v2.json",
+      "working_file_sha256": "98934fda651524a8da36c31e78c3970780c24b55f6e2a7cdfae37a2349f3dcae",
+      "committed_blob_sha256": "8c83f9d073526460fef94cc4fa1190f699ffd122aabbc7df0504d82980b56ffb",
+      "prior_run_summary_path": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_98934fda6515/summary.json",
+      "prior_run_summary_sha256": "4524f4ceaf85777b84a414ed1239ffd501ae2d444aca55f001850207760d98ad",
+      "disposition": "economics completed; E0036 decision mismatch counts were caused by missing-value label normalization"
+    }
+  ],
+  "v2_economics_run": true,
+  "v3_corrected_replay_run": false,
   "validation": {
-    "focused_tests": "12/12 PASS",
-    "full_suite": "708/708 PASS",
-    "full_suite_runtime_seconds": 45.048,
+    "focused_tests": "13/13 PASS",
+    "full_suite": "709/709 PASS",
+    "full_suite_runtime_seconds": 43.327,
     "full_suite_exit_code": 0,
+    "v2_full_suite": "708/708 PASS in 45.048 seconds",
     "git_diff_check": "PASS"
   },
   "v1_validation": {

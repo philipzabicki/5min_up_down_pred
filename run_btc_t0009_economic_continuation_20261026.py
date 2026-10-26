@@ -19,7 +19,7 @@ from utils.btc_resolution_portfolio import ResolutionPortfolio
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_t0009_source_quality_continuation_20261026_v2.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_t0009_source_quality_continuation_20261026_v3.json"
 CANDIDATE_PATH = ROOT / "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/confirmation_market_matches.parquet"
 GAMMA_PATH = ROOT / "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet"
 T60_PATH = ROOT / "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t60_decision_books.parquet"
@@ -70,7 +70,9 @@ def sha256(path: Path) -> str:
 
 
 def verify_frozen_inputs(protocol: dict) -> dict[str, str]:
-    if protocol.get("experiment_id") != "E0038" or protocol.get("status") != "frozen_before_economics":
+    if protocol.get("experiment_id") != "E0038" or protocol.get("status") not in {
+        "frozen_before_economics", "frozen_before_economic_replay_correction",
+    }:
         raise RuntimeError("E0038 protocol is not frozen for the authorized economics run")
     protocol_git_path = PROTOCOL_PATH.relative_to(ROOT).as_posix()
     committed = subprocess.run(
@@ -493,6 +495,10 @@ def _rejection_counts(decisions: list[dict]) -> dict[str, int]:
     return counts
 
 
+def _decision_label(value) -> str:
+    return "no_trade" if pd.isna(value) else str(value)
+
+
 def _compare_e0036_common(rows: list[dict], decision_rows: list[dict], clean_ids: set[str]) -> dict:
     dataset = ds.dataset(E0036_LEDGER_PATH, format="parquet")
     columns = ["condition_id"]
@@ -521,7 +527,7 @@ def _compare_e0036_common(rows: list[dict], decision_rows: list[dict], clean_ids
             saved = old_by_id.loc[condition_id]
             now = model_rows.loc[condition_id]
             current_probability = float(now["probability_up"])
-            current_decision = str(now.get("selected_side") or "no_trade")
+            current_decision = _decision_label(now.get("selected_side"))
             if not math.isclose(current_probability, float(saved[f"p_up_{model}"]), rel_tol=0.0, abs_tol=1e-10):
                 differences["probability"] += 1
             if current_decision != str(saved[f"decision_{model}"]):

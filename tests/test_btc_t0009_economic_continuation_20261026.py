@@ -10,6 +10,12 @@ import run_btc_t0009_economic_continuation_20261026 as continuation
 
 
 class BtcT0009EconomicContinuationTests(unittest.TestCase):
+    def test_missing_selected_side_maps_to_saved_no_trade_label(self):
+        for value in (None, float("nan"), pd.NA):
+            with self.subTest(value=value):
+                self.assertEqual(continuation._decision_label(value), "no_trade")
+        self.assertEqual(continuation._decision_label("up"), "up")
+
     def test_committed_protocol_guard_accepts_line_ending_normalization(self):
         with TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
