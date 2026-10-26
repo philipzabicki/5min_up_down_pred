@@ -1,0 +1,65 @@
+{
+  "experiment_id": "E0038",
+  "status": "frozen_before_economics",
+  "protocol_path": "configs/research/btc_t0009_source_quality_continuation_20261026.json",
+  "protocol_sha256": "1dd1fcfad459a45318f3b8cd7936acd7bbdd32d140c088135c2cd5245929eee1",
+  "economics_run": false,
+  "validation": {
+    "focused_tests": "10/10 PASS",
+    "full_suite": "706/706 PASS",
+    "full_suite_runtime_seconds": 52.155,
+    "git_diff_check": "PASS"
+  },
+  "parent_e0037_gate_status": "FAILED",
+  "source_value_parity": {
+    "control_markets": 1143,
+    "t60_fields": 17,
+    "t60_comparisons": 19431,
+    "t60_mismatches": 0,
+    "t59_fields": 23,
+    "t59_comparisons": 26289,
+    "t59_mismatches": 0
+  },
+  "checker_coverage": {
+    "t60_old_checks": {"0": 1118, "1": 7, "2": 18},
+    "t60_new_checks": {"2": 1143},
+    "t60_new_status": {"PASS": 1142, "FAIL": 1},
+    "t59_old_and_new_checks": {"1": 1, "2": 1142},
+    "t59_status": {"PARTIAL_PASS": 1, "PASS": 1142},
+    "zero_check_status": "NOT_CHECKED"
+  },
+  "instructed_t60_trace": {
+    "book_ask_up": 0.51,
+    "reported_bbo_ask_up": 0.52,
+    "independent_replay_matches_cached_quote": true,
+    "cause": "UNRESOLVED_LOCAL_SOURCE_CONFLICT",
+    "confirmed_parser_bug": false,
+    "confirmed_missing_archive_event": false,
+    "already_outside_base_intersection": true,
+    "subtract_again": false
+  },
+  "source_quality": {
+    "base_intersection": 5684,
+    "clean_cohort": 5604,
+    "quarantined": 80,
+    "exclusive_reasons": {
+      "t59_equal_source_time_ask_ambiguity": 62,
+      "t59_ask_bbo_mismatch": 16,
+      "any_ask_bbo_not_comparable": 2
+    },
+    "e0036_common_clean_markets": 1141,
+    "clean_by_month": {"2026-04": 456, "2026-05": 2315, "2026-06": 2833}
+  },
+  "coverage": {
+    "manifest_rows": 105118,
+    "gamma_rows": 51458,
+    "unmapped_candidate_calendar_rows": 53660,
+    "valid_official_labels": 51430,
+    "prediction_present": 105117,
+    "measured_prediction_ready_timestamps": 0
+  },
+  "prediction_classification": "retrospective_conditional; nominal T60 is an assumption; T59 readiness UNKNOWN; full pipeline candidate independence NOT_ESTABLISHED",
+  "payout_delays_seconds": [60, 300, 1800, 7200],
+  "actual_redemption_availability": "UNKNOWN",
+  "t0009_status": "BLOCKED_FULL_DEVELOPMENT_COVERAGE_AND_PROVENANCE"
+}

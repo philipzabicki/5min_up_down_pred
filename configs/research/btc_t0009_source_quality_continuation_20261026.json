@@ -1,0 +1,415 @@
+{
+  "experiment_id": "E0038",
+  "version": 1,
+  "status": "frozen_before_economics",
+  "frozen_at_utc": "2026-10-26T22:11:22Z",
+  "source_head": "969a63e1d7cd4da22240a5ca05dbd20302555d1c",
+  "source_branch": "audit/btc-dynamic-history-20261020",
+  "parent_experiments": [
+    "E0036",
+    "E0037"
+  ],
+  "decision_ids": [
+    "D0001",
+    "D0003",
+    "D0004",
+    "D0005",
+    "D0006",
+    "D0008",
+    "D0012",
+    "D0018",
+    "D0019"
+  ],
+  "scope": {
+    "market_start_inclusive_utc": "2025-07-01T00:00:00Z",
+    "market_start_exclusive_utc": "2026-07-01T00:00:00Z",
+    "source": "Local PMXT exact replay cache and unchanged E0031 A/B/C/D probabilities joined to exact Gamma condition_id.",
+    "holdout_filter": "Filter market_start_utc < 2026-07-01T00:00:00Z before projecting outcome columns. Do not open holdout match files or outcomes.",
+    "full_development_economics_claim": false
+  },
+  "e0037_disposition": {
+    "frozen_protocol_path": "configs/research/btc_t0009_resolution_coverage_20261026.json",
+    "frozen_protocol_sha256": "38a6221f0d904112ead40197583dd3310bb27d9702ec4524e43df0144dca3dc1",
+    "saved_gate_status": "FAILED",
+    "preserve_status_and_report": true,
+    "rationale": "E0037 combined bbo_at_entry_ask_mismatches with source-value parity even though most old rows had zero checks. E0038 separates source values, causal/source invariants, and checker coverage; it does not mark E0037 passed or loosen source quality. Economic results may use only the independently frozen E0038 clean cohort after this protocol is committed and pushed.",
+    "e0036_prior_economics_unchanged": true
+  },
+  "diagnosis": {
+    "source_value_parity": {
+      "control_markets": 1143,
+      "t60_fields_excluding_checker_metadata": 17,
+      "t60_comparisons": 19431,
+      "t60_status": "PASS",
+      "t60_mismatches": 0,
+      "t59_fields_excluding_checker_metadata": 23,
+      "t59_comparisons": 26289,
+      "t59_status": "PASS",
+      "t59_mismatches": 0,
+      "fields": "Entry times, fee mode/rate/known, snapshot count/status, quote status, native token IDs/complement flags, asks/sizes, T-59 ladders, ambiguity/cross flags, and no-future flags."
+    },
+    "checker_coverage": {
+      "t60_old_check_count": {
+        "0": 1118,
+        "1": 7,
+        "2": 18
+      },
+      "t60_old_mismatch_count": {
+        "0": 1143
+      },
+      "t60_old_status": {
+        "NOT_CHECKED": 1118,
+        "PARTIAL_PASS": 7,
+        "PASS": 18
+      },
+      "t60_new_check_count": {
+        "2": 1143
+      },
+      "t60_new_mismatch_count": {
+        "0": 1142,
+        "1": 1
+      },
+      "t60_new_status": {
+        "PASS": 1142,
+        "FAIL": 1
+      },
+      "t59_old_and_new_check_count": {
+        "1": 1,
+        "2": 1142
+      },
+      "t59_old_and_new_mismatch_count": {
+        "0": 1143
+      },
+      "t59_old_and_new_status": {
+        "PARTIAL_PASS": 1,
+        "PASS": 1142
+      },
+      "rule": "A zero-check row is NOT_CHECKED regardless of its stored zero mismatch count; one of two checks is PARTIAL_PASS."
+    },
+    "instructed_trace": {
+      "condition_id": "0xe4d40fb41d0acedbcae8592f00ec3ac0f6e662f89260c11a65443385996537a3",
+      "market_start_utc": "2026-04-30T07:00:00Z",
+      "t60_cutoff_utc": "2026-04-30T06:59:00Z",
+      "full_book": {
+        "file": "2026-04-29T22.parquet",
+        "row_group": 0,
+        "row_in_group": 86417,
+        "source_utc": "2026-04-29T22:11:26.419Z",
+        "receive_utc": "2026-04-29T22:23:09.720Z"
+      },
+      "last_up_sell_0_51": {
+        "file": "2026-04-30T06.parquet",
+        "row_group": 0,
+        "row_in_group": 112555,
+        "source_utc": "2026-04-30T06:58:37.664Z",
+        "receive_utc": "2026-04-30T06:58:37.778Z",
+        "size_shares": 236.98
+      },
+      "later_0_51_level_updates_before_cutoff": 0,
+      "reported_bbo_receive_group": {
+        "file": "2026-04-30T06.parquet",
+        "row_group": 0,
+        "rows": [
+          113166,
+          113167,
+          113168,
+          113169
+        ],
+        "receive_utc": "2026-04-30T06:58:59.863Z",
+        "reported_best_ask": 0.52
+      },
+      "independent_reference_result": {
+        "best_ask": 0.51,
+        "size_shares": 236.98,
+        "reported_best_ask": 0.52,
+        "events_from_initialization": 3915
+      },
+      "parser_value_match": true,
+      "confirmed_parser_bug": false,
+      "confirmed_missing_archive_event": false,
+      "conclusion": "Unresolved conflict in the local source. Do not repair the book from reported BBO or a later event."
+    },
+    "class_traces": [
+      {
+        "class": "T59 native ask/BBO mismatch",
+        "condition_id": "0x327e4a0fd72ef26c87c25b41ffd4daa8f66d53e26252e003c77ebfc5c9f573d8",
+        "market_start_utc": "2026-04-15T17:05:00Z",
+        "side": "DOWN",
+        "book_ask": 0.5,
+        "reported_bbo_ask": 0.51,
+        "row": {
+          "file": "2026-04-15T17.parquet",
+          "row_group": 0,
+          "row_in_group": 28838
+        },
+        "independent_replay_matches_cached_quote": true
+      },
+      {
+        "class": "T59 equal-source-time conflicting ask-level updates",
+        "condition_id": "0xc06e1d0bd550d2ebc3b0a172185c3448f2ee5388362eafccecad26bb302077b2",
+        "market_start_utc": "2026-05-26T13:40:00Z",
+        "side": "UP",
+        "source_utc": "2026-05-26T13:39:00.308Z",
+        "receive_utc": "2026-05-26T13:39:00.454Z",
+        "price": 0.53,
+        "conflicting_sizes": [
+          164.99,
+          174.99
+        ],
+        "rows": [
+          71734,
+          71735
+        ],
+        "best_ask_at_cutoff": 0.51,
+        "independent_replay_matches_cached_quote_and_ambiguity_flag": true
+      }
+    ],
+    "local_event_semantics": {
+      "official_schema": "Polymarket book messages contain bid/ask levels; price_change messages contain token/price/size/side and optional bestBid/bestAsk. https://docs.polymarket.com/market-data/realtime-data",
+      "zero_size_removes_level": "https://github.com/Polymarket/agent-skills/blob/main/websocket.md",
+      "archive_types": {
+        "price": "decimal(9,4)",
+        "size": "decimal(18,6)",
+        "timestamps": "millisecond precision"
+      },
+      "archive_sequence_id": "Absent; physical source row order is retained within a receive group.",
+      "reference_replay": "Full book replaces levels; BUY updates bids; SELL updates asks; positive size replaces the level size; zero removes the level. Reported BBO is compared but never mutates the levels.",
+      "scope": "Three selected token/cutoff traces from the last full book through cutoff; no complete event replay repeated."
+    }
+  },
+  "source_quality": {
+    "base_intersection": {
+      "markets": 5684,
+      "definition": "source_joint_fixed5_coverage AND official_label_valid AND prediction_present",
+      "t60_both_native_sides": 5684,
+      "t59_at_least_one_native_fixed5_depth_side": 5684
+    },
+    "symmetric_rule": {
+      "apply_to": "All base-intersection markets; UP and DOWN tokens at T60 and T59.",
+      "requirements": [
+        "Both side reasons equal ask_valid_within_source_coverage.",
+        "Direct native Gamma token identity; reject complementary quotes.",
+        "Comparable, reconciled native ask BBO for every side/cutoff; reject NOT_CHECKED, uncomparable, or mismatch.",
+        "No ask-order ambiguity and no crossed book at either cutoff.",
+        "No future receive-time or source-time event at either cutoff.",
+        "Known fee at both cutoffs.",
+        "Entry hour and 30-second freshness window available at both cutoffs.",
+        "No missing archive hour after each book or fee initialization through its cutoff; unknown status is rejected."
+      ],
+      "uses_pnl_labels_or_model_advantage": false,
+      "broader_25_hour_window": "210 markets have a nonzero unprocessed-hour counter in the wider pre-entry window; all 5,684 have no post-initialization/book or fee gaps. Hours before initialized state are not blanket exclusions."
+    },
+    "cohort_counts": {
+      "before_quality": 5684,
+      "after_quality": 5604,
+      "quarantined": 80,
+      "exclusive_reason_counts": {
+        "t59_equal_source_time_ask_ambiguity": 62,
+        "t59_ask_bbo_mismatch": 16,
+        "any_ask_bbo_not_comparable": 2
+      },
+      "category_overlaps": 0,
+      "clean_by_market_start_month": {
+        "2026-04": 456,
+        "2026-05": 2315,
+        "2026-06": 2833
+      },
+      "e0036_common_quality_markets": 1141
+    },
+    "target_double_count_check": {
+      "condition_id": "0xe4d40fb41d0acedbcae8592f00ec3ac0f6e662f89260c11a65443385996537a3",
+      "source_joint_fixed5_coverage": false,
+      "first_exclusion_reason": "no_usable_two_sided_native_t60_BBO_at_fixed5",
+      "already_outside_5684_base": true,
+      "subtract_again": false
+    },
+    "e0036_common_sample": {
+      "old_markets": 1143,
+      "markets_in_base_intersection": 1141,
+      "quality_clean_markets": 1141,
+      "two_ids_outside_base": [
+        "0xe4d40fb41d0acedbcae8592f00ec3ac0f6e662f89260c11a65443385996537a3",
+        "0xeee13008b6514b41e43c841b781ca2187e550748f2be4694c5ea23238cca292b"
+      ],
+      "reason": "Both have one native T60 side only; two-sided model-side comparison is incomplete.",
+      "comparison": "Re-run row-level value/decision/fill comparison on the common 1,141 under identical quality rules. Do not require the old 1,143-row account ending equity after removing two rows."
+    },
+    "coverage_funnel": {
+      "manifest_rows": 105118,
+      "gamma_rows": 51458,
+      "unmapped_candidate_calendar_rows": 53660,
+      "official_label_valid_rows": 51430,
+      "prediction_present_rows": 105117,
+      "first_exclusions": {
+        "no_usable_two_sided_native_t60_BBO_at_fixed5": 45743,
+        "source_evaluable_under_retrospective_assumption": 5684,
+        "official_label_invalid_or_unavailable": 27,
+        "no_usable_native_t59_depth_at_fixed5": 3,
+        "missing_saved_candidate_probabilities": 1,
+        "no_gamma_market_mapping": 53660
+      },
+      "interpretation": "Unmapped prediction calendar rows are not proven missing markets and are never strategic no-trades. The 5,604-market cohort is coverage-conditional."
+    },
+    "local_artifacts": {
+      "source_quality_manifest_path": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_quality_manifest.parquet",
+      "source_quality_manifest_sha256": "0b00903cf93cb3c8a533d0adbcf3ec0f7b5471ea7f70f7ee2b80354401a78ac6",
+      "source_audit_path": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_audit.json",
+      "source_audit_sha256": "e05173eb8a2035f1ed71f0dc795011a30d9f26a4513ce451260e687740d953bb"
+    }
+  },
+  "prediction_classification": {
+    "saved_run_identity_sha256": "ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b",
+    "candidate_manifest_sha256": "16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503",
+    "probability_columns": {
+      "A": "ensemble_probability_A",
+      "B": "ensemble_probability_B",
+      "C": "ensemble_probability_C",
+      "D": "ensemble_probability_D"
+    },
+    "prediction_ready_timestamps_present": 0,
+    "nominal_T60_availability": "Retrospective simulation assumption, not measured telemetry; do not synthesize a timestamp.",
+    "T59_runtime_readiness": "UNKNOWN",
+    "full_pipeline_selection_and_calibration_independence": "NOT_ESTABLISHED under D0005; no independent predictive confirmation claim."
+  },
+  "economic_protocol": {
+    "results_generated_at_freeze": false,
+    "market_count": 5604,
+    "models": [
+      "A",
+      "B",
+      "C",
+      "D"
+    ],
+    "sizing_controls": [
+      {
+        "name": "independent_fixed5_diagnostic",
+        "gross_usd": 5.0
+      },
+      {
+        "name": "account_fixed5",
+        "initial_cash_usd": 100.0,
+        "gross_usd": 5.0
+      },
+      {
+        "name": "account_free_cash_5pct",
+        "initial_cash_usd": 100.0,
+        "fraction_of_free_cash_at_T60": 0.05
+      }
+    ],
+    "decision_time_utc": "market_start_utc - 60 seconds",
+    "execution_time_utc": "market_start_utc - 59 seconds",
+    "side_selection": "Both sides use native T60 best ask/displayed size and T60 fee; full one-level size required; calculate p*net_shares-cash_debit; require strictly positive EV; max EV wins; exact ties UP.",
+    "execution": "Walk full chosen native T59 ask ladder and T59 fee; full fills only. Recompute 5% depth and decision at exact requested notional.",
+    "minimum_order": {
+      "frozen_fallback_usdc": 5.0,
+      "historical_usdc_minimum": "UNKNOWN",
+      "ignore_share_labeled_current_minimum": true,
+      "reject_below_minimum_without_rounding": true
+    },
+    "fees": {
+      "T60_for_decision_and_T59_for_execution_once": true,
+      "no_payout_or_sale_fee": true,
+      "fee_config_sha256": "b47cb594512b3671f67ab3cee3a673ff43b7dcd15f7514803e1bcde8238ec1e2",
+      "fee_helper_sha256": "9bbdce425e6014f407d79cc2a25ca2456a4d224255302eb008d76f8e111cab56"
+    },
+    "payout": {
+      "availability_base": "max(market_start_utc + 5 minutes, Gamma resolved_at_utc)",
+      "delay_seconds": [
+        60,
+        300,
+        1800,
+        7200
+      ],
+      "delay_is_measurement": false,
+      "actual_redemption_availability": "UNKNOWN"
+    },
+    "accounting": {
+      "release_only_when_scenario_payout_time_passes": true,
+      "no_credit_deposits_or_additional_position_cap": true,
+      "unsettled_positions_remain_locked_at_development_cutoff": true,
+      "equity": "free cash + locked gross cost basis",
+      "drawdown": "cost-basis equity",
+      "no_early_sale": true
+    },
+    "required_outputs": [
+      "monthly path",
+      "entries/signals/fills/rejections",
+      "fees",
+      "payouts",
+      "free and locked cash",
+      "ending equity and PnL",
+      "cost-basis drawdown",
+      "unsettled exposures",
+      "E0036 common 1,141 row-level comparison"
+    ]
+  },
+  "hashes": {
+    "inputs": {
+      "configs/research/btc_t0009_resolution_coverage_20261026.json": "38a6221f0d904112ead40197583dd3310bb27d9702ec4524e43df0144dca3dc1",
+      "reports/btc_preopen/btc_t0009_resolution_coverage_20261026.md": "0c48b59248a6caa84327a47a6e3b380f87022104748798f1ebf286777b53b3d7",
+      "reports/btc_preopen/btc_t0009_resolution_coverage_20261026.json": "fe558f04e6372f5efe5e71435f848b208839c3c51ee8a521a8cdf9b8044d618b",
+      "configs/research/btc_resolution_development_20261026.json": "6e5812ca9fee860313c2e64fdd4a39111a03df55a2da37134df86c17fad04ed6",
+      "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/economic_decision_ledger.parquet": "c0432980574e91ecd87529c8367e89f1b08c0cc119b81c345bb7de5acc8fc1a4",
+      "reports/btc_preopen/entry_snapshots.parquet": "1df26fe04d2e8d0f0fb9a3820184ce4a5b10c42383b8d424975dde44ef6a84b9",
+      "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+      "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/coverage_manifest.parquet": "ea0228ad28dedc1f72f8f51eb35d4332a7e67973e0d1f80346c43b2340e09007",
+      "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t60_decision_books.parquet": "3abed12c3fe2d4762f8536d103b11ba3848e6a21a7c6bef68af5f5fc0c4acdbd",
+      "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t59_ask_ladders.parquet": "f9fa7a55e52504c38a5bdc513cc980ca5a2222ced027b2429424f83666dccd99",
+      "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_quality_manifest.parquet": "0b00903cf93cb3c8a533d0adbcf3ec0f7b5471ea7f70f7ee2b80354401a78ac6",
+      "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_audit.json": "f29b477c7fdf9ef58c82160d57aa38da7d09a76c064f4cf011d8429b572c0108",
+      "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/confirmation_market_matches.parquet": "4587e0fdb5b922142aa33de0f099bd0f7aedd696d8eb1dd19a47c7f733f31f32",
+      "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+      "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+      "reports/btc_preopen/btc_candidate_polymarket_target_20261023_v3_manifest.json": "16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503",
+      "configs/polymarket_btc5m_fee_regimes_v2.json": "b47cb594512b3671f67ab3cee3a673ff43b7dcd15f7514803e1bcde8238ec1e2"
+    },
+    "code": {
+      "source_audit_runner": "run_btc_t0009_source_audit_20261026.py",
+      "source_audit_helper": "utils/btc_t0009_source_audit.py",
+      "source_audit_tests": "tests/test_btc_t0009_source_audit.py",
+      "economic_runner": "run_btc_t0009_economic_continuation_20261026.py",
+      "economic_runner_tests": "tests/test_btc_t0009_economic_continuation_20261026.py",
+      "fee_execution_helper": "run_btc_preopen_economic_replay.py",
+      "minimum_order_helper": "run_btc_preopen_t59_reassessment.py",
+      "e0036_runner": "run_btc_resolution_development_20261026.py",
+      "resolution_portfolio_helper": "utils/btc_resolution_portfolio.py",
+      "fee_rules_helper": "utils/polymarket_btc5m_fee_rules.py"
+    },
+    "code_sha256": {
+      "source_audit_runner": "b10210fff3b495d2f787c85f5d60fbee7eb4543da984c05c056fa33329e1febd",
+      "source_audit_helper": "0fa331470ce4218f64ebde29d87acf46953a2ac21fc2d822e65e9e6ef4309893",
+      "source_audit_tests": "ff11e31b100fd1d863075ad3564d0475f29ce70237403f4c9510bc8ebc4baf43",
+      "economic_runner": "92cc2cdca37588c8bd069bbc42c6030116b82af680fb6891dba0e8acb702bfac",
+      "economic_runner_tests": "5398b48dd5c62d31b0c6635a6c026db234d8e97cf6688e60539a9179aaaf8d03",
+      "fee_execution_helper": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528",
+      "minimum_order_helper": "57687ed6dbf4713270d177606234cb4d0da2df2bcbbc3cc0c5eff5ce00f4ed26",
+      "e0036_runner": "11fd99afa71a787cae135e1334416d9ccbc4c7bb4e0275edd1de17a361b28414",
+      "resolution_portfolio_helper": "4af144f307db129f208687dd4ef7c38d002382b0b24048066772ef0d4964c9c1",
+      "fee_rules_helper": "9bbdce425e6014f407d79cc2a25ca2456a4d224255302eb008d76f8e111cab56"
+    }
+  },
+  "validation_gate": {
+    "commit_and_push_protocol_before_economics": true,
+    "runner_requires_protocol_in_HEAD": true,
+    "runner_checks_all_selected_input_and_code_hashes": true,
+    "runner_uses_only_source_quality_clean_ids": true,
+    "holdout_outcomes_projected": false
+  },
+  "outputs": {
+    "tracked_report": "reports/btc_preopen/btc_t0009_source_quality_continuation_20261026.md",
+    "tracked_summary": "reports/btc_preopen/btc_t0009_source_quality_continuation_20261026.json",
+    "local_source_quality_manifest": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_quality_manifest.parquet",
+    "economic_output_root": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_<protocol_sha256_12>",
+    "large_data_and_ledgers": "Ignored data/analysis only; no raw data, replay cache, or generated economics are committed."
+  },
+  "limits": {
+    "holdout_evaluation": false,
+    "training_or_scoring": false,
+    "tuning_or_feature_search": false,
+    "external_or_paid_acquisition": false,
+    "live_shadow_orders_dns_or_deployment": false,
+    "sale_policy_or_early_exit": false,
+    "production_readiness_claim": false,
+    "portfolio_bootstrap": false
+  }
+}
