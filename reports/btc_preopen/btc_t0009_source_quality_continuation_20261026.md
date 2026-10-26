@@ -2,7 +2,9 @@
 
 ## Frozen checkpoint before economics
 
-Protocol: [E0038 frozen protocol](../../configs/research/btc_t0009_source_quality_continuation_20261026.json), SHA256 `1dd1fcfad459a45318f3b8cd7936acd7bbdd32d140c088135c2cd5245929eee1`. Parent E0037 remains **FAILED** at its saved gate and its protocol, report, summary, and prior E0036 economics are unchanged. E0038 records a separately versioned source-quality rule and allows only coverage-conditional development economics after this protocol is committed and pushed.
+Protocol: [E0038 v2 frozen protocol](../../configs/research/btc_t0009_source_quality_continuation_20261026_v2.json), SHA256 `98934fda651524a8da36c31e78c3970780c24b55f6e2a7cdfae37a2349f3dcae`. E0038 v1 remains preserved at [its original protocol](../../configs/research/btc_t0009_source_quality_continuation_20261026.json), SHA256 `1dd1fcfad459a45318f3b8cd7936acd7bbdd32d140c088135c2cd5245929eee1`. Parent E0037 remains **FAILED** at its saved gate and its protocol, report, summary, and prior E0036 economics are unchanged.
+
+The v1 freeze commit `30ce75b` was pushed before the first economics launch. The runner stopped at its committed-protocol guard because Git normalized CRLF to LF in the committed JSON while the working-copy comparison used raw bytes. It stopped before loading source rows or outcome columns. V2 supersedes v1 only for the E0038 economics run and changes the guard to normalize CRLF to LF before comparing content; a content change still fails. No source-quality rule, cohort, candidate, cost, or economic assumption changed. V2 must be committed and pushed before the run.
 
 ### T−60 source trace
 
@@ -30,8 +32,8 @@ The coverage manifest contains 105,118 rows: 51,458 Gamma markets and 53,660 can
 
 The unchanged saved A/B/C/D probabilities are tied to run identity `ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b` and candidate manifest SHA256 `16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503`. No measured prediction-ready timestamps exist. Nominal T−60 availability is a retrospective simulation assumption; T−59 runtime readiness is `UNKNOWN`, and full-pipeline selection/calibration independence is not established under D0005. Results cannot be called independent confirmation.
 
-The committed protocol pins all source and code hashes and freezes the existing A/B/C/D decision rule, T−59 fills, fixed-$5 independent diagnostic, separate $100 fixed-$5 and 5%-of-free-cash accounts, D0019's $5 USDC fallback, and payout delays of 60/300/1,800/7,200 seconds after `max(market end, Gamma resolved_at_utc)`. No result has been generated at this checkpoint. Delays are scenarios; actual redemption availability remains `UNKNOWN`. The economics runner requires the exact protocol in `HEAD` and verifies selected local input/code hashes before it reads development labels or computes PnL.
+E0038 v2 pins all source and code hashes and freezes the existing A/B/C/D decision rule, T−59 fills, fixed-$5 independent diagnostic, separate $100 fixed-$5 and 5%-of-free-cash accounts, D0019's $5 USDC fallback, and payout delays of 60/300/1,800/7,200 seconds after `max(market end, Gamma resolved_at_utc)`. No result has been generated at this checkpoint. Delays are scenarios; actual redemption availability remains `UNKNOWN`. The economics runner requires the exact protocol in `HEAD` and verifies selected local input/code hashes before it reads development labels or computes PnL.
 
-Validation before economics: focused E0038 tests **10/10** passed; full `python -m unittest discover -s tests` passed **706/706** in **52.155 seconds**. `git diff --check` passed.
+Validation: focused E0038 tests **12/12** and full `python -m unittest discover -s tests` **708/708** passed after the v2 guard correction (**45.048 seconds**, exit code 0). `git diff --check` passed.
 
 T0009 remains **BLOCKED** for full-development coverage and causal/readiness provenance. No holdout outcomes, training, tuning, acquisition, sale policy, live/shadow, orders, or production claims are in scope.

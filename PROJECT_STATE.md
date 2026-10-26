@@ -10,7 +10,7 @@ Predict BTC five-minute Binance-index direction before a Polymarket market opens
 
 ## Current phase
 
-Historical research and frozen A/B/C/D comparison; **no demonstrated production readiness or repeatable trading advantage**. A=BASE70, B=A+simple-memory PCA8, C=A+ESN PCA8, D=A+memory+ESN. E0036's 1,143-market confirmation result remains sparse, previously exposed and unchanged. E0037's saved source-parity gate remains **FAILED**. E0038 separates value parity from checker coverage and freezes a symmetric source-quality rule for a 5,604-market retrospective, coverage-conditional development subset; conditional economics are authorized only after its protocol is committed and pushed. T0009 remains blocked for complete development coverage and causal/readiness provenance. T0008/E0035 sale-policy work is deferred/out-of-scope under D0018. The old A/B/C/D no-order pilot remains historically blocked at 0/3 and is not an active next step under D0017. Dynamic-history/action-value research remains independently blocked before fitting.
+Historical research and frozen A/B/C/D comparison; **no demonstrated production readiness or repeatable trading advantage**. A=BASE70, B=A+simple-memory PCA8, C=A+ESN PCA8, D=A+memory+ESN. E0036's 1,143-market confirmation result remains sparse, previously exposed and unchanged. E0037's saved source-parity gate remains **FAILED**. E0038 separates value parity from checker coverage and defines a symmetric source-quality rule for a 5,604-market retrospective, coverage-conditional subset. V1 was committed/pushed; its runner stopped at the commit guard before reading source/outcome rows due to CRLF normalization. V2 preserves the methodology and must be committed/pushed before conditional economics. T0009 remains blocked for complete development coverage and causal/readiness provenance. T0008/E0035 sale-policy work is deferred/out-of-scope under D0018. The old A/B/C/D no-order pilot remains historically blocked at 0/3 and is not an active next step under D0017. Dynamic-history/action-value research remains independently blocked before fitting.
 
 Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TASKS.md). Details/matrices/provenance: [audit report](docs/PROJECT_STATE_AUDIT_20261025.md), [evidence](reports/project_state_recovery_20261025.json). The [BTC status](docs/BTC_RESEARCH_STATUS_20261010.md) remains the checkpoint history; [research contract](docs/BTC_RESEARCH_CONTRACT.md) remains binding.
 
@@ -21,7 +21,7 @@ Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TAS
 - Sale-ledger regression on 2026-10-26: the focused PMXT initialization and exit-accounting modules passed **30/30** tests after correcting the no-sale settlement fallback; full discovery passed **680/680** tests in **40.247 s**, exit code 0. This validates mechanics only.
 - E0036 resolution ledger: settlement regression **3/3**, existing replay/accounting tests **24/24**, and full discovery **683/683** passed (51.332 s, exit code 0). The hash-verified sparse confirmation run reproduced E0031 fixed-$5 economics and separately computed the 5%-of-free-cash control, cost-basis drawdown and event accounting. This validates code mechanics, not strategy profitability or production readiness.
 - E0037 source-only validation on 2026-10-26: focused T0009 tests **10/10**, T-59 reassessment tests **34/34**, and full discovery **696/696** passed (55.837 s, exit code 0). The full local development PMXT snapshot was hash/provenance verified and reused. E0036 T-60 source parity still failed; no economic results were produced.
-- E0038 pre-economics validation: focused source/economics tests **10/10** and full discovery **706/706** passed (52.155 s, exit code 0); `git diff --check` passed. The E0038 protocol and 5,604-market source-quality rule are frozen before any new economic result.
+- E0038 v1 pre-economics validation: focused source/economics tests **10/10** and full discovery **706/706** passed (52.155 s, exit code 0); its runner stopped at a protocol commit guard before data/outcome loading. E0038 v2 guard tests pass **12/12**, and full discovery passes **708/708** (45.048 s, exit code 0). No economic result has been generated.
 - Read-only candidate shadow SQLite: two preflight events, zero data/market/checkpoint rows (E0034).
 - Completed frozen scorer/period/approval/source records exist and were hashed; historical scores were not recomputed (E0030).
 
@@ -61,7 +61,7 @@ Real fills/ACKs/fees and operational live readiness; full-pipeline independent O
 
 ## Active experiments
 
-E0036 PARTIAL on the available confirmation subset. E0037 PARTIAL with its original FAILED parity gate preserved. E0038 frozen before economics with 5,604 source-quality-clean markets; its pre-result protocol must be committed and pushed before the authorized conditional economics run. T0009 remains BLOCKED for full-development coverage and candidate-readiness provenance. E0034/E0024 BLOCKED; E0010 PLANNED/deferred. Other outcomes: EXPERIMENTS. Stale `running` manifests do not prove active processes.
+E0036 PARTIAL on the available confirmation subset. E0037 PARTIAL with its original FAILED parity gate preserved. E0038 v2 is frozen before economics with 5,604 source-quality-clean markets; its pre-result protocol must be committed and pushed before the authorized conditional economics run. T0009 remains BLOCKED for full-development coverage and candidate-readiness provenance. E0034/E0024 BLOCKED; E0010 PLANNED/deferred. Other outcomes: EXPERIMENTS. Stale `running` manifests do not prove active processes.
 
 ## Active decisions
 
@@ -77,4 +77,4 @@ Legacy market-open/Kacho, original fees/minimum units/T59 selection, interrupted
 
 ## Next recommended actions
 
-1. T0009: commit and push the frozen E0038 protocol before computing its conditional A/B/C/D economics on the 5,604-market clean subset; then retain the full-development coverage and readiness blockers. Do not use holdout data or acquire sources.
+1. T0009: commit and push E0038 v2 before computing its conditional A/B/C/D economics on the 5,604-market clean subset; then retain the full-development coverage and readiness blockers. Do not use holdout data or acquire sources.

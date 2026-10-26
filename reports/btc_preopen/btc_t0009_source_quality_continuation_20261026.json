@@ -1,14 +1,26 @@
 {
   "experiment_id": "E0038",
-  "status": "frozen_before_economics",
-  "protocol_path": "configs/research/btc_t0009_source_quality_continuation_20261026.json",
-  "protocol_sha256": "1dd1fcfad459a45318f3b8cd7936acd7bbdd32d140c088135c2cd5245929eee1",
+  "status": "frozen_before_economics_v2_pending_commit",
+  "protocol_path": "configs/research/btc_t0009_source_quality_continuation_20261026_v2.json",
+  "protocol_sha256": "98934fda651524a8da36c31e78c3970780c24b55f6e2a7cdfae37a2349f3dcae",
+  "supersedes_protocol": {
+    "path": "configs/research/btc_t0009_source_quality_continuation_20261026.json",
+    "working_file_sha256": "1dd1fcfad459a45318f3b8cd7936acd7bbdd32d140c088135c2cd5245929eee1",
+    "committed_blob_sha256": "bb185b4bf5969e055964de9603f4becd9dc69c5b2ac0019b00dcfed032f3b6fb",
+    "disposition": "runner stopped at commit guard before data/outcome loading; no economics generated"
+  },
   "economics_run": false,
   "validation": {
-    "focused_tests": "10/10 PASS",
-    "full_suite": "706/706 PASS",
-    "full_suite_runtime_seconds": 52.155,
+    "focused_tests": "12/12 PASS",
+    "full_suite": "708/708 PASS",
+    "full_suite_runtime_seconds": 45.048,
+    "full_suite_exit_code": 0,
     "git_diff_check": "PASS"
+  },
+  "v1_validation": {
+    "focused_tests": "10/10 PASS",
+    "full_suite": "706/706 PASS in 52.155 seconds",
+    "runner_disposition": "stopped at protocol commit guard before source/outcome loading"
   },
   "parent_e0037_gate_status": "FAILED",
   "source_value_parity": {

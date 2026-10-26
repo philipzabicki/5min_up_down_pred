@@ -1,4 +1,7 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
 from unittest import mock
 
 import pandas as pd
@@ -7,6 +10,49 @@ import run_btc_t0009_economic_continuation_20261026 as continuation
 
 
 class BtcT0009EconomicContinuationTests(unittest.TestCase):
+    def test_committed_protocol_guard_accepts_line_ending_normalization(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            protocol_path = root / "protocol.json"
+            protocol_path.write_bytes(b'{\r\n  "version": 2\r\n}\r\n')
+            protocol = {
+                "experiment_id": "E0038",
+                "status": "frozen_before_economics",
+                "hashes": {"inputs": {}, "code": {}, "code_sha256": {}},
+                "source_quality": {"cohort_counts": {"after_quality": 5604}},
+            }
+            with mock.patch.object(continuation, "ROOT", root), \
+                 mock.patch.object(continuation, "PROTOCOL_PATH", protocol_path), \
+                 mock.patch.object(
+                     continuation.subprocess,
+                     "run",
+                     return_value=SimpleNamespace(stdout=b'{\n  "version": 2\n}\n'),
+                 ):
+                checked = continuation.verify_frozen_inputs(protocol)
+
+        self.assertEqual(checked, {})
+
+    def test_committed_protocol_guard_rejects_content_change(self):
+        with TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            protocol_path = root / "protocol.json"
+            protocol_path.write_text('{"version": 2}\n', encoding="utf-8")
+            protocol = {
+                "experiment_id": "E0038",
+                "status": "frozen_before_economics",
+                "hashes": {"inputs": {}, "code": {}, "code_sha256": {}},
+                "source_quality": {"cohort_counts": {"after_quality": 5604}},
+            }
+            with mock.patch.object(continuation, "ROOT", root), \
+                 mock.patch.object(continuation, "PROTOCOL_PATH", protocol_path), \
+                 mock.patch.object(
+                     continuation.subprocess,
+                     "run",
+                     return_value=SimpleNamespace(stdout=b'{"version": 1}\n'),
+                 ):
+                with self.assertRaisesRegex(RuntimeError, "must be committed"):
+                    continuation.verify_frozen_inputs(protocol)
+
     def test_exact_ev_tie_selects_up(self):
         fill = {
             "depth_sufficient": True,

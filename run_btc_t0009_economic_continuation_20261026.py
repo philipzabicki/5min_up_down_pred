@@ -19,7 +19,7 @@ from utils.btc_resolution_portfolio import ResolutionPortfolio
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_t0009_source_quality_continuation_20261026.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_t0009_source_quality_continuation_20261026_v2.json"
 CANDIDATE_PATH = ROOT / "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/confirmation_market_matches.parquet"
 GAMMA_PATH = ROOT / "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet"
 T60_PATH = ROOT / "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t60_decision_books.parquet"
@@ -79,7 +79,8 @@ def verify_frozen_inputs(protocol: dict) -> dict[str, str]:
         check=True,
         capture_output=True,
     ).stdout
-    if hashlib.sha256(committed).hexdigest() != sha256(PROTOCOL_PATH):
+    working_protocol = PROTOCOL_PATH.read_bytes()
+    if committed.replace(b"\r\n", b"\n") != working_protocol.replace(b"\r\n", b"\n"):
         raise RuntimeError("E0038 protocol must be committed before any economic result is generated")
     checked = {}
     for path_text, expected in protocol["hashes"]["inputs"].items():
