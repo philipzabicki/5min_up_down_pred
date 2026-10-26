@@ -48,6 +48,36 @@ class ResolutionPortfolioTests(unittest.TestCase):
         self.assertAlmostEqual(summary["net_pnl_usd"], 4.8)
         self.assertEqual([e["event"] for e in portfolio.events].count("official_resolution_payout"), 1)
 
+    def test_each_frozen_payout_delay_controls_release_time(self):
+        market_end = datetime(2026, 5, 1, 12, 5, tzinfo=timezone.utc)
+        for delay_seconds in (60, 300, 1800, 7200):
+            with self.subTest(delay_seconds=delay_seconds):
+                portfolio = ResolutionPortfolio(100.0)
+                payout_available = market_end + timedelta(seconds=delay_seconds)
+                accepted = portfolio.buy(
+                    position_id=f"delay-{delay_seconds}",
+                    side="up",
+                    gross_usd=5.0,
+                    cash_debit_usd=5.1,
+                    net_shares=9.9,
+                    cash_fee_usd=0.1,
+                    share_fee=0.1,
+                    fee_equivalent_usd=0.2,
+                    official_outcome_up=1,
+                    market_end_utc=market_end,
+                    outcome_known_at_utc=market_end,
+                    payout_available_at_utc=payout_available,
+                    entry_time_utc=market_end - timedelta(minutes=1),
+                )
+
+                self.assertTrue(accepted)
+                self.assertEqual(
+                    portfolio.release_payouts_available_by(payout_available - timedelta(seconds=1)), 0,
+                )
+                self.assertEqual(portfolio.release_payouts_available_by(payout_available), 1)
+                self.assertEqual(portfolio.release_payouts_available_by(payout_available), 0)
+                self.assertAlmostEqual(portfolio.summary()["total_fee_equivalent_usd"], 0.2)
+
     def test_each_official_outcome_pays_only_the_winning_token(self):
         for side, outcome_up, expected_payout in (
             ("up", 1, 9.9),
