@@ -226,22 +226,28 @@ def _replay_development_sources(
 
 def _development_hour_sets(protocol: dict, development_parts: list[Path]) -> tuple[set[pd.Timestamp], set[pd.Timestamp]]:
     archive_manifest = json.loads(PMXT_ARCHIVE_MANIFEST.read_text(encoding="utf-8"))
-    advertised = {
+    published = {
         pd.Timestamp(value).floor("h")
         for value in archive_manifest["pmxt_v2"]["available_hours_utc"]
         if pd.Timestamp(value) < DEVELOPMENT_END_UTC
     }
+    missing = {
+        pd.Timestamp(value).floor("h")
+        for value in archive_manifest["pmxt_v2"]["missing_hours_inside_advertised_span_utc"]
+        if pd.Timestamp(value) < DEVELOPMENT_END_UTC
+    }
+    advertised = published | missing
     processed = {
         pd.Timestamp(path.stem.replace("T", " "), tz="UTC")
         for path in development_parts
     }
-    if not processed.issubset(advertised):
+    if not processed.issubset(published):
         raise RuntimeError("A local development PMXT part is absent from the frozen advertised-hour index")
     expected_missing = {
         pd.Timestamp(value).floor("h")
         for value in protocol["inputs"]["pmxt_archive"]["pmxt_v2_missing_hours"]
     }
-    if not expected_missing.issubset(advertised - processed):
+    if expected_missing != missing or not expected_missing.issubset(advertised - processed):
         raise RuntimeError("Frozen PMXT missing-hour record disagrees with development event parts")
     return advertised, processed
 

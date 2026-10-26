@@ -1,4 +1,5 @@
 import unittest
+import json
 import tempfile
 from pathlib import Path
 from unittest import mock
@@ -148,6 +149,34 @@ class BtcT0009ResolutionCoverageTests(unittest.TestCase):
         self.assertEqual(replay_index.loc[0, "archive_source"], "pmxt_v2")
         self.assertIsNone(replay_index.loc[0, "target_polymarket_up"])
         self.assertIsNone(replay_index.loc[0, "p_candidate_raw"])
+
+    def test_missing_pmxt_hours_remain_in_advertised_but_not_processed_set(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            manifest_path = Path(temp_dir) / "archive_manifest.json"
+            missing = [f"2026-06-11T{hour:02d}:00:00+00:00" for hour in (4, 5, 6)]
+            manifest_path.write_text(json.dumps({
+                "pmxt_v2": {
+                    "available_hours_utc": [
+                        "2026-06-11T03:00:00+00:00",
+                        "2026-06-11T07:00:00+00:00",
+                    ],
+                    "missing_hours_inside_advertised_span_utc": missing,
+                },
+            }), encoding="utf-8")
+            protocol = {"inputs": {"pmxt_archive": {"pmxt_v2_missing_hours": [
+                "2026-06-11T04:00:00Z",
+                "2026-06-11T05:00:00Z",
+                "2026-06-11T06:00:00Z",
+            ]}}}
+
+            with mock.patch.object(coverage, "PMXT_ARCHIVE_MANIFEST", manifest_path):
+                advertised, processed = coverage._development_hour_sets(
+                    protocol, [Path("2026-06-11T03.parquet")],
+                )
+
+        self.assertEqual(len(advertised), 5)
+        self.assertEqual(len(processed), 1)
+        self.assertIn(pd.Timestamp("2026-06-11T04:00:00Z"), advertised - processed)
 
 
 if __name__ == "__main__":
