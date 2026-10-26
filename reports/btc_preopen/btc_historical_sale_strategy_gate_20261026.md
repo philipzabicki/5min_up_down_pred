@@ -69,3 +69,7 @@ The simulator now records an unfilled time exit as `time_exit_unfilled_open`, pr
 - **Holdout:** no new evaluation; prior exposure remains. The existing E0031 holdout has no entry T−60 economic cohort, and its reported quality scores do not satisfy D0017.
 - **Pilot/live:** none. T0004/E0034 remain historically blocked at 0/3; D0017 removes the former “repair DNS then pilot” recommendation from the active queue.
 - **One next action:** freeze the sale rule and position lifecycle under T0008. Only then can the required quote intervals and per-market data-gap manifest be determined.
+
+## Later scope clarification — 2026-10-26 (D0018)
+
+The conclusions above describe the sale-based gate as it stood when this report was prepared. The user's later instruction makes buy-and-hold-to-official-resolution the active strategy and defers sale-policy research. Missing sale triggers and horizons are no longer blockers for the active objective; T0008 is deferred/out-of-scope. The no-fill correction remains necessary for any sale simulation and must not be reversed. The separate sparse confirmation resolution-economics calculation is recorded in [E0036](btc_hold_to_resolution_development_20261026.md); full development remains blocked by T-60 source coverage and causal provenance, not by a sale rule.

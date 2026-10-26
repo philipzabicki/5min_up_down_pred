@@ -54,7 +54,7 @@ Source: contract; [fee regimes v2](configs/polymarket_btc5m_fee_regimes_v2.json)
 Supersedes: per-market archived current fee metadata as historical proof; old share-minimum valuations.
 Decision: accepted estimated rates 0.072 before 2026-05-06 UTC, 0.07 afterward; preserve V1/V2 collection, rounding and one-time debit. Rebates are separate sensitivity. Each development/holdout portfolio starts independently at $100, no debt/deposits/withdrawals, stakes locked to settlement/redemption. Required controls: $5 gross and 5% of free cash with no extra dollar cap.
 Reason: prevent fee double-counting and unfinanceable independent-trade PnL being presented as portfolio returns.
-Consequences: $5 gross can require >$5 cash with collateral fees. Historical fee assignment is an explicit estimate, not real-fill validation. D0016 supersedes the settlement/redemption release assumption for future sale-based economic evaluation; prior resolution-based artifacts remain historical evidence only.
+Consequences: $5 gross can require >$5 cash with collateral fees. Historical fee assignment is an explicit estimate, not real-fill validation. D0018 governs the active hold-to-resolution account lifecycle. D0016 still governs inactive sale simulations so an unfilled sale remains open and is never converted to a settlement payout.
 
 ## D0007 - Keep evaluated and deployment artifacts separate
 
@@ -137,23 +137,32 @@ Decision: earlier recommendation of at least 180 complete UTC days.
 Reason: later source/pilot work derived explicit precision and dependence requirements.
 Consequences: preserve the historical recommendation as history; do not treat it as the current stopping rule.
 
-## D0016 - Sale execution is required; unresolved positions stay open
+## D0016 - Sale simulations require executed exits; unresolved positions stay open
 
-Status: ACTIVE. Date: 2026-10-26.
+Status: SUPERSEDED FOR ACTIVE STRATEGY SCOPE by D0018; retained for sale simulations. Date: 2026-10-26.
 Source: user-provided `instrukcja_dalszych_prac_btc_20261025.md` (2026-10-26); current-contract review and regression evidence in [E0035](EXPERIMENTS.md) and [sale-strategy gate report](reports/btc_preopen/btc_historical_sale_strategy_gate_20261026.md).
-Supersedes: only the resolution-based exit/release assumption in D0006 and prior BTC economic reports for future strategy evaluation. Their frozen results and statuses remain unchanged as historical records.
-Decision: do not evaluate a strategy that holds to official resolution. A reported economic outcome must be based on historically simulated executed buys and sells, including their costs. A missing or unfilled exit must not be replaced by a binary settlement payout. Retain the executed purchase, paid fees, remaining shares, and locked balance in the ledger; mark the position open and the result incomplete when it cannot be closed under the frozen sale contract. Do not choose an exit trigger, retry schedule, or maximum holding horizon from observed results.
-Reason: settlement is not a sale and cannot establish the requested realized-sale economics.
-Consequences: the binding contract now requires sale-only closure for future evaluations. Exact exit trigger/redecision schedule, maximum holding horizon, order type/delay, and partial-fill handling remain unspecified; new economic replay stays blocked until those terms are frozen. The legacy `close_at_60s` and threshold variants are not current policy. The unfilled-sale ledger correction is verified by the small synthetic regression; no historical replay was rerun.
+Supersedes: no longer controls the active strategy objective. Its accounting rule for an inactive sale simulation remains in force.
+Decision: when a sale-based simulation is run, only an executed sale closes that simulated sale position. A missing or unfilled exit must not be replaced by a binary settlement payout. Retain the purchase, paid fees, shares, and locked balance; mark the position open and result incomplete when it cannot be closed under the frozen sale contract. Do not choose an exit trigger, retry schedule, or maximum holding horizon from observed results.
+Reason: a settlement payout must not conceal a failed sale in a sale-based ledger.
+Consequences: sale-policy research is deferred and outside the active scope. The legacy `close_at_60s` and threshold variants are not current policy. The no-fill correction remains covered by the E0035 regression.
 
 ## D0017 - Holdout economics precede any live or shadow consideration
 
 Status: ACTIVE. Date: 2026-10-26.
 Source: user-provided `instrukcja_dalszych_prac_btc_20261025.md` (2026-10-26).
 Supersedes: the 2026-10-25 next-step recommendation to repair DNS and then run the three-window shadow pilot. The historical T0004/E0034 blocker and 0/3 result are retained.
-Decision: live or shadow may be considered only after a positive economic result for the sale-based strategy on the fixed holdout. That result alone does not authorize a pilot; separate explicit user authorization is required. Do not move the split, use holdout results for development choices, or run a new holdout evaluation as part of this task.
+Decision: live or shadow may be considered only after a positive economic result for the active buy-and-hold-to-resolution strategy on the fixed holdout. Earlier sale is not a prerequisite. A positive result alone does not authorize a pilot; separate explicit user authorization is required. Do not move the split, use holdout results for development choices, or run a new holdout evaluation as part of this task.
 Reason: a shadow pilot is not a substitute for the required economic evidence and is not authorized by a research result.
-Consequences: T0004 is not in the active next-action queue. No collector, trader, order, or DNS pilot diagnostic is authorized here. Historical holdout exposure remains governed by D0001; any future eligible result must report that exposure and use an approved evaluation scope.
+Consequences: T0004 is not in the active next-action queue. No collector, trader, order, or DNS pilot diagnostic is authorized here. Historical holdout exposure remains governed by D0001; any future eligible result must report that exposure and use a separately approved evaluation scope.
+
+## D0018 - Buy and hold through official resolution is the active strategy
+
+Status: ACTIVE. Date: 2026-10-26.
+Source: user's explicit request to execute `instrukcja_rozstrzygniecie_btc_20261026.md` (2026-10-26); [E0036](EXPERIMENTS.md) and its frozen protocol.
+Supersedes: D0016's sale-only restriction on the active objective and the sale-based next-step recommendation in T0008. D0016's no-settlement-fallback rule for inactive sale simulations remains unchanged.
+Decision: evaluate purchase of UP/DOWN at the frozen T-59 execution for a T-60 decision, then hold the position until official Gamma resolution and its binary payout. The payout is the planned closing event for this strategy. Keep the gross purchase cost locked until the frozen payout-availability time; distinguish market end, official outcome-known time, and assumed payout availability. Use official Gamma results, not the Binance proxy. Preserve separate $100 portfolios for fixed $5 gross and 5% of free cash, no credit/deposits, accepted fee rules, and the historical $5 minimum-order fallback when Gamma minimum data are unavailable.
+Reason: the current research question is buy-and-hold economics through official resolution; sale timing is outside the active scope.
+Consequences: D0017's holdout gate is resolution-based economics. Current E0036 results are a sparse, previously exposed confirmation diagnostic, not full-development validation. Actual payout availability and historical T-60 prediction-ready timestamps remain unverified. No new holdout run, live/shadow process, or order is authorized by this decision.
 
 ## Protected invariant register
 
@@ -175,5 +184,5 @@ Changes require an explicit recorded decision and applicable authorization, neve
 | RAW OOF provenance and unchanged dynamic gate | Prevent fabricated data sufficiency | D0011 | 2026-10-20 | Proven source backfill and same-gate verification |
 | Evaluated/deployment bundle separation; no live activation | Preserve evaluation and authority | D0007 | 2026-10-10 | Explicit later activation authorization and operational validation |
 | Append-only outcome exposure / no interim economic stopping | Prevent optional stopping | D0001/D0010 | 2026-10-22/23 | New preregistration with exposure disclosure |
-| Sale-based economics only; no settlement fallback; failed exits remain open and incomplete | Do not report settlement payouts as sales | D0016 | 2026-10-26 | Explicit revised user decision and new accounting tests |
-| No live/shadow consideration before positive fixed-holdout sale economics and separate approval | Keep research results distinct from pilot authorization | D0017 | 2026-10-26 | Separate explicit user authorization after the stated economic gate |
+| Active hold-to-resolution strategy closes by official payout; sale simulations do not use settlement as an unfilled-exit fallback | Separate the two accounting paths | D0016/D0018 | 2026-10-26 | Explicit revised user decision and accounting regression tests |
+| No live/shadow consideration before positive fixed-holdout resolution economics and separate approval | Keep research results distinct from pilot authorization | D0017/D0018 | 2026-10-26 | Separate explicit user authorization after the stated economic gate |

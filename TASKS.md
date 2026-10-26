@@ -17,11 +17,12 @@ Disposition 2026-10-26: the former step 4 (repair DNS, then run the three-window
 
 ## Current continuation plan - 2026-10-26
 
-Scope: continue the historical BTC evaluation under D0016/D0017. Preserve the frozen candidates and split boundaries. No holdout evaluation, training, tuning, full replay, data acquisition, collector, DNS pilot check, shadow/live process, or order.
+Scope: continue the historical BTC evaluation under D0017/D0018. Preserve frozen candidates, official Gamma outcomes, fee rules and split boundaries. No new holdout evaluation, model scoring/training, tuning, full replay, external data acquisition, collector, DNS pilot check, shadow/live process, or order.
 
-1. T0008: freeze the active sale rule and position lifecycle before any new economic replay. Specify the sale decision times/trigger, maximum holding horizon, order type and delay, partial and unfilled-sale behavior, fee treatment, and cash locking for overlapping positions. Do not select these terms from observed outcomes.
-2. After that protocol is recorded and committed, audit exact per-market entry-to-exit coverage from existing indexes/manifests. Emit a market/token/hour gap manifest before any replay or acquisition; only then assess whether the existing development cohort is priceable under the frozen contract.
-3. Keep T0004 out of the next-action queue. Reconsider live/shadow only after positive sale-based economics on the fixed holdout and separate explicit user authorization.
+1. E0036 reuses the hash-identified E0031 confirmation ledger and calculates economics only for its 1,143-market common T-60/T-59 subset. Its positive B/C/D points are sparse, previously exposed diagnostics; they do not close full-development validation.
+2. T0009: establish exact local T-60 entry and causal source coverage for the full frozen development interval. Reuse existing PMXT/Kacho and token mapping; record gaps before any additional calculation. Do not fabricate prediction-ready timestamps or use holdout results.
+3. Prepare a separate fixed-holdout resolution-economics evaluation only after the development coverage gate is met. The existing holdout is exposed and current exact T-60 economic coverage is zero; any new evaluation requires a separately approved scope.
+4. T0004 remains outside the active queue. Do not start live/shadow consideration before a positive fixed-holdout result and separate explicit authorization.
 
 ## T0000 - Recover canonical project state
 
@@ -105,10 +106,19 @@ Evidence: candidate shadow now accepts only T-120 input candles whose two Binanc
 
 ## T0008 - Freeze sale-based position lifecycle before economics
 
-Status: BLOCKED (active contract gap; D0016).
+Status: DEFERRED / OUT-OF-SCOPE for the active strategy (D0018); historical sale gate remains BLOCKED.
 Priority: P0.
 Reason: the binding contract previously released positions at official resolution, which D0016 now prohibits. The existing A/B/C/D economic diagnostic used settlement outcomes; older `close_at_60s` and threshold studies are not the active strategy. No current sale trigger/redecision schedule or maximum position horizon is frozen.
 Depends on: D0003/D0004/D0006/D0016; preserve D0001/D0008/D0011 and D0017. No holdout or live/shadow work.
 Acceptance criteria: record the exact sale trigger and decision times, maximum holding horizon, order type and delay, partial/unfilled-fill rules, fee handling, remaining-share treatment, and overlapping-position cash lock/release. Before any outcome review, freeze the candidate IDs, cohort/splits, entry policy, execution path, capital controls, costs, coverage gates, and metrics. Then use existing manifests to produce per-market/token/hour required-range gaps; do not invent missing quotes or use official resolution as an exit.
 Evidence required: source-backed active contract, frozen protocol/hash, testable execution semantics, and exact market-path inventory. Do not run a development replay while the exit contract is unresolved. Any later holdout result requires its own approved scope; it does not authorize a pilot.
-2026-10-26 audit evidence: E0035 and [the sale-strategy gate report](reports/btc_preopen/btc_historical_sale_strategy_gate_20261026.md) confirm no active sale trigger/redecision schedule or maximum horizon. Existing entry and legacy path counts do not establish current A/B/C/D exit coverage, so market-specific required ranges were not fabricated. The prior no-fill-to-resolution fallback is corrected; focused modules pass 30/30 and full discovery passes 680/680. No replay or holdout evaluation was run. T0008 remains blocked pending an outcome-independent sale contract.
+2026-10-26 historical evidence: E0035 and [the sale-strategy gate report](reports/btc_preopen/btc_historical_sale_strategy_gate_20261026.md) confirmed that no sale trigger/redecision schedule or maximum holding horizon was frozen. The no-fill-to-resolution fallback was corrected and remains covered. D0018 supersedes sale-policy work for the active objective; missing sale terms are not an active project blocker. Do not resume unless the user later reopens sale research.
+
+## T0009 - Establish full-development coverage for resolution economics
+
+Status: BLOCKED (entry-source coverage and prediction-readiness provenance incomplete; E0036).
+Priority: P0.
+Reason: the reusable E0031 economic ledger contains 1,143 common confirmation markets (2026-04-15 through 2026-05-18), not the full frozen development interval. Exact saved T-60 books do not cover other development dates; per-prediction ready timestamps are absent. E0036 therefore reports a sparse previously exposed diagnostic, not complete development economics.
+Depends on: D0001/D0003/D0004/D0005/D0006/D0008/D0012/D0018; preserve E0024's historical status and all split boundaries. No holdout evaluation or live/shadow work.
+Acceptance criteria: inventory existing local PMXT/Kacho, market/token mapping, T-60 decision snapshots, T-59 native ask-depth sources, Gamma official outcomes and saved model/procedure hashes for the full development interval; verify T-60 feature, training, transformation, selection and calibration cutoffs without fabricating historical runtime telemetry. Produce exact market/token/time coverage and exclusion manifests before additional economic computation. If source gaps remain, keep them explicit and do not reduce the interval or change nominal timestamps. Reuse existing caches/ledgers; run fixed-$5 and 5%-of-free-cash $100 resolution portfolios only for newly evidenced development coverage, with payout timing assumptions frozen before outcomes.
+Evidence required: source-manifest hashes, causal cutoff audit, exact gap counts, candidate common-sample accounting, independent fixed-$5 diagnostic, both self-financing controls, fee and payout event reconciliation, locked capital, drawdown and unresolved-position reporting. Do not use holdout outcomes, tune choices, acquire paid data, or infer live readiness.

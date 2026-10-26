@@ -1,0 +1,112 @@
+{
+  "experiment_id": "E0036",
+  "status": "frozen_development_scope",
+  "created_utc": "2026-10-26T00:00:00Z",
+  "decision_id": "D0018",
+  "source_experiment_id": "E0031",
+  "source_run_identity_sha256": "ce108d91f777f7cb861d344f29bc0442f0fa818008cf99c3e62194874456530b",
+  "source_protocol_manifest_sha256": "16e66363f35390d520e5a3ca7ce58fa07689ac15e66244a313c50f1a29017503",
+  "candidate_procedures": {
+    "A": {
+      "name": "BASE70",
+      "frozen_procedure_manifest_sha256": "28368afa62f824b5d2592eb61f87cb7a48ba8b66d0afc0a97ccdf6f334c9f1ef"
+    },
+    "B": {
+      "name": "BASE70 + simple memory PCA8",
+      "frozen_procedure_manifest_sha256": "66eddd315dc38326f6f64959cd4a4fd8d053a6cd189ef7cceac5b3c35bd6a567"
+    },
+    "C": {
+      "name": "BASE70 + frozen ESN PCA8 (auxiliary)",
+      "frozen_procedure_manifest_sha256": "f5ca0f29908e473b7e67be344c9430da0163cfd80f29d8bba9ce3931985f4d45"
+    },
+    "D": {
+      "name": "BASE70 + memory + ESN PCA8",
+      "frozen_procedure_manifest_sha256": "c4910eb9d4fff03680fe36242c6d338abb2dcbc422803e94bd15c700869e6119"
+    }
+  },
+  "period": {
+    "name": "confirmation",
+    "market_start_inclusive_utc": "2025-07-01T00:00:00Z",
+    "market_start_exclusive_utc": "2026-07-01T00:00:00Z",
+    "prior_exposure": true,
+    "input_sample": "Existing E0031 common T-60/T-59/Gamma economic decision ledger only",
+    "input_rows": 1143,
+    "input_market_start_min_utc": "2026-04-15T17:35:00Z",
+    "input_market_start_max_utc": "2026-05-18T09:00:00Z",
+    "full_development_coverage": false
+  },
+  "entry_policy": {
+    "decision_information_cutoff": "T-60 seconds",
+    "execution_snapshot": "T-59 seconds",
+    "decision": "Use frozen candidate probability and exact saved T-60 native best asks; calculate expected net payout on the requested gross amount; consider a side only when the saved single-level ask can fill it; require strictly positive expected net payout; choose the positive maximum and break exact ties toward UP.",
+    "fixed_control_gross_usd": 5.0,
+    "free_cash_control_fraction": 0.05,
+    "free_cash_control_basis": "free cash immediately before the T-60 decision after releasing only positions whose assumed payout availability time has passed",
+    "historical_minimum_order_fallback_usd": 5.0,
+    "minimum_order_source": "D0004; historical Gamma orderMinSize is unavailable",
+    "execution": "Use only the existing verified T-59 native ask ladders; walk depth for the requested notional with existing fee/rounding rules; accept full fills only.",
+    "no_credit_or_deposits": true,
+    "initial_cash_usd_per_candidate_and_control": 100.0
+  },
+  "settlement_accounting": {
+    "official_outcome_source": "Saved Gamma one-hot official UP/DOWN outcomes; never substitute the Binance proxy.",
+    "market_end_utc": "market_start_utc + 5 minutes",
+    "outcome_known_time_utc": "Gamma resolved_at_utc",
+    "assumed_payout_available_time_utc": "max(Gamma resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "payout_delay_seconds": 60,
+    "payout_delay_evidence": "Reused frozen E0031 account rule; actual redemption availability timestamps are not archived. This is an idealized assumption, not a verified conservative bound on real redemption latency.",
+    "position_end_event": "One official resolution payout, including zero payout for a losing token; no sale or sale-fee event is created.",
+    "locked_cost_basis": "Keep the gross purchase amount locked until assumed payout availability; do not release at market end or outcome-known time alone.",
+    "equity_path": "free cash + locked gross cost basis; report peak-to-trough drawdown and retain unresolved positions at the sample cutoff"
+  },
+  "fees": {
+    "fee_config_path": "configs/polymarket_btc5m_fee_regimes_v2.json",
+    "fee_config_sha256": "b47cb594512b3671f67ab3cee3a673ff43b7dcd15f7514803e1bcde8238ec1e2",
+    "fee_helper_path": "utils/polymarket_btc5m_fee_rules.py",
+    "fee_helper_sha256": "9bbdce425e6014f407d79cc2a25ca2456a4d224255302eb008d76f8e111cab56",
+    "treatment": "Preserve existing fee regime, one-time debit, V1 share-fee and V2 cash-fee treatment; no rebate sensitivity."
+  },
+  "inputs": {
+    "economic_decision_ledger": {
+      "path": "data/analysis/polymarket/BTC/btc_candidate_polymarket_target_20261023/economic_decision_ledger.parquet",
+      "sha256": "c0432980574e91ecd87529c8367e89f1b08c0cc119b81c345bb7de5acc8fc1a4"
+    },
+    "t60_snapshots": {
+      "path": "reports/btc_preopen/entry_snapshots.parquet",
+      "sha256": "1df26fe04d2e8d0f0fb9a3820184ce4a5b10c42383b8d424975dde44ef6a84b9",
+      "entry_case": "prestart_c0_o0"
+    },
+    "t59_native_ask_ladders": {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet",
+      "sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+      "entry_case": "t59_native_asks"
+    },
+    "policy": {
+      "path": "reports/btc_preopen/policy.json",
+      "sha256": "baac4806dedfced36c548321cc7e50a628334c75bc54df436e29b0d99789961c"
+    },
+    "source_code": {
+      "path": "run_btc_candidate_polymarket_target_20261023.py",
+      "sha256": "24d8e219bddc5db459d8d4f6b7f143d0b3470328429a9685c7aa73de43e255a2",
+      "fee_execution_helper_path": "run_btc_preopen_economic_replay.py",
+      "fee_execution_helper_sha256": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528",
+      "book_source_helper_path": "run_btc_preopen_t59_reassessment.py",
+      "book_source_helper_sha256": "b1b3945ec12d845d70d75d1df1b78351e1bfd25046dde1c53e16f8c141cba9c8",
+      "resolution_ledger_helper_path": "utils/btc_resolution_portfolio.py",
+      "resolution_ledger_helper_sha256": "4af144f307db129f208687dd4ef7c38d002382b0b24048066772ef0d4964c9c1",
+      "analysis_runner_path": "run_btc_resolution_development_20261026.py",
+      "analysis_runner_sha256": "11fd99afa71a787cae135e1334416d9ccbc4c7bb4e0275edd1de17a361b28414"
+    }
+  },
+  "analysis_limits": {
+    "read_holdout_rows": false,
+    "new_holdout_evaluation": false,
+    "new_model_scoring_or_training": false,
+    "new_policy_tuning": false,
+    "full_quote_replay": false,
+    "data_acquisition": false,
+    "sale_policy_research": false,
+    "live_or_shadow": false,
+    "uncertainty": "Retain E0030/E0031 paired non-circular 3-day moving-block intervals for predictive comparisons; do not treat trades as independent. Portfolio-path uncertainty is not estimated because no frozen bootstrap protocol for the stateful account exists in the saved experiment."
+  }
+}
