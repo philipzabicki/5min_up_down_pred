@@ -1,6 +1,6 @@
 {
   "experiment_id": "E0038",
-  "status": "frozen_before_economic_replay_correction_v3_pending_commit",
+  "status": "completed_coverage_conditional_retrospective_development_subset",
   "protocol_path": "configs/research/btc_t0009_source_quality_continuation_20261026_v3.json",
   "protocol_sha256": "5852107c07e0bb1768fcfe9693322bd8b9b377963110424c8f09ac08e28d8008",
   "prior_protocols": [
@@ -20,7 +20,7 @@
     }
   ],
   "v2_economics_run": true,
-  "v3_corrected_replay_run": false,
+  "v3_corrected_replay_run": true,
   "validation": {
     "focused_tests": "13/13 PASS",
     "full_suite": "709/709 PASS",
@@ -45,11 +45,26 @@
     "t59_mismatches": 0
   },
   "checker_coverage": {
-    "t60_old_checks": {"0": 1118, "1": 7, "2": 18},
-    "t60_new_checks": {"2": 1143},
-    "t60_new_status": {"PASS": 1142, "FAIL": 1},
-    "t59_old_and_new_checks": {"1": 1, "2": 1142},
-    "t59_status": {"PARTIAL_PASS": 1, "PASS": 1142},
+    "t60_old_checks": {
+      "0": 1118,
+      "1": 7,
+      "2": 18
+    },
+    "t60_new_checks": {
+      "2": 1143
+    },
+    "t60_new_status": {
+      "PASS": 1142,
+      "FAIL": 1
+    },
+    "t59_old_and_new_checks": {
+      "1": 1,
+      "2": 1142
+    },
+    "t59_status": {
+      "PARTIAL_PASS": 1,
+      "PASS": 1142
+    },
     "zero_check_status": "NOT_CHECKED"
   },
   "instructed_t60_trace": {
@@ -72,7 +87,11 @@
       "any_ask_bbo_not_comparable": 2
     },
     "e0036_common_clean_markets": 1141,
-    "clean_by_month": {"2026-04": 456, "2026-05": 2315, "2026-06": 2833}
+    "clean_by_month": {
+      "2026-04": 456,
+      "2026-05": 2315,
+      "2026-06": 2833
+    }
   },
   "coverage": {
     "manifest_rows": 105118,
@@ -83,7 +102,1488 @@
     "measured_prediction_ready_timestamps": 0
   },
   "prediction_classification": "retrospective_conditional; nominal T60 is an assumption; T59 readiness UNKNOWN; full pipeline candidate independence NOT_ESTABLISHED",
-  "payout_delays_seconds": [60, 300, 1800, 7200],
+  "payout_delays_seconds": [
+    60,
+    300,
+    1800,
+    7200
+  ],
   "actual_redemption_availability": "UNKNOWN",
-  "t0009_status": "BLOCKED_FULL_DEVELOPMENT_COVERAGE_AND_PROVENANCE"
+  "t0009_status": "BLOCKED_FULL_DEVELOPMENT_COVERAGE_AND_PROVENANCE",
+  "separate_source_followup": {
+    "task_id": "T0010",
+    "status": "DEFERRED_NO_ACQUISITION",
+    "inventory_path": "reports/btc_preopen/btc_t0009_resolution_coverage_20261026.json",
+    "missing_local_pmxt_hours": 24,
+    "components": [
+      {
+        "count": 21,
+        "first_hour_utc": "2026-04-13T19:00:00Z",
+        "last_hour_utc": "2026-04-14T15:00:00Z",
+        "source_index": "public checksum index"
+      },
+      {
+        "count": 3,
+        "first_hour_utc": "2026-06-11T04:00:00Z",
+        "last_hour_utc": "2026-06-11T06:00:00Z",
+        "source_index": "archive manifest; absent from local source"
+      }
+    ],
+    "acquisition_performed": false,
+    "separate_from_e0038_market_quarantine": true,
+    "additional_subtraction_from_5684_market_base": false
+  },
+  "v3_result": {
+    "protocol_sha256": "5852107c07e0bb1768fcfe9693322bd8b9b377963110424c8f09ac08e28d8008",
+    "status": "completed_coverage_conditional_retrospective_development_subset",
+    "runtime_seconds": 31.338712200000373,
+    "cohort": {
+      "source_quality_clean_markets": 5604,
+      "market_start_min_utc": "2026-04-15T17:35:00+00:00",
+      "market_start_max_utc": "2026-06-30T23:35:00+00:00",
+      "coverage_conditional": true,
+      "full_development_calendar_portfolio": false
+    },
+    "payout_base": "max(market_start_utc + 5 minutes, Gamma resolved_at_utc)",
+    "payout_delays_seconds": [
+      60,
+      300,
+      1800,
+      7200
+    ],
+    "actual_redemption_availability": "UNKNOWN; delays are independent scenarios",
+    "controls": {
+      "A": {
+        "60": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 2035,
+            "fills": 2035,
+            "rejections": {
+              "no_positive_expected_net_payout": 3569
+            },
+            "gross_turnover_usd": 10175.0,
+            "cash_fees_usd": 332.57241,
+            "share_fees": 52.519814000000004,
+            "fee_equivalent_usd": 359.19439049,
+            "payouts_usd": 10582.028726418877,
+            "realized_pnl_usd": 74.45631641887655,
+            "payout_delay_seconds": 60
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 2035,
+            "fills": 285,
+            "rejections": {
+              "no_positive_expected_net_payout": 3569,
+              "insufficient_cash_including_fees": 1750
+            },
+            "accepted_sides": {
+              "up": 194,
+              "down": 91
+            },
+            "settlement_delay_seconds": 60,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 285,
+              "rejected_insufficient_cash": 1750,
+              "settled_trades": 285,
+              "gross_turnover_usd": 1425.0,
+              "cash_fees_usd": 23.89640000000004,
+              "share_fees": 52.51981400000008,
+              "total_fee_equivalent_usd": 50.51838049000006,
+              "payouts_usd": 1353.4402359465753,
+              "free_cash_usd": 4.543835946577956,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 10.0,
+              "ending_equity_at_cost_basis_usd": 4.543835946577956,
+              "net_pnl_usd": -95.45616405342204,
+              "max_drawdown_fraction": 0.962363963253375,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 5,
+              "below_frozen_5_usd_minimum": 5598
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 60,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "300": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 2035,
+            "fills": 2035,
+            "rejections": {
+              "no_positive_expected_net_payout": 3569
+            },
+            "gross_turnover_usd": 10175.0,
+            "cash_fees_usd": 332.57241,
+            "share_fees": 52.519814000000004,
+            "fee_equivalent_usd": 359.19439049,
+            "payouts_usd": 10582.028726418877,
+            "realized_pnl_usd": 74.45631641887655,
+            "payout_delay_seconds": 300
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 2035,
+            "fills": 285,
+            "rejections": {
+              "no_positive_expected_net_payout": 3569,
+              "insufficient_cash_including_fees": 1750
+            },
+            "accepted_sides": {
+              "up": 194,
+              "down": 91
+            },
+            "settlement_delay_seconds": 300,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 285,
+              "rejected_insufficient_cash": 1750,
+              "settled_trades": 285,
+              "gross_turnover_usd": 1425.0,
+              "cash_fees_usd": 23.89640000000004,
+              "share_fees": 52.51981400000008,
+              "total_fee_equivalent_usd": 50.51838049000006,
+              "payouts_usd": 1353.4402359465753,
+              "free_cash_usd": 4.543835946577956,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 15.0,
+              "ending_equity_at_cost_basis_usd": 4.543835946577956,
+              "net_pnl_usd": -95.45616405342204,
+              "max_drawdown_fraction": 0.962363963253375,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 5,
+              "below_frozen_5_usd_minimum": 5598
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 300,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "1800": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 2035,
+            "fills": 2035,
+            "rejections": {
+              "no_positive_expected_net_payout": 3569
+            },
+            "gross_turnover_usd": 10175.0,
+            "cash_fees_usd": 332.57241,
+            "share_fees": 52.519814000000004,
+            "fee_equivalent_usd": 359.19439049,
+            "payouts_usd": 10582.028726418877,
+            "realized_pnl_usd": 74.45631641887655,
+            "payout_delay_seconds": 1800
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 2035,
+            "fills": 282,
+            "rejections": {
+              "no_positive_expected_net_payout": 3569,
+              "insufficient_cash_including_fees": 1753
+            },
+            "accepted_sides": {
+              "up": 192,
+              "down": 90
+            },
+            "settlement_delay_seconds": 1800,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 282,
+              "rejected_insufficient_cash": 1753,
+              "settled_trades": 282,
+              "gross_turnover_usd": 1410.0,
+              "cash_fees_usd": 23.378400000000035,
+              "share_fees": 52.51981400000008,
+              "total_fee_equivalent_usd": 50.00038049000006,
+              "payouts_usd": 1333.6363143779479,
+              "free_cash_usd": 0.25791437795052996,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 25.0,
+              "ending_equity_at_cost_basis_usd": 0.25791437795052996,
+              "net_pnl_usd": -99.74208562204947,
+              "max_drawdown_fraction": 0.9978637267894015,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 5,
+              "below_frozen_5_usd_minimum": 5598
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 1800,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "7200": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 2035,
+            "fills": 2035,
+            "rejections": {
+              "no_positive_expected_net_payout": 3569
+            },
+            "gross_turnover_usd": 10175.0,
+            "cash_fees_usd": 332.57241,
+            "share_fees": 52.519814000000004,
+            "fee_equivalent_usd": 359.19439049,
+            "payouts_usd": 10582.028726418877,
+            "realized_pnl_usd": 74.45631641887655,
+            "payout_delay_seconds": 7200
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 2035,
+            "fills": 261,
+            "rejections": {
+              "no_positive_expected_net_payout": 3569,
+              "insufficient_cash_including_fees": 1774
+            },
+            "accepted_sides": {
+              "up": 180,
+              "down": 81
+            },
+            "settlement_delay_seconds": 7200,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 261,
+              "rejected_insufficient_cash": 1774,
+              "settled_trades": 261,
+              "gross_turnover_usd": 1305.0,
+              "cash_fees_usd": 19.74030000000001,
+              "share_fees": 52.51981400000008,
+              "total_fee_equivalent_usd": 46.36228049000007,
+              "payouts_usd": 1225.008863397556,
+              "free_cash_usd": 0.26856339755838476,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 30.0,
+              "ending_equity_at_cost_basis_usd": 0.26856339755838476,
+              "net_pnl_usd": -99.73143660244162,
+              "max_drawdown_fraction": 0.9977755222639766,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 5,
+              "below_frozen_5_usd_minimum": 5598
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 7200,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        }
+      },
+      "B": {
+        "60": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1946,
+            "fills": 1946,
+            "rejections": {
+              "no_positive_expected_net_payout": 3658
+            },
+            "gross_turnover_usd": 9730.0,
+            "cash_fees_usd": 318.58192,
+            "share_fees": 50.069286,
+            "fee_equivalent_usd": 343.961902,
+            "payouts_usd": 10270.41020706737,
+            "realized_pnl_usd": 221.82828706737035,
+            "payout_delay_seconds": 60
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1946,
+            "fills": 1946,
+            "rejections": {
+              "no_positive_expected_net_payout": 3658
+            },
+            "accepted_sides": {
+              "up": 808,
+              "down": 1138
+            },
+            "settlement_delay_seconds": 60,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1946,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1946,
+              "gross_turnover_usd": 9730.0,
+              "cash_fees_usd": 318.5819200000036,
+              "share_fees": 50.06928600000007,
+              "total_fee_equivalent_usd": 343.96190200000234,
+              "payouts_usd": 10270.410207067416,
+              "free_cash_usd": 321.8282870673707,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 10.0,
+              "ending_equity_at_cost_basis_usd": 321.8282870673707,
+              "net_pnl_usd": 221.8282870673707,
+              "max_drawdown_fraction": 0.7829962302553242,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 5,
+              "below_frozen_5_usd_minimum": 5598
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 60,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "300": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1946,
+            "fills": 1946,
+            "rejections": {
+              "no_positive_expected_net_payout": 3658
+            },
+            "gross_turnover_usd": 9730.0,
+            "cash_fees_usd": 318.58192,
+            "share_fees": 50.069286,
+            "fee_equivalent_usd": 343.961902,
+            "payouts_usd": 10270.41020706737,
+            "realized_pnl_usd": 221.82828706737035,
+            "payout_delay_seconds": 300
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1946,
+            "fills": 1946,
+            "rejections": {
+              "no_positive_expected_net_payout": 3658
+            },
+            "accepted_sides": {
+              "up": 808,
+              "down": 1138
+            },
+            "settlement_delay_seconds": 300,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1946,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1946,
+              "gross_turnover_usd": 9730.0,
+              "cash_fees_usd": 318.5819200000036,
+              "share_fees": 50.06928600000007,
+              "total_fee_equivalent_usd": 343.96190200000234,
+              "payouts_usd": 10270.410207067416,
+              "free_cash_usd": 321.8282870673708,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 15.0,
+              "ending_equity_at_cost_basis_usd": 321.8282870673708,
+              "net_pnl_usd": 221.8282870673708,
+              "max_drawdown_fraction": 0.7829962302553239,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 5,
+              "below_frozen_5_usd_minimum": 5598
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 300,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "1800": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1946,
+            "fills": 1946,
+            "rejections": {
+              "no_positive_expected_net_payout": 3658
+            },
+            "gross_turnover_usd": 9730.0,
+            "cash_fees_usd": 318.58192,
+            "share_fees": 50.069286,
+            "fee_equivalent_usd": 343.961902,
+            "payouts_usd": 10270.41020706737,
+            "realized_pnl_usd": 221.82828706737035,
+            "payout_delay_seconds": 1800
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1946,
+            "fills": 1946,
+            "rejections": {
+              "no_positive_expected_net_payout": 3658
+            },
+            "accepted_sides": {
+              "up": 808,
+              "down": 1138
+            },
+            "settlement_delay_seconds": 1800,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1946,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1946,
+              "gross_turnover_usd": 9730.0,
+              "cash_fees_usd": 318.5819200000036,
+              "share_fees": 50.06928600000007,
+              "total_fee_equivalent_usd": 343.96190200000234,
+              "payouts_usd": 10270.410207067416,
+              "free_cash_usd": 321.8282870673708,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 40.0,
+              "ending_equity_at_cost_basis_usd": 321.8282870673708,
+              "net_pnl_usd": 221.8282870673708,
+              "max_drawdown_fraction": 0.7872574378103259,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 5,
+              "below_frozen_5_usd_minimum": 5598
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 1800,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "7200": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1946,
+            "fills": 1946,
+            "rejections": {
+              "no_positive_expected_net_payout": 3658
+            },
+            "gross_turnover_usd": 9730.0,
+            "cash_fees_usd": 318.58192,
+            "share_fees": 50.069286,
+            "fee_equivalent_usd": 343.961902,
+            "payouts_usd": 10270.41020706737,
+            "realized_pnl_usd": 221.82828706737035,
+            "payout_delay_seconds": 7200
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1946,
+            "fills": 1940,
+            "rejections": {
+              "no_positive_expected_net_payout": 3658,
+              "insufficient_cash_including_fees": 6
+            },
+            "accepted_sides": {
+              "up": 803,
+              "down": 1137
+            },
+            "settlement_delay_seconds": 7200,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1940,
+              "rejected_insufficient_cash": 6,
+              "settled_trades": 1940,
+              "gross_turnover_usd": 9700.0,
+              "cash_fees_usd": 317.5284200000036,
+              "share_fees": 50.06928600000007,
+              "total_fee_equivalent_usd": 342.9084020000023,
+              "payouts_usd": 10240.78681925075,
+              "free_cash_usd": 323.2583992507052,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 100.0,
+              "ending_equity_at_cost_basis_usd": 323.2583992507052,
+              "net_pnl_usd": 223.25839925070522,
+              "max_drawdown_fraction": 0.7857941612555438,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 5,
+              "below_frozen_5_usd_minimum": 5598
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 7200,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        }
+      },
+      "C": {
+        "60": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1849,
+            "fills": 1849,
+            "rejections": {
+              "no_positive_expected_net_payout": 3755
+            },
+            "gross_turnover_usd": 9245.0,
+            "cash_fees_usd": 304.78499,
+            "share_fees": 44.175749,
+            "fee_equivalent_usd": 327.16257427,
+            "payouts_usd": 9823.201105991993,
+            "realized_pnl_usd": 273.4161159919937,
+            "payout_delay_seconds": 60
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1849,
+            "fills": 1849,
+            "rejections": {
+              "no_positive_expected_net_payout": 3755
+            },
+            "accepted_sides": {
+              "up": 726,
+              "down": 1123
+            },
+            "settlement_delay_seconds": 60,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1849,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1849,
+              "gross_turnover_usd": 9245.0,
+              "cash_fees_usd": 304.78499000000414,
+              "share_fees": 44.17574900000003,
+              "total_fee_equivalent_usd": 327.1625742700032,
+              "payouts_usd": 9823.201105992035,
+              "free_cash_usd": 373.4161159919952,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 10.0,
+              "ending_equity_at_cost_basis_usd": 373.4161159919952,
+              "net_pnl_usd": 273.4161159919952,
+              "max_drawdown_fraction": 0.7808800437221846,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 2,
+            "fills": 2,
+            "rejections": {
+              "no_positive_expected_net_payout": 20,
+              "below_frozen_5_usd_minimum": 5582
+            },
+            "accepted_sides": {
+              "up": 2,
+              "down": 0
+            },
+            "settlement_delay_seconds": 60,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 2,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 2,
+              "gross_turnover_usd": 10.222901978431373,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.707183,
+              "total_fee_equivalent_usd": 0.36066333,
+              "payouts_usd": 9.458039568627452,
+              "free_cash_usd": 99.23513759019608,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.2229019784313735,
+              "ending_equity_at_cost_basis_usd": 99.23513759019608,
+              "net_pnl_usd": -0.764862409803925,
+              "max_drawdown_fraction": 0.05000000000000007,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "300": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1849,
+            "fills": 1849,
+            "rejections": {
+              "no_positive_expected_net_payout": 3755
+            },
+            "gross_turnover_usd": 9245.0,
+            "cash_fees_usd": 304.78499,
+            "share_fees": 44.175749,
+            "fee_equivalent_usd": 327.16257427,
+            "payouts_usd": 9823.201105991993,
+            "realized_pnl_usd": 273.4161159919937,
+            "payout_delay_seconds": 300
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1849,
+            "fills": 1849,
+            "rejections": {
+              "no_positive_expected_net_payout": 3755
+            },
+            "accepted_sides": {
+              "up": 726,
+              "down": 1123
+            },
+            "settlement_delay_seconds": 300,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1849,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1849,
+              "gross_turnover_usd": 9245.0,
+              "cash_fees_usd": 304.78499000000414,
+              "share_fees": 44.17574900000003,
+              "total_fee_equivalent_usd": 327.1625742700032,
+              "payouts_usd": 9823.201105992035,
+              "free_cash_usd": 373.4161159919952,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 15.0,
+              "ending_equity_at_cost_basis_usd": 373.4161159919952,
+              "net_pnl_usd": 273.4161159919952,
+              "max_drawdown_fraction": 0.7808800437221848,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 2,
+            "fills": 2,
+            "rejections": {
+              "no_positive_expected_net_payout": 19,
+              "below_frozen_5_usd_minimum": 5583
+            },
+            "accepted_sides": {
+              "up": 2,
+              "down": 0
+            },
+            "settlement_delay_seconds": 300,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 2,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 2,
+              "gross_turnover_usd": 10.222901978431373,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.707183,
+              "total_fee_equivalent_usd": 0.36066333,
+              "payouts_usd": 9.458039568627452,
+              "free_cash_usd": 99.23513759019608,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.2229019784313735,
+              "ending_equity_at_cost_basis_usd": 99.23513759019608,
+              "net_pnl_usd": -0.764862409803925,
+              "max_drawdown_fraction": 0.05000000000000007,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "1800": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1849,
+            "fills": 1849,
+            "rejections": {
+              "no_positive_expected_net_payout": 3755
+            },
+            "gross_turnover_usd": 9245.0,
+            "cash_fees_usd": 304.78499,
+            "share_fees": 44.175749,
+            "fee_equivalent_usd": 327.16257427,
+            "payouts_usd": 9823.201105991993,
+            "realized_pnl_usd": 273.4161159919937,
+            "payout_delay_seconds": 1800
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1849,
+            "fills": 1849,
+            "rejections": {
+              "no_positive_expected_net_payout": 3755
+            },
+            "accepted_sides": {
+              "up": 726,
+              "down": 1123
+            },
+            "settlement_delay_seconds": 1800,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1849,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1849,
+              "gross_turnover_usd": 9245.0,
+              "cash_fees_usd": 304.78499000000414,
+              "share_fees": 44.17574900000003,
+              "total_fee_equivalent_usd": 327.1625742700032,
+              "payouts_usd": 9823.201105992035,
+              "free_cash_usd": 373.41611599199484,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 40.0,
+              "ending_equity_at_cost_basis_usd": 373.41611599199484,
+              "net_pnl_usd": 273.41611599199484,
+              "max_drawdown_fraction": 0.7821595548305238,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 2,
+            "fills": 2,
+            "rejections": {
+              "no_positive_expected_net_payout": 17,
+              "below_frozen_5_usd_minimum": 5585
+            },
+            "accepted_sides": {
+              "up": 2,
+              "down": 0
+            },
+            "settlement_delay_seconds": 1800,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 2,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 2,
+              "gross_turnover_usd": 10.222901978431373,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.707183,
+              "total_fee_equivalent_usd": 0.36066333,
+              "payouts_usd": 9.458039568627452,
+              "free_cash_usd": 99.23513759019608,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.2229019784313735,
+              "ending_equity_at_cost_basis_usd": 99.23513759019608,
+              "net_pnl_usd": -0.764862409803925,
+              "max_drawdown_fraction": 0.05000000000000007,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "7200": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1849,
+            "fills": 1849,
+            "rejections": {
+              "no_positive_expected_net_payout": 3755
+            },
+            "gross_turnover_usd": 9245.0,
+            "cash_fees_usd": 304.78499,
+            "share_fees": 44.175749,
+            "fee_equivalent_usd": 327.16257427,
+            "payouts_usd": 9823.201105991993,
+            "realized_pnl_usd": 273.4161159919937,
+            "payout_delay_seconds": 7200
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1849,
+            "fills": 1842,
+            "rejections": {
+              "no_positive_expected_net_payout": 3755,
+              "insufficient_cash_including_fees": 7
+            },
+            "accepted_sides": {
+              "up": 720,
+              "down": 1122
+            },
+            "settlement_delay_seconds": 7200,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1842,
+              "rejected_insufficient_cash": 7,
+              "settled_trades": 1842,
+              "gross_turnover_usd": 9210.0,
+              "cash_fees_usd": 303.5599900000041,
+              "share_fees": 44.17574900000003,
+              "total_fee_equivalent_usd": 325.9375742700033,
+              "payouts_usd": 9783.773796606743,
+              "free_cash_usd": 370.2138066067009,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 100.0,
+              "ending_equity_at_cost_basis_usd": 370.2138066067009,
+              "net_pnl_usd": 270.2138066067009,
+              "max_drawdown_fraction": 0.7834390659388635,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 2,
+            "fills": 2,
+            "rejections": {
+              "no_positive_expected_net_payout": 17,
+              "below_frozen_5_usd_minimum": 5585
+            },
+            "accepted_sides": {
+              "up": 2,
+              "down": 0
+            },
+            "settlement_delay_seconds": 7200,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 2,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 2,
+              "gross_turnover_usd": 10.222901978431373,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.707183,
+              "total_fee_equivalent_usd": 0.36066333,
+              "payouts_usd": 9.458039568627452,
+              "free_cash_usd": 99.23513759019608,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.2229019784313735,
+              "ending_equity_at_cost_basis_usd": 99.23513759019608,
+              "net_pnl_usd": -0.764862409803925,
+              "max_drawdown_fraction": 0.05000000000000007,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        }
+      },
+      "D": {
+        "60": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1862,
+            "fills": 1862,
+            "rejections": {
+              "no_positive_expected_net_payout": 3742
+            },
+            "gross_turnover_usd": 9310.0,
+            "cash_fees_usd": 305.74279,
+            "share_fees": 47.23164,
+            "fee_equivalent_usd": 329.69357254,
+            "payouts_usd": 9901.645095231472,
+            "realized_pnl_usd": 285.9023052314717,
+            "payout_delay_seconds": 60
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1862,
+            "fills": 1862,
+            "rejections": {
+              "no_positive_expected_net_payout": 3742
+            },
+            "accepted_sides": {
+              "up": 736,
+              "down": 1126
+            },
+            "settlement_delay_seconds": 60,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1862,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1862,
+              "gross_turnover_usd": 9310.0,
+              "cash_fees_usd": 305.7427900000039,
+              "share_fees": 47.231640000000056,
+              "total_fee_equivalent_usd": 329.69357254000283,
+              "payouts_usd": 9901.645095231512,
+              "free_cash_usd": 385.90230523147403,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 10.0,
+              "ending_equity_at_cost_basis_usd": 385.90230523147403,
+              "net_pnl_usd": 285.90230523147403,
+              "max_drawdown_fraction": 0.7463583353060254,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 6,
+              "below_frozen_5_usd_minimum": 5597
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 60,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "300": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1862,
+            "fills": 1862,
+            "rejections": {
+              "no_positive_expected_net_payout": 3742
+            },
+            "gross_turnover_usd": 9310.0,
+            "cash_fees_usd": 305.74279,
+            "share_fees": 47.23164,
+            "fee_equivalent_usd": 329.69357254,
+            "payouts_usd": 9901.645095231472,
+            "realized_pnl_usd": 285.9023052314717,
+            "payout_delay_seconds": 300
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1862,
+            "fills": 1862,
+            "rejections": {
+              "no_positive_expected_net_payout": 3742
+            },
+            "accepted_sides": {
+              "up": 736,
+              "down": 1126
+            },
+            "settlement_delay_seconds": 300,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1862,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1862,
+              "gross_turnover_usd": 9310.0,
+              "cash_fees_usd": 305.7427900000039,
+              "share_fees": 47.231640000000056,
+              "total_fee_equivalent_usd": 329.69357254000283,
+              "payouts_usd": 9901.645095231512,
+              "free_cash_usd": 385.90230523147426,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 15.0,
+              "ending_equity_at_cost_basis_usd": 385.90230523147426,
+              "net_pnl_usd": 285.90230523147426,
+              "max_drawdown_fraction": 0.7463583353060254,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 6,
+              "below_frozen_5_usd_minimum": 5597
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 300,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "1800": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1862,
+            "fills": 1862,
+            "rejections": {
+              "no_positive_expected_net_payout": 3742
+            },
+            "gross_turnover_usd": 9310.0,
+            "cash_fees_usd": 305.74279,
+            "share_fees": 47.23164,
+            "fee_equivalent_usd": 329.69357254,
+            "payouts_usd": 9901.645095231472,
+            "realized_pnl_usd": 285.9023052314717,
+            "payout_delay_seconds": 1800
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1862,
+            "fills": 1862,
+            "rejections": {
+              "no_positive_expected_net_payout": 3742
+            },
+            "accepted_sides": {
+              "up": 736,
+              "down": 1126
+            },
+            "settlement_delay_seconds": 1800,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1862,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1862,
+              "gross_turnover_usd": 9310.0,
+              "cash_fees_usd": 305.7427900000039,
+              "share_fees": 47.231640000000056,
+              "total_fee_equivalent_usd": 329.69357254000283,
+              "payouts_usd": 9901.645095231512,
+              "free_cash_usd": 385.9023052314737,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 40.0,
+              "ending_equity_at_cost_basis_usd": 385.9023052314737,
+              "net_pnl_usd": 285.9023052314737,
+              "max_drawdown_fraction": 0.746358335306025,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 6,
+              "below_frozen_5_usd_minimum": 5597
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 1800,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        },
+        "7200": {
+          "independent_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1862,
+            "fills": 1862,
+            "rejections": {
+              "no_positive_expected_net_payout": 3742
+            },
+            "gross_turnover_usd": 9310.0,
+            "cash_fees_usd": 305.74279,
+            "share_fees": 47.23164,
+            "fee_equivalent_usd": 329.69357254,
+            "payouts_usd": 9901.645095231472,
+            "realized_pnl_usd": 285.9023052314717,
+            "payout_delay_seconds": 7200
+          },
+          "account_fixed5": {
+            "eligible_markets": 5604,
+            "signals": 1862,
+            "fills": 1859,
+            "rejections": {
+              "no_positive_expected_net_payout": 3742,
+              "insufficient_cash_including_fees": 3
+            },
+            "accepted_sides": {
+              "up": 734,
+              "down": 1125
+            },
+            "settlement_delay_seconds": 7200,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1859,
+              "rejected_insufficient_cash": 3,
+              "settled_trades": 1859,
+              "gross_turnover_usd": 9295.0,
+              "cash_fees_usd": 305.20029000000386,
+              "share_fees": 47.231640000000056,
+              "total_fee_equivalent_usd": 329.1510725400029,
+              "payouts_usd": 9891.44101359886,
+              "free_cash_usd": 391.24072359881933,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 95.0,
+              "ending_equity_at_cost_basis_usd": 391.24072359881933,
+              "net_pnl_usd": 291.24072359881933,
+              "max_drawdown_fraction": 0.7505106023505136,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          },
+          "account_free_cash_5pct": {
+            "eligible_markets": 5604,
+            "signals": 1,
+            "fills": 1,
+            "rejections": {
+              "no_positive_expected_net_payout": 6,
+              "below_frozen_5_usd_minimum": 5597
+            },
+            "accepted_sides": {
+              "up": 0,
+              "down": 1
+            },
+            "settlement_delay_seconds": 7200,
+            "portfolio": {
+              "initial_cash_usd": 100.0,
+              "accepted_trades": 1,
+              "rejected_insufficient_cash": 0,
+              "settled_trades": 1,
+              "gross_turnover_usd": 5.0,
+              "cash_fees_usd": 0.0,
+              "share_fees": 0.36,
+              "total_fee_equivalent_usd": 0.18,
+              "payouts_usd": 0.0,
+              "free_cash_usd": 95.0,
+              "locked_cost_basis_usd": 0.0,
+              "peak_locked_cost_basis_usd": 5.0,
+              "ending_equity_at_cost_basis_usd": 95.0,
+              "net_pnl_usd": -5.0,
+              "max_drawdown_fraction": 0.05,
+              "unsettled_positions": 0,
+              "unsettled_locked_cost_basis_usd": 0,
+              "unsettled_position_ids": []
+            }
+          }
+        }
+      }
+    },
+    "e0036_common_clean_subset_row_parity": {
+      "common_clean_market_count": 1141,
+      "per_model": {
+        "A": {
+          "row_level_differences": {
+            "probability": 0,
+            "decision": 0,
+            "gross": 0,
+            "vwap": 0,
+            "net_shares": 0,
+            "cash_debit": 0,
+            "cash_fee": 0,
+            "share_fee": 0,
+            "fee_equivalent": 0
+          }
+        },
+        "B": {
+          "row_level_differences": {
+            "probability": 0,
+            "decision": 0,
+            "gross": 0,
+            "vwap": 0,
+            "net_shares": 0,
+            "cash_debit": 0,
+            "cash_fee": 0,
+            "share_fee": 0,
+            "fee_equivalent": 0
+          }
+        },
+        "C": {
+          "row_level_differences": {
+            "probability": 0,
+            "decision": 0,
+            "gross": 0,
+            "vwap": 0,
+            "net_shares": 0,
+            "cash_debit": 0,
+            "cash_fee": 0,
+            "share_fee": 0,
+            "fee_equivalent": 0
+          }
+        },
+        "D": {
+          "row_level_differences": {
+            "probability": 0,
+            "decision": 0,
+            "gross": 0,
+            "vwap": 0,
+            "net_shares": 0,
+            "cash_debit": 0,
+            "cash_fee": 0,
+            "share_fee": 0,
+            "fee_equivalent": 0
+          }
+        }
+      }
+    },
+    "holdout_rows_used": 0,
+    "holdout_outcome_columns_projected": false,
+    "monthly_paths_csv": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_5852107c07e0/monthly_paths.csv",
+    "monthly_paths_sha256": "f4b2f18fe28cfa48fa6e10d8e1b4d5718cfe168cad1c6c3ec2a7fcc25302f813",
+    "market_decisions_csv": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_5852107c07e0/market_decisions.csv",
+    "market_decisions_sha256": "10c5e05b564ab351524338e3d14de6412aa11429fd298ab6298c57ff1ad40694",
+    "summary_json": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_5852107c07e0/summary.json",
+    "summary_sha256": "67f46ab02dcf91b4faf566610b308e89ddff1888dd03bd168ead2b06aee2f84e",
+    "run_manifest_json": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_5852107c07e0/run_manifest.json",
+    "run_manifest_sha256": "301a0dbd8909ae56b611db5b9b33654c8676d93213f398e681303efc9bdcc7e2",
+    "v2_v3_economic_controls_identical": true,
+    "v2_v3_monthly_paths_identical": true,
+    "v2_v3_market_decisions_identical": true,
+    "accounting_invariants": "PASS: ending equity equals initial cash plus net PnL; no negative cash; no unsettled positions at development cutoff"
+  },
+  "economics_run": true
 }

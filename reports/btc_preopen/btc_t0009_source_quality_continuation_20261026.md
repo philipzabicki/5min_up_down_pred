@@ -4,7 +4,7 @@
 
 Protocol: [E0038 v3 frozen correction](../../configs/research/btc_t0009_source_quality_continuation_20261026_v3.json), SHA256 `5852107c07e0bb1768fcfe9693322bd8b9b377963110424c8f09ac08e28d8008`. V2 remains at [its frozen protocol](../../configs/research/btc_t0009_source_quality_continuation_20261026_v2.json), SHA256 `98934fda651524a8da36c31e78c3970780c24b55f6e2a7cdfae37a2349f3dcae`; v1 remains at [its original protocol](../../configs/research/btc_t0009_source_quality_continuation_20261026.json), SHA256 `1dd1fcfad459a45318f3b8cd7936acd7bbdd32d140c088135c2cd5245929eee1`. Parent E0037 remains **FAILED** at its saved gate and its protocol, report, summary, and prior E0036 economics are unchanged.
 
-The v1 freeze commit `30ce75b` was pushed before the first economics launch. Its runner stopped at the committed-protocol guard because Git normalized CRLF to LF; it stopped before loading source or outcome rows. V2, committed and pushed as `ac4acc4`, changed only the guard's newline comparison, then completed economics on the frozen 5,604 rows. Its E0036 comparison reported decision mismatches because pandas missing `selected_side` values became `NaN` and were read as the literal `"nan"` rather than `no_trade`. A direct join with missing values mapped to `no_trade` confirms zero decision differences for all four candidates on the 1,141 common rows; probabilities and fill/fee values already matched exactly. V3 changes only this comparison mapping and preserves the v2 run as prior evidence. The source rule, cohort, candidates, costs, sizing, fills, payouts, and account paths are unchanged. V3 must be committed and pushed before the corrected replay.
+The v1 freeze commit `30ce75b` was pushed before the first economics launch. Its runner stopped at the committed-protocol guard because Git normalized CRLF to LF; it stopped before loading source or outcome rows. V2, committed and pushed as `ac4acc4`, changed only the guard's newline comparison, then completed economics on the frozen 5,604 rows. Its E0036 comparison reported decision mismatches because pandas missing `selected_side` values became `NaN` and were read as the literal `"nan"` rather than `no_trade`. A direct join with missing values mapped to `no_trade` confirms zero decision differences for all four candidates on the 1,141 common rows; probabilities and fill/fee values already matched exactly. V3 changes only this comparison mapping and preserves the v2 run as prior evidence. The source rule, cohort, candidates, costs, sizing, fills, payouts, and account paths are unchanged. V3 was then committed and pushed as `e500553` before the corrected replay.
 
 ### T−60 source trace
 
@@ -37,3 +37,78 @@ E0038 v3 carries forward v2's pinned sources and economic protocol: unchanged A/
 Validation: focused E0038 tests **13/13** and full discovery **709/709** pass after the v3 comparison correction (**43.327 seconds**, exit code 0). `git diff --check` passed.
 
 T0009 remains **BLOCKED** for full-development coverage and causal/readiness provenance. No holdout outcomes, training, tuning, acquisition, sale policy, live/shadow, orders, or production claims are in scope.
+
+## Economic result - E0038 v3
+
+The v3 protocol was committed and pushed as `e500553` before the corrected replay. The run completed in 31.339 seconds on the frozen 5,604-market source-quality cohort, from 2026-04-15 17:35 UTC through 2026-06-30 23:35 UTC. This is a coverage-conditional subset of the 2025-07 through 2026-06 development interval, not a full-calendar portfolio. Holdout rows used: 0; holdout outcome columns projected: false.
+
+On the E0036 common clean sample (1,141 markets), all row-level probability, decision, gross, VWAP, net-share, cash-debit, and fee comparisons are exact for A/B/C/D (zero differences in every field). The v2 and v3 market-decision and monthly-path files have identical SHA256 hashes; v3 corrects only the saved `no_trade` label comparison.
+
+### Independent fixed-$5 diagnostic
+
+This is independent per-market accounting without a shared capital limit. Payout timing does not change these totals.
+
+| Model | Signals/fills | Gross turnover | Cash fees | Share fees | Fee equivalent | Payouts | Net PnL |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| A | 2,035/2,035 | $10,175.00 | $332.57 | 52.520 | $359.19 | $10,582.03 | $74.46 |
+| B | 1,946/1,946 | $9,730.00 | $318.58 | 50.069 | $343.96 | $10,270.41 | $221.83 |
+| C | 1,849/1,849 | $9,245.00 | $304.78 | 44.176 | $327.16 | $9,823.20 | $273.42 |
+| D | 1,862/1,862 | $9,310.00 | $305.74 | 47.232 | $329.69 | $9,901.65 | $285.90 |
+
+### $100 account, fixed $5 gross per signal
+
+Signals are positive-EV selections at T-60. The no-positive-EV count is among the 5,604 eligible markets; cash rejections are signaled trades that could not be funded after fees. Ending equity includes free cash plus any locked cost basis. All scenarios finish with $0 locked cost basis and 0 unsettled positions.
+
+| Model | Payout delay | Signals/fills | No-positive-EV | Cash rejects | Cash fees | Share fees | Fee equivalent | Payouts | Ending equity / net PnL | Max drawdown |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| A | 60s | 2,035/285 | 3,569 | 1,750 | $23.90 | 52.520 | $50.52 | $1,353.44 | $4.54 / -$95.46 | 0.962 |
+| A | 300s | 2,035/285 | 3,569 | 1,750 | $23.90 | 52.520 | $50.52 | $1,353.44 | $4.54 / -$95.46 | 0.962 |
+| A | 1800s | 2,035/282 | 3,569 | 1,753 | $23.38 | 52.520 | $50.00 | $1,333.64 | $0.26 / -$99.74 | 0.998 |
+| A | 7200s | 2,035/261 | 3,569 | 1,774 | $19.74 | 52.520 | $46.36 | $1,225.01 | $0.27 / -$99.73 | 0.998 |
+| B | 60s | 1,946/1,946 | 3,658 | 0 | $318.58 | 50.069 | $343.96 | $10,270.41 | $321.83 / $221.83 | 0.783 |
+| B | 300s | 1,946/1,946 | 3,658 | 0 | $318.58 | 50.069 | $343.96 | $10,270.41 | $321.83 / $221.83 | 0.783 |
+| B | 1800s | 1,946/1,946 | 3,658 | 0 | $318.58 | 50.069 | $343.96 | $10,270.41 | $321.83 / $221.83 | 0.787 |
+| B | 7200s | 1,946/1,940 | 3,658 | 6 | $317.53 | 50.069 | $342.91 | $10,240.79 | $323.26 / $223.26 | 0.786 |
+| C | 60s | 1,849/1,849 | 3,755 | 0 | $304.78 | 44.176 | $327.16 | $9,823.20 | $373.42 / $273.42 | 0.781 |
+| C | 300s | 1,849/1,849 | 3,755 | 0 | $304.78 | 44.176 | $327.16 | $9,823.20 | $373.42 / $273.42 | 0.781 |
+| C | 1800s | 1,849/1,849 | 3,755 | 0 | $304.78 | 44.176 | $327.16 | $9,823.20 | $373.42 / $273.42 | 0.782 |
+| C | 7200s | 1,849/1,842 | 3,755 | 7 | $303.56 | 44.176 | $325.94 | $9,783.77 | $370.21 / $270.21 | 0.783 |
+| D | 60s | 1,862/1,862 | 3,742 | 0 | $305.74 | 47.232 | $329.69 | $9,901.65 | $385.90 / $285.90 | 0.746 |
+| D | 300s | 1,862/1,862 | 3,742 | 0 | $305.74 | 47.232 | $329.69 | $9,901.65 | $385.90 / $285.90 | 0.746 |
+| D | 1800s | 1,862/1,862 | 3,742 | 0 | $305.74 | 47.232 | $329.69 | $9,901.65 | $385.90 / $285.90 | 0.746 |
+| D | 7200s | 1,862/1,859 | 3,742 | 3 | $305.20 | 47.232 | $329.15 | $9,891.44 | $391.24 / $291.24 | 0.751 |
+
+### $100 account, 5% of free cash
+
+The $5 minimum is applied without upward rounding. Most requests fall below it after initial fees, so this frozen control places very few trades.
+
+| Model | Payout delay | Signals/fills | Below-$5 rejections | No-positive-EV | Cash rejects | Cash fees / share fees | Payouts | Ending equity / net PnL | Max drawdown |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| A | 60s | 1/1 | 5,598 | 5 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| A | 300s | 1/1 | 5,598 | 5 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| A | 1800s | 1/1 | 5,598 | 5 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| A | 7200s | 1/1 | 5,598 | 5 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| B | 60s | 1/1 | 5,598 | 5 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| B | 300s | 1/1 | 5,598 | 5 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| B | 1800s | 1/1 | 5,598 | 5 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| B | 7200s | 1/1 | 5,598 | 5 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| C | 60s | 2/2 | 5,582 | 20 | 0 | $0.00 / 0.707 | $9.46 | $99.24 / -$0.76 | 0.050 |
+| C | 300s | 2/2 | 5,583 | 19 | 0 | $0.00 / 0.707 | $9.46 | $99.24 / -$0.76 | 0.050 |
+| C | 1800s | 2/2 | 5,585 | 17 | 0 | $0.00 / 0.707 | $9.46 | $99.24 / -$0.76 | 0.050 |
+| C | 7200s | 2/2 | 5,585 | 17 | 0 | $0.00 / 0.707 | $9.46 | $99.24 / -$0.76 | 0.050 |
+| D | 60s | 1/1 | 5,597 | 6 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| D | 300s | 1/1 | 5,597 | 6 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| D | 1800s | 1/1 | 5,597 | 6 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+| D | 7200s | 1/1 | 5,597 | 6 | 0 | $0.00 / 0.360 | $0.00 | $95.00 / -$5.00 | 0.050 |
+
+### Monthly path and interpretation
+
+Clean source rows occur only in April (456), May (2,315), and June 2026 (2,833). The 432-row monthly artifact contains independent diagnostic totals and all 12-month account snapshots for each model/control/delay, including free cash, locked cost basis, equity, fees, payouts, drawdown, and unsettled positions. Months with zero clean source rows indicate unavailable cohort coverage, not strategy no-trades. All ending account positions are settled by the development cutoff.
+
+Ignored local monthly path: `data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_5852107c07e0/monthly_paths.csv` (SHA256 `f4b2f18fe28cfa48fa6e10d8e1b4d5718cfe168cad1c6c3ec2a7fcc25302f813`). The 268,992-row market-decision ledger is `data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_5852107c07e0/market_decisions.csv` (SHA256 `10c5e05b564ab351524338e3d14de6412aa11429fd298ab6298c57ff1ad40694`). The v3 local summary is `data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026_5852107c07e0/summary.json` (SHA256 `67f46ab02dcf91b4faf566610b308e89ddff1888dd03bd168ead2b06aee2f84e`); run manifest SHA256 `301a0dbd8909ae56b611db5b9b33654c8676d93213f398e681303efc9bdcc7e2`.
+
+These are retrospective/conditional results on unchanged saved historical predictions. The zero measured prediction-ready timestamps, unknown T-59 runtime readiness, and unestablished full-pipeline selection/calibration independence prevent an independent confirmation or live-readiness claim. Positive A/B/C/D subset PnL does not close T0009 or authorize holdout use, a pilot, or production. No portfolio bootstrap or inferential uncertainty interval was run.
+
+### Separate source task T0010
+
+The exact 24-hour local PMXT gap inventory remains a separate deferred source task, [T0010](../../TASKS.md), recorded in the [T0009 coverage report](btc_t0009_resolution_coverage_20261026.md) and [machine summary](btc_t0009_resolution_coverage_20261026.json): 21 hours from 2026-04-13 19:00 through 2026-04-14 15:00 UTC and three hours from 2026-06-11 04:00 through 06:00 UTC. E0038 performed no acquisition. This inventory is distinct from the 80 market-level quarantines and is not an extra subtraction from the 5,684-market source intersection.
