@@ -1048,7 +1048,8 @@ def _run_stage(
 
 
 def _purged_walk_forward_folds(
-        module, opened_values, decision_values, n_folds, ratio, *, validation_mask=None
+        module, opened_values, decision_values, n_folds, ratio, *, validation_mask=None,
+        strict_label_availability=False,
 ):
     opened = pd.DatetimeIndex(pd.to_datetime(opened_values, utc=True, errors="raise"))
     decision = pd.DatetimeIndex(pd.to_datetime(decision_values, utc=True, errors="raise"))
@@ -1084,11 +1085,15 @@ def _purged_walk_forward_folds(
                 int(fold["train_start"]), int(fold["train_end"]), dtype=np.int64
             )
         cutoff = decision[first_valid]
-        legal = purge_unavailable_training_rows(
-            opened,
-            cutoff,
-            train_indices=candidates,
-        )
+        if strict_label_availability:
+            label_available = opened + pd.Timedelta(minutes=7)
+            legal = candidates[label_available[candidates] < cutoff]
+        else:
+            legal = purge_unavailable_training_rows(
+                opened,
+                cutoff,
+                train_indices=candidates,
+            )
         if legal.size == 0:
             raise RuntimeError(f"Fold {fold['fold_id']} has no rows after label-availability purge")
         if "train_idx" not in fold:
@@ -1098,7 +1103,13 @@ def _purged_walk_forward_folds(
             fold["train_end"] = int(fold["train_start"] + len(legal))
         fold["train_idx"] = legal.astype(np.int32, copy=False)
         fold["valid_idx"] = valid_indices.astype(np.int32, copy=False)
-        if label_available[legal].max() > cutoff:
+        latest_training_label = label_available[legal].max()
+        unavailable = (
+            latest_training_label >= cutoff
+            if strict_label_availability
+            else latest_training_label > cutoff
+        )
+        if unavailable:
             raise RuntimeError(f"Fold {fold['fold_id']} retained an unavailable training label")
     return folds
 
@@ -1277,6 +1288,102 @@ def merge_candidate_features(selected_features, candidate_features, available_fe
     selected_set = set(selected)
     added = [name for name in candidates if name not in selected_set]
     return selected + added, added
+
+
+def _join_causal_candidate_features(
+        dataset_path, feature_path, feature_columns, stage_dir, *, dataset_signature,
+):
+    """Attach a frozen causal feature prefix by exact Opened timestamp."""
+    import pyarrow as pa
+    import pyarrow.compute as pc
+    import pyarrow.parquet as pq
+
+    feature_path = Path(feature_path)
+    source = _file_identity(feature_path)
+    feature_columns = list(feature_columns)
+    base_file = pq.ParquetFile(dataset_path)
+    base_schema = base_file.schema_arrow
+    if "Opened" not in base_schema.names:
+        raise RuntimeError("Generated causal dataset has no Opened join key")
+    duplicate_columns = sorted(set(feature_columns).intersection(base_schema.names))
+    if duplicate_columns:
+        raise RuntimeError(
+            "Causal candidate feature already exists in base dataset: "
+            f"{duplicate_columns}"
+        )
+    flow_table = pq.read_table(feature_path, columns=["Opened", *feature_columns]).combine_chunks()
+    flow_opened_ns = pc.cast(flow_table["Opened"], pa.int64()).to_numpy(
+        zero_copy_only=False
+    )
+    if not len(flow_opened_ns) or np.any(np.diff(flow_opened_ns) <= 0):
+        raise RuntimeError("Causal candidate feature timestamps must be unique and ordered")
+    flow_values_by_column = {
+        column: flow_table[column].to_numpy(zero_copy_only=False)
+        for column in feature_columns
+    }
+    output_path = Path(stage_dir) / "feature_dataset_with_causal_candidates.parquet"
+    temporary_path = output_path.with_suffix(".parquet.tmp")
+    output_schema = base_schema
+    for column in feature_columns:
+        output_schema = output_schema.append(pa.field(column, pa.float32()))
+    matched_rows = 0
+    base_rows = 0
+    base_opened_min = None
+    base_opened_max = None
+    previous_base_opened_ns = None
+    opened_index = base_schema.get_field_index("Opened")
+    with pq.ParquetWriter(temporary_path, output_schema, compression="zstd") as writer:
+        for batch in base_file.iter_batches(batch_size=131_072):
+            opened_ns = pc.cast(batch.column(opened_index), pa.int64()).to_numpy(
+                zero_copy_only=False
+            )
+            if len(opened_ns) and (
+                np.any(np.diff(opened_ns) <= 0)
+                or (previous_base_opened_ns is not None and opened_ns[0] <= previous_base_opened_ns)
+            ):
+                raise RuntimeError("Generated causal dataset timestamps must be unique and ordered")
+            indexer = np.searchsorted(flow_opened_ns, opened_ns)
+            matched = indexer < len(flow_opened_ns)
+            matched[matched] &= flow_opened_ns[indexer[matched]] == opened_ns[matched]
+            count = len(opened_ns)
+            base_rows += count
+            matched_rows += int(matched.sum())
+            if count:
+                base_opened_min = opened_ns[0] if base_opened_min is None else base_opened_min
+                base_opened_max = opened_ns[-1]
+                previous_base_opened_ns = int(opened_ns[-1])
+            columns = list(batch.columns)
+            for column in feature_columns:
+                aligned = np.full(count, np.nan, dtype=np.float32)
+                aligned[matched] = np.asarray(
+                    flow_values_by_column[column][indexer[matched]], dtype=np.float32
+                )
+                columns.append(pa.array(aligned, type=pa.float32(), from_pandas=True))
+            writer.write_batch(pa.RecordBatch.from_arrays(columns, schema=output_schema))
+    temporary_path.replace(output_path)
+    result_path = Path(stage_dir) / "causal_candidate_feature_join.json"
+    _write_json(
+        result_path,
+        {
+            "dataset_signature": dataset_signature,
+            "source": source,
+            "feature_columns": feature_columns,
+            "rows": base_rows,
+            "matched_rows": matched_rows,
+            "unmatched_rows": base_rows - matched_rows,
+            "first_opened_utc": pd.Timestamp(base_opened_min, unit="ns", tz="UTC"),
+            "last_opened_utc": pd.Timestamp(base_opened_max, unit="ns", tz="UTC"),
+            "last_feature_opened_utc": pd.Timestamp(flow_opened_ns[-1], unit="ns", tz="UTC"),
+        },
+    )
+    return {
+        "dataset_path": output_path.resolve().relative_to(ROOT).as_posix(),
+        "rows": base_rows,
+        "feature_columns": feature_columns,
+        "matched_rows": matched_rows,
+        "unmatched_rows": base_rows - matched_rows,
+        "source_sha256": source["sha256"],
+    }, [output_path, result_path]
 
 
 def _run_optuna_stage(
@@ -1497,6 +1604,13 @@ def _run_optuna_stage(
         if getattr(trial.state, "name", str(trial.state)).upper()
         in {"COMPLETE", "PRUNED", "FAIL"}
     )
+    _require_hard_trial_completion(
+        stage_name=stage_name,
+        terminal_count=terminal_count,
+        target_trials=int(target_trials),
+        hard_trial_limit=bool(hard_trial_limit),
+        study_path=database,
+    )
     payload = {
         "stage": stage_name,
         "study_name": study_name,
@@ -1561,6 +1675,16 @@ def _run_optuna_stage(
     )
     _write_json(result_path, payload)
     return payload, outputs
+
+
+def _require_hard_trial_completion(
+        *, stage_name, terminal_count, target_trials, hard_trial_limit, study_path,
+):
+    if hard_trial_limit and int(terminal_count) < int(target_trials):
+        raise RuntimeError(
+            f"{stage_name} completed {terminal_count}/{target_trials} required trials; "
+            f"the hard search budget is incomplete. Resume from {study_path}"
+        )
 
 
 def _model_feature_frame(dataset):
@@ -2108,6 +2232,23 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         raise FileNotFoundError(f"BTC raw candle input not found: {raw_path}")
     raw_identity = _file_identity(raw_path)
     contract_identity = _file_identity(contract_path)
+    candidate_feature_path = profile.get("causal_candidate_feature_path")
+    candidate_feature_columns = list(profile.get("causal_candidate_feature_columns", []))
+    if bool(candidate_feature_path) != bool(candidate_feature_columns):
+        raise ValueError(
+            "causal_candidate_feature_path and causal_candidate_feature_columns "
+            "must be configured together"
+        )
+    candidate_feature_identity = None
+    if candidate_feature_path:
+        candidate_feature_path = Path(candidate_feature_path)
+        if not candidate_feature_path.is_absolute():
+            candidate_feature_path = ROOT / candidate_feature_path
+        if not candidate_feature_path.is_file():
+            raise FileNotFoundError(
+                f"Causal candidate feature input not found: {candidate_feature_path}"
+            )
+        candidate_feature_identity = _file_identity(candidate_feature_path)
     task_identity = _signature(
         {
             "contract": contract,
@@ -2116,6 +2257,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "dataset_profile": profile["dataset_profile"],
             "modeling_profile": profile["modeling_profile"],
             "indicator_fit_profile": profile["indicator_fit_profile"],
+            "causal_candidate_feature_identity": candidate_feature_identity,
+            "chronology_stage_only": bool(profile.get("chronology_stage_only", False)),
         }
     )
     base_output = ROOT / profile["output_dir"]
@@ -2642,6 +2785,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 label_times,
                 int(profile.get("generator_cv_folds", cv_folds)),
                 0.1,
+                strict_label_availability=bool(profile.get("exclusive_label_availability", False)),
             )
             fold_indices = module.build_fold_indices(folds)
             fold_weights = module.build_fold_recency_weights(folds)
@@ -2801,6 +2945,39 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         dataset_path = ROOT / dataset_result["dataset_path"]
         dataset_metadata_path = ROOT / dataset_result["metadata_path"]
         dataset_settings["profile_state_dir"] = ROOT / dataset_result["profile_state_dir"]
+        if candidate_feature_path is not None:
+            join_payload = {
+                "base_dataset_signature": dataset_sig,
+                "candidate_feature_identity": candidate_feature_identity,
+                "candidate_feature_columns": candidate_feature_columns,
+                "join_key": "Opened exact UTC minute; no forward fill",
+                "code_sha256": _code_fingerprints([
+                    Path(__file__),
+                    ROOT / "features/btc_taker_flow.py",
+                ]),
+            }
+
+            def join_candidate_features_action(stage_dir):
+                return _join_causal_candidate_features(
+                    dataset_path,
+                    candidate_feature_path,
+                    candidate_feature_columns,
+                    stage_dir,
+                    dataset_signature=dataset_sig,
+                )
+
+            join_result, join_sig, join_outputs = _run_stage(
+                manifest,
+                manifest_path,
+                run_root,
+                "causal_candidate_feature_join",
+                join_payload,
+                join_candidate_features_action,
+                deadline_monotonic=overall_deadline,
+            )
+            dataset_path = ROOT / join_result["dataset_path"]
+            if not dataset_path.is_file():
+                raise RuntimeError("Joined causal candidate feature dataset is missing")
         if not dataset_path.is_file() or not dataset_metadata_path.is_file():
             raise RuntimeError("Completed feature dataset or its metadata is missing")
         if not dataset_settings["profile_state_dir"].is_dir():
@@ -2835,6 +3012,20 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             _model_feature_frame(feature_dataset),
             profile.get("model_feature_families"),
         )
+        available_model_features = set(feature_dataset.columns)
+        excluded_candidate_features = [
+            name for name in candidate_feature_columns if name in features.columns
+        ]
+        features = features.drop(columns=excluded_candidate_features)
+        missing_candidate_features = [
+            name for name in candidate_feature_columns
+            if name not in available_model_features
+        ]
+        if missing_candidate_features:
+            raise RuntimeError(
+                "Causal candidate features are absent from the generated dataset: "
+                f"{missing_candidate_features}"
+            )
         feature_names = list(features.columns)
         development_rows = np.flatnonzero(fit_mask)
         development_features = features.iloc[development_rows].reset_index(drop=True)
@@ -2869,6 +3060,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             weight_search, tw_opened, development_decision_at,
             int(profile.get("weight_cv_folds", cv_folds)), 0.1,
             validation_mask=development_decision,
+            strict_label_availability=bool(profile.get("exclusive_label_availability", False)),
         )
         weight_fold_weights = weight_search.build_fold_recency_weights(weight_folds)
         weight_params = dict(model_params)
@@ -2883,7 +3075,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "fit_start": fit_start.isoformat(),
             "fit_end_exclusive": FIT_END.isoformat(),
             "candidate_count": int(profile["target_weight_candidates"]),
-            "minimum_candidates": min(3, int(profile["target_weight_candidates"])),
+            "minimum_candidates": int(profile["target_weight_candidates"]),
             "training_rows": int(len(tw_y)),
             "decision_rows": int(development_decision.sum()),
             "decision_mask_sha256": _array_sha256(development_decision, dtype=np.bool_),
@@ -2929,10 +3121,10 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 float_dtype=np.float32,
                 deadline_monotonic=weight_stage_deadline,
                 checkpoint_path=stage_dir / "candidate_metrics.parquet",
-                minimum_candidates=min(3, int(profile["target_weight_candidates"])),
+                minimum_candidates=int(profile["target_weight_candidates"]),
             )
             candidates = [row for row in result["search_rows"] if row.get("decision_weight") is not None]
-            if len(candidates) < min(3, int(profile["target_weight_candidates"])):
+            if len(candidates) < int(profile["target_weight_candidates"]):
                 raise RuntimeError(f"Weight stage has only {len(candidates)} valid candidates")
             best = max(candidates, key=lambda row: float(row["objective_value"]))
             payload = {
@@ -2943,7 +3135,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 "objective_value": float(best["objective_value"]),
                 "candidates_evaluated": len(candidates),
                 "target_candidates": int(profile["target_weight_candidates"]),
-                "minimum_candidates": min(3, int(profile["target_weight_candidates"])),
+                "minimum_candidates": int(profile["target_weight_candidates"]),
                 "stopped_by": result["stopped_by"],
                 "rows": int(len(tw_y)),
                 "decision_rows": int(development_decision.sum()),
@@ -2968,8 +3160,8 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             tune_weights_action,
             must_run=lambda result: (
                 int(result.get("target_candidates", 0)) < int(profile["target_weight_candidates"])
-                or int(result.get("minimum_candidates", 0)) < min(3, int(profile["target_weight_candidates"]))
-                or int(result.get("candidates_evaluated", 0)) < min(3, int(profile["target_weight_candidates"]))
+                or int(result.get("minimum_candidates", 0)) < int(profile["target_weight_candidates"])
+                or int(result.get("candidates_evaluated", 0)) < int(profile["target_weight_candidates"])
             ),
             deadline_monotonic=weight_stage_deadline,
         )
@@ -2999,6 +3191,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             selector, selector_opened, selector_decision_at,
             selector.RANKING_N_SPLITS, 0.1,
             validation_mask=development_decision,
+            strict_label_availability=bool(profile.get("exclusive_label_availability", False)),
         )
         selector_fold_weights = selector.build_fold_recency_weights(selection_folds)
         selection_payload = {
@@ -3020,6 +3213,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             "seed": [int(value) for value in selector.RANDOM_SEEDS],
             "compute_backend": compute_backend,
             "settings": profile["feature_selection"],
+            "required_selected_feature_count": profile.get("required_selected_feature_count"),
             "fit_settings": {
                 "n_estimators": int(selector.N_ESTIMATORS),
                 "early_stopping_rounds": int(selector.EARLY_STOPPING_ROUNDS),
@@ -3082,7 +3276,17 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 deadline_monotonic=selection_deadline,
             )
             best_row, recommended_row = selector.choose_recommended_row(topk)
-            selected = fold_ranking["feature"].tolist()[: int(recommended_row["k"])]
+            required_count = profile.get("required_selected_feature_count")
+            selected_count = (
+                int(required_count) if required_count is not None
+                else int(recommended_row["k"])
+            )
+            if selected_count < 1 or selected_count > len(fold_ranking):
+                raise RuntimeError(
+                    "Feature selector cannot satisfy the configured selected feature count: "
+                    f"requested={selected_count} available={len(fold_ranking)}"
+                )
+            selected = fold_ranking["feature"].tolist()[:selected_count]
             if not selected:
                 raise RuntimeError("Feature selector returned an empty feature order")
             result_path = stage_dir / "selected_features.json"
@@ -3096,6 +3300,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                     "prefilter_feature_count": int(x_prefilter.shape[1]),
                     "recommended_k": int(recommended_row["k"]),
                     "best_k": int(best_row["k"]),
+                    "selection_k": selected_count,
                     "recommendation_score": float(recommended_row["selection_score"]),
                     "ranking_method": "existing gain prescreen plus permutation reranking",
                     "validation_rows_are_actual_decisions": True,
@@ -3133,7 +3338,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         selected_features = selection_result["selected_features"]
         candidate_features = list(profile.get("model_feature_candidate_features", []))
         model_features, added_candidate_features = merge_candidate_features(
-            selected_features, candidate_features, development_features.columns,
+            selected_features, candidate_features, available_model_features,
         )
 
         model_tuning.CV_FOLDS = cv_folds
@@ -3160,7 +3365,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         if len(set(selected_features)) != len(selected_features) or not set(selected_features).issubset(development_features.columns):
             raise RuntimeError("Feature-selection result contains missing or duplicate features")
         features = _load_selected_model_features(dataset_path, model_features)
-        tune_x = development_features.loc[:, model_features].reset_index(drop=True)
+        tune_x = features.iloc[development_rows].loc[:, model_features].reset_index(drop=True)
         tune_y = development_y.reset_index(drop=True)
         del development_features, selector_x, tw_x, tw_y, development_y
         tune_opened = development_opened
@@ -3169,6 +3374,7 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
             model_tuning, tune_opened, tune_decision_at,
             int(profile.get("model_cv_folds", cv_folds)), 0.1,
             validation_mask=development_decision,
+            strict_label_availability=bool(profile.get("exclusive_label_availability", False)),
         )
         tune_fold_indices = model_tuning.build_fold_indices(tune_folds)
         tune_fold_weights = model_tuning.build_fold_recency_weights(tune_folds)
@@ -3310,6 +3516,67 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         if not isinstance(model_tuning_result.get("best_iteration"), int) or model_tuning_result["best_iteration"] < 1:
             raise RuntimeError("Model tuning did not produce a positive best iteration count")
         tuned_params = dict(model_tuning_result["best_params"])
+        if profile.get("chronology_stage_only"):
+            required_count = int(profile.get("required_selected_feature_count", 0))
+            if required_count and len(selected_features) != required_count:
+                raise RuntimeError(
+                    "Fold-local feature selection returned "
+                    f"{len(selected_features)} non-flow features; expected {required_count}"
+                )
+            chronology_result = {
+                "status": "fold_local_selection_completed",
+                "run_id": task_identity,
+                "run_root": run_root.resolve().relative_to(ROOT).as_posix(),
+                "raw_data_sha256": raw_identity["sha256"],
+                "candidate_feature_sha256": (
+                    candidate_feature_identity["sha256"]
+                    if candidate_feature_identity else None
+                ),
+                "contract_sha256": contract_identity["sha256"],
+                "fit_start_utc": fit_start,
+                "selection_cutoff_exclusive_utc": FIT_END,
+                "latest_training_label_available_at_utc": label_available[development_rows].max(),
+                "exclusive_label_availability": bool(profile.get("exclusive_label_availability", False)),
+                "stage_fit_end_exclusive_utc": {
+                    "indicator_generator": FIT_END,
+                    "volume_profile_and_reaction_profile": FIT_END,
+                    "target_weights": FIT_END,
+                    "feature_selection": FIT_END,
+                    "model_hyperparameters_and_iterations": FIT_END,
+                },
+                "training_rows": int(len(tune_y_np)),
+                "decision_rows": int(development_decision.sum()),
+                "selected_base_features": list(selected_features),
+                "selected_base_feature_count": int(len(selected_features)),
+                "candidate_features": list(added_candidate_features),
+                "model_feature_order": list(model_features),
+                "decision_weight": decision_weight,
+                "auxiliary_row_weight": float((1.0 - decision_weight) / 4.0),
+                "best_params": tuned_params,
+                "best_iteration": int(model_tuning_result["best_iteration"]),
+                "model_tuning_result": model_tuning_result,
+                "dataset_path": dataset_path.resolve().relative_to(ROOT).as_posix(),
+                "dataset_signature": dataset_sig,
+                "weight_stage_signature": weight_sig,
+                "feature_selection_signature": selection_sig,
+                "model_tuning_signature": model_tuning_sig,
+                "feature_order_sha256": _signature(model_features),
+                "stage_only_no_calibration_or_outer_prediction": True,
+            }
+            chronology_result_path = run_root / "chronology_selection_result.json"
+            _write_json(chronology_result_path, chronology_result)
+            manifest["status"] = "chronology_selection_completed"
+            manifest["chronology_selection_result_path"] = (
+                chronology_result_path.resolve().relative_to(ROOT).as_posix()
+            )
+            manifest["updated_utc"] = pd.Timestamp.now(tz="UTC").isoformat()
+            _write_json(manifest_path, manifest)
+            print(
+                "[preopen] chronology selection-only stages completed; "
+                "generic calibration and external prediction stages skipped",
+                flush=True,
+            )
+            return chronology_result
         final_rows = np.flatnonzero(fit_mask)
         final_x = features.iloc[final_rows][model_features].to_numpy(dtype=np.float32, copy=True)
         final_x[~np.isfinite(final_x)] = np.nan
