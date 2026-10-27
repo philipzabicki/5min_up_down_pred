@@ -1034,3 +1034,11 @@ Next resumable step: commit and push the v3 protocol/code/test correction, then 
 - Validation: focused E0039 tests 19/19; full discovery 730/730 in 45.116 seconds; `py_compile` passed. The v4 identity check verified 53 pinned files and all 5,604 whitelist IDs. The PyArrow regression confirms the half-open `[2026-04-15, 2026-07-01)` window.
 
 Next resumable step: commit and push the v4 implementation/protocol, then rerun the exact no-argument runner. Recheck the current resource gate and all four frozen hashes in that process; proceed through F1–F3 and the shared ledger. Implement the offline adapter and measure the frozen 300 windows after the batch path. T0009 remains blocked overall for source coverage and prediction-readiness provenance; T0010 remains deferred.
+
+## E0039 v5 runtime-ledger correction — 2026-10-27
+
+- The v4 retry passed the live gate (50.08 GiB available RAM, 105.90 GiB free disk, 6,414 MiB GPU memory free), verified the four pinned source hashes, and loaded the permitted Gamma/economic source projections. It failed before F1 selection because `_start_runtime_ledger` attempted to create a set containing a dictionary. The run manifest records zero folds, zero confirmation evaluation output, and zero holdout rows materialized.
+- No model fit, confirmation scoring, OOF prediction, calibration output, outer prediction, or economic replay was produced. The failure and resources are recorded in the [v4 execution report](../reports/btc_preopen/btc_chronology_reconstruction_20261027_v4.md). The frozen data projections and source identities remain unchanged.
+- [E0039 v5](../configs/research/btc_chronology_reconstruction_20261027_v5.json), SHA-256 `7ff752eaef17774725349d2f4a8d5cd7cb456ebecb575969bf8eb5c65279fcb9`, fixes empty-ledger initialization and adds a focused regression. Validation: 20/20 E0039 tests; full discovery 731/731 in 66.208 seconds; `py_compile` passed. V5 identity verified 53 pinned files and the 5,604-ID whitelist; it retains the four verified source hashes.
+
+Next resumable step: commit and push v5, then run the exact no-argument runner. It must repeat the resource gate and source-hash checks, then complete F1–F3 and the shared continuous ledger. After the batch path, implement and measure the offline adapter on the frozen 300 windows. T0009 remains blocked overall; T0010 remains deferred.

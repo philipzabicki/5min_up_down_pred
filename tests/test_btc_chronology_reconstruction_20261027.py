@@ -268,6 +268,25 @@ class BtcChronologyReconstructionTests(unittest.TestCase):
         self.assertEqual(actual.condition_id.tolist(), ["0xinside"])
         self.assertEqual(actual.value.tolist(), [1])
 
+    def test_runtime_ledger_initializes_and_finishes_new_identity(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "runtime.json"
+            identity = {"fold_id": "synthetic-fold", "runner_sha256": "synthetic-hash"}
+            ledger, deadline, sampler = chronology._start_runtime_ledger(
+                path, identity, budget_seconds=10.0,
+            )
+            self.assertGreater(deadline, time.monotonic())
+            self.assertEqual(ledger["identity_sha256"], chronology._canonical_hash(identity))
+            attempt = chronology._finish_runtime_ledger(
+                path, ledger, "completed", sampler=sampler,
+            )
+
+            saved = __import__("json").loads(path.read_text(encoding="utf-8"))
+
+        self.assertEqual(attempt["status"], "completed")
+        self.assertEqual(saved["identity"], identity)
+        self.assertEqual(len(saved["attempts"]), 1)
+
     def test_filtered_development_source_hashes_are_computed_before_fit(self):
         protocol = {
             "outer_folds": [
