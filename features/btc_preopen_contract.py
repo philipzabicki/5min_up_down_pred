@@ -259,6 +259,35 @@ def purge_unavailable_training_rows(
     return candidates[label_available[candidates] <= cutoff.tz_convert("UTC")]
 
 
+def chronological_fit_mask(
+        opened_values,
+        target_values,
+        label_available_values,
+        fit_start_utc,
+        fit_end_exclusive_utc,
+) -> np.ndarray:
+    """Select labeled fit rows whose labels were available before the fit cutoff."""
+    opened = pd.DatetimeIndex(pd.to_datetime(opened_values, utc=True, errors="raise"))
+    available = pd.DatetimeIndex(
+        pd.to_datetime(label_available_values, utc=True, errors="coerce")
+    )
+    target = np.asarray(target_values, dtype=np.float64)
+    start = pd.Timestamp(fit_start_utc)
+    end = pd.Timestamp(fit_end_exclusive_utc)
+    if start.tzinfo is None or end.tzinfo is None:
+        raise ValueError("fit boundaries must be timezone-aware")
+    if len(opened) != len(available) or len(opened) != len(target):
+        raise ValueError("opened, target, and label availability must have equal lengths")
+    if end <= start:
+        raise ValueError("fit end must be later than fit start")
+    return (
+        np.isfinite(target)
+        & available.notna()
+        & (opened >= start.tz_convert("UTC"))
+        & (available < end.tz_convert("UTC"))
+    )
+
+
 def build_preopen_target_weights(
         opened_values,
         *,

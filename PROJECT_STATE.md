@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last audited: 2026-10-26 (Europe/Warsaw).
+Last audited: 2026-10-27 (Europe/Warsaw).
 Audit commit: the commit introducing this file, `docs: recover canonical project state` (resolve with `git log -1 --format=%H -- PROJECT_STATE.md`; no self-referential hash).
 Audit input HEAD: `e74d70997ef75eba0f818fb18d209817897e2f36` on `audit/btc-dynamic-history-20261020`; upstream was `origin/audit/btc-dynamic-history-20261020` and the tree was clean before this task.
 
@@ -10,7 +10,7 @@ Predict BTC five-minute Binance-index direction before a Polymarket market opens
 
 ## Current phase
 
-Historical research and frozen A/B/C/D comparison; **no demonstrated production readiness or repeatable trading advantage**. A=BASE70, B=A+simple-memory PCA8, C=A+ESN PCA8, D=A+memory+ESN. E0036's 1,143-market confirmation result remains sparse and unchanged. E0037's saved source-parity gate remains **FAILED**. E0038 completed retrospective, coverage-conditional economics on 5,604 source-quality-clean markets. Its corrected comparison matches all row-level probability, decision, fill, and fee values on 1,141 common E0036 markets. V1/V2/V3 freezes and correction history are preserved; see the [E0038 report](reports/btc_preopen/btc_t0009_source_quality_continuation_20261026.md). T0009 remains blocked for full-development coverage and causal/readiness provenance. T0008/E0035 sale-policy work is deferred/out-of-scope under D0018. The old A/B/C/D no-order pilot remains historically blocked at 0/3 and is not an active next step under D0017. Dynamic-history/action-value research remains independently blocked before fitting.
+Historical research and frozen A/B/C/D comparison; **no demonstrated production readiness or repeatable trading advantage**. A=BASE70, B=A+simple-memory PCA8, C=A+ESN PCA8, D=A+memory+ESN. E0036's 1,143-market confirmation result remains sparse and unchanged. E0037's saved source-parity gate remains **FAILED**. E0038 completed retrospective, coverage-conditional economics on 5,604 source-quality-clean markets. Its corrected comparison matches all row-level probability, decision, fill, and fee values on 1,141 common E0036 markets. E0039 records month/concentration and paired diagnostics, freezes three development chronology folds, and adds a tested label-availability fit mask; A/B/C/D fold fitting and full runtime timing are blocked before fit/measurement because the offline orchestration is absent. See the [E0039 report](reports/btc_preopen/btc_chronology_stability_reconstruction_20261027.md) and [protocol](configs/research/btc_chronology_reconstruction_20261027.json). T0009 remains blocked overall; source, chronology and runtime axes have separate statuses. T0008/E0035 sale-policy work is deferred/out-of-scope under D0018. The old A/B/C/D no-order pilot remains historically blocked at 0/3 and is not an active next step under D0017. Dynamic-history/action-value research remains independently blocked before fitting.
 
 Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TASKS.md). Details/matrices/provenance: [audit report](docs/PROJECT_STATE_AUDIT_20261025.md), [evidence](reports/project_state_recovery_20261025.json). The [BTC status](docs/BTC_RESEARCH_STATUS_20261010.md) remains the checkpoint history; [research contract](docs/BTC_RESEARCH_CONTRACT.md) remains binding.
 
@@ -22,6 +22,7 @@ Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TAS
 - E0036 resolution ledger: settlement regression **3/3**, existing replay/accounting tests **24/24**, and full discovery **683/683** passed (51.332 s, exit code 0). The hash-verified sparse confirmation run reproduced E0031 fixed-$5 economics and separately computed the 5%-of-free-cash control, cost-basis drawdown and event accounting. This validates code mechanics, not strategy profitability or production readiness.
 - E0037 source-only validation on 2026-10-26: focused T0009 tests **10/10**, T-59 reassessment tests **34/34**, and full discovery **696/696** passed (55.837 s, exit code 0). The full local development PMXT snapshot was hash/provenance verified and reused. E0036 T-60 source parity still failed; no economic results were produced.
 - E0038 validation: focused source/economics tests 13/13 and full discovery 709/709 passed (43.327 s, exit code 0). V1 stopped before data/outcome loading; v2 and v3 were committed/pushed before their runs. V3 results match v2 economics and correct its row-comparison label; all portfolio accounting invariants passed.
+- E0039 chronology-mask focused checks: **51/51 PASS** across pre-open contract, development-boundary, ESN experiment-contract, candidate checkpoint/restart, and resolution-portfolio modules. Full `python -m unittest discover -s tests`: **711/711 PASS**, 0 FAIL/ERROR/SKIP/XFAIL, **41.334 s**, exit 0. This validates code mechanics, not chronology reproduction or runtime readiness.
 - Read-only candidate shadow SQLite: two preflight events, zero data/market/checkpoint rows (E0034).
 - Completed frozen scorer/period/approval/source records exist and were hashed; historical scores were not recomputed (E0030).
 
@@ -50,6 +51,8 @@ Registers: [DECISIONS](DECISIONS.md), [EXPERIMENTS](EXPERIMENTS.md), [TASKS](TAS
 ## Blocked
 
 - Dynamic gate: 637/2,000 evaluation; fold1 $5 training 908/1,000; RAW timing provenance missing. No model result (E0024).
+- T0009 chronology axis (E0039): the three folds, exact raw/flow prefixes, E0038 whitelist, budgets and resume order are frozen, but no fold fit or official OOF calibration ran. The available runner does not compose fold-local BASE70+Z/V inputs, A/B/C/D memory/ESN variants and earlier-only official Gamma OOF Platt; reusing full-development-selected features, target weights or settings would leak. Missing historical `prediction_available_at` is not the blocker.
+- T0009 runtime axis (E0039): the deterministic 300-window sample is frozen, but the full hot path cannot be timed without an offline streaming builder for the exact generated BASE70 features plus Z/V and dynamic states. Reading a ready full-development cache vector would hide feature construction. No latency percentiles or one-second conclusion are claimed.
 - Resolution economics: E0038 confirms 19,431 T−60 and 26,289 T−59 source-value parity comparisons with no mismatches, while distinguishing old unchecked rows from passed checks. Its symmetric source-quality rule leaves 5,604 of the 5,684 retrospective source intersection; the T−60 ask/BBO conflict remains unresolved and quarantined. The completed A/B/C/D economic paths and four payout scenarios are coverage-conditional; no measured prediction-ready timestamps exist, full-pipeline selection/calibration independence is not established, and 53,660 prediction calendar rows have no Gamma ID. The 24 missing local PMXT hours remain separately inventoried under T0010. These results do not close T0009. Actual redemption availability remains unknown.
 - Sale-policy study: T0008/E0035 are deferred/out-of-scope, not blockers for the active resolution strategy. The sale simulator still keeps unfilled exits open and never treats them as settlement.
 - Shadow: bounded 2026-10-25 same-interpreter preflight reached Binance time (HTTP 200, valid schema) but Gamma and CLOB DNS resolution failed. No collector was started; pilot remains 0/3. Under D0017 this is retained history, not an active next step (T0004).
@@ -61,7 +64,7 @@ Real fills/ACKs/fees and operational live readiness; full-pipeline independent O
 
 ## Active experiments
 
-E0036 PARTIAL on the available confirmation subset. E0037 PARTIAL with its original FAILED parity gate preserved. E0038 completed its corrected retrospective economics on 5,604 source-quality-clean markets. T0009 remains BLOCKED for full-development coverage and candidate-readiness provenance. E0034/E0024 BLOCKED; E0010 PLANNED/deferred. Other outcomes: EXPERIMENTS. Stale running manifests do not prove active processes.
+E0036 PARTIAL on the available confirmation subset. E0037 PARTIAL with its original FAILED parity gate preserved. E0038 completed its corrected retrospective economics on 5,604 source-quality-clean markets. E0039 completed the E0038 stability diagnosis and froze chronology/runtime protocols, but remains blocked before fold fitting and full-path timing. T0009 remains BLOCKED overall for source coverage/readiness; chronology and runtime have separate statuses. E0034/E0024 BLOCKED; T0010 DEFERRED. Other outcomes: EXPERIMENTS. Stale running manifests do not prove active processes.
 
 ## Active decisions
 
@@ -77,4 +80,4 @@ Legacy market-open/Kacho, original fees/minimum units/T59 selection, interrupted
 
 ## Next recommended actions
 
-1. T0009: use existing local records to address full-development source coverage and saved prediction cutoff/readiness provenance; retain the E0038 conditional classification and do not use holdout data or acquire sources.
+1. E0039 / T0009 chronology: implement and test one identity-checked offline runner for fold-local generators/selection/weights/model, six causal Z/V inputs, frozen earlier memory/ESN transforms and earlier-only official OOF calibration; implement its matching per-decision feature adapter. Amend and push hashes/budgets before fitting F1, then F2/F3. Retain E0038's conditional classification; no holdout or source acquisition.

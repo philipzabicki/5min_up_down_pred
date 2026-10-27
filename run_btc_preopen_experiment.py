@@ -33,6 +33,7 @@ from features.btc_preopen_contract import (
     TARGET_START_PRICE_COL,
     build_preopen_contract_frame,
     build_preopen_target_weights,
+    chronological_fit_mask,
     last_closed_candle_opened_at,
     preopen_decision_mask,
     purge_unavailable_training_rows,
@@ -2569,10 +2570,12 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
                 labeled_mask=valid_labels,
             )
         fit_start = pd.Timestamp(split["feature_and_model_fit_start_utc"])
-        fit_mask = (
-            valid_labels
-            & (opened >= fit_start)
-            & (label_available < FIT_END)
+        fit_mask = chronological_fit_mask(
+            opened,
+            y_full,
+            label_available,
+            fit_start,
+            FIT_END,
         )
         if int(fit_mask.sum()) < 100:
             raise RuntimeError(f"Only {int(fit_mask.sum())} rows remain in the allowed fitting interval")
@@ -2816,7 +2819,13 @@ def run_training_pipeline(*, profile_name="nightly_v1", profile_override=None):
         decision_mask = computed_decision
         y_full = pd.to_numeric(contract_frame[TARGET_COL], errors="coerce").to_numpy(dtype=np.float64, copy=False)
         valid_labels = np.isfinite(y_full) & label_available.notna()
-        fit_mask = valid_labels & (opened >= fit_start) & (label_available < FIT_END)
+        fit_mask = chronological_fit_mask(
+            opened,
+            y_full,
+            label_available,
+            fit_start,
+            FIT_END,
+        )
         frame = contract_frame.copy()
         frame["market_start_utc"] = pd.to_datetime(frame["target_window_start_at"], utc=True)
         frame[TARGET_AVAILABLE_COL] = label_available

@@ -15,6 +15,7 @@ from features.btc_preopen_contract import (
     TARGET_START_PRICE_COL,
     build_preopen_contract_frame,
     build_preopen_return_target,
+    chronological_fit_mask,
     last_closed_candle_opened_at,
     preopen_decision_mask,
     purge_unavailable_training_rows,
@@ -186,6 +187,41 @@ class BtcPreopenContractTests(unittest.TestCase):
         )
         kept = purge_unavailable_training_rows(opened, "2026-06-01 17:04+00:00")
         np.testing.assert_array_equal(kept, np.array([0, 1], dtype=np.int64))
+
+    def test_chronological_fit_mask_excludes_labels_at_exclusive_cutoff(self):
+        opened = pd.DatetimeIndex([
+            "2026-04-14T23:52:00Z",
+            "2026-04-14T23:53:00Z",
+            "2026-04-14T23:54:00Z",
+            "2026-04-15T00:00:00Z",
+        ])
+        target = np.asarray([0.0, 1.0, 0.0, 1.0])
+        available = opened + pd.Timedelta(minutes=7)
+        cutoff = pd.Timestamp("2026-04-15T00:00:00Z")
+        mask = chronological_fit_mask(
+            opened, target, available,
+            "2020-06-09T09:33:00Z", cutoff,
+        )
+        np.testing.assert_array_equal(mask, [True, False, False, False])
+
+    def test_future_rows_cannot_change_the_existing_chronological_fit_prefix(self):
+        cutoff = pd.Timestamp("2026-04-15T00:00:00Z")
+        opened = pd.date_range("2026-04-14T23:45:00Z", periods=10, freq="min")
+        target = np.arange(10, dtype=np.float64) % 2
+        available = opened + pd.Timedelta(minutes=7)
+        start = pd.Timestamp("2020-06-09T09:33:00Z")
+        baseline = chronological_fit_mask(opened, target, available, start, cutoff)
+
+        later_opened = pd.date_range(cutoff, periods=5, freq="min")
+        changed = chronological_fit_mask(
+            opened.append(later_opened),
+            np.concatenate([target, np.ones(len(later_opened))]),
+            available.append(later_opened + pd.Timedelta(minutes=7)),
+            start,
+            cutoff,
+        )
+        np.testing.assert_array_equal(changed[:len(opened)], baseline)
+        self.assertFalse(changed[len(opened):].any())
 
     def test_ties_resolve_up_and_missing_future_end_is_nan(self):
         frame = candles("2026-06-01 16:40", 12)
