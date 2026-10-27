@@ -1,0 +1,63 @@
+{
+  "data_or_label_reads_for_fit": false,
+  "experiment_id": "E0039",
+  "holdout_rows_materialized": 0,
+  "minimum_free_memory_gb": 20.0,
+  "next_action": "Resume this runner after active Python jobs exit and the frozen RAM/disk gate passes.",
+  "protocol_path": "configs/research/btc_chronology_reconstruction_20261027_v2.json",
+  "protocol_sha256": "7b042861fd46af05d1a5f0de4ecc6aeba0f141f20f8b9aabe83dc313d271d220",
+  "reason": "E0039 fit blocked by available RAM: 3.79 GiB available; requires 20.0 GiB; E0039 fit blocked while other Python workloads use at least 1 GiB each: PIDs=[42800, 46484, 41684, 50164, 47096]",
+  "resource_snapshot": {
+    "available_memory_gb": 3.79,
+    "disk_free_gb": 105.97,
+    "gate_failures": [
+      "E0039 fit blocked by available RAM: 3.79 GiB available; requires 20.0 GiB",
+      "E0039 fit blocked while other Python workloads use at least 1 GiB each: PIDs=[42800, 46484, 41684, 50164, 47096]"
+    ],
+    "gpu_query": "NVIDIA GeForce RTX 4060 Laptop GPU, 8188 MiB, 6927 MiB",
+    "logical_cpus": 20,
+    "memory_blocking_python_pids": [
+      42800,
+      46484,
+      41684,
+      50164,
+      47096
+    ],
+    "python_processes": [
+      {
+        "pid": 22784,
+        "working_set_gb": 0.02
+      },
+      {
+        "pid": 42800,
+        "working_set_gb": 9.53
+      },
+      {
+        "pid": 46484,
+        "working_set_gb": 10.06
+      },
+      {
+        "pid": 41684,
+        "working_set_gb": 10.06
+      },
+      {
+        "pid": 50164,
+        "working_set_gb": 10.06
+      },
+      {
+        "pid": 47096,
+        "working_set_gb": 9.88
+      },
+      {
+        "pid": 9152,
+        "working_set_gb": 0.0
+      },
+      {
+        "pid": 9824,
+        "working_set_gb": 0.02
+      }
+    ],
+    "total_memory_gb": 63.67
+  },
+  "status": "BLOCKED_BEFORE_FIT"
+}
