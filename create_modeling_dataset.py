@@ -579,43 +579,45 @@ def parse_fit_results(fit_dir):
     )
 
 
-def resolve_volume_profile_modeling_state_path(base_data_file, asset=None):
+def _resolve_profile_source_identity(base_data_file, symbol=None, interval=None):
+    match = BASE_DATA_FILE_SYMBOL_INTERVAL_RE.match(Path(base_data_file).stem)
+    if match:
+        return match.group("symbol"), match.group("interval")
+    if symbol and interval:
+        return str(symbol), str(interval)
+    raise ValueError(
+        "Could not derive symbol/interval for profile modeling state from "
+        f"base_data_file={base_data_file!r}. Expected e.g. BTCUSDT1m.csv"
+    )
+
+
+def resolve_volume_profile_modeling_state_path(
+        base_data_file, asset=None, *, symbol=None, interval=None):
     if asset is None:
         asset = load_modeling_dataset_settings().get("active_asset")
-    stem = Path(base_data_file).stem
-    match = BASE_DATA_FILE_SYMBOL_INTERVAL_RE.match(stem)
-    if not match:
-        raise ValueError(
-            "Could not derive symbol/interval for volume profile modeling state from "
-            f"base_data_file={base_data_file!r}. Expected e.g. BTCUSDT1m.csv"
-        )
-    symbol = match.group("symbol")
-    interval = match.group("interval")
+    symbol, interval = _resolve_profile_source_identity(
+        base_data_file, symbol=symbol, interval=interval,
+    )
     state_dir = VP_MODELING_STATE_DIR
     if asset:
         state_dir = state_dir / str(asset).strip().upper()
     return (
-            state_dir / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
+        state_dir / f"{symbol}_{interval}_{VP_FEATURE_VERSION}_modeling_end"
     )
 
 
-def resolve_reaction_profile_modeling_state_path(base_data_file, asset=None):
+def resolve_reaction_profile_modeling_state_path(
+        base_data_file, asset=None, *, symbol=None, interval=None):
     if asset is None:
         asset = load_modeling_dataset_settings().get("active_asset")
-    stem = Path(base_data_file).stem
-    match = BASE_DATA_FILE_SYMBOL_INTERVAL_RE.match(stem)
-    if not match:
-        raise ValueError(
-            "Could not derive symbol/interval for reaction profile modeling state from "
-            f"base_data_file={base_data_file!r}. Expected e.g. BTCUSDT1m.csv"
-        )
-    symbol = match.group("symbol")
-    interval = match.group("interval")
+    symbol, interval = _resolve_profile_source_identity(
+        base_data_file, symbol=symbol, interval=interval,
+    )
     state_dir = RP_MODELING_STATE_DIR
     if asset:
         state_dir = state_dir / str(asset).strip().upper()
     return (
-            state_dir / f"{symbol}_{interval}_{RP_FEATURE_VERSION}_modeling_end"
+        state_dir / f"{symbol}_{interval}_{RP_FEATURE_VERSION}_modeling_end"
     )
 
 
@@ -978,6 +980,8 @@ def build_dataset_from_settings(settings):
         vp_state_path = resolve_volume_profile_modeling_state_path(
             base_data_file,
             asset=settings.get("active_asset"),
+            symbol=settings.get("symbol"),
+            interval=settings.get("interval"),
         )
         if settings.get("profile_state_dir"):
             vp_state_path = (
@@ -1013,6 +1017,8 @@ def build_dataset_from_settings(settings):
         rp_state_path = resolve_reaction_profile_modeling_state_path(
             base_data_file,
             asset=settings.get("active_asset"),
+            symbol=settings.get("symbol"),
+            interval=settings.get("interval"),
         )
         if settings.get("profile_state_dir"):
             rp_state_path = (

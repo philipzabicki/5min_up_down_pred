@@ -154,6 +154,22 @@ class RuntimeArtifactPathTests(unittest.TestCase):
             ),
         )
 
+    def test_volume_profile_state_path_uses_dataset_identity_for_fold_file(self):
+        path = resolve_volume_profile_modeling_state_path(
+            "fold_20260415_20260501.csv",
+            asset="BTC",
+            symbol="BTCUSD",
+            interval="1m",
+        )
+
+        self.assertEqual(
+            path,
+            Path(
+                "data/features/state/volume_profile/modeling/BTC/"
+                "BTCUSD_1m_vp_fixed_range_v3_modeling_end"
+            ),
+        )
+
     def test_reaction_profile_modeling_state_path_uses_explicit_asset(self):
         path = resolve_reaction_profile_modeling_state_path(
             "ETHUSD_INDEXVOL_UM_ETHUSDT1m.csv",
@@ -165,6 +181,22 @@ class RuntimeArtifactPathTests(unittest.TestCase):
             Path(
                 "data/features/state/reaction_profile/modeling/ETH/"
                 "ETHUSD_INDEXVOL_UM_ETHUSDT_1m_rp_fixed_grid_v1_modeling_end"
+            ),
+        )
+
+    def test_reaction_profile_state_path_uses_dataset_identity_for_fold_file(self):
+        path = resolve_reaction_profile_modeling_state_path(
+            "fold_20260415_20260501.csv",
+            asset="BTC",
+            symbol="BTCUSD",
+            interval="1m",
+        )
+
+        self.assertEqual(
+            path,
+            Path(
+                "data/features/state/reaction_profile/modeling/BTC/"
+                "BTCUSD_1m_rp_fixed_grid_v1_modeling_end"
             ),
         )
 
