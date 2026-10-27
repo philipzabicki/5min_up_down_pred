@@ -1,38 +1,39 @@
-# E0039 chronology runner v3 — protocol correction
+# E0039 chronology runner v3 — execution attempt
 
 ## Status
 
-**FROZEN_AFTER_HASH_CORRECTION; FIT NOT STARTED.** The v2 resource gate originally stopped at 3.79 GiB available RAM. A later exact-command retry passed the current resource gate and verified its frozen files, then stopped at the E0038 clean-ID hash check before fitting. This v3 protocol corrects the hash identity and must be committed and pushed before the next research run.
+**FAILED_BEFORE_FIT.** The v3 protocol corrected the clean-ID hash mismatch and was pushed before this retry. The runner passed the live resource gate, verified its frozen identities, computed the frozen source projection hashes, then stopped while loading official Gamma rows because this PyArrow version requires `columns` to be a list or dictionary rather than a tuple. No fold started and no fit, OOF prediction, calibration, outer prediction, or economic replay ran.
 
-Protocol: [E0039 v3](../../configs/research/btc_chronology_reconstruction_20261027_v3.json), SHA-256 `d3a5dd3d916c117e627c95683865a66a3e0685bac7862d901307f92a77060047`. Parent: [E0039 v2](../../configs/research/btc_chronology_reconstruction_20261027_v2.json), SHA-256 `7b042861fd46af05d1a5f0de4ecc6aeba0f141f20f8b9aabe83dc313d271d220`. The original [v2 execution report](btc_chronology_reconstruction_20261027_v2.md) and protocol remain unchanged.
+Protocol: [E0039 v3](../../configs/research/btc_chronology_reconstruction_20261027_v3.json), SHA-256 `d3a5dd3d916c117e627c95683865a66a3e0685bac7862d901307f92a77060047`. Parent: [E0039 v2](../../configs/research/btc_chronology_reconstruction_20261027_v2.json), SHA-256 `7b042861fd46af05d1a5f0de4ecc6aeba0f141f20f8b9aabe83dc313d271d220`. The E0039 v1/v2 protocols and the v2 resource-gate report remain unchanged.
 
-## Hash correction
+## Resource gate and identity
 
-The v2 protocol stored `b92ed75e56a1d5fa438642590b4d13bf6d2745871cc66c606a910d564532d62e` in `clean_ids_sha256`. That value is the SHA-256 of the complete local E0038 clean-cohort CSV. The runner's frozen check hashes sorted lowercase `condition_id` values, which produced `e2946aa8e45c2ed050347e18756408a0175fa0eb9859a120f8df7c173051edda`.
+The same-interpreter snapshot passed: 50.06 GiB available RAM, 105.91 GiB free disk, RTX 4060 Laptop GPU with 6,453 MiB free, 20 logical CPUs, and no other Python processes. All 53 frozen input and implementation hashes verified; the 5,604-ID E0038 whitelist hash matched v3.
 
-The 5,604 IDs selected from the frozen source-quality manifest and the CSV have identical sets and no duplicate CSV IDs. The v3 correction changes the hash field, parent protocol identity, and runner/test identity hashes. It does not change the whitelist, source data, count, filters, chronology boundaries, labels, features, fold budgets, candidate procedures, calibration, economic rules, or runtime sample.
+Run identity: `2bc77d0d309e39df6e1baf98741473a0cc678b8cec271ac0852368245367d4ce`. The local ignored manifest records status `interrupted_or_failed_with_checkpoints`, zero folds, `confirmation_rows_materialized=0` (no confirmation evaluation output), and zero holdout rows materialized. Its exact failure was `ValueError: Expected a list or a dict for 'columns', got <class 'tuple'> instead.`
 
-## Retry evidence
+## Source projection hashes
 
-The retry's same-interpreter resource snapshot passed the frozen gates: 50.15 GiB available RAM, 105.91 GiB free disk, 6,206 MiB free on the RTX 4060 Laptop GPU, and no other Python process at the 1 GiB working-set threshold. The runner verified 53 frozen file and implementation hashes before loading the clean whitelist. It then raised `RuntimeError: E0038 clean ID allowlist hash changed`.
+Before the loader failure, the runner computed these hashes from the frozen projections and recorded them in the ignored run manifest:
 
-The retry loaded only the clean-whitelist columns after the gate. It did not load model-fit targets, Gamma outcomes, T-60/T-59 economic rows, confirmation rows, or holdout rows. No development-only projected source-row hashes, fold fits, OOF calibration, outer predictions, portfolio replay, or runtime measurement were produced. The frozen v2 report and gate record remain historical evidence; v3 will repeat the resource gate.
+- `official_gamma`: `8a57353f8ab2fa192dda31d5848c08d8a942ac2cfecba42c3fd02c3d6b97cc88`
+- `economics_gamma`: `2376742f69af58ae09abd2f97a69a790e8a4478b534e89c489650bd2e03e79f1`
+- `t60_books`: `18bcea350e8857c42d236fe44d9753c98fd8c1bf9ab7f4d1e1d6060eca5f4165`
+- `t59_asks`: `8cd8b338718a6c2aea41624015723ae6f7246232a114db40643d51052e5676f7`
 
-## Validation
+The economic projections follow the frozen whitelist and date limits. The official Gamma input slice is frozen for the earlier-only OOF calibration lineage; its rows were read here only for the protocol's source-hash check. No calibration was fit, no confirmation scoring or choice was made, and no holdout row was materialized. V4 pins these observed hashes and recomputes/verifies them before fitting.
 
-- Focused E0039 chronology tests: **18/18 passed**.
-- Full `python -m unittest discover -s tests`: **729/729 passed** in **48.090 seconds**, exit code 0.
-- `python -m py_compile run_btc_chronology_reconstruction_20261027.py tests/test_btc_chronology_reconstruction_20261027.py`: passed.
-- V3 identity check: **53** pinned files verified; all **5,604** whitelist IDs match the canonical hash above.
+## Validation and fix
 
-These checks validate the hash correction and code mechanics only. They do not validate fold reproduction, model quality, economic results, or runtime readiness.
+The reader now converts the unchanged ordered column tuple to a list before calling PyArrow. A regression confirms tuple input works and preserves the frozen half-open development window `[2026-04-15, 2026-07-01)`.
+
+- Focused E0039 tests: **19/19 passed**.
+- Full `python -m unittest discover -s tests`: **730/730 passed** in **45.116 seconds**, exit code 0.
+- `py_compile`: passed.
+- V4 identity check: 53 pinned files verified; all 5,604 whitelist IDs match.
+
+V3 still contains no fold result. The source hashes are inputs to the next run, not economic results or evidence of model quality. The PyArrow fix and hashes are frozen in [E0039 v4](../../configs/research/btc_chronology_reconstruction_20261027_v4.json), SHA-256 `6821739db72dec443186f2fdb6b8c99960af4b5ad96310fc500e44bb54cf691e`.
 
 ## Next step
 
-After this v3 protocol/code/test change is committed and pushed, rerun the exact no-argument command:
-
-```powershell
-python run_btc_chronology_reconstruction_20261027.py
-```
-
-The runner must recompute its resource gate, verify v3 identities, and compute exact development-only projected source-row hashes before F1. Do not change the frozen procedure or use protected holdout data. T0009 remains blocked overall; the offline streaming adapter and 300-window benchmark remain pending after the batch path.
+Commit and push the v4 implementation and protocol correction, then rerun the exact no-argument command. It must pass the resource gate and recompute all four pinned source hashes before F1. Preserve the three chronological folds, complete OOF/calibration work, and shared economic ledger. No holdout, new confirmation evaluation, source acquisition, PMXT replay, live/shadow operation, DNS check, or order is authorized.

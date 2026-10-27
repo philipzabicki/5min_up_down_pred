@@ -1,0 +1,343 @@
+{
+  "budget_allocation": {
+    "allocation_check": "47700 + 7200 + 17100 = 72000",
+    "outer_chain_limit_seconds": 72000,
+    "remaining_dynamic_features_io_and_economics_seconds": 17100,
+    "selection_chain_detail_seconds": {
+      "feature_selection": 2400,
+      "indicators": 21600,
+      "model_search": 7500,
+      "reaction_profile": 2700,
+      "target_weights": 10800,
+      "volume_profile": 2700
+    },
+    "selection_chain_seconds": 47700,
+    "shared_fit_scope": "One shared stage per fold across 48 actual A/B/C/D member fits: 24 inner OOF plus 24 outer, followed by official calibration and fold assessment. Do not multiply by member or fold.",
+    "shared_inner_oof_outer_ensemble_and_calibration_seconds": 7200
+  },
+  "created_utc": "2026-10-27T15:13:16Z",
+  "economics_sources": {
+    "clean_ids_sha256": "e2946aa8e45c2ed050347e18756408a0175fa0eb9859a120f8df7c173051edda",
+    "expected_clean_market_count": 5604,
+    "gamma_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet",
+    "parent_snapshot_file_sha256": {
+      "gamma_path": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+      "quality_manifest_path": "0b00903cf93cb3c8a533d0adbcf3ec0f7b5471ea7f70f7ee2b80354401a78ac6",
+      "t59_path": "f9fa7a55e52504c38a5bdc513cc980ca5a2222ced027b2429424f83666dccd99",
+      "t60_path": "3abed12c3fe2d4762f8536d103b11ba3848e6a21a7c6bef68af5f5fc0c4acdbd"
+    },
+    "quality_manifest_path": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_quality_manifest.parquet",
+    "row_projection": "Only whitelist IDs in [2026-04-15,2026-07-01); exact E0038 T-60/T-59 columns; Gamma outcomes only for the same clean development IDs/windows.",
+    "source_protocol_path": "configs/research/btc_t0009_source_quality_continuation_20261026_v3.json",
+    "source_protocol_sha256": "5852107c07e0bb1768fcfe9693322bd8b9b377963110424c8f09ac08e28d8008",
+    "t59_path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t59_ask_ladders.parquet",
+    "t60_path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t60_decision_books.parquet"
+  },
+  "exclusions": {
+    "DNS": false,
+    "T0010": false,
+    "broad_tuning": false,
+    "confirmation_read_for_E0039": false,
+    "holdout_read_for_E0039": false,
+    "holdout_rows_materialized": 0,
+    "live_orders": false,
+    "new_holdout_metrics": false,
+    "pilot_or_shadow": false,
+    "pmxt_replay": false,
+    "source_acquisition": false
+  },
+  "experiment_id": "E0039",
+  "filtered_source_row_hashes": {
+    "economics_gamma": "2376742f69af58ae09abd2f97a69a790e8a4478b534e89c489650bd2e03e79f1",
+    "official_gamma": "8a57353f8ab2fa192dda31d5848c08d8a942ac2cfecba42c3fd02c3d6b97cc88",
+    "t59_asks": "8cd8b338718a6c2aea41624015723ae6f7246232a114db40643d51052e5676f7",
+    "t60_books": "18bcea350e8857c42d236fe44d9753c98fd8c1bf9ab7f4d1e1d6060eca5f4165"
+  },
+  "frozen_inputs": {
+    "configs/btc_preopen_training.json": "48b5eff387ebc632f1052fa6dae2a0dbd8c2c8f88cc7f0323cadeb836d7ff6e9",
+    "configs/btc_preopen_v1.json": "57d5f59bdd5cfcd87c93f007d04afdd50fec70c0be9de04e1eb467eff70b8216",
+    "configs/research/btc_chronology_reconstruction_20261027.json": "6b901e753aa05ac5172fd753568638c4ff3880d3d6126b914c51db864866399f",
+    "configs/research/btc_preopen_full_development_fit_20261016.json": "c3a77f7ead91696a74c92a2639bd8e9b889d9d2f35b880facff1fff02d75e925",
+    "configs/research/btc_preopen_taker_flow_20261018.json": "cea8187b43a0ed847a019542a9154e01707e6d4b55754f81da317ddd3a2ceeb1",
+    "configs/research/btc_t0009_source_quality_continuation_20261026_v3.json": "5852107c07e0bb1768fcfe9693322bd8b9b377963110424c8f09ac08e28d8008",
+    "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260415_20260501.parquet": "6a87502df85eff99f62686677d5b4b92ca97a70a21a1f021d23091d833480c52",
+    "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260501_20260601.parquet": "9fb8e6a2a6519e3283b87f8c5c98ae328f5bab1c68f004ad077e4905df99b3fc",
+    "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260601_20260701.parquet": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe",
+    "data/analysis/btc_chronology_reconstruction_20261027/raw_prefixes/fold_20260415_20260501.csv": "e632a4a383e36ba379cfa050c50cabc52dd06d4c2e2dff7721bde79ff6088595",
+    "data/analysis/btc_chronology_reconstruction_20261027/raw_prefixes/fold_20260501_20260601.csv": "75931601f043022b050e2ed2fdaaa364cace3f3ec12047ccf8d5408bb1859d67",
+    "data/analysis/btc_chronology_reconstruction_20261027/raw_prefixes/fold_20260601_20260701.csv": "76e0154b23126a11c78f6105004b931fa2e2ea5dc12066e49346fc478ddfcc64",
+    "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261023.json": "80614d68ce4270df321a2ecef90eb8d1899b6f4323c62b17834e29fe43e3973c",
+    "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261024.json": "8f067bb1cee68ac4be77fd8bf96bad371927114c8faccc79ff44a7ea0d5b3b49",
+    "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261025.json": "2609579349fc412b6e1208e2adcb7e60acffb069eee4bea5bbf10e41d7233623",
+    "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/simple_memory_projection.json": "041c11c5ea99121f4395ddcef68e758ae0801dbbc3263180239606a3ee84b7c0",
+    "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_quality_manifest.parquet": "0b00903cf93cb3c8a533d0adbcf3ec0f7b5471ea7f70f7ee2b80354401a78ac6",
+    "reports/btc_preopen/btc_chronology_runtime_sample_20261027.csv": "a3f62ce585f17aa125e69c6494ab139425cfcfc2580007217914c98d8341b7b0"
+  },
+  "implementation_hashes": {
+    "create_modeling_dataset.py": "b0919f3a839d4c5dc4c8d087c3351168a8fe568b4a9403a3737bcea8216248f7",
+    "features/ADX.py": "4a6e58ab26c8207fa25a107b5cfe8ae530596b3b80d4168ca8b72de6c61b31e9",
+    "features/BollingerBands.py": "cd9396a08847e217bc1750d20d3febe4e4e062858c9325da42e7d1ae6603228a",
+    "features/ChaikinOsc.py": "346a390b48226c12ee3285fc3e7620fa1c0a9bec8256006944c237c128d15276",
+    "features/KeltnerChannel.py": "6f175ebb775e45f8eaca9570d73a53060112d4a821b3a1ae47db55a637c1a5e1",
+    "features/MACD.py": "0281f89e4f33970e4dc9f7b60557c8603c6231a84ef8b3422b27963a21500b35",
+    "features/StochOsc.py": "827e361b59dc9c663ed765f86d94e809e9352899b3343ab50fb5702b2466a9be",
+    "features/btc_preopen_contract.py": "8707f18bd09197afd1308395eea85863a8a4fec6eb36ba9c907bf7cfd1c9b254",
+    "features/causal_memory_control.py": "a082c576e5ba8d0706e05d4a99937930558f68f453d24f48cf4481921e244c23",
+    "features/common_utils.py": "0963767b26be5c61152b7b18d192d257816b8daa469fa1203882877f55a841b9",
+    "features/esn_reservoir.py": "274ea86d6d628e74be71899d8327016af6eda7fc13c6a3c2e6ba533661c63ff4",
+    "features/reaction_profile_fixed_grid.py": "c91af16703236450de05f07cf29a1ecf566d28c8d02e9adf4dc45755fa89128a",
+    "features/volume_profile_fixed_range.py": "6edc168ae55540406992a7d8f7fa951b08421c8cb192eb2ae4d44c0628098cc8",
+    "fit_indicators.py": "011205211685719f846e3c45b9be2883847399567b2531a0e1adac269d1f1d22",
+    "fit_reaction_profile.py": "9f2b7f9219f9d453eeeacf438de11463218585ea007de76ab42b2311f34618a1",
+    "fit_volume_profile.py": "82a39a018d22c7eb92d783d57467e921c3ec7046e295346cbf5cb461f2c5ba92",
+    "optimize_lgbm_hyperparameters.py": "92048064bf16452088968bf1e68d3150f5b23318d197a7a7eba74cdbd7807f0b",
+    "optimize_target_weights.py": "8dbb63c5f9b1a473ec21e3c3a3fd37f14032475e605a2360a12631d3119215b8",
+    "run_btc_candidate_holdout_20261022.py": "48acfa716464f40731c4be1a7cddcd6e939c34d7c79ad78a82dac0769bf45a1e",
+    "run_btc_chronology_reconstruction_20261027.py": "f189797747b06bc6db4dce5f05e9f9a5bf1f9f96eed19c426a37f03bcfe33bcf",
+    "run_btc_esn_expansion_20261021.py": "402053f5f31f9a83b984c4922b29409bdfd0b612ee254516ad468e35236aefe4",
+    "run_btc_esn_portfolio_20261020.py": "32c4f7898bd06cf12ae9973619252d10887bff3500a124f79c924b61fab90d22",
+    "run_btc_preopen_economic_replay.py": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528",
+    "run_btc_preopen_experiment.py": "f71bb601f94f9cffb8488be9755655b8dacf5ad77d7c57f4dc7b41679d14b16f",
+    "run_btc_preopen_t59_reassessment.py": "57687ed6dbf4713270d177606234cb4d0da2df2bcbbc3cc0c5eff5ce00f4ed26",
+    "run_btc_t0009_economic_continuation_20261026.py": "0de3018f8861cf925cf760038c116ab9ea21a8a1fb4213318352b47af60331c4",
+    "select_features.py": "209433e6cd8e85ea77b248698cff83dd1470d8c33269f5454c466a1330b3f583",
+    "tests/test_btc_chronology_reconstruction_20261027.py": "8a2f4407b7d3c494c4fab131fdd72c4f627e619ccf05f9e0a907bebe98c7d030",
+    "train_lgbm.py": "ebff24e29a8bcc947154d50b4971d457bf190b2b3581c0f8f3e4d8bbb70421a6",
+    "utils/btc_preopen_tuning_resume.py": "1686cd47cb141e598a582cc203da0bd850b7a4e947bee932d5163527ad68465e",
+    "utils/btc_resolution_portfolio.py": "4af144f307db129f208687dd4ef7c38d002382b0b24048066772ef0d4964c9c1",
+    "utils/data.py": "00831a0aeec8896d721aa268696625c196c9642c531511bb8641d3849a883e7f",
+    "utils/metrics.py": "8534f92db1a3ae0e4165f520469283f5cd42b6fb2a4855c63fc4210f2f0d8c18",
+    "utils/project_config.py": "eb30902ffa9d161c28ca4b5dec9f9b94e6f30d63c47c1d33f72e7b47b6a0b6dd"
+  },
+  "label_and_selection_rules": {
+    "fit_label_rule": "Only finite binary labels with Opened < cutoff and label_available_at < the exclusive fit cutoff.",
+    "historical_independence": "Retrospective conditional chronology; the candidate family was historically exposed and is not independent confirmation.",
+    "inner_prediction_interval": "For each fold, train the inner A/B/C/D calibration-history ensemble with fit cutoff equal to selection_cutoff_exclusive_utc and predict [selection_cutoff_exclusive_utc, outer test start). All generator, weights, feature, and model choices are fit strictly before that inner interval.",
+    "no_outcome_based_changes": true,
+    "official_calibration": "Daily expanding official Gamma Platt; only OOF/external predictions with released Gamma outcomes available by the decision timestamp; at least 1,000 prior observations and both classes; no proxy fallback.",
+    "official_calibration_history": "F1 uses its earlier-only inner OOF history. F2/F3 use the preceding continuous OOF stream and prior external predictions; exclude overlapping current-fold inner predictions.",
+    "outer_prediction_interval": "Fit at outer test start with labels available strictly before it; predict only the frozen outer interval; no outer early stopping or outer-label model/calibrator updates.",
+    "proxy_target": "Close[Opened+6m] >= Open[Opened+2m], ties UP; label available at Opened+7m."
+  },
+  "name": "btc_chronology_stability_reconstruction_20261027_v4",
+  "official_calibration": {
+    "fallback": "none; leave calibrated probability missing and record the exact unavailable reason",
+    "filtered_rows_sha256": null,
+    "hashing": "Computed from the exact development-only projected rows after the resource gate and before any fit; included in run identity.",
+    "minimum_rows": 1000,
+    "outcome_release": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "read_end_exclusive_utc": "2026-07-01T00:00:00Z",
+    "read_start_utc": "2025-07-01T00:00:00Z",
+    "requires_both_classes": true,
+    "source_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet"
+  },
+  "official_gamma_source": {
+    "filtered_rows_sha256": null,
+    "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+    "read_start_utc": "2025-07-01T00:00:00Z"
+  },
+  "offline_runtime": {
+    "remaining": "Exact selected generated BASE70/VP/RP per-decision streaming update and the frozen 300-window batch/stream parity benchmark are not implemented; this does not block the batch fold runner.",
+    "status": "PARTIAL_NOT_IMPLEMENTED"
+  },
+  "oof_protocol": {
+    "calibrator_label_source": "official_gamma only",
+    "current_fold_outer_labels_enter_any_fit_or_calibrator": false,
+    "fit_cutoffs": "Exclusive UTC; exact release-time ties are purged.",
+    "oof_provenance": "Every forecast includes fit cutoff, latest training-label release, model identity, feature-version identity, and provenance.",
+    "outer_predictions_enter_same_fold_calibrator": false,
+    "prior_outer_predictions_available_to_later_fold_calibration": true,
+    "selection_before_inner_oof": true
+  },
+  "outer_folds": [
+    {
+      "fit_cutoff_exclusive_utc": "2026-04-15T00:00:00Z",
+      "fit_data_start_utc": "2020-06-09T09:33:00Z",
+      "flow_last_opened_utc": "2026-04-30T23:53:00Z",
+      "flow_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260415_20260501.parquet",
+      "flow_prefix_sha256": "6a87502df85eff99f62686677d5b4b92ca97a70a21a1f021d23091d833480c52",
+      "flow_rows_through_last_decision": 3110394,
+      "id": "F1_20260415_20260501",
+      "market_start_test_end_exclusive_utc": "2026-05-01T00:00:00Z",
+      "market_start_test_start_inclusive_utc": "2026-04-15T00:00:00Z",
+      "raw_last_opened_utc": "2026-04-30T23:59:00Z",
+      "raw_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/raw_prefixes/fold_20260415_20260501.csv",
+      "raw_prefix_sha256": "e632a4a383e36ba379cfa050c50cabc52dd06d4c2e2dff7721bde79ff6088595",
+      "raw_rows": 3098307,
+      "selection_cutoff_exclusive_utc": "2025-07-01T00:00:00Z"
+    },
+    {
+      "fit_cutoff_exclusive_utc": "2026-05-01T00:00:00Z",
+      "fit_data_start_utc": "2020-06-09T09:33:00Z",
+      "flow_last_opened_utc": "2026-05-31T23:53:00Z",
+      "flow_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260501_20260601.parquet",
+      "flow_prefix_sha256": "9fb8e6a2a6519e3283b87f8c5c98ae328f5bab1c68f004ad077e4905df99b3fc",
+      "flow_rows_through_last_decision": 3155034,
+      "id": "F2_20260501_20260601",
+      "market_start_test_end_exclusive_utc": "2026-06-01T00:00:00Z",
+      "market_start_test_start_inclusive_utc": "2026-05-01T00:00:00Z",
+      "raw_last_opened_utc": "2026-05-31T23:59:00Z",
+      "raw_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/raw_prefixes/fold_20260501_20260601.csv",
+      "raw_prefix_sha256": "75931601f043022b050e2ed2fdaaa364cace3f3ec12047ccf8d5408bb1859d67",
+      "raw_rows": 3142947,
+      "selection_cutoff_exclusive_utc": "2025-08-01T00:00:00Z"
+    },
+    {
+      "fit_cutoff_exclusive_utc": "2026-06-01T00:00:00Z",
+      "fit_data_start_utc": "2020-06-09T09:33:00Z",
+      "flow_last_opened_utc": "2026-06-30T23:53:00Z",
+      "flow_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260601_20260701.parquet",
+      "flow_prefix_sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe",
+      "flow_rows_through_last_decision": 3198234,
+      "id": "F3_20260601_20260701",
+      "market_start_test_end_exclusive_utc": "2026-07-01T00:00:00Z",
+      "market_start_test_start_inclusive_utc": "2026-06-01T00:00:00Z",
+      "raw_last_opened_utc": "2026-06-30T23:59:00Z",
+      "raw_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/raw_prefixes/fold_20260601_20260701.csv",
+      "raw_prefix_sha256": "76e0154b23126a11c78f6105004b931fa2e2ea5dc12066e49346fc478ddfcc64",
+      "raw_rows": 3186147,
+      "selection_cutoff_exclusive_utc": "2025-09-01T00:00:00Z"
+    }
+  ],
+  "pre_fit_hash_policy": {
+    "filter_first": true,
+    "hash_columns_and_intervals": "The runner projects only the pinned columns and development date/ID predicates, computes canonical sorted-row hashes after the resource gate, and writes those hashes into the run identity before any model fit.",
+    "materialize_holdout_rows": false,
+    "required_hashes": [
+      "official_gamma",
+      "economics_gamma",
+      "t60_books",
+      "t59_asks"
+    ]
+  },
+  "previous_protocol": "configs/research/btc_chronology_reconstruction_20261027_v3.json",
+  "previous_protocol_sha256": "d3a5dd3d916c117e627c95683865a66a3e0685bac7862d901307f92a77060047",
+  "procedure_budgets": {
+    "calibration_and_evaluation_bundle_stage_seconds": 7200,
+    "compute_backend": "gpu",
+    "feature_selection_max_evaluations": 60,
+    "feature_selection_max_refinement_rounds": 3,
+    "feature_selection_stage_seconds": 2400,
+    "first_run_order": "Complete F1 end-to-end and measure its actual runtime before F2 and F3; do not change the recipe based on F1 PnL.",
+    "indicator_generations": 8,
+    "indicator_population": 64,
+    "indicator_stage_seconds": 21600,
+    "indicator_workers": 20,
+    "maximum_wall_seconds_per_outer_chain": 72000,
+    "model_search_cv_folds": 10,
+    "model_search_early_stopping_rounds": 50,
+    "model_search_max_estimators": 500,
+    "model_search_trials": 60,
+    "model_tuning_and_fit_stage_seconds": 7500,
+    "no_search_space_expansion": true,
+    "reaction_profile_stage_seconds": 2700,
+    "reaction_profile_trials": 96,
+    "source_config": "configs/research/btc_preopen_full_development_fit_20261016.json",
+    "target_weight_candidates": 16,
+    "target_weight_stage_seconds": 10800,
+    "threads": 20,
+    "volume_profile_stage_seconds": 2700,
+    "volume_profile_trials": 96,
+    "workers": 1
+  },
+  "protocol_changes": {
+    "ev_policy_correction": "Correct the E0039 prose from a 1% EV hurdle to the E0038 v3 strictly positive net expected value rule; historical E0038 files are unchanged.",
+    "resource_gate": "Require at least 20 GiB available RAM, at least 80 GiB free disk, no other Python process using at least 1 GiB working set, and the configured GPU when required.",
+    "runner": "Implement identity-checked batch fold orchestration and checkpointed A/B/C/D/OFF-calibration flow.",
+    "runtime_gate_separate": "An incomplete offline streaming adapter does not block batch fits or economics; runtime remains PARTIAL_NOT_IMPLEMENTED.",
+    "clean_id_allowlist_hash_correction": "v2 stored the SHA-256 of the complete E0038 clean-cohort CSV in clean_ids_sha256. v3 stores SHA-256 of the sorted lowercase condition IDs expected by the runner. The 5,604 IDs in the frozen quality manifest and CSV match; the cohort, source files, count, filters, and research procedure are unchanged.",
+    "pyarrow_column_sequence": "The v3 run verified the frozen source projections, then PyArrow rejected the tuple-valued GAMMA_COLUMNS passed to Dataset.to_table. The v4 reader normalizes the same ordered columns to a list; filters and projections are unchanged.",
+    "filtered_source_row_hashes": "v4 pins the exact E0039 source projection hashes computed and recorded by the v3 pre-fit attempt. Official Gamma covers the frozen calibration source range ending before holdout; economic sources are restricted to the outer windows and clean IDs. The runner recomputes and verifies all four values before fitting; no hash values are inferred or synthesized."
+  },
+  "purpose": [
+    "Run the frozen F1/F2/F3 development chronology with fold-local A/B/C/D fits and official earlier-only Gamma calibration.",
+    "Recompute conditional E0038 economics from the unchanged 5,604-market source-clean whitelist.",
+    "Keep offline runtime readiness separate; report it partial until exact selected generated features have a streaming adapter."
+  ],
+  "resource_gate": {
+    "block_other_python_working_set_gb_at_least": 1.0,
+    "minimum_free_disk_gb_before_fit": 80.0,
+    "minimum_free_memory_gb_before_fit": 20.0,
+    "record_peak_runner_and_minimum_system_memory": true,
+    "require_frozen_gpu_backend": true,
+    "stop_other_workloads": false
+  },
+  "resume_plan": {
+    "arguments": false,
+    "checkpoints": "Reuse only complete identity-matching outputs whose per-file SHA-256 verifies; partial Optuna stages resume their study databases within the frozen trial/time budget.",
+    "command": "python run_btc_chronology_reconstruction_20261027.py",
+    "identity": "Protocol, parent protocol, source prefix, transform, allowlist, code and pre-fit development-only source-row hashes.",
+    "order": [
+      "F1 complete",
+      "F2 same recipe",
+      "F3 same recipe",
+      "one continuous cross-fold economic ledger"
+    ],
+    "runner_path": "run_btc_chronology_reconstruction_20261027.py",
+    "runner_status": "IMPLEMENTED_BATCH_RUNTIME_PARTIAL"
+  },
+  "schema_version": 2,
+  "status": "FROZEN_BEFORE_FIT",
+  "strategy_invariants": {
+    "cohort": "Only the frozen E0038 source-quality-clean development whitelist; 5,604 markets.",
+    "decision": "T-60 native best ask and available size",
+    "ev_formula": "probability * net_shares - cash_debit_usd > 0.0",
+    "ev_rule": "strictly_positive_net_expected_value",
+    "execution": "T-59 native ask ladder; full fill required",
+    "fees_and_accounting": "Reuse E0038/D0006 fees, native fill, full-fill and ResolutionPortfolio semantics; cost-basis equity drawdown, not mark-to-market.",
+    "minimum_order": "D0019 verified-USDC minimum with frozen $5 fallback; reject below minimum without upward rounding.",
+    "payout_delays_seconds": [
+      60,
+      300,
+      1800,
+      7200
+    ],
+    "portfolio": "Initial cash $100; fixed gross $5 and free-cash fraction 5% are separate continuous accounts; no reset, credit, or deposits.",
+    "position_close": "Hold to official Gamma resolution payout; release only at modeled payout availability.",
+    "side_choice": "Select the larger positive EV; exact tie selects UP.",
+    "zero_ev": "Reject exact zero."
+  },
+  "transform_file_hashes": {
+    "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261023.json": "80614d68ce4270df321a2ecef90eb8d1899b6f4323c62b17834e29fe43e3973c",
+    "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261024.json": "8f067bb1cee68ac4be77fd8bf96bad371927114c8faccc79ff44a7ea0d5b3b49",
+    "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261025.json": "2609579349fc412b6e1208e2adcb7e60acffb069eee4bea5bbf10e41d7233623",
+    "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/simple_memory_projection.json": "041c11c5ea99121f4395ddcef68e758ae0801dbbc3263180239606a3ee84b7c0"
+  },
+  "transform_hashes": {
+    "esn": "276f3793ffd7e78699b5aaa722e02b894cc3e5a76454c2c08a94f7d3272d5e4f",
+    "memory": "041c11c5ea99121f4395ddcef68e758ae0801dbbc3263180239606a3ee84b7c0"
+  },
+  "transforms": {
+    "directory": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms",
+    "esn_projection_fit_scope": "Frozen fit-core through 2024-07-01; selected ESN config through 2025-07-01; continue each frozen reservoir state chronologically.",
+    "feature_counts": {
+      "each_esn_reservoir": 8,
+      "memory": 8
+    },
+    "memory_projection_fit_scope": "Frozen fit-core through 2024-07-01; rebuild state across every raw minute and reset after invalid input or a non-one-minute gap.",
+    "memory_seed": null,
+    "reservoir_seeds": [
+      20261023,
+      20261024,
+      20261025
+    ]
+  },
+  "trial_completion": {
+    "hard_budget_rule": "Do not mark a bounded Optuna stage complete below its target trial count even if the successful-trial minimum was met. Preserve study/checkpoints and resume within the same cap.",
+    "indicator_generations_required": 8,
+    "model_search_trials_required": 60,
+    "reaction_profile_trials_required": 96,
+    "successful_trials_minimum_per_optuna_search": 5,
+    "target_weight_candidates_required": 16,
+    "volume_profile_trials_required": 96
+  },
+  "validation": {
+    "focused_command": "python -m unittest discover -s tests -p 'test_btc_chronology_reconstruction_20261027.py'",
+    "focused_result": "19/19 passed, including canonical clean-ID hashing and tuple-column PyArrow development filtering.",
+    "full_command": "python -m unittest discover -s tests",
+    "full_result": "730/730 passed in 45.116 seconds; implementation mechanics only, no research fold fit.",
+    "py_compile_command": "python -m py_compile run_btc_chronology_reconstruction_20261027.py tests/test_btc_chronology_reconstruction_20261027.py",
+    "py_compile_result": "passed.",
+    "identity_result": "53 implementation/source file hashes verified; all 5,604 clean IDs match the frozen canonical hash. The pinned source projection hashes were computed in the preceding v3 pre-fit attempt and must be recomputed and verified by the v4 runner before fit."
+  }
+}

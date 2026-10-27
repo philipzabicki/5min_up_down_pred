@@ -244,6 +244,30 @@ class BtcChronologyReconstructionTests(unittest.TestCase):
         self.assertEqual(actual_hash, expected_hash)
         self.assertEqual(whitelist.condition_id.tolist(), ["0xabc", "0xdef"])
 
+    def test_development_row_reader_accepts_tuple_columns_and_half_open_filter(self):
+        rows = pd.DataFrame({
+            "condition_id": ["0xinside", "0xoutside", "0xatend"],
+            "market_start_utc": pd.to_datetime([
+                "2026-04-15T00:00:00Z", "2026-04-15T00:05:00Z",
+                "2026-07-01T00:00:00Z",
+            ], utc=True),
+            "value": [1, 2, 3],
+        })
+        columns = ("condition_id", "market_start_utc", "value")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "development.parquet"
+            pq.write_table(pa.Table.from_pandas(rows, preserve_index=False), path)
+            actual = chronology._read_arrow_development_rows(
+                path, columns, start="2026-04-15T00:00:00Z",
+                end="2026-07-01T00:00:00Z",
+                condition_ids=["0xinside", "0xatend"],
+            )
+
+        self.assertEqual(actual.columns.tolist(), list(columns))
+        self.assertEqual(actual.condition_id.tolist(), ["0xinside"])
+        self.assertEqual(actual.value.tolist(), [1])
+
     def test_filtered_development_source_hashes_are_computed_before_fit(self):
         protocol = {
             "outer_folds": [
