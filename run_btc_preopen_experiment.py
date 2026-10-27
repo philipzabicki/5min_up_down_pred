@@ -1290,6 +1290,24 @@ def merge_candidate_features(selected_features, candidate_features, available_fe
     return selected + added, added
 
 
+def _arrow_opened_ns(values, pa, pc):
+    """Convert timestamp columns or UTC-naive candle strings to nanoseconds."""
+    value_type = values.type
+    if pa.types.is_timestamp(value_type):
+        timestamps = pc.cast(
+            values, pa.timestamp("ns", tz=value_type.tz), safe=True,
+        )
+    elif pa.types.is_string(value_type) or pa.types.is_large_string(value_type):
+        timestamps = pc.strptime(
+            values, format="%Y-%m-%d %H:%M:%S", unit="ns", error_is_null=False,
+        )
+    else:
+        raise TypeError(f"Unsupported Opened timestamp type: {value_type}")
+    if timestamps.null_count:
+        raise ValueError("Opened timestamp values must not be null")
+    return pc.cast(timestamps, pa.int64()).to_numpy(zero_copy_only=False)
+
+
 def _join_causal_candidate_features(
         dataset_path, feature_path, feature_columns, stage_dir, *, dataset_signature,
 ):
@@ -1312,9 +1330,7 @@ def _join_causal_candidate_features(
             f"{duplicate_columns}"
         )
     flow_table = pq.read_table(feature_path, columns=["Opened", *feature_columns]).combine_chunks()
-    flow_opened_ns = pc.cast(flow_table["Opened"], pa.int64()).to_numpy(
-        zero_copy_only=False
-    )
+    flow_opened_ns = _arrow_opened_ns(flow_table["Opened"], pa, pc)
     if not len(flow_opened_ns) or np.any(np.diff(flow_opened_ns) <= 0):
         raise RuntimeError("Causal candidate feature timestamps must be unique and ordered")
     flow_values_by_column = {
@@ -1334,9 +1350,7 @@ def _join_causal_candidate_features(
     opened_index = base_schema.get_field_index("Opened")
     with pq.ParquetWriter(temporary_path, output_schema, compression="zstd") as writer:
         for batch in base_file.iter_batches(batch_size=131_072):
-            opened_ns = pc.cast(batch.column(opened_index), pa.int64()).to_numpy(
-                zero_copy_only=False
-            )
+            opened_ns = _arrow_opened_ns(batch.column(opened_index), pa, pc)
             if len(opened_ns) and (
                 np.any(np.diff(opened_ns) <= 0)
                 or (previous_base_opened_ns is not None and opened_ns[0] <= previous_base_opened_ns)

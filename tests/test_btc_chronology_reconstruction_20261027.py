@@ -94,7 +94,7 @@ class BtcChronologyReconstructionTests(unittest.TestCase):
                 prediction_end=start + pd.Timedelta(minutes=10),
             )
 
-    def test_streaming_flow_join_is_exact_and_does_not_fill_gaps(self):
+    def test_streaming_flow_join_parses_string_timestamps_and_does_not_fill_gaps(self):
         import tempfile
 
         opened = pd.date_range("2026-04-15T00:00:00Z", periods=3, freq="min")
@@ -105,7 +105,8 @@ class BtcChronologyReconstructionTests(unittest.TestCase):
             stage_path = root / "stage"
             stage_path.mkdir()
             pq.write_table(pa.Table.from_pandas(pd.DataFrame({
-                "Opened": opened, "base": np.array([1.0, 2.0, 3.0], dtype=np.float32),
+                "Opened": opened.strftime("%Y-%m-%d %H:%M:%S"),
+                "base": np.array([1.0, 2.0, 3.0], dtype=np.float32),
             }), preserve_index=False), base_path)
             pq.write_table(pa.Table.from_pandas(pd.DataFrame({
                 "Opened": opened[[0, 2]], "flow": np.array([4.0, 6.0], dtype=np.float32),
