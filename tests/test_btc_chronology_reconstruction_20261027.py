@@ -184,7 +184,7 @@ class BtcChronologyReconstructionTests(unittest.TestCase):
 
     def test_selection_profile_requires_all_indicator_generations(self):
         protocol = __import__("json").loads(
-            (chronology.ROOT / "configs/research/btc_chronology_reconstruction_20261027_v2.json")
+            chronology.PROTOCOL_PATH
             .read_text(encoding="utf-8")
         )
         fold = {
@@ -208,10 +208,41 @@ class BtcChronologyReconstructionTests(unittest.TestCase):
 
     def test_frozen_fold_protocol_checks_boundaries_without_opening_sources(self):
         protocol = __import__("json").loads(
-            (chronology.ROOT / "configs/research/btc_chronology_reconstruction_20261027_v2.json")
+            chronology.PROTOCOL_PATH
             .read_text(encoding="utf-8")
         )
         chronology._validate_fold_protocol(protocol)
+
+    def test_clean_whitelist_hash_is_canonical_sorted_id_hash(self):
+        ids = ["0xAbC", "0xDEF"]
+        starts = pd.to_datetime([
+            "2026-04-15T00:00:00Z", "2026-04-15T00:05:00Z",
+            "2026-04-15T00:10:00Z", "2026-07-01T00:00:00Z",
+        ], utc=True)
+        quality = pd.DataFrame({
+            "condition_id": [*ids, "0xexcluded", "0xoutside"],
+            "market_start_utc": [*starts[:2], starts[2], starts[3]],
+            "source_quality_clean": [True, True, False, True],
+            "up_token_id": ["up-a", "up-b", "up-x", "up-y"],
+            "down_token_id": ["down-a", "down-b", "down-x", "down-y"],
+        })
+        expected_hash = __import__("hashlib").sha256(
+            "\n".join(sorted(value.lower() for value in ids)).encode("utf-8")
+        ).hexdigest()
+
+        with tempfile.TemporaryDirectory(dir=chronology.ROOT / "data") as temporary:
+            root = Path(temporary)
+            pq.write_table(pa.Table.from_pandas(quality, preserve_index=False), root / "quality.parquet")
+            protocol = {"economics_sources": {
+                "quality_manifest_path": "quality.parquet",
+                "expected_clean_market_count": len(ids),
+                "clean_ids_sha256": expected_hash,
+            }}
+            with mock.patch.object(chronology, "ROOT", root):
+                whitelist, actual_hash = chronology._load_clean_whitelist(protocol)
+
+        self.assertEqual(actual_hash, expected_hash)
+        self.assertEqual(whitelist.condition_id.tolist(), ["0xabc", "0xdef"])
 
     def test_filtered_development_source_hashes_are_computed_before_fit(self):
         protocol = {

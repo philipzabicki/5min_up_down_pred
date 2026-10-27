@@ -11,8 +11,8 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_chronology_reconstruction_20261027_v2.json"
-PREVIOUS_PROTOCOL_PATH = ROOT / "configs/research/btc_chronology_reconstruction_20261027.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_chronology_reconstruction_20261027_v3.json"
+PREVIOUS_PROTOCOL_PATH = ROOT / "configs/research/btc_chronology_reconstruction_20261027_v2.json"
 OUTPUT_ROOT = ROOT / "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027"
 CANDIDATES = ("A", "B", "C", "D")
 LIGHTGBM_SEEDS = (20261101, 20261102, 20261103)
@@ -218,10 +218,10 @@ def _resource_snapshot(minimum_free_memory_gb: float, *, require_gpu: bool) -> d
 
 def _verify_frozen_inputs(protocol: dict) -> dict:
     if protocol.get("experiment_id") != "E0039" or protocol.get("status") != "FROZEN_BEFORE_FIT":
-        raise RuntimeError("E0039 v2 protocol is not frozen before fitting")
+        raise RuntimeError("E0039 v3 protocol is not frozen before fitting")
     previous = _sha256(PREVIOUS_PROTOCOL_PATH)
     if previous != protocol["previous_protocol_sha256"]:
-        raise RuntimeError("E0039 v1 parent protocol hash changed")
+        raise RuntimeError("E0039 v2 parent protocol hash changed")
     if protocol.get("exclusions", {}).get("holdout_read_for_E0039") is not False:
         raise RuntimeError("E0039 protocol does not exclude the protected holdout")
     verified = {"previous_protocol": previous}
@@ -236,7 +236,7 @@ def _verify_frozen_inputs(protocol: dict) -> dict:
     for path_text, expected in protocol["implementation_hashes"].items():
         actual = _sha256(ROOT / path_text)
         if actual != expected:
-            raise RuntimeError(f"E0039 implementation hash differs from v2 freeze: {path_text}")
+            raise RuntimeError(f"E0039 implementation hash differs from v3 freeze: {path_text}")
         verified[path_text] = actual
     return verified
 
@@ -2280,7 +2280,7 @@ def run() -> dict:
         manifest["elapsed_seconds"] = time.perf_counter() - started
         manifest["status"] = "completed_folds_economics_runtime_partial"
         manifest["updated_utc"] = pd.Timestamp.now(tz="UTC").isoformat()
-        report_path = ROOT / "reports/btc_preopen/btc_chronology_reconstruction_20261027_v2.md"
+        report_path = ROOT / "reports/btc_preopen/btc_chronology_reconstruction_20261027_v3.md"
         manifest["report_path"] = report_path.resolve().relative_to(ROOT).as_posix()
         _atomic_json(manifest_path, manifest)
         _write_run_report(report_path, manifest)
@@ -2291,7 +2291,7 @@ def run() -> dict:
         manifest["elapsed_seconds"] = time.perf_counter() - started
         manifest["updated_utc"] = pd.Timestamp.now(tz="UTC").isoformat()
         _atomic_json(manifest_path, manifest)
-        report_path = ROOT / "reports/btc_preopen/btc_chronology_reconstruction_20261027_v2.md"
+        report_path = ROOT / "reports/btc_preopen/btc_chronology_reconstruction_20261027_v3.md"
         manifest["report_path"] = report_path.resolve().relative_to(ROOT).as_posix()
         _write_run_report(report_path, manifest)
         raise
