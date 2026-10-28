@@ -182,6 +182,15 @@ Decision: E0040 uses payout delays `[1, 5, 15]` seconds as simulation assumption
 Reason: the user approved these three hypothetical settlement assumptions and required correct event-time cash availability for second-level delays.
 Consequences: E0040 replays saved E0039 predictions and snapshots over its unchanged 5,604/5,148 coverage. It does not establish measured redemption availability, historical readiness, or production readiness; T0009, E0037, and T0010 retain their existing statuses.
 
+## D0021 - Freeze one D economic evaluation protocol
+
+Status: ACTIVE. Date: 2026-10-28.
+Source: user's explicit request to execute `instrukcja_D_przygotowanie_holdoutu_20261028.md`; [E0041 protocol](configs/research/btc_D_holdout_preparation_20261028.json).
+Supersedes: no earlier decision. D0001's fixed split and historical exposure, D0008's frozen family/seed conventions, D0017/D0018's holdout-before-pilot and resolution economics, D0019's verified-USDC minimum, and D0020's 1/5/15-second event order remain active.
+Decision: E0041 prepares a single D pipeline for the fixed market-start interval `[2026-07-01T00:00:00Z, 2026-10-07T00:00:00Z)`. Selection is limited to labels available strictly before `2025-10-01T00:00:00Z`; the final D fit uses labels available strictly before the first decision at `2026-06-30T23:59:00Z`. D is BASE70 + memory PCA8 + ESN PCA8, with three LightGBM seeds × three reservoir seeds and a uniform nine-member mean. Fit one terminal Platt calibrator from causal D OOF predictions joined to official Gamma labels released by the first holdout decision; require at least 1,000 rows and both classes, with no proxy fallback. Freeze all six `$100` account paths (fixed `$5` and 5% of free cash, each at `[1, 5, 15]` second assumed payout delays), the E0038 symmetric source rule, complete half-open interval, and fixed positive-result criterion before any new holdout evaluation.
+Reason: specify one reproducible future economic test for the development-selected D pipeline while preserving timing, source-quality, accounting, and historical-exposure boundaries.
+Consequences: this decision authorizes preparation code, synthetic/development tests, and a development-only fit attempt behind the frozen resource gate. It does not authorize any holdout payload read, prediction, scoring, economic replay, source acquisition, live/shadow run, or order. The holdout is previously exposed, not independent. No result can authorize a pilot; a later explicit evaluation authorization is required, and a positive result alone is insufficient.
+
 ## Protected invariant register
 
 Changes require an explicit recorded decision and applicable authorization, never an incidental implementation edit. Sources refer to the entries above and their linked original evidence.
