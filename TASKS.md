@@ -116,7 +116,7 @@ Evidence required: source-backed active contract, frozen protocol/hash, testable
 
 ## T0009 - Establish full-development coverage for resolution economics
 
-Status: BLOCKED overall (source coverage and prediction-readiness provenance remain incomplete; E0039 v6 completed F1 feature generation but stopped before predictive fitting, v7 is validated and awaits commit/push, and the complete runtime hot path is BLOCKED).
+Status: BLOCKED overall (source coverage and historical prediction-readiness provenance remain incomplete; E0039 chronology, conditional economics, and offline runtime parity work are complete).
 Priority: P0.
 Reason: E0038 separates source-value parity from checker coverage and retains the unresolved E0036 T-60 book/BBO conflict in quarantine. Of 5,684 label/prediction/source-intersection markets, 5,604 pass a symmetric source-only quality rule; source and prediction coverage remain sparse and retrospective, 53,660 candidate calendar rows lack Gamma IDs, the 24 missing local PMXT hours are tracked separately under T0010, and measured prediction-ready timestamps are absent. Conditional economics on 5,604 markets cannot establish complete development economics.
 Depends on: D0001/D0003/D0004/D0005/D0006/D0008/D0012/D0018/D0019; preserve E0024's historical status and all split boundaries. No holdout evaluation or live/shadow work.
@@ -151,11 +151,11 @@ V6 passes the configured dataset `symbol`/`interval` to the VP/RP state resolver
 
 V7 parses the canonical UTC-naive candle string form to nanosecond timestamps while retaining typed Arrow timestamp support and exact join/gap behavior. The regression reproduced the original Arrow error before the fix and passed 1/1 after it. Chronology tests passed 20/20, project-config tests 23/23, full discovery passed 733/733 in 48.443 seconds, and `py_compile` passed. Read-only identity verification passed for the v6 parent, all 53 pinned files, the three fold boundaries, and four frozen source-hash entries. See [E0039 v7](configs/research/btc_chronology_reconstruction_20261027_v7.json) and the [v7 protocol report](reports/btc_preopen/btc_chronology_reconstruction_20261027_v7.md).
 
-Chronology axis: commit and push v7 before the next fit. The exact runner must repeat the resource gate, verify the 5,604 clean IDs and four pinned source projection hashes, then continue F1 and complete F2/F3 and the shared economic ledger with the unchanged research recipe. Do not reduce the workload or alter the protocol.
+2026-10-28 E0039 result: the v7 batch runner completed all three frozen folds and the continuous economics ledger (run identity `508858c48b11b9252e4ec3aa0e7814579f2fe770ef8840e32fd86dca6c6bd8d0`). Each model has raw predictions for all 5,604 allowlisted markets and official calibration for 5,148; 456/model remain below the frozen calibration minimum. The follow-on offline adapter passed all 300 frozen windows, including BASE64, six raw-source flow features, memory/ESN PCA8, A/B/C/D ensemble predictions and the available/fallback calibration path. Protected holdout and confirmation rows materialized: zero. Runtime detail is in the [v7 report](reports/btc_preopen/btc_chronology_reconstruction_20261027_v7.md).
 
-Runtime axis: offline streaming adapter remains `PARTIAL_NOT_IMPLEMENTED`; the full hot path has no latency percentiles or one-second conclusion. The 300-window sample remains frozen. This runtime status is separate from the batch resource gate.
+Runtime evidence: across 300 current decision paths, p50/p95/p99/max were 11.48/15.32/22.66/112.74 ms, with 0% above 1,000 ms. Per-minute state-update and cumulative inter-window update distributions are also recorded in the report; cumulative inter-window time is not a single decision-path latency. Historical T-59 readiness remains UNKNOWN.
 
-Source axis: unchanged and BLOCKED overall. E0038 remains a 5,604-market conditional subset; 53,660 candidate calendar rows lack Gamma IDs and 24 local PMXT hours remain deferred under T0010. No source acquisition was performed. Missing historical prediction-ready timestamps are not the chronology blocker; E0039 does not backdate them.
+Source axis: T0009 remains BLOCKED. E0038 is still a 5,604-market conditional subset; 53,660 candidate calendar rows lack Gamma IDs, the E0037 T-60 parity failure is preserved, and 24 local PMXT hours remain deferred under T0010. No source acquisition was performed. E0039 does not create historical prediction-ready timestamps or close the source gap.
 
 ## T0010 - Reconcile 24 missing local PMXT development hours
 
