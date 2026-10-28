@@ -47,3 +47,24 @@ Nie ukończono selekcji ani finalnego fitu. Nie ma OOF, kalibratora Platta ani b
 Testy ukierunkowane po runie: `tests/test_btc_D_holdout_preparation_20261028.py`, `tests/test_btc_chronology_reconstruction_20261027.py` i `tests/test_btc_preopen_tuning_resume.py` — 43 testy oraz 52 podtesty zaliczone.
 
 Raport i aktualizacje kanonicznych rejestrów są objęte wspólnym commitem dokumentacyjnym; SHA i wynik push podano w komunikacie końcowym.
+
+## Dodatkowe odzyskanie miejsca po selekcji E0041 v2 - 2026-10-28
+
+Przed operacja wolumin D: mial 79 181 156 352 B wolnego (73,743 GiB). Pelne SHA-256 sprawdzono po obu stronach kazdej pary. Sciezke docelowa zastapiono po weryfikacji tymczasowego hardlinku atomowym os.replace; po operacji potwierdzono ten sam plik, rozmiar i hash. Obie historyczne sciezki zachowano.
+
+| Sciezka zlinkowana | Zachowana kopia kanoniczna | Rozmiar | SHA-256 |
+|---|---|---:|---|
+| data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/eb07a734607052ac/F1_20260415_20260501/6cffa9ad0ec7a342/selection_pipeline/441e9566cadfbf70/stages/final_feature_dataset_4106633487b5/dataset/fold_20260415_20260501_preopen_v1.parquet | data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F1_20260415_20260501/20914cfbc01dd0b3/selection_pipeline/441e9566cadfbf70/stages/final_feature_dataset_ddc936f8a38a/dataset/fold_20260415_20260501_preopen_v1.parquet | 4 438 416 358 B | 3571d7678cb62bc29ca889a80d6b8a7b04a81eea4165ee3dcf56e2f3792df7b7 |
+| data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/calibration_seed/9ca4755fd7b45c9f/stages/final_feature_dataset_4527ce62c44f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet | data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/calibration_seed/9ca4755fd7b45c9f/stages/final_feature_dataset_ecf685a9f3b0/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet | 4 757 016 837 B | dcefe1704eaf014ddf6f0616a24023b835ebd58f754476b4c101cd3cd29fa6fb |
+
+Rzeczywisty przyrost free space: 9 191 477 248 B (8,5602 GiB), z 79 181 156 352 B (73,743 GiB) do 88 372 633 600 B (82,303 GiB). Mtime sciezki po hardlinku odpowiada plikowi kanonicznemu: target F1 1793121638263857300 ns -> 1793125445990803500 ns; target calibration_seed 1791848926323342700 ns -> 1791855120065110600 ns. Hash jest podstawa tozsamosci danych/checkpointow. Nie usuwano plikow; nie ruszano recovery_archive, danych/checkpointow/studies E0041 ani pliku tymczasowego 2 329 720 393 B o znanym mozliwym wznowieniu. Procesow T0046/T0048 ani innych zadan nie zatrzymano.
+
+Szacunek pozostalych wyjsc z ukończonego E0039 F3 o podobnej liczbie wierszy: dynamic feature parquet 443 011 633 B dla 3 186 147 rows, inner OOF predictions 5 660 209 B, 18 plikow modeli D 8 144 874 B. Lacznosc outputow E0041 szacowana ponizej 0,5 GiB, pozostawiajac ok. 1,8 GiB ponad gate.
+
+Gate po odzyskaniu: exact no-argument command z 2026-10-28T20:56:50.771682Z, disk 82,30 GiB free, RAM 46,08 GiB, GPU 6 731 MiB free, 20 logical CPUs. Proces PID 30900, python -X utf8 -m arbitron collect-betclic --concurrency 14, uzywal 2,64 GiB i zablokowal unchanged workload threshold przed input access. Process pozostawiono w spokoju. Gate elapsed 0,8948915 s, blocked_by_resource_gate, run identity null, holdout rows/predictions zero. Ta proba jest jeszcze niepoliczona i zostanie dodana raz po przyszlym gate pass; idle time jest wykluczony.
+
+Ostatnia kontrola 2026-10-28T21:02:38Z: D: mialo 82,265 GiB wolnego, a PID 30900 mial 14,208 GiB working set. Proces nadal dzialal; nie uruchomiono runnera ponownie, bo niezmieniony limit Python workload nie byl spelniony.
+
+Pomiar 2026-10-28T21:05:17Z wykazal 76,442 GiB wolnego i aktywny PID 55988 z working set 9,761 GiB; oba warunki resource gate pozostaja niespelnione.
+
+Odczyt 2026-10-28T21:06:47Z nadal wykazywal 76,442 GiB wolnego, a PID 27580 mial working set 24,435 GiB.

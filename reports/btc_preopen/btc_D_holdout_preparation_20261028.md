@@ -110,3 +110,36 @@ Po ukonczeniu etapow selekcyjnych runner pominol kalibracje ogolna i predykcje z
 Ponowne dokladne polecenie o `2026-10-28T18:46:54.898240+00:00` zakonczylo sie `blocked_by_resource_gate` po 0.6277065 s. Po wypchnieciu commitu dokumentacyjnego `6de64d0`, dokladne polecenie bez argumentow uruchomiono ponownie o `2026-10-28T18:51:03.242122+00:00`; gate ponownie zablokowal po 0.6476062 s. W obu przypadkach dysk mial 73.84 GiB wolnego przy wymaganych 80 GiB; w najnowszej kontroli RAM wynosil 51.26 GiB, GPU raportowalo 6 677 MiB wolnych. `run_identity_sha256=null`, odczytane wiersze holdoutu 0, predykcje holdoutu 0. Obie blokowane proby pre-fit (lacznie 1.2753127 s) zostana doliczone dokladnie raz do budzetu calego przygotowania po nastepnym przejsciu gate; bezczynnosc jest wylaczona. Manifest nadal wykazuje 13 511.5405/76 500 s uzyte i 62 988.4595 s pozostale przed doliczeniem tych prob.
 
 Nie rozpoczeto finalnego dziewiecioczlonowego fitu D, koncowych OOF, kalibratora ani bundla. `evaluation_authorized=false`, `HOLDOUT_NOT_RUN`; holdout pozostaje nieodczytany, bez predykcji, scoringu i ekonomiki. E0037 pozostaje FAILED, T0009 BLOCKED. Wznowienie wymaga co najmniej 6.16 GiB dodatkowego wolnego miejsca na D:, bez obnizania progu ani przenoszenia/usuwania danych lub checkpointow.
+
+## Kontynuacja po selekcji: checkpoint, miejsce i gate
+
+Run zachowuje tozsamosc 189049366841f6d025e3d9b080bb69dd0e441bb5638e451708f27c0635754c44. Nie uzyto null identity z pozniejszych gate'ow jako dowodu braku runu. Protokol v2 ma SHA-256 1b289c7a24456171bf234dfa578ecc608bb9e68529b446972b3f9eb8b7414a1d; runner a89d67d2b802572003e28167ebbb6cc2b95793498d1dac593b7bcdb1d4a93181; naprawiony v1_artifact_migration.json d26082cacb88a006366470eed0a77b51a455fe55c3219b8df5d83620617f0139. Repair log potwierdza minimum_successful_trials=5 z zamrozonego protokolu oraz hashe przed/po.
+
+Kontrola checkpointu przeszla. Manifest ma 96 terminalnych RP (83 COMPLETE, 13 PRUNED), RP, VP, target weights, feature selection i model tuning sa zakonczone. selection_result.json ma status fold_local_selection_completed i wiaze chronology_selection_result.json hashem b4f76f92923a5947faca2b333c8c583b522dc666ae9188579504bdfa58b7701c. W checkpointcie jest dokladnie 64 uporzadkowanych i unikalnych selected_base_features. model_feature_order to te 64 cechy, a nastepnie taker_Z_1m, taker_V_1m, taker_Z_5m, taker_V_5m, taker_Z_15m, taker_V_15m: lacznie 70. Ogolny selector pokazal recommended_k=256 i best_k=320, lecz tryb chronologiczny wymaga required_selected_feature_count=64. K=256/320 nie jest rozmiarem koncowego D; search pozostaje niezmieniony.
+
+Zamrozony kod dokleja do BASE70 memory PCA8 i ESN PCA8 dla kazdego reservoir seed, czyli 86 kolumn na czlonka D. Kod sprawdza 8 nazwanych cech ESN dla kazdego z trzech seedow i kontrole liczby cech modelu po zapisie. Koncowy schemat nie zostal jeszcze zmaterializowany, poniewaz aktualny gate zatrzymal runner przed wznowieniem. Poprzedni log selection-only potwierdza pominiecie ogolnej kalibracji oraz zewnetrznych predykcji. Ostatnia proba gate nie doszla do sciezki resume; po jej przejsciu runner ma wczytac selection_result oraz pominac ukonczone search.
+
+### Odzyskanie miejsca
+
+Bezposrednio przed operacja D: mialo 79 181 156 352 B wolnego miejsca (73,743 GiB). Dwa historyczne, zakonczone artefakty developerskie zastapiono hardlinkami do sprawdzonych kopii kanonicznych. Obie sciezki nadal istnieja, a pelne SHA-256, rozmiar i os.samefile byly zgodne przed i po atomowej podmianie.
+
+| Sciezka duplikatu z zachowana nazwa | Zachowana kopia kanoniczna | Bajty | SHA-256 |
+|---|---|---:|---|
+| E0039 v6: runs/eb07a734607052ac/F1_20260415_20260501/6cffa9ad0ec7a342/selection_pipeline/441e9566cadfbf70/stages/final_feature_dataset_4106633487b5/dataset/fold_20260415_20260501_preopen_v1.parquet | E0039 v7: runs/508858c48b11b925/F1_20260415_20260501/20914cfbc01dd0b3/selection_pipeline/441e9566cadfbf70/stages/final_feature_dataset_ddc936f8a38a/dataset/fold_20260415_20260501_preopen_v1.parquet | 4 438 416 358 | 3571d7678cb62bc29ca889a80d6b8a7b04a81eea4165ee3dcf56e2f3792df7b7 |
+| calibration_seed: stages/final_feature_dataset_4527ce62c44f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet | calibration_seed: stages/final_feature_dataset_ecf685a9f3b0/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet | 4 757 016 837 | dcefe1704eaf014ddf6f0616a24023b835ebd58f754476b4c101cd3cd29fa6fb |
+
+Wolne miejsce wzroslo faktycznie o 9 191 477 248 B (8,5602 GiB), do 88 372 633 600 B (82,303 GiB). Nie usuwano danych. Nie ruszano recovery_archive, wejsc ani checkpointow E0041 ani znanego pliku tymczasowego 2 329 720 393 B z mozliwym checkpointem. Mtime nowego hardlinku odpowiada kopii kanonicznej; tozsamosc cache jest oparta o hash. Nie zatrzymywano procesow T0046/T0048 ani innych zadan.
+
+Szacunek brakujacych wyjsc oparto o E0039 F3: 3 186 147 wierszy, dynamic_features.parquet 443 011 633 B, OOF predictions 5 660 209 B, 18 plikow modeli D 8 144 874 B. E0041 ma zblizona skale, wiec oczekiwane zapisane wyjscia sa ponizej 0,5 GiB; po ich zapisie powinno pozostac ok. 1,9 GiB ponad prog gate.
+
+### Wynik gate po odzyskaniu miejsca
+
+Dokladne polecenie python run_btc_D_holdout_preparation_20261028.py uruchomiono 2026-10-28T20:56:50.771682Z. Dysk spelnial prog 80 GiB: 82,30 GiB wolnego; RAM 46,08 GiB; GPU 6 731 MiB wolnej pamieci; 20 logicznych CPU. Niezmieniony gate zatrzymal wykonanie wylacznie z powodu PID 30900: python -X utf8 -m arbitron collect-betclic --concurrency 14, working set 2,64 GiB. Procesu nie zatrzymywano. Gate trwal 0,8948915 s, status blocked_by_resource_gate; proba jest zapisana jako jeszcze niepoliczona i wejdzie jeden raz do budzetu whole-preparation po pozniejszym przejsciu gate. Pozostale PID 44316 i 45856 rowniez pozostawiono bez zmian.
+
+Proba zatrzymala sie przed odczytem wejsc: run_identity_sha256=null dla tego gate'u; holdout_rows_read=0 i holdout_predictions_generated=0. Wlasciwy preparation_manifest nadal identyfikuje poprzedni run powyzszym SHA. evaluation_authorized=false; nowe dynamic features, OOF, Platt i bundle nie powstaly. Progu nie obnizono. Wznowienie czeka na naturalne zejscie aktywnego procesu ponizej limitu; bezczynne oczekiwanie nie jest doliczane.
+
+Kontrola zasobow o 2026-10-28T21:02:38Z wykazala 82,265 GiB wolnego na D: oraz 14,208 GiB working set PID 30900. Proces nadal dziala i pozostaje powyzej niezmienionego limitu; nie uruchomiono kolejnej proby runnera.
+
+Odczyt o 2026-10-28T21:05:17Z wykazal spadek do 76,442 GiB wolnego na D: oraz aktywny PID 55988 z working set 9,761 GiB. Oba limity gate (80 GiB dysku i 1 GiB na Python workload) pozostaja niespelnione; runnera nie uruchomiono.
+
+Odczyt o 2026-10-28T21:06:47Z nadal wykazywal 76,442 GiB wolnego, a PID 27580 mial 24,435 GiB working set. Nie uruchomiono runnera, bo oba progi resource gate pozostawaly niespelnione.
