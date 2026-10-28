@@ -49,6 +49,8 @@ Runner został zamrożony i wypchnięty jako commit `cb05ee640d80e9471c97eafdbe4
 
 Gate odnotował `47.73 GiB` dostępnej z `63.67 GiB` pamięci, GPU `NVIDIA GeForce RTX 4060 Laptop GPU` (8188 MiB łącznie, 7344 MiB raportowane jako wolne), zero aktywnych procesów Python i czas gate `0.684785 s`. `run_identity_sha256` jest null; `holdout_rows_read=0`, `holdout_predictions_generated=0`. Pełny wynik zapisano lokalnie w `data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/pre_fit_gate.json`; plik jest ignorowany przez Git. Nie otwarto raw prefixu, nie zaczęto selekcji/fitu/OOF/kalibracji i nie utworzono bundle’u.
 
+Raport, tabela metadanych i aktualizacje rejestrów po gate zostały wypchnięte w commicie `1e80fd6b0ab9bd13175420c8ca40e66e4f92c0e9`.
+
 ## Uruchomienie i autoryzacja
 
 Przygotowanie albo wznowienie po spełnieniu gate:
