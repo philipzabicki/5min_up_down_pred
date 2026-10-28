@@ -1,0 +1,121 @@
+{
+  "experiment_id": "E0039",
+  "task_id": "T0009",
+  "run_identity_sha256": "508858c48b11b9252e4ec3aa0e7814579f2fe770ef8840e32fd86dca6c6bd8d0",
+  "protocol_path": "configs/research/btc_chronology_reconstruction_20261027_v7.json",
+  "protocol_sha256": "9c6aca98034ca010cda16e326053ce83e2c78dbab0120445be8ec1180392baf6",
+  "source_clean_whitelist_sha256": "e2946aa8e45c2ed050347e18756408a0175fa0eb9859a120f8df7c173051edda",
+  "source_row_hashes": {
+    "economics_gamma": "2376742f69af58ae09abd2f97a69a790e8a4478b534e89c489650bd2e03e79f1",
+    "official_gamma": "8a57353f8ab2fa192dda31d5848c08d8a942ac2cfecba42c3fd02c3d6b97cc88",
+    "t59_asks": "8cd8b338718a6c2aea41624015723ae6f7246232a114db40643d51052e5676f7",
+    "t60_books": "18bcea350e8857c42d236fe44d9753c98fd8c1bf9ab7f4d1e1d6060eca5f4165"
+  },
+  "saved_economics_output_sha256": {
+    "market_decisions.csv": "8fe2b705f9fdeb56297db3958fe3a1a4a049e147a39a442d6810b0a05be1c74b",
+    "monthly_paths.csv": "c9ad9b19dd919dc66b7217a94710c21d24af1d0714645961ea7b7e0b825b509e",
+    "paired_market_differences.csv": "f7188bcedfed15b9c561f07da5ba854b0915d9df75940157ddd66b36535ad71d",
+    "paired_monthly_differences.csv": "35b64bbea26f5db31f51fefdc738d5700c276a4f17d4df387370336e36a3455d",
+    "prediction_coverage_by_clean_market.parquet": "f22968e6c8e84394f1d1f88d1985b831057401f939b90a1d6adb99d2d963acc0"
+  },
+  "verified_report_inputs": {
+    "run_manifest_sha256": "d2c71bf083e2e640fc1ef8984652174cd65d268bd965c045e9c411839eb813d7",
+    "protocol_sha256": "9c6aca98034ca010cda16e326053ce83e2c78dbab0120445be8ec1180392baf6",
+    "clean_ids_sha256": "e2946aa8e45c2ed050347e18756408a0175fa0eb9859a120f8df7c173051edda",
+    "economics_gamma": "2376742f69af58ae09abd2f97a69a790e8a4478b534e89c489650bd2e03e79f1",
+    "official_gamma": "8a57353f8ab2fa192dda31d5848c08d8a942ac2cfecba42c3fd02c3d6b97cc88",
+    "t59_asks": "8cd8b338718a6c2aea41624015723ae6f7246232a114db40643d51052e5676f7",
+    "t60_books": "18bcea350e8857c42d236fe44d9753c98fd8c1bf9ab7f4d1e1d6060eca5f4165",
+    "economics_market_decisions.csv_sha256": "8fe2b705f9fdeb56297db3958fe3a1a4a049e147a39a442d6810b0a05be1c74b",
+    "economics_monthly_paths.csv_sha256": "c9ad9b19dd919dc66b7217a94710c21d24af1d0714645961ea7b7e0b825b509e",
+    "economics_paired_market_differences.csv_sha256": "f7188bcedfed15b9c561f07da5ba854b0915d9df75940157ddd66b36535ad71d",
+    "economics_paired_monthly_differences.csv_sha256": "35b64bbea26f5db31f51fefdc738d5700c276a4f17d4df387370336e36a3455d",
+    "economics_prediction_coverage_by_clean_market.parquet_sha256": "f22968e6c8e84394f1d1f88d1985b831057401f939b90a1d6adb99d2d963acc0"
+  },
+  "derived_outputs": {
+    "btc_e0039_accounts_20261028.csv": "be6316d141d5604dacdf9ffabc9cfa1c0cc6d372075849db382d58045f990875",
+    "btc_e0039_account_flows_20261028.csv": "c2682831738848e0dcaa6b36430e506b412089e5c734e6a77e0c3289a1fb1160",
+    "btc_e0039_monthly_20261028.csv": "73d5f8cc2d258597163e2e85d1ca29b29e5e9e374a07d0044937ad0eae35d11f",
+    "btc_e0039_stability_20261028.csv": "58d56405f4084902e855d9772fddf9438bf1abff283839d17693565a933ae430",
+    "btc_e0039_accounts_equity_60s_20261028.svg": "830636dd3d12f6dfcaabfb1f12a65e99bbbf0011afccde719254f9dfcf8fdbff"
+  },
+  "counts": {
+    "accounts": 32,
+    "account_month_rows": 96,
+    "raw_prediction_markets_per_model": 5604,
+    "calibrated_markets_per_model": 5148,
+    "minimum_not_met_april_markets_per_model": 456,
+    "holdout_rows_materialized_in_saved_run": 0,
+    "confirmation_rows_materialized_in_saved_run": 0
+  },
+  "monthly_prediction_coverage": {
+    "2026-04": {
+      "raw": 456,
+      "calibrated": 0,
+      "minimum_not_met": 456,
+      "source_clean": 456
+    },
+    "2026-05": {
+      "raw": 2315,
+      "calibrated": 2315,
+      "minimum_not_met": 0,
+      "source_clean": 2315
+    },
+    "2026-06": {
+      "raw": 2833,
+      "calibrated": 2833,
+      "minimum_not_met": 0,
+      "source_clean": 2833
+    }
+  },
+  "free_cash_5pct_60s_block": {
+    "A": {
+      "first_fill_decision_time_utc": "2026-05-01T00:39:00+00:00",
+      "first_below_minimum_decision_time_utc": "2026-05-01T00:49:00+00:00",
+      "prior_fills": 1,
+      "requested_gross_usd_at_first_rejection": 4.741,
+      "free_cash_usd_at_first_rejection": 94.82,
+      "locked_cost_basis_usd_at_first_rejection": 0.0,
+      "below_minimum_rejections": 5147,
+      "last_decision_time_utc": "2026-06-30T23:34:00+00:00"
+    },
+    "B": {
+      "first_fill_decision_time_utc": "2026-05-01T00:39:00+00:00",
+      "first_below_minimum_decision_time_utc": "2026-05-01T00:49:00+00:00",
+      "prior_fills": 1,
+      "requested_gross_usd_at_first_rejection": 4.741,
+      "free_cash_usd_at_first_rejection": 94.82,
+      "locked_cost_basis_usd_at_first_rejection": 0.0,
+      "below_minimum_rejections": 5147,
+      "last_decision_time_utc": "2026-06-30T23:34:00+00:00"
+    },
+    "C": {
+      "first_fill_decision_time_utc": "2026-05-01T00:39:00+00:00",
+      "first_below_minimum_decision_time_utc": "2026-05-01T00:49:00+00:00",
+      "prior_fills": 1,
+      "requested_gross_usd_at_first_rejection": 4.741,
+      "free_cash_usd_at_first_rejection": 94.82,
+      "locked_cost_basis_usd_at_first_rejection": 0.0,
+      "below_minimum_rejections": 5147,
+      "last_decision_time_utc": "2026-06-30T23:34:00+00:00"
+    },
+    "D": {
+      "first_fill_decision_time_utc": "2026-05-01T00:39:00+00:00",
+      "first_below_minimum_decision_time_utc": "2026-05-01T00:49:00+00:00",
+      "prior_fills": 1,
+      "requested_gross_usd_at_first_rejection": 4.741,
+      "free_cash_usd_at_first_rejection": 94.82,
+      "locked_cost_basis_usd_at_first_rejection": 0.0,
+      "below_minimum_rejections": 5147,
+      "last_decision_time_utc": "2026-06-30T23:34:00+00:00"
+    }
+  },
+  "accounting_reconstruction": {
+    "scope": "saved accepted fills, cash debits, payout values and frozen payout availability timestamps only",
+    "portfolio_decisions_recomputed": false,
+    "cash_debit_includes_cash_fees": true,
+    "fee_subtracted_again": false,
+    "equity_definition": "free cash + locked gross cost basis",
+    "terminal_unsettled_positions": 0
+  }
+}

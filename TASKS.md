@@ -157,6 +157,12 @@ Runtime evidence: across 300 current decision paths, p50/p95/p99/max were 11.48/
 
 Source axis: T0009 remains BLOCKED. E0038 is still a 5,604-market conditional subset; 53,660 candidate calendar rows lack Gamma IDs, the E0037 T-60 parity failure is preserved, and 24 local PMXT hours remain deferred under T0010. No source acquisition was performed. E0039 does not create historical prediction-ready timestamps or close the source gap.
 
+2026-10-28 E0039 account/stability report: [full report](reports/btc_preopen/btc_e0039_accounts_and_stability_20261028.md), 32-account table ([CSV](reports/btc_preopen/btc_e0039_accounts_20261028.csv)), auxiliary fees/flows ([CSV](reports/btc_preopen/btc_e0039_account_flows_20261028.csv)), monthly paths/flows ([CSV](reports/btc_preopen/btc_e0039_monthly_20261028.csv)), independent and paired stability ([CSV](reports/btc_preopen/btc_e0039_stability_20261028.csv)), and continuous 60-second account equity chart ([SVG](reports/btc_preopen/btc_e0039_accounts_equity_60s_20261028.svg)). From $100 at 60 seconds, fixed-$5 terminal equity is A $4.940, B $0.003, C $1.136 and D $374.575. Independent fixed-$5 net PnL on 5,148 common calibrated markets is A +$139.945, B +$89.094, C +$217.970, D +$274.575; it is reported separately from self-financing accounts. The April 456-market/F1 calibration gap remains no economic test, not zero PnL.
+
+The report-only ledger reconstruction read the saved E0039 economics rows and reproduced all 32 terminal account summaries and all 96 account-month snapshots against the run manifest/monthly file. Debit, payout, cash-fee, turnover, locked basis, drawdown, nonnegative cash and one-time settlement checks reconciled; all accounts ended with zero open positions. The reconstruction did not recompute model decisions, eligibility, fills, execution or fees. T0009 remains BLOCKED for coverage and readiness provenance; E0037 remains FAILED, historical readiness UNKNOWN, and T0010 DEFERRED. No holdout or confirmation rows were materialized.
+
+E0039 report verification: focused accounting tests passed 3/3; `py_compile` passed for the report generator and its tests; all report links, generated-file hashes, table counts, and SVG XML were verified. `git diff --check` and `git diff --cached --check` passed after final review.
+
 ## T0010 - Reconcile 24 missing local PMXT development hours
 
 Status: DEFERRED (inventory preserved; external acquisition is outside the authorized scope).

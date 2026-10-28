@@ -1,0 +1,41 @@
+record_type,model,comparison,month_utc,common_markets,pnl_usd,ratio,denominator_name,denominator_usd,date_utc,notes
+independent_fixed5_monthly,A,,2026-05,2315,16.33908138562545,,,,,PnL przypisany wg market_start_utc w istniejącym independent_fixed5 agregatorze.
+independent_fixed5_monthly,A,,2026-06,2833,123.60619048341813,,,,,PnL przypisany wg market_start_utc w istniejącym independent_fixed5 agregatorze.
+independent_fixed5_total,A,,all_calibrated,5148,139.94527186904403,,,,,"Wspólne 5,148 rynków z oficjalną kalibracją; konta samofinansujące się raportowane osobno."
+june_share_of_net_pnl,A,,2026-06,5148,123.60619048341813,0.8832466351495215,łączny netto PnL maj+czerwiec,139.94527186904403,,"Udział czerwca w wyniku netto; może przekroczyć 100%, gdy drugi miesiąc ma stratę."
+best_day,A,,,,58.28993341680193,,,,2026-06-09,"Najlepszy dzienny netto PnL na znanych, skalibrowanych decyzjach."
+worst_day,A,,,,-63.92497203727948,,,,2026-05-29,"Najgorszy dzienny netto PnL na znanych, skalibrowanych decyzjach."
+top_five_days_share_of_positive_daily_pnl,A,,,5148,245.50197215033717,0.5290874780293955,suma dodatnich dziennych netto PnL,464.01017288240826,"2026-06-09,2026-05-30,2026-06-07,2026-05-28,2026-06-06",Mianownik obejmuje wyłącznie dni z dziennym PnL > 0; nie jest nim łączny PnL netto.
+independent_fixed5_monthly,B,,2026-05,2315,-84.35479489613918,,,,,PnL przypisany wg market_start_utc w istniejącym independent_fixed5 agregatorze.
+independent_fixed5_monthly,B,,2026-06,2833,173.4486349671385,,,,,PnL przypisany wg market_start_utc w istniejącym independent_fixed5 agregatorze.
+independent_fixed5_total,B,,all_calibrated,5148,89.09384007100059,,,,,"Wspólne 5,148 rynków z oficjalną kalibracją; konta samofinansujące się raportowane osobno."
+june_share_of_net_pnl,B,,2026-06,5148,173.4486349671385,1.9468083857303038,łączny netto PnL maj+czerwiec,89.09384007100059,,"Udział czerwca w wyniku netto; może przekroczyć 100%, gdy drugi miesiąc ma stratę."
+best_day,B,,,,80.40426887344876,,,,2026-06-09,"Najlepszy dzienny netto PnL na znanych, skalibrowanych decyzjach."
+worst_day,B,,,,-89.29031291209093,,,,2026-05-29,"Najgorszy dzienny netto PnL na znanych, skalibrowanych decyzjach."
+top_five_days_share_of_positive_daily_pnl,B,,,5148,319.5818901999708,0.6584164145682826,suma dodatnich dziennych netto PnL,485.3795912872519,"2026-06-09,2026-06-03,2026-06-06,2026-05-28,2026-05-26",Mianownik obejmuje wyłącznie dni z dziennym PnL > 0; nie jest nim łączny PnL netto.
+independent_fixed5_monthly,C,,2026-05,2315,49.78384030160181,,,,,PnL przypisany wg market_start_utc w istniejącym independent_fixed5 agregatorze.
+independent_fixed5_monthly,C,,2026-06,2833,168.18595117543748,,,,,PnL przypisany wg market_start_utc w istniejącym independent_fixed5 agregatorze.
+independent_fixed5_total,C,,all_calibrated,5148,217.96979147704056,,,,,"Wspólne 5,148 rynków z oficjalną kalibracją; konta samofinansujące się raportowane osobno."
+june_share_of_net_pnl,C,,2026-06,5148,168.18595117543748,0.7716021107133694,łączny netto PnL maj+czerwiec,217.96979147704056,,"Udział czerwca w wyniku netto; może przekroczyć 100%, gdy drugi miesiąc ma stratę."
+best_day,C,,,,69.61926753274147,,,,2026-06-09,"Najlepszy dzienny netto PnL na znanych, skalibrowanych decyzjach."
+worst_day,C,,,,-49.44614481177085,,,,2026-06-10,"Najgorszy dzienny netto PnL na znanych, skalibrowanych decyzjach."
+top_five_days_share_of_positive_daily_pnl,C,,,5148,285.3315207193503,0.5438015763352391,suma dodatnich dziennych netto PnL,524.6978551298848,"2026-06-09,2026-05-26,2026-06-06,2026-05-28,2026-05-30",Mianownik obejmuje wyłącznie dni z dziennym PnL > 0; nie jest nim łączny PnL netto.
+independent_fixed5_monthly,D,,2026-05,2315,70.51182041162618,,,,,PnL przypisany wg market_start_utc w istniejącym independent_fixed5 agregatorze.
+independent_fixed5_monthly,D,,2026-06,2833,204.06296478157776,,,,,PnL przypisany wg market_start_utc w istniejącym independent_fixed5 agregatorze.
+independent_fixed5_total,D,,all_calibrated,5148,274.574785193205,,,,,"Wspólne 5,148 rynków z oficjalną kalibracją; konta samofinansujące się raportowane osobno."
+june_share_of_net_pnl,D,,2026-06,5148,204.06296478157776,0.7431963012845062,łączny netto PnL maj+czerwiec,274.574785193205,,"Udział czerwca w wyniku netto; może przekroczyć 100%, gdy drugi miesiąc ma stratę."
+best_day,D,,,,70.44559106215328,,,,2026-06-09,"Najlepszy dzienny netto PnL na znanych, skalibrowanych decyzjach."
+worst_day,D,,,,-60.85827053962829,,,,2026-05-29,"Najgorszy dzienny netto PnL na znanych, skalibrowanych decyzjach."
+top_five_days_share_of_positive_daily_pnl,D,,,5148,292.07847504889486,0.5424757979679735,suma dodatnich dziennych netto PnL,538.4175222986418,"2026-06-09,2026-05-28,2026-06-06,2026-05-26,2026-06-03",Mianownik obejmuje wyłącznie dni z dziennym PnL > 0; nie jest nim łączny PnL netto.
+paired_independent_fixed5_monthly_difference,,B-A,2026-05,2315,-100.693876281765,,,,,Różnica sparowana na tych samych dostępnych decyzjach; znany no_trade ma 0.
+paired_independent_fixed5_monthly_difference,,B-A,2026-06,2833,49.84244448372157,,,,,Różnica sparowana na tych samych dostępnych decyzjach; znany no_trade ma 0.
+paired_independent_fixed5_total_difference,,B-A,all_calibrated,5148,-50.851431798043436,,,,,Kierunek różnicy zgodny z etykietą B−A/C−A/D−B/D−C.
+paired_independent_fixed5_monthly_difference,,C-A,2026-05,2315,33.44475891597625,,,,,Różnica sparowana na tych samych dostępnych decyzjach; znany no_trade ma 0.
+paired_independent_fixed5_monthly_difference,,C-A,2026-06,2833,44.57976069202029,,,,,Różnica sparowana na tych samych dostępnych decyzjach; znany no_trade ma 0.
+paired_independent_fixed5_total_difference,,C-A,all_calibrated,5148,78.02451960799654,,,,,Kierunek różnicy zgodny z etykietą B−A/C−A/D−B/D−C.
+paired_independent_fixed5_monthly_difference,,D-B,2026-05,2315,154.86661530776567,,,,,Różnica sparowana na tych samych dostępnych decyzjach; znany no_trade ma 0.
+paired_independent_fixed5_monthly_difference,,D-B,2026-06,2833,30.614329814438758,,,,,Różnica sparowana na tych samych dostępnych decyzjach; znany no_trade ma 0.
+paired_independent_fixed5_total_difference,,D-B,all_calibrated,5148,185.48094512220445,,,,,Kierunek różnicy zgodny z etykietą B−A/C−A/D−B/D−C.
+paired_independent_fixed5_monthly_difference,,D-C,2026-05,2315,20.72798011002442,,,,,Różnica sparowana na tych samych dostępnych decyzjach; znany no_trade ma 0.
+paired_independent_fixed5_monthly_difference,,D-C,2026-06,2833,35.87701360614005,,,,,Różnica sparowana na tych samych dostępnych decyzjach; znany no_trade ma 0.
+paired_independent_fixed5_total_difference,,D-C,all_calibrated,5148,56.60499371616446,,,,,Kierunek różnicy zgodny z etykietą B−A/C−A/D−B/D−C.
