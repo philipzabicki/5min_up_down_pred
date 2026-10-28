@@ -1,0 +1,164 @@
+{
+  "experiment_id": "E0040",
+  "task_id": "T0011",
+  "name": "btc_e0039_settlement_1_5_15s_20261028",
+  "status": "frozen_before_economic_replay",
+  "created_date": "2026-10-28",
+  "source_e0039": {
+    "run_identity_sha256": "508858c48b11b9252e4ec3aa0e7814579f2fe770ef8840e32fd86dca6c6bd8d0",
+    "protocol_path": "configs/research/btc_chronology_reconstruction_20261027_v7.json",
+    "protocol_sha256": "9c6aca98034ca010cda16e326053ce83e2c78dbab0120445be8ec1180392baf6",
+    "run_manifest_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/run_manifest.json",
+    "run_manifest_sha256": "d2c71bf083e2e640fc1ef8984652174cd65d268bd965c045e9c411839eb813d7",
+    "predictions_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/outer_predictions_all_folds.parquet",
+    "predictions_sha256": "ed7ee1899160fc2cfcd772188739c7983f0997e272d2ff3a524219a14e3577b2",
+    "clean_ids_sha256": "e2946aa8e45c2ed050347e18756408a0175fa0eb9859a120f8df7c173051edda",
+    "filtered_source_row_hashes": {
+      "economics_gamma": "2376742f69af58ae09abd2f97a69a790e8a4478b534e89c489650bd2e03e79f1",
+      "official_gamma": "8a57353f8ab2fa192dda31d5848c08d8a942ac2cfecba42c3fd02c3d6b97cc88",
+      "t59_asks": "8cd8b338718a6c2aea41624015723ae6f7246232a114db40643d51052e5676f7",
+      "t60_books": "18bcea350e8857c42d236fe44d9753c98fd8c1bf9ab7f4d1e1d6060eca5f4165"
+    },
+    "economics_output_sha256": {
+      "market_decisions.csv": "8fe2b705f9fdeb56297db3958fe3a1a4a049e147a39a442d6810b0a05be1c74b",
+      "monthly_paths.csv": "c9ad9b19dd919dc66b7217a94710c21d24af1d0714645961ea7b7e0b825b509e",
+      "paired_market_differences.csv": "f7188bcedfed15b9c561f07da5ba854b0915d9df75940157ddd66b36535ad71d",
+      "paired_monthly_differences.csv": "35b64bbea26f5db31f51fefdc738d5700c276a4f17d4df387370336e36a3455d",
+      "prediction_coverage_by_clean_market.parquet": "f22968e6c8e84394f1d1f88d1985b831057401f939b90a1d6adb99d2d963acc0"
+    }
+  },
+  "sources": {
+    "clean_whitelist_path": "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_quality_manifest.parquet",
+    "gamma_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet",
+    "t60_path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t60_decision_books.parquet",
+    "t59_path": "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t59_ask_ladders.parquet",
+    "predictions_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/outer_predictions_all_folds.parquet",
+    "e0039_market_decisions_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/economics/market_decisions.csv",
+    "historical_accounts_path": "reports/btc_preopen/btc_e0039_accounts_20261028.csv",
+    "fold_calibration_files": [
+      {
+        "fold_id": "F1_20260415_20260501",
+        "start_utc": "2026-04-15T00:00:00Z",
+        "end_utc": "2026-05-01T00:00:00Z",
+        "daily_calibrators_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F1_20260415_20260501/20914cfbc01dd0b3/daily_calibrators.json",
+        "outer_calibrated_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F1_20260415_20260501/20914cfbc01dd0b3/outer_calibrated.parquet"
+      },
+      {
+        "fold_id": "F2_20260501_20260601",
+        "start_utc": "2026-05-01T00:00:00Z",
+        "end_utc": "2026-06-01T00:00:00Z",
+        "daily_calibrators_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F2_20260501_20260601/d1ec3319b9294e29/daily_calibrators.json",
+        "outer_calibrated_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F2_20260501_20260601/d1ec3319b9294e29/outer_calibrated.parquet"
+      },
+      {
+        "fold_id": "F3_20260601_20260701",
+        "start_utc": "2026-06-01T00:00:00Z",
+        "end_utc": "2026-07-01T00:00:00Z",
+        "daily_calibrators_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F3_20260601_20260701/b270c7dbe85221ba/daily_calibrators.json",
+        "outer_calibrated_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F3_20260601_20260701/b270c7dbe85221ba/outer_calibrated.parquet"
+      }
+    ]
+  },
+  "input_sha256": {
+    "configs/research/btc_chronology_reconstruction_20261027_v7.json": "9c6aca98034ca010cda16e326053ce83e2c78dbab0120445be8ec1180392baf6",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/run_manifest.json": "d2c71bf083e2e640fc1ef8984652174cd65d268bd965c045e9c411839eb813d7",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/outer_predictions_all_folds.parquet": "ed7ee1899160fc2cfcd772188739c7983f0997e272d2ff3a524219a14e3577b2",
+    "data/analysis/polymarket/BTC/btc_t0009_source_quality_continuation_20261026/source_quality_manifest.parquet": "0b00903cf93cb3c8a533d0adbcf3ec0f7b5471ea7f70f7ee2b80354401a78ac6",
+    "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+    "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t60_decision_books.parquet": "3abed12c3fe2d4762f8536d103b11ba3848e6a21a7c6bef68af5f5fc0c4acdbd",
+    "data/analysis/polymarket/BTC/btc_t0009_resolution_coverage_20261026_38a6221f0d90/pmxt_replay/t59_ask_ladders.parquet": "f9fa7a55e52504c38a5bdc513cc980ca5a2222ced027b2429424f83666dccd99",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F1_20260415_20260501/20914cfbc01dd0b3/daily_calibrators.json": "ddce87329631c33a52375d80d87f70fa4b7c9c29c7d87a0380c3f3241dda3cc3",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F1_20260415_20260501/20914cfbc01dd0b3/outer_calibrated.parquet": "c4402548163f952cbece62fc02bd5b87eb075a95a74ff2bc0b0cb5da46457691",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F2_20260501_20260601/d1ec3319b9294e29/daily_calibrators.json": "5c289e7947a58d2c042d82ec9ed85d3b61a4070e1ece019794c9cde520578dc1",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F2_20260501_20260601/d1ec3319b9294e29/outer_calibrated.parquet": "eaefaee2160a29b35ddec1c134595240960c79aa2071d37e099c57714c2c62782",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F3_20260601_20260701/b270c7dbe85221ba/daily_calibrators.json": "357c592b726ba535256e81ea203ed8b7447e9828345ece2c2dcb0df3ccec197b",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F3_20260601_20260701/b270c7dbe85221ba/outer_calibrated.parquet": "a3aaea0081866b8da7c3062f475a2c4551fd54c7db15c8347e9ba5f32e3b96df",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/economics/market_decisions.csv": "8fe2b705f9fdeb56297db3958fe3a1a4a049e147a39a442d6810b0a05be1c74b",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/economics/monthly_paths.csv": "c9ad9b19dd919dc66b7217a94710c21d24af1d0714645961ea7b7e0b825b509e",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/economics/paired_market_differences.csv": "f7188bcedfed15b9c561f07da5ba854b0915d9df75940157ddd66b36535ad71d",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/economics/paired_monthly_differences.csv": "35b64bbea26f5db31f51fefdc738d5700c276a4f17d4df387370336e36a3455d",
+    "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/economics/prediction_coverage_by_clean_market.parquet": "f22968e6c8e84394f1d1f88d1985b831057401f939b90a1d6adb99d2d963acc0",
+    "reports/btc_preopen/btc_e0039_accounts_and_stability_20261028.json": "6014de16b81515377b0167a3226985536dce2fe5044d905da2123d03e2971846",
+    "reports/btc_preopen/btc_e0039_accounts_20261028.csv": "be6316d141d5604dacdf9ffabc9cfa1c0cc6d372075849db382d58045f990875"
+  },
+  "payout_delays_seconds": [1, 5, 15],
+  "controls": {
+    "fixed_5_usd": {"gross_usd": 5.0},
+    "free_cash_5pct": {"fraction_of_free_cash_at_t60": 0.05, "minimum_usd": 5.0, "round_up": false}
+  },
+  "accounting": {
+    "initial_cash_usd": 100.0,
+    "payout_available_at_formula": "max(market_end_utc, resolved_at_utc) + delay_seconds",
+    "market_end_definition": "market_start_utc + 5 minutes",
+    "position_exit": "hold to official Gamma resolution payout; no sale or early cash-out",
+    "t60_decision": "release payouts available by T-60 inclusive; fix EV choice, side, and requested stake from that information",
+    "t59_execution": "release payouts available by T-59 inclusive immediately before checking the fixed debit; never change the T-60 side or requested stake",
+    "payout_after_t59": "not available to the current purchase; available at later accounting events",
+    "portfolio_rule": "one continuous account across F1-F3 and month boundaries; terminally settle every filled position",
+    "equity": "free cash + locked gross cost basis",
+    "drawdown": "cost-basis equity peak-to-trough; not mark-to-market",
+    "fees": "existing E0039 fee and native T-59 full-fill implementation",
+    "minimum": "D0019 verified-USDC rule with frozen $5 fallback; reject below minimum without upward rounding",
+    "no_pipeline_delay": true,
+    "unknown_calibration": "456 F1/April markets per model remain minimum_not_met and are not economic trades"
+  },
+  "coverage": {
+    "clean_markets_raw_predictions_per_model": 5604,
+    "officially_calibrated_per_model": 5148,
+    "minimum_not_met_april_per_model": 456,
+    "calibration_minimum_rows": 1000,
+    "holdout_rows_allowed": 0,
+    "confirmation_rows_allowed": 0
+  },
+  "strategy": {
+    "models": ["A", "B", "C", "D"],
+    "ev_rule": "strictly positive net EV at T-60; maximum EV; exact tie selects UP",
+    "entry": "native T-59 asks; full fill only",
+    "source_calibration": "reuse saved official-calibrated predictions; do not fit or alter calibrators",
+    "experiment_design": "4 models x 2 controls x 3 payout delays = 24 continuous $100 accounts"
+  },
+  "method_changes": {
+    "delay_scenarios": "replace the follow-up scenario set only with the user-approved simulation assumptions [1, 5, 15] seconds; retain old delay protocols and reports unchanged",
+    "event_chronology_correction": "release available payouts at T-59 immediately before purchase cash coverage, in addition to the T-60 information snapshot; this corrects the prior T-60-only release point and is distinct from changing delay values"
+  },
+  "parity_expected_net_pnl_usd": {
+    "A": 139.945271869044,
+    "B": 89.093840071001,
+    "C": 217.969791477041,
+    "D": 274.574785193205
+  },
+  "implementation": {
+    "runner_path": "run_btc_e0039_settlement_1_5_15s_20261028.py",
+    "runner_sha256": "3a24f7ec3452536c2d2cde7ecd02ec67d9e3811ceb33c90cae22d3b9d35091c0",
+    "tests_path": "tests/test_btc_e0039_settlement_1_5_15s_20261028.py",
+    "tests_sha256": "f071fdd5c7b62f0a71acca6965a9fcc0ae469442ac1701088972cc99db5ccd8e",
+    "dependency_sha256": {
+      "run_btc_t0009_economic_continuation_20261026.py": "0de3018f8861cf925cf760038c116ab9ea21a8a1fb4213318352b47af60331c4",
+      "run_btc_preopen_economic_replay.py": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528",
+      "run_btc_preopen_t59_reassessment.py": "57687ed6dbf4713270d177606234cb4d0da2df2bcbbc3cc0c5eff5ce00f4ed26",
+      "utils/btc_resolution_portfolio.py": "4af144f307db129f208687dd4ef7c38d002382b0b24048066772ef0d4964c9c1"
+    }
+  },
+  "outputs": {
+    "run_root": "data/analysis/polymarket/BTC/btc_e0039_settlement_1_5_15s_20261028/runs",
+    "report": "reports/btc_preopen/btc_e0039_settlement_1_5_15s_20261028.md",
+    "summary_json": "reports/btc_preopen/btc_e0039_settlement_1_5_15s_20261028.json",
+    "accounts_csv": "reports/btc_preopen/btc_e0039_settlement_1_5_15s_accounts_20261028.csv",
+    "monthly_snapshots_csv": "reports/btc_preopen/btc_e0039_settlement_1_5_15s_monthly_snapshots_20261028.csv",
+    "monthly_flows_csv": "reports/btc_preopen/btc_e0039_settlement_1_5_15s_monthly_flows_20261028.csv",
+    "independent_fixed5_csv": "reports/btc_preopen/btc_e0039_settlement_1_5_15s_independent_fixed5_20261028.csv",
+    "equity_chart_svg": "reports/btc_preopen/btc_e0039_settlement_1_5_15s_equity_20261028.svg"
+  },
+  "exclusions": {
+    "training_or_selection": false,
+    "new_oof_or_calibration_fit": false,
+    "feature_generation": false,
+    "raw_order_book_replay": false,
+    "runtime_measurement": false,
+    "network_preflight_or_source_acquisition": false,
+    "holdout_or_new_confirmation_evaluation": false,
+    "live_shadow_or_orders": false,
+    "early_sale_take_profit_or_stop_loss": false,
+    "T0046_data_or_process_changes": false
+  }
+}

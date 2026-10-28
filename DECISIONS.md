@@ -173,6 +173,15 @@ Decision: compare a requested gross BUY in USDC only with a minimum whose unit i
 Reason: available Gamma and CLOB fields use different unit labels, the local historical file contains only a share-labeled field without capture times, and the minimum-order constraint cannot be treated as unit-equivalent without evidence.
 Consequences: the T-59 helper now ignores the share-labeled Gamma field. This code correction does not establish historical market minima or change the frozen E0037 source-only result. Any later economics run must pin the corrected source identity and pass the source-parity gate first.
 
+## D0020 - E0039 follow-up uses 1/5/15 second settlement scenarios
+
+Status: ACTIVE for E0040. Date: 2026-10-28.
+Source: user's explicit authorization in `instrukcja_E0039_opoznienia_1_5_15s_20261028.md`.
+Supersedes: no prior decision; this records the follow-up scenario set and its event ordering without changing E0039's saved protocols or results.
+Decision: E0040 uses payout delays `[1, 5, 15]` seconds as simulation assumptions. Payout availability remains `max(market_end_utc, resolved_at_utc) + delay_seconds`, with market end at `market_start_utc + 5 minutes`. The old 60/300/1800/7200-second scenarios remain historical and are not treated as current operational settings or measured Polymarket timing. At T-60, release payouts available by that instant, then freeze the decision, side, EV, and 5%-of-free-cash size. At T-59, release payouts available through that timestamp, inclusively, immediately before testing the already-fixed full debit. A later payout cannot fund that purchase. Payout delay does not pause or move prediction, feature/state, calibration, or market-evaluation timestamps. Keep buy-and-hold through official Gamma resolution; no early sale or cash-out.
+Reason: the user approved these three hypothetical settlement assumptions and required correct event-time cash availability for second-level delays.
+Consequences: E0040 replays saved E0039 predictions and snapshots over its unchanged 5,604/5,148 coverage. It does not establish measured redemption availability, historical readiness, or production readiness; T0009, E0037, and T0010 retain their existing statuses.
+
 ## Protected invariant register
 
 Changes require an explicit recorded decision and applicable authorization, never an incidental implementation edit. Sources refer to the entries above and their linked original evidence.
@@ -193,5 +202,6 @@ Changes require an explicit recorded decision and applicable authorization, neve
 | RAW OOF provenance and unchanged dynamic gate | Prevent fabricated data sufficiency | D0011 | 2026-10-20 | Proven source backfill and same-gate verification |
 | Evaluated/deployment bundle separation; no live activation | Preserve evaluation and authority | D0007 | 2026-10-10 | Explicit later activation authorization and operational validation |
 | Append-only outcome exposure / no interim economic stopping | Prevent optional stopping | D0001/D0010 | 2026-10-22/23 | New preregistration with exposure disclosure |
+| E0040's settlement delay assumptions and T-60/T-59 cash-event ordering | Keep seconds-level simulation causal and explicit | D0020 | 2026-10-28 | New explicit user-approved protocol; measured availability remains separate |
 | Active hold-to-resolution strategy closes by official payout; sale simulations do not use settlement as an unfilled-exit fallback | Separate the two accounting paths | D0016/D0018 | 2026-10-26 | Explicit revised user decision and accounting regression tests |
 | No live/shadow consideration before positive fixed-holdout resolution economics and separate approval | Keep research results distinct from pilot authorization | D0017/D0018 | 2026-10-26 | Separate explicit user authorization after the stated economic gate |
