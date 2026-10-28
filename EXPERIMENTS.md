@@ -657,7 +657,9 @@ Report package verification: focused accounting tests passed 3/3; `py_compile` p
 
 Status: FROZEN_BEFORE_ECONOMIC_REPLAY. No E0040 economics have run yet.
 
-Protocol: [E0040 frozen protocol](configs/research/btc_e0039_settlement_1_5_15s_20261028.json), SHA-256 `e0a91ce2bd7d3ac8091e77653b5bfbc881c3b4e45775bf39434980f3f90eb71a`. It records D0020 and T0011, the exact E0039 run identity `508858c48b11b9252e4ec3aa0e7814579f2fe770ef8840e32fd86dca6c6bd8d0`, source v7 protocol, saved prediction/calibration files, 5,604-ID whitelist, Gamma and T-60/T-59 inputs, E0039 economic output hashes, and the prior report/account CSV. E0039's 60/300/1800/7200-second protocol and results remain unchanged.
+Protocol: [E0040 frozen protocol](configs/research/btc_e0039_settlement_1_5_15s_20261028.json), SHA-256 `2f069cac9f58997860ed956c1b41850abc740c2c52e17d28688a5599292649ce`. It records D0020 and T0011, the exact E0039 run identity `508858c48b11b9252e4ec3aa0e7814579f2fe770ef8840e32fd86dca6c6bd8d0`, source v7 protocol, saved prediction/calibration files, 5,604-ID whitelist, Gamma and T-60/T-59 inputs, E0039 economic output hashes, and the prior report/account CSV. E0039's 60/300/1800/7200-second protocol and results remain unchanged.
+
+Pre-replay provenance check: the first hash audit found a mistyped F2 `outer_calibrated.parquet` hash in the draft protocol. It was corrected to the on-disk SHA-256; a read-only comparison then matched saved fold probabilities, calibration statuses, and calibrator identities against E0039's combined predictions (22,416 rows, 5,604 raw/5,148 calibrated per model). No economic replay ran before this correction.
 
 Scope: replay existing calibrated predictions for all 5,148 common markets per model with 24 continuous $100 portfolios: A/B/C/D × fixed $5 / 5% of free cash × `[1, 5, 15]` seconds. The 456 F1/April `minimum_not_met` markets remain uncovered economically. Payout availability stays `max(market_start_utc + 5 minutes, resolved_at_utc) + delay_seconds`, and delays are simulation assumptions rather than measured Polymarket timing. No feature, prediction, state, calibration, or market-evaluation timestamps are shifted.
 
