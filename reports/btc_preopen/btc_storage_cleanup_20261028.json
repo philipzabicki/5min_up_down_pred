@@ -1,0 +1,166 @@
+{
+  "task_id": "T0013",
+  "date": "2026-10-28",
+  "volume": "D:",
+  "units": "bytes; GiB uses 1024^3 bytes",
+  "initial_free_bytes": 82075066368,
+  "free_before_first_operation_bytes": 213191921664,
+  "free_after_first_operation_bytes": 224289546240,
+  "free_before_second_operation_bytes": 223829098496,
+  "free_after_second_operation_bytes": 226158821376,
+  "current_free_bytes_last_measured": 226158686208,
+  "operation_measured_gain_bytes": 13427347456,
+  "operation_measured_gain_gib": 12.505192,
+  "unattributed_free_space_increase_before_first_operation_bytes": 131116855296,
+  "unattributed_free_space_increase_before_first_operation_gib": 122.112087,
+  "free_space_change_between_operations_bytes": -460447744,
+  "free_space_change_between_operations_gib": -0.428825,
+  "external_change_source": "Not identified; excluded from the cleanup recovery total.",
+  "operations": [
+    {
+      "action": "delete",
+      "paths": [
+        "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F1_20260415_20260501/20914cfbc01dd0b3/selection_pipeline/441e9566cadfbf70/stages/causal_candidate_feature_join_ec93eb01fd79/feature_dataset_with_causal_candidates.parquet",
+        "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F2_20260501_20260601/d1ec3319b9294e29/selection_pipeline/4cc33bc2eb314027/stages/causal_candidate_feature_join_439298c0ce05/feature_dataset_with_causal_candidates.parquet"
+      ],
+      "role": "Completed E0039 development-only causal candidate feature-join caches.",
+      "dependency_evidence": [
+        {
+          "fold": "F1_20260415_20260501",
+          "fold_status": "chronological_fit_completed",
+          "last_opened_utc": "2026-04-30T23:59:00+00:00",
+          "rows": 3098307,
+          "columns": 662,
+          "retained_flow_prefix": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260415_20260501.parquet",
+          "retained_flow_prefix_sha256": "6a87502df85eff99f62686677d5b4b92ca97a70a21a1f021d23091d833480c52"
+        },
+        {
+          "fold": "F2_20260501_20260601",
+          "fold_status": "chronological_fit_completed",
+          "last_opened_utc": "2026-05-31T23:59:00+00:00",
+          "rows": 3142947,
+          "columns": 662,
+          "retained_flow_prefix": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260501_20260601.parquet",
+          "retained_flow_prefix_sha256": "9fb8e6a2a6519e3283b87f8c5c98ae328f5bab1c68f004ad077e4905df99b3fc"
+        }
+      ],
+      "file_records": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F1_20260415_20260501/20914cfbc01dd0b3/selection_pipeline/441e9566cadfbf70/stages/causal_candidate_feature_join_ec93eb01fd79/feature_dataset_with_causal_candidates.parquet",
+          "size_bytes": 5541884234,
+          "sha256": "903f6425188dcb4104b5afe8e87f3659f058215711d72f8f0c22159b3fb8b1ba",
+          "ntfs_hardlink_count": 1,
+          "hash_seconds": 4.64
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/F2_20260501_20260601/d1ec3319b9294e29/selection_pipeline/4cc33bc2eb314027/stages/causal_candidate_feature_join_439298c0ce05/feature_dataset_with_causal_candidates.parquet",
+          "size_bytes": 5555736541,
+          "sha256": "7baa06b0366ac19c96bcfcbd2906157e5bbedffef88968a5cc6119a1ae478653",
+          "ntfs_hardlink_count": 1,
+          "hash_seconds": 4.633
+        }
+      ],
+      "operation_measured_gain_bytes": 11097624576,
+      "operation_measured_gain_gib": 10.335468,
+      "elapsed_seconds_delete": 1.023,
+      "recovery_command": "python run_btc_chronology_reconstruction_20261027.py",
+      "recovery_notes": "The E0039 stage runner validates its output records and rebuilds a missing causal_candidate_feature_join artifact from the retained base fold dataset, flow prefix, and frozen implementation.",
+      "logical_file_size_sum_bytes": 11097620775,
+      "measured_gain_minus_logical_size_bytes": 3801
+    },
+    {
+      "action": "delete",
+      "path": "data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/calibration_seed/9ca4755fd7b45c9f/stages/final_feature_dataset_4527ce62c44f/dataset/.BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.28244.tmp.parquet",
+      "role": "Orphaned incomplete temporary output from a completed historical feature-dataset stage.",
+      "size_bytes": 2329720393,
+      "sha256": "b869fb5bf606fa354aeba35a9901bf7703e73d3a6b51c80214809fd7919d8d8d",
+      "ntfs_hardlink_count": 1,
+      "hash_seconds": 1.97,
+      "temporary_parquet_footer": "invalid; PyArrow reported missing Parquet magic bytes in the footer",
+      "stage_metadata_path": "data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/calibration_seed/9ca4755fd7b45c9f/stages/final_feature_dataset_4527ce62c44f/feature_dataset_stage.json",
+      "stage_metadata_output_path": "data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/calibration_seed/9ca4755fd7b45c9f/stages/final_feature_dataset_4527ce62c44f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+      "retained_valid_output_bytes": 4757016837,
+      "retained_valid_output_rows": 3327267,
+      "operation_measured_gain_bytes": 2329722880,
+      "operation_measured_gain_gib": 2.169724,
+      "elapsed_seconds_delete": 0.102,
+      "recovery_required": false,
+      "recovery_notes": "The incomplete temp file had no checkpoint role or metadata reference; the completed target and its metadata remain in place.",
+      "logical_file_size_sum_bytes": 2329720393,
+      "measured_gain_minus_logical_size_bytes": 2487
+    }
+  ],
+  "archives_created": [],
+  "conversions_created": [],
+  "protected_items_untouched": [
+    "E0041 run 189049366841f6d025e3d9b080bb69dd0e441bb5638e451708f27c0635754c44 inputs and checkpoints",
+    "holdout payload and mixed-scope files",
+    "E0039/E0040 predictions, decisions, calibration, ledgers, manifests and reports",
+    "T0046/T0048 processes and outputs"
+  ],
+  "remaining_candidate_groups": [
+    {
+      "path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027",
+      "reason_left": "F3 artifacts approach the holdout boundary; mixed-scope payload was not inspected or changed. F1/F2 final feature datasets remain for direct checkpoint reuse."
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_esn_expansion_20261021",
+      "reason_left": "Large trial-state arrays remain valuable historical experiment artifacts; no per-file dependency audit was completed."
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/btc_esn_focused_20261022",
+      "reason_left": "Large trial-state arrays remain valuable historical experiment artifacts; no per-file dependency audit was completed."
+    },
+    {
+      "path": "data/analysis/polymarket/BTC/preopen_research_20261011_full_compute20_retry",
+      "reason_left": "Contains historical retry and evaluated-holdout materials; payload was not qualified for removal."
+    }
+  ],
+  "validation": {
+    "source_hashes_checked_before_removal": true,
+    "ntfs_hardlink_counts_checked": true,
+    "post_delete_paths_absent": true,
+    "retained_dataset_footer_verified": true,
+    "current_d_runner_process_running": false,
+    "e0041_evaluation_authorized": false,
+    "holdout_rows_read": 0,
+    "holdout_rows_materialized": 0,
+    "holdout_predictions_generated": 0,
+    "git_diff_check": "passed (documentation-only diff; git diff --check)"
+  },
+  "e0041_resume": {
+    "command": "python run_btc_D_holdout_preparation_20261028.py",
+    "resource_gate": "passed",
+    "gate_checked_utc": "2026-10-28T21:52:21.573543+00:00",
+    "gate_free_disk_gib": 208.89,
+    "gate_available_ram_gib": 47.77,
+    "gate_gpu_free_mib": 6350,
+    "run_identity_sha256": "189049366841f6d025e3d9b080bb69dd0e441bb5638e451708f27c0635754c44",
+    "attempt_elapsed_seconds": 265.4357266,
+    "cumulative_elapsed_seconds": 13779.1464376,
+    "calibration_oof_rows": 78622,
+    "official_platt_status": "fitted",
+    "official_platt_rows": 21951,
+    "official_platt_as_of_utc": "2026-06-30T23:59:00+00:00",
+    "official_platt_latest_label_release_utc": "2026-06-30T23:56:22+00:00",
+    "final_d_member_count": 9,
+    "final_d_feature_count_per_member": 86,
+    "final_d_training_rows_per_member": 3186139,
+    "model_hashes_verified_against_sidecars": true,
+    "bundle_manifest_created": false,
+    "status": "interrupted_or_failed_with_checkpoints",
+    "failure": {
+      "type": "KeyError",
+      "detail": "'rows'",
+      "file": "run_btc_D_holdout_preparation_20261028.py",
+      "line": 1291,
+      "cause": "fit_official_platt returned training_rows; bundle packaging expected rows and required"
+    },
+    "evaluation_authorized": false,
+    "holdout_rows_read": 0,
+    "holdout_rows_materialized": 0,
+    "holdout_predictions_generated": 0
+  },
+  "aggregate_logical_file_size_bytes": 13427341168,
+  "measured_gain_minus_logical_file_size_bytes": 6288
+}

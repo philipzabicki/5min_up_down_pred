@@ -145,3 +145,11 @@ Odczyt o 2026-10-28T21:05:17Z wykazal spadek do 76,442 GiB wolnego na D: oraz ak
 Odczyt o 2026-10-28T21:06:47Z nadal wykazywal 76,442 GiB wolnego, a PID 27580 mial 24,435 GiB working set. Nie uruchomiono runnera, bo oba progi resource gate pozostawaly niespelnione.
 
 Odczyt o 2026-10-28T21:11:54Z wyniosl 76,441 GiB wolnego. Pozostale procesy Python mialy po 0,012 GiB working set, ale do niezmienionego progu dyskowego brakowalo 3,559 GiB; runnera nie uruchomiono.
+
+## Resume after storage cleanup: packaging error
+
+The exact command `python run_btc_D_holdout_preparation_20261028.py` passed the unchanged gate at 2026-10-28T21:52:21.573543Z. The gate reported 208.89 GiB free disk, 47.77 GiB available RAM, and 6,350 MiB free GPU memory. T0046/T0048 were not stopped or modified.
+
+The run wrote 78,622 development calibration OOF rows, fitted official Platt calibration on 21,951 labels available by 2026-06-30T23:59:00Z, and created nine final D models. Each model has 86 features and 3,186,139 training rows; all nine file hashes match their sidecars. Calibration's last released label is 2026-06-30T23:56:22Z. The OOF file has SHA-256 `d89eb76d08182d29c00849dd8d8e6017fe487b739db8ac520bb9b5a733148ea9`.
+
+Packaging raised `KeyError: 'rows'` at line 1291. `fit_official_platt` returned `training_rows`, but packaging reads `rows` and `required`. Consequently no `bundle_manifest.json` was created; `preparation_manifest.json` remains `interrupted_or_failed_with_checkpoints`. The frozen runner was not retried. This packaging mismatch requires a separately versioned, hash-verified resolution before another run. `evaluation_authorized=false`; holdout rows read, materialized, and predicted remain zero. No holdout payload or evaluation was used.
