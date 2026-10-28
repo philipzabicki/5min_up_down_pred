@@ -1,0 +1,321 @@
+{
+  "calibration_minimum_rows": 1000,
+  "calibration_rows": 21951,
+  "calibrator_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/official_platt_D.json",
+  "calibrator_sha256": "235c65219dbff34f166530f7f4bcf54e8fafc8ba96ab39619cc317092abdb620",
+  "code_hashes": {
+    "bundle_helper_sha256": "5a4951a5f58f3d9d61d7afe490c0e457d86d930052b74a0438ebf6a0419b1977",
+    "evaluation_runner_sha256": "79d2f1d34d882e490d6d3a844c2dc75bf116775a1a39e24514d00fe78ee1c5c0",
+    "finalization_test_sha256": "c34d7d24a84d69871aaec7ea3692198122bb2ff01e6b2eb3e906d889540488b6",
+    "finalizer_sha256": "7a7f7c65c7d2e33464c71659731ed2bac4558c2312cd6efb0e7f68b80676e28b",
+    "frozen_preparation_test_sha256": "250d0228673d3a7e304a97849d19ecbec2893b0357516846ee1dbf2eecc6a5dd",
+    "historical_preparation_runner_sha256": "a89d67d2b802572003e28167ebbb6cc2b95793498d1dac593b7bcdb1d4a93181",
+    "packaging_preparation_runner_sha256": "99320856833c9c6a5f4199641a8277a19833663606184d620ee0deef1a46fcc6"
+  },
+  "created_date": "2026-10-28",
+  "development_feature_dataset_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/causal_candidate_feature_join_363c9eabd469/feature_dataset_with_causal_candidates.parquet",
+  "development_feature_dataset_sha256": "e61f2ed082d7ea20dccacaa4b3059ccb4ada94b9c02f893b9198613da47a31b3",
+  "development_feature_rows": 3186145,
+  "dynamic_features_checkpoint_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/dynamic_features.checkpoint.json",
+  "dynamic_features_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/dynamic_features.parquet",
+  "dynamic_features_sha256": "4431cc85fe80f640a9a39316b278066292ceb0c3f8b6959cb05a90e9883cc43a",
+  "esn_transform_sha256": "276f3793ffd7e78699b5aaa722e02b894cc3e5a76454c2c08a94f7d3272d5e4f",
+  "experiment_id": "E0041",
+  "flow_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260601_20260701.parquet",
+  "flow_prefix_sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe",
+  "historical_preparation_runner_sha256": "a89d67d2b802572003e28167ebbb6cc2b95793498d1dac593b7bcdb1d4a93181",
+  "last_development_market_start_utc": "2026-06-30T23:59:00+00:00",
+  "latest_training_label_available_at_utc": "2026-06-30T23:58:00+00:00",
+  "lightgbm_seeds": [
+    20261101,
+    20261102,
+    20261103
+  ],
+  "memory_transform_sha256": "041c11c5ea99121f4395ddcef68e758ae0801dbbc3263180239606a3ee84b7c0",
+  "model_members": [
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261101.json",
+      "metadata_sha256": "7bd1d30ae299d416b897581db3e064e9db6f1043d5be7a7ebffd07693dfe4219",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261101.txt",
+      "model_sha256": "79e8aead6929c030e37b108529ed0133a7d99b9246ba4497aa0f057a9d580c4a"
+    },
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261102.json",
+      "metadata_sha256": "89a9d3b3d3039749f8696f2068f5043771e2e2055551af1cfa322b402e32adf3",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261102.txt",
+      "model_sha256": "945564a011969eb4b8cebf5ae9874dea6786b9438415fb8f5a8487d5d18688e0"
+    },
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261103.json",
+      "metadata_sha256": "d4f6a0d5046ad8f04899a3bfb6f995a4993cb7a36b1a67be9c31fd23d1bca06f",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261103.txt",
+      "model_sha256": "2623a3d767f3354b754a7962f38a11222378057e0998b4ff60e299ab11026ef8"
+    },
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261101.json",
+      "metadata_sha256": "35eee979944e18948a6931d68d90bfa12e20c66771e00616fee172fdb447f7c0",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261101.txt",
+      "model_sha256": "fb9bf8ffda06405ab06a2beb9ac5c9fb3a43c1c4ddb4a1d305c33047738fb4ff"
+    },
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261102.json",
+      "metadata_sha256": "e544ae7fc0892389331b178213d61aa8f2b73ffbcdeabc468b108b0f30ce432d",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261102.txt",
+      "model_sha256": "1fce3a42d9d31ea93bc1e558de77f2ea0f117d0c418498fde0b4b82300b4fad5"
+    },
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261103.json",
+      "metadata_sha256": "cec9d33bb5c85c0f6cd5c3b5269952fea67bceb7a6a16417d0268be2f15e208f",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261103.txt",
+      "model_sha256": "a2f2566b6b747eac9fc8ffb58c7ea16595b50ec4e4d7aa7484039397c37ecfc1"
+    },
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261101.json",
+      "metadata_sha256": "28d0cd9c2f0eeebadbd0cdcf48dcb15ac53656801db9803383f7b2f2f8c56c3e",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261101.txt",
+      "model_sha256": "2dbafdd11beebe6f81d72e66ba3ace5486abc11f3f11d0e41047804e0aa13f00"
+    },
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261102.json",
+      "metadata_sha256": "81823b24dfc3f95884c83f9868f417d1f5f66de1f38130a7a548f9cac7fa8912",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261102.txt",
+      "model_sha256": "10c286bcb7e50ffda70a467759cf2d27714878833a93718e85d80d84ff01a50d"
+    },
+    {
+      "metadata_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261103.json",
+      "metadata_sha256": "643d7bbfdff30eac62fa87e19764cf396a48b9a2bf9d08fed38d7f4fab8d0d00",
+      "model_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261103.txt",
+      "model_sha256": "4387d4a31d52c858d9ab3f7c31b719f3aba885b5a044325b6f5e0c104f1103bf"
+    }
+  ],
+  "oof_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/calibration_oof_D/predictions.parquet",
+  "oof_rows": 78622,
+  "oof_sha256": "d89eb76d08182d29c00849dd8d8e6017fe487b739db8ac520bb9b5a733148ea9",
+  "output_paths": {
+    "bundle_manifest": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/bundle_manifest.json",
+    "bundle_pointer": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/final_D_bundle_manifest.json",
+    "finalization_result": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/finalization_result.json"
+  },
+  "parent_protocol": {
+    "path": "configs/research/btc_chronology_reconstruction_20261027_v7.json",
+    "sha256": "9c6aca98034ca010cda16e326053ce83e2c78dbab0120445be8ec1180392baf6"
+  },
+  "parity": {
+    "market_start_boundary_utc": "2026-07-01T00:00:00Z",
+    "sample_opened_end_exclusive_utc": "2026-06-30T23:58:00Z",
+    "sample_opened_start_utc": "2026-06-30T00:00:00Z",
+    "sample_rows": 64,
+    "tolerance_absolute": 2e-12
+  },
+  "preparation_protocol_path": "configs/research/btc_D_holdout_preparation_20261028_v2.json",
+  "preparation_protocol_sha256": "1b289c7a24456171bf234dfa578ecc608bb9e68529b446972b3f9eb8b7414a1d",
+  "protocol_version": 1,
+  "raw_prefix_sha256": "76e0154b23126a11c78f6105004b931fa2e2ea5dc12066e49346fc478ddfcc64",
+  "reservoir_seeds": [
+    20261023,
+    20261024,
+    20261025
+  ],
+  "resource_checks": {
+    "minimum_available_ram_bytes": 2147483648,
+    "minimum_free_output_disk_bytes": 67108864
+  },
+  "safe_raw_prefix_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/development_prefix/raw_before_holdout.csv",
+  "safe_raw_prefix_sha256": "25481546299f72c159ffe0c0b4f7e6c2c94b914b52973f9a49a29eb13427829a",
+  "scope": "read-only verification and packaging of the existing v2 development D artifacts; no training, refit, calibration fit, holdout access, or evaluation",
+  "selection_pipeline_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/run_manifest.json",
+  "selection_result_identity_sha256": "47c84c3ff91f45f938d4cd1789697eb1e1b0c091b0ea764161cfeb6102fa0feb",
+  "selection_result_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_result.json",
+  "source_preparation_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/preparation_manifest.json",
+  "source_preparation_manifest_sha256": "ec7f2ee0787b959d7fd1a874caa5c116f9c50ce26893dbe7133abcb2bdaadff9",
+  "source_run_identity_sha256": "189049366841f6d025e3d9b080bb69dd0e441bb5638e451708f27c0635754c44",
+  "source_run_root": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0",
+  "training_feature_matrix_sha256_by_reservoir": {
+    "20261023": "71022277be9682b0880e76d5c768c35abbbd6d0f1a8a922add2ef50d68a50968",
+    "20261024": "19f14860ec78fbffbc26f28141d88fa819a0ef68b20935d76865faca16b78655",
+    "20261025": "6c13f8e30276b852a0a896054be5043e2b5a7a3769b1788c90af28a651b60a90"
+  },
+  "training_rows": 3186139,
+  "verified_files": [
+    {
+      "label": "safe development raw prefix",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/development_prefix/raw_before_holdout.csv",
+      "sha256": "25481546299f72c159ffe0c0b4f7e6c2c94b914b52973f9a49a29eb13427829a"
+    },
+    {
+      "label": "development flow prefix",
+      "path": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260601_20260701.parquet",
+      "sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe"
+    },
+    {
+      "label": "E0041 development selection checkpoint",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_result.json",
+      "sha256": "0fb2520b0a94210d99e34964b57dff12e235b93bd4a6490fd7dcf5dc943409c7"
+    },
+    {
+      "label": "chronological selection result",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/chronology_selection_result.json",
+      "sha256": "b4f76f92923a5947faca2b333c8c583b522dc666ae9188579504bdfa58b7701c"
+    },
+    {
+      "label": "selection pipeline run manifest",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/run_manifest.json",
+      "sha256": "8da4a61c7790f55254b39937e10b8ada8cebb942d93a9fa5ad1c1e42daf95144"
+    },
+    {
+      "label": "causal dynamic feature checkpoint",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/dynamic_features.checkpoint.json",
+      "sha256": "9f82db61e18a7d1b7ebf12bb09386f1e1d319db302497955b3aaed5efa880461"
+    },
+    {
+      "label": "causal dynamic feature artifact",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/dynamic_features.parquet",
+      "sha256": "4431cc85fe80f640a9a39316b278066292ceb0c3f8b6959cb05a90e9883cc43a"
+    },
+    {
+      "label": "selected development feature dataset",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/causal_candidate_feature_join_363c9eabd469/feature_dataset_with_causal_candidates.parquet",
+      "sha256": "e61f2ed082d7ea20dccacaa4b3059ccb4ada94b9c02f893b9198613da47a31b3"
+    },
+    {
+      "label": "D calibration OOF predictions",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/calibration_oof_D/predictions.parquet",
+      "sha256": "d89eb76d08182d29c00849dd8d8e6017fe487b739db8ac520bb9b5a733148ea9"
+    },
+    {
+      "label": "official Platt calibrator",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/official_platt_D.json",
+      "sha256": "235c65219dbff34f166530f7f4bcf54e8fafc8ba96ab39619cc317092abdb620"
+    },
+    {
+      "label": "frozen causal feature transform",
+      "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/simple_memory_projection.json",
+      "sha256": "041c11c5ea99121f4395ddcef68e758ae0801dbbc3263180239606a3ee84b7c0"
+    },
+    {
+      "label": "frozen causal feature transform",
+      "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261023.json",
+      "sha256": "80614d68ce4270df321a2ecef90eb8d1899b6f4323c62b17834e29fe43e3973c"
+    },
+    {
+      "label": "frozen causal feature transform",
+      "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261024.json",
+      "sha256": "8f067bb1cee68ac4be77fd8bf96bad371927114c8faccc79ff44a7ea0d5b3b49"
+    },
+    {
+      "label": "frozen causal feature transform",
+      "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261025.json",
+      "sha256": "2609579349fc412b6e1208e2adcb7e60acffb069eee4bea5bbf10e41d7233623"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261101.txt",
+      "sha256": "79e8aead6929c030e37b108529ed0133a7d99b9246ba4497aa0f057a9d580c4a"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261101.json",
+      "sha256": "7bd1d30ae299d416b897581db3e064e9db6f1043d5be7a7ebffd07693dfe4219"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261102.txt",
+      "sha256": "945564a011969eb4b8cebf5ae9874dea6786b9438415fb8f5a8487d5d18688e0"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261102.json",
+      "sha256": "89a9d3b3d3039749f8696f2068f5043771e2e2055551af1cfa322b402e32adf3"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261103.txt",
+      "sha256": "2623a3d767f3354b754a7962f38a11222378057e0998b4ff60e299ab11026ef8"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261023_l20261103.json",
+      "sha256": "d4f6a0d5046ad8f04899a3bfb6f995a4993cb7a36b1a67be9c31fd23d1bca06f"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261101.txt",
+      "sha256": "fb9bf8ffda06405ab06a2beb9ac5c9fb3a43c1c4ddb4a1d305c33047738fb4ff"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261101.json",
+      "sha256": "35eee979944e18948a6931d68d90bfa12e20c66771e00616fee172fdb447f7c0"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261102.txt",
+      "sha256": "1fce3a42d9d31ea93bc1e558de77f2ea0f117d0c418498fde0b4b82300b4fad5"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261102.json",
+      "sha256": "e544ae7fc0892389331b178213d61aa8f2b73ffbcdeabc468b108b0f30ce432d"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261103.txt",
+      "sha256": "a2f2566b6b747eac9fc8ffb58c7ea16595b50ec4e4d7aa7484039397c37ecfc1"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261024_l20261103.json",
+      "sha256": "cec9d33bb5c85c0f6cd5c3b5269952fea67bceb7a6a16417d0268be2f15e208f"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261101.txt",
+      "sha256": "2dbafdd11beebe6f81d72e66ba3ace5486abc11f3f11d0e41047804e0aa13f00"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261101.json",
+      "sha256": "28d0cd9c2f0eeebadbd0cdcf48dcb15ac53656801db9803383f7b2f2f8c56c3e"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261102.txt",
+      "sha256": "10c286bcb7e50ffda70a467759cf2d27714878833a93718e85d80d84ff01a50d"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261102.json",
+      "sha256": "81823b24dfc3f95884c83f9868f417d1f5f66de1f38130a7a548f9cac7fa8912"
+    },
+    {
+      "label": "final D LightGBM model",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261103.txt",
+      "sha256": "4387d4a31d52c858d9ab3f7c31b719f3aba885b5a044325b6f5e0c104f1103bf"
+    },
+    {
+      "label": "final D model sidecar",
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/models/D/D_r20261025_l20261103.json",
+      "sha256": "643d7bbfdff30eac62fa87e19764cf396a48b9a2bf9d08fed38d7f4fab8d0d00"
+    },
+    {
+      "label": "frozen E0039 implementation",
+      "path": "features/causal_memory_control.py",
+      "sha256": "a082c576e5ba8d0706e05d4a99937930558f68f453d24f48cf4481921e244c23"
+    },
+    {
+      "label": "frozen E0039 implementation",
+      "path": "features/esn_reservoir.py",
+      "sha256": "274ea86d6d628e74be71899d8327016af6eda7fc13c6a3c2e6ba533661c63ff4"
+    },
+    {
+      "label": "frozen E0039 implementation",
+      "path": "run_btc_candidate_holdout_20261022.py",
+      "sha256": "48acfa716464f40731c4be1a7cddcd6e939c34d7c79ad78a82dac0769bf45a1e"
+    },
+    {
+      "label": "frozen E0039 implementation",
+      "path": "run_btc_chronology_reconstruction_20261027.py",
+      "sha256": "2aa20c86ee8cd6e997c10cd1cbbf744fd9d251de0fed932b2d24b389eb8c8108"
+    }
+  ]
+}

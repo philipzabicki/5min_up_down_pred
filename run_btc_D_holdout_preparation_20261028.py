@@ -19,6 +19,7 @@ PROTOCOL_PATH = ROOT / "configs/research/btc_D_holdout_preparation_20261028_v2.j
 V1_PROTOCOL_PATH = ROOT / "configs/research/btc_D_holdout_preparation_20261028.json"
 PARENT_PROTOCOL_PATH = ROOT / "configs/research/btc_chronology_reconstruction_20261027_v7.json"
 OUTPUT_ROOT = ROOT / "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028"
+FINALIZATION_PROTOCOL_PATH = ROOT / "configs/research/btc_D_bundle_finalization_20261028.json"
 V1_RUN_IDENTITY = "149ca92fac1ae8c5de3f14b74c30c8a26d9d82c8c1427f3fce08f84b43f49877"
 V1_RUN_ROOT = OUTPUT_ROOT / "runs" / V1_RUN_IDENTITY[:16]
 HOLDOUT_START_UTC = "2026-07-01T00:00:00Z"
@@ -684,17 +685,33 @@ def _finish_execution_attempt(manifest: dict, attempt: dict, started: float, sta
 
 
 def _verify_frozen_code_hashes(protocol: dict) -> dict:
+    from utils.btc_d_bundle import verify_file_hash
+
+    if not FINALIZATION_PROTOCOL_PATH.is_file():
+        raise RuntimeError("Versioned E0041 packaging protocol is missing")
+    packaging = json.loads(FINALIZATION_PROTOCOL_PATH.read_text(encoding="utf-8"))
+    if packaging.get("preparation_protocol_sha256") != sha256_file(PROTOCOL_PATH):
+        raise RuntimeError("Packaging revision points to a different E0041 v2 protocol")
+    if packaging.get("historical_preparation_runner_sha256") != protocol["outputs"]["preparation_runner_sha256"]:
+        raise RuntimeError("Historical E0041 runner identity differs from its preparation protocol")
+
     paths = {
         "preparation_runner_sha256": Path(__file__),
         "evaluation_runner_sha256": ROOT / "run_btc_D_holdout_evaluation_20261028.py",
         "focused_test_sha256": ROOT / "tests/test_btc_D_holdout_preparation_20261028.py",
+        "finalization_test_sha256": ROOT / "tests/test_btc_D_bundle_finalization_20261028.py",
+        "bundle_helper_sha256": ROOT / "utils/btc_d_bundle.py",
+    }
+    expected_hashes = {
+        "preparation_runner_sha256": packaging["code_hashes"]["packaging_preparation_runner_sha256"],
+        "evaluation_runner_sha256": protocol["outputs"]["evaluation_runner_sha256"],
+        "focused_test_sha256": protocol["outputs"]["focused_test_sha256"],
+        "finalization_test_sha256": packaging["code_hashes"]["finalization_test_sha256"],
+        "bundle_helper_sha256": packaging["code_hashes"]["bundle_helper_sha256"],
     }
     verified = {}
     for key, path in paths.items():
-        expected = protocol["outputs"].get(key)
-        actual = sha256_file(path)
-        if not expected or actual != expected:
-            raise RuntimeError(f"Frozen E0041 code hash differs: {path.relative_to(ROOT).as_posix()}")
+        actual = verify_file_hash(path, expected_hashes[key], path.relative_to(ROOT).as_posix())
         verified[path.relative_to(ROOT).as_posix()] = actual
     return verified
 
@@ -1263,13 +1280,20 @@ def run() -> dict:
                 "path": sidecar.resolve().relative_to(ROOT).as_posix(),
                 "sha256": sha256_file(sidecar),
             })
+        from utils.btc_d_bundle import calibration_manifest_fields, bundle_status_from_calibration
+
+        calibration_metadata = calibration_manifest_fields(
+            calibrator,
+            calibration_status,
+            int(protocol["calibration"]["minimum_rows"]),
+        )
         bundle_manifest = {
             "schema_version": 1,
             "experiment_id": "E0041",
             "run_identity_sha256": run_identity,
             "preparation_protocol_sha256": sha256_file(PROTOCOL_PATH),
             "preparation_runner_sha256": sha256_file(Path(__file__)),
-            "status": "D_BUNDLE_READY" if calibrator is not None else "D_BUNDLE_BLOCKED_CALIBRATION_MISSING",
+            "status": bundle_status_from_calibration(calibration_metadata),
             "procedure": "D = BASE70 + memory PCA8 + ESN PCA8",
             "selection_cutoff_exclusive_utc": SELECTION_CUTOFF_UTC,
             "fit_cutoff_exclusive_utc": FIT_CUTOFF_UTC,
@@ -1284,13 +1308,26 @@ def run() -> dict:
             "lightgbm_seeds": [20261101, 20261102, 20261103],
             "reservoir_seeds": [20261023, 20261024, 20261025],
             "ensemble_identity_sha256": final_model["ensemble_identity_sha256"],
+            "lineage": {
+                "training": {
+                    "preparation_protocol_sha256": sha256_file(PROTOCOL_PATH),
+                    "preparation_runner_sha256": sha256_file(Path(__file__)),
+                    "run_identity_sha256": run_identity,
+                },
+                "packaging": {
+                    "finalization_protocol_path": FINALIZATION_PROTOCOL_PATH.relative_to(ROOT).as_posix(),
+                    "finalization_protocol_sha256": sha256_file(FINALIZATION_PROTOCOL_PATH),
+                    "preparation_runner_sha256": sha256_file(Path(__file__)),
+                    "method": "verification and packaging only",
+                },
+            },
             "member_files": model_files,
             "member_metadata_files": member_metadata_files,
             "calibration": {
-                "status": calibration_status["status"],
-                "rows": calibration_status["rows"],
-                "required_rows": calibration_status["required"],
-                "calibrator": calibrator,
+                "status": calibration_metadata["status"],
+                "rows": calibration_metadata["rows"],
+                "required_rows": calibration_metadata["required_rows"],
+                "calibrator": calibration_metadata["calibrator"],
                 "calibrator_path": calibration_path.resolve().relative_to(ROOT).as_posix() if calibrator else None,
                 "calibrator_sha256": sha256_file(calibration_path) if calibrator else None,
                 "history_path": oof_path.resolve().relative_to(ROOT).as_posix(),
