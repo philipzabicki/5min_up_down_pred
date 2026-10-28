@@ -68,3 +68,5 @@ Ostatnia kontrola 2026-10-28T21:02:38Z: D: mialo 82,265 GiB wolnego, a PID 30900
 Pomiar 2026-10-28T21:05:17Z wykazal 76,442 GiB wolnego i aktywny PID 55988 z working set 9,761 GiB; oba warunki resource gate pozostaja niespelnione.
 
 Odczyt 2026-10-28T21:06:47Z nadal wykazywal 76,442 GiB wolnego, a PID 27580 mial working set 24,435 GiB.
+
+Ostatni pomiar 2026-10-28T21:11:54Z: 76,441 GiB wolnego; pozostale PID 44316 i 45856 mialy po 0,012 GiB working set. Brakowalo 3,559 GiB do progu dyskowego 80 GiB, wiec nie uruchomiono runnera.

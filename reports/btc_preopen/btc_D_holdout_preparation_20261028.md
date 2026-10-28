@@ -143,3 +143,5 @@ Kontrola zasobow o 2026-10-28T21:02:38Z wykazala 82,265 GiB wolnego na D: oraz 1
 Odczyt o 2026-10-28T21:05:17Z wykazal spadek do 76,442 GiB wolnego na D: oraz aktywny PID 55988 z working set 9,761 GiB. Oba limity gate (80 GiB dysku i 1 GiB na Python workload) pozostaja niespelnione; runnera nie uruchomiono.
 
 Odczyt o 2026-10-28T21:06:47Z nadal wykazywal 76,442 GiB wolnego, a PID 27580 mial 24,435 GiB working set. Nie uruchomiono runnera, bo oba progi resource gate pozostawaly niespelnione.
+
+Odczyt o 2026-10-28T21:11:54Z wyniosl 76,441 GiB wolnego. Pozostale procesy Python mialy po 0,012 GiB working set, ale do niezmienionego progu dyskowego brakowalo 3,559 GiB; runnera nie uruchomiono.
