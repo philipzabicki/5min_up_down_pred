@@ -1,0 +1,228 @@
+{
+  "schema_version": 1,
+  "experiment_id": "E0041",
+  "task_id": "T0012",
+  "decision_id": "D0021",
+  "name": "btc_D_fixed_holdout_preparation_20261028",
+  "status": "FROZEN_BEFORE_FIT",
+  "created_date": "2026-10-28",
+  "scope": {
+    "development_market_starts": "[2025-07-01T00:00:00Z,2026-07-01T00:00:00Z)",
+    "holdout_market_starts": "[2026-07-01T00:00:00Z,2026-10-07T00:00:00Z)",
+    "holdout_first_decision_utc": "2026-06-30T23:59:00Z",
+    "holdout_rows_authorized_now": 0,
+    "holdout_predictions_authorized_now": false,
+    "holdout_economics_authorized_now": false,
+    "live_shadow_orders_authorized": false,
+    "historical_exposure": "The holdout period was previously inspected, and the A/B/C/D family was selected and exposed historically. This is one future fixed-pipeline economic evaluation, not a virgin or fully independent test."
+  },
+  "parent_e0039": {
+    "protocol_path": "configs/research/btc_chronology_reconstruction_20261027_v7.json",
+    "protocol_sha256": "9c6aca98034ca010cda16e326053ce83e2c78dbab0120445be8ec1180392baf6",
+    "run_identity_sha256": "508858c48b11b9252e4ec3aa0e7814579f2fe770ef8840e32fd86dca6c6bd8d0",
+    "run_manifest_path": "data/analysis/polymarket/BTC/btc_chronology_reconstruction_20261027/runs/508858c48b11b925/run_manifest.json"
+  },
+  "development_inputs": {
+    "raw_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/raw_prefixes/fold_20260601_20260701.csv",
+    "raw_prefix_sha256": "76e0154b23126a11c78f6105004b931fa2e2ea5dc12066e49346fc478ddfcc64",
+    "flow_prefix_path": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260601_20260701.parquet",
+    "flow_prefix_sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe",
+    "raw_last_opened_utc": "2026-06-30T23:59:00Z",
+    "safe_raw_prefix_opened_end_exclusive_utc": "2026-06-30T23:58:00Z",
+    "safe_raw_prefix_reader": "The F3 CSV is ordered by Opened and opened unbuffered to prevent protected-byte prefetch. Read/copy complete rows only while Opened < 2026-06-30T23:58:00Z; for the first excluded row, inspect only its leading Opened timestamp field through the comma, then stop before reading OHLCV. This avoids materializing the first holdout-market feature row (Opened=23:58, market_start=00:00).",
+    "flow_last_opened_utc": "2026-06-30T23:53:00Z",
+    "market_index_path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+    "market_index_read_interval": "[2025-07-01T00:00:00Z,2026-07-01T00:00:00Z)",
+    "target": "Close[Opened+6m] >= Open[Opened+2m]; ties UP; label available at Opened+7m",
+    "training_label_rule": "Opened < fit_cutoff_exclusive_utc AND label_available_at < fit_cutoff_exclusive_utc"
+  },
+  "selection": {
+    "selection_cutoff_exclusive_utc": "2025-10-01T00:00:00Z",
+    "procedure": "Reuse the constrained E0039 v7 pipeline once. Generator parameters, target weights, selected 64 BASE features, model parameters, and boosting iterations are selected using only labels available strictly before this cutoff, with the same internal chronological CV and the existing 16 target-weight candidates, 60 feature-selection evaluations, and 60 model trials. No F1/F2/F3 feature list is chosen by its economic result.",
+    "base_features": 64,
+    "flow_features": [
+      "taker_Z_1m",
+      "taker_V_1m",
+      "taker_Z_5m",
+      "taker_V_5m",
+      "taker_Z_15m",
+      "taker_V_15m"
+    ],
+    "model_feature_order": "ordered selected BASE64 followed by the six E0039 causal Z/V flow columns",
+    "frozen_transforms": {
+      "simple_memory": "PCA8; reuse only the exact E0039-verified transform",
+      "esn": "PCA8; reuse the exact three verified reservoir transforms and causal gap resets"
+    }
+  },
+  "final_model": {
+    "procedure": "D = BASE70 + simple-memory PCA8 + ESN PCA8",
+    "fit_cutoff_exclusive_utc": "2026-06-30T23:59:00Z",
+    "fit_labels": "all eligible development labels whose availability is strictly earlier than the exclusive fit cutoff",
+    "lightgbm_seeds": [
+      20261101,
+      20261102,
+      20261103
+    ],
+    "reservoir_seeds": [
+      20261023,
+      20261024,
+      20261025
+    ],
+    "member_count": 9,
+    "ensemble": "uniform mean across all 9 members",
+    "holdout_policy": "one fixed bundle for the complete holdout; no retraining, tuning, or calibration update inside it",
+    "prediction_generation_now": "No holdout predictions. Final-model save/load parity is checked only on development rows and those values are discarded without metrics."
+  },
+  "calibration": {
+    "method": "Platt logistic regression on the raw D ensemble logit",
+    "prediction_provenance": "one inner D ensemble fitted at the 2025-10-01 selection cutoff and predicting the development interval [2025-10-01,2026-07-01); its training labels are strictly earlier than the selection cutoff",
+    "outcome_source": "official Gamma only; never the Binance proxy",
+    "official_label_release_at": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds",
+    "final_fit_as_of_utc": "2026-06-30T23:59:00Z; release timestamps through this decision instant follow E0039 v7 event ordering",
+    "minimum_rows": 1000,
+    "requires_both_classes": true,
+    "fallback": "none; record the exact unavailable reason and do not create economic predictions",
+    "holdout_updates": "none; fit once on eligible development OOF rows and freeze for the full holdout",
+    "difference_from_e0039": "E0039 made daily expanding Platt fits using earlier OOF/external histories. E0041 fits one terminal Platt model once, using only eligible official outcomes released by the first holdout decision, then keeps it fixed throughout the holdout."
+  },
+  "economics": {
+    "model": "D only",
+    "accounts": 6,
+    "controls": {
+      "fixed_5_usd": {
+        "initial_cash_usd": 100.0,
+        "gross_stake_usd": 5.0
+      },
+      "free_cash_5pct": {
+        "initial_cash_usd": 100.0,
+        "fraction_of_free_cash_at_t60": 0.05,
+        "minimum_usd": 5.0,
+        "round_up": false
+      }
+    },
+    "payout_delays_seconds": [
+      1,
+      5,
+      15
+    ],
+    "decision": "T-60: release payouts available by the decision instant; choose the side with maximum strictly positive net EV, ties UP; freeze side and size",
+    "execution": "T-59 native asks; full fill; release payouts available by T-59 immediately before testing the already-fixed debit",
+    "fees_minimum_and_fill": "E0040 fee, share, rounding and native full-fill code; D0019 verified-USDC minimum with the frozen $5 fallback; no upward rounding, credit, or deposits",
+    "position_exit": "hold through official Gamma resolution; payout available at max(market_start+5m,resolved_at)+delay_seconds",
+    "cash_path": "one continuous account across the entire half-open holdout; no monthly or settlement-regime resets; terminally release final positions after the window without allowing post-window entries",
+    "diagnostic": "independent fixed-$5 trades only; not an account result",
+    "positive_result": "terminal equity in the fixed-$5 account is strictly above $100 in all three delays; report every delay and every control without selecting a best delay",
+    "coverage": "a partial sample is conditional and remains PARTIAL/INCONCLUSIVE; missing markets are not zero PnL and are not no_trade"
+  },
+  "settlement_rule_calendar": [
+    {
+      "start_utc": "2026-07-01T00:00:00Z",
+      "end_exclusive_utc": "2026-08-07T00:00:00Z",
+      "documented_rule": "single price"
+    },
+    {
+      "start_utc": "2026-08-07T00:00:00Z",
+      "end_exclusive_utc": "2026-08-14T00:00:00Z",
+      "documented_rule": "TWAP30"
+    },
+    {
+      "start_utc": "2026-08-14T00:00:00Z",
+      "end_exclusive_utc": "2026-10-07T00:00:00Z",
+      "documented_rule": "TWAP60"
+    }
+  ],
+  "source_qualification": {
+    "rule_source": "same E0038 symmetric source-quality rule, frozen before any new holdout result",
+    "requirements": [
+      "both native sides and both cutoff reasons are ask_valid_within_source_coverage",
+      "native token mapping and reconciled comparable ask BBO at T-60 and T-59",
+      "no ask-order ambiguity, crossed book, or event received/sourced after the cutoff",
+      "known fees and entry-hour plus 30-second freshness coverage at both cutoffs",
+      "no missing archive hour after book/fee initialization through either cutoff"
+    ],
+    "content_validation": "deferred to a separately authorized evaluation; no source content is validated during preparation"
+  },
+  "budgets": {
+    "maximum_wall_seconds": 76500,
+    "selection_chain_seconds": 52200,
+    "selection_stages_seconds": {
+      "indicators": 21600,
+      "reaction_profile": 7200,
+      "volume_profile": 2700,
+      "target_weights": 10800,
+      "feature_selection": 2400,
+      "model_search": 7500
+    },
+    "inner_oof_and_calibration_seconds": 7200,
+    "dynamic_features_final_fit_and_verification_seconds": 17100,
+    "shared_across_all_9_D_members": true,
+    "threads": 20,
+    "workers": 1,
+    "backend": "gpu",
+    "resource_gate": {
+      "minimum_free_ram_gib": 20,
+      "minimum_free_workspace_disk_gib": 80,
+      "block_if_other_python_working_set_gib_at_least": 1.0,
+      "stop_other_workloads": false
+    }
+  },
+  "evaluation": {
+    "evaluation_authorized": false,
+    "runner_path": "run_btc_D_holdout_evaluation_20261028.py",
+    "evaluation_input_path": "data/analysis/polymarket/BTC/btc_D_holdout_evaluation_20261028/evaluation_rows.parquet",
+    "guard_order": "The runner must check evaluation_authorized is exactly true before opening the bundle, the evaluation input, or any holdout source. It must never train or fit calibration.",
+    "source_quality_field_contract": "Rows must carry the complete field projection consumed by utils.btc_t0009_source_audit.source_quarantine_reasons for both T-60 and T-59, plus official Gamma outcome/resolution and native execution fields. Missing fields fail closed as unknown/source-blocked; they are never strategic no_trade.",
+    "required_coverage_for_complete_result": "all qualifying official Gamma markets and all configured holdout slots must be accounted for with explicit source/prediction/calibration/known-no_trade status; unmatched slots remain unknown",
+    "required_evaluation_input_manifest_fields": [
+      "rows_path",
+      "rows_sha256",
+      "holdout_interval_utc",
+      "official_gamma_market_count",
+      "input_rows"
+    ],
+    "expected_rows_now": 0
+  },
+  "outputs": {
+    "preparation_runner_sha256": "96c7a9b5ead136a0f4c67266a18beb2f29fed343344d69ac02a1be5adf3030e1",
+    "evaluation_runner_sha256": "79d2f1d34d882e490d6d3a844c2dc75bf116775a1a39e24514d00fe78ee1c5c0",
+    "focused_test_sha256": "cc6603bf8ffa86544b1093c9b51488ac70a1703777a4895f193be78ceb14001a",
+    "preparation_output_root": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028",
+    "report_path": "reports/btc_preopen/btc_D_holdout_preparation_20261028.md",
+    "coverage_table_path": "reports/btc_preopen/btc_D_holdout_coverage_metadata_20261028.csv"
+  },
+  "protocol_version": 2,
+  "supersedes_protocol": {
+    "path": "configs/research/btc_D_holdout_preparation_20261028.json",
+    "sha256": "f57c92589e442f23e89155eada8311f99766ae2bbf21e86a2971ea86389b5ad4"
+  },
+  "budget_migration": {
+    "v1_protocol_sha256": "f57c92589e442f23e89155eada8311f99766ae2bbf21e86a2971ea86389b5ad4",
+    "v1_preparation_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/149ca92fac1ae8c5/preparation_manifest.json",
+    "v1_preparation_manifest_sha256": "b8ee900f56e87369aca3a0819701bb02cdf97c908e98ae994422cacaf4a8ea1a",
+    "v1_run_identity_sha256": "149ca92fac1ae8c5de3f14b74c30c8a26d9d82c8c1427f3fce08f84b43f49877",
+    "v1_preparation_elapsed_seconds": 3518.951740599994,
+    "v1_selection_chain_elapsed_seconds": 3111.0753005000006,
+    "v1_selection_pipeline_root": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/149ca92fac1ae8c5/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861",
+    "v1_reaction_profile_stage_identity_sha256": "395681a4002835af58cd3ec533b7fc30290bb56c718631bb9b38595a43878120",
+    "v1_reaction_profile_seconds": 2700,
+    "v1_reaction_profile_elapsed_seconds": 2704.5527006000048,
+    "v1_reaction_profile_remaining_seconds": 4495.447299399995,
+    "volume_profile_seconds": 2700,
+    "preserved_trial_count": 46,
+    "preserved_trial_states": {
+      "COMPLETE": 44,
+      "PRUNED": 2
+    },
+    "sampler_path_guaranteed_identical_after_resume": false,
+    "allowed_artifact_differences": [
+      "E0041 protocol version/hash and run identity changed for the separately versioned v2 preparation",
+      "cumulative whole-preparation wall limit 72000 -> 76500 seconds",
+      "cumulative selection-chain allocation 47700 -> 52200 seconds",
+      "reaction-profile cumulative stage limit 2700 -> 7200 seconds",
+      "preparation-runner code required to route the v2 RP budget and migrate compatible checkpoints",
+      "cumulative budget-ledger metadata and v2 resume metadata"
+    ],
+    "minimum_successful_trials": 5,
+    "trial_terminal_state_rules": "Count COMPLETE, PRUNED, and FAIL trials as terminal toward 96; require at least five finite, valid COMPLETE trials excluding crash_penalty; pending/running trials block completion."
+  }
+}

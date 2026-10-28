@@ -5,11 +5,11 @@ Data: 2026-10-28. Eksperyment E0041, zadanie T0012, decyzja D0021. Raport opisuj
 ## Status
 
 - `EVALUATION_CODE_READY`: runner oceny i testy mechaniki są gotowe; `evaluation_authorized` pozostaje `false`.
-- `D_BUNDLE_READY`: **nie** (`D_BUNDLE_BLOCKED_TUNING_BUDGET`). Pierwsza próba zatrzymała się na bramce dyskowej; po odzyskaniu miejsca zamrożony etap profilu reakcji wyczerpał kumulacyjny budżet strojenia przed osiągnięciem celu. Nie powstał model, OOF ani kalibrator.
+- `D_BUNDLE_READY`: **nie**. Historyczny przebieg v1 zakończył się jako `D_BUNDLE_BLOCKED_TUNING_BUDGET`; zatwierdzona rewizja v2 czeka na niezmienioną bramkę zasobów. Nie powstał jeszcze bundle v2, OOF ani kalibrator.
 - Dane: oficjalne Gamma i kalendarz rozstrzygnięć są `DATA_PRESENT_BY_METADATA`; T-60/T-59 w aktualnym pakiecie są `DATA_BLOCKED`; pokrycie OHLCV/przepływów, jakość treści, fee i mapowanie do wszystkich slotów są `DATA_NOT_VERIFIED`.
 - `HOLDOUT_NOT_RUN`: prawda. Nie odczytano holdout payloadu, nie wygenerowano predykcji, nie uruchomiono scorera ani ekonomiki.
 
-Preparation status: `blocked_by_resource_gate`. Próg pozostał bez zmian.
+Historyczny status pierwszej próby v1: `blocked_by_resource_gate`; późniejsza próba v1 przeszła próg i wyczerpała budżet RP. Dla kontynuacji v2 próg 80 GiB pozostaje bez zmian.
 
 Raport i tabela [pokrycia z metadanych](btc_D_holdout_coverage_metadata_20261028.csv) korzystają wyłącznie z istniejących protokołów, manifestów, ścieżek, hashy i wcześniej opublikowanych zakresów/liczności. Nie pobierano źródeł ani nie sprawdzano zawartości holdoutu.
 
@@ -78,3 +78,15 @@ Zamrożone polecenie `python run_btc_D_holdout_preparation_20261028.py` przeszł
 Etap wskaźników z sześcioma konfiguracjami trwał 400,144 s. Zamrożony etap profilu reakcji zakończył się po 2 704,55 s przy limicie 2 700 s, z 46/96 prób (44 complete, 2 pruned). Budżet jest kumulacyjny i wyczerpany; wznowienie bez zmiany wersji nie uruchomi dalszych prób, a zgodność ścieżki samplera po wznowieniu nie jest gwarantowana. Nie resetowano budżetu ani nie modyfikowano protokołu. Nie ukończono selekcji, nie wykonano finalnego fitu, OOF ani kalibracji i nie utworzono bundle’u. `evaluation_authorized=false`; `EVALUATION_CODE_READY`; `D_BUNDLE_BLOCKED_TUNING_BUDGET`; `HOLDOUT_NOT_RUN`. Nie czytano holdoutu ani nie generowano jego predykcji lub ekonomiki.
 
 Testy ukierunkowane po uruchomieniu: trzy moduły E0041, rekonstrukcji chronologii i wznowienia strojenia — 43 testy oraz 52 podtesty zaliczone. Pełny zestaw 759/759 z raportu powyżej pochodzi sprzed tej próby. Wolne miejsce podczas aktywnego runu spadło do około 83,974 GiB, nadal powyżej progu. T0012 pozostaje BLOCKED z powodu zamrożonego limitu budżetu; kontynuacja wymaga osobnej, wersjonowanej zmiany protokołu i decyzji.
+
+## Kontynuacja v2 zatwierdzona przed wznowieniem
+
+Decyzja D0022 i protokół [E0041 v2](../../configs/research/btc_D_holdout_preparation_20261028_v2.json) zezwalają wyłącznie na wersjonowaną korektę budżetów: całe przygotowanie 72 000 → 76 500 s, selection chain 47 700 → 52 200 s, RP 2 700 → 7 200 s. Pozostałe limity, VP 2 700 s, kryterium 96 terminalnych prób i minimum pięciu poprawnych COMPLETE pozostają bez zmian. Zachowano osobny historyczny protokół [v1](../../configs/research/btc_D_holdout_preparation_20261028.json), jego manifest, SQLite study, historię budżetu i status niepowodzenia.
+
+Study v1 ma 46 kolejnych terminalnych numerów (44 COMPLETE, 2 PRUNED); kontynuacja wymaga 50 nowych propozycji. RP wykorzystał 2 704,5527 s z 7 200, pozostawiając 4 495,4473 s. W całym limicie uwzględnia się 3 518,9517 s poprzedniego wykonania, a w selection chain 3 111,0753 s. Kopia SQLite przez API backup obejmuje zatwierdzony widok WAL; ukończone wskaźniki i bezpieczny prefiks są ponownie używane po weryfikacji hashy. Zapis stanu RNG samplera nie jest dostępny: `sampler_path_guaranteed_identical_after_resume=false`; TPE kontynuuje z zachowaną historią. `evaluation_authorized=false`.
+
+Audyt istniejących czasów 46 prób: minimum 13,639 s, mediana 19,815 s, p90 33,231 s, maksimum 524,619 s, średnia 58,646 s, suma 2 697,721 s; cztery próby przekroczyły 400 s. Etap RP trwał 2 704,553 s, wskaźniki 400,144 s, całe v1 3 518,952 s, a selection chain 3 111,075 s. Profil używał jednego workera, 20 wątków i LightGBM GPU. Przegląd kodu potwierdził jednorazowe przygotowanie wspólnych tablic i foldów przed optymalizacją; każda próba nadal liczy zależne od parametrów cechy i objective. Nie znaleziono ponawianego pełnego odczytu wspólnych danych. Nie uruchomiono dodatkowych prób podczas audytu.
+
+Bieżący odczyt zasobów przed wznowieniem: 83,97 GiB wolnego dysku, 46,55 GiB dostępnego RAM, 7 291 MiB wolnej pamięci GPU i 20 logicznych CPU. Aktywny T0048, PID 49516, używa 2,76 GiB; niezmieniona bramka blokuje uruchomienie, dopóki ten proces trwa. T0046/T0048 pozostają nietknięte. Kontynuacja nie została jeszcze uruchomiona; po spełnieniu gate należy wykonać polecenie bez argumentów z sekcji wyżej. Holdout rows read i predictions pozostają 0; `HOLDOUT_NOT_RUN`. E0037 pozostaje FAILED, T0009 BLOCKED.
+
+Walidacja przed fit: ukierunkowane testy E0041 19/19; pełny zestaw `python -m unittest discover -s tests` 768/768 w 119,796 s; `py_compile`, parsowanie JSON v2, zgodność zamrożonych hashy kodu i `git diff --check` przeszły. Są to testy implementacji, nie walidacja referencyjna ani rzeczywisty fit, bundle lub wynik holdoutu.

@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_holdout_preparation_20261028.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_holdout_preparation_20261028_v2.json"
 PREPARATION_ROOT = ROOT / "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028"
 EVALUATION_INPUT_PATH = ROOT / "data/analysis/polymarket/BTC/btc_D_holdout_evaluation_20261028/evaluation_rows.parquet"
 EVALUATION_INPUT_MANIFEST_PATH = EVALUATION_INPUT_PATH.with_name("evaluation_input_manifest.json")

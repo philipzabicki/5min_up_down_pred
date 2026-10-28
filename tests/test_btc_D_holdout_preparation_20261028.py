@@ -1,8 +1,11 @@
 import io
 import json
+import sqlite3
 import tempfile
+import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest import mock
 
 import numpy as np
@@ -75,6 +78,212 @@ def account_row(condition_id, market_start):
 
 
 class BtcDHoldoutPreparationTests(unittest.TestCase):
+    def test_v2_protocol_only_changes_the_authorized_budgets(self):
+        v1 = json.loads(preparation.V1_PROTOCOL_PATH.read_text(encoding="utf-8"))
+        v2 = json.loads(preparation.PROTOCOL_PATH.read_text(encoding="utf-8"))
+        preparation._assert_v2_protocol_matches_v1(v1, v2)
+        mutations = (
+            ("label cutoff", ("final_model", "fit_cutoff_exclusive_utc"), "2026-06-30T23:58:00Z"),
+            ("target", ("development_inputs", "target"), "changed target"),
+            ("objective/search procedure", ("selection", "procedure"), "changed objective"),
+            ("data hash", ("development_inputs", "raw_prefix_sha256"), "0" * 64),
+        )
+        for label, path, value in mutations:
+            with self.subTest(label=label):
+                changed = json.loads(json.dumps(v2))
+                changed[path[0]][path[1]] = value
+                with self.assertRaisesRegex(RuntimeError, "protected v1 protocol field"):
+                    preparation._assert_v2_protocol_matches_v1(v1, changed)
+
+    def test_effective_parent_override_is_local_and_keeps_other_stages(self):
+        parent = {"procedure_budgets": {
+            "reaction_profile_stage_seconds": 2700,
+            "volume_profile_stage_seconds": 2700,
+            "target_weight_stage_seconds": 10800,
+        }}
+        effective = preparation._effective_parent_for_v2(
+            parent, json.loads(preparation.PROTOCOL_PATH.read_text(encoding="utf-8")),
+        )
+        self.assertEqual(effective["procedure_budgets"]["reaction_profile_stage_seconds"], 7200)
+        self.assertEqual(effective["procedure_budgets"]["volume_profile_stage_seconds"], 2700)
+        self.assertEqual(effective["procedure_budgets"]["target_weight_stage_seconds"], 10800)
+        self.assertEqual(parent["procedure_budgets"]["reaction_profile_stage_seconds"], 2700)
+
+    def test_effective_selection_profile_accepts_only_budget_and_path_changes(self):
+        v1 = {
+            "runtime_budget_seconds": 71999,
+            "generator_tuning_time_limit_seconds": 2700,
+            "contract_path": "v1/contract.json",
+            "output_dir": "v1/selection",
+            "official_markets_path": "v1/not_read.parquet",
+            "stage_runtime_budgets_seconds": {
+                "reaction_profile": 2700, "volume_profile": 2700, "target_weights": 10800,
+            },
+            "reaction_profile_trials": 96,
+            "minimum_successful_trials": 5,
+            "selection_cutoff": "2025-10-01T00:00:00Z",
+            "objective": "chronological_log_loss",
+            "search_space": {"short_window": [10, 2400]},
+        }
+        v2 = json.loads(json.dumps(v1))
+        v2.update({
+            "runtime_budget_seconds": 49000,
+            "generator_tuning_time_limit_seconds": 7200,
+            "generator_tuning_time_limit_seconds_by_stage": {
+                "reaction_profile": 7200, "volume_profile": 2700,
+            },
+            "contract_path": "v2/contract.json",
+            "output_dir": "v2/selection",
+            "official_markets_path": "v2/not_read.parquet",
+        })
+        v2["stage_runtime_budgets_seconds"]["reaction_profile"] = 7200
+        preparation._assert_selection_profiles_compatible(v1, v2)
+        effective = preparation._selection_profile_with_stage_budgets(
+            v2, json.loads(preparation.PROTOCOL_PATH.read_text(encoding="utf-8")),
+        )
+        self.assertEqual(effective["reaction_profile_trials"], 96)
+        self.assertEqual(effective["minimum_successful_trials"], 5)
+        self.assertEqual(effective["generator_tuning_time_limit_seconds_by_stage"], {
+            "reaction_profile": 7200, "volume_profile": 2700,
+        })
+        v2["objective"] = "pnl"
+        with self.assertRaisesRegex(RuntimeError, "data, target, search, seed, objective, or features"):
+            preparation._assert_selection_profiles_compatible(v1, v2)
+
+    def test_v2_adapter_routes_7200_seconds_only_to_rp_and_keeps_vp_at_2700(self):
+        protocol = json.loads(preparation.PROTOCOL_PATH.read_text(encoding="utf-8"))
+        protocol["budget_migration"]["minimum_successful_trials"] = 5
+        calls = []
+        pipeline = SimpleNamespace(
+            _signature=preparation._canonical_hash,
+            _run_optuna_stage=lambda **kwargs: calls.append(kwargs.copy()) or kwargs,
+        )
+        payload = {"stage": "reaction_profile", "tuning_time_limit_seconds": 7200, "x": 1}
+        legacy = dict(payload, tuning_time_limit_seconds=2700)
+        reaction_signature = preparation._canonical_hash(legacy)
+        protocol["budget_migration"]["v1_reaction_profile_stage_identity_sha256"] = reaction_signature
+        originals = preparation._selection_budget_adapter(
+            pipeline, reaction_signature=reaction_signature, v2=protocol,
+        )
+        try:
+            self.assertEqual(pipeline._signature(payload), reaction_signature)
+            with tempfile.TemporaryDirectory() as temporary:
+                budget_path = Path(temporary) / "tuning_budget_history.json"
+                budget_path.write_text(json.dumps({"attempts": [{
+                    "status": "budget_exhausted",
+                    "stage_elapsed_seconds": 2704.5527006000048,
+                    "optimizer_elapsed_seconds": 2702.9203517,
+                }]}), encoding="utf-8")
+                deadline_before = time.monotonic() + 10000
+                result = pipeline._run_optuna_stage(
+                    stage_name="reaction_profile", tuning_budget_seconds=7200,
+                    target_trials=96, minimum_successful_trials=5,
+                    budget_history_path=budget_path,
+                    stage_deadline=deadline_before,
+                )
+                self.assertEqual(result["tuning_budget_seconds"], 7200)
+                self.assertLess(result["stage_deadline"], deadline_before)
+                self.assertAlmostEqual(result["stage_deadline"] - time.monotonic(), 4495.4472994, delta=1.0)
+            result = pipeline._run_optuna_stage(
+                stage_name="volume_profile", tuning_budget_seconds=7200,
+            )
+            self.assertEqual(result["tuning_budget_seconds"], 2700)
+        finally:
+            preparation._restore_selection_budget_adapter(pipeline, originals)
+
+    def test_saved_46_trials_are_counted_once_toward_the_96_trial_target(self):
+        trials = [{"number": number, "state": "COMPLETE", "value": 0.5, "trial_status": "ok"}
+                  for number in range(44)]
+        trials.extend({"number": number, "state": "PRUNED", "value": None, "trial_status": "pruned"}
+                      for number in range(44, 46))
+        plan = preparation._resume_trial_plan(trials, 96)
+        self.assertEqual(plan["preserved_trial_numbers"], list(range(46)))
+        self.assertEqual(plan["preserved_trials"], 46)
+        self.assertEqual(plan["new_trials_required"], 50)
+        self.assertFalse(plan["target_reached"])
+        self.assertEqual(preparation._successful_trial_count(trials), 44)
+        trials[0]["trial_status"] = "crash_penalty"
+        self.assertEqual(preparation._successful_trial_count(trials), 43)
+        trials[1]["value"] = float("nan")
+        self.assertEqual(preparation._successful_trial_count(trials), 42)
+        with_error = trials + [{"number": 46, "state": "FAIL", "value": None, "trial_status": None}]
+        self.assertEqual(preparation._resume_trial_plan(with_error, 96)["preserved_trials"], 47)
+        with_pending = with_error + [{"number": 47, "state": "RUNNING", "value": None}]
+        with self.assertRaisesRegex(RuntimeError, "nonterminal trials"):
+            preparation._resume_trial_plan(with_pending, 96)
+        with self.assertRaisesRegex(RuntimeError, "unique contiguous prefix"):
+            preparation._resume_trial_plan([trials[0], trials[0]], 96)
+
+    def test_whole_and_stage_budgets_accumulate_across_resumes_without_idle_time(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "manifest.json"
+            manifest = {
+                "manifest_path": str(path),
+                "budget_accounting": {
+                    "maximum_wall_seconds": 76500,
+                    "elapsed_before_v2_seconds": 3518.951740599994,
+                    "selection_chain_seconds": 52200,
+                    "stage_elapsed_before_v2_seconds": {"selection_chain": 3111.0753005},
+                    "execution_attempts": [{"status": "failed", "elapsed_seconds": 17.5}],
+                    "stage_attempts": {"selection_chain": [{"status": "completed", "elapsed_seconds": 12.0}]},
+                },
+            }
+            self.assertAlmostEqual(preparation._accounting_used(manifest), 3536.451740599994)
+            self.assertAlmostEqual(preparation._accounting_used(manifest, "selection_chain"), 3123.0753005)
+            remaining = preparation._remaining_seconds(7200, 2704.5527006000048)
+            self.assertAlmostEqual(remaining, 4495.447299399995, places=8)
+            attempt, deadline = preparation._start_budget_stage(
+                manifest, "selection_chain", 52200, time.monotonic() + 10000,
+            )
+            self.assertLessEqual(deadline - time.monotonic(), 52200 - 3123.0753005 + 1)
+            preparation._finish_budget_stage(manifest, "selection_chain", attempt, time.perf_counter(), "completed")
+            self.assertEqual(manifest["budget_accounting"]["stage_attempts"]["selection_chain"][-1]["status"], "completed")
+
+    def test_protocol_and_selection_migration_reject_data_cutoff_and_objective_changes(self):
+        v1 = json.loads(preparation.V1_PROTOCOL_PATH.read_text(encoding="utf-8"))
+        v2 = json.loads(preparation.PROTOCOL_PATH.read_text(encoding="utf-8"))
+        for section, key, value in (
+            ("development_inputs", "raw_prefix_sha256", "1" * 64),
+            ("selection", "selection_cutoff_exclusive_utc", "2025-09-30T00:00:00Z"),
+            ("selection", "procedure", "different objective"),
+        ):
+            changed = json.loads(json.dumps(v2))
+            changed[section][key] = value
+            with self.assertRaises(RuntimeError):
+                preparation._assert_v2_protocol_matches_v1(v1, changed)
+
+    def test_sqlite_backup_api_preserves_a_committed_wal_view(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "study.sqlite3"
+            snapshot = root / "snapshot.sqlite3"
+            connection = sqlite3.connect(source)
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("CREATE TABLE studies (study_name TEXT)")
+            connection.execute("CREATE TABLE trials (number INTEGER)")
+            connection.execute("INSERT INTO studies VALUES ('study-v1')")
+            connection.execute("INSERT INTO trials VALUES (46)")
+            connection.commit()
+            preparation._sqlite_backup(source, snapshot)
+            copied = sqlite3.connect(snapshot)
+            try:
+                self.assertEqual(copied.execute("SELECT study_name FROM studies").fetchone()[0], "study-v1")
+                self.assertEqual(copied.execute("SELECT number FROM trials").fetchone()[0], 46)
+            finally:
+                copied.close()
+            connection.close()
+
+    def test_verified_existing_artifact_is_reused_without_rewriting(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "completed-prefix.csv"
+            path.write_bytes(b"verified development-only prefix")
+            before = preparation.sha256_file(path)
+            verified = preparation._verify_existing_file(path, before)
+            self.assertTrue(verified["reused"])
+            self.assertEqual(preparation.sha256_file(path), before)
+            with self.assertRaisesRegex(RuntimeError, "hash changed"):
+                preparation._verify_existing_file(path, "0" * 64)
+
     def test_first_holdout_decision_and_strict_label_cutoff(self):
         cutoff = pd.Timestamp(preparation.FIT_CUTOFF_UTC)
         self.assertEqual(pd.Timestamp(evaluation.HOLDOUT_START_UTC) - pd.Timedelta(minutes=1), cutoff)
