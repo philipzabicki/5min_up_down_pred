@@ -5,9 +5,11 @@ Data: 2026-10-28. Eksperyment E0041, zadanie T0012, decyzja D0021. Raport opisuj
 ## Status
 
 - `EVALUATION_CODE_READY`: runner oceny i testy mechaniki są gotowe; `evaluation_authorized` pozostaje `false`.
-- `D_BUNDLE_READY`: **nie**. Fit D i Platt są jeszcze przed wykonaniem bramki zasobów.
+- `D_BUNDLE_READY`: **nie** (`D_BUNDLE_BLOCKED_RESOURCE`). Fit D i kalibracja zostały zablokowane przez zamrożoną bramkę wolnego miejsca na dysku; nie powstał model, OOF ani kalibrator.
 - Dane: oficjalne Gamma i kalendarz rozstrzygnięć są `DATA_PRESENT_BY_METADATA`; T-60/T-59 w aktualnym pakiecie są `DATA_BLOCKED`; pokrycie OHLCV/przepływów, jakość treści, fee i mapowanie do wszystkich slotów są `DATA_NOT_VERIFIED`.
 - `HOLDOUT_NOT_RUN`: prawda. Nie odczytano holdout payloadu, nie wygenerowano predykcji, nie uruchomiono scorera ani ekonomiki.
+
+Preparation status: `blocked_by_resource_gate`. Próg pozostał bez zmian.
 
 Raport i tabela [pokrycia z metadanych](btc_D_holdout_coverage_metadata_20261028.csv) korzystają wyłącznie z istniejących protokołów, manifestów, ścieżek, hashy i wcześniej opublikowanych zakresów/liczności. Nie pobierano źródeł ani nie sprawdzano zawartości holdoutu.
 
@@ -41,6 +43,12 @@ E0039 F3 raw prefix jest plikiem mieszanym zarejestrowanym do `Opened=2026-06-30
 
 Weryfikacja przed fit: nowy zestaw testów syntetycznych 10/10; regresje E0040 księgi 10/10; chronologia E0039 20/20; pełne `python -m unittest discover -s tests` 759/759 w 45.068 s; `py_compile` i `git diff --check` przeszły. Pełny przebieg zgłosił istniejące `Pandas4Warning` i testowy `ResourceWarning`, bez błędów. Testy obejmują ścięcie mieszanego CSV przed payloadem, ścisłe granice etykiet i niezmienność maski po dopisaniu przyszłych wierszy, guard przed odczytem, źródłową symetrię, siatkę dziewięciu członków oraz ciągłość kont, terminalne wypłaty i miesięczne uzgodnienie przepływów na syntetycznych transakcjach. Nie jest to rzeczywisty fit E0041 ani walidacja treści holdoutu.
 
+## Wynik bramki zasobów
+
+Runner został zamrożony i wypchnięty jako commit `cb05ee640d80e9471c97eafdbe4f39164c77aeca` na `origin/audit/btc-dynamic-history-20261020` przed próbą przygotowania. Uruchomienie z 2026-10-28 o `12:26:31.352022 UTC` zakończyło się statusem `blocked_by_resource_gate` przed odczytem danych. Wolne miejsce wynosiło `69.64 GiB`, przy niezmienionym wymaganiu `80.0 GiB`; zapisany powód: `E0039 fit blocked by low free disk: 69.64 GiB`.
+
+Gate odnotował `47.73 GiB` dostępnej z `63.67 GiB` pamięci, GPU `NVIDIA GeForce RTX 4060 Laptop GPU` (8188 MiB łącznie, 7344 MiB raportowane jako wolne), zero aktywnych procesów Python i czas gate `0.684785 s`. `run_identity_sha256` jest null; `holdout_rows_read=0`, `holdout_predictions_generated=0`. Pełny wynik zapisano lokalnie w `data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/pre_fit_gate.json`; plik jest ignorowany przez Git. Nie otwarto raw prefixu, nie zaczęto selekcji/fitu/OOF/kalibracji i nie utworzono bundle’u.
+
 ## Uruchomienie i autoryzacja
 
 Przygotowanie albo wznowienie po spełnieniu gate:
@@ -49,7 +57,7 @@ Przygotowanie albo wznowienie po spełnieniu gate:
 python run_btc_D_holdout_preparation_20261028.py
 ```
 
-Runner zapisuje pre-fit gate w `data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/pre_fit_gate.json`; właściwe checkpointy etapów i manifest bundle’u powstają dopiero po przejściu gate i ukończeniu danego etapu. Nie obniżaj gate i nie usuwaj ani nie przenoś plików, by wymusić fit.
+Runner zapisuje pre-fit gate w `data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/pre_fit_gate.json`; właściwe checkpointy etapów i manifest bundle’u powstają dopiero po przejściu gate i ukończeniu danego etapu. Fit można wznowić tym samym poleceniem po naturalnym spełnieniu zamrożonego progu. Nie obniżaj gate i nie usuwaj ani nie przenoś plików, by wymusić fit.
 
 Późniejsza ocena wymaga osobnej, jawnej autoryzacji, gotowego `D_BUNDLE_READY` bundle’u oraz kompletnego `evaluation_rows.parquet` z manifestem i slotową inwentaryzacją. Dopiero po takiej autoryzacji zmień pole `evaluation.evaluation_authorized` w wersjonowanym protokole z `false` na `true`, po czym uruchom:
 

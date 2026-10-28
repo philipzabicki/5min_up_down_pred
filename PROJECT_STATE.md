@@ -89,3 +89,8 @@ Legacy market-open/Kacho, original fees/minimum units/T59 selection, interrupted
 
 1. Preserve T0009 source-coverage and readiness-provenance gates. E0040 is complete and does not close T0009.
 2. Preserve the T0009 source-coverage gaps, failed T-60 parity evidence, and UNKNOWN historical prediction-ready timestamps; do not treat the offline latency benchmark or E0040 settlement assumptions as live-readiness evidence. T0010 remains deferred.
+3. Resume T0012 only after the frozen 80 GiB free-disk gate passes naturally; rerun the frozen preparation command without removing/moving user data or changing thresholds.
+
+## E0041 update (2026-10-28)
+
+E0041 protocol, evaluator, metadata inventory, and tests were frozen and pushed in commit `cb05ee640d80e9471c97eafdbe4f39164c77aeca`. Preparation stopped before input access at `blocked_by_resource_gate`: 69.64 GiB free disk versus 80.0 GiB required; 47.73/63.67 GiB RAM available/total; no Python processes; RTX 4060 Laptop GPU detected. The persisted, Git-ignored `data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/pre_fit_gate.json` records 0 holdout rows read and 0 predictions generated. No selection, final fit, OOF, calibration, or D bundle exists. `evaluation_authorized=false`; `HOLDOUT_NOT_RUN`. Full test discovery passed 759/759 in 45.068 s before the resource-gate attempt. D0021 remains active; T0012 is blocked until the unchanged disk threshold is met. E0037 remains FAILED and T0009 remains BLOCKED.
