@@ -5,7 +5,7 @@ Data: 2026-10-28. Eksperyment E0041, zadanie T0012, decyzja D0021. Raport opisuj
 ## Status
 
 - `EVALUATION_CODE_READY`: runner oceny i testy mechaniki są gotowe; `evaluation_authorized` pozostaje `false`.
-- `D_BUNDLE_READY`: **nie** (`D_BUNDLE_BLOCKED_RESOURCE`). Fit D i kalibracja zostały zablokowane przez zamrożoną bramkę wolnego miejsca na dysku; nie powstał model, OOF ani kalibrator.
+- `D_BUNDLE_READY`: **nie** (`D_BUNDLE_BLOCKED_TUNING_BUDGET`). Pierwsza próba zatrzymała się na bramce dyskowej; po odzyskaniu miejsca zamrożony etap profilu reakcji wyczerpał kumulacyjny budżet strojenia przed osiągnięciem celu. Nie powstał model, OOF ani kalibrator.
 - Dane: oficjalne Gamma i kalendarz rozstrzygnięć są `DATA_PRESENT_BY_METADATA`; T-60/T-59 w aktualnym pakiecie są `DATA_BLOCKED`; pokrycie OHLCV/przepływów, jakość treści, fee i mapowanie do wszystkich slotów są `DATA_NOT_VERIFIED`.
 - `HOLDOUT_NOT_RUN`: prawda. Nie odczytano holdout payloadu, nie wygenerowano predykcji, nie uruchomiono scorera ani ekonomiki.
 
@@ -71,4 +71,10 @@ Tego pola nie zmieniono w przygotowaniu. Żadna wcześniejsza zgoda na retrospek
 
 ## Rejestr wykonania
 
-Status bramki zasobów, faktyczny czas, wynik push, pełny zestaw testów i końcowe SHA commitów zostaną dopisane po uruchomieniu pre-fit gate. Do tego momentu nie deklaruje się gotowości bundle’u.
+Pierwszy pre-fit gate zablokował uruchomienie przy 69,64 GiB wolnego miejsca. Po bezpiecznym zastąpieniu czterech dokładnych duplikatów developerskich zweryfikowanymi hardlinkami odzyskano 19 934 871 552 B (18,5657 GiB), zachowując stare ścieżki oraz niezmieniony próg. Nie usuwano częściowego checkpointu, nie dotykano holdoutu ani T0046. Raport sprzątania i kolejnego uruchomienia: [szczegóły odzyskania miejsca i wyniku przygotowania](btc_D_holdout_preparation_20261028_storage_recovery_20261028.md).
+
+Zamrożone polecenie `python run_btc_D_holdout_preparation_20261028.py` przeszło gate 2026-10-28 o 13:19:51.810052 UTC: 88,1991 GiB wolnego miejsca, 48,91 GiB dostępnego RAM, RTX 4060 z 7 247 MiB wolnej pamięci i 20 logicznych CPU. Run identity: `149ca92fac1ae8c5de3f14b74c30c8a26d9d82c8c1427f3fce08f84b43f49877`. Bezpieczny prefiks developerski skopiował 3 186 145 wierszy do 2026-06-30 23:57 UTC; reader zatrzymał się przed payloadem pierwszego wyłączonego timestampu 23:58. Holdout rows read: 0.
+
+Etap wskaźników z sześcioma konfiguracjami trwał 400,144 s. Zamrożony etap profilu reakcji zakończył się po 2 704,55 s przy limicie 2 700 s, z 46/96 prób (44 complete, 2 pruned). Budżet jest kumulacyjny i wyczerpany; wznowienie bez zmiany wersji nie uruchomi dalszych prób, a zgodność ścieżki samplera po wznowieniu nie jest gwarantowana. Nie resetowano budżetu ani nie modyfikowano protokołu. Nie ukończono selekcji, nie wykonano finalnego fitu, OOF ani kalibracji i nie utworzono bundle’u. `evaluation_authorized=false`; `EVALUATION_CODE_READY`; `D_BUNDLE_BLOCKED_TUNING_BUDGET`; `HOLDOUT_NOT_RUN`. Nie czytano holdoutu ani nie generowano jego predykcji lub ekonomiki.
+
+Testy ukierunkowane po uruchomieniu: trzy moduły E0041, rekonstrukcji chronologii i wznowienia strojenia — 43 testy oraz 52 podtesty zaliczone. Pełny zestaw 759/759 z raportu powyżej pochodzi sprzed tej próby. Wolne miejsce podczas aktywnego runu spadło do około 83,974 GiB, nadal powyżej progu. T0012 pozostaje BLOCKED z powodu zamrożonego limitu budżetu; kontynuacja wymaga osobnej, wersjonowanej zmiany protokołu i decyzji.
