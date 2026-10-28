@@ -183,9 +183,9 @@
     "expected_rows_now": 0
   },
   "outputs": {
-    "preparation_runner_sha256": "96c7a9b5ead136a0f4c67266a18beb2f29fed343344d69ac02a1be5adf3030e1",
+    "preparation_runner_sha256": "a89d67d2b802572003e28167ebbb6cc2b95793498d1dac593b7bcdb1d4a93181",
     "evaluation_runner_sha256": "79d2f1d34d882e490d6d3a844c2dc75bf116775a1a39e24514d00fe78ee1c5c0",
-    "focused_test_sha256": "cc6603bf8ffa86544b1093c9b51488ac70a1703777a4895f193be78ceb14001a",
+    "focused_test_sha256": "250d0228673d3a7e304a97849d19ecbec2893b0357516846ee1dbf2eecc6a5dd",
     "preparation_output_root": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028",
     "report_path": "reports/btc_preopen/btc_D_holdout_preparation_20261028.md",
     "coverage_table_path": "reports/btc_preopen/btc_D_holdout_coverage_metadata_20261028.csv"

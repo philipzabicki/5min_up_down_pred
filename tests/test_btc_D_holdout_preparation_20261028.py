@@ -222,13 +222,15 @@ class BtcDHoldoutPreparationTests(unittest.TestCase):
                 "budget_accounting": {
                     "maximum_wall_seconds": 76500,
                     "elapsed_before_v2_seconds": 3518.951740599994,
+                    "prefit_gate_elapsed_seconds": 1.1655582,
+                    "prefit_gate_attempt_ids": ["gate-1"],
                     "selection_chain_seconds": 52200,
                     "stage_elapsed_before_v2_seconds": {"selection_chain": 3111.0753005},
                     "execution_attempts": [{"status": "failed", "elapsed_seconds": 17.5}],
                     "stage_attempts": {"selection_chain": [{"status": "completed", "elapsed_seconds": 12.0}]},
                 },
             }
-            self.assertAlmostEqual(preparation._accounting_used(manifest), 3536.451740599994)
+            self.assertAlmostEqual(preparation._accounting_used(manifest), 3537.617298799994)
             self.assertAlmostEqual(preparation._accounting_used(manifest, "selection_chain"), 3123.0753005)
             remaining = preparation._remaining_seconds(7200, 2704.5527006000048)
             self.assertAlmostEqual(remaining, 4495.447299399995, places=8)
@@ -238,6 +240,16 @@ class BtcDHoldoutPreparationTests(unittest.TestCase):
             self.assertLessEqual(deadline - time.monotonic(), 52200 - 3123.0753005 + 1)
             preparation._finish_budget_stage(manifest, "selection_chain", attempt, time.perf_counter(), "completed")
             self.assertEqual(manifest["budget_accounting"]["stage_attempts"]["selection_chain"][-1]["status"], "completed")
+
+    def test_blocked_prefit_gate_attempts_are_added_once_to_the_whole_budget(self):
+        attempts = [
+            {"attempt_id": "gate-1", "gate_elapsed_seconds": 1.1655582, "counted_in_budget": False},
+            {"attempt_id": "gate-2", "gate_elapsed_seconds": 1.25, "counted_in_budget": False},
+            {"attempt_id": "gate-3", "gate_elapsed_seconds": 8.0, "counted_in_budget": True},
+        ]
+        unaccounted = preparation._unaccounted_prefit_gate_attempts(attempts, {"gate-1"})
+        self.assertEqual([item["attempt_id"] for item in unaccounted], ["gate-2"])
+        self.assertAlmostEqual(sum(item["gate_elapsed_seconds"] for item in unaccounted), 1.25)
 
     def test_protocol_and_selection_migration_reject_data_cutoff_and_objective_changes(self):
         v1 = json.loads(preparation.V1_PROTOCOL_PATH.read_text(encoding="utf-8"))

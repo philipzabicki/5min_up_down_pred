@@ -5,11 +5,11 @@ Data: 2026-10-28. Eksperyment E0041, zadanie T0012, decyzja D0021. Raport opisuj
 ## Status
 
 - `EVALUATION_CODE_READY`: runner oceny i testy mechaniki są gotowe; `evaluation_authorized` pozostaje `false`.
-- `D_BUNDLE_READY`: **nie**. Historyczny przebieg v1 zakończył się jako `D_BUNDLE_BLOCKED_TUNING_BUDGET`; zatwierdzona rewizja v2 czeka na niezmienioną bramkę zasobów. Nie powstał jeszcze bundle v2, OOF ani kalibrator.
+- `D_BUNDLE_READY`: **nie**. Przebieg v1 pozostaje historycznie `D_BUNDLE_BLOCKED_TUNING_BUDGET`; pierwsze wywołanie v2 zatrzymało się na niezmienionej bramce zasobów. Nie powstał bundle v2, OOF ani kalibrator.
 - Dane: oficjalne Gamma i kalendarz rozstrzygnięć są `DATA_PRESENT_BY_METADATA`; T-60/T-59 w aktualnym pakiecie są `DATA_BLOCKED`; pokrycie OHLCV/przepływów, jakość treści, fee i mapowanie do wszystkich slotów są `DATA_NOT_VERIFIED`.
 - `HOLDOUT_NOT_RUN`: prawda. Nie odczytano holdout payloadu, nie wygenerowano predykcji, nie uruchomiono scorera ani ekonomiki.
 
-Historyczny status pierwszej próby v1: `blocked_by_resource_gate`; późniejsza próba v1 przeszła próg i wyczerpała budżet RP. Dla kontynuacji v2 próg 80 GiB pozostaje bez zmian.
+Historyczna pierwsza próba v1: `blocked_by_resource_gate`; późniejsza próba v1 przeszła próg i wyczerpała budżet RP. Aktualna próba v2 również zatrzymała się przed odczytem danych; próg 80 GiB pozostał bez zmian.
 
 Raport i tabela [pokrycia z metadanych](btc_D_holdout_coverage_metadata_20261028.csv) korzystają wyłącznie z istniejących protokołów, manifestów, ścieżek, hashy i wcześniej opublikowanych zakresów/liczności. Nie pobierano źródeł ani nie sprawdzano zawartości holdoutu.
 
@@ -89,4 +89,8 @@ Audyt istniejących czasów 46 prób: minimum 13,639 s, mediana 19,815 s, p90 33
 
 Bieżący odczyt zasobów przed wznowieniem: 83,97 GiB wolnego dysku, 46,55 GiB dostępnego RAM, 7 291 MiB wolnej pamięci GPU i 20 logicznych CPU. Aktywny T0048, PID 49516, używa 2,76 GiB; niezmieniona bramka blokuje uruchomienie, dopóki ten proces trwa. T0046/T0048 pozostają nietknięte. Kontynuacja nie została jeszcze uruchomiona; po spełnieniu gate należy wykonać polecenie bez argumentów z sekcji wyżej. Holdout rows read i predictions pozostają 0; `HOLDOUT_NOT_RUN`. E0037 pozostaje FAILED, T0009 BLOCKED.
 
-Walidacja przed fit: ukierunkowane testy E0041 19/19; pełny zestaw `python -m unittest discover -s tests` 768/768 w 119,796 s; `py_compile`, parsowanie JSON v2, zgodność zamrożonych hashy kodu i `git diff --check` przeszły. Są to testy implementacji, nie walidacja referencyjna ani rzeczywisty fit, bundle lub wynik holdoutu.
+Walidacja przed fit: ukierunkowane testy E0041 20/20; pełny zestaw `python -m unittest discover -s tests` 769/769 w 122,977 s; `py_compile`, parsowanie JSON v2, zgodność zamrożonych hashy kodu i `git diff --check` przeszły. Są to testy implementacji, nie walidacja referencyjna ani rzeczywisty fit, bundle lub wynik holdoutu.
+
+Wersję v2 zamrożono i wypchnięto commitem `a6956c5` przed wywołaniem dokładnego polecenia `python run_btc_D_holdout_preparation_20261028.py`. Bramkowy zapis lokalny zawierał hash protokołu `d1f658b7e07c2284f0612f0f2144fdbea7dbe96c97df681ce9abfd0eea3f8f87`. Czas tej zablokowanej kontroli zasobów zostanie doliczony jeden raz do kumulacyjnego limitu całego przygotowania przy następnym przejściu gate; czas bezczynnego oczekiwania nie jest liczony. Dopracowanie rejestru gate nie zmienia limitów ani eksperymentu i zostanie wypchnięte przed wznowieniem.
+
+Poprawka rejestru zachowuje historię każdej próby pre-fit: zablokowane kontrole zasobów doliczają się dokładnie raz do limitu całego przygotowania, a przejście gate jest już mierzone w aktywnej próbie. Czas oczekiwania między sesjami nie jest doliczany.

@@ -9,6 +9,7 @@ import shutil
 import sqlite3
 import time
 import datetime as dt
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -256,6 +257,14 @@ def _copy_tree_verified(source: Path, destination: Path, *, excluded_database: P
 
 def _remaining_seconds(limit: float, used: float) -> float:
     return max(0.0, float(limit) - float(used))
+
+
+def _unaccounted_prefit_gate_attempts(attempts: list[dict], accounted_ids: set[str]) -> list[dict]:
+    return [
+        item for item in attempts
+        if not item.get("counted_in_budget", False)
+        and item.get("attempt_id") not in accounted_ids
+    ]
 
 
 def _resume_trial_plan(trials: list[dict], target_trials: int) -> dict:
@@ -580,8 +589,10 @@ def _finish_budget_stage(manifest: dict, stage: str, attempt: dict, started: flo
 def _accounting_used(manifest: dict, stage: str | None = None) -> float:
     accounting = manifest["budget_accounting"]
     if stage is None:
-        return float(accounting["elapsed_before_v2_seconds"]) + _elapsed_for_attempts(
-            accounting["execution_attempts"]
+        return (
+            float(accounting["elapsed_before_v2_seconds"])
+            + float(accounting.get("prefit_gate_elapsed_seconds", 0.0))
+            + _elapsed_for_attempts(accounting["execution_attempts"])
         )
     prior = float(accounting.get("stage_elapsed_before_v2_seconds", {}).get(stage, 0.0))
     return prior + _elapsed_for_attempts(accounting.get("stage_attempts", {}).get(stage, []))
@@ -621,7 +632,9 @@ def _verified_v1_safe_prefix() -> dict:
     return record
 
 
-def _new_budget_accounting(protocol: dict, source_manifest: dict, source_pipeline: dict) -> dict:
+def _new_budget_accounting(
+        protocol: dict, source_manifest: dict, source_pipeline: dict,
+) -> dict:
     migration = protocol["budget_migration"]
     total_before = float(source_manifest["elapsed_seconds"])
     selection_before = float(source_pipeline["elapsed_seconds"])
@@ -637,6 +650,8 @@ def _new_budget_accounting(protocol: dict, source_manifest: dict, source_pipelin
     return {
         "maximum_wall_seconds": int(protocol["budgets"]["maximum_wall_seconds"]),
         "elapsed_before_v2_seconds": total_before,
+        "prefit_gate_elapsed_seconds": 0.0,
+        "prefit_gate_attempt_ids": [],
         "selection_chain_seconds": int(protocol["budgets"]["selection_chain_seconds"]),
         "stage_elapsed_before_v2_seconds": {
             "selection_chain": selection_before,
@@ -877,6 +892,23 @@ def run() -> dict:
     resource = chronology._resource_snapshot(20.0, require_gpu=True)
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     prefit_path = OUTPUT_ROOT / "pre_fit_gate.json"
+    previous_gate = (
+        json.loads(prefit_path.read_text(encoding="utf-8")) if prefit_path.is_file() else {}
+    )
+    gate_attempt_history = list(previous_gate.get("attempt_history", []))
+    if (
+        not gate_attempt_history
+        and previous_gate.get("experiment_id") == protocol["experiment_id"]
+        and previous_gate.get("status") == "blocked_by_resource_gate"
+    ):
+        gate_attempt_history.append({
+            "attempt_id": uuid.uuid4().hex,
+            "checked_utc": previous_gate.get("checked_utc"),
+            "status": previous_gate["status"],
+            "gate_elapsed_seconds": float(previous_gate.get("gate_elapsed_seconds", 0.0)),
+            "counted_in_budget": False,
+            "source": "previous_pre_fit_gate_record",
+        })
     gate = {
         "experiment_id": protocol["experiment_id"],
         "protocol_sha256": sha256_file(PROTOCOL_PATH),
@@ -890,6 +922,15 @@ def run() -> dict:
         "status": "blocked_by_resource_gate" if resource["gate_failures"] else "passed",
         "checked_utc": pd.Timestamp.now(tz="UTC").isoformat(),
     }
+    gate_attempt = {
+        "attempt_id": uuid.uuid4().hex,
+        "checked_utc": gate["checked_utc"],
+        "status": gate["status"],
+        "gate_elapsed_seconds": gate["gate_elapsed_seconds"],
+        "counted_in_budget": False,
+    }
+    gate_attempt_history.append(gate_attempt)
+    gate["attempt_history"] = gate_attempt_history
     _atomic_json(prefit_path, gate)
     if resource["gate_failures"]:
         return gate
@@ -959,6 +1000,14 @@ def run() -> dict:
         }
     manifest["manifest_path"] = str(manifest_path)
     accounting = manifest["budget_accounting"]
+    accounted_gate_ids = set(accounting.get("prefit_gate_attempt_ids", []))
+    unaccounted_gate_attempts = _unaccounted_prefit_gate_attempts(
+        gate_attempt_history[:-1], accounted_gate_ids,
+    )
+    accounting["prefit_gate_elapsed_seconds"] = float(
+        accounting.get("prefit_gate_elapsed_seconds", 0.0)
+    ) + sum(float(item.get("gate_elapsed_seconds", 0.0)) for item in unaccounted_gate_attempts)
+    accounted_gate_ids.update(item["attempt_id"] for item in unaccounted_gate_attempts)
     if accounting.get("maximum_wall_seconds") != int(protocol["budgets"]["maximum_wall_seconds"]):
         raise RuntimeError("E0041 whole-preparation budget changed across a resume")
     if accounting.get("selection_chain_seconds") != int(protocol["budgets"]["selection_chain_seconds"]):
@@ -981,7 +1030,13 @@ def run() -> dict:
         "pre_run_verification_elapsed_seconds": pre_run_overhead,
     }
     accounting["execution_attempts"].append(execution_attempt)
+    accounted_gate_ids.add(gate_attempt["attempt_id"])
+    accounting["prefit_gate_attempt_ids"] = sorted(accounted_gate_ids)
     overall_deadline = time.monotonic() + overall_remaining_before - pre_run_overhead
+    for item in gate_attempt_history:
+        if item.get("attempt_id") in accounted_gate_ids:
+            item["counted_in_budget"] = True
+    gate["attempt_history"] = gate_attempt_history
     manifest.update({
         **gate,
         "status": "running",
@@ -998,6 +1053,7 @@ def run() -> dict:
         "updated_utc": started_utc,
     })
     _atomic_json(manifest_path, manifest)
+    _atomic_json(prefit_path, gate)
     try:
         migration = _adopt_v1_selection_artifacts(
             protocol=protocol, v1_protocol=v1_protocol, parent=parent, v2_parent=v2_parent,
