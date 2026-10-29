@@ -1,0 +1,798 @@
+{
+  "protocol_id": "E0043",
+  "task_id": "T0015",
+  "decision_id": "D0023",
+  "checked_date": "2026-10-29",
+  "scope_utc": {
+    "start_inclusive": "2026-08-15T10:00:00Z",
+    "end_exclusive": "2026-08-18T06:00:00Z",
+    "expected_hours": 68
+  },
+  "source_indexes": {
+    "pmxt_v1": {
+      "version": "PMXT V1",
+      "index_url": "https://archive.pendulumflow.com/pmxt/v1/SHA256SUMS.txt",
+      "index_http_status": 200,
+      "index_checked_at_utc": "2026-10-29T00:48:05.079829+00:00",
+      "index_bytes": 139847,
+      "index_sha256": "748a125536d3fbd1d95f307f016d327314ea22e19097b27691f1082902153046",
+      "index_etag": null,
+      "index_last_modified": null,
+      "index_target_parquet_count": 0,
+      "target_objects": {}
+    },
+    "pmxt_v2": {
+      "version": "PMXT V2 mirror",
+      "index_url": "https://archive.pendulumflow.com/pmxt/v2/SHA256SUMS.txt",
+      "index_http_status": 200,
+      "index_checked_at_utc": "2026-10-29T00:48:06.318795+00:00",
+      "index_bytes": 309015,
+      "index_sha256": "2aacd5b378f0f115ad3377374787ba61444d3b31edcef0750165b8b09f60e035",
+      "index_etag": null,
+      "index_last_modified": null,
+      "index_target_parquet_count": 0,
+      "target_objects": {}
+    },
+    "ag6_v2": {
+      "version": "AG6 V2 mirror",
+      "index_url": "https://archive.pendulumflow.com/third-party/ag6/SHA256SUMS.txt",
+      "index_http_status": 200,
+      "index_checked_at_utc": "2026-10-29T00:48:08.213504+00:00",
+      "index_bytes": 14824,
+      "index_sha256": "d69f8b1e1ca5af57276ebf49bb26562f8de3e9247e3e82d1f615e6352f5d382b",
+      "index_etag": null,
+      "index_last_modified": null,
+      "index_target_parquet_count": 0,
+      "target_objects": {}
+    },
+    "v3": {
+      "version": "PendulumFlow V3",
+      "index_url": "https://archive.pendulumflow.com/v3/SHA256SUMS.txt",
+      "index_http_status": 200,
+      "index_checked_at_utc": "2026-10-29T00:48:09.199325+00:00",
+      "index_bytes": 703723,
+      "index_sha256": "ddf9f304808fb3e9bc9f2c3338a23fbb66642cbb9df76d0450d7a7493c303d17",
+      "index_etag": null,
+      "index_last_modified": null,
+      "index_target_parquet_count": 0,
+      "target_objects": {}
+    }
+  },
+  "pmxt_v2_primary": {
+    "object_pattern": "https://r2v2.pmxt.dev/polymarket_orderbook_YYYY-MM-DDTHH.parquet",
+    "documented_pattern_source": "https://archive.pmxt.dev/docs/v2-data-overview",
+    "object_head_status_counts": {
+      "404": 68
+    },
+    "target_objects": {
+      "2026-08-15T10": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T10.parquet",
+        "checked_at_utc": "2026-10-29T00:48:11.131066+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T11": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T11.parquet",
+        "checked_at_utc": "2026-10-29T00:48:11.246939+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T12": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T12.parquet",
+        "checked_at_utc": "2026-10-29T00:48:11.342704+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T13": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T13.parquet",
+        "checked_at_utc": "2026-10-29T00:48:11.444366+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T14": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T14.parquet",
+        "checked_at_utc": "2026-10-29T00:48:11.570268+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T15": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T15.parquet",
+        "checked_at_utc": "2026-10-29T00:48:11.664838+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T16": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T16.parquet",
+        "checked_at_utc": "2026-10-29T00:48:11.779211+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T17": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T17.parquet",
+        "checked_at_utc": "2026-10-29T00:48:11.914841+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T18": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T18.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.035990+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T19": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T19.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.153319+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T20": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T20.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.272875+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T21": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T21.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.384434+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T22": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T22.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.504636+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-15T23": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-15T23.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.600418+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T00": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T00.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.720769+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T01": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T01.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.834533+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T02": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T02.parquet",
+        "checked_at_utc": "2026-10-29T00:48:12.946148+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T03": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T03.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.075660+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T04": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T04.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.196051+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T05": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T05.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.289663+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T06": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T06.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.405559+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T07": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T07.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.516234+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T08": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T08.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.615258+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T09": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T09.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.722356+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T10": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T10.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.848194+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T11": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T11.parquet",
+        "checked_at_utc": "2026-10-29T00:48:13.952726+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T12": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T12.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.062932+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T13": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T13.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.180181+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T14": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T14.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.289190+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T15": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T15.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.409270+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T16": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T16.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.510373+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T17": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T17.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.613357+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T18": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T18.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.712672+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T19": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T19.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.798324+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T20": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T20.parquet",
+        "checked_at_utc": "2026-10-29T00:48:14.909049+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T21": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T21.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.007503+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T22": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T22.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.107551+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-16T23": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-16T23.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.223979+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T00": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T00.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.323758+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T01": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T01.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.429825+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T02": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T02.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.550277+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T03": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T03.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.650737+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T04": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T04.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.764951+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T05": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T05.parquet",
+        "checked_at_utc": "2026-10-29T00:48:15.889784+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T06": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T06.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.004051+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T07": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T07.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.116737+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T08": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T08.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.231042+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T09": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T09.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.362051+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T10": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T10.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.485991+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T11": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T11.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.611255+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T12": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T12.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.713149+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T13": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T13.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.826334+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T14": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T14.parquet",
+        "checked_at_utc": "2026-10-29T00:48:16.920073+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T15": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T15.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.046506+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T16": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T16.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.148344+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T17": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T17.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.250802+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T18": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T18.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.364801+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T19": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T19.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.485599+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T20": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T20.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.590314+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T21": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T21.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.724983+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T22": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T22.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.819269+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-17T23": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-17T23.parquet",
+        "checked_at_utc": "2026-10-29T00:48:17.928609+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-18T00": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-18T00.parquet",
+        "checked_at_utc": "2026-10-29T00:48:18.037979+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-18T01": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-18T01.parquet",
+        "checked_at_utc": "2026-10-29T00:48:18.154790+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-18T02": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-18T02.parquet",
+        "checked_at_utc": "2026-10-29T00:48:18.237560+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-18T03": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-18T03.parquet",
+        "checked_at_utc": "2026-10-29T00:48:18.335654+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-18T04": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-18T04.parquet",
+        "checked_at_utc": "2026-10-29T00:48:18.421222+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      },
+      "2026-08-18T05": {
+        "url": "https://r2v2.pmxt.dev/polymarket_orderbook_2026-08-18T05.parquet",
+        "checked_at_utc": "2026-10-29T00:48:18.546218+00:00",
+        "http_status": 404,
+        "content_length": null,
+        "etag": null,
+        "last_modified": null
+      }
+    },
+    "payload_bytes_downloaded": 0
+  },
+  "contributed_source": {
+    "listing_url": "https://archive.pendulumflow.com/contrib/devpyle/",
+    "pages": {
+      "1": {
+        "url": "https://archive.pendulumflow.com/contrib/devpyle/",
+        "checked_at_utc": "2026-10-29T00:48:10.851079+00:00",
+        "http_status": 200,
+        "etag": null,
+        "last_modified": "Thu, 29 Oct 2026 00:37:43 GMT",
+        "content_length_header": null,
+        "bytes_read": 116016,
+        "body_sha256": "b5812197e4347305be5defbbbedd6cc5c6c6f58d32b6e15b6f20b48301603415"
+      },
+      "2": {
+        "url": "https://archive.pendulumflow.com/contrib/devpyle/?page=2",
+        "checked_at_utc": "2026-10-29T00:48:10.958809+00:00",
+        "http_status": 200,
+        "etag": null,
+        "last_modified": "Thu, 29 Oct 2026 00:40:42 GMT",
+        "content_length_header": null,
+        "bytes_read": 116312,
+        "body_sha256": "821a05f5377ec52bb4037703ce79ef33acec5add3821f408c093e9bdf144de97"
+      },
+      "3": {
+        "url": "https://archive.pendulumflow.com/contrib/devpyle/?page=3",
+        "checked_at_utc": "2026-10-29T00:48:11.050280+00:00",
+        "http_status": 200,
+        "etag": null,
+        "last_modified": "Thu, 29 Oct 2026 00:40:46 GMT",
+        "content_length_header": null,
+        "bytes_read": 112071,
+        "body_sha256": "aceb712cb4b0f2fba8380e6ab553e6c503c1f15753a98cc982707954b4e4876d"
+      }
+    },
+    "target_hours_with_listed_files": 68,
+    "target_file_count": 272,
+    "files_per_hour_counts": {
+      "4": 68
+    },
+    "file_type_counts": {
+      "poly_trades.parquet": 68,
+      "market_events.parquet": 68,
+      "clob_l2.parquet": 68,
+      "best_bid_ask.parquet": 68
+    },
+    "sum_of_rounded_listing_sizes_mib": 8692.06,
+    "checksum_published": false,
+    "etag_requested": false,
+    "qualifies_full_venue_native_depth_and_chronology": false,
+    "reason": "publisher format notes describe five-level clob_l2 snapshots, recorder receive time without venue timestamps, and crypto Up/Down markets only"
+  },
+  "downloads": {
+    "qualifying_partitions_downloaded": 0,
+    "contributed_partial_partitions_downloaded": 0,
+    "payload_bytes_downloaded": 0,
+    "new_event_parts_written": 0
+  },
+  "out_of_scope_metadata_deviation": {
+    "object_hour_utc": "2026-08-10T00:00:00Z",
+    "request": "HEAD",
+    "http_status": 200,
+    "content_length": "361963136",
+    "etag": "\"1478fe69f65f30f767bbf4c4b3e944c6-44\"",
+    "purpose": "method-support control for PMXT V2 HEAD; metadata only, response body not read",
+    "note": "outside the frozen 68-hour interval; disclosed in report, not used for coverage"
+  },
+  "holdout_evaluation": {
+    "evaluation_authorized": false,
+    "activated": false,
+    "status": "HOLDOUT_NOT_RUN",
+    "predictions_generated": 0,
+    "predictive_metrics_computed": 0,
+    "economics_computed": 0
+  },
+  "machine_table": "reports/btc_preopen/btc_D_holdout_book_gap_fill_20261029_hours.csv",
+  "coverage_recomputation": {
+    "input": "existing PMXT technical market_index.parquet; projected columns only: condition_id,market_start_utc,archive_source,archive_entry_hour_available,archive_window_hours_expected,archive_window_hours_source_available,archive_window_hours_processed,archive_window_missing_source_hours,archive_window_unprocessed_hours,archive_history_complete,archive_freshness_window_available",
+    "holdout_rows_in_scope": 28222,
+    "existing_incomplete_rows": 1115,
+    "rows_without_entry_hour_or_freshness_metadata": 816,
+    "entry_hour_present_but_prior_history_incomplete": 299,
+    "recomputed_complete_after_E0043": 0,
+    "still_incomplete": 1115,
+    "target_gap_hours_intersecting_windows_min": 1,
+    "target_gap_hours_intersecting_windows_max": 26,
+    "expected_hour_window_counts": {
+      "25": 92,
+      "26": 1023
+    },
+    "coverage_rule": "archive_window_hours_processed == archive_window_hours_expected; entry/freshness remain separately reported",
+    "holdout_outcome_prediction_feature_payload_columns_read": [],
+    "coverage_overlay_csv": "reports/btc_preopen/btc_D_holdout_book_gap_fill_20261029_coverage.csv",
+    "coverage_overlay_sha256": "86f932b3ae6e85f4aad62a9d0ac8ee4236cb5d6fc503a581b02598b8e7f3e8b2"
+  },
+  "unmatched_slot_metadata_check": {
+    "target_starts_utc": [
+      "2026-07-12T02:25:00Z",
+      "2026-09-03T15:20:00Z"
+    ],
+    "sources": {
+      "gamma": {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet",
+        "projected_columns": [
+          "market_start_utc",
+          "condition_id",
+          "market_slug",
+          "up_token_id",
+          "down_token_id"
+        ],
+        "matching_rows_per_start": [
+          0,
+          0
+        ]
+      },
+      "pmxt": {
+        "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+        "projected_columns": [
+          "market_start_utc",
+          "condition_id",
+          "market_slug",
+          "up_token_id",
+          "down_token_id"
+        ],
+        "matching_rows_per_start": [
+          0,
+          0
+        ]
+      }
+    },
+    "result": "UNRESOLVED_IN_LOCAL_TECHNICAL_INDEXES",
+    "outcome_or_payout_fields_read": false,
+    "next_safe_lookup": "Public or local metadata projection for condition ID, slug, scheduled start and token IDs for only these two starts; do not classify as no-market."
+  },
+  "feature_cache_identity": {
+    "result": "INCOMPATIBLE_WITH_E0041_TRANSFORMS; FEATURE_VALUE_PARITY_NOT_CHECKED",
+    "e0041_bundle_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/final_D_bundle_manifest.json",
+    "e0041_bundle_manifest_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+    "broad_cache_path": "data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/calibration_seed/9ca4755fd7b45c9f/stages/final_feature_dataset_4527ce62c44f/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+    "broad_cache_metadata_check": "Parquet schema only; 64/64 E0041 selected base feature names present; no feature rows/values read. Broad schema has separate source for six required taker_Z/V columns.",
+    "rp": {
+      "broad_cache_signature_sha256": "961cbcfb331b2e937a90c729c313a4ae4c4693ef80285572cf8cc131c13ae4ef",
+      "e0041_signature_sha256": "c645a9577e2ecbf50b4dd17df7f83bb6d933be03550f1d8d6ea9add4cbae8d60",
+      "example_difference": "Broad bins=214334; E0041 bins=29322; decay/window parameters also differ."
+    },
+    "vp": {
+      "broad_cache_signature_sha256": "1f889a7f20d0e8abd49f7d45251db27c80c4232a40111598eb5e5c04adc870ed",
+      "e0041_signature_sha256": "e53cf3c02d812aa6253b9145cbdbdbfe56509059df25ae47804d37582fd96ea1",
+      "example_difference": "Broad neighbor_bins=6; E0041 neighbor_bins=5; horizon/bin/decay parameters also differ."
+    },
+    "indicator_generator_code_hashes_in_broad_cache_metadata": false,
+    "taker_flow": {
+      "generator": "features/btc_taker_flow.py; run metadata/code SHA-256 127a0a53dedf9ed07fa53f1049796aba440299fc010066ee7b189eb850a04477",
+      "e0041_flow_prefix_sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe",
+      "e0041_implementation_hashes_include_flow_generator": false,
+      "definitions": "Horizons 1/5/15m; Q=sum quote_volume; D=sum(2*taker_buy_quote_volume-quote_volume); I=D/Q; U=D/(h*qbar); Z=log(Close_end/Open_start)/(sqrt(h)*max(sigma,1e-6)), where sigma is prior 60m std of BTCUSDT log returns; V=log1p(Q/(h*qbar)), where qbar is prior 1440m mean quote_volume; no forward fill/clipping."
+    },
+    "future_builder": "Recompute from exact raw inputs and E0041 transformations; warm memory/ESN state chronologically from the raw/canonical pipeline. Final PCA columns alone do not reproduce state.",
+    "holdout_feature_values_read": false
+  },
+  "preparation_gate": {
+    "status": "BLOCKED_BY_MISSING_FULL_VENUE_NATIVE_BOOK_SOURCE",
+    "blocking_interval_utc": {
+      "start_inclusive": "2026-08-15T10:00:00Z",
+      "end_exclusive": "2026-08-18T06:00:00Z",
+      "expected_hours": 68
+    },
+    "required_next_source": "Full native book event history with documented venue/receive chronology and integrity for all 68 UTC hours, with sufficient initialization and boundary evidence.",
+    "t60_t59_and_initialization_source_checks": "NOT_VERIFIED; qualifying source absent",
+    "bbo_freshness_and_source_quality": "NOT_VERIFIED; no replay or input preparation performed",
+    "qualifying_partition_count": 0,
+    "payload_bytes_downloaded": 0,
+    "event_parts_written": 0
+  },
+  "resource_note": {
+    "qualifying_source_size": "No qualifying object exposed a declared size, so no transfer/staging estimate was applicable.",
+    "partial_contribution_declared_total_mib": 8692.06,
+    "partial_contribution_downloaded": false,
+    "reason_not_downloaded": "Fails full-depth and venue chronology requirements; not a resource limitation."
+  },
+  "artifact_sha256": {
+    "per_hour_status": "8c9c8080c4251ddd50109617f7ba57a4810e1c77e2c3cc37b670e2cf1fa5912d",
+    "coverage_overlay": "86f932b3ae6e85f4aad62a9d0ac8ee4236cb5d6fc503a581b02598b8e7f3e8b2"
+  }
+}
