@@ -1,0 +1,116 @@
+{
+  "protocol_id": "E0043",
+  "task_id": "T0015",
+  "decision_id": "D0023",
+  "created_date": "2026-10-29",
+  "status": "frozen_source_only_protocol_v2",
+  "scope": {
+    "target_start_utc_inclusive": "2026-08-15T10:00:00Z",
+    "target_end_utc_exclusive": "2026-08-18T06:00:00Z",
+    "expected_hour_count": 68,
+    "affected_market_windows": {
+      "without_entry_hour_or_freshness_metadata": 816,
+      "entry_hour_present_but_prior_history_incomplete": 299,
+      "unique_total": 1115
+    },
+    "adjacent_hours": "forbidden unless a pre-read manifest documents a necessary initialization or boundary check"
+  },
+  "authorization": {
+    "source_payload_read": "only native book/event structure, provenance, condition/token IDs, event and receive timestamps, initialization, ordering, and continuity",
+    "outcomes_resolutions_payouts": "forbidden",
+    "holdout_features_or_forecasts": "forbidden",
+    "predictions_ev_fills_trades_pnl_or_predictive_metrics": "forbidden",
+    "evaluation_rows_or_evaluator": "forbidden",
+    "evaluation_authorized": false,
+    "activated": false,
+    "holdout_status": "HOLDOUT_NOT_RUN",
+    "model_feature_calibrator_policy_bundle_changes": "forbidden"
+  },
+  "required_source_qualification": {
+    "full_native_book_depth": true,
+    "native_event_chronology": true,
+    "event_time_and_receive_time": true,
+    "no_interpolation_or_synthetic_events": true,
+    "candle_trade_or_partial_depth_substitute": false
+  },
+  "candidate_sources": [
+    {
+      "name": "PMXT V1",
+      "version": "v1",
+      "publisher_index_url": "https://archive.pendulumflow.com/pmxt/v1/SHA256SUMS.txt",
+      "publisher_object_prefix": "https://archive.pendulumflow.com/pmxt/v1/",
+      "schema": "native PMXT V1 hourly orderbook archive",
+      "license": "CC BY 4.0",
+      "qualification": "metadata-only check; use only if publisher listing explicitly includes a target hour"
+    },
+    {
+      "name": "PMXT V2",
+      "version": "v2",
+      "publisher_index_url": "https://archive.pendulumflow.com/pmxt/v2/SHA256SUMS.txt",
+      "publisher_object_pattern": "https://r2v2.pmxt.dev/polymarket_orderbook_YYYY-MM-DDTHH.parquet",
+      "schema": "native PMXT v2 book, price_change, last_trade_price, and tick_size_change events",
+      "license": "CC BY 4.0"
+    },
+    {
+      "name": "AG6 mirrored V2",
+      "version": "AG6 V2",
+      "publisher_index_url": "https://archive.pendulumflow.com/third-party/ag6/SHA256SUMS.txt",
+      "publisher_object_prefix": "https://dl.pendulumflow.com/third-party/ag6/",
+      "schema": "PMXT-compatible V2 event archive; preserve original source attribution",
+      "license": "publisher reports no licence terms"
+    },
+    {
+      "name": "PendulumFlow V3",
+      "version": "v3",
+      "publisher_index_url": "https://archive.pendulumflow.com/v3/SHA256SUMS.txt",
+      "publisher_object_prefix": "https://dl.pendulumflow.com/v3/",
+      "schema": "V3 native book and event products; preserve event and receive-time semantics",
+      "license": "CC BY 4.0"
+    },
+    {
+      "name": "devpyle contributed prefix",
+      "version": "contributed own-format archive",
+      "publisher_listing_url": "https://archive.pendulumflow.com/contrib/devpyle/",
+      "qualification": "metadata-only unless full native depth and venue event/receive chronology are documented; do not substitute five-level snapshots or trade records"
+    }
+  ],
+  "local_parser_and_adapter_identity": {
+    "public_archive_adapter": "run_btc_preopen_public_archive.py",
+    "pmxt_event_parser": "run_btc_preopen_pmxt_extract.py",
+    "market_history_rule": "run_btc_preopen_t59_reassessment.py::_add_archive_coverage_to_index",
+    "code_sha256s": {
+      "run_btc_preopen_public_archive.py": "0aa8b9db2ab1db38dc54ecce7cb2f73d7c38277233068eb8a1864b071c38b71c",
+      "run_btc_preopen_pmxt_extract.py": "842b0eff26dc8da4b5cba37971a29b92fb700611680eb3267d0a918aa41f5820",
+      "run_btc_preopen_t59_reassessment.py": "57687ed6dbf4713270d177606234cb4d0da2df2bcbbc3cc0c5eff5ce00f4ed26"
+    }
+  },
+  "storage": {
+    "staging_root": "data/analysis/polymarket/BTC/btc_D_holdout_book_gap_fill_20261029/source_staging/",
+    "result_root": "data/analysis/polymarket/BTC/btc_D_holdout_book_gap_fill_20261029/",
+    "git_policy": "raw payloads, caches, and temporary files stay local and ignored; only small manifests, source-status tables, code, and reports may be committed",
+    "bounded_download_workers": 2,
+    "atomic_part_completion": true,
+    "bounded_retry_with_backoff": true,
+    "resume_requires_hash_and_schema_validation": true
+  },
+  "validation": {
+    "verify_remote_listing_or_manifest_before_object_access": true,
+    "per_hour_record_http_or_listing_status_version_etag_declared_size_check_time_and_provenance": true,
+    "downloaded_file_sha256_required": true,
+    "preserve_full_book_delta_order_timestamp_and_token_semantics": true,
+    "recompute_market_windows_from_verified_source_coverage": true,
+    "expected_unique_market_window_reconciliation": 1115
+  },
+  "outputs": {
+    "report": "reports/btc_preopen/btc_D_holdout_book_gap_fill_20261029.md",
+    "hour_status_table": "reports/btc_preopen/btc_D_holdout_book_gap_fill_20261029_hours.csv",
+    "versioned_coverage_overlay": "reports/btc_preopen/btc_D_holdout_book_gap_fill_20261029_coverage.csv",
+    "evaluation_input_manifest": null
+  },
+  "e0041_bundle_manifest_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+  "protocol_version": 2,
+  "protocol_history": {
+    "supersedes_config": "configs/research/btc_D_holdout_book_gap_fill_20261029.json",
+    "change": "Adds the documented PMXT V1 index as a metadata-only candidate check; target interval, payload permissions, exclusions, parsers, and evaluation controls are unchanged."
+  }
+}
