@@ -7,6 +7,16 @@ import pytest
 from features import btc_D_continuation_20261029 as continuation
 
 
+def test_peak_rss_uses_a_finite_windows_working_set_measurement():
+    import math
+
+    from run_btc_D_flow_representation_base64_continuation_20261029 import _peak_rss_gib
+
+    peak = _peak_rss_gib()
+    assert math.isfinite(peak)
+    assert peak > 0
+
+
 def _candles(rows=120, *, start="2026-06-01T00:00:00Z"):
     opened = pd.date_range(start, periods=rows, freq="min", tz="UTC")
     close = 100.0 + np.arange(rows, dtype=np.float64) * 0.01
