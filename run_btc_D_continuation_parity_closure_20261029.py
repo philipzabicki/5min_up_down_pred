@@ -23,10 +23,10 @@ from features import btc_D_continuation_20261029 as continuation
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_continuation_parity_closure_20261029_v1.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_continuation_parity_closure_20261029_v2.json"
 E0045_PROTOCOL_PATH = ROOT / "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v2.json"
 E0045_MANIFEST_PATH = ROOT / "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029_manifest.json"
-RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v1"
+RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v2"
 RAW_COLUMNS = ("Opened", "Open", "High", "Low", "Close", "Volume", "UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close")
 FLOW_RAW_COLUMNS = ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume")
 FLOW_COLUMNS = ("taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m")
@@ -65,11 +65,14 @@ def _require_hash(relative: str, expected: str, label: str) -> Path:
 def load_protocol() -> tuple[dict, dict, dict, dict]:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
     if (protocol.get("status") != "FROZEN_BEFORE_REPLAY" or protocol.get("experiment_id") != "E0047"
-            or protocol.get("protocol_revision") != 1):
+            or protocol.get("protocol_revision") != 2):
         raise RuntimeError("E0047 protocol is not frozen for replay")
     if (protocol["continuation"]["runtime_root"].replace("\\", "/")
             != str(RUNTIME.relative_to(ROOT)).replace("\\", "/")):
         raise RuntimeError("E0047 runtime identity differs from its pinned protocol")
+    if protocol["continuation"]["comparison_rules"].get("panel_timestamp_identity") != (
+            "Normalize both UTC Opened key sequences to datetime64[ns] before exact instant and order comparison."):
+        raise RuntimeError("E0047 panel timestamp comparison rule changed")
     scope = protocol["scope"]
     if (scope["source_raw_opened_exclusive_utc"] != "2026-06-30T23:58:00Z"
             or scope["last_allowed_raw_opened_utc"] != "2026-06-30T23:57:00Z"
@@ -77,7 +80,9 @@ def load_protocol() -> tuple[dict, dict, dict, dict]:
             or int(scope["safe_raw_rows"]) != 3_186_145
             or scope["holdout_market_start_utc"] != "[2026-07-01T00:00:00Z,2026-10-07T00:00:00Z)"):
         raise RuntimeError("E0047 development or protected-data scope changed")
-    _require_hash(protocol["previous_protocol"]["path"], protocol["previous_protocol"]["sha256"], "preserved E0046 v3 preregistration")
+    _require_hash(protocol["previous_protocol"]["path"], protocol["previous_protocol"]["sha256"], "preserved E0047 v1 preregistration")
+    for record in protocol["previous_attempt"]["files"]:
+        _require_hash(record["path"], record["sha256"], f"preserved E0047 v1 attempt artifact {record['path']}")
     for record in protocol["parent"]["preserved_E0046_artifacts"]:
         _require_hash(record["path"], record["sha256"], f"immutable E0046 artifact {record['path']}")
     if protocol["scope"]["evaluation_authorized"] or protocol["scope"]["activated"] or protocol["scope"]["holdout_status"] != "HOLDOUT_NOT_RUN":
@@ -1308,6 +1313,12 @@ def _resumed_matrix_parity_rows(actual_matrix: np.ndarray, canonical_matrix: np.
     return rows
 
 
+def _same_opened_keys(left, right) -> bool:
+    left_opened = pd.DatetimeIndex(pd.to_datetime(left, utc=True, errors="raise")).as_unit("ns")
+    right_opened = pd.DatetimeIndex(pd.to_datetime(right, utc=True, errors="raise")).as_unit("ns")
+    return len(left_opened) == len(right_opened) and np.array_equal(left_opened.asi8, right_opened.asi8)
+
+
 def _aggregate_partition_coverage(rows: list[dict], block_features: dict[str, list[str]], expected_rows: int) -> dict:
     valid = expected_rows > 0
     details = {}
@@ -1486,8 +1497,9 @@ def _compare_resumed_suffix_matrices_and_predictions(protocol: dict, e45_protoco
         canonical_members = []
         prediction_started = time.perf_counter()
         selected_panel = [panel_rows[index] for index in panel_positions]
-        selected_panel_opened = pd.DatetimeIndex(pd.to_datetime([row["Opened"] for row in selected_panel], utc=True, errors="raise"))
-        if len(selected_panel) != len(stage_panel_ns) or not selected_panel_opened.asi8.tolist() == stage_panel_ns.tolist():
+        selected_panel_opened = pd.DatetimeIndex(pd.to_datetime(
+            [row["Opened"] for row in selected_panel], utc=True, errors="raise")).as_unit("ns")
+        if len(selected_panel) != len(stage_panel_ns) or not _same_opened_keys(selected_panel_opened, stage_panel_ns):
             raise RuntimeError(f"panel intersection order differs from resumed {stage}")
         for index, member in enumerate(model_members):
             seed = int(member["reservoir_seed"])
@@ -2050,21 +2062,21 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
     profile_info = [row for row in state_rows if row.get("block") == "final_profile_state_detail"]
     def diff_paths(family, comparison):
         return ", ".join(row["path"] for row in profile_info
-                          if row.get("feature") == family and row.get("comparison") == comparison) or "brak r??nic"
+                          if row.get("feature") == family and row.get("comparison") == comparison) or "brak roznic"
     def bool_text(value):
         return "PASS" if value else "FAIL"
-    report = f"""# E0047 - Zamkni?cie zgodno?ci kontynuacji generatora D
+    report = f"""# E0047 - Zamkniecie zgodnosci kontynuacji generatora D
 
-## Wyniki najwa?niejszych kontroli
+## Wyniki najwazniejszych kontroli
 
-- **FLOW po historycznym cast:** {flow_info['float32_exact_mismatches']:,} dok?adnych b??d?w na {flow_info['common_reference_rows']:,} kluczach ? 6 cech; stan {flow_info['float32_exact_status']}. Warto?? **19 063 239** z E0046 by?a b??dnie przypisana: licznik sumowa? blok diagnostyczny float64 przed castem. Hash-sprawdzenie wcze?niejszego CSV E0046 wykaza?o 0 b??d?w wy??cznie w rekordach `flow_representation_float32`; E0047 agreguje tylko ten blok i sprawdza pe?ne, niepokrywaj?ce si? klucze.
-- **BollingerBands:** E0046 r??ni? si? od batch na wszystkich 38 977 / 1 440 / 40 417 wierszach odpowiednich sufiks?w, bez r??nic masek; pierwszy b??d `2026-06-02T22:21:00Z`, maks. abs `0.00012635984263198452`. Obci?cie wej?cia resetowa?o rekurencyjny akumulator LMA(8), a ogon nie zachowywa? jego ci?g?ego stanu. E0047 przenosi dok?adne akumulatory LMA i 593 poprzednie `diff2` dla zamro?onego NWMA_EPAN(594). Wynik: {bool_text(status_groups['Bollinger_continuation'])}.
-- **ChaikinOsc:** E0046 r??ni? si? na wszystkich 38 977 / 1 440 / 40 417 wierszach, bez r??nic masek; pierwszy b??d `2026-06-02T22:21:00Z`, maks. abs `0.006234453991055489`. ADL i jego przyrosty by?y bitowo zgodne z TA-Lib; r??nic? wprowadza?o ponowne zainicjowanie WMA w HMA(893) na obci?tym ogonie. E0047 przenosi stan trzech akumulator?w TA-Lib WMA oraz okna wej?ciowe; NWMA_EPAN(8) zachowuje siedem poprzednich warto?ci. Wynik: {bool_text(status_groups['Chaikin_continuation'])}.
-- **RP/VP:** ko?cowe stany E0047 por?wnano dok?adnie z E0041 oraz mi?dzy niezale?nymi wznowieniami. RP: {bool_text(next(row['status'] for row in state_rows if row.get('block') == 'final_profile_state' and row.get('feature') == 'reaction_profile'))}; r??nice reprezentacyjne: E0041 `{diff_paths('reaction_profile', 'E0041_reference')}`, ?cie?ki wznowie? `{diff_paths('reaction_profile', 'independent_resume')}`. VP: {bool_text(next(row['status'] for row in state_rows if row.get('block') == 'final_profile_state' and row.get('feature') == 'volume_profile'))}; r??nice reprezentacyjne: E0041 `{diff_paths('volume_profile', 'E0041_reference')}`, ?cie?ki wznowie? `{diff_paths('volume_profile', 'independent_resume')}`. W E0046 RP `horizon_names` i `feature_columns` mia?y r?wnowa?ne tuple/list, a `last_candle_time` zapisywa? ten sam UTC instant z/bez `+00:00`; te w?skie r??nice nie zmieniaj? stanu. W E0046 VP `raw_profile` r??ni? si? numerycznie (18/11/15 element?w dla short/medium/long; maks. abs `7.275957614183426e-12`, `7.450580596923828e-09`, `3.725290298461914e-09`). Przyczyn? by?a inna kolejno?? dzia?a? kontynuacji wzgl?dem zamro?onego batch; E0047 odtwarza kolejno?? batch i nie normalizuje tablic liczbowych.
-- **Macierze/predykcje po wznowieniu:** macierze {bool_text(status_groups['resumed_model_matrices'])}, predykcje techniczne {bool_text(status_groups['resumed_D_predictions'])}. Ka?dy wiersz wszystkich trzech rzeczywistych sufiks?w przeszed? przez wznowione BASE64/FLOW6/memory/ESN, historyczne konwersje i trzy macierze po 86 cech. Przeci?cia zamro?onego panelu i hashe ka?dego ?r?d?a s? w manife?cie/CSV. Panel finalizacyjny: C1?END {resumed_suffixes['C1_to_END']['finalization_panel_compared_rows']}/64, C2?END {resumed_suffixes['C2_to_END']['finalization_panel_compared_rows']}/64.
-- **Checkpointy:** oczekiwana kompletno?? C1, C2 i END oraz zgodno?? C1?C2?END z niezale?nymi C1?END: {bool_text(status_groups['final_states'])}. Zakres raw: 3 186 145 wierszy, `Opened < 2026-06-30T23:58:00Z`; ostatni raw `23:57Z`, ostatni modelowy `23:53Z`.
+- **FLOW po historycznym cast:** {flow_info['float32_exact_mismatches']:,} bledow reprezentacji na {flow_info['common_reference_rows']:,} kluczach x 6 cech; status {flow_info['float32_exact_status']}. Liczba **19 063 239** z E0046 byla blednie przypisana: agregat sumowal blok diagnostyczny float64 przed castem. Hash-sprawdzenie CSV E0046 wykazalo 0 bledow wylacznie w rekordach `flow_representation_float32`; E0047 agreguje tylko ten blok i wymaga pelnego, rozlacznego pokrycia kluczy.
+- **BollingerBands:** E0046 roznil sie od batch na wszystkich 38 977 / 1 440 / 40 417 wierszach odpowiednich sufiksow, bez roznic masek; pierwszy blad `2026-06-02T22:21:00Z`, maks. abs `0.00012635984263198452`. Obciecie wejscia resetowalo rekurencyjny akumulator LMA(8), a ogon nie zachowywal jego ciaglego stanu. E0047 przenosi dokladne akumulatory LMA i 593 poprzednie `diff2` dla zamrozonego NWMA_EPAN(594). Wynik: {bool_text(status_groups['Bollinger_continuation'])}.
+- **ChaikinOsc:** E0046 roznil sie na wszystkich 38 977 / 1 440 / 40 417 wierszach, bez roznic masek; pierwszy blad `2026-06-02T22:21:00Z`, maks. abs `0.006234453991055489`. ADL i jego przyrosty byly bitowo zgodne z TA-Lib; roznice wprowadzalo ponowne zainicjowanie WMA w HMA(893) na obcietym ogonie. E0047 przenosi stan trzech akumulatorow TA-Lib WMA oraz okna wejsciowe; NWMA_EPAN(8) zachowuje siedem poprzednich wartosci. Wynik: {bool_text(status_groups['Chaikin_continuation'])}.
+- **RP/VP:** koncowe stany E0047 porownano dokladnie z E0041 oraz miedzy niezaleznymi wznowieniami. RP: {bool_text(next(row['status'] for row in state_rows if row.get('block') == 'final_profile_state' and row.get('feature') == 'reaction_profile'))}; roznice reprezentacyjne: E0041 `{diff_paths('reaction_profile', 'E0041_reference')}`, sciezki wznowien `{diff_paths('reaction_profile', 'independent_resume')}`. VP: {bool_text(next(row['status'] for row in state_rows if row.get('block') == 'final_profile_state' and row.get('feature') == 'volume_profile'))}; roznice reprezentacyjne: E0041 `{diff_paths('volume_profile', 'E0041_reference')}`, sciezki wznowien `{diff_paths('volume_profile', 'independent_resume')}`. W E0046 RP `horizon_names` i `feature_columns` mialy rownowazne tuple/list, a `last_candle_time` zapisywal ten sam UTC instant z/bez `+00:00`; te waskie roznice nie zmieniaja stanu. W E0046 VP `raw_profile` roznil sie numerycznie (18/11/15 elementow dla short/medium/long; maks. abs `7.275957614183426e-12`, `7.450580596923828e-09`, `3.725290298461914e-09`). Przyczyna byla inna kolejnosc dzialan kontynuacji wzgledem zamrozonego batch; E0047 odtwarza kolejnosc batch i nie normalizuje tablic liczbowych.
+- **Macierze/predykcje po wznowieniu:** macierze {bool_text(status_groups['resumed_model_matrices'])}, predykcje techniczne {bool_text(status_groups['resumed_D_predictions'])}. Kazdy wiersz wszystkich trzech rzeczywistych sufiksow przeszedl przez wznowione BASE64/FLOW6/memory/ESN, historyczne konwersje i trzy macierze po 86 cech. Przeciecia zamrozonego panelu i hashe kazdego zrodla sa w manifeście/CSV. Panel finalizacyjny: C1->END {resumed_suffixes['C1_to_END']['finalization_panel_compared_rows']}/64, C2->END {resumed_suffixes['C2_to_END']['finalization_panel_compared_rows']}/64.
+- **Checkpointy:** oczekiwana kompletnosc C1, C2 i END oraz zgodnosc C1->C2->END z niezaleznym C1->END: {bool_text(status_groups['final_states'])}. Zakres raw: 3 186 145 wierszy, `Opened < 2026-06-30T23:58:00Z`; ostatni raw `23:57Z`, ostatni modelowy `23:53Z`.
 
-## Status blok?w
+## Status blokow
 
 | Blok | Wynik |
 |---|---|
@@ -2072,11 +2084,11 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
 
 ## Przebiegi i zasoby
 
-Wznowione zakresy: C1?C2 {suffix_summary['C1_to_C2']['rows']:,} wierszy ({suffix_summary['C1_to_C2']['first_opened']}?{suffix_summary['C1_to_C2']['last_opened']}); C1?END {suffix_summary['C1_to_END']['rows']:,} ({suffix_summary['C1_to_END']['first_opened']}?{suffix_summary['C1_to_END']['last_opened']}); C2?END {suffix_summary['C2_to_END']['rows']:,} ({suffix_summary['C2_to_END']['first_opened']}?{suffix_summary['C2_to_END']['last_opened']}). Wszystkie wznowienia dzia?a?y w ?wie?ych procesach. ??cznie {report_manifest['resource']['wall_seconds']:.1f} s; peak RSS parent/worker {report_manifest['resource']['maximum_peak_rss_gib']:.2f} GiB. Dost?pny RAM przed/po: {report_manifest['resource']['available_ram_gib_before']:.2f}/{report_manifest['resource']['available_ram_gib_after']:.2f} GiB; wolny dysk: {report_manifest['resource']['free_disk_gib_before']:.2f}/{report_manifest['resource']['free_disk_gib_after']:.2f} GiB. Odczytano {report_manifest['resource']['prefix_raw_rows_read']:,} wierszy prefiksu; szczeg??owe I/O, etapy, czasy i rozmiary checkpoint?w s? w manife?cie.
+Wznowione zakresy: C1->C2 {suffix_summary['C1_to_C2']['rows']:,} wierszy ({suffix_summary['C1_to_C2']['first_opened']}..{suffix_summary['C1_to_C2']['last_opened']}); C1->END {suffix_summary['C1_to_END']['rows']:,} ({suffix_summary['C1_to_END']['first_opened']}..{suffix_summary['C1_to_END']['last_opened']}); C2->END {suffix_summary['C2_to_END']['rows']:,} ({suffix_summary['C2_to_END']['first_opened']}..{suffix_summary['C2_to_END']['last_opened']}). Wszystkie wznowienia dzialaly w swiezych procesach. Lacznie {report_manifest['resource']['wall_seconds']:.1f} s; peak RSS parent/worker {report_manifest['resource']['maximum_peak_rss_gib']:.2f} GiB. Dostepny RAM przed/po: {report_manifest['resource']['available_ram_gib_before']:.2f}/{report_manifest['resource']['available_ram_gib_after']:.2f} GiB; wolny dysk: {report_manifest['resource']['free_disk_gib_before']:.2f}/{report_manifest['resource']['free_disk_gib_after']:.2f} GiB. Odczytano {report_manifest['resource']['prefix_raw_rows_read']:,} wierszy prefiksu; szczegolowe I/O, etapy, czasy i rozmiary checkpointow sa w manifeście.
 
-Nie wykonano treningu, selekcji, fit?w, jako?ciowych metryk, ekonomiki ani evaluatora. Nie odczytano ?adnych warto?ci ani artefakt?w holdoutu; nie wygenerowano nowych predykcji holdoutu. Pozostaj? `evaluation_authorized=false`, `activated=false`, `HOLDOUT_NOT_RUN`; hash finalnego bundle E0041: `7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d`. E0046 i jego pocz?tkowe/korygowane artefakty zachowano bez zmian. E0037 pozostaje `FAILED`, T0009 `BLOCKED`, a T0046/T0048 pozostaj? nietkni?te.
+Nie wykonano treningu, selekcji, fitow, metryk jakosci, analizy ekonomicznej ani evaluatora. Nie odczytano wartosci ani artefaktow holdoutu; nie wygenerowano nowych predykcji holdoutu. Pozostaja `evaluation_authorized=false`, `activated=false`, `HOLDOUT_NOT_RUN`; hash finalnego bundle E0041: `7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d`. E0046 i jego poczatkowe/korygowane artefakty zachowano bez zmian. E0037 pozostaje `FAILED`, T0009 `BLOCKED`, a T0046/T0048 pozostaja nietkniete.
 
-`{overall}` oznacza wy??cznie status developmentowego generatora. Kolejnym bezpiecznym etapem jest przygotowanie osobnego, metadata-only manifestu pokrycia historycznych ?r?de? Binance index/OHLCV i USD-M FLOW dla przysz?ego wej?cia; wymaga ono zachowania obecnych bramek i nie obejmuje payloadu holdoutu.
+`{overall}` oznacza wylacznie status developmentowego generatora. Kolejnym bezpiecznym etapem jest przygotowanie osobnego, metadata-only manifestu pokrycia historycznych zrodel Binance index/OHLCV i USD-M FLOW dla przyszlego wejscia; wymaga ono zachowania obecnych bramek i nie obejmuje payloadu holdoutu.
 
 Artefakty: [{manifest_path.name}]({manifest_path.name}), [{parity_path.name}]({parity_path.name}), [{contract_path.name}]({contract_path.name}).
 """

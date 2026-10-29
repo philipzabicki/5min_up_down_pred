@@ -14,6 +14,7 @@ from run_btc_D_continuation_parity_closure_20261029 import (
     _parity_record,
     _reconcile_e0046_flow_csv,
     _resumed_matrix_parity_rows,
+    _same_opened_keys,
     _semantic_diff,
 )
 
@@ -214,6 +215,16 @@ class ContinuationParityClosureTests(unittest.TestCase):
         actual_dynamic[2, 70] = 1.0
         dynamic_rows = _resumed_matrix_parity_rows(actual_dynamic, expected, opened, 20261023, "suffix", names)
         self.assertEqual(next(row for row in dynamic_rows if row["feature"] == names[70])["status"], "FAIL")
+
+    def test_panel_intersection_compares_instants_across_timestamp_resolutions(self):
+        panel_opened = pd.date_range("2026-06-30 23:51", periods=3, freq="min", tz="UTC").as_unit("us")
+        suffix_opened = panel_opened.as_unit("ns")
+        self.assertEqual(panel_opened.dtype.unit, "us")
+        self.assertNotEqual(panel_opened.asi8.tolist(), suffix_opened.asi8.tolist())
+        self.assertTrue(_same_opened_keys(panel_opened, suffix_opened))
+        self.assertFalse(_same_opened_keys(panel_opened[:-1], suffix_opened))
+        changed = suffix_opened + pd.Timedelta(minutes=1)
+        self.assertFalse(_same_opened_keys(panel_opened, changed))
 
 
 if __name__ == "__main__":
