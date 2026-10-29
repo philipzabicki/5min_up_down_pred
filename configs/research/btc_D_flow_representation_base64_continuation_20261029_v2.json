@@ -1,0 +1,160 @@
+{
+  "schema_version": 1,
+  "experiment_id": "E0046",
+  "task_id": "T0016",
+  "decision_id": "D0024",
+  "name": "E0041 D FLOW representation and stateful BASE64 continuation",
+  "status": "FROZEN_BEFORE_REPLAY",
+  "created_date": "2026-10-29",
+  "parent": {
+    "bundle_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/final_D_bundle_manifest.json",
+    "bundle_manifest_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+    "E0045_manifest_path": "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029_manifest.json",
+    "E0045_manifest_sha256": "a1f33eb2a4cca5e66c61e72c2595037967cfe59d6f866ea141a397753d268a3c",
+    "E0045_protocol_path": "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v2.json",
+    "E0045_protocol_sha256": "0ea28c1522a18f17c2250fe3b0fe291ef42b0a9e25269dbcea35f42f3822b8a6",
+    "E0045_base64_path": "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029_v2/base_feature_build/raw_before_holdoute0045_base64_raw.parquet",
+    "E0045_base64_sha256": "ae253ba3ba82c4723563ec90c9f87dc1f53caaed61c1b97314b811dcb2789d40",
+    "E0045_dynamic_reference_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/dynamic_features.parquet",
+    "E0045_dynamic_reference_sha256": "4431cc85fe80f640a9a39316b278066292ceb0c3f8b6959cb05a90e9883cc43a",
+    "E0045_final_model_panel_path": "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029_v2/development_prediction_panel.json",
+    "E0045_final_model_panel_sha256": "3959c701befbb602762e22f5b39f8cee9f38f3067a19297df178f2676278cfce"
+  },
+  "scope": {
+    "source_raw_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/development_prefix/raw_before_holdout.csv",
+    "source_raw_sha256": "25481546299f72c159ffe0c0b4f7e6c2c94b914b52973f9a49a29eb13427829a",
+    "source_raw_opened_exclusive_utc": "2026-06-30T23:58:00Z",
+    "last_allowed_raw_opened_utc": "2026-06-30T23:57:00Z",
+    "last_allowed_model_feature_opened_utc": "2026-06-30T23:53:00Z",
+    "holdout_market_start_utc": "[2026-07-01T00:00:00Z,2026-10-07T00:00:00Z)",
+    "evaluation_authorized": false,
+    "activated": false,
+    "holdout_status": "HOLDOUT_NOT_RUN",
+    "technical_development_predictions_authorized": true,
+    "holdout_values_rows_features_states_predictions_labels_books_and_economics_authorized": false,
+    "training_selection_optimization_and_fit_authorized": false,
+    "remote_acquisition_live_shadow_or_orders_authorized": false,
+    "safe_raw_rows": 3186145,
+    "expected_common_model_rows": 3186141
+  },
+  "historical_flow_representation": {
+    "join_implementation_path": "run_btc_preopen_experiment.py",
+    "join_implementation_sha256": "5fe3dab73a4683393e68fec6db0360f01c9a08c12d27126d2f828609cb7b68ef",
+    "join_function": "_join_causal_candidate_features",
+    "join_behavior": "Exact Opened-key searchsorted join; matched values are indexed first and then cast with np.asarray(..., dtype=np.float32); unmatched values remain float32 NaN; Arrow pa.float32 columns are appended before writing the joined BASE70 artifact. No imputing or feature transform is applied to FLOW at this join.",
+    "downstream_matrix_implementation_path": "run_btc_chronology_reconstruction_20261027.py",
+    "downstream_matrix_implementation_sha256": "2aa20c86ee8cd6e997c10cd1cbbf744fd9d251de0fed932b2d24b389eb8c8108",
+    "downstream_matrix_function": "_family_matrix; finalizer additionally calls np.asarray(matrix, dtype=np.float32)",
+    "required_operation_order": [
+      "raw FLOW features calculated in float64 by features/btc_taker_flow.py",
+      "exact timestamp join on Opened",
+      "matched FLOW values cast once to float32 in the E0041 join and persisted as Arrow float",
+      "full ordered model matrix cast to float32 before LightGBM inference"
+    ],
+    "raw_formula_atol": 1e-10,
+    "raw_formula_rtol": 1e-10,
+    "representation_condition": "Exact equality of finite float32 values, exact NaN/+Inf/-Inf masks, and exact Opened keys; no tolerance change or additional rounding."
+  },
+  "continuation": {
+    "checkpoint_schema_version": 2,
+    "runtime_root": "data/analysis/polymarket/BTC/btc_D_flow_representation_and_base64_continuation_20261029",
+    "raw_cursor": "Source CSV byte offset, row count, last processed Opened, and next expected Opened; resume seeks to the cursor and never scans/recomputes a prior prefix except unavoidable read-only Parquet/CSV block overlap, which is measured.",
+    "maximum_base_raw_tail_rows": 12001,
+    "tail_sufficiency": {
+      "candle_resample_and_lags": "8 complete 1d buckets plus one boundary row cover the maximum selected candle lag (1d lag7) and incomplete aggregation; smaller intervals are nested within that bound.",
+      "finite_indicator_and_basis_windows": "The saved selected indicator parameters require at most 2000 raw minutes; basis intervals are at most 1d; 12001 rows exceed these finite windows.",
+      "realized_volatility": "The largest frozen rolling window is 240 returns; the full 12001-row raw tail and serialized 240-return state preserve warmup and recurrence semantics.",
+      "streaks": "Unbounded signed streak count, current sign, in-flight interval candle OHLC/count, and last complete interval are serialized; not inferred from a finite tail.",
+      "RP_VP": "Use the frozen E0041 config and the existing save/load state APIs; serialize arrays, scales, counters, last candle timestamp, config signatures, and exact update-before-emit ordering.",
+      "ADX_TEMA": "Serialize the three TA-Lib EMA stages and warmup count for the selected TEMA(640); retain raw tail for finite TR/WMA/GMA/NWMA inputs.",
+      "Chaikin_ADL": "Serialize the cumulative ADL state; retain raw tail for the maximum finite HMA window and preserve the frozen update order.",
+      "FLOW6": "Keep 10,095 exact raw USD-M rows (the 10,080 beta window plus the maximum 15-row horizon shift); recompute with the frozen E0045 formula and compare before and after the historical float32 conversion.",
+      "memory_ESN": "Serialize the existing CausalMemoryState and all ESNEngine checkpoints, plus last/next timestamps and frozen transform identities."
+    },
+    "splits": [
+      {
+        "checkpoint_after_opened_utc": "2026-06-02T22:20:00Z",
+        "first_suffix_opened_utc": "2026-06-02T22:21:00Z",
+        "expected_nonempty_suffix_rows": 40417,
+        "source": "The exact interior point already used by E0045 v2; counts must be verified from the current hash-pinned safe raw prefix before processing.",
+        "name": "C1",
+        "expected_prefix_rows": 3145728
+      },
+      {
+        "checkpoint_after_opened_utc": "2026-06-29T23:57:00Z",
+        "first_suffix_opened_utc": "2026-06-29T23:58:00Z",
+        "expected_nonempty_suffix_rows": 1440,
+        "source": "Last complete development day; crosses UTC day and 5m/1h/4h aggregation boundaries. Counts must be verified from the current safe raw prefix before processing.",
+        "name": "C2",
+        "expected_prefix_rows": 3184705
+      }
+    ],
+    "comparison_rules": {
+      "join_keys": "Exact unique ordered Opened timestamp keys; never pair by position without first proving key identity.",
+      "BASE64_and_FLOW6_raw": "atol=rtol=1e-10 with exact NaN/+Inf/-Inf masks and timestamp identity.",
+      "dynamic_memory_ESN": "atol=rtol=2e-6 after the frozen float32 transformations, with exact masks and timestamp identity.",
+      "prediction_panel": "atol=rtol=2e-12 for each of nine saved members, uniform 1/9 mean, and saved Platt transform; no labels or metrics.",
+      "model_matrices": "Every common development row through Opened=2026-06-30T23:53:00Z; all 86 ordered float32 values per reservoir seed compared exactly after exact masks and keys.",
+      "flow_product_representation": "All common development rows, raw-derived float64 values cast at the historical join site versus final E0041 BASE70 Arrow float values; exact finite-value and mask equality. Four post-reference FLOW rows remain separate."
+    }
+  },
+  "resource_limits": {
+    "maximum_workers": 1,
+    "maximum_native_threads": 4,
+    "minimum_available_ram_gib_before_run": 24,
+    "minimum_free_workspace_disk_gib_before_run": 80,
+    "preserve_all_other_processes": true,
+    "profile_and_record": [
+      "wall time",
+      "peak RSS",
+      "RAM",
+      "disk",
+      "I/O bytes",
+      "raw rows read",
+      "rows recomputed",
+      "checkpoint bytes",
+      "stage timings"
+    ]
+  },
+  "outputs": {
+    "report_path": "reports/btc_preopen/btc_D_flow_representation_and_base64_continuation_20261029.md",
+    "manifest_path": "reports/btc_preopen/btc_D_flow_representation_and_base64_continuation_20261029_manifest.json",
+    "parity_csv_path": "reports/btc_preopen/btc_D_flow_representation_and_base64_continuation_20261029_parity.csv",
+    "feature_contract_path": "reports/btc_preopen/btc_D_flow_representation_and_base64_continuation_20261029_feature_contract.json",
+    "large_products_and_checkpoints_git_ignored": true
+  },
+  "required_code_hashes": {
+    "run_btc_D_flow_representation_base64_continuation_20261029.py": "0cff104cc2464b73254e923511c1588c1e032222ebb2911e4c5b6365549edd74",
+    "features/btc_D_continuation_20261029.py": "93d6005805247b313f41def6d00e09d0d60816fea2e84dd1ca2e948b7a565b6f",
+    "features/btc_D_input_generator_20261029.py": "c0c3688ad60698780646a370915a5155e8e72d449e60402bf15a17f8573f6d12",
+    "tests/test_btc_D_flow_representation_base64_continuation_20261029.py": "1e73428da121dbf4a42553ee1de66c37c52701b79010975bc5d06f8439b94979",
+    "run_btc_preopen_experiment.py": "5fe3dab73a4683393e68fec6db0360f01c9a08c12d27126d2f828609cb7b68ef",
+    "run_btc_chronology_reconstruction_20261027.py": "2aa20c86ee8cd6e997c10cd1cbbf744fd9d251de0fed932b2d24b389eb8c8108",
+    "run_btc_D_holdout_preparation_20261028.py": "99320856833c9c6a5f4199641a8277a19833663606184d620ee0deef1a46fcc6",
+    "create_modeling_dataset.py": "72e851f9f04f0f5a3976b1df2aa42992b471a578a29564c30731965427b1f2a4",
+    "features/btc_taker_flow.py": "127a0a53dedf9ed07fa53f1049796aba440299fc010066ee7b189eb850a04477",
+    "features/reaction_profile_fixed_grid.py": "c91af16703236450de05f07cf29a1ecf566d28c8d02e9adf4dc45755fa89128a",
+    "features/volume_profile_fixed_range.py": "6edc168ae55540406992a7d8f7fa951b08421c8cb192eb2ae4d44c0628098cc8",
+    "features/candle_features.py": "7347c14873a22e74f2d51e977fb827be7f8763f2342f86ae3c52b8989f83ee1b",
+    "features/basis_premium_features.py": "a07e92882c676d794699513737832cb137db53c290d402ddfac334b5617e7b64",
+    "features/session_open_features.py": "0342a9466575399f47f5921cfcf320f05565a2100de3bdff543ce30f9752d087",
+    "features/realized_volatility.py": "0f80fbcce7c52595dd908c91db9a6e0b7aad08861e555833a07581743093f53f",
+    "features/ADX.py": "4a6e58ab26c8207fa25a107b5cfe8ae530596b3b80d4168ca8b72de6c61b31e9",
+    "features/ta_tools.py": "20191a4fc48492c31846c960c4a4096841e4a87330c60c19a1b38254ee44d83a",
+    "features/BollingerBands.py": "cd9396a08847e217bc1750d20d3febe4e4e062858c9325da42e7d1ae6603228a",
+    "features/ChaikinOsc.py": "346a390b48226c12ee3285fc3e7620fa1c0a9bec8256006944c237c128d15276",
+    "features/KeltnerChannel.py": "6f175ebb775e45f8eaca9570d73a53060112d4a821b3a1ae47db55a637c1a5e1",
+    "features/ta_custom_ma.py": "fe416ff860c689609635afbdf7383cca75b4e0f1bfd92eea28b2e8d25dd0f26b",
+    "features/feature_intervals.py": "5e4adece76f18f194f7244d1baad21eafabda802a5bc83a3ff2abd29bcf9628e",
+    "features/btc_preopen_contract.py": "8707f18bd09197afd1308395eea85863a8a4fec6eb36ba9c907bf7cfd1c9b254",
+    "features/causal_memory_control.py": "a082c576e5ba8d0706e05d4a99937930558f68f453d24f48cf4481921e244c23",
+    "features/esn_reservoir.py": "274ea86d6d628e74be71899d8327016af6eda7fc13c6a3c2e6ba533661c63ff4",
+    "utils/data.py": "00831a0aeec8896d721aa268696625c196c9642c531511bb8641d3849a883e7f"
+  },
+  "protocol_revision": 2,
+  "previous_protocol": {
+    "path": "configs/research/btc_D_flow_representation_base64_continuation_20261029_v1.json",
+    "sha256": "265ab036cab94587624406ad617f196099bd034c6ae3320cd45ba31d3e3f1a95"
+  },
+  "amendment": "Corrected the prereplay disk-gate key name after the v1 startup check stopped before reading any row payload. Data scope, comparisons, tolerances, checkpoints and resource thresholds are unchanged."
+}

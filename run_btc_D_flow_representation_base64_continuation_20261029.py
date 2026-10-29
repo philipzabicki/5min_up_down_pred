@@ -23,7 +23,7 @@ from features import btc_D_continuation_20261029 as continuation
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_flow_representation_base64_continuation_20261029_v1.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_flow_representation_base64_continuation_20261029_v2.json"
 E0045_PROTOCOL_PATH = ROOT / "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v2.json"
 E0045_MANIFEST_PATH = ROOT / "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029_manifest.json"
 RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_flow_representation_and_base64_continuation_20261029"
@@ -63,8 +63,10 @@ def _require_hash(relative: str, expected: str, label: str) -> Path:
 
 def load_protocol() -> tuple[dict, dict, dict, dict]:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
-    if protocol.get("status") != "FROZEN_BEFORE_REPLAY" or protocol.get("experiment_id") != "E0046":
+    if (protocol.get("status") != "FROZEN_BEFORE_REPLAY" or protocol.get("experiment_id") != "E0046"
+            or protocol.get("protocol_revision") != 2):
         raise RuntimeError("E0046 protocol is not frozen for replay")
+    _require_hash(protocol["previous_protocol"]["path"], protocol["previous_protocol"]["sha256"], "preserved E0046 v1 preregistration")
     if protocol["scope"]["evaluation_authorized"] or protocol["scope"]["activated"] or protocol["scope"]["holdout_status"] != "HOLDOUT_NOT_RUN":
         raise RuntimeError("E0046 development-only and holdout guards changed")
     for relative, expected in protocol["required_code_hashes"].items():
@@ -1467,7 +1469,8 @@ def run_audit() -> dict:
     disk_before = shutil.disk_usage(ROOT).free / 1024**3
     if ram_before < float(protocol["resource_limits"]["minimum_available_ram_gib_before_run"]):
         raise RuntimeError(f"E0046 RAM gate requires 24 GiB available; observed {ram_before:.2f} GiB")
-    if disk_before < float(protocol["resource_limits"]["minimum_free_workspace_disk_gib"]):
+    disk_gate_gib = float(protocol["resource_limits"]["minimum_free_workspace_disk_gib_before_run"])
+    if disk_before < disk_gate_gib:
         raise RuntimeError(f"E0046 disk gate requires 80 GiB free; observed {disk_before:.2f} GiB")
     try:
         import numba
