@@ -3,17 +3,270 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import time
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from numba import njit
 
 
 TAIL_ROWS = 12_001
 MINUTE_NS = 60_000_000_000
 ADX_TEMA_PERIOD = 640
+
+
+@njit(cache=True)
+def _lma_seed_kernel(values, period):
+    out = np.full(values.shape[0], np.nan, dtype=np.float64)
+    total = 0.0
+    weighted = 0.0
+    denominator_reciprocal = 1.0 / (((1.0 + period) / 2.0) * period)
+    period_reciprocal = 1.0 / period
+    for index in range(values.shape[0]):
+        value = values[index]
+        if index < period:
+            weighted += (index + 1) * value
+            total += value
+            if index == period - 1:
+                out[index] = 2.0 * weighted * denominator_reciprocal - total * period_reciprocal
+                weighted -= total
+                total -= values[0]
+        else:
+            weighted += period * value
+            total += value
+            out[index] = 2.0 * weighted * denominator_reciprocal - total * period_reciprocal
+            weighted -= total
+            total -= values[index - period + 1]
+    return out, total, weighted
+
+
+@njit(cache=True)
+def _lma_advance_kernel(values, period, total, weighted, tail, cursor):
+    out = np.empty(values.shape[0], dtype=np.float64)
+    denominator_reciprocal = 1.0 / (((1.0 + period) / 2.0) * period)
+    period_reciprocal = 1.0 / period
+    for index in range(values.shape[0]):
+        value = values[index]
+        weighted += period * value
+        total += value
+        out[index] = 2.0 * weighted * denominator_reciprocal - total * period_reciprocal
+        weighted -= total
+        total -= tail[cursor]
+        tail[cursor] = value
+        cursor += 1
+        if cursor == tail.shape[0]:
+            cursor = 0
+    return out, total, weighted, tail, cursor
+
+
+def seed_lma_state(values, period: int) -> tuple[dict, np.ndarray]:
+    values = np.ascontiguousarray(values, dtype=np.float64)
+    period = int(period)
+    if period < 2 or len(values) < period:
+        raise ValueError("LMA seed requires at least one complete period")
+    output, total, weighted = _lma_seed_kernel(values, period)
+    return {
+        "period": period,
+        "seen": int(len(values)),
+        "total": float(total),
+        "weighted": float(weighted),
+        "tail": values[-(period - 1):].copy(),
+        "cursor": 0,
+    }, output
+
+
+def advance_lma_state(state: dict, values) -> np.ndarray:
+    values = np.ascontiguousarray(values, dtype=np.float64)
+    output, total, weighted, tail, cursor = _lma_advance_kernel(
+        values, int(state["period"]), float(state["total"]), float(state["weighted"]),
+        np.asarray(state["tail"], dtype=np.float64), int(state["cursor"]),
+    )
+    state.update({"seen": int(state["seen"]) + len(values), "total": float(total),
+                  "weighted": float(weighted), "tail": tail, "cursor": int(cursor)})
+    return output
+
+
+@njit(cache=True)
+def _wma_seed_kernel(values, period):
+    output = np.full(values.shape[0], np.nan, dtype=np.float64)
+    first = -1
+    for index in range(values.shape[0]):
+        if np.isfinite(values[index]):
+            first = index
+            break
+    if first < 0 or values.shape[0] - first < period:
+        return output, 0.0, 0.0, np.empty(0, dtype=np.float64), 0, first
+    period_sub = 0.0
+    period_sum = 0.0
+    index = first
+    for weight in range(1, period):
+        value = values[index]
+        index += 1
+        period_sub += value
+        period_sum += value * weight
+    trailing = 0.0
+    divider = (period * (period + 1)) // 2
+    while index < values.shape[0]:
+        value = values[index]
+        index += 1
+        period_sub += value
+        period_sub -= trailing
+        period_sum += value * period
+        trailing = values[index - period]
+        output[index - 1] = period_sum / divider
+        period_sum -= period_sub
+    tail = values[values.shape[0] - period:].copy()
+    return output, period_sub, period_sum, tail, 0, first
+
+
+@njit(cache=True)
+def _wma_advance_kernel(values, period, period_sub, period_sum, tail, cursor):
+    output = np.empty(values.shape[0], dtype=np.float64)
+    divider = (period * (period + 1)) // 2
+    for index in range(values.shape[0]):
+        value = values[index]
+        period_sub += value
+        period_sub -= tail[cursor]
+        period_sum += value * period
+        output[index] = period_sum / divider
+        period_sum -= period_sub
+        tail[cursor] = value
+        cursor += 1
+        if cursor == period:
+            cursor = 0
+    return output, period_sub, period_sum, tail, cursor
+
+
+def seed_talib_wma_state(values, period: int) -> tuple[dict, np.ndarray]:
+    values = np.ascontiguousarray(values, dtype=np.float64)
+    period = int(period)
+    if period < 1:
+        raise ValueError("WMA period must be positive")
+    output, period_sub, period_sum, tail, cursor, first = _wma_seed_kernel(values, period)
+    if first < 0 or len(tail) != period:
+        raise ValueError("WMA seed requires one complete finite period")
+    return {
+        "period": period,
+        "seen": int(len(values)),
+        "first_finite_index": int(first),
+        "period_sub": float(period_sub),
+        "period_sum": float(period_sum),
+        "tail": tail,
+        "cursor": int(cursor),
+    }, output
+
+
+def advance_talib_wma_state(state: dict, values) -> np.ndarray:
+    values = np.ascontiguousarray(values, dtype=np.float64)
+    output, period_sub, period_sum, tail, cursor = _wma_advance_kernel(
+        values, int(state["period"]), float(state["period_sub"]), float(state["period_sum"]),
+        np.asarray(state["tail"], dtype=np.float64), int(state["cursor"]),
+    )
+    state.update({"seen": int(state["seen"]) + len(values), "period_sub": float(period_sub),
+                  "period_sum": float(period_sum), "tail": tail, "cursor": int(cursor)})
+    return output
+
+
+_SQRT_TWO = 1.4142135623730951
+_VP_WEIGHT_BUFFERS = {}
+
+
+@njit(cache=True)
+def _advance_vp_horizon_numba(raw_profile, global_scale, high, low, volume,
+                              price_min, step, bins, sigma_divisor, min_sigma,
+                              decay, renormalize_scale_min, weight_buffer):
+    if not np.isfinite(high) or not np.isfinite(low) or not np.isfinite(volume) or volume == 0.0:
+        return global_scale
+    hl2 = 0.5 * (high + low)
+    if high <= low or abs(high - low) <= 1e-12:
+        start_idx = int((hl2 - price_min) / step)
+        if start_idx < 0:
+            start_idx = 0
+        elif start_idx >= bins:
+            start_idx = bins - 1
+        length = 1
+        total_weight = 1.0
+        weight_buffer[0] = 1.0
+    else:
+        start_idx = int((low - price_min) / step)
+        if start_idx < 0:
+            start_idx = 0
+        elif start_idx >= bins:
+            start_idx = bins - 1
+        end_idx = int((high - price_min) / step)
+        if end_idx < 0:
+            end_idx = 0
+        elif end_idx >= bins:
+            end_idx = bins - 1
+        length = end_idx - start_idx + 1
+        mu = hl2
+        sigma = (high - low) / sigma_divisor
+        if sigma < min_sigma:
+            sigma = min_sigma
+        total_weight = 0.0
+        for weight_idx in range(length):
+            bin_idx = start_idx + weight_idx
+            bin_left = price_min + float(bin_idx) * step
+            bin_right = bin_left + step
+            left = low if low > bin_left else bin_left
+            right = high if high < bin_right else bin_right
+            if right <= left:
+                weight_buffer[weight_idx] = 0.0
+                continue
+            left_cdf = 0.5 * (1.0 + math.erf(((left - mu) / sigma) / _SQRT_TWO))
+            right_cdf = 0.5 * (1.0 + math.erf(((right - mu) / sigma) / _SQRT_TWO))
+            weight = right_cdf - left_cdf
+            if weight <= 0.0 or not np.isfinite(weight):
+                weight_buffer[weight_idx] = 0.0
+                continue
+            weight_buffer[weight_idx] = weight
+            total_weight += weight
+        if total_weight <= 0.0 or not np.isfinite(total_weight):
+            start_idx = int((hl2 - price_min) / step)
+            if start_idx < 0:
+                start_idx = 0
+            elif start_idx >= bins:
+                start_idx = bins - 1
+            length = 1
+            total_weight = 1.0
+            weight_buffer[0] = 1.0
+    if decay != 1.0:
+        global_scale *= decay
+        if global_scale < renormalize_scale_min:
+            for bin_idx in range(bins):
+                raw_profile[bin_idx] = raw_profile[bin_idx] * global_scale
+            global_scale = 1.0
+    base_increment = float(volume) / total_weight
+    inv_scale = base_increment / global_scale
+    for weight_idx in range(length):
+        raw_profile[start_idx + weight_idx] += weight_buffer[weight_idx] * inv_scale
+    return global_scale
+
+
+def advance_volume_profile_state(state: dict, rows: pd.DataFrame) -> dict:
+    from features.volume_profile_fixed_range import _extract_feature_row_array
+
+    if not state["enabled"]:
+        return np.empty((len(rows), 0), dtype=np.float64)
+    buffers = _VP_WEIGHT_BUFFERS.setdefault(id(state), {})
+    output = np.empty((len(rows), len(state["feature_columns"])), dtype=np.float64)
+    for index, row in enumerate(rows.itertuples(index=False)):
+        for name in state["horizon_names"]:
+            horizon = state["horizons"][name]
+            bins = int(horizon["bins"])
+            weight_buffer = buffers.setdefault(name, np.empty(bins, dtype=np.float64))
+            horizon["global_scale"] = float(_advance_vp_horizon_numba(
+                horizon["raw_profile"], float(horizon["global_scale"]),
+                float(row.High), float(row.Low), float(row.Volume),
+                float(state["price_min"]), float(horizon["step"]), bins,
+                float(horizon["sigma_divisor"]), float(horizon["min_sigma"]),
+                float(horizon["decay"]), 1e-3, weight_buffer,
+            ))
+        output[index] = _extract_feature_row_array(state, high=float(row.High), low=float(row.Low))
+    return output
 
 
 def canonical_sha256(value) -> str:
