@@ -1,0 +1,203 @@
+{
+  "schema_version": 1,
+  "experiment_id": "E0044",
+  "task_id": "T0016",
+  "decision_id": "D0024",
+  "name": "btc_D_input_generator_development_20261029",
+  "status": "FROZEN_BEFORE_REPLAY",
+  "created_date": "2026-10-29",
+  "parent": {
+    "experiment_id": "E0041",
+    "commit": "ca1fc36755880cc93a31dbcb6da546e89937f5c0",
+    "branch": "audit/btc-dynamic-history-20261020",
+    "bundle_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/final_D_bundle_manifest.json",
+    "bundle_manifest_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+    "parent_e0039_protocol_path": "configs/research/btc_chronology_reconstruction_20261027_v7.json",
+    "parent_e0039_protocol_sha256": "9c6aca98034ca010cda16e326053ce83e2c78dbab0120445be8ec1180392baf6"
+  },
+  "scope": {
+    "purpose": "Implement and verify the frozen E0041 D input generator on development data only.",
+    "development_market_start_interval_utc": "[2025-07-01T00:00:00Z,2026-07-01T00:00:00Z)",
+    "source_raw_opened_interval_utc": "[2020-06-09T09:33:00Z,2026-06-30T23:58:00Z)",
+    "last_allowed_raw_opened_utc": "2026-06-30T23:57:00Z",
+    "last_allowed_model_feature_opened_utc": "2026-06-30T23:53:00Z",
+    "holdout_market_start_interval_utc": "[2026-07-01T00:00:00Z,2026-10-07T00:00:00Z)",
+    "first_holdout_decision_utc": "2026-06-30T23:59:00Z",
+    "first_holdout_feature_opened_utc": "2026-06-30T23:58:00Z",
+    "holdout_values_rows_predictions_labels_books_and_economics_authorized": false,
+    "evaluation_authorized": false,
+    "activated": false,
+    "holdout_status": "HOLDOUT_NOT_RUN",
+    "training_selection_optimization_and_calibration_fit_authorized": false,
+    "remote_sources_and_acquisition_authorized": false,
+    "live_shadow_orders_authorized": false
+  },
+  "allowed_inputs": {
+    "safe_index_ohlcv_prefix": {
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/development_prefix/raw_before_holdout.csv",
+      "sha256": "25481546299f72c159ffe0c0b4f7e6c2c94b914b52973f9a49a29eb13427829a",
+      "rows": 3186145,
+      "first_opened_utc": "2020-06-09T09:33:00Z",
+      "last_opened_utc": "2026-06-30T23:57:00Z",
+      "columns": [
+        "Opened", "Open", "High", "Low", "Close", "Volume",
+        "UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close"
+      ],
+      "provenance": "E0041 safe development copy; first excluded Opened timestamp was inspected without its OHLCV payload."
+    },
+    "taker_flow_raw_archives": {
+      "directory": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018",
+      "archive_pattern": "BTCUSDT-1m-YYYY-MM.zip",
+      "checksum_pattern": "BTCUSDT-1m-YYYY-MM.zip.CHECKSUM",
+      "months": "2020-06 through 2026-06 inclusive; 73 local archives are present",
+      "source_config_path": "configs/research/btc_preopen_taker_flow_20261018.json",
+      "source_config_sha256": "cea8187b43a0ed847a019542a9154e01707e6d4b55754f81da317ddd3a2ceeb1",
+      "columns": [
+        "open_time", "open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume"
+      ],
+      "timestamp_unit": "milliseconds since Unix epoch UTC",
+      "last_allowed_source_open_time_utc": "2026-06-30T23:57:00Z",
+      "protected_row_rule": "In the 2026-06 archive, stop when open_time reaches 2026-06-30T23:58:00Z after reading only open_time; do not parse that row's remaining fields or any later row."
+    },
+    "canonical_flow_reference": {
+      "path": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260601_20260701.parquet",
+      "sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe",
+      "columns": ["Opened", "taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m"],
+      "E0041_join_source_sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe"
+    },
+    "canonical_dynamic_reference": {
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/dynamic_features.parquet",
+      "sha256": "4431cc85fe80f640a9a39316b278066292ceb0c3f8b6959cb05a90e9883cc43a",
+      "rows": 3186145,
+      "columns": "Opened plus the exact 8 memory PCA columns and 8 ESN PCA columns for each frozen seed"
+    },
+    "canonical_model_feature_reference": {
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/causal_candidate_feature_join_363c9eabd469/feature_dataset_with_causal_candidates.parquet",
+      "sha256": "e61f2ed082d7ea20dccacaa4b3059ccb4ada94b9c02f893b9198613da47a31b3",
+      "projected_columns": "Opened and the exact 70 columns in the E0041 bundle base_feature_order",
+      "row_cutoff_exclusive_utc": "2026-06-30T23:58:00Z",
+      "target_label_outcome_and_payout_columns": "never projected or materialized"
+    },
+    "frozen_transforms_and_models": {
+      "transform_directory": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms",
+      "memory_transform_sha256": "041c11c5ea99121f4395ddcef68e758ae0801dbbc3263180239606a3ee84b7c0",
+      "esn_transform_sha256_by_seed": {
+        "20261023": "80614d68ce4270df321a2ecef90eb8d1899b6f4323c62b17834e29fe43e3973c",
+        "20261024": "8f067bb1cee68ac4be77fd8bf96bad371927114c8faccc79ff44a7ea0d5b3b49",
+        "20261025": "2609579349fc412b6e1208e2adcb7e60acffb069eee4bea5bbf10e41d7233623"
+      },
+      "members": 9,
+      "features_per_member": 86,
+      "calibrator_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/official_platt_D.json",
+      "calibrator_sha256": "235c65219dbff34f166530f7f4bcf54e8fafc8ba96ab39619cc317092abdb620"
+    }
+  },
+  "frozen_semantics": {
+    "decision_alignment": {
+      "input_opened_to_available_closed_minute": "available_at = Opened + 1 minute",
+      "available_minute_to_market_start": "market_start_utc = Opened + 2 minutes",
+      "decision": "T-60; feature input must be complete by the decision instant",
+      "execution": "T-59",
+      "first_holdout_row": "Opened=2026-06-30T23:58:00Z is excluded because it serves market_start_utc=2026-07-01T00:00:00Z"
+    },
+    "memory_and_esn": {
+      "raw_input_columns": [
+        "log_return_1m", "log_return_5m", "log_return_15m", "log_return_60m",
+        "candle_body_log_return", "candle_close_location", "candle_upper_wick_fraction",
+        "candle_lower_wick_fraction", "log_volume", "volume_ratio_to_prior_30m_median",
+        "hour_sin", "hour_cos", "weekday_sin", "weekday_cos"
+      ],
+      "memory_projection_input_columns": "the exact ordered 14 names above; not BASE70",
+      "esn_selected_columns": "the exact ordered 14 names above for all three seeds",
+      "memory_max_lag_minutes": 720,
+      "esn_warmup_steps_by_seed": {
+        "20261023": 17305,
+        "20261024": 17427,
+        "20261025": 18386
+      },
+      "reset": "initial reset at the first safe raw timestamp; also reset before the next observation after a non-one-minute gap or invalid source OHLCV candle, as defined by frozen code",
+      "update_order": "emit state features only after updating with the current complete candle; preserve frozen engine order and scaler imputations",
+      "missing_policy": "no interpolation or forward fill; keep masks and reset behavior exact"
+    },
+    "flow": {
+      "horizons_minutes": [1, 5, 15],
+      "qbar_window_minutes": 1440,
+      "sigma_window_minutes": 60,
+      "sigma_ddof": 0,
+      "sigma_floor": 1e-6,
+      "beta_window_minutes": 10080,
+      "minimum_beta_pairs": 1440,
+      "beta_variance_tolerance": 1e-12,
+      "historical_beta_excludes_current_window": true,
+      "missing_minute_policy": "retain missing minute; do not forward fill; windows spanning missing source fields are invalid",
+      "zero_quote_volume_policy": "I missing if Q is zero; U and V missing if qbar is zero",
+      "invalid_taker_volume_policy": "reject values outside [0, quote_volume]"
+    },
+    "base_features": {
+      "order": "the exact 64 selected BASE features followed by the six frozen taker_Z/V features, as recorded in the E0041 bundle",
+      "profile_source": "regenerate RP/VP from safe raw candles and the frozen E0041 RP/VP configuration; broad incompatible cache is prohibited",
+      "indicator_source": "reuse frozen selected indicator fit artifacts and existing project generators; no fitting or selection"
+    },
+    "model": {
+      "member_order": "exact E0041 per-member feature order; verify every sidecar and do not pad dimensions",
+      "ensemble": "uniform mean of nine raw member probabilities, then the frozen terminal Platt calibrator",
+      "permitted_outputs": "technical development predictions only; no labels, metrics, rankings, EV, fills, trades, or PnL"
+    }
+  },
+  "predeclared_validation": {
+    "windows_utc": [
+      {"name": "post_warmup_start", "start_inclusive": "2020-06-23T00:00:00Z", "end_exclusive": "2020-06-23T00:30:00Z"},
+      {"name": "continuous_intraday", "start_inclusive": "2026-06-15T12:00:00Z", "end_exclusive": "2026-06-15T12:30:00Z"},
+      {"name": "utc_day_boundary", "start_inclusive": "2026-06-29T23:45:00Z", "end_exclusive": "2026-06-30T00:15:00Z"},
+      {"name": "last_authorized_development", "start_inclusive": "2026-06-30T23:00:00Z", "end_exclusive": "2026-06-30T23:58:00Z"}
+    ],
+    "synthetic_cases": [
+      "state-stream split at multiple row boundaries and fresh-process checkpoint continuation",
+      "first excluded Opened=2026-06-30T23:58:00Z row with synthetic payload only",
+      "missing/duplicate minute, NaN/inf, unknown/reordered features, transform/config mismatch, corrupt checkpoint and interrupted atomic save",
+      "change a later synthetic suffix and assert every earlier feature, state, and technical prediction is unchanged"
+    ],
+    "references": "E0041 development feature, flow, and dynamic artifacts with exact timestamp-key joins; independent raw replay; existing frozen state implementations and D member files",
+    "tolerances_before_comparison": {
+      "float64_raw_features_and_flow": {"absolute": 1e-10, "relative": 1e-10},
+      "float32_dynamic_features": {"absolute": 2e-6, "relative": 2e-6},
+      "frozen_model_member_ensemble_and_calibrator": {"absolute": 2e-12, "relative": 2e-12},
+      "timestamps_ids_order_and_missing_masks": "exact"
+    }
+  },
+  "resource_limits": {
+    "maximum_wall_seconds": 14400,
+    "maximum_peak_rss_gib": 24,
+    "minimum_free_workspace_disk_gib": 10,
+    "workers": 1,
+    "maximum_native_threads": 4,
+    "chunk_rows": 65536,
+    "gpu": "not required; no training",
+    "other_processes": "observe only; do not terminate or wait on existing processes unless resource pressure exceeds the frozen budget"
+  },
+  "checkpoint": {
+    "runtime_root": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029",
+    "schema_version": 1,
+    "must_include": [
+      "memory state arrays and counters",
+      "all three ESN reservoir states, last timestamps and warmup counters",
+      "rolling raw-candle tail sufficient for exact input feature continuation",
+      "flow rolling tail sufficient for the maximum configured rolling window and horizon",
+      "last processed Opened, next expected Opened, source row/byte position, source hashes",
+      "code/config/transform/bundle identities, reset status, state schema and integrity hash"
+    ],
+    "write": "atomic temporary file plus replace; verify state checksum before load",
+    "resume": "reject corruption, identity mismatch, altered source, non-increasing time, skipped or duplicate boundary row; test from a fresh process without replaying the prefix"
+  },
+  "outputs": {
+    "runner": "run_btc_D_input_generator_development_20261029.py",
+    "module": "features/btc_D_input_generator_20261029.py",
+    "tests": "tests/test_btc_D_input_generator_development_20261029.py",
+    "feature_contract": "reports/btc_preopen/btc_D_input_generator_feature_contract_20261029.json",
+    "parity_table": "reports/btc_preopen/btc_D_input_generator_parity_20261029.csv",
+    "report": "reports/btc_preopen/btc_D_input_generator_development_20261029.md",
+    "runtime_manifest": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/run_manifest.json",
+    "runtime_state": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/checkpoint_state.json",
+    "large_outputs": "remain local and ignored; do not write a duplicate full feature matrix"
+  }
+}
