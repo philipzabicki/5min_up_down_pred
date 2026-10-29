@@ -70,29 +70,110 @@ class PeakRssMonitor:
 
 
 def _resource_snapshot() -> dict:
-    import psutil
+    class MemoryStatusEx(ctypes.Structure):
+        _fields_ = [
+            ("dwLength", wintypes.DWORD),
+            ("dwMemoryLoad", wintypes.DWORD),
+            ("ullTotalPhys", ctypes.c_ulonglong),
+            ("ullAvailPhys", ctypes.c_ulonglong),
+            ("ullTotalPageFile", ctypes.c_ulonglong),
+            ("ullAvailPageFile", ctypes.c_ulonglong),
+            ("ullTotalVirtual", ctypes.c_ulonglong),
+            ("ullAvailVirtual", ctypes.c_ulonglong),
+            ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+        ]
 
-    memory = psutil.virtual_memory()
+    class ProcessEntry32W(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", wintypes.DWORD),
+            ("cntUsage", wintypes.DWORD),
+            ("th32ProcessID", wintypes.DWORD),
+            ("th32DefaultHeapID", ctypes.c_size_t),
+            ("th32ModuleID", wintypes.DWORD),
+            ("cntThreads", wintypes.DWORD),
+            ("th32ParentProcessID", wintypes.DWORD),
+            ("pcPriClassBase", wintypes.LONG),
+            ("dwFlags", wintypes.DWORD),
+            ("szExeFile", wintypes.WCHAR * 260),
+        ]
+
+    class ProcessMemoryCounters(ctypes.Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD),
+            ("PageFaultCount", wintypes.DWORD),
+            ("PeakWorkingSetSize", ctypes.c_size_t),
+            ("WorkingSetSize", ctypes.c_size_t),
+            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+            ("PagefileUsage", ctypes.c_size_t),
+            ("PeakPagefileUsage", ctypes.c_size_t),
+        ]
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    psapi = ctypes.WinDLL("psapi", use_last_error=True)
+    memory = MemoryStatusEx()
+    memory.dwLength = ctypes.sizeof(memory)
+    kernel32.GlobalMemoryStatusEx.argtypes = [ctypes.POINTER(MemoryStatusEx)]
+    kernel32.GlobalMemoryStatusEx.restype = wintypes.BOOL
+    if not kernel32.GlobalMemoryStatusEx(ctypes.byref(memory)):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+    kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+    kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(ProcessEntry32W)]
+    kernel32.Process32FirstW.restype = wintypes.BOOL
+    kernel32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(ProcessEntry32W)]
+    kernel32.Process32NextW.restype = wintypes.BOOL
+    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    kernel32.OpenProcess.restype = wintypes.HANDLE
+    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+    kernel32.CloseHandle.restype = wintypes.BOOL
+    psapi.GetProcessMemoryInfo.argtypes = [
+        wintypes.HANDLE, ctypes.POINTER(ProcessMemoryCounters), wintypes.DWORD,
+    ]
+    psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
+
     process_count = 0
     process_rss_bytes = 0
     python_process_count = 0
     python_process_rss_bytes = 0
-    for process in psutil.process_iter(["pid", "name", "memory_info"]):
-        try:
-            info = process.info
-            if info["pid"] != os.getpid() and info["memory_info"] is not None:
-                rss = int(info["memory_info"].rss)
+    snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
+    if snapshot == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        entry = ProcessEntry32W()
+        entry.dwSize = ctypes.sizeof(entry)
+        has_entry = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
+        while has_entry:
+            pid = int(entry.th32ProcessID)
+            name = str(entry.szExeFile)
+            if pid != os.getpid():
                 process_count += 1
-                process_rss_bytes += rss
-                if "python" in str(info["name"]).lower():
+                is_python = "python" in name.lower()
+                if is_python:
                     python_process_count += 1
-                    python_process_rss_bytes += rss
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
+                handle = kernel32.OpenProcess(0x1000, False, pid)
+                if handle:
+                    try:
+                        counters = ProcessMemoryCounters()
+                        counters.cb = ctypes.sizeof(counters)
+                        if psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+                            rss = int(counters.WorkingSetSize)
+                            process_rss_bytes += rss
+                            if is_python:
+                                python_process_rss_bytes += rss
+                    finally:
+                        kernel32.CloseHandle(handle)
+            has_entry = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
+    finally:
+        kernel32.CloseHandle(snapshot)
+
     return {
         "cpu_logical_count": os.cpu_count(),
-        "ram_total_bytes": int(memory.total),
-        "ram_available_bytes": int(memory.available),
+        "ram_total_bytes": int(memory.ullTotalPhys),
+        "ram_available_bytes": int(memory.ullAvailPhys),
         "disk_free_bytes": int(shutil.disk_usage(ROOT).free),
         "other_process_count": process_count,
         "other_process_rss_bytes": process_rss_bytes,

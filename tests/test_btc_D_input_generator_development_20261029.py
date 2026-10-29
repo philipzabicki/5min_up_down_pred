@@ -205,6 +205,17 @@ def test_final_e0041_loader_rejects_a_legacy_manifest_pointer():
         generator.verify_bundle(protocol)
 
 
+def test_runner_resource_snapshot_uses_native_windows_counters():
+    from run_btc_D_input_generator_final_bundle_fix_20261029 import _resource_snapshot
+
+    snapshot = _resource_snapshot()
+    assert snapshot["ram_total_bytes"] > 0
+    assert snapshot["ram_available_bytes"] > 0
+    assert snapshot["disk_free_bytes"] > 0
+    assert snapshot["other_process_count"] > 0
+    assert snapshot["other_process_rss_bytes"] >= 0
+
+
 @pytest.mark.parametrize(
     ("mutate", "message"),
     [
