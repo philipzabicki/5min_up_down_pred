@@ -1,0 +1,2397 @@
+{
+  "activated": false,
+  "bundle_identity_sha256": "ef5f12125c58a1a43455e833f783592f578aaf2b86af9deb6d0464f054265426",
+  "bundle_manifest_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+  "decision_id": "D0024",
+  "dynamic": {
+    "base_features_missing_from_reference": [
+      "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypfba_atrper1151_maper533_matypnwmaepan_souhlcc4",
+      "ADX_fit_5m_preopen_v1_pop64_adxper452_atrper1990_matypadxkama_matypatrnwmatria_matypnegdmehma_matypposdmema_negdmper706_posdmper1716",
+      "StochOsc_fit_5m_preopen_v1_pop64_faskper24_slodmatyptrima_slodper1052_slokmatypnwmabiw_slokper1892",
+      "BollingerBands_fit_5m_preopen_v1_pop64_maper328_masouhlcc4_matypshmma_stdmaper53_stdmatypkama_stdsouhlcc4"
+    ],
+    "checkpoint_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/checkpoint_state.json",
+    "checkpoint_sha256": "54e64361f24b46ca41a7eb33630344b0e7343c4b6223e234c21a18d8bcfcad1c",
+    "dynamic_parity": [
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "simple_memory_PCA8_pc00",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "simple_memory_PCA8_pc01",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "simple_memory_PCA8_pc02",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "simple_memory_PCA8_pc03",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "simple_memory_PCA8_pc04",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "simple_memory_PCA8_pc05",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "simple_memory_PCA8_pc06",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "simple_memory_PCA8_pc07",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc00",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc01",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc02",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc03",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc04",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc05",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc06",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc07",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc00",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc01",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc02",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc03",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc04",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc05",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc06",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc07",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc00",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc01",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc02",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc03",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc04",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc05",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc06",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      },
+      {
+        "atol": 2e-06,
+        "block": "dynamic",
+        "feature": "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc07",
+        "first_mismatch_opened_utc": "",
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145,
+        "rtol": 2e-06,
+        "status": "PASS"
+      }
+    ],
+    "dynamic_summary": {
+      "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc00": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc01": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc02": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc03": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc04": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc05": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc06": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc07": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc00": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc01": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc02": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc03": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc04": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc05": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc06": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc07": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc00": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc01": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc02": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc03": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc04": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc05": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc06": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc07": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "simple_memory_PCA8_pc00": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "simple_memory_PCA8_pc01": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "simple_memory_PCA8_pc02": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "simple_memory_PCA8_pc03": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "simple_memory_PCA8_pc04": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "simple_memory_PCA8_pc05": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "simple_memory_PCA8_pc06": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      },
+      "simple_memory_PCA8_pc07": {
+        "first_mismatch_opened": null,
+        "mask_mismatch_rows": 0,
+        "max_abs_error": 0.0,
+        "max_rel_error": 0.0,
+        "numeric_mismatch_rows": 0,
+        "rows": 3186145
+      }
+    },
+    "first_opened": "2020-06-09T09:33:00Z",
+    "flow_tail_rows": 10095,
+    "invalid_candles": 0,
+    "last_model_feature_opened": "2026-06-30T23:53:00Z",
+    "last_opened": "2026-06-30T23:57:00Z",
+    "panel_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/development_prediction_panel.json",
+    "panel_rows": 0,
+    "prediction_status": "BLOCKED_BASE64_MISSING",
+    "processed_rows": 3186145,
+    "projected_base_sha256": "6d68733608ebacf8f1c8ab864062ebf33684a746733fcae7c4885b2aa4f87991",
+    "projected_dynamic_reference_sha256": "a0f782f5bf5a2ac0e0f0ebb2f3531efa0c332f69d990fbbaf763f73da197d661",
+    "timestamp_gaps": 0
+  },
+  "evaluation_authorized": false,
+  "experiment_id": "E0044",
+  "flow": {
+    "archive_identity_sha256": "e42322634b9a90fb9989f3ddc29f654156d35191bb8b4a52e00a8bb7969b748d",
+    "archives": [
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "91f18492445c0a9609d70bd4603c73c8588a88c06105ade34082417f8b2e7e6d",
+        "month": "2020-06",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2020-06.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "4cb7dcf6e1adb17e8ab8787c459f3f645b7070633f530485f0f93dd45a9de693",
+        "month": "2020-07",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2020-07.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "7596de0f26df44d782713475f97af34f27a287faf084c73bdcc61819215b060a",
+        "month": "2020-08",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2020-08.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "9f2d575ffc17a14320bc08a99d51a5580fd7f058f1495cfec598fbbd959792c2",
+        "month": "2020-09",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2020-09.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "f35bc01dc1bba142c87033b33055c34a0ba37c2a2abd6c115af6a9c4f238dd03",
+        "month": "2020-10",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2020-10.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "8eb55b2a547c35d792f88186168774804346426b82289bc9b1633406c0ff9e40",
+        "month": "2020-11",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2020-11.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "72cfa1e9aeb851871af0168eb7ee22d334b5efb3aa4a76d7382754dac5e885d8",
+        "month": "2020-12",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2020-12.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "ba7aeda6a99e0828b39da1b0605aaefcb40882fe9d44034598c4404f8a07783f",
+        "month": "2021-01",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-01.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "0a270f354b15b053824a7bb87c652aa95acb4a255fc968fe0a24bdc9e785223e",
+        "month": "2021-02",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-02.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "15a2676410d5104fac1ea15f7302addbf4d0de14f6db8ce10a4930c3f5d5e7fa",
+        "month": "2021-03",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-03.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "d957fcde82f9b5a9a05264a9602e5deae03472aa0d424ddb0f27a04e58723217",
+        "month": "2021-04",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-04.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "dcf7c567cbde49a5e564b29f01be95e28d32f12cb68c40b2a14da75930187dc8",
+        "month": "2021-05",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-05.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "a640c7f935a1136d2f65f28f9606f0e063185c500f982aec273bb2ed3f61bfc5",
+        "month": "2021-06",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-06.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "1367b5cd230474b0ecc6031b9e18cffe66e011c8fdd01c3325985a39c5d5ed48",
+        "month": "2021-07",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-07.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "a864bdf38c9d06b7a6a1dc07c5593bbe7387cec3b869e9ebee020da053d94f37",
+        "month": "2021-08",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-08.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "6e7bbfe650e6c56e189e78d521b3714feffd38468d1268b706a6626737326676",
+        "month": "2021-09",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-09.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "4b78dd0174890c975effca2ed078163d6e9b4f7437f692e2c430c724b7eafc24",
+        "month": "2021-10",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-10.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "67da3342f014166d2af97321599e0011453c4bd5a9282ef12c1a6131efd12993",
+        "month": "2021-11",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-11.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "c905c5c8ff36d0dfac3a0581225ab305f72d1e11e634953d8d3a136161d10956",
+        "month": "2021-12",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2021-12.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "9cdbcf68903434c850f9bec60d8174c2cfd105dd24a7566965b442ec15124e04",
+        "month": "2022-01",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-01.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "63672d552f98ec125ac4d90d82154313fb9832b7e1aaed196101816bd61bfb89",
+        "month": "2022-02",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-02.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "4532faf2f92d205fac79b7d25327d2045843b60a4494e00b0962e6b7f028bc06",
+        "month": "2022-03",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-03.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "0f509e296da62eed5f4e903507ced0de9738ea96a7a885e76dd2394b8049e689",
+        "month": "2022-04",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-04.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "768bdbbd11b08d935b3753ecfee7f1e351a346c71b11cf68a4a51296d694f368",
+        "month": "2022-05",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-05.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "8587319eaf1b1f6d73fd34446acdecdc72c47b23ecfd2d88e2a6dd2a35470565",
+        "month": "2022-06",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-06.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "6fc45fa135a6be85679a6ab0b1268fbd1f8258079295cd134b9a4c535c6b6b65",
+        "month": "2022-07",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-07.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "806ee1d6efa856984fe79453d17f04c0fb5e447413fe828cbd3ec2df9a1f5fc4",
+        "month": "2022-08",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-08.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "fa1adecbe41b530c12f481882115511297ac7b78a9a7ae9d9d21b11c745649a4",
+        "month": "2022-09",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-09.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "0f2d2cd67b30ab186bf3db5a07acfe835f1d74335c6493c80e9e4f0598e29b2c",
+        "month": "2022-10",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-10.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "96916aba47f230a9bc68cd3fd98d0d352e1fd8f23c16c515107c4d965a2067a3",
+        "month": "2022-11",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-11.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "0f4788019cdb29f4db7b03d9efefce099d7adf49c0daf70a144b814b292bf577",
+        "month": "2022-12",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2022-12.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "b7b04483464b36c89f519bf35d6461d278c709577562108b6a00fb786b92e6a6",
+        "month": "2023-01",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-01.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "b62ca5df57b1715109cb1fd57097529b28410fb36b0db5bd41dbefe7e070db68",
+        "month": "2023-02",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-02.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "1cb47aae71e941d3e9d333f9c96723eb35c8b4a7ec90e819c59a7c02f89b03bb",
+        "month": "2023-03",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-03.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "2c22e2e460bf0e41884bf71031eebf60224ba470b25777a4d17ddc9298390650",
+        "month": "2023-04",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-04.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "cf9e0ab390e3872ddb9d807ad161933a28e374e09dbee2b9addf659856d1e656",
+        "month": "2023-05",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-05.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "8dac3fe301198e752b257817542a7ded393dbe00b604f67aba6bc0090778ae95",
+        "month": "2023-06",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-06.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "5cc84c767c9f4d1fa3cb3d33bd009a0b5e3a445e9c89ad2ef259c90b0365cbc3",
+        "month": "2023-07",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-07.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "8d77e6f898fba3aa5bf643d128e0aaa1b722ea6881cd26a3d19088705117a1d7",
+        "month": "2023-08",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-08.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "ea43f6e612b54e165c47ea30955b8d9e825b1d3ad1846f12c03ad0f0fced9029",
+        "month": "2023-09",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-09.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "153f1322695d16a12cab261b7798045323d9f893b19d35d95ffe94a62530b4de",
+        "month": "2023-10",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-10.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "63aa156170b2316927ae4c4928cc78866934a02b4bbc14c730b5fe4790383a80",
+        "month": "2023-11",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-11.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "947ea9b1c5dfa301f1d5ff89d28f3ee49bc73eef2cfa1f0dc4024048458eb60b",
+        "month": "2023-12",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2023-12.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "21eeac04a76a7a35b10467e5e752fb2f8cff77cdeb57df6b50a23ce8d69bb190",
+        "month": "2024-01",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-01.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "1407acbf8ad99911bdf582805699b7e85fdbc346dbe12618ce8b6369f0d8058d",
+        "month": "2024-02",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-02.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "040b8e448e4243072b88b0d9908dfebed91bba943b75f4e831fa5337a2e1dab9",
+        "month": "2024-03",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-03.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "6a41f002da0c8e3f60bd46c841ea4ed766fb195764ad3b6b10e4f508d29c2eb7",
+        "month": "2024-04",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-04.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "42de617ed643def54b5a2c3fceb7cd2edec91aafaa01104a097b2ded5c5122d4",
+        "month": "2024-05",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-05.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "93499da4990fec5471bb0d73c91116e7d20a8b2697d7a4491665d6d1b8e85c85",
+        "month": "2024-06",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-06.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "97f9cd5104a33828c5c2d8d03a2796d600102ab88737d1c6da515b9609540c3c",
+        "month": "2024-07",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-07.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "f69dbcebfd7108dc97825bd6c35d8d9a51745082f66617cb69de888e867e8e89",
+        "month": "2024-08",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-08.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "16fe2e13728236bfbd3efee99671612daadeea3b62dfd55d8874feae9faa4946",
+        "month": "2024-09",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-09.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "aa8c79ad120a8d870e23276d1ad5966f99f59bc0a1886ef5927a3808a5efee36",
+        "month": "2024-10",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-10.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "9c3dad038f4b043ec51d4200f57d15a0a07b3fc32b3ea3dca6a96543b9624941",
+        "month": "2024-11",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-11.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "bfce141d2a152c2b94d85b797fe18ebfa195fa0e6091a7ccc06663ae1309466f",
+        "month": "2024-12",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2024-12.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "b69ca5b2c2d1ae00d68d2790d09138cb2a44085ff19e0da5dc98b569ea7e489e",
+        "month": "2025-01",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-01.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "d84ca981d06ee6491e16597f8d43955f62cab399a9f4b6efc2ee1b4d3a37f0fc",
+        "month": "2025-02",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-02.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "4837163333c9c9978255b8870a5a6de1bc48bd22a6c72fef54665a8d4e70b4df",
+        "month": "2025-03",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-03.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "87bca047ca7e8b1d27913091255018e121210276726c5aa445e85da6f56e2dcc",
+        "month": "2025-04",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-04.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "7acab7e40a74db53a2d6c35373ebe327eefa85b98f8c92fbe58755881e3841ee",
+        "month": "2025-05",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-05.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "78872b32c4d0bbc2d89a0459539b90cff47de08a9a56fdf8d233943a32e78efc",
+        "month": "2025-06",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-06.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "cf5fe0891c80e68d2d613eb5457100b7d886eee8cc913ccdd96ef45e757a5aaf",
+        "month": "2025-07",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-07.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "eaf41354fc1aa96eac94ee50b3fda603cd595f95030ebf30b2ab5bea7a4462c3",
+        "month": "2025-08",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-08.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "c296ba45c215934e9750ca82846c7b5d14be661649d8e4423eac834cf57330dc",
+        "month": "2025-09",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-09.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "bb7f53350fe27b6d8e38b5856ffc43f9ecda9d568d5bf31d0db0cd011da7100f",
+        "month": "2025-10",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-10.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "981da0b054f99b959fe6245fb363336b46908d358f37251d59bad308f375bc54",
+        "month": "2025-11",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-11.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "2d5b2e1887dac1dfe450010877de7203a72e19df7a771067b980bbb07ad3069c",
+        "month": "2025-12",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2025-12.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "58e9c620a6acda209d25766b3cf4262f3104649f5c26f247d933e0da8bb7946f",
+        "month": "2026-01",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2026-01.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "805626ad2dc5b704d52c211996d12e9e4b1be234998f3dba4b3d34ff79be0337",
+        "month": "2026-02",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2026-02.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "c472a865f230bf1b5b17e124770a83c083144e3e11a115733288fb8f3e3b8baa",
+        "month": "2026-03",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2026-03.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "515b86570f0c6924f6dc2cf90589d3db90f3de9c6bfd9a22dde0429995dc5405",
+        "month": "2026-04",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2026-04.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": true,
+        "expected_archive_sha256": "d91548e94220d5211bb32447cc4b604ee266d145f2092edc5ec613328cbbc20a",
+        "month": "2026-05",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2026-05.zip",
+        "protected_suffix_prefix_hash_only": false
+      },
+      {
+        "archive_sha256_verified": false,
+        "expected_archive_sha256": "9b214199eb5063585c7ed0f59ba19323326d68ac024b85106713989399204490",
+        "month": "2026-06",
+        "path": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018/BTCUSDT-1m-2026-06.zip",
+        "protected_suffix_prefix_hash_only": true
+      }
+    ],
+    "batch_outputs": [
+      {
+        "month": "2020-06",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2020-06.parquet",
+        "rows": 43200,
+        "sha256": "893543e467cd677591fed5eed64379df9579d7868b7e4dc2f34d15772b83c7c6"
+      },
+      {
+        "month": "2020-07",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2020-07.parquet",
+        "rows": 44640,
+        "sha256": "f74a5c7f1f99662756987d906291bbe9268853bff02601aff5dbc46f4e3e78f4"
+      },
+      {
+        "month": "2020-08",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2020-08.parquet",
+        "rows": 44640,
+        "sha256": "246640e53b03e729053042baa1434aa91ae7ee9d39c960c0b45df02b3dee266f"
+      },
+      {
+        "month": "2020-09",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2020-09.parquet",
+        "rows": 43200,
+        "sha256": "04fd22bffb15a370b5db3ad730a17b827e70eddd248ee22eb106aa8866c523bd"
+      },
+      {
+        "month": "2020-10",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2020-10.parquet",
+        "rows": 44640,
+        "sha256": "8a33bcbd3c2dda7711f270097bf2ed500b58826903a2359b1e01b10c58071339"
+      },
+      {
+        "month": "2020-11",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2020-11.parquet",
+        "rows": 43200,
+        "sha256": "91200c21b20a372c9aa733f08ff7d498cedac7a27729107f5f1b6db50ff2ab2b"
+      },
+      {
+        "month": "2020-12",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2020-12.parquet",
+        "rows": 44640,
+        "sha256": "a58be7f3d37dee0172e7274fb79f6387edc3a7daf31f8e78475b44c68ec6c7c9"
+      },
+      {
+        "month": "2021-01",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-01.parquet",
+        "rows": 44640,
+        "sha256": "f147e2cd0756eb801ab3518d9486a5179761005480dacee23b70ea83abea72bb"
+      },
+      {
+        "month": "2021-02",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-02.parquet",
+        "rows": 40320,
+        "sha256": "ff5bc69d20dd89d4add2938ddfd4a64abd0bedb2fab4c945093bf3c1b82aa25b"
+      },
+      {
+        "month": "2021-03",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-03.parquet",
+        "rows": 44640,
+        "sha256": "34deb1fe8734150b141213861811fb34defb6e1ba0b02b456477c702d0fc7f8d"
+      },
+      {
+        "month": "2021-04",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-04.parquet",
+        "rows": 43200,
+        "sha256": "22d5d23bc5b928062bb6e60742fd17dbf535bde862cc5f9a382a1891ef1e8155"
+      },
+      {
+        "month": "2021-05",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-05.parquet",
+        "rows": 44640,
+        "sha256": "bf39e466381c6627c57b20173a5d9a6fde3e3026b103e16cc98b2cf6ae84f39a"
+      },
+      {
+        "month": "2021-06",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-06.parquet",
+        "rows": 43200,
+        "sha256": "b49996ad9529bc8694c8a852d9f7fc60e6d6bd1d4d1cfddf53c7e894ef87d657"
+      },
+      {
+        "month": "2021-07",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-07.parquet",
+        "rows": 44640,
+        "sha256": "17d2a363460eb794c13ebacac6cf4dd8758e9f050fbeebd544e647a6c758785b"
+      },
+      {
+        "month": "2021-08",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-08.parquet",
+        "rows": 44640,
+        "sha256": "df1539caa9f2a1e2fe99e8d63d1dde9dbdb66cd7e9e97ef808cdd70f75112dc0"
+      },
+      {
+        "month": "2021-09",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-09.parquet",
+        "rows": 43200,
+        "sha256": "7f09c00da788ff33a26ed117736067a77ac386984b1fda47fe4519b347c9fead"
+      },
+      {
+        "month": "2021-10",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-10.parquet",
+        "rows": 44640,
+        "sha256": "d084a6ab30cdeb3557ce5b770f11ec36e08ae9d842334fb503d79835cbdbfb3a"
+      },
+      {
+        "month": "2021-11",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-11.parquet",
+        "rows": 43200,
+        "sha256": "b1850d9059619bb4dd7687f3ad435335620f588a319f8f58b3a006f0fad77436"
+      },
+      {
+        "month": "2021-12",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2021-12.parquet",
+        "rows": 44640,
+        "sha256": "31d4b3bf152733717a211e8c32f087eccca0b53c29470d08919663015212c1b9"
+      },
+      {
+        "month": "2022-01",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-01.parquet",
+        "rows": 44640,
+        "sha256": "4556763e78f71cab490dfd3f8e4716ad76a58c85ef68e22415631da4ab6bf257"
+      },
+      {
+        "month": "2022-02",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-02.parquet",
+        "rows": 40320,
+        "sha256": "5bb71336c33f0cb81157e5541e4a44ae6f1c53aca05c968a68f3c03076324e36"
+      },
+      {
+        "month": "2022-03",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-03.parquet",
+        "rows": 44640,
+        "sha256": "f5fb26d7cbf95887c7e3d1736b3573fc2035ae4db2237efb71079efa73ead8b3"
+      },
+      {
+        "month": "2022-04",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-04.parquet",
+        "rows": 43200,
+        "sha256": "97b98589a2707a5b43b7e86d45c5ee8b96af65273b8f2cfad76208160adf26da"
+      },
+      {
+        "month": "2022-05",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-05.parquet",
+        "rows": 44640,
+        "sha256": "ec0748fc12997b46db4e2133c52188c91fc34156980106af5b392ce19b71497f"
+      },
+      {
+        "month": "2022-06",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-06.parquet",
+        "rows": 43200,
+        "sha256": "a6c968bcfc6679a0b7b72129580445d8c58095a4e34c9c2fc883fcb64f8b6ec0"
+      },
+      {
+        "month": "2022-07",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-07.parquet",
+        "rows": 44640,
+        "sha256": "0a48353493546642cbd86fef4efa0812e6383d9a0615c45859c24700611ae578"
+      },
+      {
+        "month": "2022-08",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-08.parquet",
+        "rows": 44640,
+        "sha256": "6eae19dee72405c34f122dd2cd65da641007948f77f7ed92e70f6baee44ecd5e"
+      },
+      {
+        "month": "2022-09",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-09.parquet",
+        "rows": 43200,
+        "sha256": "a3b1928adbb8e9632ec05916cfbb756f488d22fcdb2dfd9a90c0ee2815a3af21"
+      },
+      {
+        "month": "2022-10",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-10.parquet",
+        "rows": 44640,
+        "sha256": "7d36841314840308bf8f1f840d1566197089e1dc27c08717c6ef93d64d08b9e7"
+      },
+      {
+        "month": "2022-11",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-11.parquet",
+        "rows": 43200,
+        "sha256": "8dfac7cd276fb168148400796acae78728404fb06a4b1bd5083ff34d1cb25346"
+      },
+      {
+        "month": "2022-12",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2022-12.parquet",
+        "rows": 44640,
+        "sha256": "1c7ab8df9ba8a945bb8571fb5402b752f36a93881153c42cabb1641cc559e1f3"
+      },
+      {
+        "month": "2023-01",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-01.parquet",
+        "rows": 44640,
+        "sha256": "90481fad333948392ffa51ee52e8ce554825c0e75135fd739f33f7bb69150887"
+      },
+      {
+        "month": "2023-02",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-02.parquet",
+        "rows": 40320,
+        "sha256": "f401a36b93a3cc8fd212239b1d68952ff7b50943680aa21e226cc11b85c64b38"
+      },
+      {
+        "month": "2023-03",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-03.parquet",
+        "rows": 44640,
+        "sha256": "08b923c54a2803a0a9ab2879f9d2f7f34b65f702e53a05107ad78da6d9f9635c"
+      },
+      {
+        "month": "2023-04",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-04.parquet",
+        "rows": 43200,
+        "sha256": "3dcf3adc1ca96aac3fd20b766f8f061b7c0b6c314fcb4b175908c481dce9f0c8"
+      },
+      {
+        "month": "2023-05",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-05.parquet",
+        "rows": 44640,
+        "sha256": "db50edbb8ebf92ef69a85bea3afdb81c4091f65a4a7bfa86222a36c37d975c45"
+      },
+      {
+        "month": "2023-06",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-06.parquet",
+        "rows": 43200,
+        "sha256": "d7f4baba6da4262e52c615ed56269375ee30dd07edc08f0c798cd5f8ad94ffa9"
+      },
+      {
+        "month": "2023-07",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-07.parquet",
+        "rows": 44640,
+        "sha256": "c3316797261999af06339612ffdab2d26d594a7f29e6358931b71fc25330381d"
+      },
+      {
+        "month": "2023-08",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-08.parquet",
+        "rows": 44640,
+        "sha256": "9be909641933e1c3dd9784be37186ca99df2f01e53cc80019d18e821a44caf11"
+      },
+      {
+        "month": "2023-09",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-09.parquet",
+        "rows": 43200,
+        "sha256": "618055a41e4551edf3d583b9512c05f3ef20fbdcb4ac5817569da545c95a3476"
+      },
+      {
+        "month": "2023-10",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-10.parquet",
+        "rows": 44640,
+        "sha256": "7b3f74f21b6f27116f9dff71398ba16c0cc0a460560fc90abd381c9aae4d8ad3"
+      },
+      {
+        "month": "2023-11",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-11.parquet",
+        "rows": 43200,
+        "sha256": "db7b16608f4011d878803e13927d874bf56b4a21b59312caa85766c98bc54c04"
+      },
+      {
+        "month": "2023-12",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2023-12.parquet",
+        "rows": 44640,
+        "sha256": "e33fd914097525f1faafe0bc3ec7dbcaac77ed2b5a82b86fd3fd37267e8c3233"
+      },
+      {
+        "month": "2024-01",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-01.parquet",
+        "rows": 44640,
+        "sha256": "75cba81d49566d10cdc84c5cc7f35f722633ec4571aa5f115fa0b56a10b57e8c"
+      },
+      {
+        "month": "2024-02",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-02.parquet",
+        "rows": 41760,
+        "sha256": "887d7ddc0bdc2de7b1100b807955a650e5859e7d7bcb0f8589d58635463969a9"
+      },
+      {
+        "month": "2024-03",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-03.parquet",
+        "rows": 44640,
+        "sha256": "daacd239ff781a929b68c9912678f7b88c936aff03e8eba8706ad6d40d0043aa"
+      },
+      {
+        "month": "2024-04",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-04.parquet",
+        "rows": 43200,
+        "sha256": "e014f0aa4d3535846e5b291b521c03dc721ac3127e79fb573db0194970e5c861"
+      },
+      {
+        "month": "2024-05",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-05.parquet",
+        "rows": 44640,
+        "sha256": "ef23e6ec8fd982ea726a015bfbad7bded58272b493b8987c36bd74b598095dd8"
+      },
+      {
+        "month": "2024-06",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-06.parquet",
+        "rows": 43200,
+        "sha256": "d892adbad4f5c6ebd77892f227a912011b8d9d1d9ee0003648ce6bf402df9296"
+      },
+      {
+        "month": "2024-07",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-07.parquet",
+        "rows": 44640,
+        "sha256": "28402ad3c2e6048044922ea387f4669ad457f3918ee86587db4e8a2231675ecf"
+      },
+      {
+        "month": "2024-08",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-08.parquet",
+        "rows": 44640,
+        "sha256": "98f49d3c755494c41808f8228f02f103b4806c912220b01c03f5381ea306ba68"
+      },
+      {
+        "month": "2024-09",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-09.parquet",
+        "rows": 43200,
+        "sha256": "e00cab71059eae1e5909bb860e4de60a663d88b61ac722bac4cd4eac867e76f4"
+      },
+      {
+        "month": "2024-10",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-10.parquet",
+        "rows": 44640,
+        "sha256": "8ccefd92c4008779723f169a126e85e628bf98e923a783b1baeb3e383e3fcc28"
+      },
+      {
+        "month": "2024-11",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-11.parquet",
+        "rows": 43200,
+        "sha256": "b6094ef33470dc246d176d2b83f8e7e0d44374a63a4dc5153ba633eba2beae88"
+      },
+      {
+        "month": "2024-12",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2024-12.parquet",
+        "rows": 44640,
+        "sha256": "192cacbc2280b5bb533cf3bc84f3e6552b0603d1ec204fdb6dcb6e0e41d52be2"
+      },
+      {
+        "month": "2025-01",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-01.parquet",
+        "rows": 44640,
+        "sha256": "bd00c6aeaf16dfb5e8bbcda338a358f530ffcb6a184a9d5e1c12b105ed36cbd3"
+      },
+      {
+        "month": "2025-02",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-02.parquet",
+        "rows": 40320,
+        "sha256": "73e170727043ab298343377fa070582a9b3390b34525000670684845228b0d37"
+      },
+      {
+        "month": "2025-03",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-03.parquet",
+        "rows": 44640,
+        "sha256": "9bb163dea6e53f95aef0654b9845f7291f69fe38588e476db580e9e27d1330a9"
+      },
+      {
+        "month": "2025-04",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-04.parquet",
+        "rows": 43200,
+        "sha256": "2f8e7c80ff7408b912a47910176f368f8169f99b76e44380b87abd54061e03f9"
+      },
+      {
+        "month": "2025-05",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-05.parquet",
+        "rows": 44640,
+        "sha256": "8c4b3c3266a99cd7e592ce6b999bda5b64c5cc17719d9b0c16c5aee87141f82e"
+      },
+      {
+        "month": "2025-06",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-06.parquet",
+        "rows": 43200,
+        "sha256": "cbf96e8f198afd20f59772367edb8c1e47a6a9bcafb98181e39ff148a09b617f"
+      },
+      {
+        "month": "2025-07",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-07.parquet",
+        "rows": 44640,
+        "sha256": "6b18cbd74ce16ef625fbe7a8b420dee54e2ab8fbfb41e7b0dc22b7c3bff30a09"
+      },
+      {
+        "month": "2025-08",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-08.parquet",
+        "rows": 44640,
+        "sha256": "e85a3388087c102ad4a3655228985e8b8df7ca720a2ceb4704c93e8766111dee"
+      },
+      {
+        "month": "2025-09",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-09.parquet",
+        "rows": 43200,
+        "sha256": "00e9a181d59cf6eab17b7a95ad082b624564f3bafe46262aa0f189052ac89306"
+      },
+      {
+        "month": "2025-10",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-10.parquet",
+        "rows": 44640,
+        "sha256": "fce3058c96e1e5b61cdf19b579cf0b091c8251af5182127b00ff56d4988907e6"
+      },
+      {
+        "month": "2025-11",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-11.parquet",
+        "rows": 43200,
+        "sha256": "515e7815168cc6dbc7bf6c36495700e0b4e75bc5632860a22cbdddf5a415e2e9"
+      },
+      {
+        "month": "2025-12",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2025-12.parquet",
+        "rows": 44640,
+        "sha256": "a7fe3615714942a58fddec8dd3b7facd2b46059fc048122ba501db5ded0331e0"
+      },
+      {
+        "month": "2026-01",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2026-01.parquet",
+        "rows": 44640,
+        "sha256": "764045ad2aab7606da072b2c24217aab53e3b32e150cdaab5b8826b8acb74fd8"
+      },
+      {
+        "month": "2026-02",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2026-02.parquet",
+        "rows": 40320,
+        "sha256": "b0d5b083febdb04421b09b69c7cab51bfed5d258c77457578886ce347767a904"
+      },
+      {
+        "month": "2026-03",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2026-03.parquet",
+        "rows": 44640,
+        "sha256": "c921e6f37f49e4f17229473d72d3688a511400ee8f1a90641ae883f6ab569ff9"
+      },
+      {
+        "month": "2026-04",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2026-04.parquet",
+        "rows": 43200,
+        "sha256": "44e70853f88b4825e8474a487e54d717c33b890497081af6cdf33aef95151de4"
+      },
+      {
+        "month": "2026-05",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2026-05.parquet",
+        "rows": 44640,
+        "sha256": "a8e30d46e6589ae94cf80eefda16fb9123bfa9ecbb32b9b8033cdda058b44f97"
+      },
+      {
+        "month": "2026-06",
+        "path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_batch_features_2026-06.parquet",
+        "rows": 43198,
+        "sha256": "263c5c5953e31e1845b011038ac70d82326d5858f5c243204bba564868fab4cd"
+      }
+    ],
+    "flow_compute_mode": "single chronological pass over projected raw flow fields; no fit",
+    "last_processed_opened": "2026-06-30T23:57:00+00:00",
+    "outputs": [
+      {
+        "month": "2020-06",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2020-06.parquet",
+        "raw_prefix_sha256": "ec4c30f4456e3025ec001c2382ad5c783c68add0863dec4c76b42165386ff56c",
+        "raw_sha256": "8d446e40cc521e5086a490bebf2ee215466ca21d7adb471b3286b9c7ccbc5d7f",
+        "rows": 43200,
+        "source_archive_sha256": "91f18492445c0a9609d70bd4603c73c8588a88c06105ade34082417f8b2e7e6d",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2020-07",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2020-07.parquet",
+        "raw_prefix_sha256": "999fedfcfdfcb20a1c1050e0f79959c03cc85dad096bb7d5e07d83c98fbf1f7d",
+        "raw_sha256": "e180b54949caf595debafdbf1aeee8426c734887ac5f73f2a9e0cc35534646d8",
+        "rows": 44640,
+        "source_archive_sha256": "4cb7dcf6e1adb17e8ab8787c459f3f645b7070633f530485f0f93dd45a9de693",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2020-08",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2020-08.parquet",
+        "raw_prefix_sha256": "9ef42fadcccf8c12d8e08f510551a12fe39d7e5047acf49a2831e50df64c98bf",
+        "raw_sha256": "9ad284ae521c45b97e8c2a20f21aa65a5abb2ad373ce9923733d6921d9d0be3a",
+        "rows": 44640,
+        "source_archive_sha256": "7596de0f26df44d782713475f97af34f27a287faf084c73bdcc61819215b060a",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2020-09",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2020-09.parquet",
+        "raw_prefix_sha256": "37915b5ae802037bc4cbbf3352daaeb1fcc2f39a263a216a98175f9a8240eedb",
+        "raw_sha256": "efd06f10bdeb02dbfa6994b2e4e3061fc3702f9ec8878813f086779067aa47f5",
+        "rows": 43200,
+        "source_archive_sha256": "9f2d575ffc17a14320bc08a99d51a5580fd7f058f1495cfec598fbbd959792c2",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2020-10",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2020-10.parquet",
+        "raw_prefix_sha256": "9550fb2f160ef0d1d941392b8ae806f0d26971022bc80f04e4badb8fa5e66111",
+        "raw_sha256": "271200c460a0325a37a018db059a0802a5e312dbfa7b4d3f02d99901070d68fa",
+        "rows": 44640,
+        "source_archive_sha256": "f35bc01dc1bba142c87033b33055c34a0ba37c2a2abd6c115af6a9c4f238dd03",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2020-11",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2020-11.parquet",
+        "raw_prefix_sha256": "be37e83e3d5dd606f189df19b1ff96e63db5fb884cdf8f1f2ec06c1af7c664bf",
+        "raw_sha256": "351c866cd150619848088cb83efd7595f11e01ce4345b00c5e88c28b7b2c23c6",
+        "rows": 43200,
+        "source_archive_sha256": "8eb55b2a547c35d792f88186168774804346426b82289bc9b1633406c0ff9e40",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2020-12",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2020-12.parquet",
+        "raw_prefix_sha256": "6c5ff4c7fe89e4c1cb335e0148759cfcac6ab0c2bda86ae7b3484daf9ce5cc0c",
+        "raw_sha256": "318aa3a2da4fbab4fe5794da7f174517a1319cf9f9b5100726e3cb107baf46e9",
+        "rows": 44640,
+        "source_archive_sha256": "72cfa1e9aeb851871af0168eb7ee22d334b5efb3aa4a76d7382754dac5e885d8",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-01",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-01.parquet",
+        "raw_prefix_sha256": "55f762cada33b146f3b444df44e287fde754d7e196eab1fba770fff8e98cdf89",
+        "raw_sha256": "35dc6650a7b97c7da5a17188d01404110854733458ac2ef8d1b7fe5d87915931",
+        "rows": 44640,
+        "source_archive_sha256": "ba7aeda6a99e0828b39da1b0605aaefcb40882fe9d44034598c4404f8a07783f",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-02",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-02.parquet",
+        "raw_prefix_sha256": "c76590f3e934dc7628f041574188831eaef403cbd92f3670e7ef8648ea358c44",
+        "raw_sha256": "43754c86afa20bf7672feb327b58976dc27e7534d6d6b417d4b64968d33c3a10",
+        "rows": 40320,
+        "source_archive_sha256": "0a270f354b15b053824a7bb87c652aa95acb4a255fc968fe0a24bdc9e785223e",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-03",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-03.parquet",
+        "raw_prefix_sha256": "8860c8e5bacb8150cc7c6d3bead4f2bd55fbc0f40a239535806a805c6aceae22",
+        "raw_sha256": "e9d04563671793cf4ded4a56b0e0b5a56572c714adc6f7ac419cc4a175a3f802",
+        "rows": 44640,
+        "source_archive_sha256": "15a2676410d5104fac1ea15f7302addbf4d0de14f6db8ce10a4930c3f5d5e7fa",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-04",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-04.parquet",
+        "raw_prefix_sha256": "351c51ab8ffac28397ce6fb07117d54e8176ef0377f5d612b4b02ed7f93d3ff3",
+        "raw_sha256": "5073c022614f166afe8e7e77c86e0b22d9839f6a0e3fb365522f0969dde6be7b",
+        "rows": 43200,
+        "source_archive_sha256": "d957fcde82f9b5a9a05264a9602e5deae03472aa0d424ddb0f27a04e58723217",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-05",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-05.parquet",
+        "raw_prefix_sha256": "9c5ab97ad371a75fd935818c4c0d74fed603b34306a42b88b03ada1a9a93c927",
+        "raw_sha256": "ceb507184b7a4a976969a1ea427db3ff51ecab0e1b9a20f091b57b5d17b36d10",
+        "rows": 44640,
+        "source_archive_sha256": "dcf7c567cbde49a5e564b29f01be95e28d32f12cb68c40b2a14da75930187dc8",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-06",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-06.parquet",
+        "raw_prefix_sha256": "46e7f8b3ef87b5c04e175213fc6290f168a6ad2838c3c00bd1c3e96602c8bc89",
+        "raw_sha256": "d0d96b7d1258be7b820ffa5afd15b748b8e08537ee6a73bc07d7585a40ce7424",
+        "rows": 43200,
+        "source_archive_sha256": "a640c7f935a1136d2f65f28f9606f0e063185c500f982aec273bb2ed3f61bfc5",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-07",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-07.parquet",
+        "raw_prefix_sha256": "c24b97b143ffb49fc8c0b5f8b55d836795c009b995bb52e043e05d8595cf587d",
+        "raw_sha256": "b28598bf1360462009c05aca2e00f7c8006cebcf7a7330ec8cb218c00359a759",
+        "rows": 44640,
+        "source_archive_sha256": "1367b5cd230474b0ecc6031b9e18cffe66e011c8fdd01c3325985a39c5d5ed48",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-08",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-08.parquet",
+        "raw_prefix_sha256": "e2fb4425fb7ea2ca26a5e7bd24dd479e0f3d2a1da9a7ae58b4c898b53499783c",
+        "raw_sha256": "4ff47539f923c28ba99b44e1cc5d9bfa42398cfec3e0bed25e0eccb9fda21f96",
+        "rows": 44640,
+        "source_archive_sha256": "a864bdf38c9d06b7a6a1dc07c5593bbe7387cec3b869e9ebee020da053d94f37",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-09",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-09.parquet",
+        "raw_prefix_sha256": "bd70a4e2c05bac2a3c589241f5fa84756f9bb1c81483f6339d024c574a4c9b25",
+        "raw_sha256": "d1c50746eceb48cc13575f1cad99bb336f5673cc21df7d10a4f4fc7712a6b9ee",
+        "rows": 43200,
+        "source_archive_sha256": "6e7bbfe650e6c56e189e78d521b3714feffd38468d1268b706a6626737326676",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-10",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-10.parquet",
+        "raw_prefix_sha256": "f4a2800dcafd0929d747d83c1ed8b81b1231d8ece9eb77d823e768b26b4ad1b9",
+        "raw_sha256": "247a28e7496cfddcb868d2202495bd25254031f0d2f62b40a269e79d31daf3cf",
+        "rows": 44640,
+        "source_archive_sha256": "4b78dd0174890c975effca2ed078163d6e9b4f7437f692e2c430c724b7eafc24",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-11",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-11.parquet",
+        "raw_prefix_sha256": "86a64b9199d1430bb7b67af8283c08865c7d8956d16b8bd82e90db3dcf6dc276",
+        "raw_sha256": "68c8101eea5323a91fc8e61ef33c177095d4bf89f86ed0281ea7f484deab19fd",
+        "rows": 43200,
+        "source_archive_sha256": "67da3342f014166d2af97321599e0011453c4bd5a9282ef12c1a6131efd12993",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2021-12",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2021-12.parquet",
+        "raw_prefix_sha256": "93266c0dc1f9768c3358166eeb3d9cc91d0e3a02074da669febe0fa2e5cf0033",
+        "raw_sha256": "714a5d13766c137ee8bdf0ba1669d241da9e2c29bcdbf20254598b4de4ef0417",
+        "rows": 44640,
+        "source_archive_sha256": "c905c5c8ff36d0dfac3a0581225ab305f72d1e11e634953d8d3a136161d10956",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-01",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-01.parquet",
+        "raw_prefix_sha256": "cdec26e642cf83d7e3dced4b37aab92ca22326bce2afe40c49b41d5dfe3c630d",
+        "raw_sha256": "89df8904b78789a0334bd78718297b6b37e04ccdf5981cb111a0bd8dc353312c",
+        "rows": 44640,
+        "source_archive_sha256": "9cdbcf68903434c850f9bec60d8174c2cfd105dd24a7566965b442ec15124e04",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-02",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-02.parquet",
+        "raw_prefix_sha256": "46b6fcad87b3056976b6ea946a678369bb90e98b483da0fb6ed5507ea3897f9e",
+        "raw_sha256": "54561ae63f58471ef085b3db8c80802390ef686470afe99aac1cebaf573d5c83",
+        "rows": 40320,
+        "source_archive_sha256": "63672d552f98ec125ac4d90d82154313fb9832b7e1aaed196101816bd61bfb89",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-03",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-03.parquet",
+        "raw_prefix_sha256": "1b0798409698503b6c30b18e75638b1e6b052d3bc56ba0d5d2ae5dd613c38c7b",
+        "raw_sha256": "6bf5c0c2e524d065bd46c195f11f2339f8069312dfc25a4da72871dc1010fd34",
+        "rows": 44640,
+        "source_archive_sha256": "4532faf2f92d205fac79b7d25327d2045843b60a4494e00b0962e6b7f028bc06",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-04",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-04.parquet",
+        "raw_prefix_sha256": "6bd04b7dd5568bbd3581bc7b94262d58a5538f7cb202f3a6e6e3585215bcf2c4",
+        "raw_sha256": "b9823a72a991439f64866f4fc6816b899f0ae6abc71836c1541dfdc059c10fff",
+        "rows": 43200,
+        "source_archive_sha256": "0f509e296da62eed5f4e903507ced0de9738ea96a7a885e76dd2394b8049e689",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-05",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-05.parquet",
+        "raw_prefix_sha256": "62eff3af5de455991cc2fb3625a1db2225499f82320f848c79c026be6f0215a2",
+        "raw_sha256": "48c6acc7ab73fb4d880e59770e6f6a0799195ff8e538f2d67df6d27d39b24510",
+        "rows": 44640,
+        "source_archive_sha256": "768bdbbd11b08d935b3753ecfee7f1e351a346c71b11cf68a4a51296d694f368",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-06",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-06.parquet",
+        "raw_prefix_sha256": "206a6a5a1f4a98854b22e0b47e201bcabdb1fe608a7d27e334480cee07f8be27",
+        "raw_sha256": "e6e7296cb67db6f12ebcff39c8e090f42a7a1f76380f2862cd9c9e282f8fab96",
+        "rows": 43200,
+        "source_archive_sha256": "8587319eaf1b1f6d73fd34446acdecdc72c47b23ecfd2d88e2a6dd2a35470565",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-07",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-07.parquet",
+        "raw_prefix_sha256": "f46e44803b07f6e56906ea9ff02633c330ff21c2a91703462cb6a69df432d7ac",
+        "raw_sha256": "675b1fefbf85d5aec9baf9dbef16cbcd17279ae5d21d03db0b8eea3da89b3de4",
+        "rows": 44640,
+        "source_archive_sha256": "6fc45fa135a6be85679a6ab0b1268fbd1f8258079295cd134b9a4c535c6b6b65",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-08",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-08.parquet",
+        "raw_prefix_sha256": "7c0cb2de2f53268e1c0bb28a909f5c3896b55f0a246ce96adf7e8ea4f85aaf2b",
+        "raw_sha256": "c34c752b31ba874727f8bb6d0ced91960e0336b1df2ef6b2868bfb0c0ef69120",
+        "rows": 44640,
+        "source_archive_sha256": "806ee1d6efa856984fe79453d17f04c0fb5e447413fe828cbd3ec2df9a1f5fc4",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-09",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-09.parquet",
+        "raw_prefix_sha256": "e7b4f1d968854f283a44f8173b4483ec37dbde3f019a0abdfeacfa5a0ba8ccb9",
+        "raw_sha256": "4b4ef78a35aaf283b09b4943401e5297562922d4992d0af8c4c26c067bb1b0bc",
+        "rows": 43200,
+        "source_archive_sha256": "fa1adecbe41b530c12f481882115511297ac7b78a9a7ae9d9d21b11c745649a4",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-10",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-10.parquet",
+        "raw_prefix_sha256": "0506a1e289504f15a0da621c98c1e6aedeb5f886a2567f3020077acb61747866",
+        "raw_sha256": "8d56548024013f7c36983d0469a53462b0ffdc13f6cd7a89d3fc2e1b7023b244",
+        "rows": 44640,
+        "source_archive_sha256": "0f2d2cd67b30ab186bf3db5a07acfe835f1d74335c6493c80e9e4f0598e29b2c",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-11",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-11.parquet",
+        "raw_prefix_sha256": "de9b1fb5d80a298f68a3d922817fdf385457f58e09bf6cea01bc9ac4cdf58014",
+        "raw_sha256": "a80ffe5231b1024c6bf319e3f6fb741f78e50c72b164f360c8c8cba8b036328d",
+        "rows": 43200,
+        "source_archive_sha256": "96916aba47f230a9bc68cd3fd98d0d352e1fd8f23c16c515107c4d965a2067a3",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2022-12",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2022-12.parquet",
+        "raw_prefix_sha256": "9b506df751a0b1076271a1588c5ced50aecd266d2acd7e977c204bcb93d1183c",
+        "raw_sha256": "8771977809339c8cc9ae75c397447d959e0cdce41262d4a4a8a480bccf0a3291",
+        "rows": 44640,
+        "source_archive_sha256": "0f4788019cdb29f4db7b03d9efefce099d7adf49c0daf70a144b814b292bf577",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-01",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-01.parquet",
+        "raw_prefix_sha256": "40fe786dad45d02259ce3f2e7b4ed810d6321a6e9b130047fce3e6cacc869d9f",
+        "raw_sha256": "bab2c68028f2aacbbc14a0f3046672b71cb1e61d6ba532f08cdc7961bb10de6a",
+        "rows": 44640,
+        "source_archive_sha256": "b7b04483464b36c89f519bf35d6461d278c709577562108b6a00fb786b92e6a6",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-02",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-02.parquet",
+        "raw_prefix_sha256": "a5ee1f4f4cc279c9e8bf85b03e43d6fed3cc140427eb6748b10930ea0c052916",
+        "raw_sha256": "39ef3a473375c6de28b703e433a3d97ef16e839eb3dbda2a8250c833d7ad87af",
+        "rows": 40320,
+        "source_archive_sha256": "b62ca5df57b1715109cb1fd57097529b28410fb36b0db5bd41dbefe7e070db68",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-03",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-03.parquet",
+        "raw_prefix_sha256": "9cfa9a9808d95294d920ba23abedc5b48f078de774c3efd58742bbb63eb5276e",
+        "raw_sha256": "f1a68c39fbdd374ad17db03074867dd5d3bf2de666c71e464fe2007210081907",
+        "rows": 44640,
+        "source_archive_sha256": "1cb47aae71e941d3e9d333f9c96723eb35c8b4a7ec90e819c59a7c02f89b03bb",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-04",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-04.parquet",
+        "raw_prefix_sha256": "680b27eb192d6a26e61a784a161e7547de2e5962f894cd52d9d74b2c4e402230",
+        "raw_sha256": "4113a82de362213ebb8c71bc459b6d1cb520b9a458c55d7d01cce84b6b64fa8a",
+        "rows": 43200,
+        "source_archive_sha256": "2c22e2e460bf0e41884bf71031eebf60224ba470b25777a4d17ddc9298390650",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-05",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-05.parquet",
+        "raw_prefix_sha256": "1650ef75aa6cf12dfbc05594cd74fd6fbd6be67a53b76443e1f59d95f06e067c",
+        "raw_sha256": "37ef7d502462053a58bcd2589556365daa40b13daf59336b22fc18522eb6dca1",
+        "rows": 44640,
+        "source_archive_sha256": "cf9e0ab390e3872ddb9d807ad161933a28e374e09dbee2b9addf659856d1e656",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-06",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-06.parquet",
+        "raw_prefix_sha256": "0979eccfbe14009b1a5668280434fa58387dad3524f5f9897f9804eea62e3ed2",
+        "raw_sha256": "1ee21592af7e93de2d4fc1239e507f69ec19af9848fa4caf5a5c2875af17b16e",
+        "rows": 43200,
+        "source_archive_sha256": "8dac3fe301198e752b257817542a7ded393dbe00b604f67aba6bc0090778ae95",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-07",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-07.parquet",
+        "raw_prefix_sha256": "f43a339e01b7fc5a08b9626628b486f1bb3f5e09d0eeb933b1ccb42e02c21212",
+        "raw_sha256": "11abb787885d6a5429281939e476238650148ba9020c99fbfefa3ab9568ff9f4",
+        "rows": 44640,
+        "source_archive_sha256": "5cc84c767c9f4d1fa3cb3d33bd009a0b5e3a445e9c89ad2ef259c90b0365cbc3",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-08",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-08.parquet",
+        "raw_prefix_sha256": "b687298affdad10e842ec0edc75425de8367950dd40b2beb3e5627169802d6e8",
+        "raw_sha256": "7d168aaeae96acbd2702dc8113d7638d93aa6db085603de909c12a6887bd9885",
+        "rows": 44640,
+        "source_archive_sha256": "8d77e6f898fba3aa5bf643d128e0aaa1b722ea6881cd26a3d19088705117a1d7",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-09",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-09.parquet",
+        "raw_prefix_sha256": "d0ad2edbe6e9c34454c998e800a18756fa79209fc629b7b2bd7287b330fccd15",
+        "raw_sha256": "6a7b2307b8cf6365d19e56c46e23e1a2f19824ddf747129021872d16705c76b9",
+        "rows": 43200,
+        "source_archive_sha256": "ea43f6e612b54e165c47ea30955b8d9e825b1d3ad1846f12c03ad0f0fced9029",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-10",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-10.parquet",
+        "raw_prefix_sha256": "c721025b1b09fde53024d02a529ede06a360a9c58ccbc0624f1d2b61432a93ed",
+        "raw_sha256": "f6dc53237e2db707f848bb4e2962417b03b7dfb06d88da50a5c6d84e465e7d00",
+        "rows": 44640,
+        "source_archive_sha256": "153f1322695d16a12cab261b7798045323d9f893b19d35d95ffe94a62530b4de",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-11",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-11.parquet",
+        "raw_prefix_sha256": "10167231100874e686e5178927a926cb42869432a1247eebcb8e373eef2fc297",
+        "raw_sha256": "700aec2a24a393024aa5d34b2cc4ed9ac53c4ead16bce582af1f83eec8e3c588",
+        "rows": 43200,
+        "source_archive_sha256": "63aa156170b2316927ae4c4928cc78866934a02b4bbc14c730b5fe4790383a80",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2023-12",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2023-12.parquet",
+        "raw_prefix_sha256": "66f559a0f502fe97c0983ac09a9ab58bdf61c967e135b4cebfcc80fb26ebc7a6",
+        "raw_sha256": "69a052e3f99a2f35d2c0d459c84ddc3be01b9fa42e804931df53cbc435c169c7",
+        "rows": 44640,
+        "source_archive_sha256": "947ea9b1c5dfa301f1d5ff89d28f3ee49bc73eef2cfa1f0dc4024048458eb60b",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-01",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-01.parquet",
+        "raw_prefix_sha256": "f5a94163e76acb8eb116d700e36f4a79b7e38c65d65e22c711bc381541376d6f",
+        "raw_sha256": "8ef25c01b4a520a3af4be26074d87a18709aeb27bb9adfa4a7420bafbf2fa4d3",
+        "rows": 44640,
+        "source_archive_sha256": "21eeac04a76a7a35b10467e5e752fb2f8cff77cdeb57df6b50a23ce8d69bb190",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-02",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-02.parquet",
+        "raw_prefix_sha256": "a4fc4332f86ac60a2902fba6ac4a8ba96fd7cbfaf109ae1be4764c7269f1c721",
+        "raw_sha256": "9ba6876dcf4b6049202342877d338d12ada71b1cfa512ae6e57a5cbb387b1405",
+        "rows": 41760,
+        "source_archive_sha256": "1407acbf8ad99911bdf582805699b7e85fdbc346dbe12618ce8b6369f0d8058d",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-03",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-03.parquet",
+        "raw_prefix_sha256": "5b03272a3477cdfe5809cf794ed174e3c7e66007e0a467e580015d6d877edccd",
+        "raw_sha256": "d5899f2b29b7dad30ef258927f94a8eb5e455cf32fc4dfdc63b8fc6b260bb8be",
+        "rows": 44640,
+        "source_archive_sha256": "040b8e448e4243072b88b0d9908dfebed91bba943b75f4e831fa5337a2e1dab9",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-04",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-04.parquet",
+        "raw_prefix_sha256": "106ae619aa9cd9a79d57674443d9f01a354676813b92a9aa86ad99120b0a4fe3",
+        "raw_sha256": "770be4d7e5f0fdc1d6dbcd53880bb81f53f7542d05baebb8784793ab84b086b6",
+        "rows": 43200,
+        "source_archive_sha256": "6a41f002da0c8e3f60bd46c841ea4ed766fb195764ad3b6b10e4f508d29c2eb7",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-05",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-05.parquet",
+        "raw_prefix_sha256": "dd84f174879bb44c6644c1802d26c5c12bee14c5214649a62622da0bf3f2aa72",
+        "raw_sha256": "4d2b5555e91576f2b75e316f34b5bb13aeea5fbafb3e2cbd5a9a9e1d6e668320",
+        "rows": 44640,
+        "source_archive_sha256": "42de617ed643def54b5a2c3fceb7cd2edec91aafaa01104a097b2ded5c5122d4",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-06",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-06.parquet",
+        "raw_prefix_sha256": "8102571a89b2e6e0d8fe7c5beb6e2ded2e92deff6a2264ed77ab87f088bcec8c",
+        "raw_sha256": "9da0f8994da13448bf3393153b637f76a9f5c1a9b13c0e49e29bdfd0d9280971",
+        "rows": 43200,
+        "source_archive_sha256": "93499da4990fec5471bb0d73c91116e7d20a8b2697d7a4491665d6d1b8e85c85",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-07",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-07.parquet",
+        "raw_prefix_sha256": "92eca2d120ae81daac82f9e1ddfb64c20c6a224b868d75b4948d1ef612b02aea",
+        "raw_sha256": "5f1cf5e9c8c43aea7352aa8410ebc747206be4090a3441c6544dea2e68ec6f0e",
+        "rows": 44640,
+        "source_archive_sha256": "97f9cd5104a33828c5c2d8d03a2796d600102ab88737d1c6da515b9609540c3c",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-08",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-08.parquet",
+        "raw_prefix_sha256": "62e370a7e99420719d575b12810cb7f5f74ea3097d3722d8ed9e7e105338028a",
+        "raw_sha256": "5d0fd3c36e55cfc30c59a8fa0ba5f8fecb4a66f6865d699379d585cd2f454a05",
+        "rows": 44640,
+        "source_archive_sha256": "f69dbcebfd7108dc97825bd6c35d8d9a51745082f66617cb69de888e867e8e89",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-09",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-09.parquet",
+        "raw_prefix_sha256": "5f2d211a76dc883d00e8eedc4708e860ff9cee5b4dab248f69c4ca274e2066a1",
+        "raw_sha256": "846f8d0f2263891da14a7f3023392e70996d35f2bf9ad35af9b087a1a08591e7",
+        "rows": 43200,
+        "source_archive_sha256": "16fe2e13728236bfbd3efee99671612daadeea3b62dfd55d8874feae9faa4946",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-10",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-10.parquet",
+        "raw_prefix_sha256": "293ad8e4db6b5967a6a3a16db259fd423804cd761f1d2a7b91621805049bf2b8",
+        "raw_sha256": "6e86b1f7aa22facc9bc40a8a64a7ae168afd1f16ac527332717b7730498c0765",
+        "rows": 44640,
+        "source_archive_sha256": "aa8c79ad120a8d870e23276d1ad5966f99f59bc0a1886ef5927a3808a5efee36",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-11",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-11.parquet",
+        "raw_prefix_sha256": "d5a6a1973adbdb7edc94351e82b6a9eb58cb8b56818b8ef6707082ec1ea9fa7d",
+        "raw_sha256": "1a4e5db307162dea01721ef1832de35162e7376275f5accc894e6d28be90fc4d",
+        "rows": 43200,
+        "source_archive_sha256": "9c3dad038f4b043ec51d4200f57d15a0a07b3fc32b3ea3dca6a96543b9624941",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2024-12",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2024-12.parquet",
+        "raw_prefix_sha256": "fc78143f36b533c8b20927c1a4988d69c413097d059f0cf815ab03547b0cc487",
+        "raw_sha256": "53e57bf1a76f5599938f0f25baed64ff0fb8f23132aad49ac8a0a20699e3cc11",
+        "rows": 44640,
+        "source_archive_sha256": "bfce141d2a152c2b94d85b797fe18ebfa195fa0e6091a7ccc06663ae1309466f",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-01",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-01.parquet",
+        "raw_prefix_sha256": "4a2ba1a41ea9654f0c3976faac28fce39712722777f787f449f1bf9fc710966a",
+        "raw_sha256": "25324c4a14e1d18ab6b8116c16fab394765b087ff7b064664c538c56ba38260a",
+        "rows": 44640,
+        "source_archive_sha256": "b69ca5b2c2d1ae00d68d2790d09138cb2a44085ff19e0da5dc98b569ea7e489e",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-02",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-02.parquet",
+        "raw_prefix_sha256": "420dfb2c1d7981057844bf9cf0c63140128022282ded134311c6ef03e0455a77",
+        "raw_sha256": "c43a978869b0186c60f64b867d4d23e879615b831b5de2b2fb9ce6716720b80e",
+        "rows": 40320,
+        "source_archive_sha256": "d84ca981d06ee6491e16597f8d43955f62cab399a9f4b6efc2ee1b4d3a37f0fc",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-03",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-03.parquet",
+        "raw_prefix_sha256": "8c843ee18bdf73a3439be1dd42006afb6871055d566b138b15d1c7e523aacbe9",
+        "raw_sha256": "f82b5ac50c9b1cd1a1cfd18e196370f10828d94e493b28b726a17d079c117255",
+        "rows": 44640,
+        "source_archive_sha256": "4837163333c9c9978255b8870a5a6de1bc48bd22a6c72fef54665a8d4e70b4df",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-04",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-04.parquet",
+        "raw_prefix_sha256": "09e09ef875be66d66504e0d67ca7c43a36c679e48f9a4d5aa105440b1c1535c8",
+        "raw_sha256": "fb477d82c0654b298754b85865c20cc860d23cd678dd9e75122be5fc71c4be3d",
+        "rows": 43200,
+        "source_archive_sha256": "87bca047ca7e8b1d27913091255018e121210276726c5aa445e85da6f56e2dcc",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-05",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-05.parquet",
+        "raw_prefix_sha256": "22389fa3ce29eb137e4d781899888ef907adc217a0314956fb5a900314421944",
+        "raw_sha256": "0b68e1bfeec71bcf31cea1f32e4e2a6c92954d1336a001e36e899c8612d512dd",
+        "rows": 44640,
+        "source_archive_sha256": "7acab7e40a74db53a2d6c35373ebe327eefa85b98f8c92fbe58755881e3841ee",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-06",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-06.parquet",
+        "raw_prefix_sha256": "0ce5dd6520ac7ebc73c2d912ac6bd14798d1e48a30679172e3e996ffe4673416",
+        "raw_sha256": "9e645a25285984461f88f6aa85603d22ffb16a06d3d4bb726b23ff44f7180c20",
+        "rows": 43200,
+        "source_archive_sha256": "78872b32c4d0bbc2d89a0459539b90cff47de08a9a56fdf8d233943a32e78efc",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-07",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-07.parquet",
+        "raw_prefix_sha256": "d68949c34de6c7da2d9d7ef246fe0a1d5446126b763cda5e9341f88f316e1bb3",
+        "raw_sha256": "435fd78e245a2782a70301a0d2f460d53882c28b7203d2abfa5ab5249f5b4be6",
+        "rows": 44640,
+        "source_archive_sha256": "cf5fe0891c80e68d2d613eb5457100b7d886eee8cc913ccdd96ef45e757a5aaf",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-08",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-08.parquet",
+        "raw_prefix_sha256": "4e97550d885fd83eed8ce29be289f933fb6efd88af138b8958f8bde920ea5bed",
+        "raw_sha256": "c6dc795c04cb9d555ba480ef575c479569b744e89bae53f52a5bfc0dfc103892",
+        "rows": 44640,
+        "source_archive_sha256": "eaf41354fc1aa96eac94ee50b3fda603cd595f95030ebf30b2ab5bea7a4462c3",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-09",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-09.parquet",
+        "raw_prefix_sha256": "6e9a612daefbdfcc010e069fd19dfa318a5afb402adabfdd4787662214f87f42",
+        "raw_sha256": "0364a303c575ebbb440d17ceee63045993ae23161226e0e592ec03de443c3764",
+        "rows": 43200,
+        "source_archive_sha256": "c296ba45c215934e9750ca82846c7b5d14be661649d8e4423eac834cf57330dc",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-10",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-10.parquet",
+        "raw_prefix_sha256": "a246c68eb0581f268509877ac5b64aa0f1b82585febc08bea12860edf5ddad8d",
+        "raw_sha256": "c0917ecee113600352e5111e849299601143da3eb894939ad2dc2a3f04d2b6c9",
+        "rows": 44640,
+        "source_archive_sha256": "bb7f53350fe27b6d8e38b5856ffc43f9ecda9d568d5bf31d0db0cd011da7100f",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-11",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-11.parquet",
+        "raw_prefix_sha256": "006e4b404c279645689552cf7bcab6f46223bace43432bb338b81e7beca920ce",
+        "raw_sha256": "445c40e83694047476237fdf2559ec69b391c4c7414b97d586840be20226a880",
+        "rows": 43200,
+        "source_archive_sha256": "981da0b054f99b959fe6245fb363336b46908d358f37251d59bad308f375bc54",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2025-12",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2025-12.parquet",
+        "raw_prefix_sha256": "0362ffc710a83fab0069d0fe90e772ecde530cffcb10cf0ec99a5f857f3e722e",
+        "raw_sha256": "69d9df00d053ee9aec2b0aa3f243f036d1160dd26bd14cb4c902af6f031f5faa",
+        "rows": 44640,
+        "source_archive_sha256": "2d5b2e1887dac1dfe450010877de7203a72e19df7a771067b980bbb07ad3069c",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2026-01",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2026-01.parquet",
+        "raw_prefix_sha256": "e2e384b2787ee706e7214c065018c9df2a76c041e1d248550b79199e38ac8506",
+        "raw_sha256": "350e4486bea3c4eda0abbb32d62bfea2df49c54f57767d239f4000cc9f633d01",
+        "rows": 44640,
+        "source_archive_sha256": "58e9c620a6acda209d25766b3cf4262f3104649f5c26f247d933e0da8bb7946f",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2026-02",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2026-02.parquet",
+        "raw_prefix_sha256": "08b1fdfa29207b19408f3016f5654e2dae7583f0ba89c5967fb327a4ac864ef1",
+        "raw_sha256": "3bd9722912d8dd8726a8da1c09cfd7a78745c5a2d50522193ff71c507b91edf9",
+        "rows": 40320,
+        "source_archive_sha256": "805626ad2dc5b704d52c211996d12e9e4b1be234998f3dba4b3d34ff79be0337",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2026-03",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2026-03.parquet",
+        "raw_prefix_sha256": "4896ac36fd06d7b0db8d87eaaa9142c2cfde4e10810f170c96895fe7b0fb9ac8",
+        "raw_sha256": "5509b57b8a810dd020970c7f5aaf1a3745f7bf7499b19129e7127b1e6e610196",
+        "rows": 44640,
+        "source_archive_sha256": "c472a865f230bf1b5b17e124770a83c083144e3e11a115733288fb8f3e3b8baa",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2026-04",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2026-04.parquet",
+        "raw_prefix_sha256": "acda14235f17a4e097a4672ad9fab60f13cb3befbe74ee3b9a2e121a75e8c6e9",
+        "raw_sha256": "6a6cdb94beddc4113ff1cdb5c1c19618bfb4fcfac9d666b22dccdd0dcb34d64b",
+        "rows": 43200,
+        "source_archive_sha256": "515b86570f0c6924f6dc2cf90589d3db90f3de9c6bfd9a22dde0429995dc5405",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2026-05",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2026-05.parquet",
+        "raw_prefix_sha256": "cfbe48aa9823c939380374ec29e41f7e5a2331b533c004b316332c86eb8afeb6",
+        "raw_sha256": "500833e609f8701d307d07d485da00e2ff65c013682d7afc12c2731cc9cfedc9",
+        "rows": 44640,
+        "source_archive_sha256": "d91548e94220d5211bb32447cc4b604ee266d145f2092edc5ec613328cbbc20a",
+        "source_archive_sha256_verified": true
+      },
+      {
+        "month": "2026-06",
+        "raw_path": "data/analysis/polymarket/BTC/btc_D_input_generator_development_20261029/flow_rebuilt/flow_source_2026-06.parquet",
+        "raw_prefix_sha256": "315684069eb7f2012f2eeb9b0e30a354f4fd5f9eade2d2035d6b9a6bfc8720a1",
+        "raw_sha256": "38153e19297ad36aa4d5c4fee2d3c34078aa107be531879ad05b41a88a72c0e2",
+        "rows": 43198,
+        "source_archive_sha256": "9b214199eb5063585c7ed0f59ba19323326d68ac024b85106713989399204490",
+        "source_archive_sha256_verified": false
+      }
+    ],
+    "parameters": {
+      "beta_variance_tolerance": 1e-12,
+      "beta_window": 10080,
+      "horizons": [
+        1,
+        5,
+        15
+      ],
+      "minimum_beta_pairs": 1440,
+      "qbar_window": 1440,
+      "sigma_ddof": 0,
+      "sigma_floor": 1e-06,
+      "sigma_window": 60
+    },
+    "rebuild_and_compare_seconds": 133.36777640000219
+  },
+  "flow_parity": {
+    "first_reference_opened": "2020-06-01T00:00:00+00:00",
+    "last_reference_opened": "2026-06-30T23:53:00+00:00",
+    "rebuilt_last_opened": "2026-06-30T23:57:00+00:00",
+    "rebuilt_rows": 3198238,
+    "rows_compared": 3198234,
+    "unmatched_suffix_rows_after_reference": 4
+  },
+  "full_replay_resources": {
+    "checkpoint_bytes": 2130680,
+    "disk_free_after_gib": 206.58502960205078,
+    "disk_free_before_gib": 206.90040588378906,
+    "peak_rss_bytes": 2394980352,
+    "peak_rss_gib": 2.230499267578125,
+    "runtime_bytes": 337501245,
+    "wall_seconds": 310.1333658999938
+  },
+  "holdout_status": "HOLDOUT_NOT_RUN",
+  "holdout_values_rows_predictions_labels_books_and_economics_read": false,
+  "output_hashes": {
+    "checkpoint": "54e64361f24b46ca41a7eb33630344b0e7343c4b6223e234c21a18d8bcfcad1c",
+    "feature_contract": "934d32525a70ce53bb07d997374b92a007581b5950c85e77e75587640f9d6ced",
+    "parity_csv": "0e3da4532bba6e1eb9c6bbd1dce2d285900020632d08e4aac39c1592029e4148",
+    "prediction_panel": "285853fddfc0fbc9e3781c8afff72bb8251a2b1ae13eab75ec5b234b8ae53024"
+  },
+  "protocol_sha256": "bae6a047da58953c2e9a934115a6acc5f6f5b6a0d260206cd6a30b18b45825cd",
+  "remote_source_access": false,
+  "resources": {
+    "checkpoint_bytes": 2130680,
+    "disk_free_after_gib": 206.58491134643555,
+    "disk_free_before_gib": 206.58491134643555,
+    "fresh_process_resume_seconds": 133.796,
+    "peak_rss_bytes": 1164525568,
+    "peak_rss_gib": 1.0845489501953125,
+    "runtime_bytes": 337616646,
+    "wall_seconds": 133.79588180000428
+  },
+  "resume_validation": {
+    "checkpoint_rows_before_run": 3186145,
+    "disk_free_after_gib": 206.58491134643555,
+    "disk_free_before_gib": 206.58491134643555,
+    "elapsed_seconds": 133.796,
+    "fresh_process_from_complete_checkpoint": true,
+    "peak_rss_bytes": 1164525568,
+    "peak_rss_gib": 1.0845489501953125,
+    "rows_reprocessed_this_run": 0
+  },
+  "run_identity_sha256": "8566b34938bdf1c71cc4dbf73503066e25a371b20fc96cc6d142eae3fa7876d6",
+  "schema_version": 1,
+  "status": "PARTIAL",
+  "statuses": {
+    "base": "BLOCKED_BASE64_ARTIFACTS_MISSING",
+    "checkpoint": "VERIFIED_END_OF_DEVELOPMENT",
+    "dynamic": "PARITY_PASS_VS_E0041",
+    "flow": "VERIFIED",
+    "predictions": "BLOCKED_BASE64_MISSING"
+  },
+  "task_id": "T0016",
+  "training_selection_optimization_or_calibrator_fit": false
+}
