@@ -26,6 +26,10 @@ MANIFEST_PATH = generator.RUNTIME_DIR / "run_manifest.json"
 PHASE_ENV = "BTC_D_E0045_PHASE"
 
 
+def _sha256(path: Path) -> str:
+    return generator.sha256_file(Path(path))
+
+
 class PeakRssMonitor:
     def __init__(self):
         self.peak = 0
