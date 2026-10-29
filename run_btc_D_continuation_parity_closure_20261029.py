@@ -23,10 +23,10 @@ from features import btc_D_continuation_20261029 as continuation
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_continuation_parity_closure_20261029_v4.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_continuation_parity_closure_20261029_v5.json"
 E0045_PROTOCOL_PATH = ROOT / "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v2.json"
 E0045_MANIFEST_PATH = ROOT / "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029_manifest.json"
-RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v4"
+RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v5"
 RAW_COLUMNS = ("Opened", "Open", "High", "Low", "Close", "Volume", "UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close")
 FLOW_RAW_COLUMNS = ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume")
 FLOW_COLUMNS = ("taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m")
@@ -70,7 +70,7 @@ def _require_hash(relative: str, expected: str, label: str) -> Path:
 def load_protocol() -> tuple[dict, dict, dict, dict]:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
     if (protocol.get("status") != "FROZEN_BEFORE_REPLAY" or protocol.get("experiment_id") != "E0047"
-            or protocol.get("protocol_revision") != 4):
+            or protocol.get("protocol_revision") != 5):
         raise RuntimeError("E0047 protocol is not frozen for replay")
     if (protocol["continuation"]["runtime_root"].replace("\\", "/")
             != str(RUNTIME.relative_to(ROOT)).replace("\\", "/")):
@@ -98,9 +98,16 @@ def load_protocol() -> tuple[dict, dict, dict, dict]:
     for record in protocol["previous_attempt"].get("report_artifacts", []):
         _require_hash(record["path"], record["sha256"], f"preserved prior E0047 report {record['path']}")
     execution = protocol["execution"]
+    source_products = execution["source_products"]
     if (execution.get("mode") != "REVALIDATE_HASH_PINNED_FRESH_PROCESS_PRODUCTS"
-            or execution.get("source_runtime_root") != protocol["previous_attempt"]["runtime_root"]):
-        raise RuntimeError("E0047 v4 must revalidate the immediately preceding pinned fresh-process products")
+            or execution.get("source_runtime_root") != source_products["runtime_root"]):
+        raise RuntimeError("E0047 v5 must revalidate its separately pinned fresh-process products")
+    _require_hash(source_products["protocol_path"], source_products["protocol_sha256"],
+                  f"preserved E0047 v{source_products['protocol_revision']} source preregistration")
+    for record in source_products["files"]:
+        _require_hash(record["path"], record["sha256"], f"pinned source E0047 runtime artifact {record['path']}")
+    for record in source_products["report_artifacts"]:
+        _require_hash(record["path"], record["sha256"], f"pinned source E0047 report {record['path']}")
     for item in execution["child_results"]:
         _require_hash(item["path"], item["sha256"], f"prior fresh-process execution record {item['path']}")
     for record in protocol["parent"]["preserved_E0046_artifacts"]:
@@ -2030,7 +2037,8 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
     reused_execution = protocol["execution"]["mode"] == "REVALIDATE_HASH_PINNED_FRESH_PROCESS_PRODUCTS"
     source_fresh_process_wall_seconds = float(sum(float(item.get("wall_seconds", 0.0)) for item in child_results.values()))
     source_fresh_process_suffix_rows = int(sum(int(item.get("rows_recomputed", 0)) for item in child_results.values()))
-    source_manifest_record = next((item for item in protocol["previous_attempt"].get("report_artifacts", [])
+    source_products = protocol["execution"]["source_products"]
+    source_manifest_record = next((item for item in source_products["report_artifacts"]
                                    if item["path"].endswith("_manifest.json")), None)
     source_run_resources = {}
     if reused_execution:
@@ -2054,7 +2062,7 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
         "execution_provenance": {
             "mode": protocol["execution"]["mode"],
             "source_runtime_root": protocol["execution"]["source_runtime_root"],
-            "source_protocol_sha256": protocol["previous_protocol"]["sha256"],
+            "source_protocol_sha256": source_products["protocol_sha256"],
             "source_report_manifest_sha256": source_manifest_record["sha256"] if source_manifest_record else None,
             "source_fresh_process_child_records": len(protocol["execution"]["child_results"]),
             "recomputed_suffix_rows_in_this_audit": 0 if reused_execution else source_fresh_process_suffix_rows,
@@ -2124,8 +2132,9 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
             "source_fresh_process_flow_archive_stream_bytes": flow_archive_stream_bytes,
             "comparison_reference_artifact_sizes_bytes": input_sizes,
             "source_fresh_process_measured_input_bytes_lower_bound": source_input_bytes_lower_bound,
-            "previous_runtime_hash_verified_bytes": int(sum(item.get("bytes", 0) for item in protocol["previous_attempt"]["files"])) if reused_execution else 0,
-            "previous_report_hash_verified_bytes": int(sum(item.get("bytes", 0) for item in protocol["previous_attempt"].get("report_artifacts", []))) if reused_execution else 0,
+            "previous_attempt_report_hash_verified_bytes": int(sum(item.get("bytes", 0) for item in protocol["previous_attempt"].get("report_artifacts", []))),
+            "source_runtime_hash_verified_bytes": int(sum(item.get("bytes", 0) for item in source_products["files"])) if reused_execution else 0,
+            "source_report_hash_verified_bytes": int(sum(item.get("bytes", 0) for item in source_products["report_artifacts"])) if reused_execution else 0,
             "prefix_raw_csv_hash_bytes_read_lower_bound": (ROOT / protocol["scope"]["source_raw_path"]).stat().st_size if reused_execution else 0,
             "checkpoint_bytes": {
                 "C1": child_results["build_C1"]["checkpoint_bytes"],
@@ -2166,7 +2175,7 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
     def bool_text(value):
         return "PASS" if value else "FAIL"
     execution_note = (
-        f"Produkty sufiksow powstaly w swiezym przebiegu v3; v4 weryfikuje je z hash-pinned plikow i nie parsuje ani nie przelicza wierszy surowego prefiksu/sufiksow. Kontrola SHA-256 czyta zapisane bajty plikow. Pelny przebieg v3 trwal {report_manifest['resource']['source_fresh_process_wall_seconds']:.1f} s, peak RSS {report_manifest['resource']['source_fresh_process_max_peak_rss_gib']:.2f} GiB; biezacy audyt porownawczy trwal {report_manifest['resource']['wall_seconds']:.1f} s. "
+        f"Produkty sufiksow powstaly w swiezym przebiegu v3; v5 weryfikuje je z hash-pinned plikow i nie parsuje ani nie przelicza wierszy surowego prefiksu/sufiksow. Kontrola SHA-256 czyta zapisane bajty plikow. Pelny przebieg v3 trwal {report_manifest['resource']['source_fresh_process_wall_seconds']:.1f} s, peak RSS {report_manifest['resource']['source_fresh_process_max_peak_rss_gib']:.2f} GiB; biezacy audyt porownawczy trwal {report_manifest['resource']['wall_seconds']:.1f} s. "
         if reused_execution else
         f"Wszystkie wznowienia zostaly wykonane w swiezych procesach. Czas przebiegu: {report_manifest['resource']['wall_seconds']:.1f} s. "
     )
@@ -2187,11 +2196,11 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
 |---|---|
 {summary_table}
 
-V3 zwrocilo etykiete `DEV_GENERATOR_VERIFIED`, ale nie objelo ona dwoch porownan semantycznych checkpointow. Porownywarka nie obslugiwala ogonow DataFrame, a agregacja statusu pominela wiersze tych kontroli. Etykieta i status v3 sa niewazne; v4 ponownie sprawdza hash-pinned produkty, porownuje checkpointy kolumna po kolumnie i blokuje status VERIFIED, jesli dowolny rekord parity ma status FAIL.
+V3 zwrocilo etykiete `DEV_GENERATOR_VERIFIED`, ale nie objelo ona dwoch porownan semantycznych checkpointow. Porownywarka nie obslugiwala ogonow DataFrame, a agregacja statusu pominela wiersze tych kontroli. Etykieta i status v3 sa niewazne. Proba v4 zatrzymala sie przed publikacja wyniku z powodu braku katalogu `suffixes`; nie przypisuje sie jej statusow. V5 tworzy wymagany katalog, ponownie sprawdza hash-pinned produkty, porownuje checkpointy kolumna po kolumnie i blokuje status VERIFIED, jesli dowolny rekord parity ma status FAIL.
 
 ## Przebiegi i zasoby
 
-Zakresy wyprodukowane w v3: C1->C2 {suffix_summary['C1_to_C2']['rows']:,} wierszy ({suffix_summary['C1_to_C2']['first_opened']}..{suffix_summary['C1_to_C2']['last_opened']}); C1->END {suffix_summary['C1_to_END']['rows']:,} ({suffix_summary['C1_to_END']['first_opened']}..{suffix_summary['C1_to_END']['last_opened']}); C2->END {suffix_summary['C2_to_END']['rows']:,} ({suffix_summary['C2_to_END']['first_opened']}..{suffix_summary['C2_to_END']['last_opened']}). {execution_note} Szczyt RSS audytu i zrodlowego przebiegu {report_manifest['resource']['maximum_peak_rss_gib']:.2f} GiB. Dostepny RAM przed/po: {report_manifest['resource']['available_ram_gib_before']:.2f}/{report_manifest['resource']['available_ram_gib_after']:.2f} GiB; wolny dysk: {report_manifest['resource']['free_disk_gib_before']:.2f}/{report_manifest['resource']['free_disk_gib_after']:.2f} GiB. W audycie v4 sparsowano {report_manifest['resource']['prefix_raw_rows_read']:,} wierszy surowego prefiksu i przeliczono {report_manifest['resource']['suffix_raw_rows_recomputed_total']:,} surowych wierszy sufiksu; kontrole hash czytaja bajty plikow. Szczegoly I/O v3 i bajtow hash-zweryfikowanych w v4 sa w raporcie JSON.
+Zakresy wyprodukowane w v3: C1->C2 {suffix_summary['C1_to_C2']['rows']:,} wierszy ({suffix_summary['C1_to_C2']['first_opened']}..{suffix_summary['C1_to_C2']['last_opened']}); C1->END {suffix_summary['C1_to_END']['rows']:,} ({suffix_summary['C1_to_END']['first_opened']}..{suffix_summary['C1_to_END']['last_opened']}); C2->END {suffix_summary['C2_to_END']['rows']:,} ({suffix_summary['C2_to_END']['first_opened']}..{suffix_summary['C2_to_END']['last_opened']}). {execution_note} Szczyt RSS audytu i zrodlowego przebiegu {report_manifest['resource']['maximum_peak_rss_gib']:.2f} GiB. Dostepny RAM przed/po: {report_manifest['resource']['available_ram_gib_before']:.2f}/{report_manifest['resource']['available_ram_gib_after']:.2f} GiB; wolny dysk: {report_manifest['resource']['free_disk_gib_before']:.2f}/{report_manifest['resource']['free_disk_gib_after']:.2f} GiB. W audycie v5 sparsowano {report_manifest['resource']['prefix_raw_rows_read']:,} wierszy surowego prefiksu i przeliczono {report_manifest['resource']['suffix_raw_rows_recomputed_total']:,} surowych wierszy sufiksu; kontrole hash czytaja bajty plikow. Szczegoly I/O v3 i bajtow hash-zweryfikowanych w v5 sa w raporcie JSON.
 
 Nie wykonano treningu, selekcji, fitow, metryk jakosci, analizy ekonomicznej ani evaluatora. Nie odczytano wartosci ani artefaktow holdoutu; nie wygenerowano nowych predykcji holdoutu. Pozostaja `evaluation_authorized=false`, `activated=false`, `HOLDOUT_NOT_RUN`; hash finalnego bundle E0041: `7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d`. E0046 i jego poczatkowe/korygowane artefakty zachowano bez zmian. E0037 pozostaje `FAILED`, T0009 `BLOCKED`, a T0046/T0048 pozostaja nietkniete.
 
@@ -2253,7 +2262,7 @@ def run_audit() -> dict:
     for stage in ("C1_to_C2", "C2_to_END", "C1_to_END"):
         parity_rows.extend(_compare_suffix_stage(stage, children[stage], e45_protocol, e45_manifest,
                                                  d_bundle["manifest"], flow_batch))
-    source_protocol_path = ROOT / protocol["previous_protocol"]["path"]
+    source_protocol_path = ROOT / protocol["execution"]["source_products"]["protocol_path"]
     source_protocol = json.loads(source_protocol_path.read_text(encoding="utf-8"))
     source_runtime = ROOT / protocol["execution"]["source_runtime_root"]
     source_checkpoint_identity = _continuation_identity(source_protocol, d_bundle["identity"])
@@ -2268,9 +2277,11 @@ def run_audit() -> dict:
     c1_to_end_tail["source_row_start"] = split2
     c1_to_end_tail["rows_recomputed"] = c2_overlap_count
     c1_to_end_tail["first_suffix_opened"] = protocol["continuation"]["splits"][1]["first_suffix_opened_utc"]
+    tail_directory = RUNTIME / "suffixes"
+    tail_directory.mkdir(parents=True, exist_ok=True)
     for name in ("base64", "flow6", "dynamic"):
         frame = pd.read_parquet(ROOT / children["C1_to_END"][name]["path"])
-        tail_path = RUNTIME / "suffixes" / f"C1_to_END_tail_C2_{name}.parquet"
+        tail_path = tail_directory / f"C1_to_END_tail_C2_{name}.parquet"
         frame.iloc[-c2_overlap_count:].to_parquet(tail_path, index=False)
         c1_to_end_tail[name] = {"path": str(tail_path.relative_to(ROOT)), "rows": c2_overlap_count,
                                 "sha256": sha256_file(tail_path), "bytes": tail_path.stat().st_size}
