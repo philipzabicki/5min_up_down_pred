@@ -83,36 +83,7 @@ def _resource_snapshot() -> dict:
             ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
         ]
 
-    class ProcessEntry32W(ctypes.Structure):
-        _fields_ = [
-            ("dwSize", wintypes.DWORD),
-            ("cntUsage", wintypes.DWORD),
-            ("th32ProcessID", wintypes.DWORD),
-            ("th32DefaultHeapID", ctypes.c_size_t),
-            ("th32ModuleID", wintypes.DWORD),
-            ("cntThreads", wintypes.DWORD),
-            ("th32ParentProcessID", wintypes.DWORD),
-            ("pcPriClassBase", wintypes.LONG),
-            ("dwFlags", wintypes.DWORD),
-            ("szExeFile", wintypes.WCHAR * 260),
-        ]
-
-    class ProcessMemoryCounters(ctypes.Structure):
-        _fields_ = [
-            ("cb", wintypes.DWORD),
-            ("PageFaultCount", wintypes.DWORD),
-            ("PeakWorkingSetSize", ctypes.c_size_t),
-            ("WorkingSetSize", ctypes.c_size_t),
-            ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
-            ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-            ("PagefileUsage", ctypes.c_size_t),
-            ("PeakPagefileUsage", ctypes.c_size_t),
-        ]
-
     kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-    psapi = ctypes.WinDLL("psapi", use_last_error=True)
     memory = MemoryStatusEx()
     memory.dwLength = ctypes.sizeof(memory)
     kernel32.GlobalMemoryStatusEx.argtypes = [ctypes.POINTER(MemoryStatusEx)]
@@ -120,67 +91,39 @@ def _resource_snapshot() -> dict:
     if not kernel32.GlobalMemoryStatusEx(ctypes.byref(memory)):
         raise ctypes.WinError(ctypes.get_last_error())
 
-    kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
-    kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
-    kernel32.Process32FirstW.argtypes = [wintypes.HANDLE, ctypes.POINTER(ProcessEntry32W)]
-    kernel32.Process32FirstW.restype = wintypes.BOOL
-    kernel32.Process32NextW.argtypes = [wintypes.HANDLE, ctypes.POINTER(ProcessEntry32W)]
-    kernel32.Process32NextW.restype = wintypes.BOOL
-    kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
-    kernel32.OpenProcess.restype = wintypes.HANDLE
-    kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
-    kernel32.CloseHandle.restype = wintypes.BOOL
-    psapi.GetProcessMemoryInfo.argtypes = [
-        wintypes.HANDLE, ctypes.POINTER(ProcessMemoryCounters), wintypes.DWORD,
-    ]
-    psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
-
-    process_count = 0
-    process_rss_bytes = 0
-    python_process_count = 0
-    python_process_rss_bytes = 0
-    snapshot = kernel32.CreateToolhelp32Snapshot(0x00000002, 0)
-    if snapshot == ctypes.c_void_p(-1).value:
-        raise ctypes.WinError(ctypes.get_last_error())
-    try:
-        entry = ProcessEntry32W()
-        entry.dwSize = ctypes.sizeof(entry)
-        has_entry = kernel32.Process32FirstW(snapshot, ctypes.byref(entry))
-        while has_entry:
-            pid = int(entry.th32ProcessID)
-            name = str(entry.szExeFile)
-            if pid != os.getpid():
-                process_count += 1
-                is_python = "python" in name.lower()
-                if is_python:
-                    python_process_count += 1
-                handle = kernel32.OpenProcess(0x1000, False, pid)
-                if handle:
-                    try:
-                        counters = ProcessMemoryCounters()
-                        counters.cb = ctypes.sizeof(counters)
-                        if psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
-                            rss = int(counters.WorkingSetSize)
-                            process_rss_bytes += rss
-                            if is_python:
-                                python_process_rss_bytes += rss
-                    finally:
-                        kernel32.CloseHandle(handle)
-            has_entry = kernel32.Process32NextW(snapshot, ctypes.byref(entry))
-    finally:
-        kernel32.CloseHandle(snapshot)
-
+    command = r"""
+$ownPid = [int]$env:BTC_D_E0045_OWN_PID
+$all = @(Get-Process | Where-Object { $_.Id -ne $ownPid -and $_.Id -ne $PID })
+$python = @($all | Where-Object { $_.ProcessName -like 'python*' })
+$allRss = ($all | Measure-Object -Property WorkingSet64 -Sum).Sum
+$pythonRss = ($python | Measure-Object -Property WorkingSet64 -Sum).Sum
+if ($null -eq $allRss) { $allRss = 0 }
+if ($null -eq $pythonRss) { $pythonRss = 0 }
+[PSCustomObject]@{
+  other_process_count = $all.Count
+  other_process_rss_bytes = [Int64]$allRss
+  python_process_count = $python.Count
+  python_process_rss_bytes = [Int64]$pythonRss
+} | ConvertTo-Json -Compress
+"""
+    environment = os.environ.copy()
+    environment["BTC_D_E0045_OWN_PID"] = str(os.getpid())
+    process = subprocess.run(
+        ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
+        cwd=ROOT, env=environment, capture_output=True, text=True,
+        creationflags=0x08000000, check=True,
+    )
+    process_stats = json.loads(process.stdout)
     return {
         "cpu_logical_count": os.cpu_count(),
         "ram_total_bytes": int(memory.ullTotalPhys),
         "ram_available_bytes": int(memory.ullAvailPhys),
         "disk_free_bytes": int(shutil.disk_usage(ROOT).free),
-        "other_process_count": process_count,
-        "other_process_rss_bytes": process_rss_bytes,
-        "python_process_count": python_process_count,
-        "python_process_rss_bytes": python_process_rss_bytes,
+        "other_process_count": int(process_stats["other_process_count"]),
+        "other_process_rss_bytes": int(process_stats["other_process_rss_bytes"]),
+        "python_process_count": int(process_stats["python_process_count"]),
+        "python_process_rss_bytes": int(process_stats["python_process_rss_bytes"]),
     }
-
 
 def _write_csv(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
