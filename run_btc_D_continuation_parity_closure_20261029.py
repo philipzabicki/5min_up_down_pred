@@ -23,10 +23,10 @@ from features import btc_D_continuation_20261029 as continuation
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_continuation_parity_closure_20261029_v3.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_continuation_parity_closure_20261029_v4.json"
 E0045_PROTOCOL_PATH = ROOT / "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v2.json"
 E0045_MANIFEST_PATH = ROOT / "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029_manifest.json"
-RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v3"
+RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v4"
 RAW_COLUMNS = ("Opened", "Open", "High", "Low", "Close", "Volume", "UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close")
 FLOW_RAW_COLUMNS = ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume")
 FLOW_COLUMNS = ("taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m")
@@ -70,7 +70,7 @@ def _require_hash(relative: str, expected: str, label: str) -> Path:
 def load_protocol() -> tuple[dict, dict, dict, dict]:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
     if (protocol.get("status") != "FROZEN_BEFORE_REPLAY" or protocol.get("experiment_id") != "E0047"
-            or protocol.get("protocol_revision") != 3):
+            or protocol.get("protocol_revision") != 4):
         raise RuntimeError("E0047 protocol is not frozen for replay")
     if (protocol["continuation"]["runtime_root"].replace("\\", "/")
             != str(RUNTIME.relative_to(ROOT)).replace("\\", "/")):
@@ -78,6 +78,9 @@ def load_protocol() -> tuple[dict, dict, dict, dict]:
     if protocol["continuation"]["comparison_rules"].get("panel_timestamp_identity") != (
             "Normalize both UTC Opened key sequences to datetime64[ns] before exact instant and order comparison."):
         raise RuntimeError("E0047 panel timestamp comparison rule changed")
+    if protocol["continuation"]["comparison_rules"].get("semantic_dataframe_state") != (
+            "Compare exact DataFrame class, shape, ordered columns, index class/dtype/name/values, column dtypes, and exact per-column values with matching NaN masks; no numeric tolerance."):
+        raise RuntimeError("E0047 semantic DataFrame checkpoint comparison rule changed")
     scope = protocol["scope"]
     if (scope["source_raw_opened_exclusive_utc"] != "2026-06-30T23:58:00Z"
             or scope["last_allowed_raw_opened_utc"] != "2026-06-30T23:57:00Z"
@@ -90,7 +93,16 @@ def load_protocol() -> tuple[dict, dict, dict, dict]:
     if int(protocol["previous_attempt"]["protocol_revision"]) != protocol["protocol_revision"] - 1:
         raise RuntimeError("E0047 previous attempt revision is not the immediately preceding protocol")
     for record in protocol["previous_attempt"]["files"]:
-        _require_hash(record["path"], record["sha256"], f"preserved E0047 v1 attempt artifact {record['path']}")
+        _require_hash(record["path"], record["sha256"],
+                      f"preserved E0047 v{protocol['previous_attempt']['protocol_revision']} attempt artifact {record['path']}")
+    for record in protocol["previous_attempt"].get("report_artifacts", []):
+        _require_hash(record["path"], record["sha256"], f"preserved prior E0047 report {record['path']}")
+    execution = protocol["execution"]
+    if (execution.get("mode") != "REVALIDATE_HASH_PINNED_FRESH_PROCESS_PRODUCTS"
+            or execution.get("source_runtime_root") != protocol["previous_attempt"]["runtime_root"]):
+        raise RuntimeError("E0047 v4 must revalidate the immediately preceding pinned fresh-process products")
+    for item in execution["child_results"]:
+        _require_hash(item["path"], item["sha256"], f"prior fresh-process execution record {item['path']}")
     for record in protocol["parent"]["preserved_E0046_artifacts"]:
         _require_hash(record["path"], record["sha256"], f"immutable E0046 artifact {record['path']}")
     if protocol["scope"]["evaluation_authorized"] or protocol["scope"]["activated"] or protocol["scope"]["holdout_status"] != "HOLDOUT_NOT_RUN":
@@ -1605,6 +1617,42 @@ def _semantic_diff(left, right, path: str = "$") -> list[dict]:
             else:
                 diffs.extend(_semantic_diff(left[key], right[key], child))
         return diffs
+    if isinstance(left, pd.DataFrame) or isinstance(right, pd.DataFrame):
+        if not isinstance(left, pd.DataFrame) or not isinstance(right, pd.DataFrame):
+            return [{"path": path, "category": "dataframe_type", "status": "FAIL",
+                     "left_type": type(left).__name__, "right_type": type(right).__name__}]
+        if type(left) is not type(right):
+            diffs.append({"path": path, "category": "dataframe_representation", "status": "FAIL",
+                          "left_type": type(left).__name__, "right_type": type(right).__name__})
+        if left.shape != right.shape:
+            diffs.append({"path": path, "category": "dataframe_shape", "status": "FAIL",
+                          "left_type": type(left).__name__, "right_type": type(right).__name__,
+                          "left_shape": list(left.shape), "right_shape": list(right.shape)})
+        if not left.columns.equals(right.columns):
+            diffs.append({"path": f"{path}.columns", "category": "dataframe_column_order_or_names", "status": "FAIL",
+                          "left_type": type(left.columns).__name__, "right_type": type(right.columns).__name__,
+                          "left_value": list(left.columns), "right_value": list(right.columns)})
+        if (type(left.index) is not type(right.index) or left.index.dtype != right.index.dtype
+                or not left.index.equals(right.index) or left.index.name != right.index.name):
+            diffs.append({"path": f"{path}.index", "category": "dataframe_index", "status": "FAIL",
+                          "left_type": type(left.index).__name__, "right_type": type(right.index).__name__,
+                          "left_dtype": str(left.index.dtype), "right_dtype": str(right.index.dtype),
+                          "left_shape": [len(left.index)], "right_shape": [len(right.index)],
+                          "left_value": str(left.index[:3]), "right_value": str(right.index[:3])})
+        for column in sorted(set(left.columns) | set(right.columns), key=str):
+            child = f"{path}.{column}"
+            if column not in left.columns or column not in right.columns:
+                diffs.append({"path": child, "category": "dataframe_column_presence", "status": "FAIL",
+                              "left_type": str(left[column].dtype) if column in left.columns else "MISSING",
+                              "right_type": str(right[column].dtype) if column in right.columns else "MISSING"})
+                continue
+            left_series, right_series = left[column], right[column]
+            if left_series.dtype != right_series.dtype:
+                diffs.append({"path": child, "category": "dataframe_column_dtype", "status": "FAIL",
+                              "left_type": str(left_series.dtype), "right_type": str(right_series.dtype),
+                              "left_shape": [len(left_series)], "right_shape": [len(right_series)]})
+            diffs.extend(_semantic_diff(left_series.to_numpy(), right_series.to_numpy(), child))
+        return diffs
     if isinstance(left, (tuple, list)) and isinstance(right, (tuple, list)):
         if len(left) != len(right):
             return [{"path": path, "category": "ordered_sequence_length", "status": "FAIL",
@@ -1718,11 +1766,14 @@ def _compare_continuation_paths(primary_execution: dict, full_execution: dict,
             rows.append(_parity_record(f"independent_continuation_{stage}_{block}", name,
                                        p[name].to_numpy(), f[name].to_numpy(), p_opened,
                                        atol=atol, rtol=rtol))
-    states_equal = _semantic_equal(primary_checkpoint, full_checkpoint)
+    state_diffs = _semantic_diff(primary_checkpoint, full_checkpoint)
+    states_equal = not any(item["status"] == "FAIL" for item in state_diffs)
     rows.append({"block": f"semantic_checkpoint_{stage}", "feature": "all_generator_state", "status": "PASS" if states_equal else "FAIL",
                  "rows": common, "numeric_mismatch_rows": 0 if states_equal else 1, "mask_mismatch_rows": 0,
                  "first_mismatch_opened_utc": "", "max_abs_error": 0.0 if states_equal else None,
                  "max_rel_error": 0.0 if states_equal else None, "atol": 0.0, "rtol": 0.0})
+    rows.extend({"block": f"semantic_checkpoint_detail_{stage}", "feature": "all_generator_state",
+                 "comparison": stage, **detail} for detail in state_diffs)
     return rows
 
 
@@ -1906,6 +1957,8 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
     resumed_prediction_rows = [row for row in all_rows if row["block"].startswith((
         "resumed_D_", "canonical_D_member_panel_check_", "canonical_D_uniform_panel_check_", "canonical_D_Platt_panel_check_"))]
     profile_summary_rows = [row for row in state_rows if row["block"] in {"final_profile_state", "final_dynamic_state"}]
+    checkpoint_summary_rows = [row for row in all_rows if row.get("block") in {
+        "semantic_checkpoint_C1_to_C2", "semantic_checkpoint_C2_to_END"}]
     base_summary_rows = [row for row in base_rows if row["status"] == "PASS"]
     bb_rows = [row for row in base_rows if row["feature"].startswith("BollingerBands_fit_")]
     chaikin_rows = [row for row in base_rows if row["feature"].startswith("ChaikinOsc_fit_")]
@@ -1926,7 +1979,10 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
         "resumed_model_matrices": bool(resumed_matrix_status and len(resumed_matrix_rows) == 3 * 3 * 86 and all(row["status"] == "PASS" for row in resumed_matrix_rows)),
         "resumed_D_predictions": bool(len(resumed_prediction_rows) > 0 and all(row["status"] == "PASS" for row in resumed_prediction_rows)
                                        and all(item["finalization_panel_complete"] for item in matrix_summary["resumed_suffixes"].values())),
-        "final_states": bool(len(profile_summary_rows) == 3 and all(row["status"] == "PASS" for row in profile_summary_rows)),
+        "final_states": bool(len(profile_summary_rows) == 3 and all(row["status"] == "PASS" for row in profile_summary_rows)
+                              and len(checkpoint_summary_rows) == 2
+                              and all(row["status"] == "PASS" for row in checkpoint_summary_rows)),
+        "all_parity_records": _count_parity_failures(row["status"] for row in all_rows) == 0,
     }
     overall = "DEV_GENERATOR_VERIFIED" if all(status_groups.values()) else "DEV_GENERATOR_PARTIAL"
     suffix_summary = {}
@@ -1971,12 +2027,39 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
     flow_archive_hash_bytes = int(sum(value.get("flow_archive_io", {}).get("flow_archive_sha256_bytes", 0) for value in child_results.values()))
     flow_archive_stream_bytes = int(sum(value.get("flow_archive_io", {}).get("flow_archive_uncompressed_stream_bytes", 0) for value in child_results.values()))
     suffix_raw_bytes = int(sum(int(item.get("raw_bytes_read", 0)) for item in child_results.values() if isinstance(item, dict)))
+    reused_execution = protocol["execution"]["mode"] == "REVALIDATE_HASH_PINNED_FRESH_PROCESS_PRODUCTS"
+    source_fresh_process_wall_seconds = float(sum(float(item.get("wall_seconds", 0.0)) for item in child_results.values()))
+    source_fresh_process_suffix_rows = int(sum(int(item.get("rows_recomputed", 0)) for item in child_results.values()))
+    source_manifest_record = next((item for item in protocol["previous_attempt"].get("report_artifacts", [])
+                                   if item["path"].endswith("_manifest.json")), None)
+    source_run_resources = {}
+    if reused_execution:
+        if source_manifest_record is None:
+            raise RuntimeError("E0047 revalidation protocol lacks the source execution manifest")
+        source_run_manifest = json.loads(_require_hash(source_manifest_record["path"], source_manifest_record["sha256"],
+                                                       "pinned E0047 v3 execution manifest").read_text(encoding="utf-8"))
+        source_run_resources = source_run_manifest["resource"]
+        source_fresh_process_wall_seconds = float(source_run_resources["wall_seconds"])
+    source_input_bytes_lower_bound = int(
+        cp1["byte_offset"] + suffix_raw_bytes + flow_archive_hash_bytes + flow_archive_stream_bytes + sum(input_sizes.values())
+    )
+    if reused_execution:
+        source_input_bytes_lower_bound = int(source_run_resources["measured_input_bytes_lower_bound"])
     report_manifest = {
         "schema_version": 1,
         "experiment_id": "E0047", "task_id": "T0016", "decision_id": "D0024",
         "status": overall, "statuses": status_groups,
         "protocol_path": str(PROTOCOL_PATH.relative_to(ROOT)).replace("\\", "/"),
         "protocol_sha256": sha256_file(PROTOCOL_PATH),
+        "execution_provenance": {
+            "mode": protocol["execution"]["mode"],
+            "source_runtime_root": protocol["execution"]["source_runtime_root"],
+            "source_protocol_sha256": protocol["previous_protocol"]["sha256"],
+            "source_report_manifest_sha256": source_manifest_record["sha256"] if source_manifest_record else None,
+            "source_fresh_process_child_records": len(protocol["execution"]["child_results"]),
+            "recomputed_suffix_rows_in_this_audit": 0 if reused_execution else source_fresh_process_suffix_rows,
+            "source_process_products_hash_verified": True,
+        },
         "parent_experiment_id": "E0046", "parent_manifest_sha256": protocol["parent"]["E0046_manifest_sha256"],
         "parent_E0045_manifest_sha256": sha256_file(E0045_MANIFEST_PATH),
         "final_E0041_bundle_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
@@ -2008,17 +2091,22 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
             "free_disk_gib_after": shutil.disk_usage(ROOT).free / 1024**3,
             "parent_peak_rss_gib": _peak_rss_gib(),
             "maximum_peak_rss_gib": max([_peak_rss_gib(), cp1.get("peak_rss_gib", 0.0), *[float(result.get("peak_rss_gib", 0.0)) for result in child_results.values() if isinstance(result, dict)]]),
-            "prefix_raw_rows_read": int(cp1["rows"]),
-            "prefix_raw_csv_bytes_read": int(cp1["byte_offset"]),
-            "prefix_raw_read_seconds": cp1["raw_read_seconds"],
-            "C1_checkpoint_build_seconds": cp1["checkpoint_build_seconds"],
-            "C1_checkpoint_write_seconds": cp1["checkpoint_write_seconds"],
-            "suffix_raw_rows_recomputed_total": int(sum(item["rows_recomputed"] for item in child_results.values() if isinstance(item, dict) and "rows_recomputed" in item)),
-            "suffix_raw_csv_bytes_read_total": int(sum(int(item.get("raw_bytes_read", 0)) for item in child_results.values() if isinstance(item, dict))),
-            "base64_builder_input_rows_total": int(sum(int(item.get("base64_builder_input_rows", 0)) for item in child_results.values() if isinstance(item, dict))),
-            "base64_raw_tail_rows_recomputed_total": int(sum(int(item.get("base64_raw_tail_rows_recomputed", 0)) for item in child_results.values() if isinstance(item, dict))),
-            "flow_formula_input_rows_total": int(sum(int(item.get("flow_formula_input_rows", 0)) for item in child_results.values() if isinstance(item, dict))),
-            "flow_raw_tail_rows_recomputed_total": int(sum(int(item.get("flow_raw_tail_rows_recomputed", 0)) for item in child_results.values() if isinstance(item, dict))),
+            "prefix_raw_rows_read": 0 if reused_execution else int(cp1["rows"]),
+            "prefix_raw_csv_data_bytes_parsed": 0 if reused_execution else int(cp1["byte_offset"]),
+            "prefix_raw_parse_seconds": 0.0 if reused_execution else cp1["raw_read_seconds"],
+            "C1_checkpoint_build_seconds": 0.0 if reused_execution else cp1["checkpoint_build_seconds"],
+            "C1_checkpoint_write_seconds": 0.0 if reused_execution else cp1["checkpoint_write_seconds"],
+            "suffix_raw_rows_recomputed_total": 0 if reused_execution else source_fresh_process_suffix_rows,
+            "suffix_raw_csv_data_bytes_parsed_total": 0 if reused_execution else suffix_raw_bytes,
+            "base64_builder_input_rows_total": 0 if reused_execution else int(sum(int(item.get("base64_builder_input_rows", 0)) for item in child_results.values() if isinstance(item, dict))),
+            "base64_raw_tail_rows_recomputed_total": 0 if reused_execution else int(sum(int(item.get("base64_raw_tail_rows_recomputed", 0)) for item in child_results.values() if isinstance(item, dict))),
+            "flow_formula_input_rows_total": 0 if reused_execution else int(sum(int(item.get("flow_formula_input_rows", 0)) for item in child_results.values() if isinstance(item, dict))),
+            "flow_raw_tail_rows_recomputed_total": 0 if reused_execution else int(sum(int(item.get("flow_raw_tail_rows_recomputed", 0)) for item in child_results.values() if isinstance(item, dict))),
+            "source_fresh_process_prefix_rows_read": int(cp1["rows"]),
+            "source_fresh_process_suffix_rows_recomputed": source_fresh_process_suffix_rows,
+            "source_fresh_process_wall_seconds": source_fresh_process_wall_seconds,
+            "source_fresh_process_max_peak_rss_gib": float(source_run_resources.get(
+                "maximum_peak_rss_gib", max([float(cp1.get("peak_rss_gib", 0.0)), *[float(result.get("peak_rss_gib", 0.0)) for result in child_results.values() if isinstance(result, dict)]]))),
             "state_read_seconds_total": float(sum(float(item.get("state_read_seconds", 0.0)) for item in child_results.values() if isinstance(item, dict))),
             "resume_stage_seconds": {name: float(sum(item.get("stage_seconds", {}).get(name, 0.0) for item in child_results.values() if isinstance(item, dict)))
                                      for name in {key for item in child_results.values() if isinstance(item, dict) for key in item.get("stage_seconds", {})}},
@@ -2030,10 +2118,15 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
             "csv_roundtrip_parser": "pandas.read_csv default C parser, same parser call as create_modeling_dataset.py",
             "csv_roundtrip_dtypes": [audit.get("dtypes", {}) for item in child_results.values() if isinstance(item, dict)
                                      for audit in item.get("csv_roundtrip_audit", [])],
-            "flow_archive_sha256_bytes_read_total": flow_archive_hash_bytes,
-            "flow_archive_uncompressed_stream_bytes_read_total": flow_archive_stream_bytes,
-            "comparison_parquet_input_bytes_lower_bound": input_sizes,
-            "measured_input_bytes_lower_bound": int(cp1["byte_offset"] + suffix_raw_bytes + flow_archive_hash_bytes + flow_archive_stream_bytes + sum(input_sizes.values())),
+            "flow_archive_sha256_bytes_consumed_by_formula_processing": 0 if reused_execution else flow_archive_hash_bytes,
+            "flow_archive_stream_bytes_consumed_by_formula_processing": 0 if reused_execution else flow_archive_stream_bytes,
+            "source_fresh_process_flow_archive_sha256_bytes": flow_archive_hash_bytes,
+            "source_fresh_process_flow_archive_stream_bytes": flow_archive_stream_bytes,
+            "comparison_reference_artifact_sizes_bytes": input_sizes,
+            "source_fresh_process_measured_input_bytes_lower_bound": source_input_bytes_lower_bound,
+            "previous_runtime_hash_verified_bytes": int(sum(item.get("bytes", 0) for item in protocol["previous_attempt"]["files"])) if reused_execution else 0,
+            "previous_report_hash_verified_bytes": int(sum(item.get("bytes", 0) for item in protocol["previous_attempt"].get("report_artifacts", []))) if reused_execution else 0,
+            "prefix_raw_csv_hash_bytes_read_lower_bound": (ROOT / protocol["scope"]["source_raw_path"]).stat().st_size if reused_execution else 0,
             "checkpoint_bytes": {
                 "C1": child_results["build_C1"]["checkpoint_bytes"],
                 "C2_primary": child_results["C1_to_C2"]["saved_checkpoint"]["bytes"],
@@ -2072,6 +2165,11 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
                           if row.get("feature") == family and row.get("comparison") == comparison) or "brak roznic"
     def bool_text(value):
         return "PASS" if value else "FAIL"
+    execution_note = (
+        f"Produkty sufiksow powstaly w swiezym przebiegu v3; v4 weryfikuje je z hash-pinned plikow i nie parsuje ani nie przelicza wierszy surowego prefiksu/sufiksow. Kontrola SHA-256 czyta zapisane bajty plikow. Pelny przebieg v3 trwal {report_manifest['resource']['source_fresh_process_wall_seconds']:.1f} s, peak RSS {report_manifest['resource']['source_fresh_process_max_peak_rss_gib']:.2f} GiB; biezacy audyt porownawczy trwal {report_manifest['resource']['wall_seconds']:.1f} s. "
+        if reused_execution else
+        f"Wszystkie wznowienia zostaly wykonane w swiezych procesach. Czas przebiegu: {report_manifest['resource']['wall_seconds']:.1f} s. "
+    )
     report = f"""# E0047 - Zamkniecie zgodnosci kontynuacji generatora D
 
 ## Wyniki najwazniejszych kontroli
@@ -2089,9 +2187,11 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
 |---|---|
 {summary_table}
 
+V3 zwrocilo etykiete `DEV_GENERATOR_VERIFIED`, ale nie objelo ona dwoch porownan semantycznych checkpointow. Porownywarka nie obslugiwala ogonow DataFrame, a agregacja statusu pominela wiersze tych kontroli. Etykieta i status v3 sa niewazne; v4 ponownie sprawdza hash-pinned produkty, porownuje checkpointy kolumna po kolumnie i blokuje status VERIFIED, jesli dowolny rekord parity ma status FAIL.
+
 ## Przebiegi i zasoby
 
-Wznowione zakresy: C1->C2 {suffix_summary['C1_to_C2']['rows']:,} wierszy ({suffix_summary['C1_to_C2']['first_opened']}..{suffix_summary['C1_to_C2']['last_opened']}); C1->END {suffix_summary['C1_to_END']['rows']:,} ({suffix_summary['C1_to_END']['first_opened']}..{suffix_summary['C1_to_END']['last_opened']}); C2->END {suffix_summary['C2_to_END']['rows']:,} ({suffix_summary['C2_to_END']['first_opened']}..{suffix_summary['C2_to_END']['last_opened']}). Wszystkie wznowienia dzialaly w swiezych procesach. Lacznie {report_manifest['resource']['wall_seconds']:.1f} s; peak RSS parent/worker {report_manifest['resource']['maximum_peak_rss_gib']:.2f} GiB. Dostepny RAM przed/po: {report_manifest['resource']['available_ram_gib_before']:.2f}/{report_manifest['resource']['available_ram_gib_after']:.2f} GiB; wolny dysk: {report_manifest['resource']['free_disk_gib_before']:.2f}/{report_manifest['resource']['free_disk_gib_after']:.2f} GiB. Odczytano {report_manifest['resource']['prefix_raw_rows_read']:,} wierszy prefiksu; szczegolowe I/O, etapy, czasy i rozmiary checkpointow sa w manifeście.
+Zakresy wyprodukowane w v3: C1->C2 {suffix_summary['C1_to_C2']['rows']:,} wierszy ({suffix_summary['C1_to_C2']['first_opened']}..{suffix_summary['C1_to_C2']['last_opened']}); C1->END {suffix_summary['C1_to_END']['rows']:,} ({suffix_summary['C1_to_END']['first_opened']}..{suffix_summary['C1_to_END']['last_opened']}); C2->END {suffix_summary['C2_to_END']['rows']:,} ({suffix_summary['C2_to_END']['first_opened']}..{suffix_summary['C2_to_END']['last_opened']}). {execution_note} Szczyt RSS audytu i zrodlowego przebiegu {report_manifest['resource']['maximum_peak_rss_gib']:.2f} GiB. Dostepny RAM przed/po: {report_manifest['resource']['available_ram_gib_before']:.2f}/{report_manifest['resource']['available_ram_gib_after']:.2f} GiB; wolny dysk: {report_manifest['resource']['free_disk_gib_before']:.2f}/{report_manifest['resource']['free_disk_gib_after']:.2f} GiB. W audycie v4 sparsowano {report_manifest['resource']['prefix_raw_rows_read']:,} wierszy surowego prefiksu i przeliczono {report_manifest['resource']['suffix_raw_rows_recomputed_total']:,} surowych wierszy sufiksu; kontrole hash czytaja bajty plikow. Szczegoly I/O v3 i bajtow hash-zweryfikowanych w v4 sa w raporcie JSON.
 
 Nie wykonano treningu, selekcji, fitow, metryk jakosci, analizy ekonomicznej ani evaluatora. Nie odczytano wartosci ani artefaktow holdoutu; nie wygenerowano nowych predykcji holdoutu. Pozostaja `evaluation_authorized=false`, `activated=false`, `HOLDOUT_NOT_RUN`; hash finalnego bundle E0041: `7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d`. E0046 i jego poczatkowe/korygowane artefakty zachowano bez zmian. E0037 pozostaje `FAILED`, T0009 `BLOCKED`, a T0046/T0048 pozostaja nietkniete.
 
@@ -2130,11 +2230,12 @@ def run_audit() -> dict:
     RUNTIME.mkdir(parents=True, exist_ok=True)
 
     children = {}
-    children["build_C1"] = _run_child("build_C1")
+    for item in protocol["execution"]["child_results"]:
+        child_path = _require_hash(item["path"], item["sha256"], f"pinned suffix execution result {item['name']}")
+        result = json.loads(child_path.read_text(encoding="utf-8"))
+        result["log_path"] = item["log_path"]
+        children[item["name"]] = result
     split2 = int(protocol["continuation"]["splits"][1]["expected_prefix_rows"])
-    children["C1_to_C2"] = _run_child(f"resume|C1|C2|C1_to_C2|C2_primary|none")
-    children["C2_to_END"] = _run_child(f"resume|C2_primary|END|C2_to_END|END_from_C2|none")
-    children["C1_to_END"] = _run_child(f"resume|C1|END|C1_to_END|END_from_C1|{split2}=C2_from_C1_full")
     if children["C1_to_C2"]["rows_recomputed"] != split2 - protocol["continuation"]["splits"][0]["expected_prefix_rows"]:
         raise RuntimeError("C1→C2 raw suffix row count differs from the frozen split")
     if children["C2_to_END"]["rows_recomputed"] != int(protocol["continuation"]["splits"][1]["expected_nonempty_suffix_rows"]):
@@ -2152,10 +2253,14 @@ def run_audit() -> dict:
     for stage in ("C1_to_C2", "C2_to_END", "C1_to_END"):
         parity_rows.extend(_compare_suffix_stage(stage, children[stage], e45_protocol, e45_manifest,
                                                  d_bundle["manifest"], flow_batch))
-    c1_to_c2_checkpoint = continuation.load_checkpoint(RUNTIME / "checkpoints" / "C2_primary.json",
-                                                        identity_sha256=_continuation_identity(protocol, d_bundle["identity"]))
-    c1_end_c2_checkpoint = continuation.load_checkpoint(RUNTIME / "checkpoints" / "C2_from_C1_full.json",
-                                                          identity_sha256=_continuation_identity(protocol, d_bundle["identity"]))
+    source_protocol_path = ROOT / protocol["previous_protocol"]["path"]
+    source_protocol = json.loads(source_protocol_path.read_text(encoding="utf-8"))
+    source_runtime = ROOT / protocol["execution"]["source_runtime_root"]
+    source_checkpoint_identity = _continuation_identity(source_protocol, d_bundle["identity"])
+    c1_to_c2_checkpoint = continuation.load_checkpoint(source_runtime / "checkpoints" / "C2_primary.json",
+                                                        identity_sha256=source_checkpoint_identity)
+    c1_end_c2_checkpoint = continuation.load_checkpoint(source_runtime / "checkpoints" / "C2_from_C1_full.json",
+                                                          identity_sha256=source_checkpoint_identity)
     parity_rows.extend(_compare_continuation_paths(children["C1_to_C2"], children["C1_to_END"],
                                                    c1_to_c2_checkpoint, c1_end_c2_checkpoint, "C1_to_C2"))
     c2_overlap_count = int(protocol["continuation"]["splits"][1]["expected_nonempty_suffix_rows"])
@@ -2169,10 +2274,10 @@ def run_audit() -> dict:
         frame.iloc[-c2_overlap_count:].to_parquet(tail_path, index=False)
         c1_to_end_tail[name] = {"path": str(tail_path.relative_to(ROOT)), "rows": c2_overlap_count,
                                 "sha256": sha256_file(tail_path), "bytes": tail_path.stat().st_size}
-    c2_to_end_checkpoint = continuation.load_checkpoint(RUNTIME / "checkpoints" / "END_from_C2.json",
-                                                         identity_sha256=_continuation_identity(protocol, d_bundle["identity"]))
-    c1_to_end_checkpoint = continuation.load_checkpoint(RUNTIME / "checkpoints" / "END_from_C1.json",
-                                                          identity_sha256=_continuation_identity(protocol, d_bundle["identity"]))
+    c2_to_end_checkpoint = continuation.load_checkpoint(source_runtime / "checkpoints" / "END_from_C2.json",
+                                                         identity_sha256=source_checkpoint_identity)
+    c1_to_end_checkpoint = continuation.load_checkpoint(source_runtime / "checkpoints" / "END_from_C1.json",
+                                                          identity_sha256=source_checkpoint_identity)
     parity_rows.extend(_compare_continuation_paths(children["C2_to_END"], c1_to_end_tail,
                                                    c2_to_end_checkpoint, c1_to_end_checkpoint, "C2_to_END"))
     batch_matrix_rows, matrix_summary = _compare_model_matrices_and_predictions(protocol, e45_protocol,

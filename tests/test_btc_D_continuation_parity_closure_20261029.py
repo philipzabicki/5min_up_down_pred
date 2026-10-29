@@ -189,6 +189,27 @@ class ContinuationParityClosureTests(unittest.TestCase):
         self.assertTrue(any(item["path"] == "$.last_candle_time" and item["status"] == "FAIL"
                             for item in _semantic_diff(left, right)))
 
+    def test_profile_semantic_diff_compares_dataframe_checkpoint_tails_by_column(self):
+        opened = pd.date_range("2026-06-30 23:51", periods=3, freq="min", tz="UTC")
+        left = pd.DataFrame({"Opened": opened, "Close": [100.0, np.nan, 102.0]})
+        right = left.copy()
+        self.assertEqual(_semantic_diff({"raw_tail": left}, {"raw_tail": right}), [])
+
+        right.loc[2, "Close"] += 0.25
+        diffs = _semantic_diff({"raw_tail": left}, {"raw_tail": right})
+        numeric = next(item for item in diffs if item["path"] == "$.raw_tail.Close")
+        self.assertEqual(numeric["status"], "FAIL")
+        self.assertEqual(numeric["mismatch_count"], 1)
+        self.assertEqual(numeric["first_mismatch_position"], [2])
+        self.assertEqual(numeric["max_abs_error"], 0.25)
+
+        dtype_changed = right.assign(Close=right["Close"].astype(np.float32))
+        self.assertTrue(any(item["path"] == "$.raw_tail.Close" and item["status"] == "FAIL"
+                            for item in _semantic_diff({"raw_tail": left}, {"raw_tail": dtype_changed})))
+        reordered = right[["Close", "Opened"]]
+        self.assertTrue(any(item["path"] == "$.raw_tail.columns" and item["status"] == "FAIL"
+                            for item in _semantic_diff({"raw_tail": left}, {"raw_tail": reordered})))
+
     def test_partition_coverage_accepts_chunks_and_rejects_overlap(self):
         opened = pd.date_range("2026-06-01", periods=5, freq="min", tz="UTC")
         digest1 = hashlib.sha256(opened[:2].as_unit("ns").asi8.tobytes()).hexdigest()
