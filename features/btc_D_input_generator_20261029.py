@@ -380,12 +380,16 @@ def rebuild_base64_raw(protocol: dict, bundle_identity: dict, d_manifest: dict) 
     fit_by_name = {record["feature_col"]: record for record in indicator_configs}
     if not expected_fit_names.issubset(fit_by_name):
         raise RuntimeError(f"saved E0041 indicator fit parameters are missing: {sorted(expected_fit_names - set(fit_by_name))}")
-    if {record["path"] for record in lineage["indicator_fit_results"]} != {
-            fit_by_name[name]["json_path"].as_posix() for name in expected_fit_names}:
-        observed = {str(fit_by_name[name]["json_path"]).replace("\\", "/") for name in expected_fit_names}
-        expected = {record["path"].replace("\\", "/") for record in lineage["indicator_fit_results"]}
-        if observed != expected:
-            raise RuntimeError("E0041 indicator feature names resolve to different saved fit-result files")
+    observed_fit_paths = {
+        Path(fit_by_name[name]["json_path"]).resolve().as_posix().casefold()
+        for name in expected_fit_names
+    }
+    expected_fit_paths = {
+        (ROOT / record["path"]).resolve().as_posix().casefold()
+        for record in lineage["indicator_fit_results"]
+    }
+    if observed_fit_paths != expected_fit_paths:
+        raise RuntimeError("E0041 indicator feature names resolve to different saved fit-result files")
     selected_indicator_configs = [fit_by_name[name] for name in base_order if name in fit_by_name]
     if {record["feature_col"] for record in selected_indicator_configs} != expected_fit_names:
         raise RuntimeError("E0041 selected indicator configuration set is incomplete")

@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import zipfile
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -203,6 +204,29 @@ def test_final_e0041_loader_rejects_a_legacy_manifest_pointer():
     protocol["allowed_inputs"]["legacy_d_manifest_path"] = "old/D_manifest.json"
     with pytest.raises(RuntimeError, match="legacy D specification pointer"):
         generator.verify_bundle(protocol)
+
+
+def test_final_e0041_saved_indicator_lineage_resolves_relative_and_absolute_paths():
+    import create_modeling_dataset as dataset_builder
+
+    protocol = generator.load_protocol()
+    _, manifest, _ = generator.verify_bundle(protocol)
+    lineage = protocol["allowed_inputs"]["base_feature_lineage"]
+    indicator_stage = json.loads((generator.ROOT / lineage["indicator_stage"]["path"]).read_text(encoding="utf-8"))
+    fit_by_name = {
+        record["feature_col"]: record
+        for record in dataset_builder.parse_fit_results(generator.ROOT / indicator_stage["fit_results_dir"])
+    }
+    expected_names = {name for name in manifest["base_feature_order"][:64] if "_fit_" in name}
+    observed_paths = {
+        Path(fit_by_name[name]["json_path"]).resolve().as_posix().casefold()
+        for name in expected_names
+    }
+    expected_paths = {
+        (generator.ROOT / record["path"]).resolve().as_posix().casefold()
+        for record in lineage["indicator_fit_results"]
+    }
+    assert observed_paths == expected_paths
 
 
 def test_runner_resource_snapshot_uses_native_windows_counters():
