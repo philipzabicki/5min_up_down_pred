@@ -1,0 +1,354 @@
+{
+  "schema_version": 1,
+  "experiment_id": "E0045",
+  "task_id": "T0016",
+  "decision_id": "D0024",
+  "name": "Naprawa loadera finalnego E0041 i zgodnosc generatora development",
+  "status": "FROZEN_BEFORE_REPLAY",
+  "created_date": "2026-10-29",
+  "supersedes": "E0045 v1 did not produce a fresh-process nonempty suffix because the checkpoint date landed in the final chunk; v2 moves only that interior checkpoint earlier and includes the reviewed FLOW timestamp lookup correction.",
+  "parent": {
+    "experiment_id": "E0041",
+    "historical_experiment_id": "E0044",
+    "bundle_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/final_D_bundle_manifest.json",
+    "bundle_manifest_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+    "finalization_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/final_D_bundle/bundle_manifest.json",
+    "finalization_manifest_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+    "finalization_config_path": "configs/research/btc_D_bundle_finalization_20261028.json",
+    "finalization_config_sha256": "77a1963557869d4bce54a3b29d9bd582cfdaeb4555d048c66c5b97a48a13f442",
+    "selection_pipeline_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/run_manifest.json",
+    "selection_pipeline_manifest_sha256": "8da4a61c7790f55254b39937e10b8ada8cebb942d93a9fa5ad1c1e42daf95144",
+    "selection_result_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_result.json",
+    "selection_result_sha256": "0fb2520b0a94210d99e34964b57dff12e235b93bd4a6490fd7dcf5dc943409c7"
+  },
+  "scope": {
+    "purpose": "Repair final E0041 D identity and verify raw-derived inputs and technical predictions on development only.",
+    "source_raw_opened_exclusive_utc": "2026-06-30T23:58:00Z",
+    "last_allowed_raw_opened_utc": "2026-06-30T23:57:00Z",
+    "last_allowed_model_feature_opened_utc": "2026-06-30T23:53:00Z",
+    "first_protected_opened_utc": "2026-06-30T23:58:00Z",
+    "first_holdout_market_start_utc": "2026-07-01T00:00:00Z",
+    "holdout_market_start_interval_utc": "[2026-07-01T00:00:00Z,2026-10-07T00:00:00Z)",
+    "holdout_values_rows_predictions_labels_books_and_economics_authorized": false,
+    "evaluation_authorized": false,
+    "activated": false,
+    "holdout_status": "HOLDOUT_NOT_RUN",
+    "training_selection_optimization_or_transform_or_calibrator_fit_authorized": false,
+    "technical_development_predictions_authorized": true,
+    "live_shadow_orders_authorized": false,
+    "remote_sources_and_acquisition_authorized": false
+  },
+  "allowed_inputs": {
+    "safe_index_ohlcv_prefix": {
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/development_prefix/raw_before_holdout.csv",
+      "sha256": "25481546299f72c159ffe0c0b4f7e6c2c94b914b52973f9a49a29eb13427829a",
+      "rows": 3186145,
+      "first_opened_utc": "2020-06-09T09:33:00Z",
+      "last_opened_utc": "2026-06-30T23:57:00Z",
+      "columns": [
+        "Opened",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "UM_BTCUSDT_Open",
+        "UM_BTCUSDT_High",
+        "UM_BTCUSDT_Low",
+        "UM_BTCUSDT_Close"
+      ],
+      "provenance": "E0041 safe development copy; first excluded Opened timestamp was inspected without its OHLCV payload."
+    },
+    "canonical_flow_reference": {
+      "path": "data/analysis/btc_chronology_reconstruction_20261027/flow_prefixes/fold_20260601_20260701.parquet",
+      "sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe",
+      "columns": [
+        "Opened",
+        "taker_Z_1m",
+        "taker_V_1m",
+        "taker_Z_5m",
+        "taker_V_5m",
+        "taker_Z_15m",
+        "taker_V_15m"
+      ],
+      "E0041_join_source_sha256": "8a9dc8d1ce642ff95db0d5d03ad522d83cb181a484c0c3d3b8d83f6c4b83bfbe"
+    },
+    "canonical_dynamic_reference": {
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/dynamic_features.parquet",
+      "sha256": "4431cc85fe80f640a9a39316b278066292ceb0c3f8b6959cb05a90e9883cc43a",
+      "rows": 3186145,
+      "columns": "Opened plus the exact 8 memory PCA columns and 8 ESN PCA columns for each frozen seed"
+    },
+    "canonical_model_feature_reference": {
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/causal_candidate_feature_join_363c9eabd469/feature_dataset_with_causal_candidates.parquet",
+      "sha256": "e61f2ed082d7ea20dccacaa4b3059ccb4ada94b9c02f893b9198613da47a31b3",
+      "projected_columns": "Opened and the exact 70 columns in the E0041 bundle base_feature_order",
+      "row_cutoff_exclusive_utc": "2026-06-30T23:58:00Z",
+      "target_label_outcome_and_payout_columns": "never projected or materialized"
+    },
+    "taker_flow_raw_archives": {
+      "directory": "data/analysis/polymarket/BTC/btc_preopen_taker_flow_20261018/binance_um_btcusdt_1m_20261018",
+      "archive_pattern": "BTCUSDT-1m-YYYY-MM.zip",
+      "checksum_pattern": "BTCUSDT-1m-YYYY-MM.zip.CHECKSUM",
+      "months": "2020-06 through 2026-06 inclusive; 73 local archives are present",
+      "source_config_path": "configs/research/btc_preopen_taker_flow_20261018.json",
+      "source_config_sha256": "cea8187b43a0ed847a019542a9154e01707e6d4b55754f81da317ddd3a2ceeb1",
+      "columns": [
+        "open_time",
+        "open",
+        "high",
+        "low",
+        "close",
+        "quote_volume",
+        "taker_buy_quote_volume"
+      ],
+      "timestamp_unit": "milliseconds since Unix epoch UTC",
+      "last_allowed_source_open_time_utc": "2026-06-30T23:57:00Z",
+      "protected_row_rule": "In the 2026-06 archive, stop when open_time reaches 2026-06-30T23:58:00Z after reading only open_time; do not parse that row's remaining fields or any later row."
+    },
+    "frozen_transforms": {
+      "memory": {
+        "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/simple_memory_projection.json",
+        "sha256": "041c11c5ea99121f4395ddcef68e758ae0801dbbc3263180239606a3ee84b7c0"
+      },
+      "esn": {
+        "20261023": {
+          "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261023.json",
+          "sha256": "80614d68ce4270df321a2ecef90eb8d1899b6f4323c62b17834e29fe43e3973c"
+        },
+        "20261024": {
+          "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261024.json",
+          "sha256": "8f067bb1cee68ac4be77fd8bf96bad371927114c8faccc79ff44a7ea0d5b3b49"
+        },
+        "20261025": {
+          "path": "data/analysis/polymarket/BTC/btc_candidate_quality_freeze_20261022/bundles/transforms/esn_seed_20261025.json",
+          "sha256": "2609579349fc412b6e1208e2adcb7e60acffb069eee4bea5bbf10e41d7233623"
+        }
+      },
+      "combined_esn_sha256": "276f3793ffd7e78699b5aaa722e02b894cc3e5a76454c2c08a94f7d3272d5e4f"
+    },
+    "frozen_calibrator": {
+      "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/official_platt_D.json",
+      "sha256": "235c65219dbff34f166530f7f4bcf54e8fafc8ba96ab39619cc317092abdb620"
+    },
+    "base_feature_lineage": {
+      "selection_pipeline_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/run_manifest.json",
+        "sha256": "8da4a61c7790f55254b39937e10b8ada8cebb942d93a9fa5ad1c1e42daf95144"
+      },
+      "selection_result": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_result.json",
+        "sha256": "0fb2520b0a94210d99e34964b57dff12e235b93bd4a6490fd7dcf5dc943409c7"
+      },
+      "final_feature_dataset": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/final_feature_dataset_90591832920c/dataset/raw_before_holdout_preopen_v1.parquet",
+        "sha256": "1298278da33012bbc96b6d4ea03d5f5a18536c057f18d36b4d5fdc56716de9a2",
+        "rows": 3186145
+      },
+      "feature_metadata": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/final_feature_dataset_90591832920c/dataset/raw_before_holdout_preopen_v1_metadata.json",
+        "sha256": "0c1e3eb85428019fa446c494b5036c19e1d548db08138bd1133ad089b2cb524f"
+      },
+      "indicator_source_run_manifest": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/149ca92fac1ae8c5/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/run_manifest.json",
+        "sha256": "8fd67e7d6f7e93ad4990c5b312b244c869a481947805efba78c0b7161090662f"
+      },
+      "indicator_stage": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/149ca92fac1ae8c5/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/indicators_f8941f27091c/indicator_stage.json",
+        "sha256": "fa53d439539f41c29f03f6d29bffa674eb5c14ebbeb2e0bdaddbb715b6c8b577"
+      },
+      "indicator_fit_results": [
+        {
+          "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/149ca92fac1ae8c5/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/indicators_f8941f27091c/results/15ec1bcaa04a7fb0/KeltnerChannel_target_5m_preopen_v1_pop64_qe0.2_qm0.1_tf0.8_stmc_sg10_rwlin1-1.5.json",
+          "sha256": "896e246e048eb250ef4315887013da98749f51363154cd7434f198303438767a"
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/149ca92fac1ae8c5/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/indicators_f8941f27091c/results/15ec1bcaa04a7fb0/BollingerBands_target_5m_preopen_v1_pop64_qe0.2_qm0.1_tf0.8_stmc_sg10_rwlin1-1.5.json",
+          "sha256": "094928b1aeca46b289eab204661f0203b73712aec7189a6997a162030cd0626f"
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/149ca92fac1ae8c5/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/indicators_f8941f27091c/results/15ec1bcaa04a7fb0/ChaikinOsc_target_5m_preopen_v1_pop64_qe0.2_qm0.1_tf0.8_stmc_sg10_rwlin1-1.5.json",
+          "sha256": "b5e6aad113d6f054d40542464821fcde1c50d18a040abaec922a69108a46fe1d"
+        },
+        {
+          "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/149ca92fac1ae8c5/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/indicators_f8941f27091c/results/15ec1bcaa04a7fb0/ADX_target_5m_preopen_v1_pop64_qe0.2_qm0.1_tf0.8_stmc_sg10_rwlin1-1.5.json",
+          "sha256": "13bcc8dc1a17402de5c809fc4bd8ba08fd0beb25011a75c062f07446652f5ea5"
+        }
+      ],
+      "reaction_profile_config": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/reaction_profile_395681a40028/fitted_generator_config.json",
+        "sha256": "fe240260b6c7be84b8ebc27783f0e902a2fb6ff313949f5b65e8219120709bfa"
+      },
+      "volume_profile_config": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/volume_profile_2732bba5d5bc/fitted_generator_config.json",
+        "sha256": "6d64b0922364d2232654a86bf6078bd38b9f016d23835be215647f7e3daf232a"
+      },
+      "reaction_profile_state": {
+        "base_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/final_feature_dataset_90591832920c/states/reaction_profile/BTCUSD_1m_rp_fixed_grid_v1_modeling_end",
+        "npz_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/final_feature_dataset_90591832920c/states/reaction_profile/BTCUSD_1m_rp_fixed_grid_v1_modeling_end.npz",
+        "npz_sha256": "bb00a734329b17b5619d6036a36b5ac7471663293eff351f3b5ae00906c6b0f5",
+        "json_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/final_feature_dataset_90591832920c/states/reaction_profile/BTCUSD_1m_rp_fixed_grid_v1_modeling_end.json",
+        "json_sha256": "f3165645b2456a280b072a664de88bdd3d14ec96f27184e2a757bb5843f44c31"
+      },
+      "volume_profile_state": {
+        "base_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/final_feature_dataset_90591832920c/states/volume_profile/BTCUSD_1m_vp_fixed_range_v3_modeling_end",
+        "npz_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/final_feature_dataset_90591832920c/states/volume_profile/BTCUSD_1m_vp_fixed_range_v3_modeling_end.npz",
+        "npz_sha256": "67ba494bb97611d2fed6407e60453000d1adf57c67533fc88ba104ea25a7e383",
+        "json_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/stages/final_feature_dataset_90591832920c/states/volume_profile/BTCUSD_1m_vp_fixed_range_v3_modeling_end.json",
+        "json_sha256": "9dad06c9cd854b207d29db2acea8f759b8df65195106ed56d56e929c5453a779"
+      },
+      "source_raw_path_identity_only": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_development_cutoff_20260701.csv",
+      "effective_config": {
+        "path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/runs/189049366841f6d0/D_FINAL_SELECTION_20251001/selection_pipeline/8ce1284ba8e56861/effective_config.json",
+        "sha256": "ce270aa37cf0ddfed442a9fc722522040d3f1d67cdcd19202cc9ce2cf3325f44"
+      }
+    },
+    "feature_implementation_hashes": {
+      "create_modeling_dataset.py": "72e851f9f04f0f5a3976b1df2aa42992b471a578a29564c30731965427b1f2a4",
+      "utils/data.py": "00831a0aeec8896d721aa268696625c196c9642c531511bb8641d3849a883e7f",
+      "features/btc_taker_flow.py": "127a0a53dedf9ed07fa53f1049796aba440299fc010066ee7b189eb850a04477",
+      "features/esn_reservoir.py": "274ea86d6d628e74be71899d8327016af6eda7fc13c6a3c2e6ba533661c63ff4",
+      "features/causal_memory_control.py": "a082c576e5ba8d0706e05d4a99937930558f68f453d24f48cf4481921e244c23",
+      "features/reaction_profile_fixed_grid.py": "c91af16703236450de05f07cf29a1ecf566d28c8d02e9adf4dc45755fa89128a",
+      "features/volume_profile_fixed_range.py": "6edc168ae55540406992a7d8f7fa951b08421c8cb192eb2ae4d44c0628098cc8",
+      "features/candle_features.py": "7347c14873a22e74f2d51e977fb827be7f8763f2342f86ae3c52b8989f83ee1b",
+      "features/basis_premium_features.py": "a07e92882c676d794699513737832cb137db53c290d402ddfac334b5617e7b64",
+      "features/session_open_features.py": "0342a9466575399f47f5921cfcf320f05565a2100de3bdff543ce30f9752d087",
+      "features/realized_volatility.py": "0f80fbcce7c52595dd908c91db9a6e0b7aad08861e555833a07581743093f53f",
+      "features/ADX.py": "4a6e58ab26c8207fa25a107b5cfe8ae530596b3b80d4168ca8b72de6c61b31e9",
+      "features/BollingerBands.py": "cd9396a08847e217bc1750d20d3febe4e4e062858c9325da42e7d1ae6603228a",
+      "features/ChaikinOsc.py": "346a390b48226c12ee3285fc3e7620fa1c0a9bec8256006944c237c128d15276",
+      "features/KeltnerChannel.py": "6f175ebb775e45f8eaca9570d73a53060112d4a821b3a1ae47db55a637c1a5e1",
+      "features/feature_intervals.py": "5e4adece76f18f194f7244d1baad21eafabda802a5bc83a3ff2abd29bcf9628e",
+      "features/btc_preopen_contract.py": "8707f18bd09197afd1308395eea85863a8a4fec6eb36ba9c907bf7cfd1c9b254"
+    },
+    "builder_configuration_hashes": {
+      "configs/active.json": "49e8d4e103a9b8f37776708661c7e2b11f8076bd183b782af612132a13d33c15",
+      "configs/modeling.json": "54708f9e778a3c53165141d1f4dcfc0aa23c16d3b9e151855369110a7bfcfc74"
+    }
+  },
+  "diagnostics": {
+    "old_e0044_required_features": [
+      "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypfba_atrper1151_maper533_matypnwmaepan_souhlcc4",
+      "ADX_fit_5m_preopen_v1_pop64_adxper452_atrper1990_matypadxkama_matypatrnwmatria_matypnegdmehma_matypposdmema_negdmper706_posdmper1716",
+      "StochOsc_fit_5m_preopen_v1_pop64_faskper24_slodmatyptrima_slodper1052_slokmatypnwmabiw_slokper1892",
+      "BollingerBands_fit_5m_preopen_v1_pop64_maper328_masouhlcc4_matypshmma_stdmaper53_stdmatypkama_stdsouhlcc4"
+    ],
+    "old_feature_replacements": {
+      "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypfba_atrper1151_maper533_matypnwmaepan_souhlcc4": "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypnwmagauss_atrper716_maper22_matypfba_souopen",
+      "ADX_fit_5m_preopen_v1_pop64_adxper452_atrper1990_matypadxkama_matypatrnwmatria_matypnegdmehma_matypposdmema_negdmper706_posdmper1716": "ADX_fit_5m_preopen_v1_pop64_adxper640_atrper698_matypadxtema_matypatrwma_matypnegdmgma_matypposdmnwmacos_negdmper1756_posdmper1107",
+      "StochOsc_fit_5m_preopen_v1_pop64_faskper24_slodmatyptrima_slodper1052_slokmatypnwmabiw_slokper1892": null,
+      "BollingerBands_fit_5m_preopen_v1_pop64_maper328_masouhlcc4_matypshmma_stdmaper53_stdmatypkama_stdsouhlcc4": "BollingerBands_fit_5m_preopen_v1_pop64_maper8_masouhlcc4_matyplma_stdmaper594_stdmatypnwmaepan_stdsouhlc3"
+    },
+    "unmatched_rebuilt_flow_suffix_rows": 4
+  },
+  "frozen_semantics": {
+    "base_feature_order": "exact final E0041 manifest order, first 64 BASE features followed by FLOW6",
+    "model_input": "each sidecar's exact ordered 70 BASE + 8 memory + 8 ESN columns; raw features are cast to float32 and nonfinite entries become NaN",
+    "flow_extra_suffix": "report the four rebuilt rows after the canonical reference separately; never call them reference parity",
+    "dynamic_reset": "reset memory/ESN on an invalid candle or a non-one-minute gap; do not interpolate or forward fill",
+    "prediction_mapping": "available_at=Opened+1 minute; market_start=Opened+2 minutes; decision T-60; execution T-59",
+    "ensemble": "uniform arithmetic mean in final manifest member order, then official terminal Platt; do not fit",
+    "platt": "clip mean to [1e-6,1-1e-6], logit=log(p/(1-p)), apply sigmoid(intercept + coefficient*logit)",
+    "no_target_generation": true
+  },
+  "predeclared_validation": {
+    "windows_utc": [
+      {
+        "name": "post_warmup_start",
+        "start_inclusive": "2020-06-23T00:00:00Z",
+        "end_exclusive": "2020-06-23T00:30:00Z"
+      },
+      {
+        "name": "continuous_intraday",
+        "start_inclusive": "2026-06-15T12:00:00Z",
+        "end_exclusive": "2026-06-15T12:30:00Z"
+      },
+      {
+        "name": "utc_day_boundary",
+        "start_inclusive": "2026-06-29T23:45:00Z",
+        "end_exclusive": "2026-06-30T00:15:00Z"
+      },
+      {
+        "name": "last_authorized_development",
+        "start_inclusive": "2026-06-30T23:00:00Z",
+        "end_exclusive": "2026-06-30T23:58:00Z"
+      },
+      {
+        "name": "finalization_exact_64",
+        "start_inclusive": "2026-06-30T22:50:00Z",
+        "end_exclusive": "2026-06-30T23:54:00Z",
+        "expected_rows": 64
+      }
+    ],
+    "dynamic_resume_checkpoint_after_or_at": "2026-06-01T00:00:00Z",
+    "tolerances": {
+      "float64_base_and_flow": {
+        "absolute": 1e-10,
+        "relative": 1e-10
+      },
+      "float32_dynamic": {
+        "absolute": 2e-06,
+        "relative": 2e-06
+      },
+      "member_mean_and_platt": {
+        "absolute": 2e-12,
+        "relative": 2e-12
+      },
+      "timestamps_order_missing_masks": "exact"
+    },
+    "forbidden_reads": [
+      "labels",
+      "outcomes",
+      "payouts",
+      "books",
+      "holdout rows or values",
+      "holdout predictions",
+      "economic or quality metrics"
+    ]
+  },
+  "resource_limits": {
+    "maximum_wall_seconds": 14400,
+    "maximum_peak_rss_gib": 24,
+    "minimum_free_workspace_disk_gib": 10,
+    "workers": 1,
+    "maximum_native_threads": 4,
+    "chunk_rows": 65536,
+    "gpu": "not required; no training",
+    "other_processes": "observe only; never terminate active user jobs"
+  },
+  "checkpoint": {
+    "runtime_root": "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029_v2",
+    "schema_version": 1,
+    "must_include": [
+      "memory and all ESN state arrays/counters",
+      "rolling 720-row dynamic raw tail",
+      "flow source tail for 10095 minutes",
+      "raw source row and byte cursor",
+      "base64 batch output hash and mode",
+      "bundle, protocol, source, state-engine and transform identities",
+      "exact parity summary and prediction panel",
+      "integrity hash"
+    ],
+    "resume": "fresh process must restore an interior development checkpoint and process a nonempty suffix; raw cutoff checked before materialization",
+    "base64_limit": "full-prefix batch only; do not call the BASE64 feature generator statefully continued"
+  },
+  "outputs": {
+    "runner": "run_btc_D_input_generator_final_bundle_fix_20261029.py",
+    "module": "features/btc_D_input_generator_20261029.py",
+    "tests": "tests/test_btc_D_input_generator_development_20261029.py",
+    "feature_contract": "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029_feature_contract.json",
+    "parity_table": "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029_parity.csv",
+    "report": "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029.md",
+    "runtime_manifest": "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029_v2/run_manifest.json",
+    "runtime_checkpoint": "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029_v2/checkpoint_state.json",
+    "panel": "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029_v2/development_prediction_panel.json",
+    "large_outputs": "remain local and ignored"
+  },
+  "protocol_revision": 2,
+  "previous_protocol": {
+    "path": "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v1.json",
+    "sha256": "eaf259ec067da4a911cf4943ef3937e11e0ffd22114ea29bc8230e70fb28687c"
+  },
+  "previous_attempt_runtime_root": "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029"
+}

@@ -23,8 +23,8 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v1.json"
-RUNTIME_DIR = ROOT / "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v2.json"
+RUNTIME_DIR = ROOT / "data/analysis/polymarket/BTC/btc_D_input_generator_final_bundle_fix_20261029_v2"
 CHECKPOINT_PATH = RUNTIME_DIR / "checkpoint_state.json"
 RAW_COLUMNS = (
     "Opened", "Open", "High", "Low", "Close", "Volume",
@@ -68,8 +68,12 @@ def _replace_atomic(source: Path, target: Path) -> None:
 
 def load_protocol() -> dict:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
-    if protocol.get("status") != "FROZEN_BEFORE_REPLAY" or protocol.get("experiment_id") != "E0045":
-        raise RuntimeError("E0045 protocol status or identity is not frozen")
+    if (protocol.get("status") != "FROZEN_BEFORE_REPLAY"
+            or protocol.get("experiment_id") != "E0045"
+            or protocol.get("protocol_revision") != 2):
+        raise RuntimeError("E0045 v2 protocol status, revision, or identity is not frozen")
+    previous = protocol["previous_protocol"]
+    _required_file_hash(previous["path"], previous["sha256"], "preserved E0045 v1 protocol")
     scope = protocol["scope"]
     if scope["holdout_values_rows_predictions_labels_books_and_economics_authorized"]:
         raise RuntimeError("E0045 unexpectedly authorizes protected data")

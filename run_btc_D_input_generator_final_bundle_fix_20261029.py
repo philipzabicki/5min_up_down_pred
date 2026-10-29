@@ -239,7 +239,7 @@ Tabela CSV raportuje status kazdej cechy/modelu, maski NaN/Inf, bledy numeryczne
 
 ## Artefakty
 
-- Protokol: `configs/research/btc_D_input_generator_final_bundle_fix_20261029_v1.json`
+- Protokol: `{generator.PROTOCOL_PATH.relative_to(ROOT).as_posix()}`
 - Kontrakt: `btc_D_input_generator_final_bundle_fix_20261029_feature_contract.json`
 - Tabela parity: `btc_D_input_generator_final_bundle_fix_20261029_parity.csv`
 - Manifest: `btc_D_input_generator_final_bundle_fix_20261029_manifest.json`

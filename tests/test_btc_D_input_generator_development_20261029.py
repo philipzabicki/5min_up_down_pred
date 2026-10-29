@@ -37,6 +37,15 @@ def test_opened_mapping_and_exclusive_cutoff():
         generator.validate_opened(["2026-06-30T23:58:00Z"], "2026-06-30T23:58:00Z")
 
 
+def test_e0045_v2_pins_v1_and_uses_a_pre_final_day_split():
+    protocol = generator.load_protocol()
+    assert protocol["protocol_revision"] == 2
+    assert protocol["previous_protocol"]["path"].endswith("_v1.json")
+    assert generator.sha256_file(generator.ROOT / protocol["previous_protocol"]["path"]) == protocol["previous_protocol"]["sha256"]
+    assert protocol["predeclared_validation"]["dynamic_resume_checkpoint_after_or_at"] == "2026-06-01T00:00:00Z"
+    assert protocol["checkpoint"]["runtime_root"].endswith("final_bundle_fix_20261029_v2")
+
+
 def test_opened_validation_rejects_duplicates_and_ordering():
     with pytest.raises(ValueError, match="unique"):
         generator.validate_opened(
