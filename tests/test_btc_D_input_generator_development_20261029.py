@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 from features import btc_D_input_generator_20261029 as generator
+from run_btc_D_input_generator_final_bundle_fix_20261029 import _flow_report_diagnostic
 
 
 def _synthetic_candles(rows: int) -> pd.DataFrame:
@@ -44,6 +45,34 @@ def test_e0045_v2_pins_v1_and_uses_a_pre_final_day_split():
     assert generator.sha256_file(generator.ROOT / protocol["previous_protocol"]["path"]) == protocol["previous_protocol"]["sha256"]
     assert protocol["predeclared_validation"]["dynamic_resume_checkpoint_after_or_at"] == "2026-06-01T00:00:00Z"
     assert protocol["checkpoint"]["runtime_root"].endswith("final_bundle_fix_20261029_v2")
+
+
+def test_flow_report_separates_raw_reference_pass_from_base70_strict_failures():
+    raw_reference_rows = [{"status": "PASS", "rows": 3_198_234} for _ in generator.FLOW_COLUMNS]
+    base70_rows = [
+        {
+            "status": "FAIL",
+            "numeric_mismatch_rows": 3,
+            "first_mismatch_opened_utc": "2020-06-09T09:33:00+00:00",
+            "max_abs_error": 2e-7,
+            "max_rel_error": 6e-8,
+        },
+        {
+            "status": "PASS",
+            "numeric_mismatch_rows": 0,
+            "first_mismatch_opened_utc": None,
+            "max_abs_error": 0.0,
+            "max_rel_error": 0.0,
+        },
+    ]
+
+    result = _flow_report_diagnostic(raw_reference_rows, base70_rows)
+
+    assert result["raw_reference_pass_features"] == len(generator.FLOW_COLUMNS)
+    assert result["raw_reference_rows"] == 3_198_234
+    assert result["base70_strict_fail_features"] == 1
+    assert result["base70_numeric_mismatch_feature_rows"] == 3
+    assert result["base70_first_mismatch_opened_utc"] == "2020-06-09T09:33:00+00:00"
 
 
 def test_opened_validation_rejects_duplicates_and_ordering():

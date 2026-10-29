@@ -169,6 +169,22 @@ def _base_record(build: dict) -> dict:
     }
 
 
+def _flow_report_diagnostic(flow_reference_rows: list[dict], base70_rows: list[dict]) -> dict:
+    strict_failures = [row for row in base70_rows if row["status"] != "PASS"]
+    mismatch_times = [row["first_mismatch_opened_utc"] for row in strict_failures if row.get("first_mismatch_opened_utc")]
+    return {
+        "raw_reference_pass_features": sum(row["status"] == "PASS" for row in flow_reference_rows),
+        "raw_reference_feature_count": len(flow_reference_rows),
+        "raw_reference_rows": flow_reference_rows[0]["rows"] if flow_reference_rows else 0,
+        "base70_strict_fail_features": len(strict_failures),
+        "base70_strict_feature_count": len(base70_rows),
+        "base70_numeric_mismatch_feature_rows": sum(int(row.get("numeric_mismatch_rows") or 0) for row in strict_failures),
+        "base70_first_mismatch_opened_utc": min(mismatch_times) if mismatch_times else None,
+        "base70_max_abs_error": max((float(row.get("max_abs_error") or 0.0) for row in strict_failures), default=0.0),
+        "base70_max_rel_error": max((float(row.get("max_rel_error") or 0.0) for row in strict_failures), default=0.0),
+    }
+
+
 def _report(protocol: dict, manifest: dict) -> str:
     statuses = manifest["statuses"]
     dynamic = manifest["dynamic"]
@@ -176,6 +192,11 @@ def _report(protocol: dict, manifest: dict) -> str:
     flow = manifest["flow"]
     resume = manifest["resume_validation"]
     resources = manifest["resource_totals"]
+    validation = manifest.get("post_run_validation", {})
+    flow_diagnostic = _flow_report_diagnostic(
+        manifest["flow_parity"],
+        [row for row in dynamic["parity"] if row["block"] == "base70" and row["feature"].startswith("taker_")],
+    )
     errors = sum(
         int(row.get("mask_mismatch_rows") or 0) + int(row.get("numeric_mismatch_rows") or 0)
         for row in manifest["parity"]
@@ -200,11 +221,13 @@ E0044 sprawdzal hash finalnego manifestu E0041, ale specyfikacje cech i sciezki 
 
 Wlasciwy finalny bundle wymaga **0/4** dawnych nazw; nie zastosowano aliasow ani wypelniania zerami. Z surowego bezpiecznego prefiksu odtworzono wszystkie {len(base['feature_order'])} BASE cechy dla {base['rows']:,} wierszy. Typy kolumn zostaly porownane dokladnie z kanonicznym produktem: `{base['feature_dtypes']}`. Cechy RP/VP odtworzono w jednej pelnej partii, a zapisane stany koncowe zgadzaja sie z E0041. Kontynuacji stanowej BASE generatora nie zweryfikowano.
 
-Szesc cech FLOW6 porownano dla {flow['rows_compared']:,} wierszy referencji. Dodatkowe {flow['unmatched_suffix_rows_after_reference']} wiersze na koncu przebudowanego FLOW pozostaja poza zakresem referencji. Wszystkie 32 cechy memory/ESN porownano dla {dynamic['processed_rows']:,} wierszy. Surowe i kanoniczne wejscia podano do tych samych dziewieciu modeli finalnego E0041; porownano predykcje czlonkow, srednia 1/9 i zamrozony Platt.
+FLOW6 odtworzone z surowych archiwow przechodza porownanie z referencja FLOW dla {flow_diagnostic['raw_reference_pass_features']}/{flow_diagnostic['raw_reference_feature_count']} cech i {flow_diagnostic['raw_reference_rows']:,} wierszy. Dodatkowe {flow['unmatched_suffix_rows_after_reference']} wiersze na koncu przebudowanego FLOW pozostaja poza zakresem referencji. Osobne, zamrozone porownanie wartosci float64 z surowej odbudowy do finalnego BASE70 E0041 przy tolerancji `1e-10` nie przechodzi dla {flow_diagnostic['base70_strict_fail_features']}/{flow_diagnostic['base70_strict_feature_count']} kolumn FLOW: {flow_diagnostic['base70_numeric_mismatch_feature_rows']:,} porownan feature-row ma blad numeryczny; pierwszy blad jest w `Opened={flow_diagnostic['base70_first_mismatch_opened_utc']}`, maksymalny blad abs/rel to `{flow_diagnostic['base70_max_abs_error']:.9g}` / `{flow_diagnostic['base70_max_rel_error']:.9g}`. Kanoniczny BASE70 zapisuje te kolumny jako Arrow `float`, podczas gdy odbudowa ma dtype float64; tolerancji nie zmieniono, a status FLOW pozostaje niezaliczony.
+
+Wszystkie 64 cechy BASE64 i wszystkie 32 cechy memory/ESN przechodza porownanie z E0041 dla {dynamic['processed_rows']:,} wierszy. Surowe i kanoniczne wejscia podano do tych samych dziewieciu modeli finalnego E0041; predykcje kazdego czlonka, srednia 1/9 i zamrozony Platt przechodza porownanie.
 
 Dla panelu finalizacyjnego sprawdzono dokladnie 64 zadeklarowane minuty, od 2026-06-30 22:50 do 23:53 UTC, z dziewiecioma predykcjami na minute. Pelny panel obejmuje {dynamic['panel_rows']} wybranych minut, z czego {dynamic['decision_panel_rows']} to minuty decyzji.
 
-Nowy proces odtworzyl checkpoint po `Opened={resume['checkpoint_last_opened']}` i przetworzyl niepusty sufiks {resume['suffix_rows_processed']:,} wierszy do `Opened={dynamic['last_opened']}`. Porownania cech i predykcji nie wykazaly rozbieznosci. Checkpoint zawiera stan memory/ESN, 720-minutowy ogon raw, ogon zrodel FLOW, kursory oraz tozsamosci i hashe zrodel.
+Nowy proces odtworzyl checkpoint po `Opened={resume['checkpoint_last_opened']}` i przetworzyl niepusty sufiks {resume['suffix_rows_processed']:,} wierszy do `Opened={dynamic['last_opened']}`. Checkpoint zawiera stan memory/ESN, 720-minutowy ogon raw, ogon zrodel FLOW, kursory oraz tozsamosci i hashe zrodel.
 
 ## Statusy E0045
 
@@ -229,6 +252,12 @@ Tabela CSV raportuje status kazdej cechy/modelu, maski NaN/Inf, bledy numeryczne
 - Porownanie cech / predykcje / I/O checkpointu: {resources['feature_comparison_seconds']:.1f} / {resources['prediction_seconds']:.3f} / {resources['checkpoint_io_seconds']:.3f} s.
 - Czas scienny: {resources['wall_seconds']:.1f} s; szczytowy RSS: {resources['peak_rss_gib']:.2f} GiB; wolne miejsce przed/po: {resources['disk_free_before_gib']:.2f} / {resources['disk_free_after_gib']:.2f} GiB.
 - Lokalne artefakty runtime: {resources['runtime_bytes']:,} B. Parquet BASE64 i checkpoint pozostaja lokalne.
+
+## Walidacja
+
+- Testy development: {validation.get('focused_tests', 'NOT_RECORDED')}.
+- Pelny zestaw: {validation.get('full_suite', 'NOT_RECORDED')}.
+- `py_compile`: {validation.get('py_compile', 'NOT_RECORDED')}; `git diff --check`: {validation.get('git_diff_check', 'NOT_RECORDED')}.
 
 ## Granice i zachowane statusy
 
