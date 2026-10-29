@@ -199,6 +199,14 @@ def test_taker_flow_is_invariant_to_a_later_suffix():
     )
 
 
+def test_exact_flow_timestamp_lookup_handles_longer_source_than_chunk():
+    source = np.arange(100, dtype=np.int64)
+    target = np.asarray([0, 35, 99, 100, 150], dtype=np.int64)
+    lookup, matched = generator._lookup_exact_timestamps(source, target)
+    np.testing.assert_array_equal(lookup, [0, 35, 99, 100, 100])
+    np.testing.assert_array_equal(matched, [True, True, True, False, False])
+
+
 def test_final_e0041_loader_rejects_a_legacy_manifest_pointer():
     protocol = generator.load_protocol()
     protocol["allowed_inputs"]["legacy_d_manifest_path"] = "old/D_manifest.json"

@@ -1093,6 +1093,16 @@ def _feature_projection_hash(frame: pd.DataFrame, columns: list[str]) -> str:
     return digest.hexdigest()
 
 
+def _lookup_exact_timestamps(source_ns: np.ndarray, target_ns: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    source_ns = np.asarray(source_ns, dtype=np.int64)
+    target_ns = np.asarray(target_ns, dtype=np.int64)
+    lookup = np.searchsorted(source_ns, target_ns)
+    matched = lookup < len(source_ns)
+    valid_rows = np.flatnonzero(matched)
+    matched[valid_rows] = source_ns[lookup[valid_rows]] == target_ns[valid_rows]
+    return lookup, matched
+
+
 def _parity_update(summary: dict, name: str, actual, expected, opened, *, atol: float, rtol: float) -> None:
     actual = np.asarray(actual)
     expected = np.asarray(expected)
@@ -1494,9 +1504,7 @@ def replay_development(protocol: dict, run_identity: str, bundle_identity: dict,
                     canonical_base[:, index:index + 1], opened, atol=1e-10, rtol=1e-10,
                 )
 
-            flow_lookup = np.searchsorted(flow_opened_ns, opened_ns)
-            flow_match = flow_lookup < len(flow_opened_ns)
-            flow_match[flow_match] &= flow_opened_ns[flow_match] == opened_ns[flow_match]
+            flow_lookup, flow_match = _lookup_exact_timestamps(flow_opened_ns, opened_ns)
             base_values = np.full((count, len(base_order)), np.nan, dtype=np.float64)
             base_values[:, :64] = base64_values
             if flow_match.any():
