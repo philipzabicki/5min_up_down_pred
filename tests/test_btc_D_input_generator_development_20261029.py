@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import subprocess
@@ -195,3 +196,133 @@ def test_taker_flow_is_invariant_to_a_later_suffix():
         full.loc[prefix.index, list(generator.FLOW_COLUMNS)].to_numpy(),
         prefix.loc[:, list(generator.FLOW_COLUMNS)].to_numpy(),
     )
+
+
+def test_final_e0041_loader_rejects_a_legacy_manifest_pointer():
+    protocol = generator.load_protocol()
+    protocol["allowed_inputs"]["legacy_d_manifest_path"] = "old/D_manifest.json"
+    with pytest.raises(RuntimeError, match="legacy D specification pointer"):
+        generator.verify_bundle(protocol)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda p: p["allowed_inputs"]["frozen_calibrator"].update(sha256="0" * 64), "calibrator"),
+        (lambda p: p["allowed_inputs"]["frozen_transforms"]["memory"].update(sha256="0" * 64), "memory transform"),
+        (lambda p: p["allowed_inputs"]["frozen_transforms"]["esn"]["20261023"].update(sha256="0" * 64), "ESN transform"),
+    ],
+)
+def test_final_e0041_loader_rejects_changed_calibrator_or_transform(mutate, message):
+    protocol = copy.deepcopy(generator.load_protocol())
+    mutate(protocol)
+    with pytest.raises(RuntimeError, match=message):
+        generator.verify_bundle(protocol)
+
+
+def test_final_e0041_boosters_use_sidecar_tree_counts_and_exact_order():
+    _, manifest, _ = generator.verify_bundle(generator.load_protocol())
+    boosters = generator._load_d_boosters(manifest)
+    assert len(boosters) == len(manifest["members"]) == 9
+    for member in manifest["members"]:
+        booster = boosters[(member["reservoir_seed"], member["lightgbm_seed"])]
+        assert booster.num_feature() == member["num_features"]
+        assert booster.feature_name() == member["feature_order"]
+        assert booster.num_trees() == member["num_trees"]
+
+
+def test_final_e0041_booster_loader_rejects_reordered_features_seed_and_tree_count():
+    _, manifest, _ = generator.verify_bundle(generator.load_protocol())
+    original = manifest["members"][0]
+    bad_order = copy.deepcopy(manifest)
+    bad_order["members"][0]["feature_order"] = list(reversed(original["feature_order"]))
+    with pytest.raises(RuntimeError, match="feature order changed"):
+        generator._load_d_boosters(bad_order)
+    bad_seed = copy.deepcopy(manifest)
+    bad_seed["members"][0]["reservoir_seed"] = original["reservoir_seed"] + 1
+    with pytest.raises(RuntimeError, match="seed changed"):
+        generator._load_d_boosters(bad_seed)
+    bad_tree_count = copy.deepcopy(manifest)
+    bad_tree_count["members"][0]["num_trees"] = original["num_trees"] + 1
+    with pytest.raises(RuntimeError, match="shape changed"):
+        generator._load_d_boosters(bad_tree_count)
+
+
+def test_base64_schema_keeps_exact_order_dtype_and_safe_cutoff(tmp_path):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    path = tmp_path / "safe_base.parquet"
+    frame = pd.DataFrame({
+        "Opened": pd.date_range("2026-06-30T23:56:00Z", periods=2, freq="min"),
+        "streak": np.asarray([2, 3], dtype=np.int32),
+        "feature": np.asarray([1.25, 2.5], dtype=np.float64),
+    })
+    pq.write_table(pa.Table.from_pandas(frame, preserve_index=False), path, row_group_size=1)
+    schema = generator._validate_base64_output(
+        path, ["streak", "feature"], 2, "2026-06-30T23:58:00Z",
+        {"streak": "int32", "feature": "double"},
+    )
+    assert schema["feature_order"] == ["streak", "feature"]
+    assert schema["feature_dtypes"] == {"streak": "int32", "feature": "double"}
+    with pytest.raises(RuntimeError, match="dtypes differ"):
+        generator._validate_base64_output(
+            path, ["streak", "feature"], 2, "2026-06-30T23:58:00Z",
+            {"streak": "double", "feature": "double"},
+        )
+
+
+def test_base64_reader_rejects_first_protected_opened_before_reading_values(tmp_path):
+    import pyarrow as pa
+    import pyarrow.parquet as pq
+
+    path = tmp_path / "protected.parquet"
+    frame = pd.DataFrame({
+        "Opened": pd.to_datetime(["2026-06-30T23:58:00Z"], utc=True),
+        "feature": [123.0],
+    })
+    pq.write_table(pa.Table.from_pandas(frame, preserve_index=False), path)
+    with pytest.raises(RuntimeError, match="may materialize a protected Opened row"):
+        generator._validate_base64_output(
+            path, ["feature"], 1, "2026-06-30T23:58:00Z", {"feature": "double"},
+        )
+
+
+def test_prediction_panel_keeps_rows_with_missing_model_inputs():
+    class MissingAwareBooster:
+        def predict(self, matrix):
+            assert np.isnan(matrix).any()
+            return np.full(len(matrix), 0.5, dtype=np.float64)
+
+    opened = pd.DatetimeIndex([pd.Timestamp("2025-01-01T00:00:00Z")])
+    base = np.ones((1, 70), dtype=np.float64)
+    base[0, 0] = np.nan
+    memory = np.ones((1, 8), dtype=np.float32)
+    esn = {1: np.ones((1, 8), dtype=np.float32)}
+    parity = {}
+    rows = generator._prediction_panel(
+        base, memory, esn, base.copy(), memory.copy(), {1: esn[1].copy()}, opened,
+        [{"reservoir_seed": 1, "lightgbm_seed": 2}], {(1, 2): MissingAwareBooster()},
+        {"intercept": 0.0, "coefficient": 1.0},
+        [{"start_inclusive": "2025-01-01T00:00:00Z", "end_exclusive": "2025-01-01T00:01:00Z"}],
+        "2025-01-01T00:00:00Z", parity,
+    )
+    assert len(rows) == 1
+    assert rows[0]["raw_nonfinite_feature_count"] == 1
+    assert rows[0]["raw_member_probabilities"] == [0.5]
+
+
+def test_parity_records_nan_inf_masks_and_first_mismatch_time():
+    opened = pd.date_range("2025-01-01T00:00:00Z", periods=3, freq="min")
+    summary = {}
+    generator._parity_update(
+        summary, "feature",
+        np.asarray([[np.nan], [np.inf], [2.0]]),
+        np.asarray([[1.0], [-np.inf], [2.1]]), opened,
+        atol=1e-10, rtol=1e-10,
+    )
+    record = summary["feature"]
+    assert record["nan_mask_mismatch_rows"] == 1
+    assert record["inf_mask_mismatch_rows"] == 1
+    assert record["numeric_mismatch_rows"] == 1
+    assert record["first_mismatch_opened"] == opened[0].isoformat()

@@ -651,7 +651,7 @@ def add_indicator_values(df, ohlcv_np, configs, float_dtype=np.float64):
     return concat_feature_frame(df, feature_frame, context="Indicator features")
 
 
-def build_dataset_from_settings(settings):
+def build_dataset_from_settings(settings, *, include_targets=True):
     fit_results_dir = Path(settings["fit_results_dir"])
     base_data_file = str(settings["base_data_file"])
     streak_interval_lag_counts = dict(settings["candle_streak_intervals"])
@@ -1037,18 +1037,17 @@ def build_dataset_from_settings(settings):
     del ohlcv_np
 
     target_col = PREOPEN_TARGET_COL if preopen_config is not None else TARGET_COL
-    df = build_target(
-        df,
-        float_dtype=float_dtype,
-        preopen_config=preopen_config,
-    )
-    df, dropped_pseudo_targets = drop_pseudo_targets(df, target_col)
-    protected_cols = {
-        TARGET_TIME_COL,
-        target_col,
-        TARGET_WEIGHT_COL,
-        *ohlcv_cols,
-    }
+    dropped_pseudo_targets = []
+    if include_targets:
+        df = build_target(
+            df,
+            float_dtype=float_dtype,
+            preopen_config=preopen_config,
+        )
+        df, dropped_pseudo_targets = drop_pseudo_targets(df, target_col)
+    protected_cols = {TARGET_TIME_COL, *ohlcv_cols}
+    if include_targets:
+        protected_cols.update({target_col, TARGET_WEIGHT_COL})
     preopen_metadata_cols = (
         [
             PREOPEN_FEATURE_AVAILABLE_COL,
@@ -1061,7 +1060,7 @@ def build_dataset_from_settings(settings):
             "prediction_deadline_at",
             PREOPEN_DECISION_COL,
         ]
-        if preopen_config is not None
+        if include_targets and preopen_config is not None
         else []
     )
     protected_cols.update(preopen_metadata_cols)
@@ -1101,15 +1100,16 @@ def build_dataset_from_settings(settings):
         keep_cols.extend(
             col for col in feature_subset["features"] if col not in keep_cols
         )
-        if vp_enabled:
+        if include_targets and vp_enabled:
             keep_cols.extend(col for col in vp_feature_cols if col not in keep_cols)
-        if rp_enabled:
+        if include_targets and rp_enabled:
             keep_cols.extend(col for col in rp_feature_cols if col not in keep_cols)
-        keep_cols.extend(
-            col
-            for col in (target_col, TARGET_WEIGHT_COL, *preopen_metadata_cols)
-            if col in df.columns and col not in keep_cols
-        )
+        if include_targets:
+            keep_cols.extend(
+                col
+                for col in (target_col, TARGET_WEIGHT_COL, *preopen_metadata_cols)
+                if col in df.columns and col not in keep_cols
+            )
         dropped_unselected_cols = [
             col for col in df.columns if col not in set(keep_cols)
         ]
@@ -1197,7 +1197,7 @@ def build_dataset_from_settings(settings):
                         "target_label_available_at_col": PREOPEN_TARGET_AVAILABLE_COL,
                         "return_target_col": PREOPEN_RETURN_TARGET_COL,
                     }
-                    if preopen_config is not None
+                    if include_targets and preopen_config is not None
                     else None
                 ),
             },
@@ -1209,22 +1209,25 @@ def build_dataset_from_settings(settings):
     df.head(preview_rows).to_csv(output_head_csv, index=False)
     df.tail(preview_rows).to_csv(output_tail_csv, index=False)
 
-    class_counts = df[target_col].value_counts(dropna=False).sort_index().to_dict()
-    weight_summary = summarize_target_weights(df[TARGET_WEIGHT_COL].to_numpy())
-    print(f"target column added: {target_col}")
-    if preopen_config is None:
-        print(
-            f"target weight column added: {TARGET_WEIGHT_COL} "
-            f"(minute%5==4 -> {TARGET_WEIGHT_DECISION_VALUE}, else {TARGET_WEIGHT_OTHER_VALUE})"
-        )
+    if include_targets:
+        class_counts = df[target_col].value_counts(dropna=False).sort_index().to_dict()
+        weight_summary = summarize_target_weights(df[TARGET_WEIGHT_COL].to_numpy())
+        print(f"target column added: {target_col}")
+        if preopen_config is None:
+            print(
+                f"target weight column added: {TARGET_WEIGHT_COL} "
+                f"(minute%5==4 -> {TARGET_WEIGHT_DECISION_VALUE}, else {TARGET_WEIGHT_OTHER_VALUE})"
+            )
+        else:
+            print(
+                f"target weight column added: {TARGET_WEIGHT_COL} "
+                f"(decision={TARGET_WEIGHT_DECISION_VALUE}, auxiliary={TARGET_WEIGHT_OTHER_VALUE})"
+            )
+        print(f"dropped pseudo-target columns: {dropped_pseudo_targets}")
+        print(f"target class counts: {class_counts}")
+        print(f"target weight summary: {weight_summary}")
     else:
-        print(
-            f"target weight column added: {TARGET_WEIGHT_COL} "
-            f"(decision={TARGET_WEIGHT_DECISION_VALUE}, auxiliary={TARGET_WEIGHT_OTHER_VALUE})"
-        )
-    print(f"dropped pseudo-target columns: {dropped_pseudo_targets}")
-    print(f"target class counts: {class_counts}")
-    print(f"target weight summary: {weight_summary}")
+        print("target generation skipped by feature-only caller")
     print(f"saved modeling dataset (parquet) -> {output_parquet}")
     print(f"saved modeling dataset metadata -> {output_metadata_json}")
     print(f"saved preview head({preview_rows}) -> {output_head_csv}")

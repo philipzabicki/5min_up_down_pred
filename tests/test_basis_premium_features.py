@@ -563,6 +563,18 @@ class BasisPremiumFeatureTests(unittest.TestCase):
             parts = split_feature_subset(feature_cols, source_label="test output subset")
             self.assertEqual(parts["unclassified_feature_cols"], ())
 
+            with mock.patch(
+                    "create_modeling_dataset.build_target",
+                    side_effect=AssertionError("feature-only build must not construct targets"),
+            ):
+                output_path = build_dataset_from_settings(settings, include_targets=False)
+            feature_only = pd.read_parquet(output_path)
+            self.assertTrue(all(col in feature_only.columns for col in feature_cols))
+            self.assertFalse(any(
+                col.lower().startswith("target_") or col.lower() in {"label", "outcome", "payout"}
+                for col in feature_only.columns
+            ))
+
 
 if __name__ == "__main__":
     unittest.main()
