@@ -1,6 +1,6 @@
 # PROJECT STATE
 
-Last audited: 2026-10-28 (Europe/Warsaw).
+Last audited: 2026-10-29 (Europe/Warsaw).
 Audit commit: the commit introducing this file, `docs: recover canonical project state` (resolve with `git log -1 --format=%H -- PROJECT_STATE.md`; no self-referential hash).
 Audit input HEAD: `015bdf133cdb7ab9018eb44819a9642ed5512a8a` on `audit/btc-dynamic-history-20261020`, upstream `origin/audit/btc-dynamic-history-20261020`. The batch runner had already refreshed the tracked v7 execution report at task start.
 
@@ -116,3 +116,10 @@ T0013 removed two completed E0039 development join caches and one invalid orphan
 ## E0041 no-refit bundle finalization (2026-10-28)
 
 The saved run `189049366841f6d025e3d9b080bb69dd0e441bb5638e451708f27c0635754c44` is now `D_BUNDLE_READY`. Nine final members have 86 features and 3,186,139 training rows each; development OOF contains 78,622 rows; existing official Platt calibration contains 21,951 labels released by 2026-06-30T23:56:22Z. Sidecar/model and source hashes passed, and two no-refit finalizer runs produced identical outputs. Save/load parity on 64 development rows had zero maximum raw member, uniform ensemble and calibrated probability differences at 2e-12 tolerance. Code/protocol commit `7b6a1d0` was pushed before finalization. Full tests: 779/779. The original `KeyError: rows` remains preserved in the preparation manifest. `evaluation_authorized=false`, `activated=false`, `HOLDOUT_NOT_RUN`; holdout rows read/predicted are zero. E0037 remains FAILED; T0009 remains BLOCKED. See the [E0041 report](reports/btc_preopen/btc_D_holdout_preparation_20261028.md).
+
+
+## E0042 / T0014 local holdout source inventory (2026-10-29)
+
+The metadata-only inventory confirms E0041's final D bundle manifest SHA-256 `7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d`; `D_BUNDLE_READY` does not alter `evaluation_authorized=false`, `activated=false`, `HOLDOUT_NOT_RUN`, or zero holdout reads/predictions. The frozen 28,224-slot interval has 28,222 Gamma technical rows; Gamma and PMXT technical `(condition_id, market_start_utc)` pairs match exactly. Two starts (`2026-07-12T02:25Z`, `2026-09-03T15:20Z`) are unmatched in local indices and are not classified as no-market.
+
+The PMXT archive manifest and physical hourly names identify a 68-hour full-venue event-tape gap `[2026-08-15T10:00Z,2026-08-18T06:00Z)`. PMXT flags show 1,115 confirmed markets with incomplete history-window metadata: 816 without entry-hour/freshness-window metadata and 299 with entry-hour but incomplete 25/26-hour history. Binance feature inputs, OHLCV files and all six required taker_Z/V columns are present by metadata, but content remains `NOT_VERIFIED`; the prepared evaluation rows/manifest and a holdout state continuation/materializer are absent. No acquisition, payload evaluation, feature/book construction, predictions or economics occurred. See [E0042 report](reports/btc_preopen/btc_D_holdout_local_source_inventory_20261029.md) and adjacent JSON/CSV artifacts. E0037 remains FAILED; T0009 remains BLOCKED; T0010 remains DEFERRED; D0019 remains ACTIVE; T0046/T0048 are preserved; evaluation authorization remains false.
