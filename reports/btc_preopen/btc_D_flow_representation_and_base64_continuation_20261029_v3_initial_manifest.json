@@ -1,0 +1,373 @@
+{
+  "activated": false,
+  "decision_id": "D0024",
+  "evaluation_authorized": false,
+  "experiment_id": "E0046",
+  "feature_contract_path": "reports/btc_preopen/btc_D_flow_representation_and_base64_continuation_20261029_feature_contract.json",
+  "feature_contract_sha256": "5b340beed4775a537789a06a3ec9fe074689d98f3f928ec26f08307d7b693ce8",
+  "final_E0041_bundle_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+  "first_protected_opened_payload_read": false,
+  "fit_selection_training_metrics_or_economics_run": false,
+  "flow_formula_reused_E0045": {
+    "all_zero_numeric_mismatches": true,
+    "features": [
+      "taker_Z_1m",
+      "taker_V_1m",
+      "taker_Z_5m",
+      "taker_V_5m",
+      "taker_Z_15m",
+      "taker_V_15m"
+    ],
+    "rows": 3198234,
+    "status": "PASS"
+  },
+  "flow_representation": {
+    "canonical_flow_rows_in_feature_artifact": 3186145,
+    "common_reference_rows": 3186141,
+    "e0041_flow_formula_rows_reused_from_E0045": 3198234,
+    "float32_exact_mismatches": 19063239,
+    "float64_diagnostic_rows": 6,
+    "float64_vs_final_product_max_abs_error": 6.695765387121355e-05,
+    "float64_vs_final_product_max_rel_error": 5.959396450144561e-08,
+    "float64_vs_final_product_mismatch_feature_rows": 19063239,
+    "last_allowed_raw_opened": "2026-06-30T23:57:00+00:00",
+    "post_reference_first_opened": "2026-06-30T23:54:00+00:00",
+    "post_reference_flow_rows": 4,
+    "post_reference_last_opened": "2026-06-30T23:57:00+00:00",
+    "reference_last_opened": "2026-06-30T23:53:00+00:00"
+  },
+  "historical_conversion": {
+    "final_cast": {
+      "approx_lines": "868-871",
+      "operation": "np.asarray(matrix, dtype=np.float32); non-finite values then set to NaN",
+      "path": "run_btc_D_holdout_preparation_20261028.py",
+      "sha256": "99320856833c9c6a5f4199641a8277a19833663606184d620ee0deef1a46fcc6"
+    },
+    "join_function": {
+      "first_line": 1311,
+      "function": "_join_causal_candidate_features",
+      "last_line": 1375,
+      "path": "run_btc_preopen_experiment.py",
+      "sha256": "5fe3dab73a4683393e68fec6db0360f01c9a08c12d27126d2f828609cb7b68ef"
+    },
+    "matrix_function": {
+      "function": "_family_matrix",
+      "path": "run_btc_chronology_reconstruction_20261027.py",
+      "sha256": "2aa20c86ee8cd6e997c10cd1cbbf744fd9d251de0fed932b2d24b389eb8c8108"
+    }
+  },
+  "holdout_predictions_generated": false,
+  "holdout_status": "HOLDOUT_NOT_RUN",
+  "holdout_values_rows_features_states_predictions_labels_books_economics_read": false,
+  "model_matrices": {
+    "decision_panel_rows": 31,
+    "feature_count_per_matrix": 86,
+    "finalization_panel_rows_2026_06_30_2250_to_2353": 64,
+    "first_opened": "2020-06-09T09:33:00+00:00",
+    "last_opened": "2026-06-30T23:53:00+00:00",
+    "matrix_comparison_seconds": 115.96869259999949,
+    "matrix_count": 3,
+    "panel_rows": 154,
+    "prediction_seconds": 1.35586510002031,
+    "prediction_statuses": {
+      "r20261023_l20261101": "PASS",
+      "r20261023_l20261102": "PASS",
+      "r20261023_l20261103": "PASS",
+      "r20261024_l20261101": "PASS",
+      "r20261024_l20261102": "PASS",
+      "r20261024_l20261103": "PASS",
+      "r20261025_l20261101": "PASS",
+      "r20261025_l20261102": "PASS",
+      "r20261025_l20261103": "PASS",
+      "saved_Platt": "PASS",
+      "uniform_1_over_9": "PASS"
+    },
+    "reservoir_seeds": [
+      20261023,
+      20261024,
+      20261025
+    ],
+    "rows_compared_per_seed": 3186141
+  },
+  "parent_experiment_id": "E0045",
+  "parent_manifest_sha256": "a1f33eb2a4cca5e66c61e72c2595037967cfe59d6f866ea141a397753d268a3c",
+  "parity_csv_path": "reports/btc_preopen/btc_D_flow_representation_and_base64_continuation_20261029_parity.csv",
+  "parity_csv_sha256": "0bc9dfe55d643f39258b5a242e14bbc9812138f9400943c5ae1222c0ebd75d1e",
+  "parity_rows": 13215,
+  "protocol_path": "configs/research/btc_D_flow_representation_base64_continuation_20261029_v3.json",
+  "protocol_sha256": "2afb2a09b3c4445ea7494b62c98a1ba53db564274345e7381e73c84a4f95e51f",
+  "report_path": "reports/btc_preopen/btc_D_flow_representation_and_base64_continuation_20261029.md",
+  "report_sha256": "0df2bfc26e1dce1615732d443bf1412c8eb28549be5ef54a881d8d45001dc8ae",
+  "resource": {
+    "C1_checkpoint_build_seconds": 99.52791479998268,
+    "C1_checkpoint_write_seconds": 0.6679138999897987,
+    "available_ram_gib_after": 45.274837493896484,
+    "available_ram_gib_before": 46.900550842285156,
+    "base64_builder_input_rows_total": 128838,
+    "base64_raw_tail_rows_recomputed_total": 48004,
+    "checkpoint_bytes": {
+      "C1": 3629452,
+      "C2_from_C1_independent": 3639456,
+      "C2_primary": 3639456,
+      "END_from_C1": 3637105,
+      "END_from_C2": 3637105
+    },
+    "comparison_parquet_input_bytes_lower_bound": {
+      "E0045_base64_bytes": 533116039,
+      "canonical_base70_bytes": 5382961980,
+      "canonical_dynamic_bytes": 443011214,
+      "flow6_batch_partition_bytes": 202588739,
+      "safe_raw_csv_bytes": 310671871
+    },
+    "flow_archive_sha256_bytes_read_total": 11038169,
+    "flow_archive_uncompressed_stream_bytes_read_total": 24578630,
+    "flow_formula_input_rows_total": 121214,
+    "flow_raw_tail_rows_recomputed_total": 40380,
+    "free_disk_gib_after": 204.2746238708496,
+    "free_disk_gib_before": 204.3736915588379,
+    "matrix_comparison_seconds": 115.96869259999949,
+    "maximum_peak_rss_gib": 1.6970481872558594,
+    "measured_input_bytes_lower_bound": 7222511881,
+    "parent_peak_rss_gib": 1.6970481872558594,
+    "prediction_seconds": 1.35586510002031,
+    "prefix_raw_csv_bytes_read": 306798503,
+    "prefix_raw_read_seconds": 5.254815199994482,
+    "prefix_raw_rows_read": 3145728,
+    "resume_stage_seconds": {
+      "base64_builder": 10.052624100004323,
+      "checkpoint_write": 5.200075999950059,
+      "dynamic_update": 2.3140485000039916,
+      "flow_formula": 0.17562709999037907,
+      "output_write": 0.752732599969022,
+      "raw_suffix_read": 0.1346062999800779,
+      "streak_profile_and_indicators": 32.12398999999277
+    },
+    "state_read_seconds_total": 2.484308900020551,
+    "suffix_raw_csv_bytes_read_total": 7746736,
+    "suffix_raw_rows_recomputed_total": 80834,
+    "wall_seconds": 327.423432999989
+  },
+  "schema_version": 1,
+  "semantic_state_comparisons": [
+    {
+      "atol": 0.0,
+      "block": "final_profile_state",
+      "feature": "reaction_profile",
+      "first_mismatch_opened_utc": "",
+      "mask_mismatch_rows": 0,
+      "matches_E0041_final_state": false,
+      "matches_independent_resume_path": true,
+      "max_abs_error": null,
+      "max_rel_error": null,
+      "numeric_mismatch_rows": 1,
+      "rows": 3186145,
+      "rtol": 0.0,
+      "status": "FAIL"
+    },
+    {
+      "atol": 0.0,
+      "block": "final_profile_state",
+      "feature": "volume_profile",
+      "first_mismatch_opened_utc": "",
+      "mask_mismatch_rows": 0,
+      "matches_E0041_final_state": false,
+      "matches_independent_resume_path": true,
+      "max_abs_error": null,
+      "max_rel_error": null,
+      "numeric_mismatch_rows": 1,
+      "rows": 3186145,
+      "rtol": 0.0,
+      "status": "FAIL"
+    },
+    {
+      "atol": 0.0,
+      "block": "final_dynamic_state",
+      "feature": "memory_and_all_ESN_seeds",
+      "first_mismatch_opened_utc": "",
+      "mask_mismatch_rows": 0,
+      "matches_E0045_completed_checkpoint": true,
+      "matches_independent_resume_path": true,
+      "max_abs_error": 0.0,
+      "max_rel_error": 0.0,
+      "numeric_mismatch_rows": 0,
+      "rows": 3186145,
+      "rtol": 0.0,
+      "status": "PASS"
+    }
+  ],
+  "source_archives_used": [
+    {
+      "month": "2026-05",
+      "sha256": "d91548e94220d5211bb32447cc4b604ee266d145f2092edc5ec613328cbbc20a"
+    },
+    {
+      "month": "2026-06",
+      "sha256": "9b214199eb5063585c7ed0f59ba19323326d68ac024b85106713989399204490"
+    }
+  ],
+  "source_raw_last_opened": "2026-06-30T23:57:00Z",
+  "source_raw_sha256": "25481546299f72c159ffe0c0b4f7e6c2c94b914b52973f9a49a29eb13427829a",
+  "status": "DEV_GENERATOR_PARTIAL",
+  "statuses": {
+    "BASE64_continuation": false,
+    "FLOW_continuation": true,
+    "FLOW_formula": true,
+    "FLOW_representation": false,
+    "final_D_predictions": true,
+    "final_states": false,
+    "memory_ESN_continuation": true,
+    "model_matrices": false
+  },
+  "suffixes": {
+    "C1_to_C2": {
+      "base64": {
+        "bytes": 7427727,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C1_to_C2_base64.parquet",
+        "rows": 38977,
+        "sha256": "0ebd68aaf88c25bd91943fd266cdad43e0a811b56ef54e8c0551512cb6e78f6f"
+      },
+      "base64_builder_input_rows": 50978,
+      "base64_raw_tail_rows_recomputed": 12001,
+      "dynamic": {
+        "bytes": 7246403,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C1_to_C2_dynamic.parquet",
+        "rows": 38977,
+        "sha256": "940cf72f8a85c8de2694adf6ae62058c7833fa901ec4335fafe42d8004cef836"
+      },
+      "first_opened": "2026-06-02T22:21:00",
+      "flow6": {
+        "bytes": 6891797,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C1_to_C2_flow6.parquet",
+        "rows": 38977,
+        "sha256": "d65869a96c2c91532920de0b5715a55c6f2914f4c69316e2c4dd34d2f69db7dc"
+      },
+      "flow_formula_input_rows": 49072,
+      "flow_raw_tail_rows_recomputed": 10095,
+      "intermediate_checkpoints": [],
+      "last_opened": "2026-06-29T23:57:00",
+      "peak_rss_gib": 0.5980491638183594,
+      "raw_csv_bytes_read": 3735350,
+      "rows": 38977,
+      "saved_checkpoint": {
+        "bytes": 3639456,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\checkpoints\\C2_primary.json",
+        "semantic_sha256": "38d4090b6400f6c82c77d58cbefedc36d26219b09667e090f8946d480716566b",
+        "sha256": "8fa366b2fc62cb87e28e96f93b44e6d844dcf4d076031b82ca4c54783359973e"
+      },
+      "stage_seconds": {
+        "base64_builder": 3.7535587000020314,
+        "checkpoint_write": 1.2976142999832518,
+        "dynamic_update": 1.1533985999994911,
+        "flow_formula": 0.056440999993355945,
+        "output_write": 0.35277399999904446,
+        "raw_suffix_read": 0.06409390000044368,
+        "streak_profile_and_indicators": 15.49392340000486
+      },
+      "state_read_seconds": 0.8184653000207618,
+      "wall_seconds": 23.622209799999837
+    },
+    "C1_to_END": {
+      "base64": {
+        "bytes": 7702586,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C1_to_END_base64.parquet",
+        "rows": 40417,
+        "sha256": "dba63c93851b3937a03d4ce90c17ecc1c44607bdf71f717b357f2ff77df2d747"
+      },
+      "base64_builder_input_rows": 64419,
+      "base64_raw_tail_rows_recomputed": 24002,
+      "dynamic": {
+        "bytes": 7511330,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C1_to_END_dynamic.parquet",
+        "rows": 40417,
+        "sha256": "66ced616ef13a7570c526d16f1a830997f7d6134ca6b28a730fae4eac026f4e2"
+      },
+      "first_opened": "2026-06-02T22:21:00",
+      "flow6": {
+        "bytes": 7146987,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C1_to_END_flow6.parquet",
+        "rows": 40417,
+        "sha256": "5ddc62148826b809aed7ce07319ea08392e8277adb7a529d4f3440856648010f"
+      },
+      "flow_formula_input_rows": 60607,
+      "flow_raw_tail_rows_recomputed": 20190,
+      "intermediate_checkpoints": [
+        {
+          "bytes": 3639456,
+          "name": "C2_from_C1_full",
+          "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\checkpoints\\C2_from_C1_full.json",
+          "semantic_sha256": "38d4090b6400f6c82c77d58cbefedc36d26219b09667e090f8946d480716566b",
+          "sha256": "8fa366b2fc62cb87e28e96f93b44e6d844dcf4d076031b82ca4c54783359973e"
+        }
+      ],
+      "last_opened": "2026-06-30T23:57:00",
+      "peak_rss_gib": 0.5959205627441406,
+      "raw_csv_bytes_read": 3873368,
+      "rows": 40417,
+      "saved_checkpoint": {
+        "bytes": 3637105,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\checkpoints\\END_from_C1.json",
+        "semantic_sha256": "6899ad47943d09894f7f780f3e4e91df9c75b38e4b90d2074f76cdcc62fc828c",
+        "sha256": "76fc6bb9e17771a15f2790615dc2632d256cd1bba2d77d6fe6cbc1e9a5778b70"
+      },
+      "stage_seconds": {
+        "base64_builder": 4.770315600006143,
+        "checkpoint_write": 2.6096388999721967,
+        "dynamic_update": 1.0822224000003189,
+        "flow_formula": 0.0903900999983307,
+        "output_write": 0.35912419998203404,
+        "raw_suffix_read": 0.06358789998921566,
+        "streak_profile_and_indicators": 15.988039599993499
+      },
+      "state_read_seconds": 0.8060364999982994,
+      "wall_seconds": 26.66911909999908
+    },
+    "C2_to_END": {
+      "base64": {
+        "bytes": 317171,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C2_to_END_base64.parquet",
+        "rows": 1440,
+        "sha256": "9082d799ee0e38c057ae6683d01573d5b62022a5e861e13651f8963ce4e5e799"
+      },
+      "base64_builder_input_rows": 13441,
+      "base64_raw_tail_rows_recomputed": 12001,
+      "dynamic": {
+        "bytes": 259116,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C2_to_END_dynamic.parquet",
+        "rows": 1440,
+        "sha256": "7c883cb4f1d2c025cf935276e53f4e359e3cfc509e7508c5e2d3b85a0a6b4bc5"
+      },
+      "first_opened": "2026-06-29T23:58:00",
+      "flow6": {
+        "bytes": 249341,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\suffixes\\C2_to_END_flow6.parquet",
+        "rows": 1440,
+        "sha256": "0081ca38f348189f30d34036653fdb696ae0a24f1d659b63cb2f96859e99b20d"
+      },
+      "flow_formula_input_rows": 11535,
+      "flow_raw_tail_rows_recomputed": 10095,
+      "intermediate_checkpoints": [],
+      "last_opened": "2026-06-30T23:57:00",
+      "peak_rss_gib": 0.2619895935058594,
+      "raw_csv_bytes_read": 138018,
+      "rows": 1440,
+      "saved_checkpoint": {
+        "bytes": 3637105,
+        "path": "data\\analysis\\polymarket\\BTC\\btc_D_flow_representation_and_base64_continuation_20261029_v3\\checkpoints\\END_from_C2.json",
+        "semantic_sha256": "6899ad47943d09894f7f780f3e4e91df9c75b38e4b90d2074f76cdcc62fc828c",
+        "sha256": "76fc6bb9e17771a15f2790615dc2632d256cd1bba2d77d6fe6cbc1e9a5778b70"
+      },
+      "stage_seconds": {
+        "base64_builder": 1.5287497999961488,
+        "checkpoint_write": 1.2928227999946102,
+        "dynamic_update": 0.07842750000418164,
+        "flow_formula": 0.028795999998692423,
+        "output_write": 0.04083439998794347,
+        "raw_suffix_read": 0.006924499990418553,
+        "streak_profile_and_indicators": 0.6420269999944139
+      },
+      "state_read_seconds": 0.8598071000014897,
+      "wall_seconds": 4.54006460000528
+    }
+  },
+  "task_id": "T0016"
+}
