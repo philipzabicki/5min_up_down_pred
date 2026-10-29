@@ -23,10 +23,10 @@ from features import btc_D_continuation_20261029 as continuation
 
 
 ROOT = Path(__file__).resolve().parent
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_continuation_parity_closure_20261029_v2.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_continuation_parity_closure_20261029_v3.json"
 E0045_PROTOCOL_PATH = ROOT / "configs/research/btc_D_input_generator_final_bundle_fix_20261029_v2.json"
 E0045_MANIFEST_PATH = ROOT / "reports/btc_preopen/btc_D_input_generator_final_bundle_fix_20261029_manifest.json"
-RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v2"
+RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v3"
 RAW_COLUMNS = ("Opened", "Open", "High", "Low", "Close", "Volume", "UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close")
 FLOW_RAW_COLUMNS = ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume")
 FLOW_COLUMNS = ("taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m")
@@ -35,6 +35,11 @@ PREFIX_CHUNK_ROWS = 65_536
 MODE_ENV = "BTC_D_E0047_MODE"
 IO_COUNTS = {"flow_archive_sha256_bytes": 0, "flow_archive_uncompressed_stream_bytes": 0}
 CSV_ROUNDTRIP_AUDIT = []
+NON_FAILURE_PARITY_STATUSES = frozenset({"MEASURED_FLOAT32_PRECISION_LOSS", "EXACT", "INFO"})
+
+
+def _count_parity_failures(statuses) -> int:
+    return sum(status != "PASS" and status not in NON_FAILURE_PARITY_STATUSES for status in statuses)
 
 
 def sha256_file(path: Path) -> str:
@@ -65,7 +70,7 @@ def _require_hash(relative: str, expected: str, label: str) -> Path:
 def load_protocol() -> tuple[dict, dict, dict, dict]:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
     if (protocol.get("status") != "FROZEN_BEFORE_REPLAY" or protocol.get("experiment_id") != "E0047"
-            or protocol.get("protocol_revision") != 2):
+            or protocol.get("protocol_revision") != 3):
         raise RuntimeError("E0047 protocol is not frozen for replay")
     if (protocol["continuation"]["runtime_root"].replace("\\", "/")
             != str(RUNTIME.relative_to(ROOT)).replace("\\", "/")):
@@ -80,7 +85,10 @@ def load_protocol() -> tuple[dict, dict, dict, dict]:
             or int(scope["safe_raw_rows"]) != 3_186_145
             or scope["holdout_market_start_utc"] != "[2026-07-01T00:00:00Z,2026-10-07T00:00:00Z)"):
         raise RuntimeError("E0047 development or protected-data scope changed")
-    _require_hash(protocol["previous_protocol"]["path"], protocol["previous_protocol"]["sha256"], "preserved E0047 v1 preregistration")
+    _require_hash(protocol["previous_protocol"]["path"], protocol["previous_protocol"]["sha256"],
+                  f"preserved E0047 v{protocol['protocol_revision'] - 1} preregistration")
+    if int(protocol["previous_attempt"]["protocol_revision"]) != protocol["protocol_revision"] - 1:
+        raise RuntimeError("E0047 previous attempt revision is not the immediately preceding protocol")
     for record in protocol["previous_attempt"]["files"]:
         _require_hash(record["path"], record["sha256"], f"preserved E0047 v1 attempt artifact {record['path']}")
     for record in protocol["parent"]["preserved_E0046_artifacts"]:
@@ -1905,7 +1913,6 @@ def _write_results(protocol: dict, e45_protocol: dict, e45_manifest: dict,
         matrix_summary["resumed_suffixes"][stage]["matrix_coverage"]["status"] == "PASS"
         for stage in ("C1_to_C2", "C1_to_END", "C2_to_END")
     )
-    non_failure_statuses = {"MEASURED_FLOAT32_PRECISION_LOSS", "EXACT", "INFO"}
     status_groups = {
         "FLOW_formula": formula_pass,
         "FLOW_representation": bool(flow_representation_summary["float32_exact_status"] == "PASS" and flow_representation_summary["float32_exact_mismatches"] == 0),
@@ -2184,7 +2191,7 @@ def run_audit() -> dict:
                                        c1_to_end_checkpoint, c2_to_end_checkpoint)
     all_rows = parity_rows + flow_rows + state_rows
     statuses = [row["status"] for row in all_rows]
-    failed = sum(status != "PASS" and status not in non_failure_statuses for status in statuses)
+    failed = _count_parity_failures(statuses)
     if failed:
         print(f"E0047 completed with {failed} parity failures; see report and first-mismatch rows.")
     results = _write_results(protocol, e45_protocol, e45_manifest, d_bundle, flow_batch,

@@ -11,6 +11,7 @@ from run_btc_D_continuation_parity_closure_20261029 import (
     FLOW_COLUMNS,
     _aggregate_flow_cast_records,
     _aggregate_partition_coverage,
+    _count_parity_failures,
     _parity_record,
     _reconcile_e0046_flow_csv,
     _resumed_matrix_parity_rows,
@@ -225,6 +226,10 @@ class ContinuationParityClosureTests(unittest.TestCase):
         self.assertFalse(_same_opened_keys(panel_opened[:-1], suffix_opened))
         changed = suffix_opened + pd.Timedelta(minutes=1)
         self.assertFalse(_same_opened_keys(panel_opened, changed))
+
+    def test_failure_summary_excludes_informational_flow_precision_records(self):
+        statuses = ["PASS", "MEASURED_FLOAT32_PRECISION_LOSS", "EXACT", "INFO", "FAIL"]
+        self.assertEqual(_count_parity_failures(statuses), 1)
 
 
 if __name__ == "__main__":
