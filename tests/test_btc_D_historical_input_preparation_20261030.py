@@ -1,3 +1,4 @@
+import io
 import tempfile
 import unittest
 import json
@@ -36,9 +37,19 @@ class E0048HistoricalInputPreparationTests(unittest.TestCase):
     def test_protocol_is_frozen_and_source_only(self):
         protocol, digest = e0048.load_protocol()
         self.assertEqual(protocol["experiment_id"], "E0048")
-        self.assertEqual(protocol["protocol_revision"], 2)
+        self.assertEqual(protocol["protocol_revision"], 3)
         self.assertEqual(protocol["status"], "FROZEN_BEFORE_REPLAY")
-        self.assertEqual(protocol["previous_attempt"]["protected_source_payload_rows_read"], 0)
+        self.assertEqual(protocol["previous_attempt"]["protected_source_payload_rows_read"], 66_975)
+        self.assertEqual(protocol["previous_attempt"]["out_of_authorized_range_flow_records_csv_parsed"], 1_439)
+        self.assertEqual(protocol["previous_attempt"]["out_of_authorized_range_flow_records_skipped_by_loop"], 1_438)
+        self.assertFalse(protocol["previous_attempt"]["out_of_range_record_persisted_or_used"])
+        self.assertEqual(protocol["runtime_artifact_root"], e0048.RUNTIME.relative_to(e0048.ROOT).as_posix())
+        self.assertFalse(protocol["source_allowlist"]["flow_source_cursor_policy"]["excluded_data_rows_csv_parsed"])
+        self.assertTrue(protocol["source_allowlist"]["flow_source_cursor_policy"]["prefix_scan_bytes_and_lines_audited_separately"])
+        self.assertEqual(
+            [(attempt["protocol_revision"], attempt["status"]) for attempt in protocol["attempt_history"]],
+            [(1, "FAILED_BEFORE_PROTECTED_SOURCE_PAYLOAD_READ"), (2, "FAILED_SOURCE_RANGE_GUARD")],
+        )
         self.assertEqual(len(digest), 64)
         typed_fields = {
             field
@@ -135,6 +146,31 @@ class E0048HistoricalInputPreparationTests(unittest.TestCase):
             self.assertEqual(payload["processed_feature_rows"], 0)
             self.assertEqual(payload["source_byte_offset"], None)
             self.assertEqual(payload["next_expected_opened_utc"], "2026-06-30T23:58:00Z")
+
+    def test_monthly_flow_read_offsets_from_month_start(self):
+        protocol, _ = e0048.load_protocol()
+        source_start = pd.Timestamp("2026-06-01T00:00:00Z")
+        expected_opened = pd.Timestamp("2026-06-30T23:58:00Z")
+        row_offset = int((expected_opened - source_start) // pd.Timedelta(minutes=1))
+        opened_ms = int(expected_opened.value // 1_000_000)
+        authorized_row = f"{opened_ms},1,1,1,1,0,{opened_ms + 59_999},1,0,0,0\n".encode("ascii")
+        excluded_line = b"\xffexcluded-prefix\n"
+        header = b"open_time,open,high,low,close,volume,close_time,quote_volume,trades,taker_buy_base,taker_buy_quote_volume\n"
+
+        for header_bytes in (b"", header):
+            with self.subTest(header_present=bool(header_bytes)):
+                source_bytes = header_bytes + excluded_line * row_offset + authorized_row
+                before_bytes = e0048._IO_AUDIT["flow_cursor_prefix_bytes_scanned"]
+                before_lines = e0048._IO_AUDIT["flow_cursor_prefix_lines_scanned"]
+                with patch.object(e0048, "_flow_source_path", return_value=(Path("synthetic-month.csv"), "csv")), \
+                        patch.object(e0048, "_verify_flow_source", return_value=(io.BytesIO(source_bytes), None)):
+                    result = e0048.read_flow_range(expected_opened, expected_opened, protocol)
+                self.assertEqual(result["Opened"].tolist(), [expected_opened])
+                self.assertEqual(e0048._IO_AUDIT["flow_cursor_prefix_bytes_scanned"] - before_bytes, len(header_bytes) + row_offset * len(excluded_line))
+                self.assertEqual(e0048._IO_AUDIT["flow_cursor_prefix_lines_scanned"] - before_lines, row_offset + bool(header_bytes))
+        self.assertEqual(e0048._flow_source_period_start(pd.Timestamp("2026-10-01T00:00:00Z")), pd.Timestamp("2026-10-01T00:00:00Z"))
+        self.assertEqual(e0048._flow_source_period_end(pd.Timestamp("2026-09-15T00:00:00Z")), pd.Timestamp("2026-09-30T23:59:00Z"))
+        self.assertEqual(e0048._flow_source_period_end(pd.Timestamp("2026-10-01T00:00:00Z")), pd.Timestamp("2026-10-01T23:59:00Z"))
 
     def test_native_event_cutoff_keeps_exact_cutoff_and_rejects_later_receive(self):
         cutoff_t60 = pd.Timestamp("2026-07-01T00:00:00Z") - pd.Timedelta(seconds=60)
@@ -285,7 +321,7 @@ class E0048HistoricalInputPreparationTests(unittest.TestCase):
             with patch.object(e0048, "ROOT", Path(temporary)):
                 stream, archive = e0048._verify_flow_source(path, "zip", day, protocol)
                 try:
-                    fields = next(csv.reader(stream))
+                    fields = next(csv.reader([stream.read().decode("utf-8")]))
                 finally:
                     stream.close()
                     archive.close()

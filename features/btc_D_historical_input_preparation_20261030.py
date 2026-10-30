@@ -10,8 +10,9 @@ import re
 import sys
 import zipfile
 from collections import defaultdict
+from itertools import chain
 from pathlib import Path
-from typing import TextIO
+from typing import BinaryIO
 
 for _name in ("OMP_NUM_THREADS", "MKL_NUM_THREADS", "OPENBLAS_NUM_THREADS", "NUMEXPR_NUM_THREADS", "NUMBA_NUM_THREADS"):
     os.environ[_name] = "4"
@@ -21,8 +22,8 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_historical_input_preparation_20261030_v2.json"
-RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_historical_input_preparation_20261030_v3.json"
+RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v3"
 RAW_COLUMNS = ("Opened", "Open", "High", "Low", "Close", "Volume", "UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close")
 FLOW_RAW_COLUMNS = ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume")
 FLOW_FEATURES = ("taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m")
@@ -37,7 +38,7 @@ BATCH_ROWS = 65_536
 CHECKPOINT_NAME = "feature_state.json"
 EVENT_COLUMNS = ("timestamp_received", "timestamp", "market", "event_type", "asset_id", "bids", "asks", "price", "size", "side", "best_bid", "best_ask", "fee_rate_bps")
 FORBIDDEN_SOURCE_COLUMNS = frozenset({"outcome", "outcomes", "target", "target_polymarket_up", "resolved_at_utc", "resolution", "payout", "prediction", "probability", "ev", "pnl", "trade", "transaction_hash"})
-_IO_AUDIT = {"hybrid_rows_read": 0, "hybrid_cursor_prefix_bytes_scanned": 0, "hybrid_raw_payload_bytes_read": 0, "flow_rows_read": 0, "event_parts_read": 0, "event_projected_rows_read": 0, "event_rows_replayed": 0}
+_IO_AUDIT = {"hybrid_rows_read": 0, "hybrid_cursor_prefix_bytes_scanned": 0, "hybrid_raw_payload_bytes_read": 0, "flow_rows_read": 0, "flow_cursor_prefix_bytes_scanned": 0, "flow_cursor_prefix_lines_scanned": 0, "event_parts_read": 0, "event_projected_rows_read": 0, "event_rows_replayed": 0}
 _SOURCE_AUDIT: dict[str, dict] = {}
 
 
@@ -136,7 +137,7 @@ def peak_working_set_bytes() -> int:
 
 def load_protocol() -> tuple[dict, str]:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
-    if (protocol.get("experiment_id") != "E0048" or protocol.get("protocol_revision") != 2
+    if (protocol.get("experiment_id") != "E0048" or protocol.get("protocol_revision") != 3
             or protocol.get("status") != "FROZEN_BEFORE_REPLAY"):
         raise RuntimeError("E0048 protocol is not frozen before replay")
     previous = protocol["supersedes_protocol"]
@@ -151,6 +152,25 @@ def load_protocol() -> tuple[dict, str]:
             raise RuntimeError(f"E0048 forbids this operation: {key}")
     if auth.get("holdout_status") != "HOLDOUT_NOT_RUN":
         raise RuntimeError("E0048 holdout status must remain HOLDOUT_NOT_RUN")
+    attempt = protocol.get("previous_attempt", {})
+    if (attempt.get("protocol_revision") != 2
+            or attempt.get("status") != "FAILED_SOURCE_RANGE_GUARD"
+            or attempt.get("protected_source_payload_rows_read") != 66_975
+            or attempt.get("out_of_authorized_range_flow_records_csv_parsed") != 1_439
+            or attempt.get("out_of_authorized_range_flow_records_skipped_by_loop") != 1_438
+            or attempt.get("out_of_authorized_range_flow_records_time_guarded") != 1
+            or attempt.get("out_of_range_record_persisted_or_used") is not False
+            or attempt.get("outcomes_or_targets_read") is not False
+            or attempt.get("evaluation_started") is not False):
+        raise RuntimeError("E0048 v3 must retain the exact v2 source-range incident record")
+    if protocol.get("runtime_artifact_root") != RUNTIME.relative_to(ROOT).as_posix():
+        raise RuntimeError("E0048 runtime artifact root differs from the v3 isolated path")
+    cursor_policy = protocol["source_allowlist"].get("flow_source_cursor_policy", {})
+    if (cursor_policy.get("prefix_method") != "binary line-boundary scan"
+            or cursor_policy.get("excluded_data_rows_csv_parsed") is not False
+            or cursor_policy.get("excluded_data_row_fields_decoded_or_selected") is not False
+            or cursor_policy.get("prefix_scan_bytes_and_lines_audited_separately") is not True):
+        raise RuntimeError("E0048 FLOW source cursor policy must not parse excluded rows")
     for relative_path, expected_sha256 in protocol["implementation"]["source_sha256"].items():
         path = ROOT / relative_path
         if not path.is_file() or sha256_file(path) != expected_sha256:
@@ -342,7 +362,47 @@ def _flow_source_path(day: pd.Timestamp, protocol: dict) -> tuple[Path, str]:
     return root / "months" / month / f"BTCUSDT-1m-{month}.csv", "csv"
 
 
-def _verify_flow_source(path: Path, kind: str, day: pd.Timestamp, protocol: dict) -> tuple[TextIO, zipfile.ZipFile | None]:
+def _flow_source_period_start(day: pd.Timestamp) -> pd.Timestamp:
+    """Return the first UTC minute represented by the selected daily or monthly archive."""
+    if day < pd.Timestamp("2026-10-01", tz="UTC"):
+        return pd.Timestamp(year=day.year, month=day.month, day=1, tz="UTC")
+    return day.floor("D")
+
+
+def _flow_source_period_end(day: pd.Timestamp) -> pd.Timestamp:
+    period_start = _flow_source_period_start(day)
+    if day < pd.Timestamp("2026-10-01", tz="UTC"):
+        return period_start + pd.offsets.MonthBegin(1) - pd.Timedelta(minutes=1)
+    return period_start + pd.Timedelta(days=1) - pd.Timedelta(minutes=1)
+
+
+def _flow_csv_reader_after_offset(stream: BinaryIO, path: Path, row_offset: int):
+    """Skip archive prefixes by binary line boundary without parsing excluded data rows."""
+    first_line = stream.readline()
+    if not first_line:
+        raise RuntimeError(f"USD-M source is empty: {path}")
+    first_field = first_line.lstrip(b"\xef\xbb\xbf").split(b",", 1)[0].strip().lower()
+    has_header = first_field in {b"open_time", b"open_time_ms"}
+    prefix_bytes = len(first_line) if has_header or row_offset > 0 else 0
+    prefix_lines = 1 if has_header or row_offset > 0 else 0
+    remaining_rows = row_offset if has_header else max(0, row_offset - 1)
+    first_fields = None
+    if not has_header and row_offset == 0:
+        first_fields = next(csv.reader([first_line.decode("utf-8-sig")]))
+    for _ in range(remaining_rows):
+        line = stream.readline()
+        if not line:
+            raise RuntimeError(f"USD-M source ended before the requested row in {path}")
+        prefix_bytes += len(line)
+        prefix_lines += 1
+    text_stream = io.TextIOWrapper(stream, encoding="utf-8")
+    reader = csv.reader(text_stream)
+    if first_fields is not None:
+        reader = chain((first_fields,), reader)
+    return reader, text_stream, prefix_bytes, prefix_lines
+
+
+def _verify_flow_source(path: Path, kind: str, day: pd.Timestamp, protocol: dict) -> tuple[BinaryIO, zipfile.ZipFile | None]:
     date = day.strftime("%Y-%m-%d")
     month = day.strftime("%Y-%m")
     records = protocol["source_allowlist"]["flow_source_inventory"]
@@ -352,7 +412,7 @@ def _verify_flow_source(path: Path, kind: str, day: pd.Timestamp, protocol: dict
         if expected is None or actual != expected:
             raise RuntimeError(f"pinned USD-M CSV source hash mismatch: {path}")
         _SOURCE_AUDIT[str(path.relative_to(ROOT))] = {"sha256": actual, "size_bytes": path.stat().st_size, "source_hash_type": "pinned extracted CSV hash"}
-        return path.open("r", encoding="utf-8-sig", newline=""), None
+        return path.open("rb"), None
     expected = records["official_zip_sha256"].get(date)
     checksum_path = path.with_suffix(path.suffix + ".CHECKSUM")
     checksum_text = checksum_path.read_text(encoding="ascii").strip()
@@ -364,7 +424,7 @@ def _verify_flow_source(path: Path, kind: str, day: pd.Timestamp, protocol: dict
     if len(names) != 1:
         archive.close()
         raise RuntimeError(f"expected one CSV member in official Binance archive {path}")
-    return io.TextIOWrapper(archive.open(names[0], "r"), encoding="utf-8", newline=""), archive
+    return archive.open(names[0], "r"), archive
 
 
 def _validate_binance_minute_close(open_time_ms: int, close_time_ms: int) -> None:
@@ -379,19 +439,19 @@ def read_flow_range(start: pd.Timestamp, end_inclusive: pd.Timestamp, protocol: 
     pieces = []
     day = start.floor("D")
     while day <= end_inclusive.floor("D"):
-        segment_start = max(start, day)
-        segment_end = min(end_inclusive, day + pd.Timedelta(days=1) - pd.Timedelta(minutes=1))
+        source_period_start = _flow_source_period_start(day)
+        source_period_end = _flow_source_period_end(day)
+        segment_start = max(start, source_period_start)
+        segment_end = min(end_inclusive, source_period_end)
         path, kind = _flow_source_path(day, protocol)
-        stream, archive = _verify_flow_source(path, kind, day, protocol)
+        binary_stream, archive = _verify_flow_source(path, kind, day, protocol)
+        text_stream = None
         try:
-            reader = csv.reader(stream)
-            start_offset = int((segment_start - day) / pd.Timedelta(minutes=1))
+            start_offset = int((segment_start - source_period_start) // pd.Timedelta(minutes=1))
             row_count = int((segment_end - segment_start) / pd.Timedelta(minutes=1)) + 1
-            for _ in range(start_offset):
-                try:
-                    next(reader)
-                except StopIteration as error:
-                    raise RuntimeError(f"USD-M source ended before {segment_start}") from error
+            reader, text_stream, prefix_bytes, prefix_lines = _flow_csv_reader_after_offset(binary_stream, path, start_offset)
+            _IO_AUDIT["flow_cursor_prefix_bytes_scanned"] += prefix_bytes
+            _IO_AUDIT["flow_cursor_prefix_lines_scanned"] += prefix_lines
             for row_offset in range(row_count):
                 try:
                     fields = next(reader)
@@ -408,10 +468,13 @@ def read_flow_range(start: pd.Timestamp, end_inclusive: pd.Timestamp, protocol: 
                 pieces.append((opened, float(fields[1]), float(fields[2]), float(fields[3]), float(fields[4]), float(fields[7]), float(fields[10])))
                 _IO_AUDIT["flow_rows_read"] += 1
         finally:
-            stream.close()
+            if text_stream is not None:
+                text_stream.close()
+            else:
+                binary_stream.close()
             if archive is not None:
                 archive.close()
-        day += pd.Timedelta(days=1)
+        day = (source_period_end + pd.Timedelta(minutes=1)).floor("D")
     result = pd.DataFrame(pieces, columns=("Opened", *FLOW_RAW_COLUMNS))
     expected = pd.date_range(start, end_inclusive, freq="1min", tz="UTC")
     if not pd.DatetimeIndex(result["Opened"]).equals(expected):
@@ -601,6 +664,8 @@ def _materialize_feature_chunk(protocol: dict, protocol_sha256: str, identity: s
     recursive = e47._recursive_indicator_overrides(base, rolling_raw, len(suffix), state, state["indicator_params"])
 
     flow_start = pd.Timestamp(payload["next_expected_opened_utc"])
+    flow_prefix_bytes_before = _IO_AUDIT["flow_cursor_prefix_bytes_scanned"]
+    flow_prefix_lines_before = _IO_AUDIT["flow_cursor_prefix_lines_scanned"]
     flow_suffix = read_flow_range(flow_start, pd.Timestamp(suffix["Opened"].iloc[-1]), protocol)
     flow_rolling = pd.concat([state["flow_raw_tail"], flow_suffix], ignore_index=True)
     flow_computed = e47._compute_flow_block(flow_rolling)
@@ -614,6 +679,8 @@ def _materialize_feature_chunk(protocol: dict, protocol_sha256: str, identity: s
     atomic_json(RUNTIME / "source_audit" / f"{output_name}.json", {
         "flow_sources_verified": _SOURCE_AUDIT,
         "flow_rows_read_in_this_partition": int(len(flow_suffix)),
+        "flow_cursor_prefix_bytes_scanned_in_this_partition": int(_IO_AUDIT["flow_cursor_prefix_bytes_scanned"] - flow_prefix_bytes_before),
+        "flow_cursor_prefix_lines_scanned_in_this_partition": int(_IO_AUDIT["flow_cursor_prefix_lines_scanned"] - flow_prefix_lines_before),
         "opened_start_utc": flow_start.isoformat().replace("+00:00", "Z"),
         "opened_end_utc": suffix["Opened"].iloc[-1].isoformat().replace("+00:00", "Z"),
         "raw_hybrid_source_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
