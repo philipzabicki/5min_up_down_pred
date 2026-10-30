@@ -1,8 +1,8 @@
 # PROJECT STATE
 
-Last audited: 2026-10-29 (Europe/Warsaw).
+Last audited: 2026-10-30 (Europe/Warsaw).
 Audit commit: the commit introducing this file, `docs: recover canonical project state` (resolve with `git log -1 --format=%H -- PROJECT_STATE.md`; no self-referential hash).
-Audit input HEAD: `015bdf133cdb7ab9018eb44819a9642ed5512a8a` on `audit/btc-dynamic-history-20261020`, upstream `origin/audit/btc-dynamic-history-20261020`. The batch runner had already refreshed the tracked v7 execution report at task start.
+Audit input HEAD: `8524e8ab4a199ef8b27084f53847b1a928ca2f3e` on `audit/btc-dynamic-history-20261020`, upstream `origin/audit/btc-dynamic-history-20261020`. The working tree was clean at task start; E0048 source execution remains pending preregistration publication.
 
 ## Objective
 
@@ -71,11 +71,13 @@ Real fills/ACKs/fees and operational live readiness; full-pipeline independent O
 
 ## Active experiments
 
-E0036 PARTIAL on the available confirmation subset. E0037 PARTIAL with its original FAILED parity gate preserved. E0038 completed its corrected retrospective economics on 5,604 source-quality-clean markets. E0039 completed its three development chronology folds, coverage-conditional economics, standalone offline runtime parity benchmark, and follow-on saved-account/stability report; the E0039 batch manifest retains its original `completed_folds_economics_runtime_partial` status because runtime was measured by a follow-on process. E0040 completed the frozen 1/5/15-second retrospective replay (run 27634bcbcc1068ae0b4907d4ffa3e2deddb312a17089e16aeb2c4963a3b99522); account reconciliation and output verification passed. Its result remains simulation-only and does not close T0009. T0009 remains BLOCKED overall for source coverage and readiness provenance; historical readiness remains UNKNOWN. E0034/E0024 BLOCKED; T0010 DEFERRED. E0043/T0015 source verification is complete with the exact 68-hour full-venue gap still unavailable; input preparation remains blocked. E0041/T0012 preparation is complete: the existing v2 OOF, official calibration and nine D models were verified and packaged as `D_BUNDLE_READY` without refit. Holdout evaluation remains unauthorized, with zero holdout reads/predictions; this does not close T0009 or change E0037. Other outcomes: EXPERIMENTS. Stale running manifests do not prove active processes.
+E0036 PARTIAL on the available confirmation subset. E0037 PARTIAL with its original FAILED parity gate preserved. E0038 completed its corrected retrospective economics on 5,604 source-quality-clean markets. E0039 completed its three development chronology folds, coverage-conditional economics, standalone offline runtime parity benchmark, and follow-on saved-account/stability report; the E0039 batch manifest retains its original `completed_folds_economics_runtime_partial` status because runtime was measured by a follow-on process. E0040 completed the frozen 1/5/15-second retrospective replay (run 27634bcbcc1068ae0b4907d4ffa3e2deddb312a17089e16aeb2c4963a3b99522); account reconciliation and output verification passed. Its result remains simulation-only and does not close T0009. T0009 remains BLOCKED overall for source coverage and readiness provenance; historical readiness remains UNKNOWN. E0034/E0024 BLOCKED; T0010 DEFERRED. E0043/T0015 source verification is complete with the exact 68-hour full-venue gap still unavailable; input preparation remains blocked. E0041/T0012 preparation is complete: the existing v2 OOF, official calibration and nine D models were verified and packaged as `D_BUNDLE_READY` without refit. E0048/T0017 is preregistered with focused/full tests passed; the authorized source run awaits publication of its freeze and has not read protected source payloads. Holdout evaluation remains unauthorized, with zero predictions; this does not close T0009 or change E0037. Other outcomes: EXPERIMENTS. Stale running manifests do not prove active processes.
 
 ## Active decisions
 
 D0001-D0008, D0011-D0014, D0017-D0020 and D0022-D0023 govern splits/exposure, targets/timing, execution/fees/accounting, causal selection, candidate identity, source provenance, active resolution economics, the holdout-before-pilot gate, verified minimum-order units, and E0040's simulation-only delay/event-order protocol. D0016 continues to govern inactive sale-simulation accounting only. D0010 supersedes the old arbitrary 180-day A/B/C/D shadow recommendation. D0009 is the separate deferred older prospective protocol.
+
+D0025 is a one-time, source-only authorization for E0048 historical input preparation. It does not change `evaluation_authorized=false`, `activated=false`, or `HOLDOUT_NOT_RUN`, and it does not authorize predictions or evaluation.
 
 ## Protected invariants
 
