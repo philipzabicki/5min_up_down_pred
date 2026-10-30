@@ -1,0 +1,644 @@
+{
+  "schema_version": 1,
+  "experiment_id": "E0048",
+  "protocol_revision": 4,
+  "task_id": "T0017",
+  "decision_id": "D0025",
+  "name": "Source-only preparation of frozen E0041 D holdout inputs",
+  "status": "FROZEN_BEFORE_REPLAY",
+  "supersedes_protocol": {
+    "path": "configs/research/btc_D_historical_input_preparation_20261030_v3.json",
+    "sha256": "6076aeac2934f938d5c5b378922d38dd0cb00047e60796d4ee19da5ce87d5d86"
+  },
+  "amendment": "E0048 v4 corrects the metadata-only v2 source-row incident count and preserves the v3 checksum-guard failure. It corrects the copied 2026-10-04 official ZIP SHA-256 from the pinned E0041 source inventory and checks the full official ZIP hash map against that inventory before source payload reads. V4 uses a fresh runtime root and restarts from the frozen E0047 checkpoint; source intervals, features, books, cutoffs, qualification, and evaluation restrictions are unchanged.",
+  "previous_attempt": {
+    "protocol_revision": 3,
+    "status": "FAILED_SOURCE_CHECKSUM_GUARD",
+    "failure_stage": "official_daily_archive_sha256_guard",
+    "failure": "V3 verified the locally cached 2026-10-04 archive against a copied protocol SHA that differed from both the local file, the official Binance CHECKSUM sidecar, and the hash in the pinned parent E0041 metadata manifest. The local, sidecar, and parent-manifest SHA-256 is e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd; the v3 copied expected SHA was e20f611db97170301b3164028b589ee9e4507100ae814e5b085aeadfdd6d6f29d. V3 hashed the ZIP bytes but did not open its member or parse any October 4 rows.",
+    "protected_source_payload_rows_read": 277918,
+    "hybrid_payload_rows_read": 141116,
+    "flow_payload_rows_parsed": 136802,
+    "feature_rows_checkpointed": 131072,
+    "failed_chunk_completed": false,
+    "oct4_zip_file_bytes_hashed": 56508,
+    "oct4_zip_member_opened": false,
+    "oct4_zip_member_rows_opened_or_parsed": 0,
+    "v3_protocol_oct4_expected_sha256": "e20f611db97170301b3164028b589ee9e4507100ae814e5b085aeadfdd6d6f29d",
+    "local_archive_oct4_sha256": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd",
+    "official_checksum_sidecar_oct4_sha256": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd",
+    "pinned_source_inventory_oct4_sha256": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd",
+    "pmxt_event_rows_read": 0,
+    "outcomes_or_targets_read": false,
+    "evaluation_started": false
+  },
+  "created_date": "2026-10-30",
+  "runtime": {
+    "versions": {
+      "python": "3.14.4",
+      "numpy": "2.4.4",
+      "pandas": "3.0.2",
+      "pyarrow": "24.0.0"
+    },
+    "parsers": {
+      "hybrid_csv": "Python csv.reader checks the frozen 10-column header and each authorized row width; pandas.read_csv(usecols=RAW_COLUMNS) parses only the header plus the authorized row chunk.",
+      "binance_flow_csv": "Binary line-boundary scan locates the exact authorized archive row without decoding or CSV-parsing excluded data records; optional header signature is checked, prefix bytes/lines are audited separately, and csv.reader parses only authorized rows. Monthly and daily offsets start at their archive period boundary; each monthly source is opened once per range; official daily ZIP uses its binary member stream; verify pinned archive/file SHA-256 and exact minute open/close times.",
+      "pmxt_parquet": "PyArrow ParquetFile.iter_batches(columns=EVENT_COLUMNS, batch_size=65536); timestamp[ms, UTC] is normalized to ns before exact cutoff comparisons."
+    }
+  },
+  "purpose": "Materialize historical raw-source inputs, frozen E0041 features, and available native T-60/T-59 book snapshots for later separately authorized review.",
+  "parent": {
+    "bundle_manifest_path": "data/analysis/polymarket/BTC/btc_D_holdout_preparation_20261028/final_D_bundle_manifest.json",
+    "bundle_manifest_sha256": "7715419ce5efbce8405db861fb3a67c481038c07f11eec019137f14528f0f97d",
+    "continuation_experiment_id": "E0047",
+    "continuation_status": "DEV_GENERATOR_VERIFIED",
+    "continuation_manifest_path": "reports/btc_preopen/btc_D_continuation_parity_closure_20261029_v5_manifest.json",
+    "continuation_manifest_sha256": "c6d73a6222e6cf5f95e6bb83c24d7a9810a3fe18c5a6ceba9834e845558928ec",
+    "checkpoint_path": "data/analysis/polymarket/BTC/btc_D_continuation_parity_closure_20261029_v3/checkpoints/END_from_C1.json",
+    "checkpoint_sha256": "e3ed1ab15c2439ca4e9c3f82102ff1be97f23d2cb2a5cbe88ca7ff3b0980dae5",
+    "checkpoint_semantic_sha256": "dd584577b0d59c581495d651d612f489791fc0c5f58bf36a5213c38b9b181bfe",
+    "checkpoint_identity_protocol_path": "configs/research/btc_D_continuation_parity_closure_20261029_v3.json",
+    "checkpoint_identity_protocol_sha256": "c5a0be7b79e6e7ad71af75f67effac1f30a72fd443b990ce0a8d2b0d5535ab6b",
+    "checkpoint_last_opened_utc": "2026-06-30T23:57:00Z",
+    "checkpoint_next_opened_utc": "2026-06-30T23:58:00Z",
+    "source_inventory_path": "reports/btc_preopen/btc_D_holdout_local_source_inventory_20261029.json",
+    "source_inventory_sha256": "57c50d6f25f02dc4fe479bbeeeacc1365ce497d1f1795d0d0c1ae8da44d4063e",
+    "book_gap_source_record_path": "reports/btc_preopen/btc_D_holdout_book_gap_fill_20261029_sources.json",
+    "book_gap_source_record_sha256": "72f682b4a6be35baa03f6b1854ffdbe45f2cc4ca96fc2b267f82551296e0197c"
+  },
+  "authorization": {
+    "source_payload_read_authorized": true,
+    "frozen_feature_generation_authorized": true,
+    "native_book_source_replay_authorized": true,
+    "prediction_generation_authorized": false,
+    "signal_or_ev_generation_authorized": false,
+    "fill_or_trade_simulation_authorized": false,
+    "pnl_or_quality_metrics_authorized": false,
+    "outcome_label_resolution_or_payout_read_authorized": false,
+    "evaluation_authorized": false,
+    "activated": false,
+    "holdout_status": "HOLDOUT_NOT_RUN",
+    "training_selection_tuning_or_fit_authorized": false,
+    "transform_pca_scaler_or_calibrator_fit_authorized": false,
+    "live_shadow_or_orders_authorized": false,
+    "paid_data_or_infrastructure_authorized": false
+  },
+  "scope": {
+    "holdout_market_start_interval_utc": {
+      "start_inclusive": "2026-07-01T00:00:00Z",
+      "end_exclusive": "2026-10-07T00:00:00Z"
+    },
+    "market_slot_frequency": "5min",
+    "expected_market_slots": 28224,
+    "regimes": [
+      {
+        "name": "single",
+        "start_inclusive": "2026-07-01T00:00:00Z",
+        "end_exclusive": "2026-08-07T00:00:00Z"
+      },
+      {
+        "name": "TWAP30",
+        "start_inclusive": "2026-08-07T00:00:00Z",
+        "end_exclusive": "2026-08-14T00:00:00Z"
+      },
+      {
+        "name": "TWAP60",
+        "start_inclusive": "2026-08-14T00:00:00Z",
+        "end_exclusive": "2026-10-07T00:00:00Z"
+      }
+    ],
+    "first_required_feature_opened_utc": "2026-06-30T23:58:00Z",
+    "last_required_feature_opened_utc": "2026-10-06T23:53:00Z",
+    "feature_opened_interval_utc": {
+      "start_inclusive": "2026-06-30T23:58:00Z",
+      "end_exclusive": "2026-10-06T23:54:00Z"
+    },
+    "expected_contiguous_feature_minutes": 141116,
+    "feature_key_rule": "Opened = market_start_utc - 2 minutes; decision_at_utc = market_start_utc - 60 seconds; feature availability timestamp is represented as Opened + 1 minute only as the frozen contract key, not as proof of historical receive time.",
+    "first_row_rule": "Resume strictly after the E0047 state through Opened=2026-06-30T23:57:00Z; process 2026-06-30T23:58:00Z once.",
+    "last_row_rule": "Stop after processing Opened=2026-10-06T23:53:00Z. Do not parse the next minute payload.",
+    "feature_representation": {
+      "unique_features": 102,
+      "base_features": 64,
+      "flow_features": 6,
+      "memory_features": 8,
+      "esn_features_across_three_frozen_seeds": 24,
+      "per_member_ordered_width": 86,
+      "flow_join": "Use the E0041 historical exact-Opened join, then one float32 cast; unmatched source keys remain float32 NaN.",
+      "no_model_load_or_predict": true
+    }
+  },
+  "source_allowlist": {
+    "verified_hybrid_raw_input": {
+      "path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+      "manifest_path": "data/analysis/polymarket/BTC/preopen_research_20261011/price_data_extension_manifest.json",
+      "manifest_sha256": "26ed3da0f7de5e319661f0efb05c4030dd600b8a1aabda9dfdc9d5dc57cac844",
+      "prior_manifest_file_sha256": "130e415b2e092a09caba773aed7b4f717d3b2b0d7aede658ba8e85901da91022",
+      "expected_extended_file_rows": 3327267,
+      "expected_file_size_bytes": 324192033,
+      "expected_last_opened_utc": "2026-10-06T23:59:00+00:00",
+      "columns": [
+        "Opened",
+        "Open",
+        "High",
+        "Low",
+        "Close",
+        "Volume",
+        "UM_BTCUSDT_Open",
+        "UM_BTCUSDT_High",
+        "UM_BTCUSDT_Low",
+        "UM_BTCUSDT_Close"
+      ],
+      "provenance": "Raw hybrid rows: COIN-M BTCUSD index OHLC, USD-M BTCUSDT trade Volume and auxiliary USD-M OHLC. The pinned extension manifest records official DAPI/FAPI tail payload hashes.",
+      "read_rule": "Use checkpoint row cursor and stop immediately after Opened=2026-10-06T23:53:00Z. Do not parse later rows or consult feature caches as value references."
+    },
+    "binance_coin_m_index_price": {
+      "market": "COIN-M",
+      "instrument": "BTCUSD index pair",
+      "data_type": "indexPriceKlines",
+      "interval": "1m",
+      "local_cache_root": "data/datasets/_tmp/binance_vision/cm/indexPriceKlines/BTCUSD1m",
+      "official_archive_base": "https://data.binance.vision/data/futures/cm",
+      "official_api": "https://dapi.binance.com/dapi/v1/indexPriceKlines",
+      "api_parameter": {
+        "pair": "BTCUSD"
+      },
+      "projected_fields": [
+        "open_time",
+        "open",
+        "high",
+        "low",
+        "close",
+        "close_time"
+      ],
+      "used_as": "E0041 index OHLC; never substitute spot, mark, premium, or futures prices."
+    },
+    "binance_usd_m_btcusdt": {
+      "market": "USD-M",
+      "instrument": "BTCUSDT",
+      "data_type": "klines",
+      "interval": "1m",
+      "local_cache_root": "data/datasets/_tmp/binance_vision/um/klines/BTCUSDT1m",
+      "official_archive_base": "https://data.binance.vision/data/futures/um",
+      "official_api": "https://fapi.binance.com/fapi/v1/klines",
+      "api_parameter": {
+        "symbol": "BTCUSDT"
+      },
+      "projected_fields": [
+        "open_time",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "close_time",
+        "quote_volume",
+        "taker_buy_quote_volume"
+      ],
+      "used_as": "UM_BTCUSDT OHLC and Volume, plus the six frozen FLOW inputs. Join only on exact UTC open_time."
+    },
+    "flow_source_inventory": {
+      "metadata_path": "reports/btc_preopen/btc_base70_raw_holdout_20261018_manifest.json",
+      "metadata_sha256": "771912fa67c2b7963726bdb49fd09be48d95bb83536b85e3e438336ec22fd1d9",
+      "csv_files_sha256": {
+        "2026-06": "a0d502fe633a659c806c787bbbc338627527df786bf94c65bc01cef9eb4b853e",
+        "2026-07": "55513f41367680136e1937c8e7fb6cdcff08eb1a05b37702cee1a6742ca513d1",
+        "2026-08": "675f1a0c9f3a265cafbc69e7821eb891ff432cfa12aba45c77754a06190fd80e",
+        "2026-09": "6b482fc0d05691cda897515d6cdb81d878b8fd3d40c3d46a2e2a88e5fc99284a",
+        "2026-10-01": "3ee86bacfc473873aa82ccb74ec524210710e3613437081afa0b75e9b9bc5789"
+      },
+      "official_zip_sha256": {
+        "2026-10-02": "9a831b07b2ce50e54e99490c3549b2e426955bc2608c78c31d3761d989e1cf28",
+        "2026-10-03": "7cc6d272810c07d24c4d2dd35efa53b979198f8bcd918cbb7b5fec3e0cd31be2",
+        "2026-10-04": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd",
+        "2026-10-05": "701e9dfaafc643d6d2c98bf76b5c7e39fc9adcc631928fb96d282bd42bb8648c",
+        "2026-10-06": "05cd282da17466b5e032c5a3bef179d1816ff2e13fa1ebd98c75e0188a141360"
+      },
+      "requested_opened_interval_utc": "[2026-06-30T23:58:00Z,2026-10-06T23:53:00Z]",
+      "fields": [
+        "open_time",
+        "open",
+        "high",
+        "low",
+        "close",
+        "quote_volume",
+        "taker_buy_quote_volume"
+      ]
+    },
+    "gamma_market_metadata": {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet",
+      "projected_fields": [
+        "condition_id",
+        "market_slug",
+        "market_start_utc",
+        "up_token_id",
+        "down_token_id"
+      ],
+      "purpose": "Exact technical market identity and token mapping for calendar slots."
+    },
+    "pmxt_market_metadata": {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/market_index.parquet",
+      "projected_fields": [
+        "condition_id",
+        "market_slug",
+        "market_start_utc",
+        "up_token_id",
+        "down_token_id"
+      ],
+      "purpose": "Exact technical lookup for unmatched calendar starts and token mapping; exact start equality only."
+    },
+    "pmxt_native_event_parts": {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/event_parts",
+      "source_inventory_path": "reports/btc_preopen/btc_D_holdout_book_gap_fill_20261029_sources.json",
+      "source_inventory_sha256": "72f682b4a6be35baa03f6b1854ffdbe45f2cc4ca96fc2b267f82551296e0197c",
+      "partition_rule": "Read only existing UTC-hour files intersecting the frozen 25/26-hour initialization windows and T-60/T-59 cutoffs for identified BTC tokens.",
+      "projected_fields": [
+        "timestamp_received",
+        "timestamp",
+        "market",
+        "event_type",
+        "asset_id",
+        "bids",
+        "asks",
+        "price",
+        "size",
+        "side",
+        "best_bid",
+        "best_ask",
+        "fee_rate_bps"
+      ],
+      "event_order": "Preserve original Parquet row order as the stable tie key; retain both receive and source timestamps; do not invent sub-millisecond ordering.",
+      "explicitly_excluded_fields": [
+        "outcome",
+        "resolution",
+        "payout",
+        "target",
+        "prediction",
+        "probability",
+        "EV",
+        "PnL",
+        "trade",
+        "transaction_hash"
+      ],
+      "known_missing_interval_utc": {
+        "start_inclusive": "2026-08-15T10:00:00Z",
+        "end_exclusive": "2026-08-18T06:00:00Z"
+      },
+      "missing_interval_policy": "Preserve missing source hours and dependent windows; do not acquire a new venue source or synthesize events."
+    },
+    "historical_fee_rule": {
+      "path": "configs/polymarket_btc5m_fee_regimes_v2.json",
+      "sha256": "b47cb594512b3671f67ab3cee3a673ff43b7dcd15f7514803e1bcde8238ec1e2",
+      "use": "Record the frozen historical fee rule and separately record native archived fee evidence at each cutoff. Unknown stays unknown; current values do not fill gaps.",
+      "minimum_order": "Keep D0019 active. Current share minimums are not historical USDC. No order sizing or minimum-order simulation is allowed."
+    },
+    "forbidden_sources": [
+      "Any holdout feature cache or previously generated holdout feature table as a value reference.",
+      "Spot, mark-price, premium-index, or futures data as a replacement for the frozen COIN-M BTCUSD index source.",
+      "Post-cutoff book snapshots, REST order books, candles, or trades as substitutes for missing native event tape.",
+      "Any target, label, outcome, resolution, payout, prediction, or historical evaluation output."
+    ],
+    "flow_source_cursor_policy": {
+      "prefix_method": "binary line-boundary scan",
+      "header_detection": "Inspect only the first-line byte signature needed to distinguish an optional CSV header; do not decode or CSV-parse excluded data rows.",
+      "excluded_data_rows_csv_parsed": false,
+      "excluded_data_row_fields_decoded_or_selected": false,
+      "authorized_payload_rule": "csv.reader begins at the exact archive row corresponding to the authorized segment start and consumes only authorized FLOW rows.",
+      "prefix_scan_bytes_and_lines_audited_separately": true,
+      "monthly_archive_opening": "At most once per month per read_flow_range call; daily sources are opened once per day."
+    }
+  },
+  "frozen_rules": {
+    "feature_generation": "Use E0041 final feature order/configuration and E0047 verified continuation state. Rebuild BASE64 from the pinned raw hybrid source, overwrite stateful BASE64 columns with the E0047 continuation states, rebuild FLOW6 from exact-time USD-M raw flow fields, then apply the historical exact-Opened float32 join. No fit, refit, selection, tuning, transform fit, calibration fit, or model invocation.",
+    "book_cutoffs": {
+      "T-60": "market_start_utc - 60 seconds",
+      "T-59": "market_start_utc - 59 seconds"
+    },
+    "fee_mode": "At each cutoff call the pinned replay fee-mode rule and record its result independently from the latest native fee_rate_bps evidence; retain maintenance_pause and unknown fee evidence without simulating a fill.",
+    "book_initialization": "Use the frozen E0038 25/26-hour source-hour window, full initial snapshot and subsequent native deltas; never complement one side to create the other.",
+    "archive_window": "lower = market_start_utc.floor('h') - 25 hours; include every UTC source hour through entry_time_utc.floor('h'), inclusive.",
+    "freshness_window": "Require the existing E0038 archive-hour freshness rule: every required recent UTC hour from floor(entry_time_utc - 30 seconds) through floor(entry_time_utc) is present and processed.",
+    "source_quality": "Call utils.btc_t0009_source_audit.source_quarantine_reasons/source_quality_mask without changing its symmetric UP/DOWN and T-60/T-59 criteria. Missing or unknown fields fail closed.",
+    "market_matching": "Join by exact market_start_utc and condition/token IDs. No nearest-time or positional joins; unresolved slots stay nullable UNKNOWN.",
+    "gap_semantics": "No interpolation, fabricated candles, forward fills, book complements, synthetic IDs, or relaxed initialization/freshness windows. Apply only E0047 state gap behavior.",
+    "availability_provenance": "Binance candle close_time and nominal timestamps do not prove historical receive time. Record source-ready/receive-time provenance as UNKNOWN unless an archived timestamp proves it.",
+    "coverage": "Keep feature readiness, T-60, T-59, fee, market identity, source quality, and quarantine causes independent per calendar slot. Do not derive no_trade from data exclusions."
+  },
+  "validation": {
+    "before_source_payload": [
+      "Checkpoint parent hash and semantic identity remain unchanged.",
+      "First resumed minute, exact 5-minute keys, feature order and dtypes, exact FLOW cast/join, and no model invocation.",
+      "Book cutoffs immediately before/at/after T-60 and T-59; initial snapshot, native deltas, delete, same-time ambiguity, source gap, fee unknown, and unmatched slot.",
+      "Source projection rejects outcome/target/payout/resolution/prediction columns; source-only join is deterministic and exact-keyed."
+    ],
+    "on_authorized_source_payload": [
+      "Check row timestamps, duplicate keys, OHLCV/quote-field validity, expected coverage and official-source checksums.",
+      "Run the full authorized range, atomically checkpoint, start a fresh process at a frozen partition boundary, and compare a date-selected repeat panel."
+    ],
+    "forbidden_validation": [
+      "prediction parity",
+      "model prediction",
+      "label check",
+      "outcome check",
+      "evaluation",
+      "EV",
+      "fill",
+      "trade",
+      "PnL",
+      "quality or profitability metric"
+    ]
+  },
+  "resources": {
+    "workers": 1,
+    "native_threads_max": 4,
+    "parquet_batch_rows": 65536,
+    "maximum_peak_rss_gib": 24,
+    "minimum_available_ram_gib": 8,
+    "minimum_free_workspace_disk_gib": 20,
+    "maximum_wall_seconds": 14400,
+    "active_processes": "Observe and preserve; never terminate or reprioritize user jobs.",
+    "network": "Only free official Binance raw-source downloads for missing allowlisted partitions; bounded retry and checksum. No PMXT/venue download.",
+    "gpu": "Not required."
+  },
+  "outputs": {
+    "runtime_root": "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030",
+    "feature_rows": "feature_rows.parquet",
+    "t60_books": "t60_books.parquet",
+    "t59_books": "t59_books.parquet",
+    "slot_coverage": "slot_coverage.parquet",
+    "slot_summary": "slot_coverage_summary.csv",
+    "regime_summary": "regime_coverage_summary.csv",
+    "source_only_join": "holdout_input_rows.parquet",
+    "input_manifest": "input_preparation_manifest.json",
+    "checkpoint_directory": "checkpoints",
+    "minute_feature_partitions": "minute_features",
+    "report": "reports/btc_preopen/btc_D_historical_input_preparation_20261030.md",
+    "large_products": "Local and Git-ignored; code, protocol, tests, canonical records, and small report are versioned."
+  },
+  "implementation": {
+    "feature_module": "features/btc_D_historical_input_preparation_20261030.py",
+    "runner": "run_btc_D_historical_input_preparation_20261030.py",
+    "tests": "tests/test_btc_D_historical_input_preparation_20261030.py",
+    "source_sha256": {
+      "features/btc_D_historical_input_preparation_20261030.py": "00a9961d907b521edcfe7e15fefea079b7b47c82a36609a1b9f4b4924246ed4e",
+      "run_btc_D_historical_input_preparation_20261030.py": "a9eb653d5d779a45523c56e8f8d59193874d41652b33132cd254a85ce5157fe3",
+      "tests/test_btc_D_historical_input_preparation_20261030.py": "38af740ee55599727b2d6aaa327329bb800d86e2603e6f481167a71cdf01f64d",
+      "run_btc_preopen_economic_replay.py": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528",
+      "run_btc_preopen_t59_reassessment.py": "57687ed6dbf4713270d177606234cb4d0da2df2bcbbc3cc0c5eff5ce00f4ed26",
+      "utils/btc_t0009_source_audit.py": "0fa331470ce4218f64ebde29d87acf46953a2ac21fc2d822e65e9e6ef4309893"
+    },
+    "runtime_resume_partition_rows": 65536,
+    "book_replay_workers": 1,
+    "stable_event_tie_key": "original Parquet row position within UTC-hour part; no fabricated sequence or sub-millisecond timestamp"
+  },
+  "evaluation_interface": {
+    "source_only_rows_are_evaluation_rows": false,
+    "evaluator_must_remain_guarded": true,
+    "evaluator_source": {
+      "path": "run_btc_D_holdout_evaluation_20261028.py",
+      "sha256": "79d2f1d34d882e490d6d3a844c2dc75bf116775a1a39e24514d00fe78ee1c5c0",
+      "source_columns_constant": "SOURCE_COLUMNS",
+      "quality_columns_constant": "QUALITY_COLUMNS"
+    },
+    "evaluator_source_required_fields": [
+      "condition_id",
+      "market_start_utc",
+      "Opened",
+      "t60_up_reason",
+      "t60_down_reason",
+      "t59_up_reason",
+      "t59_down_reason",
+      "up_token_id",
+      "down_token_id",
+      "t60_up_quote_source_token_id",
+      "t60_up_quote_complemented",
+      "t60_up_bbo_ask_comparable",
+      "t60_up_bbo_ask_mismatch",
+      "t60_up_ask_order_ambiguous",
+      "t60_up_bid_ask_crossed",
+      "t60_down_quote_source_token_id",
+      "t60_down_quote_complemented",
+      "t60_down_bbo_ask_comparable",
+      "t60_down_bbo_ask_mismatch",
+      "t60_down_ask_order_ambiguous",
+      "t60_down_bid_ask_crossed",
+      "t59_up_quote_source_token_id",
+      "t59_up_quote_complemented",
+      "t59_up_bbo_ask_comparable",
+      "t59_up_bbo_ask_mismatch",
+      "t59_up_ask_order_ambiguous",
+      "t59_up_bid_ask_crossed",
+      "t59_down_quote_source_token_id",
+      "t59_down_quote_complemented",
+      "t59_down_bbo_ask_comparable",
+      "t59_down_bbo_ask_mismatch",
+      "t59_down_ask_order_ambiguous",
+      "t59_down_bid_ask_crossed",
+      "t60_no_future_event_at_entry",
+      "t60_no_future_source_event_at_entry",
+      "t60_fee_known",
+      "t60_archive_entry_hour_available",
+      "t60_archive_freshness_window_available",
+      "t60_archive_gap_after_up_book_init",
+      "t60_archive_gap_after_down_book_init",
+      "t60_archive_gap_after_fee_update",
+      "t59_no_future_event_at_entry",
+      "t59_no_future_source_event_at_entry",
+      "t59_fee_known",
+      "t59_archive_entry_hour_available",
+      "t59_archive_freshness_window_available",
+      "t59_archive_gap_after_up_book_init",
+      "t59_archive_gap_after_down_book_init",
+      "t59_archive_gap_after_fee_update",
+      "entry_time_utc",
+      "fee_rate_bps",
+      "fee_collection_mode",
+      "fee_known",
+      "up_best_ask",
+      "up_best_ask_size_shares",
+      "down_best_ask",
+      "down_best_ask_size_shares",
+      "entry_time_utc_t59",
+      "fee_rate_bps_t59",
+      "fee_collection_mode_t59",
+      "up_ask_levels",
+      "down_ask_levels"
+    ],
+    "source_field_aliases": {
+      "Opened": "feature_opened_utc",
+      "entry_time_utc": "t60_entry_time_utc",
+      "fee_rate_bps": "t60_fee_rate_bps",
+      "fee_collection_mode": "t60_fee_collection_mode",
+      "fee_known": "t60_fee_known",
+      "up_best_ask": "t60_up_best_ask",
+      "up_best_ask_size_shares": "t60_up_best_ask_size_shares",
+      "down_best_ask": "t60_down_best_ask",
+      "down_best_ask_size_shares": "t60_down_best_ask_size_shares",
+      "entry_time_utc_t59": "t59_entry_time_utc",
+      "fee_rate_bps_t59": "t59_fee_rate_bps",
+      "fee_collection_mode_t59": "t59_fee_collection_mode",
+      "up_ask_levels": "t59_up_ask_levels",
+      "down_ask_levels": "t59_down_ask_levels"
+    },
+    "source_field_types": {
+      "timestamp_ns_utc": [
+        "market_start_utc",
+        "Opened",
+        "entry_time_utc",
+        "entry_time_utc_t59"
+      ],
+      "nullable_string": [
+        "condition_id",
+        "up_token_id",
+        "down_token_id",
+        "t60_up_reason",
+        "t60_down_reason",
+        "t59_up_reason",
+        "t59_down_reason",
+        "t60_up_quote_source_token_id",
+        "t60_down_quote_source_token_id",
+        "t59_up_quote_source_token_id",
+        "t59_down_quote_source_token_id",
+        "fee_collection_mode",
+        "fee_collection_mode_t59"
+      ],
+      "nullable_boolean": [
+        "t60_up_quote_complemented",
+        "t60_up_bbo_ask_comparable",
+        "t60_up_bbo_ask_mismatch",
+        "t60_up_ask_order_ambiguous",
+        "t60_up_bid_ask_crossed",
+        "t60_down_quote_complemented",
+        "t60_down_bbo_ask_comparable",
+        "t60_down_bbo_ask_mismatch",
+        "t60_down_ask_order_ambiguous",
+        "t60_down_bid_ask_crossed",
+        "t59_up_quote_complemented",
+        "t59_up_bbo_ask_comparable",
+        "t59_up_bbo_ask_mismatch",
+        "t59_up_ask_order_ambiguous",
+        "t59_up_bid_ask_crossed",
+        "t59_down_quote_complemented",
+        "t59_down_bbo_ask_comparable",
+        "t59_down_bbo_ask_mismatch",
+        "t59_down_ask_order_ambiguous",
+        "t59_down_bid_ask_crossed",
+        "t60_no_future_event_at_entry",
+        "t60_no_future_source_event_at_entry",
+        "t60_fee_known",
+        "t60_archive_entry_hour_available",
+        "t60_archive_freshness_window_available",
+        "t60_archive_gap_after_up_book_init",
+        "t60_archive_gap_after_down_book_init",
+        "t60_archive_gap_after_fee_update",
+        "t59_no_future_event_at_entry",
+        "t59_no_future_source_event_at_entry",
+        "t59_fee_known",
+        "t59_archive_entry_hour_available",
+        "t59_archive_freshness_window_available",
+        "t59_archive_gap_after_up_book_init",
+        "t59_archive_gap_after_down_book_init",
+        "t59_archive_gap_after_fee_update",
+        "fee_known"
+      ],
+      "nullable_numeric": [
+        "fee_rate_bps",
+        "fee_rate_bps_t59",
+        "up_best_ask",
+        "up_best_ask_size_shares",
+        "down_best_ask",
+        "down_best_ask_size_shares"
+      ],
+      "nullable_list_of_float64_pairs": [
+        "up_ask_levels",
+        "down_ask_levels"
+      ],
+      "feature_columns": "Exact 102 unique columns and frozen E0041 order from the pinned final bundle; six FLOW values remain float32 after the historical exact-key join, other source dtypes are preserved, and the guarded evaluator casts its model matrix to float32. Each D member uses its exact 86-column order."
+    },
+    "evaluator_required_but_intentionally_unprepared_fields": {
+      "target_polymarket_up": "float64 nullable; do not read or populate.",
+      "resolved_at_utc": "timestamp[us, UTC] nullable; do not read or populate."
+    },
+    "do_not_write_evaluation_rows_or_replace_existing_manifests": true
+  },
+  "attempt_history": [
+    {
+      "protocol_revision": 1,
+      "status": "FAILED_BEFORE_PROTECTED_SOURCE_PAYLOAD_READ",
+      "failure_stage": "initialize_dynamic_checkpoint",
+      "failure": "E0048 v1 called _dynamic_checkpoint_payload on run_btc_D_continuation_parity_closure_20261029, which does not export that helper; E0047's pinned serializer is features.btc_D_input_generator_20261029._dynamic_checkpoint_payload.",
+      "protected_source_payload_rows_read": 0,
+      "runtime_checkpoint_written": false
+    },
+    {
+      "protocol_revision": 2,
+      "status": "FAILED_SOURCE_RANGE_GUARD",
+      "failure_stage": "monthly_binance_flow_source_row_offset",
+      "failure": "Committed v2 code passed 1,438 CSV records through the skip loop and then time-checked the next data row at 2026-06-01T23:57:00Z instead of expected 2026-06-30T23:58:00Z. The code did not separately log header status; the observed next timestamp is consistent with one header plus 1,437 data rows in the skipped records. Thus 1,438 out-of-range data rows were parsed in total: 1,437 skipped and one time-guarded.",
+      "protected_source_payload_rows_read": 66974,
+      "authorized_feature_payload_rows_read": 65536,
+      "authorized_flow_payload_rows_read": 0,
+      "out_of_authorized_range_flow_records_csv_parsed": 1439,
+      "out_of_authorized_range_flow_records_skipped_by_loop": 1438,
+      "out_of_authorized_range_flow_records_time_guarded": 1,
+      "out_of_range_record_opened_utc": "2026-06-01T23:57:00Z",
+      "out_of_range_record_fields_accessed": [
+        "open_time_ms",
+        "close_time_ms"
+      ],
+      "out_of_range_record_ohlcv_quote_volume_fields_selected_or_converted": false,
+      "out_of_range_record_persisted_or_used": false,
+      "runtime_initial_checkpoint_written": true,
+      "feature_chunk_completed": false,
+      "outcomes_or_targets_read": false,
+      "evaluation_started": false,
+      "out_of_authorized_range_flow_csv_records_skipped_by_loop": 1438,
+      "out_of_authorized_range_flow_data_rows_csv_parsed": 1438,
+      "out_of_authorized_range_flow_data_rows_skipped_by_loop": 1437,
+      "out_of_authorized_range_flow_data_rows_time_guarded": 1,
+      "source_header_status_separately_logged": false
+    },
+    {
+      "protocol_revision": 3,
+      "status": "FAILED_SOURCE_CHECKSUM_GUARD",
+      "failure_stage": "official_daily_archive_sha256_guard",
+      "failure": "V3 verified the locally cached 2026-10-04 archive against a copied protocol SHA that differed from both the local file, the official Binance CHECKSUM sidecar, and the hash in the pinned parent E0041 metadata manifest. The local, sidecar, and parent-manifest SHA-256 is e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd; the v3 copied expected SHA was e20f611db97170301b3164028b589ee9e4507100ae814e5b085aeadfdd6d6f29d. V3 hashed the ZIP bytes but did not open its member or parse any October 4 rows.",
+      "protected_source_payload_rows_read": 277918,
+      "hybrid_payload_rows_read": 141116,
+      "flow_payload_rows_parsed": 136802,
+      "feature_rows_checkpointed": 131072,
+      "failed_chunk_completed": false,
+      "oct4_zip_file_bytes_hashed": 56508,
+      "oct4_zip_member_opened": false,
+      "oct4_zip_member_rows_opened_or_parsed": 0,
+      "v3_protocol_oct4_expected_sha256": "e20f611db97170301b3164028b589ee9e4507100ae814e5b085aeadfdd6d6f29d",
+      "local_archive_oct4_sha256": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd",
+      "official_checksum_sidecar_oct4_sha256": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd",
+      "pinned_source_inventory_oct4_sha256": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd",
+      "pmxt_event_rows_read": 0,
+      "outcomes_or_targets_read": false,
+      "evaluation_started": false
+    }
+  ],
+  "runtime_artifact_root": "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v4",
+  "pre_replay_validation": {
+    "v4_source_payload_read_before_publication": false,
+    "py_compile": "PASS",
+    "protocol_load_and_hash_checks": "PASS after final protocol metadata update and focused tests",
+    "focused_tests": {
+      "command": "python -m unittest discover -s tests -p test_btc_D_historical_input_preparation_20261030.py",
+      "passed": 21,
+      "failed": 0
+    },
+    "full_suite": {
+      "command": "python -m pytest -q",
+      "passed": 846,
+      "failed": 0,
+      "subtests": 222,
+      "warnings": 15,
+      "wall_seconds": 119.68
+    },
+    "source_archive_hash_map_guard": "PASS; all five official daily ZIP hashes equal the pinned E0041 manifest map, and a synthetic mismatch is rejected",
+    "scope_note": "Corrects the metadata-only v2 row count and the copied v3 October 4 ZIP hash; v3 runtime and partial outputs remain preserved."
+  }
+}

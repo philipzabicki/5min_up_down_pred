@@ -22,8 +22,8 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_historical_input_preparation_20261030_v3.json"
-RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v3"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_historical_input_preparation_20261030_v4.json"
+RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v4"
 RAW_COLUMNS = ("Opened", "Open", "High", "Low", "Close", "Volume", "UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close")
 FLOW_RAW_COLUMNS = ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume")
 FLOW_FEATURES = ("taker_Z_1m", "taker_V_1m", "taker_Z_5m", "taker_V_5m", "taker_Z_15m", "taker_V_15m")
@@ -77,6 +77,17 @@ def verify_hybrid_source_metadata(protocol: dict) -> dict[str, int]:
     if stat.st_size != record["expected_file_size_bytes"]:
         raise RuntimeError("pinned raw hybrid source file size differs from E0048")
     return {"size_bytes": int(stat.st_size), "mtime_ns": int(stat.st_mtime_ns)}
+
+
+def verify_flow_archive_hash_map(protocol: dict) -> dict[str, str]:
+    inventory = protocol["source_allowlist"]["flow_source_inventory"]
+    metadata = json.loads((ROOT / inventory["metadata_path"]).read_text(encoding="utf-8"))
+    rows = metadata["stages"]["holdout_flow_features"]["summary"]["input_validation"]["downloaded_daily_archive_validation"]["day_audit"]
+    observed = {str(row["day"]): str(row["source_archive_sha256"]) for row in rows}
+    expected = inventory["official_zip_sha256"]
+    if observed != expected:
+        raise RuntimeError("E0048 official Binance FLOW archive hashes differ from the pinned source inventory")
+    return observed
 
 
 def available_ram_bytes() -> int:
@@ -137,7 +148,7 @@ def peak_working_set_bytes() -> int:
 
 def load_protocol() -> tuple[dict, str]:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
-    if (protocol.get("experiment_id") != "E0048" or protocol.get("protocol_revision") != 3
+    if (protocol.get("experiment_id") != "E0048" or protocol.get("protocol_revision") != 4
             or protocol.get("status") != "FROZEN_BEFORE_REPLAY"):
         raise RuntimeError("E0048 protocol is not frozen before replay")
     previous = protocol["supersedes_protocol"]
@@ -153,18 +164,29 @@ def load_protocol() -> tuple[dict, str]:
     if auth.get("holdout_status") != "HOLDOUT_NOT_RUN":
         raise RuntimeError("E0048 holdout status must remain HOLDOUT_NOT_RUN")
     attempt = protocol.get("previous_attempt", {})
-    if (attempt.get("protocol_revision") != 2
-            or attempt.get("status") != "FAILED_SOURCE_RANGE_GUARD"
-            or attempt.get("protected_source_payload_rows_read") != 66_975
-            or attempt.get("out_of_authorized_range_flow_records_csv_parsed") != 1_439
-            or attempt.get("out_of_authorized_range_flow_records_skipped_by_loop") != 1_438
-            or attempt.get("out_of_authorized_range_flow_records_time_guarded") != 1
-            or attempt.get("out_of_range_record_persisted_or_used") is not False
+    if (attempt.get("protocol_revision") != 3
+            or attempt.get("status") != "FAILED_SOURCE_CHECKSUM_GUARD"
+            or attempt.get("hybrid_payload_rows_read") != 141_116
+            or attempt.get("flow_payload_rows_parsed") != 136_802
+            or attempt.get("protected_source_payload_rows_read") != 277_918
+            or attempt.get("feature_rows_checkpointed") != 131_072
+            or attempt.get("failed_chunk_completed") is not False
+            or attempt.get("oct4_zip_member_rows_opened_or_parsed") != 0
             or attempt.get("outcomes_or_targets_read") is not False
             or attempt.get("evaluation_started") is not False):
-        raise RuntimeError("E0048 v3 must retain the exact v2 source-range incident record")
+        raise RuntimeError("E0048 v4 must retain the exact v3 source-checksum incident record")
+    v2_attempt = next((record for record in protocol.get("attempt_history", []) if record.get("protocol_revision") == 2), {})
+    if (v2_attempt.get("status") != "FAILED_SOURCE_RANGE_GUARD"
+            or v2_attempt.get("protected_source_payload_rows_read") != 66_974
+            or v2_attempt.get("out_of_authorized_range_flow_data_rows_csv_parsed") != 1_438
+            or v2_attempt.get("out_of_authorized_range_flow_data_rows_skipped_by_loop") != 1_437
+            or v2_attempt.get("out_of_authorized_range_flow_data_rows_time_guarded") != 1
+            or v2_attempt.get("out_of_range_record_persisted_or_used") is not False
+            or v2_attempt.get("outcomes_or_targets_read") is not False
+            or v2_attempt.get("evaluation_started") is not False):
+        raise RuntimeError("E0048 v4 must retain the corrected v2 source-range incident record")
     if protocol.get("runtime_artifact_root") != RUNTIME.relative_to(ROOT).as_posix():
-        raise RuntimeError("E0048 runtime artifact root differs from the v3 isolated path")
+        raise RuntimeError("E0048 runtime artifact root differs from the v4 isolated path")
     cursor_policy = protocol["source_allowlist"].get("flow_source_cursor_policy", {})
     if (cursor_policy.get("prefix_method") != "binary line-boundary scan"
             or cursor_policy.get("excluded_data_rows_csv_parsed") is not False
@@ -216,6 +238,7 @@ def load_protocol() -> tuple[dict, str]:
     flow_inventory = protocol["source_allowlist"]["flow_source_inventory"]
     if sha256_file(ROOT / flow_inventory["metadata_path"]) != flow_inventory["metadata_sha256"]:
         raise RuntimeError("pinned Binance FLOW source inventory hash changed")
+    verify_flow_archive_hash_map(protocol)
     if sha256_file(ROOT / protocol["source_allowlist"]["verified_hybrid_raw_input"]["manifest_path"]) != protocol["source_allowlist"]["verified_hybrid_raw_input"]["manifest_sha256"]:
         raise RuntimeError("pinned raw hybrid source manifest hash changed")
     fee_rule = protocol["source_allowlist"]["historical_fee_rule"]

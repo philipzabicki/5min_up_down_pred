@@ -37,19 +37,27 @@ class E0048HistoricalInputPreparationTests(unittest.TestCase):
     def test_protocol_is_frozen_and_source_only(self):
         protocol, digest = e0048.load_protocol()
         self.assertEqual(protocol["experiment_id"], "E0048")
-        self.assertEqual(protocol["protocol_revision"], 3)
+        self.assertEqual(protocol["protocol_revision"], 4)
         self.assertEqual(protocol["status"], "FROZEN_BEFORE_REPLAY")
-        self.assertEqual(protocol["previous_attempt"]["protected_source_payload_rows_read"], 66_975)
-        self.assertEqual(protocol["previous_attempt"]["out_of_authorized_range_flow_records_csv_parsed"], 1_439)
-        self.assertEqual(protocol["previous_attempt"]["out_of_authorized_range_flow_records_skipped_by_loop"], 1_438)
-        self.assertFalse(protocol["previous_attempt"]["out_of_range_record_persisted_or_used"])
+        self.assertEqual(protocol["previous_attempt"]["protected_source_payload_rows_read"], 277_918)
+        self.assertEqual(protocol["previous_attempt"]["hybrid_payload_rows_read"], 141_116)
+        self.assertEqual(protocol["previous_attempt"]["flow_payload_rows_parsed"], 136_802)
+        self.assertEqual(protocol["previous_attempt"]["feature_rows_checkpointed"], 131_072)
+        self.assertEqual(protocol["previous_attempt"]["oct4_zip_member_rows_opened_or_parsed"], 0)
         self.assertEqual(protocol["runtime_artifact_root"], e0048.RUNTIME.relative_to(e0048.ROOT).as_posix())
         self.assertFalse(protocol["source_allowlist"]["flow_source_cursor_policy"]["excluded_data_rows_csv_parsed"])
         self.assertTrue(protocol["source_allowlist"]["flow_source_cursor_policy"]["prefix_scan_bytes_and_lines_audited_separately"])
         self.assertEqual(
             [(attempt["protocol_revision"], attempt["status"]) for attempt in protocol["attempt_history"]],
-            [(1, "FAILED_BEFORE_PROTECTED_SOURCE_PAYLOAD_READ"), (2, "FAILED_SOURCE_RANGE_GUARD")],
+            [(1, "FAILED_BEFORE_PROTECTED_SOURCE_PAYLOAD_READ"), (2, "FAILED_SOURCE_RANGE_GUARD"), (3, "FAILED_SOURCE_CHECKSUM_GUARD")],
         )
+        v2_attempt = protocol["attempt_history"][1]
+        self.assertEqual(v2_attempt["protected_source_payload_rows_read"], 66_974)
+        self.assertEqual(v2_attempt["out_of_authorized_range_flow_data_rows_csv_parsed"], 1_438)
+        self.assertEqual(v2_attempt["out_of_authorized_range_flow_data_rows_skipped_by_loop"], 1_437)
+        self.assertEqual(v2_attempt["out_of_authorized_range_flow_data_rows_time_guarded"], 1)
+        self.assertEqual(protocol["previous_attempt"]["v3_protocol_oct4_expected_sha256"], "e20f611db97170301b3164028b589ee9e4507100ae814e5b085aeadfdd6d6f29d")
+        self.assertEqual(protocol["previous_attempt"]["pinned_source_inventory_oct4_sha256"], "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd")
         self.assertEqual(len(digest), 64)
         typed_fields = {
             field
@@ -61,6 +69,28 @@ class E0048HistoricalInputPreparationTests(unittest.TestCase):
         self.assertFalse(protocol["authorization"]["evaluation_authorized"])
         self.assertFalse(protocol["authorization"]["prediction_generation_authorized"])
         self.assertEqual(protocol["authorization"]["holdout_status"], "HOLDOUT_NOT_RUN")
+
+    def test_flow_archive_hash_map_must_match_pinned_metadata(self):
+        day = "2026-10-04"
+        correct = "a" * 64
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            metadata = {
+                "stages": {"holdout_flow_features": {"summary": {"input_validation": {
+                    "downloaded_daily_archive_validation": {"day_audit": [
+                        {"day": day, "source_archive_sha256": correct}
+                    ]}
+                }}}}
+            }
+            (root / "inventory.json").write_text(json.dumps(metadata), encoding="utf-8")
+            protocol = {"source_allowlist": {"flow_source_inventory": {
+                "metadata_path": "inventory.json", "official_zip_sha256": {day: correct}
+            }}}
+            with patch.object(e0048, "ROOT", root):
+                self.assertEqual(e0048.verify_flow_archive_hash_map(protocol), {day: correct})
+                protocol["source_allowlist"]["flow_source_inventory"]["official_zip_sha256"][day] = "b" * 64
+                with self.assertRaisesRegex(RuntimeError, "hashes differ"):
+                    e0048.verify_flow_archive_hash_map(protocol)
 
     def test_source_only_join_contains_evaluator_source_schema_without_outcomes(self):
         from run_btc_D_holdout_evaluation_20261028 import SOURCE_COLUMNS
