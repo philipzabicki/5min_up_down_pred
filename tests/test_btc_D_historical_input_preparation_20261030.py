@@ -36,7 +36,9 @@ class E0048HistoricalInputPreparationTests(unittest.TestCase):
     def test_protocol_is_frozen_and_source_only(self):
         protocol, digest = e0048.load_protocol()
         self.assertEqual(protocol["experiment_id"], "E0048")
+        self.assertEqual(protocol["protocol_revision"], 2)
         self.assertEqual(protocol["status"], "FROZEN_BEFORE_REPLAY")
+        self.assertEqual(protocol["previous_attempt"]["protected_source_payload_rows_read"], 0)
         self.assertEqual(len(digest), 64)
         typed_fields = {
             field
@@ -122,6 +124,17 @@ class E0048HistoricalInputPreparationTests(unittest.TestCase):
             all_features.extend(manifest["esn_feature_order_by_seed"][str(seed)])
         self.assertEqual(len(all_features), 102)
         self.assertEqual(len(set(all_features)), 102)
+
+    def test_runtime_initialization_serializes_parent_dynamic_state_to_atomic_checkpoint(self):
+        protocol, protocol_sha256 = e0048.load_protocol()
+        with tempfile.TemporaryDirectory() as temporary, patch.object(e0048, "RUNTIME", Path(temporary)):
+            payload, identity = e0048.initialize_runtime(protocol, protocol_sha256)
+            checkpoint = Path(temporary) / "checkpoints" / e0048.CHECKPOINT_NAME
+            self.assertTrue(checkpoint.is_file())
+            self.assertEqual(payload["identity_sha256"], identity)
+            self.assertEqual(payload["processed_feature_rows"], 0)
+            self.assertEqual(payload["source_byte_offset"], None)
+            self.assertEqual(payload["next_expected_opened_utc"], "2026-06-30T23:58:00Z")
 
     def test_native_event_cutoff_keeps_exact_cutoff_and_rejects_later_receive(self):
         cutoff_t60 = pd.Timestamp("2026-07-01T00:00:00Z") - pd.Timedelta(seconds=60)

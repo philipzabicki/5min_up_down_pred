@@ -21,7 +21,7 @@ import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PROTOCOL_PATH = ROOT / "configs/research/btc_D_historical_input_preparation_20261030_v1.json"
+PROTOCOL_PATH = ROOT / "configs/research/btc_D_historical_input_preparation_20261030_v2.json"
 RUNTIME = ROOT / "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030"
 RAW_COLUMNS = ("Opened", "Open", "High", "Low", "Close", "Volume", "UM_BTCUSDT_Open", "UM_BTCUSDT_High", "UM_BTCUSDT_Low", "UM_BTCUSDT_Close")
 FLOW_RAW_COLUMNS = ("open", "high", "low", "close", "quote_volume", "taker_buy_quote_volume")
@@ -136,8 +136,12 @@ def peak_working_set_bytes() -> int:
 
 def load_protocol() -> tuple[dict, str]:
     protocol = json.loads(PROTOCOL_PATH.read_text(encoding="utf-8"))
-    if protocol.get("experiment_id") != "E0048" or protocol.get("status") != "FROZEN_BEFORE_REPLAY":
+    if (protocol.get("experiment_id") != "E0048" or protocol.get("protocol_revision") != 2
+            or protocol.get("status") != "FROZEN_BEFORE_REPLAY"):
         raise RuntimeError("E0048 protocol is not frozen before replay")
+    previous = protocol["supersedes_protocol"]
+    if sha256_file(ROOT / previous["path"]) != previous["sha256"]:
+        raise RuntimeError("E0048 superseded preregistration hash changed")
     auth = protocol["authorization"]
     for key in ("source_payload_read_authorized", "frozen_feature_generation_authorized", "native_book_source_replay_authorized"):
         if auth.get(key) is not True:
@@ -530,7 +534,9 @@ def restore_feature_state(protocol: dict, protocol_sha256: str):
 
 def initialize_runtime(protocol: dict, protocol_sha256: str) -> tuple[dict, str]:
     e47, bundle, transforms, state, dynamic_state, identity = restore_feature_state(protocol, protocol_sha256)
-    state["dynamic_state"] = e47._dynamic_checkpoint_payload(dynamic_state, temporary_root=RUNTIME / "checkpoint_parts")
+    import features.btc_D_input_generator_20261029 as e45
+
+    state["dynamic_state"] = e45._dynamic_checkpoint_payload(dynamic_state, temporary_root=RUNTIME / "checkpoint_parts")
     source_file_identity = verify_hybrid_source_metadata(protocol)
     state["source_byte_offset"] = None
     payload = {
