@@ -26,6 +26,7 @@ RUNNER_PID = 43936
 CONTINUATION_COMMAND = "continue_btc_D_historical_input_preparation_20261030.py"
 RUN_STARTED_UTC = "2026-10-30T01:04:44Z"
 WALL_BUDGET_SECONDS = 14_400
+EXPECTED_BOOK_REPLAY_HOURS = 2_377
 MANIFEST_PATH = RUNTIME / "input_preparation_recovery_manifest.json"
 REPORT_PATH = ROOT / "reports/btc_preopen/btc_D_historical_input_preparation_20261030_recovery.md"
 OUTPUT_NAMES = (
@@ -232,7 +233,7 @@ def recover() -> dict:
         freq="h",
     )
     checkpoint_head = _checkpoint_head()
-    if len(hours) != 2_352 or checkpoint_head["hour_cursor"] != len(hours):
+    if len(hours) != EXPECTED_BOOK_REPLAY_HOURS or checkpoint_head["hour_cursor"] != len(hours):
         raise RuntimeError(f"book replay checkpoint is incomplete: cursor {checkpoint_head['hour_cursor']} / {len(hours)}")
 
     # The frozen replay function performs identity validation and reconstructs
