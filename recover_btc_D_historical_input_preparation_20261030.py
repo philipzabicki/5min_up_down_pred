@@ -23,7 +23,7 @@ from features import btc_D_historical_input_preparation_20261030 as e0048
 ROOT = Path(__file__).resolve().parent
 RUNTIME = e0048.RUNTIME
 RUNNER_PID = 43936
-RUNNER_COMMAND = "run_btc_D_historical_input_preparation_20261030.py"
+CONTINUATION_COMMAND = "continue_btc_D_historical_input_preparation_20261030.py"
 RUN_STARTED_UTC = "2026-10-30T01:04:44Z"
 WALL_BUDGET_SECONDS = 14_400
 MANIFEST_PATH = RUNTIME / "input_preparation_recovery_manifest.json"
@@ -42,9 +42,17 @@ OUTPUT_NAMES = (
 def _assert_runner_stopped() -> dict:
     if os.name != "nt":
         raise RuntimeError("E0048 recovery is frozen to the Windows runner environment")
+    continuation_pattern = re.escape(CONTINUATION_COMMAND)
     command = (
         f"$p=Get-CimInstance Win32_Process -Filter 'ProcessId={RUNNER_PID}'; "
-        "if ($null -ne $p) { [Console]::Write($p.CommandLine) }"
+        "$original=$null -ne $p -and $p.CommandLine -match 'run_btc_D_historical_input_preparation_20261030\\.py'; "
+        "$active=@(Get-CimInstance Win32_Process | Where-Object { $_.Name -match '^python(w)?\\.exe$' -and "
+        "($_.CommandLine -match 'run_btc_D_historical_input_preparation_20261030\\.py' -or "
+        f"$_.CommandLine -match '{continuation_pattern}') }} | "
+        "ForEach-Object { [string]$_.ProcessId + ':' + $_.Name }); "
+        "if ($active.Count -gt 0) { [Console]::Write(($active -join ',')); exit 23 }; "
+        "if ($original) { [Console]::Write('original-runner-active'); exit 23 }; "
+        "if ($null -ne $p) { [Console]::Write('pid-reused') }"
     )
     result = subprocess.run(
         ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-Command", command],
@@ -54,12 +62,17 @@ def _assert_runner_stopped() -> dict:
         encoding="utf-8",
         errors="replace",
     )
+    process_state = result.stdout.strip()
+    if result.returncode == 23:
+        raise RuntimeError(f"E0048 replay process is still active: {process_state}")
     if result.returncode != 0:
-        raise RuntimeError("could not verify that the frozen E0048 process exited")
-    command_line = result.stdout.strip()
-    if RUNNER_COMMAND.lower() in command_line.lower():
-        raise RuntimeError(f"frozen E0048 runner PID {RUNNER_PID} is still active")
-    return {"runner_pid": RUNNER_PID, "runner_process_absent": not bool(command_line), "pid_reused": bool(command_line)}
+        raise RuntimeError("could not verify that frozen E0048 replay processes exited")
+    return {
+        "runner_pid": RUNNER_PID,
+        "runner_process_absent": True,
+        "continuation_process_absent": True,
+        "pid_reused": process_state == "pid-reused",
+    }
 
 
 def _read_product_schemas() -> dict[str, dict]:
