@@ -180,6 +180,29 @@ def _checkpoint_head() -> dict:
     return result
 
 
+def _canonical_levels(value):
+    if value is None or (np.isscalar(value) and pd.isna(value)):
+        return None
+    return [[float(level[0]), float(level[1])] for level in value]
+
+
+def _assert_snapshot_equal(saved: pd.DataFrame, recovered: pd.DataFrame, prefix: str) -> None:
+    if list(saved.columns) != list(recovered.columns):
+        raise RuntimeError(f"recovered {prefix} snapshot columns differ from the saved product")
+    level_columns = [column for column in saved.columns if column.endswith("_levels")]
+    scalar_columns = [column for column in saved.columns if column not in level_columns]
+    pdt.assert_frame_equal(
+        saved.loc[:, scalar_columns], recovered.loc[:, scalar_columns],
+        check_exact=True, check_dtype=False, check_like=False,
+    )
+    # Parquet may return nested level lists as arrays while replay returns lists;
+    # normalize container type and still require exact price/size equality.
+    for column in level_columns:
+        for row, (saved_value, recovered_value) in enumerate(zip(saved[column], recovered[column])):
+            if _canonical_levels(saved_value) != _canonical_levels(recovered_value):
+                raise RuntimeError(f"recovered {prefix} level values differ in {column} at row {row}")
+
+
 def _write_report(manifest: dict, summary_counts: dict, regimes: list[dict]) -> None:
     lines = [
         "# E0048: odzysk artefaktow po przekroczeniu budzetu",
@@ -250,7 +273,7 @@ def recover() -> dict:
         raise RuntimeError("terminal checkpoint event count changed during snapshot recovery")
     for prefix, recovered_frame in (("t60", recovered_t60), ("t59", recovered_t59)):
         saved_frame = pd.read_parquet(RUNTIME / f"{prefix}_books.parquet")
-        pdt.assert_frame_equal(saved_frame, recovered_frame, check_exact=True, check_dtype=False, check_like=False)
+        _assert_snapshot_equal(saved_frame, recovered_frame, prefix)
     book_checkpoint_path = RUNTIME / "checkpoints" / "native_book_replay.json"
     cursor = checkpoint_head["hour_cursor"]
     missing_hours = book_manifest["missing_source_hours"]
