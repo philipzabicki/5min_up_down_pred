@@ -194,6 +194,12 @@ def _run() -> dict:
         after_replay = _checkpoint_head()
         if after_replay["hour_cursor"] != EXPECTED_HOURS:
             raise RuntimeError(f"replay ended at {after_replay['hour_cursor']}/{EXPECTED_HOURS} hours")
+        event_counter_delta = {
+            key: after_replay[key] - before[key]
+            for key in ("event_parts_read", "event_projected_rows_read", "event_rows_replayed")
+        }
+        if before["hour_cursor"] == EXPECTED_HOURS and any(event_counter_delta.values()):
+            raise RuntimeError("terminal-checkpoint product recovery unexpectedly read PMXT event payload rows")
         if after_replay["event_rows_replayed"] < before["event_rows_replayed"]:
             raise RuntimeError("replayed-event counter moved backwards")
         _log(f"REPLAY_COMPLETE cursor={after_replay['hour_cursor']}/{EXPECTED_HOURS} parts_delta={after_replay['event_parts_read'] - before['event_parts_read']} projected_rows_delta={after_replay['event_projected_rows_read'] - before['event_projected_rows_read']} replayed_rows_delta={after_replay['event_rows_replayed'] - before['event_rows_replayed']} elapsed_seconds={replay_seconds:.1f}")
@@ -203,10 +209,18 @@ def _run() -> dict:
         input_rows, coverage, summary, products = runner._build_slot_products(
             protocol, market_rows, features, flow_status, t60, t59, source_quality,
         )
+        identity_confirmed = coverage.market_identity_status.eq("CONFIRMED").fillna(False)
+        unmatched_identity_slots = int((~identity_confirmed).sum())
+        if unmatched_identity_slots != 2:
+            raise RuntimeError(f"E0043 metadata-only reconciliation expected two unmatched starts, observed {unmatched_identity_slots}")
+        entry_available = coverage.t59_archive_entry_hour_available.fillna(False).astype(bool)
+        freshness_available = coverage.t59_archive_freshness_window_available.fillna(False).astype(bool)
+        missing_history = pd.to_numeric(coverage.t59_archive_window_missing_source_hours, errors="coerce").fillna(0).gt(0)
         gap_counts = {
-            "market_windows_affected_at_t59": int(coverage.t59_archive_window_missing_source_hours.fillna(0).gt(0).sum()),
-            "windows_without_entry_or_freshness": int((~coverage.t59_archive_entry_hour_available.fillna(False) | ~coverage.t59_archive_freshness_window_available.fillna(False)).sum()),
-            "windows_with_entry_but_missing_prior_history": int((coverage.t59_archive_entry_hour_available.fillna(False) & coverage.t59_archive_window_missing_source_hours.fillna(0).gt(0)).sum()),
+            "market_windows_affected_at_t59": int(missing_history.sum()),
+            # E0043's gap counts include confirmed identities; the two unmatched starts are separate.
+            "windows_without_entry_or_freshness": int(((~entry_available | ~freshness_available) & identity_confirmed & missing_history).sum()),
+            "windows_with_entry_but_missing_prior_history": int((entry_available & identity_confirmed & missing_history).sum()),
         }
         if gap_counts != {
             "market_windows_affected_at_t59": 1_115,
@@ -230,6 +244,7 @@ def _run() -> dict:
             "cumulative_wall_lower_bound_seconds": (completed_at - datetime.fromisoformat(ORIGINAL_RUN_STARTED_UTC.replace("Z", "+00:00"))).total_seconds(),
             "frozen_wall_budget_seconds": WALL_BUDGET_SECONDS,
             "gap_reconciliation": gap_counts,
+            "unmatched_market_identity_slots": unmatched_identity_slots,
             "feature_rows": feature_meta["rows"],
             "slot_rows": len(input_rows),
             "products": products,

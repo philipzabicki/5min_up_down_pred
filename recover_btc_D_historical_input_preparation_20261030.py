@@ -115,14 +115,19 @@ def _coverage_checks() -> tuple[dict, list[dict], dict]:
     coverage = pd.read_parquet(
         RUNTIME / "slot_coverage.parquet",
         columns=[
+            "market_identity_status",
             "t59_archive_entry_hour_available",
             "t59_archive_freshness_window_available",
             "t59_archive_window_missing_source_hours",
         ],
     )
+    identity_confirmed = coverage["market_identity_status"].eq("CONFIRMED").fillna(False)
     entry = coverage["t59_archive_entry_hour_available"].fillna(False).astype(bool)
     freshness = coverage["t59_archive_freshness_window_available"].fillna(False).astype(bool)
     missing_window = pd.to_numeric(coverage["t59_archive_window_missing_source_hours"], errors="coerce").fillna(0)
+    affected = missing_window.gt(0)
+    if summary_counts.get("market_identity_unknown_or_conflict") != 2:
+        raise RuntimeError("E0043 requires the two unmatched market starts to remain separately unresolved")
     regime_records = []
     for record in regimes.to_dict(orient="records"):
         regime_records.append({
@@ -131,8 +136,8 @@ def _coverage_checks() -> tuple[dict, list[dict], dict]:
         })
     return summary_counts, regime_records, {
         "market_windows_affected_at_t59": int(missing_window.gt(0).sum()),
-        "windows_without_entry_or_freshness": int((~entry | ~freshness).sum()),
-        "windows_with_entry_but_missing_prior_history": int((entry & missing_window.gt(0)).sum()),
+        "windows_without_entry_or_freshness": int(((~entry | ~freshness) & identity_confirmed & affected).sum()),
+        "windows_with_entry_but_missing_prior_history": int((entry & identity_confirmed & affected).sum()),
     }
 
 
