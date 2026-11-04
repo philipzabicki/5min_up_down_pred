@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "decision_id": "D0026",
+  "task_id": "T0018",
+  "experiment_id": "E0049",
+  "audit_date": "2026-11-04",
+  "status": "PREREGISTERED",
+  "branch": "audit/btc-dynamic-history-20261020",
+  "baseline_head": "869efc4",
+  "baseline_upstream": "origin/audit/btc-dynamic-history-20261020",
+  "baseline_worktree": "clean",
+  "scope": {
+    "e0037_condition_id": "0xe4d40fb41d0acedbcae8592f00ec3ac0f6e662f89260c11a65443385996537a3",
+    "e0037_market_start_utc": "2026-04-30T07:00:00Z",
+    "e0037_t60_cutoff_utc": "2026-04-30T06:59:00Z",
+    "e0037_recorded_conflict": {
+      "native_up_ask": 0.51,
+      "reported_up_bbo_ask": 0.52,
+      "last_recorded_ask_level_update_utc": "2026-04-30T06:58:37.664Z"
+    },
+    "resume_cursor": 2340,
+    "resume_cursor_semantics": "to be verified from pinned runner and checkpoint; no index convention assumed before inspection",
+    "resume_initialization_ceiling": "one nearest authenticated checkpoint, at most 37 unique source-hour partitions to reach and cross cursor 2340, and no more than one post-boundary partition; stop if valid initialization requires wider history",
+    "feature_causality_market_starts_utc": [
+      "2026-07-01T00:00:00Z",
+      "2026-08-07T00:00:00Z",
+      "2026-08-14T00:00:00Z",
+      "2026-08-18T07:00:00Z",
+      "2026-10-05T12:00:00Z"
+    ],
+    "feature_opened_utc_rule": "market_start_utc minus 120 seconds; verify against frozen E0041/E0048 contract",
+    "holdout_data_use": "technical source/feature causality only in the exact E0048 interval; no targets, labels, resolutions, predictions, economics, or evaluator"
+  },
+  "sources_and_code": {
+    "e0037_protocol": {
+      "path": "configs/research/btc_t0009_resolution_coverage_20261026.json",
+      "sha256": "38a6221f0d904112ead40197583dd3310bb27d9702ec4524e43df0144dca3dc1"
+    },
+    "e0037_source_audit_runner": {
+      "path": "run_btc_t0009_source_audit_20261026.py",
+      "sha256": "b10210fff3b495d2f787c85f5d60fbee7eb4543da984c05c056fa33329e1febd"
+    },
+    "e0037_source_audit_helper": {
+      "path": "utils/btc_t0009_source_audit.py",
+      "sha256": "0fa331470ce4218f64ebde29d87acf46953a2ac21fc2d822e65e9e6ef4309893"
+    },
+    "e0047_protocol_sha256": "d0a0595208ee5383e82b37bba7f15437919f447952bff3e848f1991f5c67646b",
+    "e0047_continuation_module_sha256": "cf7f4902a1196d6d46e583d2359e5188f68530f9102a63c79b8fbc6103dee41d",
+    "e0048_protocol_sha256": "ba79ec4d20787d69058609824514416338db5178a900cd4e9c26b3b84ac8f55a",
+    "e0048_feature_module_sha256": "00a9961d907b521edcfe7e15fefea079b7b47c82a36609a1b9f4b4924246ed4e",
+    "e0048_runner_sha256": "a9eb653d5d779a45523c56e8f8d59193874d41652b33132cd254a85ce5157fe3",
+    "e0048_continuation_sha256": "2f1039405455916dae022519c908809b1cdd5f57062d50499c8e8cd9b30db2df",
+    "e0048_prior_audit_manifest_sha256": "246d4c074923482d65e48ccc338032802d34bdc3e1b8df34f5f59c652e6cfb41",
+    "repository_code_identity": "commit 869efc4 on the recorded branch; exact control scripts/configs will be hashed before each run"
+  },
+  "initial_state": {
+    "e0037_historical_gate": "FAILED",
+    "t0009": "BLOCKED",
+    "e0048_historical_status": "PARTIAL",
+    "t0017": "PARTIAL",
+    "evaluation_authorized": false,
+    "activated": false,
+    "holdout_status": "HOLDOUT_NOT_RUN",
+    "active_python_processes_seen_before_control": [32724, 33392]
+  },
+  "comparison_criteria": {
+    "e0037": "trace source -> parser -> reducer -> checkpoint/snapshot -> checker; exact market/token/side, event/receive timestamps, T-60/T-59 inclusion, ask/bid, price/size and BBO fields; preserve E0037 and E0036 saved artifacts; no reference-value substitution",
+    "resume": "same authenticated state/config/source and fragments; exact semantic equality at cursor and after continuation for all active books, counters, cursor/order, freshness/history buffers, T-60/T-59 snapshots and deterministic products; metadata-only exclusions declared before comparison; no numerical tolerance",
+    "features": "same frozen state and feature pipeline on contract-truncated prefix versus full source for the five preselected technical anchors; exact ordered 102 feature columns and exact values including NaN masks; future suffix changes must not change prior rows; no fit or model invocation",
+    "performance": "measure only the selected correctness workloads with monotonic wall time, CPU, read bytes, rows/events, peak RSS, checkpoint bytes and exit code; no benchmark matrix"
+  },
+  "stop_conditions": [
+    "no full 2377-hour replay or full E0048 benchmark",
+    "stop resume replay if the shortest valid initialization exceeds the frozen 37-partition ceiling or requires an empty in-stream book",
+    "do not replace missing authentic historical checkpoint evidence with a synthetic checkpoint; report the distinction",
+    "no source-window, sample, count, tolerance, feature, cutoff, or acceptance-threshold changes",
+    "no background watcher; every diagnostic process is bounded, logged, and its exit code recorded",
+    "preserve all recovered inputs/checkpoints and all prior E0037/E0048 history"
+  ],
+  "planned_outputs": {
+    "report": "reports/btc_preopen/btc_D_parity_resume_readiness_control_20261104.md",
+    "manifest": "data/analysis/polymarket/BTC/btc_D_parity_resume_readiness_control_20261104/manifest.json",
+    "diagnostics_directory": "data/analysis/polymarket/BTC/btc_D_parity_resume_readiness_control_20261104/"
+  },
+  "results": null
+}
