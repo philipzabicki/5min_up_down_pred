@@ -110,8 +110,9 @@
       {
         "name": "five_anchor_feature_causality",
         "source_scope": "Only E0048 frozen development continuation state, source prefix needed through each preregistered Opened anchor, matching generator output rows for the five fixed anchors, and the five matching rows from saved E0048 feature product; ordered 102 technical feature columns only.",
-        "comparison": "No feature fitting or model calls. Compare exact values and NaN masks between generated contract-truncated prefixes and the frozen full-source output; stop before parsing any suffix beyond each anchor for its prefix run. For the final 2026-10-05 anchor, resume only from the pinned part-2 feature checkpoint.",
-        "stop": "Use existing verified source identity metadata without rehashing full RAW. If initialization rehashes full RAW or requires holdout labels/outcomes, stop and retain only already-established E0047 evidence."
+        "comparison": "No feature fitting or model calls. Generate one sequentially staged prefix that stops at each of the first four preregistered Opened anchors, compare those exact rows and NaN masks with the frozen full-source output, and perform one separate final-anchor continuation from the pinned part-2 feature checkpoint. No feature rows past each anchor are parsed before that anchor is emitted.",
+        "source_cursor": "Reuse the already-audited source byte cursor for raw row 3,186,145 from source_audit/feature_part_000001.json: 316,939,434 - 6,267,563 = 310,671,871 bytes. Verify the cursor starts at Opened=2026-06-30T23:58:00Z with the existing bounded reader. This avoids rescanning the 310,671,772-byte prefix and preserves the exact frozen row-index cursor.",
+        "stop": "Use existing verified source identity metadata without rehashing full RAW. If the stored cursor fails its exact Opened check, initialization rehashes full RAW, or any operation requires holdout labels/outcomes, stop and retain only already-established E0047 evidence."
       }
     ],
     "performance_capture": "For each newly launched bounded process, capture monotonic wall time, process CPU delta, projected source bytes/rows when exposed by the existing I/O audit, peak process working set, checkpoint/output bytes, exit code, free physical RAM and D: free space immediately before/after. No benchmark matrix.",
