@@ -1,0 +1,36 @@
+{
+  "mode": "interrupt",
+  "process_fresh": true,
+  "market_start_utc": "2026-10-05T12:00:00Z",
+  "runtime_path": "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\resume_cursor2340\\interrupt",
+  "resource_before": {
+    "available_ram_bytes": 48847622144,
+    "D_free_bytes": 185371111424
+  },
+  "cursor24_checkpoint_bytes": 6398,
+  "cursor24_checkpoint_sha256": "384c76825aa9997569adb54ff59487406946e020e4dfc055530d7b29c8768e45",
+  "status": "INTENTIONALLY_INTERRUPTED_AFTER_PRODUCTION_ATOMIC_SAVE",
+  "checkpoint_hour_cursor": 24,
+  "measurement": {
+    "wall_seconds": 13.365466800052673,
+    "cpu_seconds": 13.8125,
+    "process_read_transfer_bytes": 108214253,
+    "peak_working_set_bytes": 516497408,
+    "resource_after": {
+      "available_ram_bytes": 48410718208,
+      "D_free_bytes": 185371095040
+    }
+  },
+  "io_audit": {
+    "hybrid_rows_read": 0,
+    "hybrid_cursor_prefix_bytes_scanned": 0,
+    "hybrid_raw_payload_bytes_read": 0,
+    "flow_rows_read": 0,
+    "flow_cursor_prefix_bytes_scanned": 0,
+    "flow_cursor_prefix_lines_scanned": 0,
+    "event_parts_read": 24,
+    "event_projected_rows_read": 7975922,
+    "event_rows_replayed": 17254
+  },
+  "exit_code": 86
+}

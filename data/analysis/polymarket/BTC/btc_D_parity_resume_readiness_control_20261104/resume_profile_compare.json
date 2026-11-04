@@ -1,0 +1,25 @@
+{
+  "status": "PASS_PROFILED_OUTPUT_EQUIVALENCE",
+  "continuous_terminal_semantic_sha256": "0873b937fc7fb6f8070c680565c4928de3c2d533ca8eb0bcb411c2950257c3ea",
+  "profiled_continuous_terminal_semantic_sha256": "0873b937fc7fb6f8070c680565c4928de3c2d533ca8eb0bcb411c2950257c3ea",
+  "profiled_resume_terminal_semantic_sha256": "0873b937fc7fb6f8070c680565c4928de3c2d533ca8eb0bcb411c2950257c3ea",
+  "products": {
+    "t60": {
+      "exact_against_original_continuous": true,
+      "rows": 1,
+      "columns": 51
+    },
+    "t59": {
+      "exact_against_original_continuous": true,
+      "rows": 1,
+      "columns": 51
+    },
+    "source_quality": {
+      "exact_against_original_continuous": true,
+      "rows": 1,
+      "columns": 103
+    }
+  },
+  "only_checkpoint_exclusion": "peak_rss_bytes; integrity_sha256 is derived by the production serializer",
+  "exit_code": 0
+}

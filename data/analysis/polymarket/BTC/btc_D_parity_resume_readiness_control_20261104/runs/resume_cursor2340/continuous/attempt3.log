@@ -1,0 +1,34 @@
+{
+  "mode": "continuous",
+  "process_fresh": true,
+  "market_start_utc": "2026-10-05T12:00:00Z",
+  "runtime_path": "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\resume_cursor2340\\continuous",
+  "resource_before": {
+    "available_ram_bytes": 50734505984,
+    "D_free_bytes": 185371168768
+  },
+  "status": "ERROR",
+  "error": "TypeError: replay_native_books() missing 1 required positional argument: 'protocol_sha256'",
+  "io_audit": {
+    "hybrid_rows_read": 0,
+    "hybrid_cursor_prefix_bytes_scanned": 0,
+    "hybrid_raw_payload_bytes_read": 0,
+    "flow_rows_read": 0,
+    "flow_cursor_prefix_bytes_scanned": 0,
+    "flow_cursor_prefix_lines_scanned": 0,
+    "event_parts_read": 0,
+    "event_projected_rows_read": 0,
+    "event_rows_replayed": 0
+  },
+  "measurement": {
+    "wall_seconds": 0.32083969993982464,
+    "cpu_seconds": 0.203125,
+    "process_read_transfer_bytes": 13923428,
+    "peak_working_set_bytes": 159068160,
+    "resource_after": {
+      "available_ram_bytes": 50711371776,
+      "D_free_bytes": 185371168768
+    }
+  },
+  "exit_code": 1
+}

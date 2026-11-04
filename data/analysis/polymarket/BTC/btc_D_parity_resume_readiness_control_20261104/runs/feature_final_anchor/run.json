@@ -1,0 +1,93 @@
+{
+  "status": "PASS",
+  "protocol_sha256": "ba79ec4d20787d69058609824514416338db5178a900cd4e9c26b3b84ac8f55a",
+  "source_checkpoint": "data\\analysis\\polymarket\\BTC\\btc_D_historical_inputs_20261030_v4\\checkpoints\\feature_part_000002_state.json",
+  "source_checkpoint_identity_sha256": "dd7c4c63d818b28a705077c215f5552fa9922362c18e00b0509a85414806d3ea",
+  "source_checkpoint_state_digest": "b803dd1ad74779346eab80a0301d6a237a9b1ba9c44adadba15c7b50d1ed8368",
+  "source_row_index": 3317217,
+  "source_byte_offset": 323209650,
+  "start_opened_utc": "2026-09-30T00:30:00Z",
+  "anchor_opened_utc": "2026-10-05T11:58:00Z",
+  "rows_generated": 7889,
+  "ordered_feature_count": 102,
+  "ordered_feature_names_sha256": "d90bd995b0275c610118fb9b3497ba3de409711dd11e7a9729385c5b7aa5c8ff",
+  "exact_values_equal": true,
+  "exact_nan_masks_equal": true,
+  "raw_source_audit": {
+    "flow_cursor_prefix_bytes_scanned_in_this_partition": 4703747,
+    "flow_cursor_prefix_lines_scanned_in_this_partition": 41796,
+    "flow_rows_read_in_this_partition": 7889,
+    "flow_sources_verified": {
+      "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\days\\2026-10-01\\BTCUSDT-1m-2026-10-01.csv": {
+        "sha256": "3ee86bacfc473873aa82ccb74ec524210710e3613437081afa0b75e9b9bc5789",
+        "size_bytes": 162829,
+        "source_hash_type": "pinned extracted CSV hash"
+      },
+      "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\days\\2026-10-02\\BTCUSDT-1m-2026-10-02.zip": {
+        "official_checksum_text": "9a831b07b2ce50e54e99490c3549b2e426955bc2608c78c31d3761d989e1cf28  BTCUSDT-1m-2026-10-02.zip",
+        "sha256": "9a831b07b2ce50e54e99490c3549b2e426955bc2608c78c31d3761d989e1cf28",
+        "size_bytes": 62478,
+        "source_hash_type": "official Binance archive SHA-256"
+      },
+      "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\days\\2026-10-03\\BTCUSDT-1m-2026-10-03.zip": {
+        "official_checksum_text": "7cc6d272810c07d24c4d2dd35efa53b979198f8bcd918cbb7b5fec3e0cd31be2  BTCUSDT-1m-2026-10-03.zip",
+        "sha256": "7cc6d272810c07d24c4d2dd35efa53b979198f8bcd918cbb7b5fec3e0cd31be2",
+        "size_bytes": 55463,
+        "source_hash_type": "official Binance archive SHA-256"
+      },
+      "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\days\\2026-10-04\\BTCUSDT-1m-2026-10-04.zip": {
+        "official_checksum_text": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd  BTCUSDT-1m-2026-10-04.zip",
+        "sha256": "e20f611db97170301b316de8e71a56cd8a3771e3f3c272b0ab2532a99ad1dafd",
+        "size_bytes": 56508,
+        "source_hash_type": "official Binance archive SHA-256"
+      },
+      "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\days\\2026-10-05\\BTCUSDT-1m-2026-10-05.zip": {
+        "official_checksum_text": "701e9dfaafc643d6d2c98bf76b5c7e39fc9adcc631928fb96d282bd42bb8648c  BTCUSDT-1m-2026-10-05.zip",
+        "sha256": "701e9dfaafc643d6d2c98bf76b5c7e39fc9adcc631928fb96d282bd42bb8648c",
+        "size_bytes": 61661,
+        "source_hash_type": "official Binance archive SHA-256"
+      },
+      "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-09\\BTCUSDT-1m-2026-09.csv": {
+        "sha256": "6b482fc0d05691cda897515d6cdb81d878b8fd3d40c3d46a2e2a88e5fc99284a",
+        "size_bytes": 4862487,
+        "source_hash_type": "pinned extracted CSV hash"
+      }
+    },
+    "opened_end_utc": "2026-10-05T11:58:00Z",
+    "opened_start_utc": "2026-09-30T00:30:00Z",
+    "raw_hybrid_cursor_prefix_bytes_scanned_in_this_partition": 0,
+    "raw_hybrid_next_byte_offset": 323977735,
+    "raw_hybrid_payload_bytes_read_in_this_partition": 768085,
+    "raw_hybrid_rows_read_in_this_partition": 7889,
+    "raw_hybrid_source_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+    "raw_hybrid_whole_file_hash_recomputed": false
+  },
+  "io_audit": {
+    "hybrid_rows_read": 7889,
+    "hybrid_cursor_prefix_bytes_scanned": 0,
+    "hybrid_raw_payload_bytes_read": 768085,
+    "flow_rows_read": 7889,
+    "flow_cursor_prefix_bytes_scanned": 4703747,
+    "flow_cursor_prefix_lines_scanned": 41796,
+    "event_parts_read": 0,
+    "event_projected_rows_read": 0,
+    "event_rows_replayed": 0
+  },
+  "resource_before": {
+    "available_ram_bytes": 48743555072,
+    "D_free_bytes": 185245249536
+  },
+  "measurement": {
+    "wall_seconds": 20.36431860004086,
+    "cpu_seconds": 19.984375,
+    "process_read_transfer_bytes": 9606943657,
+    "peak_working_set_bytes": 343412736,
+    "resource_after": {
+      "available_ram_bytes": 45506560000,
+      "D_free_bytes": 185245245440
+    },
+    "generated_product_bytes": 80686,
+    "runtime_bytes": 16599899
+  },
+  "exit_code": 0
+}

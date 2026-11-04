@@ -1,0 +1,10 @@
+parts_found=25
+missing_parts=[]
+full_part_file_bytes=90830410
+source_rows_in_full_parts=8311987
+projected_event_column_chunk_bytes=70883751
+wall_seconds=0.041522
+cpu_seconds=0.031250
+process_read_transfer_bytes=1672321
+peak_working_set_bytes=94629888
+exit_code=0

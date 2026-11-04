@@ -1,0 +1,31 @@
+{
+  "source": "data\\analysis\\polymarket\\BTC\\btc_D_historical_inputs_20261030_v4\\slot_coverage.parquet",
+  "projected_columns": [
+    "market_start_utc",
+    "condition_id",
+    "t60_both_native_sides_valid",
+    "t60_up_bbo_ask_comparable",
+    "t60_up_bbo_ask_mismatch",
+    "t60_up_best_ask",
+    "t60_up_reported_best_ask",
+    "t60_down_bbo_ask_comparable",
+    "t60_down_bbo_ask_mismatch",
+    "t60_down_best_ask",
+    "t60_down_reported_best_ask"
+  ],
+  "source_file_bytes": 26922318,
+  "projected_compressed_column_chunk_bytes": 1229568,
+  "rows_read": 28224,
+  "valid_t60_native_pairs": 18649,
+  "comparable_bbo_sides_in_valid_pairs": 37298,
+  "stored_bbo_mismatch_sides": 0,
+  "recomputed_bbo_mismatch_sides_abs_tol_1e-9": 0,
+  "conflicts": [],
+  "measurement": {
+    "wall_seconds": 0.19453550002072006,
+    "cpu_seconds": 0.28125,
+    "process_read_transfer_bytes": 1456067,
+    "peak_working_set_bytes": 63426560
+  },
+  "exit_code": 0
+}

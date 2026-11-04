@@ -1,0 +1,1 @@
+Preserved but excluded from resume equivalence: the first process labeled resume used an empty runtime directory, replayed all 25 partitions (not a saved cursor-24 checkpoint), and completed successfully. The corrected resume below uses the authenticated cursor-24 checkpoint under runs/resume_cursor2340/interrupt.

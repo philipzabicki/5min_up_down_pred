@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "source_checkpoint": "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\resume_cursor2340\\interrupt\\checkpoints\\native_book_replay.json",
+  "source_identity_sha256": "5f8fc2f19472293c7b69215603cefcabf7edac6634e3fe599c65e32c1fc3190f",
+  "first_save_sha256": "76cb4bbaaeb052ad63a7241913345651cc40361c0065c37f97d7ac6380748dc5",
+  "second_save_sha256": "76cb4bbaaeb052ad63a7241913345651cc40361c0065c37f97d7ac6380748dc5",
+  "first_save_bytes": 7746,
+  "second_save_bytes": 7746,
+  "exact_loaded_payload_equality": true,
+  "temporary_files_remaining": 0,
+  "measurement": {
+    "wall_seconds": 0.010679799946956336,
+    "cpu_seconds": 0.0,
+    "process_read_transfer_bytes": 38730,
+    "peak_working_set_bytes": 125939712,
+    "checkpoint_bytes_written": 15492
+  },
+  "exit_code": 0
+}

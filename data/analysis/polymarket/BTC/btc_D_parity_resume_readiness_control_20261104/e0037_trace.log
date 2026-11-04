@@ -1,0 +1,8 @@
+source=data\analysis\polymarket\BTC\preopen_v1\t59_reassessment_20261008\pmxt_extended\event_parts\2026-04-30T06.parquet
+rows_projected=615
+matching_asset_rows=615
+wall_seconds=0.026967
+cpu_seconds=0.140625
+process_read_transfer_bytes=1023454
+peak_working_set_bytes=114634752
+exit_code=0

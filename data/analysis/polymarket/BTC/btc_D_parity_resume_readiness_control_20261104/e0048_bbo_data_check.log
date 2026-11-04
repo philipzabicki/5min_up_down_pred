@@ -1,0 +1,12 @@
+source=data\analysis\polymarket\BTC\btc_D_historical_inputs_20261030_v4\slot_coverage.parquet
+rows_read=28224
+valid_t60_native_pairs=18649
+comparable_bbo_sides=37298
+stored_mismatches=0
+recomputed_mismatches=0
+wall_seconds=0.194536
+cpu_seconds=0.281250
+projected_compressed_column_chunk_bytes=1229568
+process_read_transfer_bytes=1456067
+peak_working_set_bytes=63426560
+exit_code=0

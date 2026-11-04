@@ -1,0 +1,1 @@
+RuntimeError: E0048 runtime artifact root differs from the v4 isolated path. The control process loaded only the pinned protocol/config, then stopped before source data reads. Cause: scratch RUNTIME was selected before load_protocol validation. exit_code=1

@@ -1,0 +1,169 @@
+{
+  "source_parts_directory": "data\\analysis\\polymarket\\BTC\\preopen_v1\\t59_reassessment_20261008\\pmxt_extended\\event_parts",
+  "expected_hours_utc": [
+    "2026-10-04T11:00:00+00:00",
+    "2026-10-04T12:00:00+00:00",
+    "2026-10-04T13:00:00+00:00",
+    "2026-10-04T14:00:00+00:00",
+    "2026-10-04T15:00:00+00:00",
+    "2026-10-04T16:00:00+00:00",
+    "2026-10-04T17:00:00+00:00",
+    "2026-10-04T18:00:00+00:00",
+    "2026-10-04T19:00:00+00:00",
+    "2026-10-04T20:00:00+00:00",
+    "2026-10-04T21:00:00+00:00",
+    "2026-10-04T22:00:00+00:00",
+    "2026-10-04T23:00:00+00:00",
+    "2026-10-05T00:00:00+00:00",
+    "2026-10-05T01:00:00+00:00",
+    "2026-10-05T02:00:00+00:00",
+    "2026-10-05T03:00:00+00:00",
+    "2026-10-05T04:00:00+00:00",
+    "2026-10-05T05:00:00+00:00",
+    "2026-10-05T06:00:00+00:00",
+    "2026-10-05T07:00:00+00:00",
+    "2026-10-05T08:00:00+00:00",
+    "2026-10-05T09:00:00+00:00",
+    "2026-10-05T10:00:00+00:00",
+    "2026-10-05T11:00:00+00:00"
+  ],
+  "parts_found": 25,
+  "missing_parts": [],
+  "full_part_file_bytes": 90830410,
+  "source_rows_in_full_parts": 8311987,
+  "projected_event_column_chunk_bytes": 70883751,
+  "parts": [
+    {
+      "name": "2026-10-04T11.parquet",
+      "file_bytes": 3398465,
+      "rows": 317211
+    },
+    {
+      "name": "2026-10-04T12.parquet",
+      "file_bytes": 3483168,
+      "rows": 320503
+    },
+    {
+      "name": "2026-10-04T13.parquet",
+      "file_bytes": 3730696,
+      "rows": 346326
+    },
+    {
+      "name": "2026-10-04T14.parquet",
+      "file_bytes": 3605969,
+      "rows": 333591
+    },
+    {
+      "name": "2026-10-04T15.parquet",
+      "file_bytes": 3452569,
+      "rows": 320148
+    },
+    {
+      "name": "2026-10-04T16.parquet",
+      "file_bytes": 3568757,
+      "rows": 332452
+    },
+    {
+      "name": "2026-10-04T17.parquet",
+      "file_bytes": 3802531,
+      "rows": 331086
+    },
+    {
+      "name": "2026-10-04T18.parquet",
+      "file_bytes": 3672264,
+      "rows": 325669
+    },
+    {
+      "name": "2026-10-04T19.parquet",
+      "file_bytes": 3592255,
+      "rows": 308576
+    },
+    {
+      "name": "2026-10-04T20.parquet",
+      "file_bytes": 3430858,
+      "rows": 292835
+    },
+    {
+      "name": "2026-10-04T21.parquet",
+      "file_bytes": 3971626,
+      "rows": 356302
+    },
+    {
+      "name": "2026-10-04T22.parquet",
+      "file_bytes": 3931727,
+      "rows": 353145
+    },
+    {
+      "name": "2026-10-04T23.parquet",
+      "file_bytes": 3720919,
+      "rows": 346376
+    },
+    {
+      "name": "2026-10-05T00.parquet",
+      "file_bytes": 3664402,
+      "rows": 342025
+    },
+    {
+      "name": "2026-10-05T01.parquet",
+      "file_bytes": 3709392,
+      "rows": 339814
+    },
+    {
+      "name": "2026-10-05T02.parquet",
+      "file_bytes": 3544716,
+      "rows": 331776
+    },
+    {
+      "name": "2026-10-05T03.parquet",
+      "file_bytes": 3482561,
+      "rows": 325663
+    },
+    {
+      "name": "2026-10-05T04.parquet",
+      "file_bytes": 3631791,
+      "rows": 337093
+    },
+    {
+      "name": "2026-10-05T05.parquet",
+      "file_bytes": 3590678,
+      "rows": 338509
+    },
+    {
+      "name": "2026-10-05T06.parquet",
+      "file_bytes": 3521000,
+      "rows": 328315
+    },
+    {
+      "name": "2026-10-05T07.parquet",
+      "file_bytes": 3703880,
+      "rows": 341284
+    },
+    {
+      "name": "2026-10-05T08.parquet",
+      "file_bytes": 3653540,
+      "rows": 342238
+    },
+    {
+      "name": "2026-10-05T09.parquet",
+      "file_bytes": 3618336,
+      "rows": 330307
+    },
+    {
+      "name": "2026-10-05T10.parquet",
+      "file_bytes": 3643018,
+      "rows": 334678
+    },
+    {
+      "name": "2026-10-05T11.parquet",
+      "file_bytes": 3705292,
+      "rows": 336065
+    }
+  ],
+  "measurement": {
+    "wall_seconds": 0.041522499988786876,
+    "cpu_seconds": 0.03125,
+    "process_read_transfer_bytes": 1672321,
+    "peak_working_set_bytes": 94629888
+  },
+  "exit_code": 0
+}

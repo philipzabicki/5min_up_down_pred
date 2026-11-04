@@ -1,0 +1,333 @@
+{
+  "status": "ERROR",
+  "anchors": [
+    "2026-06-30T23:58:00Z",
+    "2026-08-06T23:58:00Z",
+    "2026-08-13T23:58:00Z",
+    "2026-08-18T06:58:00Z"
+  ],
+  "protocol_sha256": "ba79ec4d20787d69058609824514416338db5178a900cd4e9c26b3b84ac8f55a",
+  "feature_order": [
+    "candle_close_location_value_15m_lag1",
+    "rp_short_imbalance",
+    "KeltnerChannel_fit_5m_preopen_v1_pop64_atrmatypnwmagauss_atrper716_maper22_matypfba_souopen",
+    "candle_body_pressure_15m_lag1",
+    "rp_short_resistance_center_dist",
+    "vp_short_local_above_below_volume_log_ratio",
+    "candle_streak_15m",
+    "candle_body_pressure_30m_lag1",
+    "candle_ret_co_5m_lag1",
+    "candle_close_location_value_1h_lag1",
+    "candle_body_pressure_1h_lag1",
+    "session_close_impulse_BVC",
+    "session_close_impulse_NYSE",
+    "rp_short_support_center_dist",
+    "realized_volatility_down_15m",
+    "candle_signed_vol_15m_lag1",
+    "realized_volatility_down_5m",
+    "candle_close_location_value_4h_lag1",
+    "candle_streak_3m",
+    "vp_short_log_density_ratio_to_current_bin_minus_1",
+    "realized_volatility_down_1h",
+    "session_open_impulse_NYSE",
+    "session_close_impulse_B3",
+    "BollingerBands_fit_5m_preopen_v1_pop64_maper8_masouhlcc4_matyplma_stdmaper594_stdmatypnwmaepan_stdsouhlc3",
+    "candle_body_pressure_15m_lag2",
+    "ChaikinOsc_fit_5m_preopen_v1_pop64_fasmatypnwmaepan_fasper8_slomatyphma_sloper893",
+    "vp_short_log_density_ratio_to_current_bin_plus_2",
+    "futures_index_basis_rel_15m",
+    "candle_wick_asym_15m_lag1",
+    "candle_close_location_value_15m_lag2",
+    "vp_medium_local_above_below_volume_log_ratio",
+    "futures_index_basis_rel_4h",
+    "vp_short_log_density_ratio_to_current_bin_minus_3",
+    "rp_short_resistance_above",
+    "candle_streak_30m",
+    "session_close_impulse_Xetra",
+    "realized_volatility_1h",
+    "candle_close_location_value_4h_lag7",
+    "candle_body_pressure_1d_lag2",
+    "realized_volatility_15m",
+    "candle_body_pressure_4h_lag7",
+    "session_open_impulse_B3",
+    "candle_body_pressure_30m_lag5",
+    "ADX_fit_5m_preopen_v1_pop64_adxper640_atrper698_matypadxtema_matypatrwma_matypnegdmgma_matypposdmnwmacos_negdmper1756_posdmper1107",
+    "futures_index_basis_rel_1h",
+    "candle_close_location_value_1h_lag5",
+    "candle_ret_co_5m_lag2",
+    "futures_index_basis_change_4h",
+    "vp_long_local_above_below_volume_log_ratio",
+    "candle_wick_asym_1h_lag1",
+    "candle_wick_asym_1h_lag6",
+    "candle_wick_asym_30m_lag1",
+    "candle_close_location_value_30m_lag1",
+    "candle_wick_asym_30m_lag3",
+    "candle_wick_asym_1h_lag2",
+    "candle_wick_asym_1d_lag1",
+    "candle_wick_asym_1d_lag7",
+    "candle_close_location_value_30m_lag3",
+    "candle_body_pressure_4h_lag1",
+    "realized_volatility_compression_expansion_15m_1h",
+    "futures_index_basis_rel_5m",
+    "futures_index_basis_rel_30m",
+    "candle_wick_asym_4h_lag1",
+    "vp_all_local_above_below_volume_log_ratio",
+    "taker_Z_1m",
+    "taker_V_1m",
+    "taker_Z_5m",
+    "taker_V_5m",
+    "taker_Z_15m",
+    "taker_V_15m",
+    "simple_memory_PCA8_pc00",
+    "simple_memory_PCA8_pc01",
+    "simple_memory_PCA8_pc02",
+    "simple_memory_PCA8_pc03",
+    "simple_memory_PCA8_pc04",
+    "simple_memory_PCA8_pc05",
+    "simple_memory_PCA8_pc06",
+    "simple_memory_PCA8_pc07",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc00",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc01",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc02",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc03",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc04",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc05",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc06",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261023_pc07",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc00",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc01",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc02",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc03",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc04",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc05",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc06",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261024_pc07",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc00",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc01",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc02",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc03",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc04",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc05",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc06",
+    "esn_97893db4fc02bad9cca15ba3_seed_20261025_pc07"
+  ],
+  "source_cursor": {
+    "row_index": 3186145,
+    "byte_offset": 310671871,
+    "source_cursor_audit_path": "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v4/source_audit/feature_part_000001.json",
+    "feature_state_sha256_unchanged": true,
+    "hybrid_cursor_prefix_bytes_scanned": 0
+  },
+  "stage_records": [
+    {
+      "anchor_name": "first_holdout_market",
+      "anchor_opened_utc": "2026-06-30T23:58:00Z",
+      "rows_generated_in_stage": 1,
+      "prefix_end_utc": "2026-06-30T23:58:00Z",
+      "raw_source_audit": {
+        "flow_cursor_prefix_bytes_scanned_in_this_partition": 4893788,
+        "flow_cursor_prefix_lines_scanned_in_this_partition": 43199,
+        "flow_rows_read_in_this_partition": 1,
+        "flow_sources_verified": {
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-06\\BTCUSDT-1m-2026-06.csv": {
+            "sha256": "a0d502fe633a659c806c787bbbc338627527df786bf94c65bc01cef9eb4b853e",
+            "size_bytes": 4894009,
+            "source_hash_type": "pinned extracted CSV hash"
+          }
+        },
+        "opened_end_utc": "2026-06-30T23:58:00Z",
+        "opened_start_utc": "2026-06-30T23:58:00Z",
+        "raw_hybrid_cursor_prefix_bytes_scanned_in_this_partition": 0,
+        "raw_hybrid_next_byte_offset": 310671967,
+        "raw_hybrid_payload_bytes_read_in_this_partition": 96,
+        "raw_hybrid_rows_read_in_this_partition": 1,
+        "raw_hybrid_source_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+        "raw_hybrid_whole_file_hash_recomputed": false
+      }
+    },
+    {
+      "anchor_name": "regime_edge_aug07",
+      "anchor_opened_utc": "2026-08-06T23:58:00Z",
+      "rows_generated_in_stage": 53280,
+      "prefix_end_utc": "2026-08-06T23:58:00Z",
+      "raw_source_audit": {
+        "flow_cursor_prefix_bytes_scanned_in_this_partition": 4894125,
+        "flow_cursor_prefix_lines_scanned_in_this_partition": 43202,
+        "flow_rows_read_in_this_partition": 53280,
+        "flow_sources_verified": {
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-06\\BTCUSDT-1m-2026-06.csv": {
+            "sha256": "a0d502fe633a659c806c787bbbc338627527df786bf94c65bc01cef9eb4b853e",
+            "size_bytes": 4894009,
+            "source_hash_type": "pinned extracted CSV hash"
+          },
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-07\\BTCUSDT-1m-2026-07.csv": {
+            "sha256": "55513f41367680136e1937c8e7fb6cdcff08eb1a05b37702cee1a6742ca513d1",
+            "size_bytes": 5016863,
+            "source_hash_type": "pinned extracted CSV hash"
+          },
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-08\\BTCUSDT-1m-2026-08.csv": {
+            "sha256": "675f1a0c9f3a265cafbc69e7821eb891ff432cfa12aba45c77754a06190fd80e",
+            "size_bytes": 5004926,
+            "source_hash_type": "pinned extracted CSV hash"
+          }
+        },
+        "opened_end_utc": "2026-08-06T23:58:00Z",
+        "opened_start_utc": "2026-06-30T23:59:00Z",
+        "raw_hybrid_cursor_prefix_bytes_scanned_in_this_partition": 0,
+        "raw_hybrid_next_byte_offset": 315769273,
+        "raw_hybrid_payload_bytes_read_in_this_partition": 5097306,
+        "raw_hybrid_rows_read_in_this_partition": 53280,
+        "raw_hybrid_source_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+        "raw_hybrid_whole_file_hash_recomputed": false
+      }
+    },
+    {
+      "anchor_name": "regime_edge_aug14",
+      "anchor_opened_utc": "2026-08-13T23:58:00Z",
+      "rows_generated_in_stage": 10080,
+      "prefix_end_utc": "2026-08-13T23:58:00Z",
+      "raw_source_audit": {
+        "flow_cursor_prefix_bytes_scanned_in_this_partition": 966425,
+        "flow_cursor_prefix_lines_scanned_in_this_partition": 8640,
+        "flow_rows_read_in_this_partition": 10080,
+        "flow_sources_verified": {
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-06\\BTCUSDT-1m-2026-06.csv": {
+            "sha256": "a0d502fe633a659c806c787bbbc338627527df786bf94c65bc01cef9eb4b853e",
+            "size_bytes": 4894009,
+            "source_hash_type": "pinned extracted CSV hash"
+          },
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-07\\BTCUSDT-1m-2026-07.csv": {
+            "sha256": "55513f41367680136e1937c8e7fb6cdcff08eb1a05b37702cee1a6742ca513d1",
+            "size_bytes": 5016863,
+            "source_hash_type": "pinned extracted CSV hash"
+          },
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-08\\BTCUSDT-1m-2026-08.csv": {
+            "sha256": "675f1a0c9f3a265cafbc69e7821eb891ff432cfa12aba45c77754a06190fd80e",
+            "size_bytes": 5004926,
+            "source_hash_type": "pinned extracted CSV hash"
+          }
+        },
+        "opened_end_utc": "2026-08-13T23:58:00Z",
+        "opened_start_utc": "2026-08-06T23:59:00Z",
+        "raw_hybrid_cursor_prefix_bytes_scanned_in_this_partition": 0,
+        "raw_hybrid_next_byte_offset": 316731878,
+        "raw_hybrid_payload_bytes_read_in_this_partition": 962605,
+        "raw_hybrid_rows_read_in_this_partition": 10080,
+        "raw_hybrid_source_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+        "raw_hybrid_whole_file_hash_recomputed": false
+      }
+    },
+    {
+      "anchor_name": "post_gap_and_resume_edge",
+      "anchor_opened_utc": "2026-08-18T06:58:00Z",
+      "rows_generated_in_stage": 6180,
+      "prefix_end_utc": "2026-08-18T06:58:00Z",
+      "raw_source_audit": {
+        "flow_cursor_prefix_bytes_scanned_in_this_partition": 2088539,
+        "flow_cursor_prefix_lines_scanned_in_this_partition": 18720,
+        "flow_rows_read_in_this_partition": 6180,
+        "flow_sources_verified": {
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-06\\BTCUSDT-1m-2026-06.csv": {
+            "sha256": "a0d502fe633a659c806c787bbbc338627527df786bf94c65bc01cef9eb4b853e",
+            "size_bytes": 4894009,
+            "source_hash_type": "pinned extracted CSV hash"
+          },
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-07\\BTCUSDT-1m-2026-07.csv": {
+            "sha256": "55513f41367680136e1937c8e7fb6cdcff08eb1a05b37702cee1a6742ca513d1",
+            "size_bytes": 5016863,
+            "source_hash_type": "pinned extracted CSV hash"
+          },
+          "data\\datasets\\_tmp\\binance_vision\\um\\klines\\BTCUSDT1m\\months\\2026-08\\BTCUSDT-1m-2026-08.csv": {
+            "sha256": "675f1a0c9f3a265cafbc69e7821eb891ff432cfa12aba45c77754a06190fd80e",
+            "size_bytes": 5004926,
+            "source_hash_type": "pinned extracted CSV hash"
+          }
+        },
+        "opened_end_utc": "2026-08-18T06:58:00Z",
+        "opened_start_utc": "2026-08-13T23:59:00Z",
+        "raw_hybrid_cursor_prefix_bytes_scanned_in_this_partition": 0,
+        "raw_hybrid_next_byte_offset": 317321167,
+        "raw_hybrid_payload_bytes_read_in_this_partition": 589289,
+        "raw_hybrid_rows_read_in_this_partition": 6180,
+        "raw_hybrid_source_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+        "raw_hybrid_whole_file_hash_recomputed": false
+      }
+    }
+  ],
+  "anchor_comparisons": [
+    {
+      "anchor_name": "first_holdout_market",
+      "feature_opened_utc": "2026-06-30T23:58:00Z",
+      "generated_rows": 1,
+      "saved_rows": 1,
+      "ordered_feature_count": 102,
+      "ordered_feature_names_sha256": "d90bd995b0275c610118fb9b3497ba3de409711dd11e7a9729385c5b7aa5c8ff",
+      "exact_values_equal": true,
+      "exact_nan_masks_equal": true
+    },
+    {
+      "anchor_name": "regime_edge_aug07",
+      "feature_opened_utc": "2026-08-06T23:58:00Z",
+      "generated_rows": 1,
+      "saved_rows": 1,
+      "ordered_feature_count": 102,
+      "ordered_feature_names_sha256": "d90bd995b0275c610118fb9b3497ba3de409711dd11e7a9729385c5b7aa5c8ff",
+      "exact_values_equal": false,
+      "exact_nan_masks_equal": true
+    },
+    {
+      "anchor_name": "regime_edge_aug14",
+      "feature_opened_utc": "2026-08-13T23:58:00Z",
+      "generated_rows": 1,
+      "saved_rows": 1,
+      "ordered_feature_count": 102,
+      "ordered_feature_names_sha256": "d90bd995b0275c610118fb9b3497ba3de409711dd11e7a9729385c5b7aa5c8ff",
+      "exact_values_equal": false,
+      "exact_nan_masks_equal": true
+    },
+    {
+      "anchor_name": "post_gap_and_resume_edge",
+      "feature_opened_utc": "2026-08-18T06:58:00Z",
+      "generated_rows": 1,
+      "saved_rows": 1,
+      "ordered_feature_count": 102,
+      "ordered_feature_names_sha256": "d90bd995b0275c610118fb9b3497ba3de409711dd11e7a9729385c5b7aa5c8ff",
+      "exact_values_equal": false,
+      "exact_nan_masks_equal": true
+    }
+  ],
+  "features_generated": 69541,
+  "io_audit": {
+    "hybrid_rows_read": 69541,
+    "hybrid_cursor_prefix_bytes_scanned": 0,
+    "hybrid_raw_payload_bytes_read": 6649296,
+    "flow_rows_read": 69541,
+    "flow_cursor_prefix_bytes_scanned": 12842877,
+    "flow_cursor_prefix_lines_scanned": 113761,
+    "event_parts_read": 0,
+    "event_projected_rows_read": 0,
+    "event_rows_replayed": 0
+  },
+  "source_audit_paths": [
+    "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\features_first_four\\runtime\\source_audit\\prefix_anchor_1.json",
+    "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\features_first_four\\runtime\\source_audit\\prefix_anchor_2.json",
+    "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\features_first_four\\runtime\\source_audit\\prefix_anchor_3.json",
+    "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\features_first_four\\runtime\\source_audit\\prefix_anchor_4.json"
+  ],
+  "resource_before": {
+    "available_ram_bytes": 31617900544,
+    "D_free_bytes": 185369628672
+  },
+  "measurement": {
+    "wall_seconds": 78.62188669992611,
+    "cpu_seconds": 76.578125,
+    "process_read_transfer_bytes": 43133941014,
+    "peak_working_set_bytes": 826023936,
+    "resource_after": {
+      "available_ram_bytes": 42527748096,
+      "D_free_bytes": 185287176192
+    }
+  },
+  "exit_code": 1,
+  "error": "AssertionError: one or more first-four feature anchor comparisons failed"
+}

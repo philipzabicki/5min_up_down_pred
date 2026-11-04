@@ -1,0 +1,19 @@
+{
+  "status": "PASS",
+  "anchor_opened_utc": "2026-10-05T11:58:00Z",
+  "feature_count": 102,
+  "feature_order_matches": true,
+  "exact_nan_masks_equal": true,
+  "exact_values_equal": true,
+  "different_feature_count": 0,
+  "first_differences": [],
+  "measurement": {
+    "wall_seconds": 0.08741090004332364,
+    "cpu_seconds": 0.09375,
+    "process_read_transfer_bytes": 17355078,
+    "peak_working_set_bytes": 179494912,
+    "generated_prefix_bytes": 3064852,
+    "generated_anchor_row_bytes": 80686
+  },
+  "exit_code": 0
+}

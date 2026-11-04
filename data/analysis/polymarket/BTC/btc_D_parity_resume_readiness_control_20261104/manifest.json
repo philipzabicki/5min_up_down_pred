@@ -4,7 +4,7 @@
   "task_id": "T0018",
   "experiment_id": "E0049",
   "audit_date": "2026-11-04",
-  "status": "PREREGISTERED",
+  "status": "COMPLETE_WITH_PARTIAL_GATES",
   "branch": "audit/btc-dynamic-history-20261020",
   "baseline_head": "869efc4",
   "baseline_upstream": "origin/audit/btc-dynamic-history-20261020",
@@ -146,5 +146,254 @@
     "manifest": "data/analysis/polymarket/BTC/btc_D_parity_resume_readiness_control_20261104/manifest.json",
     "diagnostics_directory": "data/analysis/polymarket/BTC/btc_D_parity_resume_readiness_control_20261104/"
   },
-  "results": null
+  "results": {
+    "overall": {
+      "control_execution": "COMPLETE",
+      "evaluation_authorized": false,
+      "activated": false,
+      "holdout_status": "HOLDOUT_NOT_RUN",
+      "order_lock": "PRESERVED",
+      "production_source_code_changed": false,
+      "historical_products_or_checkpoints_overwritten": false,
+      "full_2377_hour_replay_run": false,
+      "full_E0048_benchmark_run": false,
+      "project_test_suite_run": false,
+      "reason_project_test_suite_not_run": "No production code changed. The authorized source, resume and feature comparisons were run directly; prior E0048 same-receive-group evidence was reused as preregistered."
+    },
+    "execution_identity": {
+      "baseline_code_commit": "869efc4",
+      "preregistration_commit_before_source_rows": "e7de2f0",
+      "branch": "audit/btc-dynamic-history-20261020",
+      "production_code_hashes_sha256": {
+        "run_btc_preopen_economic_replay.py": "ec5d0984fe311b06a446e67d342f2b09121111e2f93c2fa775a520d79c2ba528",
+        "utils/btc_t0009_source_audit.py": "0fa331470ce4218f64ebde29d87acf46953a2ac21fc2d822e65e9e6ef4309893",
+        "features/btc_D_historical_input_preparation_20261030.py": "00a9961d907b521edcfe7e15fefea079b7b47c82a36609a1b9f4b4924246ed4e",
+        "features/btc_D_continuation_20261029.py": "cf7f4902a1196d6d46e583d2359e5188f68530f9102a63c79b8fbc6103dee41d"
+      },
+      "control_script_hashes_sha256": {
+        "e0037_trace_control.py": "9881bf90625195d7bd2d0ebe0502371e68f4643d8e150d21bdeaf091c32952c3",
+        "e0048_bbo_data_check.py": "0686f5be2a839ba514eeb5593fa6eb8bd6b82fe54137ff289ed5203ee3269cff",
+        "resume_synthetic_common.py": "64f0c7634ec8fee93fce1d0f5a2d61352d95def83b6c6aa93cbd1eb1fd1a455a",
+        "feature_first_four_anchors.py": "932f18b6a690c368f08725b095b6a2350906149dbddac3af7bb97e3791fd288b",
+        "feature_final_anchor.py_after_wrapper_fix": "628186995e92b6f630b0bec1bc5edc737993cb410dcf53e27ffeb3cc348294e2"
+      },
+      "control_script_hash_capture": "Captured after the control runs; per-run pre-read hashes were not retained, despite the preregistration note requiring hashes before each run. Exact earlier byte identity of the diagnostic harness is NOT_VERIFIED. The final-anchor wrapper's import change is known and its corrected version was rerun.",
+      "environment": {
+        "cpu": "13th Gen Intel Core i7-13650HX",
+        "physical_cores": 14,
+        "logical_processors": 20,
+        "total_ram_bytes": 68366831616,
+        "python": "3.14.4",
+        "numpy": "2.4.4",
+        "pandas": "3.0.2",
+        "pyarrow": "24.0.0",
+        "pytest": "9.1.1",
+        "gpu_used": false,
+        "worker_processes_per_replay": 1,
+        "library_thread_limits": "No custom thread settings; single-process diagnostic runners.",
+        "disk_free_before_control_bytes": 185371664384,
+        "disk_free_after_final_feature_run_bytes": 185245245440,
+        "jit_or_warm_cache": "No JIT used. The local OS/file cache state was not controlled; no cache-clearing operation was performed."
+      }
+    },
+    "e0037": {
+      "status_after_control": "FAIL",
+      "historical_gate_status": "FAILED; unchanged",
+      "condition_id": "0xe4d40fb41d0acedbcae8592f00ec3ac0f6e662f89260c11a65443385996537a3",
+      "market_start_utc": "2026-04-30T07:00:00Z",
+      "cutoff_utc": "2026-04-30T06:59:00Z",
+      "side": "UP",
+      "token_id": "26964488730596900138304894010094825385864230808384254512363344209163047377374",
+      "compared_source": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/event_parts/2026-04-30T06.parquet, row group 0, rows 112555-113169; 13 projected event/parser columns.",
+      "source_identity": {"file_bytes": 936375, "mtime_ns_from_existing_replay_dependency_manifest": 1791216589363587200, "existing_whole_RAW_hash_recomputed": false},
+      "initial_book": "2026-04-29T22.parquet row group 0 row 86417",
+      "events_before_cutoff_in_existing_replay": 3915,
+      "last_native_ask_update": {
+        "row_index": 112555,
+        "source_time_utc": "2026-04-30T06:58:37.664Z",
+        "receive_time_utc": "2026-04-30T06:58:37.778Z",
+        "ask": 0.51,
+        "size": 236.98
+      },
+      "later_positive_ask_0_52_updates": [
+        {"row_index": 113158, "receive_time_utc": "2026-04-30T06:58:59.298Z", "size": 147.1},
+        {"row_index": 113160, "receive_time_utc": "2026-04-30T06:58:59.346Z", "size": 152.1},
+        {"row_index": 113162, "receive_time_utc": "2026-04-30T06:58:59.658Z", "size": 147.1},
+        {"row_index": 113164, "receive_time_utc": "2026-04-30T06:58:59.658Z", "size": 152.1},
+        {"row_index": 113166, "receive_time_utc": "2026-04-30T06:58:59.863Z", "size": 147.1},
+        {"row_index": 113168, "receive_time_utc": "2026-04-30T06:58:59.863Z", "size": 152.1}
+      ],
+      "later_reported_bbo_group": {
+        "row_indices": [113166, 113167, 113168, 113169],
+        "receive_time_utc": "2026-04-30T06:58:59.863Z",
+        "reported_best_bid": 0.5,
+        "reported_best_ask": 0.52,
+        "zero_size_removals_of_ask_0_51": 0,
+        "subsequent_native_ask_0_51_updates": 0
+      },
+      "trace_rows_projected": 615,
+      "target_asset_rows": 615,
+      "trace_event_type_counts": {"price_change": 614, "last_trade_price": 1},
+      "receive_timestamp_order_regressions": 0,
+      "duplicate_source_time_side_price_keys": 0,
+      "all_zero_size_price_changes": 19,
+      "zero_size_changes_at_ask_0_51": 0,
+      "native_vs_reported_conflict": "native ask 0.51/236.98 shares versus reported best ask 0.52",
+      "production_parser_semantics": "Events are stably sorted by receive time, source time, market, asset, and event type. Receive time controls availability/cutoff; source time controls stale-update checks. Complete receive groups are applied before inclusive snapshots. A price_change replaces one price-level size; size <= 0 removes the level; reported BBO fields are recorded for comparison and do not mutate depth.",
+      "tick_size_evidence": "Both 0.51 and 0.52 are multiples of 0.01. Tick-size event columns were not in the frozen 13-field projection, so the historical tick setting is not independently verified by this control.",
+      "independent_saved_reducer_result": "0.51 ask; agrees with production reducer",
+      "root_cause": "UNRESOLVED_LOCAL_SOURCE_CONFLICT; available archive does not distinguish a missing source event from source-field semantics; no parser defect demonstrated",
+      "saved_validation_coverage": {
+        "old_T60_zero_checks_rows": 1118,
+        "old_T60_zero_checks_status": "NOT_CHECKED, not PASS",
+        "later_checker_rows": 1143,
+        "later_checker_both_side_pass_rows": 1142,
+        "later_checker_failed_rows": 1,
+        "T59_saved_status": "1142 full-check rows, one partial-check row, no reported mismatches"
+      },
+      "historical_E0038_quarantine": {
+        "base_intersection_markets": 5684,
+        "removed_markets": 80,
+        "T59_equal_source_time_ask_ambiguity": 62,
+        "T59_ask_BBO_mismatch": 16,
+        "uncomparable_ask_BBO": 2,
+        "categories_overlap": false,
+        "clean_markets": 5604,
+        "applicability": "Historical E0038 development cohort only; not E0048 counts."
+      },
+      "repair": "No production parser/reference change was justified. Existing E0037 and E0038 artifacts remain unchanged.",
+      "trace_measurement": {
+        "wall_seconds": 0.02696700009983033,
+        "cpu_seconds": 0.140625,
+        "process_read_transfer_bytes": 1023454,
+        "peak_working_set_bytes": 114634752,
+        "rows_projected": 615,
+        "output_bytes": "see e0037_trace.json",
+        "exit_code": 0,
+        "log": "e0037_trace.log",
+        "result": "e0037_trace.json",
+        "exit_record": "e0037_trace.exit_code"
+      },
+      "attempts": [
+        {"name": "initial_missing_psutil_import", "source_rows_read": 0, "exit_code": "NOT_CAPTURED", "log": "NOT_CAPTURED at time of run; not reconstructed"},
+        {"name": "wrapper_SystemExit_normalization", "exit_code": 1, "log": "e0037_trace_attempt1.log; inner script wrote a successful result, wrapper incorrectly reported SystemExit(0) as 1"},
+        {"name": "corrected_trace", "exit_code": 0, "log": "e0037_trace.log"}
+      ]
+    },
+    "e0048_bbo_data_check": {
+      "status": "PASS_IN_CHECKED_VALID_PAIR_SCOPE",
+      "source": "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v4/slot_coverage.parquet",
+      "source_file_bytes": 26922318,
+      "source_sha256_from_recovered_inputs_audit": "a9bea5ab8aa960a6bad12cfb9be239b11474b765a48bdd382e2abc1cfa51c831",
+      "projected_compressed_column_chunk_bytes": 1229568,
+      "rows_read": 28224,
+      "valid_t60_native_pairs": 18649,
+      "comparable_sides": 37298,
+      "stored_mismatch_sides": 0,
+      "recomputed_mismatch_sides_abs_tolerance_1e_9": 0,
+      "conflicts": [],
+      "measurement": {"wall_seconds": 0.19453550002072006, "cpu_seconds": 0.28125, "process_read_transfer_bytes": 1456067, "peak_working_set_bytes": 63426560, "exit_code": 0},
+      "log": "e0048_bbo_data_check.log",
+      "result": "e0048_bbo_data_check.json",
+      "historical_counts_changed": false,
+      "e0048_mask_and_book_counts_preserved": {"source_only_complete": 17135, "valid_t60_pairs": 18649, "valid_t59_pairs": 17704},
+      "scope_limit": "Saved technical slot coverage only; not an independent full E0048 RAW replay."
+    },
+    "resume_cursor_2340": {
+      "cursor_semantics": "next partition",
+      "global_cursor_2340_next_hour_utc": "2026-10-05T11:00:00Z",
+      "previous_processed_hour_utc": "2026-10-05T10:00:00Z",
+      "terminal_checkpoint_cursor": 2377,
+      "authentic_cursor_2340_checkpoint": "NOT_FOUND; retained continuation metadata has no checkpoint copy or hash",
+      "synthetic_scope": {
+        "market_start_utc": "2026-10-05T12:00:00Z",
+        "condition_id": "0x1154bf9e7523309a4eb13f07fac67ac9913321252935f7ce19841913f3a7e379",
+        "source_hours_utc": ["2026-10-04T11:00:00Z", "2026-10-05T11:00:00Z"],
+        "parts_found": 25,
+        "parts_missing": 0,
+        "source_rows": 8311987,
+        "full_part_file_bytes": 90830410,
+        "projected_column_chunk_bytes": 70883751,
+        "preflight_measurement": {"wall_seconds": 0.041522499988786876, "cpu_seconds": 0.03125, "process_read_transfer_bytes": 1672321, "peak_working_set_bytes": 94629888, "exit_code": 0}
+      },
+      "continuous": {"wall_seconds": 21.02057249995414, "cpu_seconds": 19.828125, "process_read_transfer_bytes": 112028300, "peak_working_set_bytes": 544886784, "projected_rows": 8311987, "events": 28129, "parts": 25, "output_bytes": 27600, "terminal_checkpoint_bytes": 7746, "exit_code": 0},
+      "intentional_interrupt": {"wall_seconds": 13.365466800052673, "cpu_seconds": 13.8125, "process_read_transfer_bytes": 108214253, "peak_working_set_bytes": 516497408, "projected_rows": 7975922, "events": 17254, "parts": 24, "checkpoint_local_hour_cursor": 24, "checkpoint_bytes": 6398, "checkpoint_sha256": "384c76825aa9997569adb54ff59487406946e020e4dfc055530d7b29c8768e45", "exit_code": 86, "exit_reason": "intentional stop immediately after production atomic checkpoint write"},
+      "resumed_process": {"wall_seconds": 6.924965100013651, "cpu_seconds": 6.671875, "process_read_transfer_bytes": 42441396, "peak_working_set_bytes": 345829376, "consumed_checkpoint": true, "post_cursor_parts": 1, "aggregate_parts": 25, "aggregate_projected_rows": 8311987, "aggregate_events": 28129, "exit_code": 0},
+      "boundary_comparison": {"status": "PASS", "continuous_digest": "dba02a9f538ec2f3d227423ad7f204c773c4daf35b4798026612a9856fc462c2", "resumed_digest": "dba02a9f538ec2f3d227423ad7f204c773c4daf35b4798026612a9856fc462c2", "active_markets": 1, "active_tokens": 2, "captures_at_boundary": 0, "exact_semantic_equality": true},
+      "terminal_comparison": {"status": "PASS", "continuous_digest": "0873b937fc7fb6f8070c680565c4928de3c2d533ca8eb0bcb411c2950257c3ea", "resumed_digest": "0873b937fc7fb6f8070c680565c4928de3c2d533ca8eb0bcb411c2950257c3ea", "exact_semantic_equality": true, "t60_rows_columns": [1, 51], "t59_rows_columns": [1, 51], "source_quality_rows_columns": [1, 103], "exact_frame_values_and_dtypes": true},
+      "profiled_output_equivalence": {"status": "PASS", "same_terminal_digest_for_continuous_profiled_continuous_and_profiled_resume": true, "products_exact": true, "comparison_excluded_only": ["peak_rss_bytes", "derived integrity_sha256"]},
+      "phase_timings_seconds": {
+        "profiled_continuous": {"metadata_open": 0.018490400165319443, "batch_read_decompression": 0.4527302000205964, "parse_filter": 7.5925985999638215, "receive_group_state_update": 0.8226512088440359, "snapshot": 0.04720689996611327, "checkpoint_load": 0.0, "checkpoint_save": 0.015699599985964596, "finalization": 0.0457000999012962, "wall_instrumented": 49.9167878999142, "cpu": 50.140625, "read_transfer_bytes": 112082634, "peak_working_set_bytes": 557768704, "exit_code": 0},
+        "profiled_resume": {"metadata_open": 0.006183500052429736, "batch_read_decompression": 0.02054819988552481, "parse_filter": 0.7301812001969665, "receive_group_state_update": 0.3338755031581968, "snapshot": 0.04142869997303933, "checkpoint_load": 0.0006980000762268901, "checkpoint_save": 0.005336900008842349, "finalization": 0.03218069998547435, "wall_instrumented": 18.026822299929336, "cpu": 17.453125, "read_transfer_bytes": 42514924, "peak_working_set_bytes": 349937664, "exit_code": 0}
+      },
+      "atomic_checkpoint_repeat_save": {"status": "PASS", "source_checkpoint": "synthetic E0049 terminal checkpoint", "first_and_second_sha256": "76cb4bbaaeb052ad63a7241913345651cc40361c0065c37f97d7ac6380748dc5", "each_save_bytes": 7746, "two_save_bytes_written": 15492, "decoded_payload_exact": true, "temporary_files_remaining": 0, "wall_seconds": 0.010679799946956336, "read_transfer_bytes": 38730, "peak_working_set_bytes": 125939712, "exit_code": 0},
+      "comparison_artifacts": {"continuous": "runs/resume_cursor2340/continuous/run.json", "interrupt": "runs/resume_cursor2340/interrupt/run.json", "resume": "runs/resume_cursor2340/resume/run.json", "synthetic_comparison": "resume_synthetic_compare.json", "profile_comparison": "resume_profile_compare.json", "source_preflight": "resume_source_preflight.json"},
+      "excluded_runs_and_attempts": [
+        {"name": "continuous_setup_attempt_1", "exit_code": 1, "source_rows_read": 0, "cause": "repository root absent from sys.path", "log": "runs/resume_cursor2340/continuous/attempt1.log"},
+        {"name": "continuous_setup_attempt_2", "exit_code": 1, "source_rows_read": 0, "cause": "scratch RUNTIME selected before load_protocol validation", "log": "runs/resume_cursor2340/continuous/attempt2.log"},
+        {"name": "continuous_setup_attempt_3", "exit_code": 1, "source_rows_read": 0, "cause": "protocol_sha256 argument omitted", "log": "runs/resume_cursor2340/continuous/attempt3.log"},
+        {"name": "wrong_directory_resume_invocation", "exit_code": 1, "source_rows_read": 0, "cause": "compare pointed to empty interrupted/ directory; corrected to interrupt/", "log": "resume_synthetic_compare_attempt1.log"},
+        {"name": "miswired_resume_full_repeat", "valid_resume": false, "excluded_from_comparison": true, "wall_seconds": 19.093660000013188, "cpu_seconds": 19.8125, "read_transfer_bytes": 112015504, "peak_working_set_bytes": 548831232, "projected_rows": 8311987, "events": 28129, "exit_code": 0, "path": "runs/resume_cursor2340/full_restart_attempt_1/"}
+      ],
+      "same_receive_group_boundary": "No same-receive timestamp split at the cursor hour boundary. Reused the existing E0048 prereplay evidence and source-audit regression coverage for same-receive groups crossing batches; no duplicate synthetic event case was added."
+    },
+    "feature_causality": {
+      "status": "PARTIAL",
+      "development_cutoff": "2026-07-01T00:00:00Z",
+      "holdout_interval": "[2026-07-01T00:00:00Z, 2026-10-07T00:00:00Z)",
+      "opened_rule": "market_start minus 120 seconds",
+      "feature_count": 102,
+      "ordered_feature_names_sha256": "d90bd995b0275c610118fb9b3497ba3de409711dd11e7a9729385c5b7aa5c8ff",
+      "prefix_generation": {"stages": 4, "rows_generated": 69541, "hybrid_rows": 69541, "hybrid_payload_bytes": 6649296, "hybrid_cursor_prefix_bytes_scanned": 0, "flow_rows": 69541, "flow_cursor_prefix_bytes_scanned": 12842877, "flow_cursor_prefix_lines_scanned": 113761, "event_rows_read": 0, "wall_seconds": 78.62188669992611, "cpu_seconds": 76.578125, "process_read_transfer_bytes": 43133941014, "peak_working_set_bytes": 826023936, "exit_code": 1, "exit_reason": "strict exact-value mismatches on three intermediate anchors; exact comparison retained, no tolerance"},
+      "prefix_result": "runs/features_first_four/run.json",
+      "anchor_results": [
+        {"anchor": "2026-06-30T23:58:00Z", "status": "PASS", "exact_102_values": true, "nan_masks_exact": true},
+        {"anchor": "2026-08-06T23:58:00Z", "status": "PARTIAL", "exact_values": "101/102", "nan_masks_exact": true, "differing_feature": "ADX_fit_5m_preopen_v1_pop64_adxper640_atrper698_matypadxtema_matypatrwma_matypnegdmgma_matypposdmnwmacos_negdmper1756_posdmper1107", "generated": 0.6511298082153383, "saved": 0.6511298082153392, "absolute_difference": 8.881784197001252e-16},
+        {"anchor": "2026-08-13T23:58:00Z", "status": "PARTIAL", "exact_values": "101/102", "nan_masks_exact": true, "differing_feature": "ADX_fit_5m_preopen_v1_pop64_adxper640_atrper698_matypadxtema_matypatrwma_matypnegdmgma_matypposdmnwmacos_negdmper1756_posdmper1107", "generated": 7.06437507075099, "saved": 7.064375070750987, "absolute_difference": 2.6645352591003757e-15},
+        {"anchor": "2026-08-18T06:58:00Z", "status": "PARTIAL", "exact_values": "101/102", "nan_masks_exact": true, "differing_feature": "ADX_fit_5m_preopen_v1_pop64_adxper640_atrper698_matypadxtema_matypatrwma_matypnegdmgma_matypposdmnwmacos_negdmper1756_posdmper1107", "generated": 1.3040739136177812, "saved": 1.304073913617767, "absolute_difference": 1.4210854715202004e-14},
+        {"anchor": "2026-10-05T11:58:00Z", "status": "PASS", "rows_generated_from_saved_part2_state": 7889, "exact_102_values": true, "nan_masks_exact": true, "feature_order_exact": true, "wall_seconds_corrected_wrapper": 20.36431860004086, "cpu_seconds": 19.984375, "process_read_transfer_bytes": 9606943657, "peak_working_set_bytes": 343412736, "generated_row_bytes": 80686, "runtime_bytes": 16599899, "exit_code": 0}
+      ],
+      "profiled_final_anchor": {"wall_seconds": 18.6999, "cpu_seconds": 18.25, "process_read_transfer_bytes": 9593070348, "peak_working_set_bytes": 343040000, "hybrid_payload_bytes": 768085, "hybrid_cursor_prefix_bytes_scanned": 0, "flow_prefix_bytes": 4703747, "flow_prefix_lines": 41796, "generated_chunk_bytes": 3064852, "exit_code": 0, "phase_timings_seconds": {"checkpoint_load": 0.98514, "runtime_state_restore": 6.73768, "hybrid_read": 0.047, "BASE64_build": 1.51372, "streak_build": 0.03969, "profile_state": 2.292, "recursive": 0.0793, "FLOW_verify_read": 0.24456, "FLOW_compute": 0.0517, "dynamic_features": 0.34692, "compose": 0.00928, "parquet_writes": 0.13919, "atomic_checkpoint_saves": 1.75351}},
+      "profiled_final_anchor_artifacts": {"run": "runs/feature_final_anchor_profiled/run.json", "comparison": "runs/feature_final_anchor_profiled/comparison.json"},
+      "corrected_final_anchor_artifacts": {"run": "runs/feature_final_anchor/run.json", "comparison": "runs/feature_final_anchor/comparison.json", "console": "runs/feature_final_anchor/console.log"},
+      "initial_final_anchor_wrapper_attempt": {"exit_code": 1, "source_generation_completed": true, "cause": "missing FULL_FEATURE_PRODUCT constant in comparison wrapper after generation", "treatment": "corrected control script import and reran the same fixed final anchor; corrected run exact PASS", "original_log_retained": false, "recording_note": "run.json/run.log were overwritten by the corrected rerun; failure classification is retained here and no synthetic log was created"},
+      "interpretation": "Intermediate differences are tiny strict float64 differences on one ADX/TEMA-path feature. Numerical sensitivity to chunk/prefix extent is a plausible explanation, not confirmed. This is not treated as PASS or dismissed with tolerance; no evidence of future-row access was found in the selected prefix checks."
+    },
+    "fitted_provenance_and_availability": {
+      "fit_boundary_utc": "2026-06-30T23:59:00Z",
+      "last_training_label_available_utc": "2026-06-30T23:58:00Z",
+      "calibration_latest_release_utc": "2026-06-30T23:56:22Z",
+      "official_gamma_development_rows": "NOT_VERIFIED_IN_THIS_AUDIT",
+      "full_selection_and_transformation_lineage": "NOT_ESTABLISHED",
+      "feature_receive_or_ready_timestamp_fields_in_recovered_E0048_schema": "ABSENT",
+      "historical_feature_receive_ready_status": "UNKNOWN for all 28,224 slots",
+      "nominal_T60_rule": "E0038 v3 allows nominal T-60 availability only as a retrospective simulation assumption; prediction_available_at_utc remains missing and no synthetic timestamp is created. This does not establish actual E0041 decision availability or the one-second end-to-end budget.",
+      "t59_runtime_readiness": "UNKNOWN",
+      "future_replay_can_recover_missing_historical_timing": false,
+      "timing_contract_identities_sha256": {
+        "configs/research/btc_t0009_source_quality_continuation_20261026_v3.json": "5852107c07e0bb1768fcfe9693322bd8b9b377963110424c8f09ac08e28d8008",
+        "configs/research/btc_D_holdout_preparation_20261028_v2.json": "1b289c7a24456171bf234dfa578ecc608bb9e68529b446972b3f9eb8b7414a1d",
+        "docs/BTC_RESEARCH_CONTRACT.md": "c5d0263c2bc6245c59fb4cb8e7964b7b5310e9087197141b860a0bf82a6c6eeb"
+      }
+    },
+    "performance_and_historical_gate": {
+      "hardware": "i7-13650HX, 14 cores/20 logical processors, 64 GiB RAM; Python 3.14.4; NumPy 2.4.4; pandas 3.0.2; PyArrow 24.0.0; pytest 9.1.1; one worker; no GPU; no JIT.",
+      "local_feature_restore_cost": "Measured runtime-state restore 6.73768 s within one 7,889-row feature continuation; process read-transfer 9.593 GB, with 4,703,747 explicit FLOW-prefix bytes and zero hybrid-prefix scan. Attribution of remaining process I/O is incomplete. No optimization applied because the E0048 feature module hash is frozen.",
+      "historical_E0048_completion_lower_bound_seconds": 342799.9,
+      "frozen_E0048_time_budget_seconds": 14400,
+      "historical_E0048_status": "PARTIAL; unchanged",
+      "t0017_status": "PARTIAL; unchanged",
+      "full_E0048_active_runtime": "UNKNOWN; not rerun",
+      "full_E0048_performance_gate": "FAIL against frozen budget lower bound"
+    },
+    "process_and_artifact_anomalies": {
+      "control_script_identity_deviation": "E0049 diagnostic scripts were not included in the preregistration commit, and their final hashes were captured only after the runs. Exact script bytes used by prior invocations are NOT_VERIFIED; current scripts and output logs are preserved.",
+      "unlogged_early_process": "One first E0037 wrapper stopped on missing psutil before reading Parquet rows. Its log and exit code were not retained; manifest records NOT_CAPTURED rather than fabricating either.",
+      "overwritten_attempt_log": "The first final-anchor wrapper failure log was overwritten by the successful corrected rerun. Its exit 1 and missing-constant cause are recorded in the feature_causality result; no reconstructed log is presented as original.",
+      "unowned_python_processes": "Left running; no control process was terminated.",
+      "control_background_processes_after_work": "None observed after final process scan; final scan is recorded in completion addendum."
+    },
+    "decision": "No source/parser/checkpoint/feature production fix was justified. Synthetic resume mechanism passes its bounded scope; the authentic cursor checkpoint, E0037 cause, intermediate feature exactness, fitted lineage, actual historical readiness, full E0048 performance gate and source-coverage gates remain open. No E0041 evaluation readiness or authorization is claimed.",
+    "report": "reports/btc_preopen/btc_D_parity_resume_readiness_control_20261104.md"
+  }
 }

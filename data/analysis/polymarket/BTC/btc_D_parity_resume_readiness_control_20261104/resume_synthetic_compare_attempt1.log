@@ -1,0 +1,1 @@
+FileNotFoundError: the first comparison pointed to runs/resume_cursor2340/interrupted/checkpoints/cursor24_checkpoint.json. The interruption actually saved under runs/resume_cursor2340/interrupt. No data was modified; compare script path was corrected. exit_code=1

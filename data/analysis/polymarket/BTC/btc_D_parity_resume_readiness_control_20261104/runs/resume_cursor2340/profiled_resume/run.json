@@ -1,0 +1,89 @@
+{
+  "mode": "profiled_resume",
+  "process_fresh": true,
+  "market_start_utc": "2026-10-05T12:00:00Z",
+  "runtime_path": "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\resume_cursor2340\\profiled_resume\\runtime",
+  "resource_before": {
+    "available_ram_bytes": 47703560192,
+    "D_free_bytes": 185264869376
+  },
+  "copied_authenticated_cursor24_checkpoint": "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\resume_cursor2340\\interrupt\\checkpoints\\cursor24_checkpoint.json",
+  "phase_timing_instrumentation": "pyarrow batch next, event parse/filter, receive-group update, snapshot, checkpoint read/write, and replay post-loop trace",
+  "status": "COMPLETE",
+  "protocol_sha256": "ba79ec4d20787d69058609824514416338db5178a900cd4e9c26b3b84ac8f55a",
+  "market_identity_status": "CONFIRMED",
+  "condition_id": "0x1154bf9e7523309a4eb13f07fac67ac9913321252935f7ce19841913f3a7e379",
+  "t60_rows": 1,
+  "t59_rows": 1,
+  "source_quality_rows": 1,
+  "cursor24_checkpoint_captured": false,
+  "replay_manifest": {
+    "processed_source_hours": 25,
+    "missing_source_hours": [],
+    "replayed_event_rows": 28129,
+    "markets_with_unknown_event_timing": 0,
+    "peak_rss_bytes": 509288448,
+    "parts_read": 25,
+    "t60_captures": 1,
+    "t59_captures": 1,
+    "source_quality_clean_rows": 1,
+    "source_quality_quarantined_rows": 0,
+    "quality_function": "utils.btc_t0009_source_audit.source_quality_mask (unchanged)",
+    "checkpoint_path": "data\\analysis\\polymarket\\BTC\\btc_D_parity_resume_readiness_control_20261104\\runs\\resume_cursor2340\\profiled_resume\\runtime\\checkpoints\\native_book_replay.json",
+    "checkpoint_sha256": "76cb4bbaaeb052ad63a7241913345651cc40361c0065c37f97d7ac6380748dc5",
+    "source_part_schema_identity_sha256": "348610bb8ac576af8b49fe9405f40b3083ff7c936fb81148a8c218a0259b736a",
+    "market_technical_identity_sha256": "df03b5b8cab25e978024427bcc60a599bc6b962f7344f5fb69100582104aff4e",
+    "source_fields_projected": [
+      "timestamp_received",
+      "timestamp",
+      "market",
+      "event_type",
+      "asset_id",
+      "bids",
+      "asks",
+      "price",
+      "size",
+      "side",
+      "best_bid",
+      "best_ask",
+      "fee_rate_bps"
+    ],
+    "transaction_hash_projected": false
+  },
+  "output_bytes": 27600,
+  "final_checkpoint_bytes": 7746,
+  "io_audit": {
+    "hybrid_rows_read": 0,
+    "hybrid_cursor_prefix_bytes_scanned": 0,
+    "hybrid_raw_payload_bytes_read": 0,
+    "flow_rows_read": 0,
+    "flow_cursor_prefix_bytes_scanned": 0,
+    "flow_cursor_prefix_lines_scanned": 0,
+    "event_parts_read": 25,
+    "event_projected_rows_read": 8311987,
+    "event_rows_replayed": 28129
+  },
+  "replay_wall_seconds": 17.738807999994606,
+  "phase_timings": {
+    "parquet_open_metadata_seconds": 0.006183500052429736,
+    "batch_read_decompression_seconds": 0.02054819988552481,
+    "event_parse_filter_seconds": 0.7301812001969665,
+    "receive_group_state_update_seconds": 0.3338755031581968,
+    "snapshot_construction_seconds": 0.04142869997303933,
+    "checkpoint_load_seconds": 0.0006980000762268901,
+    "checkpoint_save_seconds": 0.005336900008842349,
+    "post_loop_finalization_seconds": 0.03218069998547435,
+    "post_loop_finalization_measured": true
+  },
+  "measurement": {
+    "wall_seconds": 18.026822299929336,
+    "cpu_seconds": 17.453125,
+    "process_read_transfer_bytes": 42514924,
+    "peak_working_set_bytes": 349937664,
+    "resource_after": {
+      "available_ram_bytes": 47558172672,
+      "D_free_bytes": 185264828416
+    }
+  },
+  "exit_code": 0
+}
