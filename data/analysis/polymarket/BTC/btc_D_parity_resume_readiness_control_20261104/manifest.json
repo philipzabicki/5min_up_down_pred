@@ -19,7 +19,7 @@
       "last_recorded_ask_level_update_utc": "2026-04-30T06:58:37.664Z"
     },
     "resume_cursor": 2340,
-    "resume_cursor_semantics": "to be verified from pinned runner and checkpoint; no index convention assumed before inspection",
+    "resume_cursor_semantics": "verified: hour_cursor is the next source-hour partition; after processing hour_index the checkpoint stores hour_index + 1. Global cursor 2340 maps to next hour 2026-10-05T11:00:00Z; the preceding processed hour is 2026-10-05T10:00:00Z.",
     "resume_initialization_ceiling": "one nearest authenticated checkpoint, at most 37 unique source-hour partitions to reach and cross cursor 2340, and no more than one post-boundary partition; stop if valid initialization requires wider history",
     "feature_causality_market_starts_utc": [
       "2026-07-01T00:00:00Z",
@@ -77,6 +77,54 @@
     "no background watcher; every diagnostic process is bounded, logged, and its exit code recorded",
     "preserve all recovered inputs/checkpoints and all prior E0037/E0048 history"
   ],
+  "pre_sample_plan_update_2026_11_04": {
+    "recorded_before_new_source_row_reads": true,
+    "inspection_so_far": "Code, pinned protocols, report/manifest text, Parquet schemas, checkpoint prefixes, filesystem metadata only; no new event rows, book values, feature values, or labels/outcomes read for this control yet.",
+    "verified_cursor_mapping": {
+      "full_calendar_first_hour_utc": "2026-06-29T23:00:00Z",
+      "global_cursor_2340_next_hour_utc": "2026-10-05T11:00:00Z",
+      "last_hour_processed_before_cursor_utc": "2026-10-05T10:00:00Z",
+      "terminal_checkpoint_path": "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v4/checkpoints/native_book_replay.json",
+      "terminal_checkpoint_hour_cursor": 2377,
+      "authentic_cursor_2340_checkpoint": "not found; the retained continuation execution metadata records the prior cursor and counters but no hash or copy of the prior checkpoint"
+    },
+    "fixed_diagnostic_operations": [
+      {
+        "name": "e0037_minimal_source_trace",
+        "source_scope": "Only the pinned April 2026 PMXT event part 2026-04-30T06.parquet, row-group 0 rows 112555 and 113166-113169 plus the event rows needed to identify their token/condition and ordering; projected event/parser fields only.",
+        "comparison": "At the preregistered UP ask and T-60 receive cutoff, compare the saved independent native depth level 0.51 with the reported top-of-book ask 0.52; do not create or change a reference value.",
+        "output": "New E0049 trace JSON/CSV only. No writes to E0037 or E0048 product paths."
+      },
+      {
+        "name": "e0048_same_path_data_check",
+        "source_scope": "Saved E0048 t60_books.parquet and slot_coverage.parquet only, projected market key, technical validity, native book top levels, and reported BBO fields; compare valid T-60 rows using the frozen protocol mask.",
+        "comparison": "Count actual book/BBO conflicts on the E0048 valid-row set; preserve the historical 17,135 common mask and all source counts unless a pinned input defect is demonstrated.",
+        "output": "New E0049 aggregate and small conflict sample if any. No outcomes, target, prediction, economics, or feature payload columns."
+      },
+      {
+        "name": "synthetic_resume_at_calendar_cursor_2340",
+        "source_scope": "One confirmed technical market at 2026-10-05T12:00:00Z, its UP/DOWN token books, and the exact 25 hourly partitions from 2026-10-04T11:00Z through 2026-10-05T11:00Z inclusive.",
+        "comparison": "Fresh-process continuous and production-checkpoint/resume executions from the same contract-valid 25-hour lower bound; compare exact semantic state, counters, processed-hour order, snapshots, and products at local cursor 24 (calendar cursor 2340) and after the final hour. Exclude only predeclared peak_rss_bytes and integrity_sha256 metadata.",
+        "stop": "If identity/initialization requires a wider source range, an empty midstream book, or available physical RAM falls below 16 GiB before execution, stop this operation and record the limitation."
+      },
+      {
+        "name": "five_anchor_feature_causality",
+        "source_scope": "Only E0048 frozen development continuation state, source prefix needed through each preregistered Opened anchor, matching generator output rows for the five fixed anchors, and the five matching rows from saved E0048 feature product; ordered 102 technical feature columns only.",
+        "comparison": "No feature fitting or model calls. Compare exact values and NaN masks between generated contract-truncated prefixes and the frozen full-source output; stop before parsing any suffix beyond each anchor for its prefix run. For the final 2026-10-05 anchor, resume only from the pinned part-2 feature checkpoint.",
+        "stop": "Use existing verified source identity metadata without rehashing full RAW. If initialization rehashes full RAW or requires holdout labels/outcomes, stop and retain only already-established E0047 evidence."
+      }
+    ],
+    "performance_capture": "For each newly launched bounded process, capture monotonic wall time, process CPU delta, projected source bytes/rows when exposed by the existing I/O audit, peak process working set, checkpoint/output bytes, exit code, free physical RAM and D: free space immediately before/after. No benchmark matrix.",
+    "resource_snapshot_before_source_samples": {
+      "utc_date": "2026-11-04",
+      "free_physical_memory_bytes": 31701680128,
+      "total_physical_memory_bytes": 68366831616,
+      "free_D_drive_bytes": 185371664384,
+      "other_python_processes": [
+        {"pid": 41140, "working_set_bytes": 13941207040, "cpu_seconds_at_observation": 596.5, "treatment": "left running; not owned by this control"}
+      ]
+    }
+  },
   "planned_outputs": {
     "report": "reports/btc_preopen/btc_D_parity_resume_readiness_control_20261104.md",
     "manifest": "data/analysis/polymarket/BTC/btc_D_parity_resume_readiness_control_20261104/manifest.json",
