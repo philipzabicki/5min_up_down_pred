@@ -132,6 +132,15 @@
       ]
     }
   },
+  "phase_timing_followup_2026_11_04": {
+    "purpose": "The first bounded correctness runs recorded end-to-end time and bytes but did not isolate all requested phases. Repeat only the same preregistered source windows once with timing wrappers; this is instrumentation of the existing correctness workloads, not a benchmark matrix.",
+    "book_replay_scope": "Same confirmed 2026-10-05T12:00:00Z market, same UP/DOWN tokens, same 25 hourly partitions from 2026-10-04T11:00Z through 2026-10-05T11:00Z, fresh scratch runtime.",
+    "book_replay_timers": ["Parquet metadata/open", "batch read and decompression", "event parse/filter", "receive-group state update", "snapshot construction", "atomic checkpoint save", "post-loop finalization"],
+    "feature_scope": "Same final anchor Opened=2026-10-05T11:58:00Z, same saved E0048 part-2 checkpoint and exact 7,889-row source suffix; no other feature range.",
+    "feature_timers": ["frozen state restore", "hybrid raw cursor/read", "BASE64 construction", "FLOW source verification/read/compute", "dynamic feature generation", "feature output/checkpoint write"],
+    "comparison": "Profiled outputs must remain exact against the already-recorded continuous/resumed book products or final-anchor feature product; no tolerance or source-window change.",
+    "stop": "Do not repeat the four-anchor feature prefix. Stop before replay if available physical RAM falls below 16 GiB or a new source range is required."
+  },
   "planned_outputs": {
     "report": "reports/btc_preopen/btc_D_parity_resume_readiness_control_20261104.md",
     "manifest": "data/analysis/polymarket/BTC/btc_D_parity_resume_readiness_control_20261104/manifest.json",
