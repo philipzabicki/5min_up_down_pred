@@ -108,6 +108,12 @@
         "stop": "If identity/initialization requires a wider source range, an empty midstream book, or available physical RAM falls below 16 GiB before execution, stop this operation and record the limitation."
       },
       {
+        "name": "atomic_checkpoint_repeat_save",
+        "source_scope": "Only the new synthetic resume terminal checkpoint and a new E0049 scratch checkpoint path.",
+        "comparison": "Load the production checkpoint, write the same decoded payload twice through atomic_checkpoint to the scratch path, reload it through load_checkpoint, and require exact decoded payload equality and a valid integrity hash. No historical checkpoint or source product is written.",
+        "same_receive_group_boundary": "Cursor 2340 is an hour boundary, not a same-receive timestamp split. Reuse the already-saved E0048 prereplay evidence and existing source-audit test for stable same-receive groups across batches; do not add a duplicate synthetic event case unless that evidence fails review."
+      },
+      {
         "name": "five_anchor_feature_causality",
         "source_scope": "Only E0048 frozen development continuation state, source prefix needed through each preregistered Opened anchor, matching generator output rows for the five fixed anchors, and the five matching rows from saved E0048 feature product; ordered 102 technical feature columns only.",
         "comparison": "No feature fitting or model calls. Generate one sequentially staged prefix that stops at each of the first four preregistered Opened anchors, compare those exact rows and NaN masks with the frozen full-source output, and perform one separate final-anchor continuation from the pinned part-2 feature checkpoint. No feature rows past each anchor are parsed before that anchor is emitted.",
