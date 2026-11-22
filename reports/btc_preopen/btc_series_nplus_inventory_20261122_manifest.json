@@ -1,0 +1,151 @@
+{
+  "config": "configs/research/btc_series_nplus_20261122_v1.json",
+  "config_sha256": "fc77f00a5783161c6171543bf74cd174fb7682e6e3882d570fccce11b530ef38",
+  "sources": {
+    "official_gamma": {
+      "rows_read": 51458,
+      "first_market_start_utc": "2025-12-18T04:25:00+00:00",
+      "last_market_start_utc": "2026-06-30T23:55:00+00:00",
+      "series_ids": [
+        "10684"
+      ],
+      "outcome_missing_or_unverified": 13,
+      "outcome_target_onehot_disagree": 0,
+      "outcome_known_resolved_at_missing": 14,
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet",
+      "file_sha256": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+      "calendar_start_utc": "2025-12-18T04:25:00+00:00",
+      "calendar_slots": 56107,
+      "missing_slots": 4662,
+      "missing_runs": 15,
+      "largest_missing_runs": [
+        [
+          "2026-01-26T23:25:00+00:00",
+          "2026-02-12T00:30:00+00:00",
+          4622
+        ],
+        [
+          "2025-12-19T16:35:00+00:00",
+          "2025-12-19T17:05:00+00:00",
+          7
+        ],
+        [
+          "2025-12-18T04:30:00+00:00",
+          "2025-12-18T04:55:00+00:00",
+          6
+        ],
+        [
+          "2026-06-17T20:05:00+00:00",
+          "2026-06-17T20:25:00+00:00",
+          5
+        ],
+        [
+          "2026-01-20T12:15:00+00:00",
+          "2026-01-20T12:30:00+00:00",
+          4
+        ],
+        [
+          "2026-01-21T12:15:00+00:00",
+          "2026-01-21T12:30:00+00:00",
+          4
+        ],
+        [
+          "2025-12-18T18:40:00+00:00",
+          "2025-12-18T18:50:00+00:00",
+          3
+        ],
+        [
+          "2026-01-20T12:40:00+00:00",
+          "2026-01-20T12:45:00+00:00",
+          2
+        ],
+        [
+          "2026-01-21T12:40:00+00:00",
+          "2026-01-21T12:45:00+00:00",
+          2
+        ],
+        [
+          "2026-04-15T12:05:00+00:00",
+          "2026-04-15T12:10:00+00:00",
+          2
+        ]
+      ],
+      "ambiguous_starts": 0,
+      "monotonicity_violations_n_to_n_plus_1": 0
+    },
+    "binance_index_proxy": {
+      "candles_read": 3180304,
+      "first_opened_utc": "2020-06-09T09:33:00+00:00",
+      "last_opened_utc": "2026-06-30T23:59:00+00:00",
+      "stop_guard_timestamp_prefix": "2026-07-01 00:00:00",
+      "path": "data/datasets/raw/BTC/BTCUSD_INDEX1m.csv",
+      "file_sha256": "2c3414a4cf612967233a19cf9377489f59d481a006146b2cac146f7575f121f4",
+      "calendar_start_utc": "2020-06-09T09:35:00+00:00",
+      "calendar_slots": 637229,
+      "missing_slots": 1192,
+      "missing_runs": 27,
+      "largest_missing_runs": [
+        [
+          "2023-08-28T00:00:00+00:00",
+          "2023-09-01T00:00:00+00:00",
+          1153
+        ],
+        [
+          "2024-06-07T09:15:00+00:00",
+          "2024-06-07T09:50:00+00:00",
+          8
+        ],
+        [
+          "2020-06-11T05:30:00+00:00",
+          "2020-06-11T06:00:00+00:00",
+          7
+        ],
+        [
+          "2020-07-01T00:00:00+00:00",
+          "2020-07-01T00:00:00+00:00",
+          1
+        ],
+        [
+          "2020-08-01T00:00:00+00:00",
+          "2020-08-01T00:00:00+00:00",
+          1
+        ],
+        [
+          "2020-09-01T00:00:00+00:00",
+          "2020-09-01T00:00:00+00:00",
+          1
+        ],
+        [
+          "2020-10-01T00:00:00+00:00",
+          "2020-10-01T00:00:00+00:00",
+          1
+        ],
+        [
+          "2020-11-01T00:00:00+00:00",
+          "2020-11-01T00:00:00+00:00",
+          1
+        ],
+        [
+          "2020-12-01T00:00:00+00:00",
+          "2020-12-01T00:00:00+00:00",
+          1
+        ],
+        [
+          "2021-01-01T00:00:00+00:00",
+          "2021-01-01T00:00:00+00:00",
+          1
+        ]
+      ],
+      "ambiguous_starts": 0,
+      "monotonicity_violations_n_to_n_plus_1": 0
+    }
+  },
+  "support_csv": "reports/btc_preopen/btc_series_nplus_support_20261122.csv",
+  "support_csv_sha256": "6bcafb4bc7b27d24303563085ad039026412ad459fae325bf5da77f5f0ddfd25",
+  "holdout_rows_materialized": 0,
+  "fits_performed": 0,
+  "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+  "executable": "D:\\Cloud\\filips19\\github\\TrilevelOptTrader\\.venv\\Scripts\\python.exe",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "elapsed_seconds": 12.908
+}

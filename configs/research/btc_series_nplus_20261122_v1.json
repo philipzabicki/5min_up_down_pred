@@ -1,0 +1,60 @@
+{
+  "experiment_id": "E0050",
+  "task_id": "T0019",
+  "decision_id": "D0027",
+  "version": "v1",
+  "created_utc": "2026-11-22",
+  "purpose": "Separate probability models p_n(T)=P(Y_n(T)=1 | X_{T-60s}) for same-direction series of n consecutive BTC 5m Polymarket outcomes starting at T. Prediction quality versus benchmarks only; no policy, quoting, execution, stakes or PnL.",
+  "n_values": [2, 3, 4, 5, 6, 7],
+  "n_values_source": "User choice 2026-11-22 from the development support table (n=2..7).",
+  "label": {
+    "definition": "Y_n(T)=1 iff the n outcomes of markets starting T, T+5m, ..., T+5(n-1)m are all UP or all DOWN; outcome n+1 is outside the label.",
+    "calendar": "One aligned UTC five-minute grid; a missing, unresolved, cancelled or ambiguous (duplicate) slot makes every window containing it non-qualifying; no bridging to the next existing row.",
+    "decision_at": "T-60s for every n",
+    "label_available_at": "max over the n component availability times; NaT if any is unknown; identical rule for both classes",
+    "implementation": "features/btc_series_nplus.py"
+  },
+  "sources": {
+    "official_gamma": {
+      "role": "primary target",
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet",
+      "identity_columns": ["condition_id", "market_slug", "market_start_utc", "series_id"],
+      "outcome_column": "target_polymarket_up",
+      "outcome_verification": "target_polymarket_up must agree with one-hot outcome_prices_current over outcomes (up, down) and market_closed_current must be true; otherwise the slot is missing.",
+      "availability_rule": "max(resolved_at_utc, market_start_utc + 5 minutes) + 60 seconds (E0031/E0039 release rule); resolved_at_utc is a current-metadata field, not an archived observation time. Missing resolved_at_utc -> availability unknown, label kept for counts, never fit/calibration eligible.",
+      "read_filter": "pyarrow filter market_start_utc < cutoff at read time"
+    },
+    "binance_index_proxy": {
+      "role": "separate longer-history experiment; never evidence about official outcomes",
+      "path": "data/datasets/raw/BTC/BTCUSD_INDEX1m.csv",
+      "contract": "features/btc_preopen_contract.py (btc_preopen_v1): Close[T+4m] >= Open[T], all five 1m candles, ties UP, available T+5m",
+      "read_filter": "stream lines and stop at the first Opened >= cutoff; only its timestamp prefix is inspected"
+    }
+  },
+  "boundaries": {
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "window_rule": "all n component market starts must be < cutoff",
+    "outer_folds": [
+      {"name": "F1", "start_utc": "2026-05-15T00:00:00Z", "end_exclusive_utc": "2026-06-01T00:00:00Z"},
+      {"name": "F2", "start_utc": "2026-06-01T00:00:00Z", "end_exclusive_utc": "2026-07-01T00:00:00Z"}
+    ],
+    "purge": "A training example is eligible for a stage with boundary B only if label_available_at <= B; for an outer fold B = fold start - 60s (first decision). Feature warm-up history is not purged."
+  },
+  "features_plan": {
+    "generator_source_repo": "TrilevelOptTrader",
+    "generator_revision": "perf/polars-numba @ cb89449 (to be re-pinned before generator fitting)",
+    "families": ["MA", "MACD", "BB", "KC", "ADX", "STOCH", "CHAIKIN", "VP", "RP"],
+    "base": "BASE25 per TrilevelOptTrader docs/base_features_v2_contract.md, rebuilt on Hyperliquid 1m with documented field availability",
+    "status": "NOT_STARTED; requires field-availability audit and representative cost measurement first"
+  },
+  "benchmarks": ["theory 2^(1-n)", "empirical prior-history rate per fold/source/n counted over forecast slots", "BASE-only model control"],
+  "environment": {
+    "python": "D:/Cloud/filips19/github/TrilevelOptTrader/.venv/Scripts/python.exe (3.14.5; pandas 3.1.0, pyarrow 26.0.1, lightgbm 4.7.0, optuna 5.0.0, numba 0.68.1)",
+    "reason": "Earlier pyenv 3.14.4 environment is absent; user approved this venv on 2026-11-22."
+  },
+  "outputs": {
+    "support_csv": "reports/btc_preopen/btc_series_nplus_support_20261122.csv",
+    "manifest": "reports/btc_preopen/btc_series_nplus_inventory_20261122_manifest.json"
+  },
+  "prohibitions": "No holdout rows read or materialized; no generator fit, model fit, tuning or calibration in the inventory stage; holdout evaluation only in a separate run after the procedure is frozen."
+}
