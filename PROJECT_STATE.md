@@ -184,3 +184,7 @@ A new, separate research target was registered: per-`n` probabilities of n conse
 ## 2026-11-23 - E0051 exact-sequence A/B from exchange OHLCV (D0028/T0020)
 
 New study completed: exact-sequence forecasts for n=1..5 official outcomes with variant A (official labels only) vs B (+ pre-Polymarket COIN-M proxy history), using frozen fold-local preopen_v1 generators. Development: B better in log loss for every n (pooled intervals exclude zero). Frozen holdout (evaluated once after freeze commit `d5c48bc`): both beat empirical benchmarks; B-A improvement significant only for n=5 and reversed in the single-price regime. Feature readiness NOT_PROVEN, so results are diagnostics. E0050 remains ACTIVE in parallel; all other gates are unchanged.
+
+## 2026-11-23 - E0052 series-moment selection from E0051 models (D0029/T0021)
+
+Development diagnostic completed: a causal 14-day rolling-quantile selector on the larger of P(all UP) and P(all DOWN) from the saved E0051 models shows no supported edge for n=5 over the conditional empirical benchmark (A +0.43 pp, B +0.98 pp, both intervals include zero; F1 has only 8-11 hits). A and B do not differ detectably. Realised coverage of the nominal 10% rule drifts from 2% to 19% across folds. Entry after the first candle is not feasible on recorded nominal times, and existing quotes are insufficient for a series PnL test. Holdout not used; all other gates unchanged.

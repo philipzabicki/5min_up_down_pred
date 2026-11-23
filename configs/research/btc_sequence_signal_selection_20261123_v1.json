@@ -1,0 +1,68 @@
+{
+  "experiment_id": "E0052",
+  "task_id": "T0021",
+  "decision_id": "D0029",
+  "version": "v1",
+  "created_utc": "2026-11-23",
+  "purpose": "Can the existing E0051 development models pick moments where their chosen one-direction series UP^n or DOWN^n hits more often than theory (2^-n) and than causal empirical frequencies of official outcomes? Main test n=5; n=2,3,4 auxiliary; n=1 directional quality control. Research diagnostic on development only; no holdout, no live model/config, no PnL.",
+  "source_experiment": {
+    "config": "configs/research/btc_sequence_ohlcv_20261123_v1.json",
+    "config_sha256": "5a7cfd3678158cae14df0c53c40a669c72646699846490a458296fda46e911cc",
+    "freeze_commit": "d5c48bc",
+    "walkforward_dir": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward",
+    "stages_used": ["C0", "F1", "F2"],
+    "stage_models_note": "Saved E0051 C0/F1/F2 model.txt files (SHA-256 verified against task.json) are re-applied, without refitting, to every decision slot of their own stage so the selector stream does not depend on label completeness; saved predictions.parquet (complete-label windows only) are used as an equivalence check. H models and holdout data are never opened."
+  },
+  "n_values": [1, 2, 3, 4, 5],
+  "main_n": 5,
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "folds": {
+    "warmup": {"name": "C0", "start_utc": "2026-05-01T00:00:00Z", "end_exclusive_utc": "2026-05-15T00:00:00Z"},
+    "evaluated": [
+      {"name": "F1", "start_utc": "2026-05-15T00:00:00Z", "end_exclusive_utc": "2026-06-01T00:00:00Z"},
+      {"name": "F2", "start_utc": "2026-06-01T00:00:00Z", "end_exclusive_utc": "2026-07-01T00:00:00Z"}
+    ]
+  },
+  "evaluation_window_rule": "official complete n-sequence (all n exact 5m keys present with outcome), all n starts < fold end (E0051 rule), label_available_at known and < development cutoff; labels never gate the selector stream",
+  "signal_rule": {
+    "p_up": "p[2^n-1] (all bits 1 = all UP, E0051 coding sum_k y_k 2^k)",
+    "p_down": "p[0]",
+    "side": "argmax(p_up, p_down); exact tie -> skip and count",
+    "ranking_score": "max(p_up, p_down) from raw (uncalibrated) model vectors",
+    "hit": "all n official outcomes equal the chosen side"
+  },
+  "selector": {
+    "main_nominal_coverage": 0.10,
+    "diagnostic_nominal_coverages": [0.05, 0.01],
+    "full_set": "every evaluable window with a non-tied side",
+    "threshold": "for decision T: quantile 1-coverage of ranking scores of the same variant and n at stream decisions t with T-14d <= t < T (strictly earlier on the decision axis T-60s; all decision slots, labelled or not; stream starts at C0 2026-05-01 and crosses fold boundaries; scores of earlier slots come from the model of the stage that contained them)",
+    "quantile_method": "numpy.quantile default (linear interpolation)",
+    "rolling_window_days": 14,
+    "min_window_scores": 2016,
+    "min_window_note": "at least 7 of 14 days of 5m decisions; F1 starts after exactly 14 days of C0, so the minimum is never binding in F1/F2",
+    "selection": "score strictly greater than threshold; score equal to threshold is not selected and is counted; missing threshold -> not selected",
+    "identical_for_A_and_B": true
+  },
+  "benchmarks": {
+    "theory": "2^-n for the chosen side (independent fair candles)",
+    "global": "E0051 Laplace(1) class frequencies of official windows with label_available_at <= fold start - 60s; probability of the chosen side's class",
+    "conditional": "E0051 known_streak_state table (official outcomes available by T-60s, lookback 3 slots, cap 4) shrunk to global with 20 pseudo-observations, fitted at fold start - 60s; unseen state -> global prior",
+    "control_selector": "same model side per window, ranking score = conditional benchmark probability of that side, same rolling 14-day 1-coverage quantile rule over its own stream (C0 decisions use the benchmark fitted at C0 start - 60s)"
+  },
+  "calibration": "raw vectors only; predicted-vs-observed shown diagnostically; no calibrated variant fitted",
+  "uncertainty": {"method": "common-block circular moving-block bootstrap over UTC days within each fold and pooled F1+F2", "block_days_main": 3, "block_days_sensitivity": [1, 3, 5, 7], "replications": 2000, "seed": 20261123},
+  "quote_sources": {
+    "t60_books": "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v4/t60_books.parquet",
+    "t59_books": "data/analysis/polymarket/BTC/btc_D_historical_inputs_20261030_v4/t59_books.parquet",
+    "t59_ask_ladders": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/t59_ask_ladders.parquet",
+    "gamma_markets": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet"
+  },
+  "outputs": {
+    "root": "data/analysis/polymarket/BTC/btc_sequence_signal_selection_20261123",
+    "per_window": "data/analysis/polymarket/BTC/btc_sequence_signal_selection_20261123/per_window.parquet",
+    "manifest": "reports/btc_preopen/btc_sequence_signal_selection_20261123_manifest.json",
+    "summary_csv": "reports/btc_preopen/btc_sequence_signal_selection_20261123_summary.csv",
+    "report": "reports/btc_preopen/btc_sequence_signal_selection_20261123.md"
+  },
+  "future_test_conditions": "An independent evaluation needs agreed unseen boundaries, frozen models per fold, the selector exactly as above (14-day rolling strictly-earlier stream of all decision slots, warm-up >= 2016 scores, strict >), benchmarks refitted at each fold start - 60s from labels available by then, and documented feature receipt and label observation times. Not authorized by this task."
+}

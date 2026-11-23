@@ -10,6 +10,8 @@ from utils.btc_sequence_eval import (
     fit_temperature,
     global_benchmark,
     per_window_scores,
+    block_bootstrap_stat,
+    rolling_prior_quantiles,
 )
 
 
@@ -44,6 +46,27 @@ class SequenceEvalTests(unittest.TestCase):
         self.assertAlmostEqual(res["ci_low"], -0.01)
         self.assertAlmostEqual(res["ci_high"], -0.01)
         self.assertEqual((res["days"], res["blocks_per_replicate"]), (17, 6))
+
+    def test_bootstrap_stat_common_blocks_and_ratio(self):
+        days = pd.date_range("2026-05-15", periods=10 * 288, freq="5min", tz="UTC")
+        sel = (np.arange(len(days)) % 10 == 0).astype(float)
+        hit = np.ones(len(days))
+        res = block_bootstrap_stat(days, {"i": sel, "ih": sel * hit, "o": np.ones(len(days))},
+                                   lambda t: t["ih"] / t["i"] - t["i"] / t["o"], block_days=3, reps=100, seed=1)
+        self.assertAlmostEqual(res["estimate"], 1.0 - sel.mean())
+        self.assertLessEqual(res["ci_low"], res["estimate"])
+        empty = block_bootstrap_stat(days, {"i": np.zeros(len(days))}, lambda t: t["i"] / t["i"], reps=20)
+        self.assertEqual(empty["undefined_replicates"], 20)
+
+    def test_rolling_prior_quantiles_strictly_earlier(self):
+        t = np.arange(10, dtype=np.int64) * 10
+        s = np.arange(10, dtype=float)
+        thr, cnt = rolling_prior_quantiles(t, s, np.array([50, 51, 5]), window_ns=30, quantiles=[0.5, 1.0],
+                                           min_count=2)
+        np.testing.assert_array_equal(cnt, [3, 3, 1])  # T=50 sees t=20,30,40 only
+        np.testing.assert_allclose(thr[0], [3.0, 4.0])
+        np.testing.assert_allclose(thr[1], [4.0, 5.0])  # t=30,40,50
+        self.assertTrue(np.isnan(thr[2]).all())
 
 
 if __name__ == "__main__":

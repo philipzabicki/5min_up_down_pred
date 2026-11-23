@@ -323,3 +323,11 @@ Priority: P1.
 Scope: D0028/E0051. Data/label audit and exports, A/B walk-forward for n=1..5, calibration, 10%/1% thresholds from earlier OOF, global and conditional empirical benchmarks, paired block bootstrap, frozen holdout evaluation by settlement-rule regime.
 Forbidden: live model/config changes, Chainlink acquisition, book reconstruction, order replay, PnL, orders.
 Result: see E0051. Blocked/unproven: actual T-60s availability of complete index/volume candles; per-market settlement rule beyond the E0033 calendar boundaries.
+
+## T0021 - Selecting moments for an all-UP/all-DOWN series from E0051 models (2026-11-23)
+
+Status: DONE (development diagnostic); feature readiness NOT_PROVEN; economic test NOT_STARTED (material audited only).
+Priority: P2.
+Scope: D0029/E0052. Causal rolling-quantile selector over re-applied saved E0051 C0/F1/F2 models, hit rate vs 2^-n, excess over global/conditional benchmarks, benchmark-ranked control, A/B policy comparison, block-length sensitivity, first-candle entry feasibility and quote-material audit.
+Forbidden: holdout labels/predictions/H models, live model/config changes, PnL, orders.
+Result: see E0052. Open: documented first-result observation time and next-candle executable quotes; quotes of later legs at the first leg's T-60s; agreed unseen period for an independent test.

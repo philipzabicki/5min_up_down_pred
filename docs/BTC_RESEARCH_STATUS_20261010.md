@@ -1102,3 +1102,9 @@ Development-only support inventory for the separate n+ series study (D0027) is c
 - Main finding: B (proxy long history) slightly improves official log loss in development for every n; on holdout only n=5 is significant and single-price windows favour A. Gains vs uniform are ~0.001-0.003 nats.
 - Completed: data audit, label/feature exports, A/B fits, calibration, benchmarks, bootstrap, holdout. Unproven: actual T-60s candle availability (feature_ready_at nominal), per-market settlement rule. Not done: selective 10%/1% comparison is uninformative because OOF thresholds did not transfer.
 - Next resumable step: none required for E0051. Possible follow-ups (separate authorization): sequence-tuned generators/selection, recency weighting of proxy rows, and live candle-receipt measurement.
+
+## E0052 / T0021 series-moment selection - 2026-11-23
+
+- Selector, metrics, A/B comparison and feasibility audits completed on development F1/F2; see EXPERIMENTS.md E0052 and `reports/btc_preopen/btc_sequence_signal_selection_20261123*`.
+- Holdout labels, predictions and H models not opened.
+- Next resumable step: none required. Independent test on a new unseen period only after its boundaries are agreed.
