@@ -1,0 +1,118 @@
+{
+  "experiment_id": "E0053",
+  "task_id": "T0022",
+  "decision_id": "D0030",
+  "version": "v1",
+  "created_utc": "2026-11-23",
+  "status_at_creation": "pre-registered before any economic result of this experiment was computed",
+  "purpose": "On official Polymarket outcomes in development F1+F2, does the E0051 any-sequence n=5 model (32 classes, per-leg marginals) give a better net result than the n=1 single-candle model at the same time and price, and does earlier pre-open entry with the same forecast exploit 0.50-0.51 prices? Each market is bought pre-start with own cash and settled independently; any UP/DOWN combination and skipping any leg is allowed. Historical development research only; no holdout, no live model/config.",
+  "source_experiment": {
+    "config": "configs/research/btc_sequence_ohlcv_20261123_v1.json",
+    "config_sha256": "5a7cfd3678158cae14df0c53c40a669c72646699846490a458296fda46e911cc",
+    "freeze_commit": "d5c48bc",
+    "walkforward_dir": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward",
+    "stages_used": ["F1", "F2"],
+    "n_models": [1, 5],
+    "variants": ["A", "B"],
+    "replay": "E0052 replay (commit ccf37e2): saved F1/F2 model.txt (SHA-256 checked against task.json) re-applied without refit to every decision slot of its own stage with the stored E0051 feature matrices; equality with saved predictions.parquet on common rows is required (max abs diff <= 1e-9). H models, holdout features, labels and predictions are never opened."
+  },
+  "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+  "folds": [
+    {"name": "F1", "start_utc": "2026-05-15T00:00:00Z", "end_exclusive_utc": "2026-06-01T00:00:00Z"},
+    {"name": "F2", "start_utc": "2026-06-01T00:00:00Z", "end_exclusive_utc": "2026-07-01T00:00:00Z"}
+  ],
+  "clocks": {
+    "feature_last_source": "close of the 1m candle ending at anchor T-60s (nominal E0051 contract)",
+    "forecast_ready": "T-60s nominal; historical receipt of the complete 1m candle and model completion time are UNCONFIRMED, so all results are diagnostic on the nominal clock",
+    "book_observation": "entry time t_e: book state after all archive events with receive timestamp <= t_e (no later receive event accepted)",
+    "order_submit": "t_e - 1s (order delay 1s, as in the T-59 product: decision S-60s, entry S-59s)",
+    "fill": "simulated immediately at t_e from the observed snapshot (taker) or from post-placement prints (passive bounds)",
+    "market_start": "S (target market open)",
+    "requirement": "forecast_ready <= order_submit; book and fee data received <= t_e"
+  },
+  "forecasts": {
+    "n1": "P(UP) = p1 of the n=1 model at decision S-60s for target S",
+    "n5_leg": "anchor T, legs T_j = T + 5j min (j=0..4); P(UP_j) = sum of class probabilities with bit j set; P(DOWN_j) = 1 - P(UP_j); E0051 coding c = sum_k y_k 2^k, first market = least significant bit (verified against official targets)",
+    "raw_only": "raw uncalibrated vectors in all main comparisons; no calibrated variant is fitted",
+    "horizons": "for target S and horizon j the only anchor is T = S - 5j min; forecast is nominally 1, 6, 11, 16, 21 minutes old at S (ready T-60s)",
+    "fold_assignment": "by forecast-ready time = stage of the anchor slot T; a (target, j) pair is kept only when the anchor stage equals the target stage and is F1 or F2 (C0->F1 and F1->F2 cross-boundary anchors are dropped and counted); models and generators are audited to have training/fit cutoffs <= forecast-ready time",
+    "multi_horizon_portfolio": "not reported; each policy uses one fixed horizon j, so a market appears at most once per policy (uniqueness asserted)"
+  },
+  "evaluation_labels": "official Polymarket outcome of the target present, outcome_available_at known and < development cutoff (E0051 export, nominal availability rule = proxy, marked); labels are used only for scoring",
+  "prediction_metrics": {
+    "sequence": "n=5 windows under the E0052 rule (complete official 5-sequence, all starts < fold end, label availability < cutoff): 32-class log loss, argmax exact-sequence hit rate split by mixed vs one-direction predicted class, vs E0051 causal global and conditional benchmarks (fitted at fold start - 60s) on the same windows and vs 1/32",
+    "leg": "Brier score and log loss of P(UP) for n1 and each n5 horizon on the common leg pool; calibration (deciles of P(chosen side)) on legs actually traded by the main rule"
+  },
+  "execution": {
+    "test_size_gross_usd": 5.0,
+    "size_note": "$5 order notional per market for every policy (matches the earlier $5 depth diagnostic); taker fee is added in cash in the cash-collateral regime, so cash debit slightly exceeds $5",
+    "limit_prices": {"main": 0.51, "variant": 0.50},
+    "fill_rule": "walk ask levels with price <= limit for $5 notional; full fill required (FOK-like); otherwise no execution",
+    "fees": {
+      "registry": "configs/polymarket_btc5m_fee_regimes_v2.json",
+      "registry_sha256": "b47cb594512b3671f67ab3cee3a673ff43b7dcd15f7514803e1bcde8238ec1e2",
+      "rule": "date-assigned taker fee shares*rate*p*(1-p) (rate 0.07 from 2026-05-06 estimate), cash-collateral collection; makers pay no fee (taker_only); applied through run_btc_preopen_economic_replay._walk_asks",
+      "observed_fee_event_required": false,
+      "observed_fee_event_note": "the dated registry assigns the fee; presence of an archived fee_rate_bps event before entry is reported only as a diagnostic"
+    },
+    "side_choice": "for each side with full fill within the limit: effective cost = cash debit / net payout shares; edge = P(side) - effective cost; choose the side with the highest edge > margin; exact edge tie -> skip",
+    "margins": {"main": 0.0, "sensitivity": 0.005},
+    "order_vs_fill": "order = a side whose best ask <= limit has P(side) - (best ask + taker fee per share at best ask) > margin; execution = full fill with edge > margin on the walked cost; an order without execution is a killed FOK",
+    "quote_validity_per_side": [
+      "native book of that token initialized (complement-only books are not executable)",
+      "archive hour of the entry time available and no missing archive hour between the side's last book snapshot and entry",
+      "no event received after entry used; no ambiguous equal-source-timestamp ask order; bid/ask not crossed",
+      "non-empty ask book"
+    ],
+    "market_complete_data": "both sides valid at the entry time (a policy can only choose a side when both are priced); otherwise the opportunity is 'no execution data' and stays missing, distinct from an eligible no-trade (PnL 0)",
+    "minimum_order": "current Gamma order_min_size_shares (audit context); $5 at <= 0.51 always exceeds 5 shares",
+    "pnl": "per bought leg: net payout shares * 1{chosen side = official outcome} - cash debit; every leg settles independently; ROI = sum PnL / sum cash debit",
+    "concurrency": "per policy, maximum capital simultaneously committed from entry to nominal label availability (nominal status)"
+  },
+  "entry_times": {
+    "main": "S - 59s for every policy (existing T-59 product; replayed and checked for equality)",
+    "earlier": "S - 5, 10, 15, 20 min, only where the forecast is ready: n5 horizon j allows S - k min for k <= 5j (same forecast as at S - 59s)",
+    "earlier_comparison": "each earlier point vs S - 59s on the common mask of markets with complete data at both times; plus practical comparison of the earlier n5 policy vs the later n1 policy at S - 59s"
+  },
+  "passive_variant": {
+    "status": "conservative execution bounds from L2 book + public prints; queue priority is not identified (no order ids)",
+    "placement": "post-only bid at the limit on the chosen side at S - k min (k = 5, 10, 15, 20, forecast ready), size $5 / limit shares; if the token's best ask <= limit at placement the post-only order is rejected (counted)",
+    "side_choice": "highest P(side) - limit > margin (maker fee 0); tie -> skip",
+    "cancel": "order is cancelled for prints received after S - 5s (cancel effective before start including latency)",
+    "lower_bound": "queue ahead = displayed bid size at exactly the limit on that token at placement; fill = min(order, max(0, SELL-taker print size at exactly the limit on that token after placement - queue ahead)); any print on the token below the limit -> full fill",
+    "upper_bound": "full fill if any print on the token at <= limit or on the complementary token at >= 1 - limit after placement; otherwise 0",
+    "pnl": "filled shares * 1{win} - filled shares * limit; partial and zero fills recorded"
+  },
+  "comparisons": [
+    "n5 j=0 vs n1 at S-59s (same market, feature cutoff, snapshot, rules, budget)",
+    "n5 j=1..4 vs n1 at the target's S-59s (each horizon separately)",
+    "n5 j at S-k min vs the same n5 j at S-59s (same forecast)",
+    "n5 j at S-k min vs n1 at S-59s (practical)"
+  ],
+  "uncertainty": {
+    "method": "paired common-block circular moving-block bootstrap over UTC days of the difference in PnL per common opportunity (sum of differences / number of common opportunities)",
+    "block_days_main": 3,
+    "block_days_sensitivity": [1, 3, 5, 7],
+    "replications": 2000,
+    "seed": 20261123,
+    "reported": "F1, F2 and pooled separately"
+  },
+  "rolling_payout": "separate feasibility control only: check whether an archived funds-availability time and a book for the next purchasable market exist; report nominal minimum gaps from resolution metadata; the sum of separately bought legs or the product of prices is never used as a rolling realisation",
+  "data_sources": {
+    "t59_ask_ladders": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/t59_ask_ladders.parquet",
+    "t59_ask_ladders_sha256": "c90bb2364fff225b6e5047ff761f5ea150dda35afdd63a88ed0fef6f6bd6c941",
+    "event_parts": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/event_parts",
+    "archive_manifest": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261008/pmxt_extended/archive_manifest.json",
+    "archive_manifest_sha256": "7b8aa537678d3623ae206141548537219583f598a7227c31636aeb5f846d96ac",
+    "gamma_markets": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet",
+    "holdout_guard": "event-part hour files >= 2026-07-01T00 are never opened; ladder and Gamma reads are filtered to market_start_utc < 2026-07-01"
+  },
+  "outputs": {
+    "root": "data/analysis/polymarket/BTC/btc_sequence_leg_preopen_execution_20261123",
+    "ledger": "data/analysis/polymarket/BTC/btc_sequence_leg_preopen_execution_20261123/ledger.parquet",
+    "snapshots": "data/analysis/polymarket/BTC/btc_sequence_leg_preopen_execution_20261123/entry_snapshots.parquet",
+    "report": "reports/btc_preopen/btc_sequence_leg_preopen_execution_20261123.md",
+    "manifest": "reports/btc_preopen/btc_sequence_leg_preopen_execution_20261123_manifest.json",
+    "summary_csv": "reports/btc_preopen/btc_sequence_leg_preopen_execution_20261123_summary.csv"
+  }
+}
