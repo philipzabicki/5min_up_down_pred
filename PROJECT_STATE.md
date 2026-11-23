@@ -188,3 +188,7 @@ New study completed: exact-sequence forecasts for n=1..5 official outcomes with 
 ## 2026-11-23 - E0052 series-moment selection from E0051 models (D0029/T0021)
 
 Development diagnostic completed: a causal 14-day rolling-quantile selector on the larger of P(all UP) and P(all DOWN) from the saved E0051 models shows no supported edge for n=5 over the conditional empirical benchmark (A +0.43 pp, B +0.98 pp, both intervals include zero; F1 has only 8-11 hits). A and B do not differ detectably. Realised coverage of the nominal 10% rule drifts from 2% to 19% across folds. Entry after the first candle is not feasible on recorded nominal times, and existing quotes are insufficient for a series PnL test. Holdout not used; all other gates unchanged.
+
+## 2026-11-23 - E0053 sequence legs vs n=1 and pre-open entry timing (D0030/T0022)
+
+Development diagnostic completed on official outcomes with a pre-registered protocol (commit 07ba712). Per-leg marginals of the E0051 n=5 model do not robustly beat the n=1 model at the same time and price (A +0.048 $/opportunity, CI above 0 only for 3/5-day blocks and in neither fold alone; B -0.003, CI includes 0). No taker policy is robustly profitable after dated fees (1/12 main cells with CI > 0). Earlier entry (S-5..20 min) with the same forecast shows no supported benefit and much lower executable coverage; passive orders can only be bounded. Rolling payout is not evaluable (no archived funds-receipt time). Holdout untouched; a next step needs agreed unseen boundaries and documented clocks.

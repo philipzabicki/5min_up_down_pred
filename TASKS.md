@@ -331,3 +331,11 @@ Priority: P2.
 Scope: D0029/E0052. Causal rolling-quantile selector over re-applied saved E0051 C0/F1/F2 models, hit rate vs 2^-n, excess over global/conditional benchmarks, benchmark-ranked control, A/B policy comparison, block-length sensitivity, first-candle entry feasibility and quote-material audit.
 Forbidden: holdout labels/predictions/H models, live model/config changes, PnL, orders.
 Result: see E0052. Open: documented first-result observation time and next-candle executable quotes; quotes of later legs at the first leg's T-60s; agreed unseen period for an independent test.
+
+## T0022 - Sequence-leg economics vs n=1 and pre-open entry timing (2026-11-23)
+
+Status: DONE (development diagnostic); feature readiness NOT_PROVEN; passive execution BOUNDS_ONLY; rolling payout NOT_EVALUABLE (no archived funds-receipt time).
+Priority: P2.
+Scope: D0030/E0053. Multi-time PMXT book replay (S-59s, S-5..20 min) and public prints, per-leg n=5 marginals vs n=1, taker policies at 0.51/0.50 with dated fees, earlier-entry and practical comparisons, passive bounds, 32-class and per-leg prediction metrics, rolling feasibility, ledger checks.
+Forbidden: holdout data (hour files >= 2026-07-01, labels, predictions, H models), live model/config changes, orders.
+Result: see E0053. Open: feature receipt and model completion times; own-order fill/queue data; redemption receipt times; agreed unseen period.

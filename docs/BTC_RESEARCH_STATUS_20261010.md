@@ -1108,3 +1108,9 @@ Development-only support inventory for the separate n+ series study (D0027) is c
 - Selector, metrics, A/B comparison and feasibility audits completed on development F1/F2; see EXPERIMENTS.md E0052 and `reports/btc_preopen/btc_sequence_signal_selection_20261123*`.
 - Holdout labels, predictions and H models not opened.
 - Next resumable step: none required. Independent test on a new unseen period only after its boundaries are agreed.
+
+## E0053 / T0022 sequence legs and pre-open entry timing - 2026-11-23
+
+- Pre-registered protocol (07ba712), multi-time PMXT book replay, taker/passive policies, paired bootstrap and rolling feasibility completed on development F1/F2; see EXPERIMENTS.md E0053 and `reports/btc_preopen/btc_sequence_leg_preopen_execution_20261123*`.
+- Hour files from 2026-07-01, holdout labels, predictions and H models not opened.
+- Next resumable step: none required. A forward test needs documented clocks, own-order fill data, redemption times and agreed unseen boundaries.
