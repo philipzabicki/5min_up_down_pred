@@ -1,0 +1,169 @@
+{
+  "experiment_id": "E0051",
+  "config": "configs/research/btc_sequence_ohlcv_20261123_v1.json",
+  "config_sha256": "5a7cfd3678158cae14df0c53c40a669c72646699846490a458296fda46e911cc",
+  "ohlcv": {
+    "path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+    "sha256": "130e415b2e092a09caba773aed7b4f717d3b2b0d7aede658ba8e85901da91022",
+    "rows": 3327267,
+    "first_opened_utc": "2020-06-09T09:33:00+00:00",
+    "last_opened_utc": "2026-10-06T23:59:00+00:00",
+    "duplicated_opened": 0,
+    "monotonic_increasing": true,
+    "missing_minute_runs": [],
+    "nonpositive_or_nan_prices": 0,
+    "nan_volume": 0,
+    "base_file": {
+      "path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv",
+      "sha256": "0a97ce5f4c2d57f6788e112c432b55b41e71be246efc5cc37cb12e8b26e2a1d9",
+      "rows": 3321148,
+      "last_opened_utc": "2026-10-02T18:00:00+00:00",
+      "is_exact_prefix_of_research_file": true
+    },
+    "appended_rows_after_base": 6119,
+    "composition": "OHLC = Binance COIN-M BTCUSD indexPriceKlines; Volume = Binance USD-M BTCUSDT perpetual kline field 5 (base-asset BTC volume); inner join on exact Opened (data/binance_sources.py)",
+    "volume_unit": "BTC (base asset) per minute from USD-M BTCUSDT kline field 5",
+    "repaired_index_price": {
+      "blocks": 7,
+      "rows": 5888,
+      "rows_in_file": 5888,
+      "first": "2020-06-11 05:34:00",
+      "last": "2024-06-07 09:48:00"
+    },
+    "repaired_um_volume": {
+      "blocks": 10,
+      "rows": 364,
+      "rows_in_file": 364,
+      "first": "2021-03-02 01:01:00",
+      "last": "2025-08-29 06:36:00"
+    },
+    "repaired_index_minutes_present_in_raw_index_file": 69,
+    "repair_method": "data/raw_ohlcv_repair.py bridge repair of missing source minutes (Monte Carlo profile in configs); repaired rows are synthetic, not exchange candles"
+  },
+  "features": {
+    "gen_0430": {
+      "dataset": "E:/archive/github/5min_up_down_pred/data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/dev_2026q2_b/cdf179bdec805886/stages/final_feature_dataset_25d78bd60067/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+      "dataset_size": 5428763416,
+      "fit_and_tuning_end_exclusive_utc": "2026-04-30T23:59:00.000000001Z",
+      "selected_feature_count": 56,
+      "selected_features_sha256": "c2e1c461c8411ead0653d16d5a62ef5484a40f4d92bb9476d14e2dc0bfdf28ce",
+      "decision_rows": 665454,
+      "first_market_start_utc": "2020-06-09T09:35:00+00:00",
+      "last_market_start_utc": "2026-10-07T00:00:00+00:00",
+      "warmup_complete_market_start_utc": "2020-06-17T00:05:00+00:00",
+      "rows_after_warmup_with_any_nan": 747,
+      "export": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/features_gen_0430.parquet",
+      "export_sha256": "e694a1070c7c474d0f5561b2b8c64f4d146dc7d0187a8958ae2196debd0c02b4"
+    },
+    "gen_0531": {
+      "dataset": "E:/archive/github/5min_up_down_pred/data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/dev_2026q2_c/ade47faec2dc0b69/stages/final_feature_dataset_82d2eb6e4cae/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+      "dataset_size": 5177260420,
+      "fit_and_tuning_end_exclusive_utc": "2026-05-31T23:59:00.000000001Z",
+      "selected_feature_count": 64,
+      "selected_features_sha256": "ba46b799de4a1f4dfe9a2b8c63a376deca63c7412234cf2fd4bd5c6209a873d0",
+      "decision_rows": 665454,
+      "first_market_start_utc": "2020-06-09T09:35:00+00:00",
+      "last_market_start_utc": "2026-10-07T00:00:00+00:00",
+      "warmup_complete_market_start_utc": "2020-06-12T00:05:00+00:00",
+      "rows_after_warmup_with_any_nan": 52,
+      "export": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/features_gen_0531.parquet",
+      "export_sha256": "6478fda9b4d6cee31820cebf98d430a95063a91503c6b58d8c637eeda53f8430"
+    },
+    "gen_0630": {
+      "dataset": "E:/archive/github/5min_up_down_pred/data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/evaluated_holdout/794a69e369a3f82d/stages/final_feature_dataset_0a35c2a69f5d/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+      "dataset_size": 5397892389,
+      "fit_and_tuning_end_exclusive_utc": "2026-06-30T23:59:00.000000001Z",
+      "selected_feature_count": 64,
+      "selected_features_sha256": "720631ef80ba135b3ba20d21763a257b0611d83d242bfb776c067fb5b266fb4a",
+      "decision_rows": 665454,
+      "first_market_start_utc": "2020-06-09T09:35:00+00:00",
+      "last_market_start_utc": "2026-10-07T00:00:00+00:00",
+      "warmup_complete_market_start_utc": "2020-06-17T00:05:00+00:00",
+      "rows_after_warmup_with_any_nan": 398,
+      "export": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/features_gen_0630.parquet",
+      "export_sha256": "71d11b15b3a2ec3c564ec9b13c6a07f7b85a41dd6cefc00c2455c3b01054892f"
+    }
+  },
+  "common_feature_warmup_complete_market_start_utc": "2020-06-17T00:05:00+00:00",
+  "official_development": {
+    "rows_read": 51458,
+    "first_market_start_utc": "2025-12-18T04:25:00+00:00",
+    "last_market_start_utc": "2026-06-30T23:55:00+00:00",
+    "series_ids": [
+      "10684"
+    ],
+    "outcome_missing_or_unverified": 13,
+    "outcome_target_onehot_disagree": 0,
+    "outcome_known_resolved_at_missing": 14,
+    "file_sha256": "cc314da279bddf5df4204cc0ff607091f85a985136ac7e7edd1308abcf1b65ba",
+    "calendar_start_utc": "2025-12-18T04:25:00+00:00",
+    "calendar_slots": 56107,
+    "missing_slots": 4662,
+    "ambiguous_starts": 0
+  },
+  "proxy": {
+    "calendar_start_utc": "2020-06-17T00:05:00+00:00",
+    "calendar_end_exclusive_utc": "2025-12-18T04:25:00+00:00",
+    "calendar_slots": 578932,
+    "missing_slots_main": 1175,
+    "slots_excluded_for_repaired_label_minutes": 1175,
+    "up_rate_main": 0.5014720721687491
+  },
+  "verification": {
+    "alignment": {
+      "sample_T": "2026-03-10T12:00:00+00:00",
+      "feature_row_opened": "2026-03-10T11:58:00+00:00",
+      "feature_row_present": true,
+      "proxy_recomputed_close_T4_ge_open_T": 0.0,
+      "proxy_from_contract": 0.0
+    },
+    "gap_crossing": {
+      "official_gap_utc": [
+        "2026-01-26T23:25:00+00:00",
+        "2026-02-12T00:30:00+00:00"
+      ],
+      "n5_windows_touching_gap": 4626,
+      "n5_windows_touching_gap_with_target": 0
+    },
+    "availability_max_rule_n3": true,
+    "holdout_boundaries": {
+      "official_rows_read_max_start_utc": "2026-06-30T23:55:00+00:00",
+      "dev_last_n5_window_start_utc": "2026-06-30T23:35:00+00:00",
+      "dev_n5_window_crosses_cutoff": false,
+      "feature_row_for_T_2026_07_01": true,
+      "last_feature_T_utc": "2026-10-07T00:00:00+00:00",
+      "feature_T_at_or_after_holdout_end": 1,
+      "holdout_eval_rule": "all n component starts < end and label_available_at <= end"
+    },
+    "ab_window_identity": "evaluation windows are defined from official labels, stage and feature rows only, independent of variant; hashes per stage/n below",
+    "eval_window_sha256": {
+      "C0_n1": "b206ebc2d398d93f00f8349f079d806c844d182b3b2152ad9b24804d8b1ae3db",
+      "F1_n1": "859ab718ba27b1fc55def3143b5ba53519ec11e198b9a9cb0c64f87a42e65ab0",
+      "F2_n1": "5d62c96ed049b559ade4a8c20a43291553e9a93ba360814f2d9ec7d3d8ca5abf",
+      "C0_n2": "7e3d17459c8bd37037f7dbdfd0ccc8999c5be8e57f8d51c39243799943e37d7f",
+      "F1_n2": "1d5f4f8a06dd874432a215c4f2e4db644057aa3c589806752906a83e08a29904",
+      "F2_n2": "3085d20005b3e6abb7aa1d2ec7dec041a55a7c83061d0565fd48fe51d1a26ca9",
+      "C0_n3": "e4ba44a4f1046a935c7033820b94c6981b59ef5a79d159229b595c702ee9a21b",
+      "F1_n3": "44c58054b129b7406bf167ceedbf91e085add6c964ffa797594e42b235c9e9dc",
+      "F2_n3": "25afa284cc7470ea241f718af6ee9adcfcba8bc50fac82273dbd6a6667cd7dd8",
+      "C0_n4": "c42a8ee5bf27e5698515526a2c3008bbb82aad4500524c87435e408735b8fec3",
+      "F1_n4": "770f764219593814b3b6c49ce839eb8923397c4f8707963305f3255cf77f103a",
+      "F2_n4": "b38469357e911f92973a812626e48ac3010a2857d24a3232307a3c526d532c98",
+      "C0_n5": "0646955ba029833f8110b48f41375a275524d0e1b0595395393ae0e9b1b66e13",
+      "F1_n5": "22928cfa6331f91d946c607ff5859a6432761c159cf6c75b1b5828a32917e072",
+      "F2_n5": "89b58d76f844e029c018e91e8773d727c7855e7061a2123b0ff8102640d1b688"
+    }
+  },
+  "support_csv": "reports/btc_preopen/btc_sequence_ohlcv_support_20261123.csv",
+  "support_csv_sha256": "3fb56f397331d882b6816972376d5b9c321dfb30c596d7d08a27e3d2dbb9e6d3",
+  "exports": {
+    "labels_official_development.parquet": "3ec8e39fc396f417cfb52d6e3e57e333dbc32d3fa913d033ee2434c761bfe41b",
+    "labels_proxy.parquet": "5898535b560b9e2a26255fa64f7b1cc050b7e1fe348564cfaced9f2ed43dea22"
+  },
+  "holdout_label_rows_read": 0,
+  "fits_performed": 0,
+  "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+  "executable": "D:\\Cloud\\filips19\\github\\TrilevelOptTrader\\.venv\\Scripts\\python.exe",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "elapsed_seconds": 33.252
+}

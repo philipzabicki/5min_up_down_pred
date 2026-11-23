@@ -1,0 +1,105 @@
+{
+  "experiment_id": "E0051",
+  "task_id": "T0020",
+  "decision_id": "D0028",
+  "version": "v1",
+  "created_utc": "2026-11-23",
+  "purpose": "Exact-sequence forecasts c_n(T) of n=1..5 consecutive official BTC 5m Polymarket outcomes from exchange OHLCV 1m features; does adding pre-Polymarket COIN-M proxy history (variant B) improve official-label predictions versus official-only training (variant A)? Offline prediction quality only; no live model/config, Chainlink, book reconstruction, order replay or PnL.",
+  "runner_note": "btc_sequence_walkforward.py referenced by the instruction is not available locally; user chose a new runner on 2026-11-23. Its exact protocol cannot be reproduced and is not claimed.",
+  "n_values": [1, 2, 3, 4, 5],
+  "target": {
+    "definition": "class c_n(T) = sum_k y(T+5k min) * 2^k, k=0..n-1 (first market lowest bit); y=1 UP",
+    "model_per_n": "one separate multiclass model per n with 2^n classes and its own complete-sequence mask; no marginalisation from n=5, so no shared-mask coverage loss",
+    "decision_at": "T-60s; feature row Opened = T-2m (last allowed candle closes at T-60s)",
+    "label_kind_rule": "all n elements from one label kind; proxy calendar ends at the first official market start, official calendar starts there; windows crossing the boundary or a calendar gap are dropped",
+    "label_available_at": "max over component availabilities; NaT if any unknown (never eligible)",
+    "implementation": "features/btc_sequence_ohlcv.py (reuses features/btc_series_nplus.align_outcomes)"
+  },
+  "sources": {
+    "ohlcv": {
+      "path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007.csv",
+      "base_path": "data/datasets/raw/BTC/BTCUSD_INDEXVOL_UM_BTCUSDT1m.csv",
+      "expected_sha256": "130e415b2e092a09caba773aed7b4f717d3b2b0d7aede658ba8e85901da91022",
+      "composition": "OHLC = Binance COIN-M BTCUSD indexPriceKlines; Volume = Binance USD-M BTCUSDT perpetual kline field 5 (base-asset BTC volume); inner join on exact Opened (data/binance_sources.py)",
+      "repair_artifacts": {
+        "index_price": "data/datasets/raw/BTC/analysis/raw_ohlcv_repair/BTCUSD_INDEXVOL_UM_BTCUSDT1m_cm_BTCUSD_index/20261002_180306/gap_summary.csv",
+        "um_volume": "data/datasets/raw/BTC/analysis/raw_ohlcv_repair/BTCUSD_INDEXVOL_UM_BTCUSDT1m_um_BTCUSDT_trade/20261002_180325/gap_summary.csv"
+      },
+      "raw_index_reference": "data/datasets/raw/BTC/BTCUSD_INDEX1m.csv"
+    },
+    "official_gamma": {
+      "path": "data/analysis/polymarket/BTC/preopen_v1/t59_reassessment_20261007/gamma_markets.parquet",
+      "outcome_verification": "target_polymarket_up equals one-hot outcome_prices_current over (up, down) and market_closed_current is true",
+      "availability_rule": "max(resolved_at_utc, market_start_utc + 5m) + 60s (E0031/E0039 release rule; resolved_at_utc is current metadata, not an archived observation time)",
+      "settlement_rule": "calendar regimes from E0033: single_price < 2026-08-07, twap30 [2026-08-07, 2026-08-14), twap60 >= 2026-08-14 (seven directly inspected pages; per-market rule otherwise not confirmed)"
+    },
+    "proxy": {
+      "rule": "btc_preopen_v1: Close[T+4m] >= Open[T], five consecutive complete 1m candles, ties UP, available T+5m",
+      "main_comparison_excludes": "windows with any repaired index-price minute in their label candles"
+    }
+  },
+  "features": {
+    "generator_runs": {
+      "gen_0430": {
+        "run": "E:/archive/github/5min_up_down_pred/data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/dev_2026q2_b/cdf179bdec805886",
+        "dataset": "stages/final_feature_dataset_25d78bd60067/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+        "selected_features": "stages/feature_selection_029cfe6877b4/selected_features.json",
+        "fit_and_tuning_end_exclusive_utc": "2026-04-30T23:59:00.000000001Z"
+      },
+      "gen_0531": {
+        "run": "E:/archive/github/5min_up_down_pred/data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/dev_2026q2_c/ade47faec2dc0b69",
+        "dataset": "stages/final_feature_dataset_82d2eb6e4cae/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+        "selected_features": "stages/feature_selection_73f89f8db51b/selected_features.json",
+        "fit_and_tuning_end_exclusive_utc": "2026-05-31T23:59:00.000000001Z"
+      },
+      "gen_0630": {
+        "run": "E:/archive/github/5min_up_down_pred/data/analysis/polymarket/BTC/btc_preopen_model_update_20261012/shared_runs/evaluated_holdout/794a69e369a3f82d",
+        "dataset": "stages/final_feature_dataset_0a35c2a69f5d/dataset/BTCUSD_INDEXVOL_UM_BTCUSDT1m_research_cutoff_20261007_preopen_v1.parquet",
+        "selected_features": "stages/feature_selection_1e7f0dfe8e27/selected_features.json",
+        "fit_and_tuning_end_exclusive_utc": "2026-06-30T23:59:00.000000001Z"
+      }
+    },
+    "provenance": "Existing preopen_v1 generators (indicators, VP, RP, candle, session, realized volatility, basis) and selector fitted by E0006 run_btc_preopen_model_update on the 5m Binance-index proxy target with fit/tuning cutoffs at or before each boundary; reused unchanged and shared by A and B.",
+    "feature_ready_at": "nominal T-60s candle close; actual historical receipt of the complete 1m index and USD-M volume candles is not archived -> NOT_PROVEN; results are nominal-clock diagnostics, not causal deployment readiness",
+    "repair_dependency_lookbacks_minutes": [60, 1440, 10080]
+  },
+  "boundaries": {
+    "development_cutoff_exclusive_utc": "2026-07-01T00:00:00Z",
+    "holdout": {"start_utc": "2026-07-01T00:00:00Z", "end_exclusive_utc": "2026-10-07T00:00:00Z", "window_rule": "all n component starts < end and label_available_at <= end"},
+    "stages": [
+      {"name": "C0", "role": "earlier OOF for calibration/thresholds only", "start_utc": "2026-05-01T00:00:00Z", "end_exclusive_utc": "2026-05-15T00:00:00Z", "generator": "gen_0430"},
+      {"name": "F1", "role": "reported", "start_utc": "2026-05-15T00:00:00Z", "end_exclusive_utc": "2026-06-01T00:00:00Z", "generator": "gen_0430"},
+      {"name": "F2", "role": "reported", "start_utc": "2026-06-01T00:00:00Z", "end_exclusive_utc": "2026-07-01T00:00:00Z", "generator": "gen_0531"},
+      {"name": "H", "role": "frozen holdout test", "start_utc": "2026-07-01T00:00:00Z", "end_exclusive_utc": "2026-10-07T00:00:00Z", "generator": "gen_0630"}
+    ],
+    "purge": "training window eligible only if label_available_at <= stage start - 60s; evaluation windows also require all n starts < stage end; feature warm-up history is not purged"
+  },
+  "variants": {
+    "A": "earlier official sequences only",
+    "B": "earlier official sequences plus all qualifying COIN-M proxy sequences entirely before the first official market"
+  },
+  "model": {
+    "library": "lightgbm",
+    "objective": "multiclass, num_class 2^n",
+    "params": {"learning_rate": 0.03, "num_leaves": 15, "min_data_in_leaf": 200, "feature_fraction": 0.8, "bagging_fraction": 0.8, "bagging_freq": 1, "lambda_l2": 10.0, "max_bin": 255, "seed": 20261123, "deterministic": true, "force_row_wise": true, "verbosity": -1},
+    "rounds": "early stopping (50, max 2000) on official multiclass log loss over the last 14 days of eligible official windows before the stage (training part purged at the first validation decision), then refit on all eligible windows with the best iteration count",
+    "identical_for_A_and_B": true,
+    "tuning": "none; fixed a priori"
+  },
+  "calibration": "temperature scaling of log-probabilities fitted on all earlier official OOF predictions of the same variant (F1: C0; F2: C0+F1; H: C0+F1+F2); raw and calibrated reported, calibrated primary",
+  "selection": "confidence = max class probability (calibrated); thresholds = 90th and 99th percentiles of the same earlier OOF confidences (nominal 10% and 1%); realised selection rate reported",
+  "benchmarks": {
+    "global": "Laplace(1) smoothed class frequencies of official windows eligible at the stage boundary",
+    "conditional": "class frequencies by known_streak_state at decision (official outcomes available by T-60s, lookback 3 slots, streak cap 4), shrunk to the global benchmark with 20 pseudo-observations; fitted on the same official history for A and B"
+  },
+  "uncertainty": {"method": "paired circular moving-block bootstrap over UTC days, 3-day blocks, within each fold and pooled F1+F2", "block_days": 3, "replications": 2000, "seed": 20261123},
+  "outputs": {
+    "root": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123",
+    "audit_manifest": "reports/btc_preopen/btc_sequence_ohlcv_audit_20261123_manifest.json",
+    "support_csv": "reports/btc_preopen/btc_sequence_ohlcv_support_20261123.csv",
+    "walkforward_report": "reports/btc_preopen/btc_sequence_ohlcv_walkforward_20261123.md",
+    "walkforward_metrics_csv": "reports/btc_preopen/btc_sequence_ohlcv_walkforward_metrics_20261123.csv",
+    "holdout_report": "reports/btc_preopen/btc_sequence_ohlcv_holdout_20261123.md"
+  },
+  "holdout_authorization": "User answer 2026-11-23: one holdout evaluation authorized after development models, features, calibration, thresholds, rules, boundaries and data identities are frozen. The historical holdout has been inspected by other studies (not unseen)."
+}

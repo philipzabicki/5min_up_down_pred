@@ -1,0 +1,275 @@
+{
+  "stages": {
+    "F1_n1_benchmark_train_windows": 37911,
+    "F2_n1_benchmark_train_windows": 42796,
+    "F1_n2_benchmark_train_windows": 37895,
+    "F2_n2_benchmark_train_windows": 42775,
+    "F1_n3_benchmark_train_windows": 37882,
+    "F2_n3_benchmark_train_windows": 42757,
+    "F1_n4_benchmark_train_windows": 37869,
+    "F2_n4_benchmark_train_windows": 42740,
+    "F1_n5_benchmark_train_windows": 37856,
+    "F2_n5_benchmark_train_windows": 42724
+  },
+  "n": {
+    "1": {
+      "H": {
+        "A": {
+          "temperature": 1.3446975313525016,
+          "prior_oof_rows": 17561,
+          "threshold_10pct": 0.5227532824379734,
+          "threshold_1pct": 0.5377613256394174
+        },
+        "B": {
+          "temperature": 1.1324239797966096,
+          "prior_oof_rows": 17561,
+          "threshold_10pct": 0.5335348473729447,
+          "threshold_1pct": 0.5517585579445538
+        }
+      },
+      "temperatures": {
+        "F1": {
+          "A": 1.926876953362937,
+          "B": 1.7721543270880327
+        },
+        "F2": {
+          "A": 1.403621259110962,
+          "B": 1.2614104666457575
+        },
+        "H": {
+          "A": 1.3446975313525016,
+          "B": 1.1324239797966096
+        }
+      }
+    },
+    "2": {
+      "H": {
+        "A": {
+          "temperature": 1.4849211335132821,
+          "prior_oof_rows": 17555,
+          "threshold_10pct": 0.2638410298937739,
+          "threshold_1pct": 0.2702454339389731
+        },
+        "B": {
+          "temperature": 1.0487768481334852,
+          "prior_oof_rows": 17555,
+          "threshold_10pct": 0.2835878216046332,
+          "threshold_1pct": 0.2989127593729687
+        }
+      },
+      "temperatures": {
+        "F1": {
+          "A": 2.15004618844227,
+          "B": 1.5541133025567277
+        },
+        "F2": {
+          "A": 1.2281764212862354,
+          "B": 1.1541336694917084
+        },
+        "H": {
+          "A": 1.4849211335132821,
+          "B": 1.0487768481334852
+        }
+      }
+    },
+    "3": {
+      "H": {
+        "A": {
+          "temperature": 1.7749522606653354,
+          "prior_oof_rows": 17549,
+          "threshold_10pct": 0.13301392718604094,
+          "threshold_1pct": 0.13921741589249761
+        },
+        "B": {
+          "temperature": 1.1574587359626505,
+          "prior_oof_rows": 17549,
+          "threshold_10pct": 0.14297551634340439,
+          "threshold_1pct": 0.15397976766349558
+        }
+      },
+      "temperatures": {
+        "F1": {
+          "A": 3.4159310407853636,
+          "B": 2.0283920895581558
+        },
+        "F2": {
+          "A": 1.976247036343952,
+          "B": 1.2778507190451143
+        },
+        "H": {
+          "A": 1.7749522606653354,
+          "B": 1.1574587359626505
+        }
+      }
+    },
+    "4": {
+      "H": {
+        "A": {
+          "temperature": 2.178009220382121,
+          "prior_oof_rows": 17543,
+          "threshold_10pct": 0.06812914681624176,
+          "threshold_1pct": 0.07271226826239463
+        },
+        "B": {
+          "temperature": 1.3083781984541853,
+          "prior_oof_rows": 17543,
+          "threshold_10pct": 0.07189263146888235,
+          "threshold_1pct": 0.07584264005795917
+        }
+      },
+      "temperatures": {
+        "F1": {
+          "A": 3.4861067853630074,
+          "B": 2.104751331320237
+        },
+        "F2": {
+          "A": 2.5764323612638025,
+          "B": 1.624210543736827
+        },
+        "H": {
+          "A": 2.178009220382121,
+          "B": 1.3083781984541853
+        }
+      }
+    },
+    "5": {
+      "H": {
+        "A": {
+          "temperature": 2.349722728973786,
+          "prior_oof_rows": 17537,
+          "threshold_10pct": 0.03441567656791793,
+          "threshold_1pct": 0.03542235909194803
+        },
+        "B": {
+          "temperature": 1.5524545903248028,
+          "prior_oof_rows": 17537,
+          "threshold_10pct": 0.0365802642875975,
+          "threshold_1pct": 0.038792143961264146
+        }
+      },
+      "temperatures": {
+        "F1": {
+          "A": 4.999999999992444,
+          "B": 2.5138142498658405
+        },
+        "F2": {
+          "A": 3.9054140975709974,
+          "B": 1.673456775351144
+        },
+        "H": {
+          "A": 2.349722728973786,
+          "B": 1.5524545903248028
+        }
+      }
+    }
+  },
+  "experiment_id": "E0051",
+  "config_sha256": "5a7cfd3678158cae14df0c53c40a669c72646699846490a458296fda46e911cc",
+  "inputs": {
+    "features_gen_0430.parquet": "e694a1070c7c474d0f5561b2b8c64f4d146dc7d0187a8958ae2196debd0c02b4",
+    "features_gen_0531.parquet": "6478fda9b4d6cee31820cebf98d430a95063a91503c6b58d8c637eeda53f8430",
+    "features_gen_0630.parquet": "71d11b15b3a2ec3c564ec9b13c6a07f7b85a41dd6cefc00c2455c3b01054892f",
+    "labels_official_development.parquet": "3ec8e39fc396f417cfb52d6e3e57e333dbc32d3fa913d033ee2434c761bfe41b",
+    "labels_proxy.parquet": "5898535b560b9e2a26255fa64f7b1cc050b7e1fe348564cfaced9f2ed43dea22"
+  },
+  "code": {
+    "features/btc_sequence_ohlcv.py": "4df16c0380ac24e67d460c9bfe7b16ec22581956a37d173762134f72b25bc65e",
+    "features/btc_series_nplus.py": "8438097397f8fc930a07183c3fcd28a34e3c5f9af92c3f5233762e0c238e2115",
+    "utils/btc_sequence_eval.py": "b72679bf7012946d35771e9c5f9d7cef1a17d78d187f6f424677c940fcc04611",
+    "run_btc_sequence_ohlcv_walkforward_20261123.py": "0144fbf1cc56b22e94559790c32d40fb062ebff58b569f4e2a57703cb7315ff2"
+  },
+  "h_models": {
+    "n1_A": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n1_A/model.txt",
+      "sha256": "f47de6e423a5ba6b2a1f29e8860c95c8130666d719e75b5d973cf848e6ba24cd",
+      "best_iteration": 92,
+      "train_rows_by_kind": {
+        "official": 51430
+      }
+    },
+    "n1_B": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n1_B/model.txt",
+      "sha256": "45176d19ee52442ac820f9c94d8f35289e882128c46b8459e734af8f33834f38",
+      "best_iteration": 137,
+      "train_rows_by_kind": {
+        "proxy": 577757,
+        "official": 51430
+      }
+    },
+    "n2_A": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n2_A/model.txt",
+      "sha256": "5df8505cd097bf544d878c2f4ca765714c747bcd79e9e9729b8e705c39954845",
+      "best_iteration": 59,
+      "train_rows_by_kind": {
+        "official": 51407
+      }
+    },
+    "n2_B": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n2_B/model.txt",
+      "sha256": "ce07409ea91c152e21e7750d7f6e541563e8b2ce0ce825fad206c3c7f9b0a3c1",
+      "best_iteration": 35,
+      "train_rows_by_kind": {
+        "proxy": 577751,
+        "official": 51407
+      }
+    },
+    "n3_A": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n3_A/model.txt",
+      "sha256": "86376b5880aef6615f252d3679c3b42efba01c66be31ba025a3f64cdb6c1bb7d",
+      "best_iteration": 29,
+      "train_rows_by_kind": {
+        "official": 51387
+      }
+    },
+    "n3_B": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n3_B/model.txt",
+      "sha256": "511dd843639b96180a9ed7a05d7f3409c295025c4d8b365054e75956e35a935c",
+      "best_iteration": 26,
+      "train_rows_by_kind": {
+        "proxy": 577745,
+        "official": 51387
+      }
+    },
+    "n4_A": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n4_A/model.txt",
+      "sha256": "12591fe19213934a313e64b3cb6232a5f5c06e6359f8848746926aaafc4906a1",
+      "best_iteration": 25,
+      "train_rows_by_kind": {
+        "official": 51368
+      }
+    },
+    "n4_B": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n4_B/model.txt",
+      "sha256": "fe03ea84eaa25ae00bba14bbbbf7cd2fae25d8306c9a4edae19beb02b5b53705",
+      "best_iteration": 27,
+      "train_rows_by_kind": {
+        "proxy": 577739,
+        "official": 51368
+      }
+    },
+    "n5_A": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n5_A/model.txt",
+      "sha256": "c7731709347f0c5359f130a6516a07d5dcfbacfef91c5aa3197b0756ddbe948c",
+      "best_iteration": 13,
+      "train_rows_by_kind": {
+        "official": 51350
+      }
+    },
+    "n5_B": {
+      "path": "data/analysis/polymarket/BTC/btc_sequence_ohlcv_20261123/walkforward/H_n5_B/model.txt",
+      "sha256": "b32ae20c0c189ddf13ae01bcba5013bcb971f7e297a62e48c5e6127cc47665c3",
+      "best_iteration": 22,
+      "train_rows_by_kind": {
+        "proxy": 577733,
+        "official": 51350
+      }
+    }
+  },
+  "frozen_at_utc": "2026-11-23T00:14:31.654044+00:00",
+  "holdout_label_rows_read": 0,
+  "python": "3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "cpu_count": 20,
+  "fit_seconds_total": 610.2,
+  "elapsed_seconds_this_invocation": 494.7
+}
