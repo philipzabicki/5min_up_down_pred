@@ -180,3 +180,7 @@ See [E0049 report](reports/btc_preopen/btc_D_parity_resume_readiness_control_202
 ## 2026-11-22 - E0050 n+ series study inventory (D0027/T0019)
 
 A new, separate research target was registered: per-`n` probabilities of n consecutive same-direction BTC 5m outcomes (n=2..7, user choice), with nested F1/F2 walk-forward, official Gamma primary and Binance proxy separate. The development-only inventory, label module and tests are complete; see E0050. No generator, model, calibration or benchmark has been run, so there is no predictive result. The earlier pyenv 3.14.4 interpreter is absent; E0050 uses the TrilevelOptTrader `.venv` (3.14.5), as approved by the user. Next: BASE25/Hyperliquid field-availability audit and a measured representative fit before the full campaign. All existing gates (E0037 FAILED, T0009 BLOCKED, `evaluation_authorized=false`) are unchanged.
+
+## 2026-11-23 - E0051 exact-sequence A/B from exchange OHLCV (D0028/T0020)
+
+New study completed: exact-sequence forecasts for n=1..5 official outcomes with variant A (official labels only) vs B (+ pre-Polymarket COIN-M proxy history), using frozen fold-local preopen_v1 generators. Development: B better in log loss for every n (pooled intervals exclude zero). Frozen holdout (evaluated once after freeze commit `d5c48bc`): both beat empirical benchmarks; B-A improvement significant only for n=5 and reversed in the single-price regime. Feature readiness NOT_PROVEN, so results are diagnostics. E0050 remains ACTIVE in parallel; all other gates are unchanged.

@@ -1095,3 +1095,10 @@ Full saved-product parity against the terminal checkpoint is exact, including ne
 ## E0050 / T0019 n+ series inventory - 2026-11-22
 
 Development-only support inventory for the separate n+ series study (D0027) is complete: the [support table](../reports/btc_preopen/btc_series_nplus_support_20261122.csv) and [manifest](../reports/btc_preopen/btc_series_nplus_inventory_20261122_manifest.json) were produced by `run_btc_series_nplus_inventory_20261122.py` from [config v1](../configs/research/btc_series_nplus_20261122_v1.json). n=2..7; F1/F2 official positives at n=5 are 299/500 and at n=7 79/105. Empirical prior rates are below 2^(1-n). Holdout rows materialized: 0; no fit. Next resumable step: audit BASE25 field availability on Hyperliquid 1m, pin the TrilevelOptTrader generator revision, and measure one representative generator-fit plus LightGBM-tuning run for a single n/fold to estimate the full campaign cost.
+
+## E0051 / T0020 exact-sequence OHLCV A/B - 2026-11-23
+
+- Audit/exports, development walk-forward (C0/F1/F2) and frozen holdout evaluation completed; see EXPERIMENTS.md E0051 and reports `btc_sequence_ohlcv_*_20261123`. Freeze commit `d5c48bc` precedes the holdout read.
+- Main finding: B (proxy long history) slightly improves official log loss in development for every n; on holdout only n=5 is significant and single-price windows favour A. Gains vs uniform are ~0.001-0.003 nats.
+- Completed: data audit, label/feature exports, A/B fits, calibration, benchmarks, bootstrap, holdout. Unproven: actual T-60s candle availability (feature_ready_at nominal), per-market settlement rule. Not done: selective 10%/1% comparison is uninformative because OOF thresholds did not transfer.
+- Next resumable step: none required for E0051. Possible follow-ups (separate authorization): sequence-tuned generators/selection, recency weighting of proxy rows, and live candle-receipt measurement.

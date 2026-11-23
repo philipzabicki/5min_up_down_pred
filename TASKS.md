@@ -315,3 +315,11 @@ Scope: D0027/E0050. Separate per-`n` (2..7) generator fit/selection, LightGBM tu
 Forbidden: holdout reads/materialization, policy/execution/PnL, live/shadow, orders, paid services.
 Acceptance: config, data/fold manifest, generator and model cards per `n`/fold, OOF predictions with the minimal record of the instruction, report, tests listed in the instruction, measured cost before long runs, status-log update.
 Progress (2026-11-22): label module `features/btc_series_nplus.py` with 12 tests; inventory runner and [support table](reports/btc_preopen/btc_series_nplus_support_20261122.csv) with [manifest](reports/btc_preopen/btc_series_nplus_inventory_20261122_manifest.json). Next: verify BASE25 field availability on Hyperliquid 1m (TrilevelOptTrader `perf/polars-numba`), pin the generator revision, then measure one representative generator fit plus LightGBM tuning for one `n`/fold before the full campaign.
+
+## T0020 - Exact-sequence models from exchange OHLCV, long-history A/B (2026-11-23)
+
+Status: DONE (development and one frozen holdout evaluation); feature readiness NOT_PROVEN.
+Priority: P1.
+Scope: D0028/E0051. Data/label audit and exports, A/B walk-forward for n=1..5, calibration, 10%/1% thresholds from earlier OOF, global and conditional empirical benchmarks, paired block bootstrap, frozen holdout evaluation by settlement-rule regime.
+Forbidden: live model/config changes, Chainlink acquisition, book reconstruction, order replay, PnL, orders.
+Result: see E0051. Blocked/unproven: actual T-60s availability of complete index/volume candles; per-market settlement rule beyond the E0033 calendar boundaries.
